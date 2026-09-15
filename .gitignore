@@ -141,3 +141,28 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Expo
+.expo/
+web-build/
+expo-env.d.ts
+
+# Generated native folders (Continuous Native Generation — `expo prebuild`)
+/ios
+/android
+
+# Native signing / credentials
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+
+# Metro
+.metro-health-check*
+
+# macOS
+.DS_Store
