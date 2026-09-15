@@ -1,0 +1,35 @@
+{
+  "name": "gymido-native",
+  "version": "1.0.0",
+  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "start": "cross-env APP_ENV=development expo start --dev-client",
+    "start:staging": "cross-env APP_ENV=staging expo start --dev-client",
+    "start:production": "cross-env APP_ENV=production expo start --dev-client",
+    "ios": "cross-env APP_ENV=development expo run:ios",
+    "android": "cross-env APP_ENV=development expo run:android",
+    "native:clean": "cross-env APP_ENV=development expo prebuild --clean",
+    "doctor": "expo-doctor"
+  },
+  "dependencies": {
+    "@react-navigation/native": "^7.4.1",
+    "@react-navigation/native-stack": "^7.19.1",
+    "axios": "^1.20.0",
+    "expo": "~57.0.23",
+    "expo-constants": "~57.0.18",
+    "expo-dev-client": "~57.0.19",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-mmkv": "^4.3.2",
+    "react-native-nitro-modules": "^0.37.1",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0",
+    "dotenv": "^17.4.2"
+  }
+}
