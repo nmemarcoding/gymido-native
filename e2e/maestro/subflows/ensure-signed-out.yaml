@@ -1,0 +1,34 @@
+# Leaves the app on the Welcome screen, signing out first if a session exists.
+appId: com.gymido.app
+---
+- runFlow: launch-dev-client.yaml
+# On a placeholder screen: go to Settings first.
+- runFlow:
+    when:
+      visible:
+        id: "placeholder-open-settings"
+    commands:
+      - tapOn:
+          id: "placeholder-open-settings"
+      - extendedWaitUntil:
+          visible:
+            id: "settings-sign-out"
+          timeout: 20000
+- runFlow:
+    when:
+      visible:
+        id: "settings-sign-out"
+    commands:
+      - tapOn:
+          id: "settings-sign-out"
+- runFlow:
+    when:
+      visible:
+        id: "account-unavailable-sign-out"
+    commands:
+      - tapOn:
+          id: "account-unavailable-sign-out"
+- extendedWaitUntil:
+    visible:
+      id: "welcome-log-in"
+    timeout: 60000

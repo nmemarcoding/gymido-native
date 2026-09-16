@@ -28,7 +28,7 @@ export default function SignInFailedScreen() {
         <Heading>Sign-in failed</Heading>
         <Body>Auth0 rejected the login request.</Body>
         <ErrorBox title="Something went wrong" message={signInError} />
-        <Button title="Try again" loading={retrying} onPress={handleRetry} />
+        <Button testID="sign-in-failed-try-again" title="Try again" loading={retrying} onPress={handleRetry} />
       </Card>
     </Screen>
   );

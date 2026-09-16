@@ -1,0 +1,13 @@
+# Spec §7.1: a signed-out cold start must never open Auth0 on its own.
+appId: com.gymido.app
+---
+- runFlow: subflows/ensure-signed-out.yaml
+- assertVisible: "Gymido"
+- assertVisible:
+    id: "welcome-log-in"
+- assertVisible:
+    id: "welcome-sign-up"
+# Anchored on the Google button: Auth0's field labels carry a trailing space
+# and Chrome does not always expose the form's field nodes, so either of those
+# would pass vacuously whether or not the page was open.
+- assertNotVisible: "Continue with Google"

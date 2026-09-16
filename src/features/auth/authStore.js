@@ -15,6 +15,8 @@ export const initialSessionState = Object.freeze({
   claims: null,
   profileMissing: false,
   meErrored: false,
+  // Mirrors the stored gymido-mode preference, which loads asynchronously.
+  workspace: 'member',
 });
 
 // In memory only. Roles come from the current token's claims and are never

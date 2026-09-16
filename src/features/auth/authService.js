@@ -6,7 +6,7 @@ import { setAccessTokenProvider } from '../../shared/api/client';
 import { env } from '../../shared/config/env';
 import { getProfile } from '../profile/api/profileApi';
 import { Workspace } from '../workspace/workspace';
-import { setWorkspace } from '../workspace/workspacePreference';
+import { loadWorkspace, setWorkspace } from '../workspace/workspacePreference';
 import { getMe } from './api/authApi';
 import { AUTH_SCOPE, auth0 } from './auth0Client';
 import { isDeadSession, isDecline, isNoCredentials } from './authErrors';
@@ -82,7 +82,8 @@ async function loadUser(credentials, claims) {
     }
   }
 
-  setState({ status: AuthStatus.signedIn, user, profileMissing, meErrored: false });
+  const workspace = await loadWorkspace();
+  setState({ status: AuthStatus.signedIn, user, profileMissing, meErrored: false, workspace });
 }
 
 async function authenticate(attempt) {
@@ -105,7 +106,7 @@ async function authenticate(attempt) {
 
   // Interactive logins only: trainers start in the trainer workspace.
   if (hasRole(claims, 'trainer')) {
-    setWorkspace(Workspace.trainer);
+    await setWorkspace(Workspace.trainer);
   }
   await loadUser(credentials, claims);
 }

@@ -1,0 +1,17 @@
+# Signs in with the member test account and checks the landing screen.
+# Requires -e MEMBER_EMAIL=... -e MEMBER_PASSWORD=... (see README).
+# A member with no profile lands on Onboarding (spec §4 profile gate).
+appId: com.gymido.app
+---
+- runFlow: subflows/ensure-signed-out.yaml
+- tapOn:
+    id: "welcome-log-in"
+- waitForAnimationToEnd:
+    timeout: 8000
+- runFlow: subflows/dismiss-browser-interstitials.yaml
+- runFlow: subflows/wait-for-login-form.yaml
+- runFlow: subflows/fill-login-form.yaml
+- extendedWaitUntil:
+    visible: "Signed in as ${MEMBER_EMAIL}"
+    timeout: 90000
+- assertVisible: "Onboarding|Home"

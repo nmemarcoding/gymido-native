@@ -23,7 +23,12 @@ export default function PlaceholderScreen({ title }) {
         <Body>Signed in as {user?.email ?? 'unknown'}</Body>
         <Body>Roles: {roles}</Body>
         <Body>Environment: {env.appEnv}</Body>
-        <Button title="Settings" variant="secondary" onPress={() => navigation.navigate(routes.Settings)} />
+        <Button
+          testID="placeholder-open-settings"
+          title="Settings"
+          variant="secondary"
+          onPress={() => navigation.navigate(routes.Settings)}
+        />
       </Card>
     </Screen>
   );

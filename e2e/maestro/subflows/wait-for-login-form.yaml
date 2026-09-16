@@ -1,0 +1,16 @@
+# Waits for Auth0's hosted login page to render in the system browser.
+#
+# Anchored on the Google button, not the email field, on purpose: Chrome does
+# not reliably expose the web form's *field* nodes (resource-id="username",
+# and the "Email address " label) in the accessibility tree, while the
+# surrounding links and buttons are always there. Waiting on the field made
+# flows fail on a page that was plainly rendered.
+#
+# "Continue with Google" also has no trailing space, unlike Auth0's field
+# labels — Maestro matches text as a full-string regex, so "Email address"
+# never matches "Email address ".
+appId: com.gymido.app
+---
+- extendedWaitUntil:
+    visible: "Continue with Google"
+    timeout: 90000
