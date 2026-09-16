@@ -13,8 +13,10 @@ Admin functionality is web-only and out of scope for this app.
 | Navigation | React Navigation 7 (native stack) |
 | State | Zustand |
 | HTTP | Axios (`src/shared/api/client.js`) |
-| Preferences | MMKV (`src/shared/storage/preferences.js`) |
+| Auth | `react-native-auth0` — Auth0 Universal Login in the system browser |
+| Preferences | AsyncStorage (`src/shared/storage/preferences.js`) |
 | Tokens | Auth0 Credentials Manager (Keychain / Keystore) — never MMKV or AsyncStorage |
+| Tests | Jest (`jest-expo`) for unit tests, Maestro for UI smoke tests |
 
 App identifier on both platforms: **`com.gymido.app`**.
 
@@ -33,7 +35,7 @@ App identifier on both platforms: **`com.gymido.app`**.
 
 ```bash
 npm install
-cp .env.example .env.development   # then fill in values
+cp .env.example .env.development   # already holds the shared dev values
 ```
 
 ### Environment files
@@ -43,11 +45,24 @@ cp .env.example .env.development   # then fill in values
 | Variable | Purpose |
 |---|---|
 | `API_BASE_URL` | Gymido backend API base URL |
-| `AUTH0_DOMAIN` | Auth0 tenant domain |
-| `AUTH0_CLIENT_ID` | Auth0 **Native** application client ID |
+| `AUTH0_DOMAIN` | Auth0 tenant domain (required; baked into the native build) |
+| `AUTH0_CLIENT_ID` | Auth0 **Native** application client ID (required) |
 | `AUTH0_AUDIENCE` | Auth0 API audience |
 
 All `.env.*` files except `.env.example` are gitignored. Everything in them is compiled into the app binary, so **never put secrets in them** — a native app has no client secret.
+
+## Authentication
+
+- Log in and Sign up open Auth0 Universal Login in the system browser (`ASWebAuthenticationSession` on iOS, Chrome Custom Tabs on Android). Never in a WebView — Google blocks OAuth there.
+- Callback / logout URLs registered for the Native application:
+  ```
+  com.gymido.app.auth0://gymido-dev.us.auth0.com/ios/com.gymido.app/callback
+  com.gymido.app.auth0://gymido-dev.us.auth0.com/android/com.gymido.app/callback
+  ```
+- Tokens live only in the Credentials Manager. Roles are read from the current ID token (`https://gymido.app/roles`) and never persisted.
+- Changing `AUTH0_DOMAIN` requires a native rebuild (`npm run native:clean`).
+
+Auth code lives in `src/features/auth/` — `authService.js` orchestrates login, sign-up, session restore, refresh on resume and logout.
 
 ## Running
 
@@ -83,6 +98,8 @@ npm run native:clean
 | `start`, `start:staging`, `start:production` | Metro for the dev client with that env |
 | `ios`, `android` | Native build + launch (development env) |
 | `native:clean` | Regenerate `ios/` and `android/` |
+| `test` | Unit tests (Jest) |
+| `e2e:android`, `e2e:ios` | Maestro UI smoke tests — see [e2e/maestro/README.md](e2e/maestro/README.md) |
 | `doctor` | `expo-doctor` dependency/config checks |
 
 ## Project structure
@@ -92,15 +109,23 @@ index.js                 # registers src/App
 app.config.js            # Expo config + env loading
 assets/                  # app icon, splash, adaptive icon
 src/
-  App.js                 # providers + NavigationContainer
-  features/              # one folder per feature area (auth, home, bookings, profile, trainer, ...)
-  navigation/            # navigators, route names, route guards
+  App.js                 # providers, NavigationContainer, auth lifecycle
+  features/              # one folder per feature area
+    auth/                # Auth0 integration, session store, auth screens
+    profile/             # change password
+    workspace/           # member / trainer workspace preference
+    home/, trainer/, onboarding/, settings/, placeholders/
+  navigation/            # navigator, route names, landing rules
   shared/
-    api/                 # Axios client
-    components/
+    api/                 # Axios client, API error helpers
+    components/          # design-system components
     config/              # runtime env
     hooks/
-    storage/             # MMKV preferences (never tokens)
+    storage/             # AsyncStorage preferences (never tokens)
+    theme/               # design tokens
+e2e/
+  maestro/               # UI smoke test flows + shared subflows
+  scripts/               # offline refresh check
 ```
 
-Code is organised by feature, not by file type.
+Code is organised by feature, not by file type. Unit tests sit next to the code as `*.test.js`.

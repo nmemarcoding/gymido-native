@@ -1,0 +1,4 @@
+# Only the numbered flows in this folder are tests; subflows/ holds shared
+# steps that are run via runFlow and would fail on their own.
+flows:
+  - "*.yaml"
