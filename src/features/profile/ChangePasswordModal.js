@@ -73,6 +73,7 @@ export default function ChangePasswordModal({ visible, onClose }) {
           <Heading>Change password</Heading>
           <Body>Set a new password for signing in. This updates your Auth0 login.</Body>
           <TextField
+            testID="change-password-new"
             label="New password"
             helperText="At least 8 characters, meeting your login password policy."
             value={password}
@@ -87,6 +88,7 @@ export default function ChangePasswordModal({ visible, onClose }) {
             onSubmitEditing={handleSubmit}
           />
           <TextField
+            testID="change-password-confirm"
             label="Confirm new password"
             error={error}
             value={confirmPassword}
@@ -101,8 +103,19 @@ export default function ChangePasswordModal({ visible, onClose }) {
             onSubmitEditing={handleSubmit}
           />
           <View style={styles.actions}>
-            <Button title="Change password" loading={saving} onPress={handleSubmit} />
-            <Button title="Cancel" variant="secondary" disabled={saving} onPress={handleCancel} />
+            <Button
+              testID="change-password-submit"
+              title="Change password"
+              loading={saving}
+              onPress={handleSubmit}
+            />
+            <Button
+              testID="change-password-cancel"
+              title="Cancel"
+              variant="secondary"
+              disabled={saving}
+              onPress={handleCancel}
+            />
           </View>
         </View>
       </KeyboardAvoidingView>

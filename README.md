@@ -14,9 +14,9 @@ Admin functionality is web-only and out of scope for this app.
 | State | Zustand |
 | HTTP | Axios (`src/shared/api/client.js`) |
 | Auth | `react-native-auth0` — Auth0 Universal Login in the system browser |
-| Preferences | MMKV (`src/shared/storage/preferences.js`) |
+| Preferences | AsyncStorage (`src/shared/storage/preferences.js`) |
 | Tokens | Auth0 Credentials Manager (Keychain / Keystore) — never MMKV or AsyncStorage |
-| Tests | Jest (`jest-expo`) |
+| Tests | Jest (`jest-expo`) for unit tests, Maestro for UI smoke tests |
 
 App identifier on both platforms: **`com.gymido.app`**.
 
@@ -99,6 +99,7 @@ npm run native:clean
 | `ios`, `android` | Native build + launch (development env) |
 | `native:clean` | Regenerate `ios/` and `android/` |
 | `test` | Unit tests (Jest) |
+| `e2e:android`, `e2e:ios` | Maestro UI smoke tests — see [e2e/maestro/README.md](e2e/maestro/README.md) |
 | `doctor` | `expo-doctor` dependency/config checks |
 
 ## Project structure
@@ -120,8 +121,11 @@ src/
     components/          # design-system components
     config/              # runtime env
     hooks/
-    storage/             # MMKV preferences (never tokens)
+    storage/             # AsyncStorage preferences (never tokens)
     theme/               # design tokens
+e2e/
+  maestro/               # UI smoke test flows + shared subflows
+  scripts/               # offline refresh check
 ```
 
 Code is organised by feature, not by file type. Unit tests sit next to the code as `*.test.js`.

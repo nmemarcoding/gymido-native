@@ -3,12 +3,13 @@ import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { colors, shadows } from '../theme/tokens';
 
 // Touch has no hover, so the pressed state stands in for web's hover styles.
-export default function Button({ title, onPress, variant = 'primary', loading = false, disabled = false }) {
+export default function Button({ title, onPress, variant = 'primary', loading = false, disabled = false, testID }) {
   const inactive = disabled || loading;
   const isPrimary = variant === 'primary';
 
   return (
     <Pressable
+      testID={testID}
       accessibilityRole="button"
       accessibilityLabel={title}
       accessibilityState={{ disabled: inactive, busy: loading }}

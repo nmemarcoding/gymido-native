@@ -9,7 +9,6 @@ import HomeScreen from '../features/home/HomeScreen';
 import OnboardingScreen from '../features/onboarding/OnboardingScreen';
 import SettingsScreen from '../features/settings/SettingsScreen';
 import TrainerDashboardScreen from '../features/trainer/TrainerDashboardScreen';
-import { getWorkspace } from '../features/workspace/workspacePreference';
 import { resolveLanding } from './resolveLanding';
 import { routes } from './routes';
 
@@ -34,6 +33,7 @@ export default function RootNavigator() {
   const profileMissing = useAuthStore((state) => state.profileMissing);
   const meErrored = useAuthStore((state) => state.meErrored);
   const pendingDestination = useAuthStore((state) => state.pendingDestination);
+  const workspace = useAuthStore((state) => state.workspace);
 
   const signedIn = status === AuthStatus.signedIn;
 
@@ -44,7 +44,7 @@ export default function RootNavigator() {
         pendingDestination,
         profileMissing,
         roles: user?.roles ?? [],
-        workspace: getWorkspace(),
+        workspace,
       })
     : null;
 

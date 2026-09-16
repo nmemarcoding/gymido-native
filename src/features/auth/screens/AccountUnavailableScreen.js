@@ -28,7 +28,7 @@ export default function AccountUnavailableScreen() {
           You signed in, but this login isn't connected to a Gymido account. If you normally sign in with an
           email and password, sign out and use that instead.
         </Body>
-        <Button title="Sign out" loading={signingOut} onPress={handleSignOut} />
+        <Button testID="account-unavailable-sign-out" title="Sign out" loading={signingOut} onPress={handleSignOut} />
       </Card>
     </Screen>
   );

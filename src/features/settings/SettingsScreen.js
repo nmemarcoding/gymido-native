@@ -27,8 +27,18 @@ export default function SettingsScreen() {
         <Eyebrow>Placeholder</Eyebrow>
         <Heading>Settings</Heading>
         <Body>Only the account actions from the Login & Sign Up spec live here for now.</Body>
-        <Button title="Change password" onPress={() => setChangePasswordVisible(true)} />
-        <Button title="Sign out" variant="secondary" loading={signingOut} onPress={handleSignOut} />
+        <Button
+          testID="settings-change-password"
+          title="Change password"
+          onPress={() => setChangePasswordVisible(true)}
+        />
+        <Button
+          testID="settings-sign-out"
+          title="Sign out"
+          variant="secondary"
+          loading={signingOut}
+          onPress={handleSignOut}
+        />
       </Card>
       <ChangePasswordModal visible={changePasswordVisible} onClose={() => setChangePasswordVisible(false)} />
     </Screen>

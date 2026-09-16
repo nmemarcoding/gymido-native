@@ -10,8 +10,8 @@ export default function WelcomeScreen() {
     <Screen>
       <Card>
         <Heading>Gymido</Heading>
-        <Button title="Log in" onPress={login} />
-        <Button title="Sign up" variant="secondary" onPress={signup} />
+        <Button testID="welcome-log-in" title="Log in" onPress={login} />
+        <Button testID="welcome-sign-up" title="Sign up" variant="secondary" onPress={signup} />
       </Card>
     </Screen>
   );
