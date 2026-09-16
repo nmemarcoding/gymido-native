@@ -1,0 +1,22 @@
+# Spec §4: fewer than 3 cancels in 60s recover silently; the 3rd shows the
+# Sign-in failed card.
+appId: com.gymido.app
+---
+- runFlow: subflows/ensure-signed-out.yaml
+- repeat:
+    times: 3
+    commands:
+      - tapOn:
+          id: "welcome-log-in"
+      - waitForAnimationToEnd:
+          timeout: 8000
+      - runFlow: subflows/dismiss-browser-interstitials.yaml
+      - runFlow: subflows/wait-for-login-form.yaml
+      - runFlow: subflows/cancel-universal-login.yaml
+      - extendedWaitUntil:
+          visible: "Gymido|Sign-in failed"
+          timeout: 60000
+- assertVisible: "Sign-in failed"
+- assertVisible: "Auth0 rejected the login request."
+- assertVisible:
+    id: "sign-in-failed-try-again"

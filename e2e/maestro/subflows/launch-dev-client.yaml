@@ -1,0 +1,73 @@
+# Cold-launches the app with the JS bundle loaded.
+# `launchApp` on its own stops at the Expo dev launcher screen, so open the
+# dev-client deep link instead. Metro must be running (`npm start`).
+# Android reaches the host through 10.0.2.2; the iOS simulator shares localhost.
+# For a release/standalone build, replace the body with `- launchApp`.
+appId: com.gymido.app
+---
+# Close the browser first. A previous flow can leave a Custom Tab half-open
+# (and several Chrome processes behind), which swallows the deep link and
+# leaves the dev launcher up with no app-root.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - stopApp: "com.android.chrome"
+- pressKey: Home
+- stopApp
+# Let the dev client settle; a deep link fired immediately after the kill is
+# sometimes dropped and leaves the app on the launcher screen.
+- waitForAnimationToEnd:
+    timeout: 3000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - openLink: "exp+gymido-native://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A8081"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - openLink: "exp+gymido-native://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081"
+# Bounded, non-failing waits with two retries: the bundle can take a while, and
+# a dropped deep link leaves the dev launcher up with no app-root.
+- waitForAnimationToEnd:
+    timeout: 15000
+- runFlow:
+    when:
+      notVisible:
+        id: "app-root"
+    commands:
+      - runFlow:
+          when:
+            platform: Android
+          commands:
+            - openLink: "exp+gymido-native://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A8081"
+      - runFlow:
+          when:
+            platform: iOS
+          commands:
+            - openLink: "exp+gymido-native://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081"
+      - waitForAnimationToEnd:
+          timeout: 20000
+- runFlow:
+    when:
+      notVisible:
+        id: "app-root"
+    commands:
+      - runFlow:
+          when:
+            platform: Android
+          commands:
+            - openLink: "exp+gymido-native://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A8081"
+      - runFlow:
+          when:
+            platform: iOS
+          commands:
+            - openLink: "exp+gymido-native://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081"
+# Fails fast and clearly if the bundle never loads (Metro down, wrong host):
+# the dev launcher screen has no app-root.
+- extendedWaitUntil:
+    visible:
+      id: "app-root"
+    timeout: 90000

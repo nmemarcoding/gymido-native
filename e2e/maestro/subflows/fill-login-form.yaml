@@ -1,0 +1,59 @@
+# Fills and submits Auth0's hosted login form.
+# Requires MEMBER_EMAIL and MEMBER_PASSWORD (passed with -e).
+#
+# Android exposes the form's DOM ids (username/password) once the page is
+# interacted with, but not always before that, so each tap falls back to the
+# field's on-screen position when the id is missing.
+appId: com.gymido.app
+---
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runFlow:
+          when:
+            visible:
+              id: "username"
+          commands:
+            - tapOn:
+                id: "username"
+      - runFlow:
+          when:
+            notVisible:
+              id: "username"
+          commands:
+            - tapOn:
+                point: "50%,33%"
+      - inputText: ${MEMBER_EMAIL}
+      - runFlow:
+          when:
+            visible:
+              id: "password"
+          commands:
+            - tapOn:
+                id: "password"
+      - runFlow:
+          when:
+            notVisible:
+              id: "password"
+          commands:
+            - tapOn:
+                point: "50%,39%"
+      - inputText: ${MEMBER_PASSWORD}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: ".*Email address.*"
+      - inputText: ${MEMBER_EMAIL}
+      - tapOn: ".*Password.*"
+      - inputText: ${MEMBER_PASSWORD}
+# Android only: hideKeyboard fails on iOS ("Couldn't hide the keyboard") because
+# the hosted page's inputs are web fields with no standard dismiss action.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+# "Continue" has no trailing space, so it matches directly.
+- tapOn: "Continue"

@@ -1,0 +1,19 @@
+# Spec §4: sign out lands on Welcome, not back in Auth0.
+# Runs signed in — execute after 04.
+appId: com.gymido.app
+---
+- runFlow: subflows/ensure-signed-in.yaml
+- runFlow:
+    when:
+      visible:
+        id: "placeholder-open-settings"
+    commands:
+      - tapOn:
+          id: "placeholder-open-settings"
+- tapOn:
+    id: "settings-sign-out"
+- extendedWaitUntil:
+    visible:
+      id: "welcome-log-in"
+    timeout: 60000
+- assertNotVisible: "Continue with Google"

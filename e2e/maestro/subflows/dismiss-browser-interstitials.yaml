@@ -1,0 +1,43 @@
+# Clears anything the system browser puts in front of the hosted Auth0 page.
+# A freshly booted Android emulator shows Chrome first-run and promo dialogs
+# ("Use without an account", notification promos) that cover the Custom Tab, so
+# the login form never appears and flows fail waiting for "Email address".
+# Every tap is conditional, so this is a no-op once the browser is past them.
+appId: com.gymido.app
+---
+# iOS shows a system consent sheet before the hosted page loads:
+# “Gymido” Wants to Use “gymido-dev.us.auth0.com” to Sign In.
+# Matched with a regex on purpose — Maestro matches text as a FULL-string
+# regex, so a bare "Wants to Use" never matches that title and the sheet is
+# left up, which looks exactly like the hosted page failing to load.
+# Scoped to the moment right after tapping Log in, so it cannot collide with
+# Auth0's own Continue button.
+- runFlow:
+    when:
+      platform: iOS
+      visible: ".*Wants to Use.*"
+    commands:
+      - tapOn: "Continue"
+      - waitForAnimationToEnd:
+          timeout: 4000
+- runFlow:
+    when:
+      visible: "Use without an account"
+    commands:
+      - tapOn: "Use without an account"
+      - waitForAnimationToEnd:
+          timeout: 4000
+- runFlow:
+    when:
+      visible: "No thanks"
+    commands:
+      - tapOn: "No thanks"
+      - waitForAnimationToEnd:
+          timeout: 4000
+- runFlow:
+    when:
+      visible: "Got it"
+    commands:
+      - tapOn: "Got it"
+      - waitForAnimationToEnd:
+          timeout: 4000

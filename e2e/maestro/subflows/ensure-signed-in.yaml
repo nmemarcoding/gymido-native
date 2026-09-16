@@ -1,0 +1,25 @@
+# Leaves the app on a signed-in screen, logging in first if needed.
+#
+# Flows must not assume run order: Maestro does not execute files
+# alphabetically (observed order: 04, 06, 01, 03, 02, 05), so a flow that needs
+# a session has to establish it itself.
+#
+# Requires MEMBER_EMAIL / MEMBER_PASSWORD when a login is actually needed.
+appId: com.gymido.app
+---
+- runFlow: launch-dev-client.yaml
+- runFlow:
+    when:
+      visible:
+        id: "welcome-log-in"
+    commands:
+      - tapOn:
+          id: "welcome-log-in"
+      - waitForAnimationToEnd:
+          timeout: 8000
+      - runFlow: dismiss-browser-interstitials.yaml
+      - runFlow: wait-for-login-form.yaml
+      - runFlow: fill-login-form.yaml
+- extendedWaitUntil:
+    visible: "Home|Onboarding|Trainer dashboard|Settings"
+    timeout: 90000
