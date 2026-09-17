@@ -1,64 +1,100 @@
-# iOS offline refresh — real-device check (AWS Device Farm)
+# iOS offline refresh — real-device check
 
-Verifies the one thing the simulator cannot: that a forced token refresh with **no
+Verifies the one thing a simulator cannot: that a forced token refresh with **no
 network** is treated as transient, so an offline user keeps their session instead
 of being pushed back through Auth0 (spec §4).
 
-`offline-refresh-check.sh ios` is an *approximation* (unreachable host, not a
+`offline-refresh-check.sh ios` is only an *approximation* (unreachable host, not a
 dropped radio). This is the real check.
 
-> Running this is outside the mobile repo — it uploads a build to a third-party
-> device cloud and signs in against the live Auth0 tenant and API. Get explicit
-> sign-off before running it.
+---
 
-## Cost
+## Result — 2026-09-17: PASS
 
-Metered remote access is about **$0.17/device-minute**, no subscription; a ~15
-minute session is roughly **$2.50**, and the first 1,000 device-minutes are free.
+| | |
+|---|---|
+| Device | iPhone 16 Pro Max, physical |
+| Build | Release, JS embedded, `APP_ENV=development`, free personal-team signing |
+| Observed | Stayed on **Home** throughout — before, during and after reopening the app in Airplane Mode |
+| Recovery | Airplane Mode off, background/foreground → back to normal |
 
-## Build to upload
+The app treats an offline refresh failure as transient on iOS, matching Android
+(`NO_NETWORK` → session kept). No change to `src/features/auth/authErrors.js` was
+needed.
 
-A **release build with JS embedded** — Metro is not reachable from the device
-cloud, so a dev client is useless there.
+Re-run this after any change to the refresh or error-classification path
+(`authService.refreshOnResume`, `authErrors.isDeadSession` /
+`isTransientCredentialsError`).
+
+---
+
+## Procedure (physical device, free Apple ID team)
+
+A free personal team is sufficient — no Apple Developer Program purchase. The
+build expires after 7 days.
+
+### One-time setup
+
+On the Mac:
+- Xcode → Settings → Accounts → add the Apple ID (creates a "Personal Team")
+- After an Xcode major upgrade: `sudo xcodebuild -license accept && sudo xcodebuild -runFirstLaunch`
+  (`devicectl`, `simctl` and CocoaPods all fail until this is done)
+
+On the phone:
+- Connect by USB, unlock, tap **Trust This Computer**
+- Settings → Privacy & Security → **Developer Mode** → on → restart
+
+### Build and install
 
 ```bash
-npx cross-env APP_ENV=development expo run:ios --configuration Release
+xcrun devicectl list devices                                       # device UDID
+defaults read com.apple.dt.Xcode IDEProvisioningTeamByIdentifier   # Team ID, no GUI hunting
+npm run native:clean                                               # regenerate ios/ (needed after an Xcode upgrade)
+
+cd ios && xcodebuild -workspace Gymido.xcworkspace -scheme Gymido \
+  -configuration Release -destination "id=<udid>" \
+  -allowProvisioningUpdates DEVELOPMENT_TEAM=<teamid> CODE_SIGN_STYLE=Automatic \
+  -derivedDataPath /tmp/gymido-device && cd ..
+
+xcrun devicectl device install app --device <udid> \
+  /tmp/gymido-device/Build/Products/Release-iphoneos/Gymido.app
 ```
 
-Take the resulting `.app`, package it as a signed `.ipa`, and upload that. Device
-Farm needs a real-device `.ipa`; a simulator build will be rejected.
+`npx expo run:ios --device` refuses with **"No code signing certificates are
+available to use"** when no certificate exists yet — it checks for one rather than
+creating it. `xcodebuild -allowProvisioningUpdates` creates the certificate and
+provisioning profile and registers the device, so use it for the first build.
 
-## Session steps
+**Release, not a dev client**, on purpose: a dev client pulls JS from Metro over
+the network, and Airplane Mode kills that too, so the app would fail for reasons
+unrelated to auth.
 
-1. Device Farm → create/choose a project → **Remote access** → start a session on
-   a real iPhone (sessions cap at 150 minutes).
-2. Install the uploaded build and launch it.
-3. Sign in with the member test account (`MEMBER_EMAIL` / `MEMBER_PASSWORD` from
-   `.env.e2e.local`). Confirm a signed-in screen (Home or Onboarding).
-4. Apply network shaping: set **100% packet loss** (or the lowest possible
-   bandwidth) for the device under test.
-5. Background the app, wait ~5 seconds, foreground it. That triggers the forced
-   refresh on resume.
-6. Watch what the app does for ~30 seconds.
-7. Restore the network, background/foreground once more, and confirm the app
-   recovers.
+Then on the phone: Settings → General → **VPN & Device Management** → trust the
+developer certificate. Free-team apps will not launch until this is done; that is
+not a signing failure.
 
-## What counts as pass / fail
+### Test
 
-Judge by **on-screen behaviour**, not logs: a release build has no Metro console,
-so the `[auth] refreshOnResume:` line is not visible.
+1. Launch the app, sign in with the member test account (`.env.e2e.local`).
+2. Confirm a signed-in screen (Home or Onboarding).
+3. **Airplane Mode on.**
+4. Background the app, wait ~5s, foreground it — this triggers the refresh on resume.
+5. Watch for ~30s.
+6. Airplane Mode off, background/foreground, confirm recovery.
 
-- **Pass** — the app stays on its signed-in screen while offline. Individual
-  screens may show their own load errors; that is expected.
-- **Fail** — the app returns to Welcome, or opens Auth0's hosted login. That
-  means the offline failure was classified as a dead session, which would sign
-  out any user who loses signal.
+**Pass:** stays on the signed-in screen. Screens showing their own load errors is
+expected. **Fail:** returns to Welcome or opens Auth0's hosted login — an offline
+failure misread as a dead session, which would sign out any user who loses signal.
 
-Device Farm records video and device/network logs for the session; keep them with
-the result either way.
+Judge by **on-screen behaviour**: a release build has no Metro console, so the
+`[auth] refreshOnResume:` line is invisible.
 
-## Caveat
+---
 
-100% packet loss is not identical to a switched-off radio: iOS may surface a
-different `URLError` to the SDK. If the result is ambiguous, the definitive check
-is airplane mode on a physical device in hand.
+## Appendix: AWS Device Farm (not used)
+
+If no physical device is available, remote-access sessions on real iOS hardware
+support network shaping (~$0.17/device-minute, 1,000 free device-minutes). It
+needs a signed `.ipa` and an AWS account, and its 100% packet loss is not
+identical to a switched-off radio. The physical-device path above is cheaper and
+more faithful.
