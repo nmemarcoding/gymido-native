@@ -1,0 +1,30 @@
+# Spec §4: a backend-deactivated user gets the Account-unavailable screen.
+#
+# Auth0 still authenticates the account — deactivation lives in the backend
+# (is_active=false), which makes GET /auth/me return 401. authService maps any
+# non-network /auth/me failure to meErrored, and meErrored is checked before
+# every other landing rule, so this never reaches Home or Onboarding.
+#
+# Uses a throwaway account on purpose: the member account (backend id 27073)
+# drives flows 04/05/06 and must stay active.
+#
+# Requires -e DEACTIVATED_EMAIL=... -e DEACTIVATED_PASSWORD=... (see README).
+appId: com.gymido.app
+---
+- runFlow:
+    file: subflows/sign-in-as.yaml
+    env:
+      LOGIN_EMAIL: ${DEACTIVATED_EMAIL}
+      LOGIN_PASSWORD: ${DEACTIVATED_PASSWORD}
+- extendedWaitUntil:
+    visible:
+      id: "account-unavailable-sign-out"
+    timeout: 90000
+- assertNotVisible: "Signed in as ${DEACTIVATED_EMAIL}"
+# Sign out so the next flow starts from Welcome rather than a dead session.
+- tapOn:
+    id: "account-unavailable-sign-out"
+- extendedWaitUntil:
+    visible:
+      id: "welcome-log-in"
+    timeout: 60000

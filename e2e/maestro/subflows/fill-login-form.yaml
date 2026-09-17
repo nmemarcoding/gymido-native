@@ -1,5 +1,13 @@
 # Fills and submits Auth0's hosted login form.
-# Requires MEMBER_EMAIL and MEMBER_PASSWORD (passed with -e).
+#
+# Requires LOGIN_EMAIL and LOGIN_PASSWORD. Callers pass them per account, so
+# this subflow is not tied to the member fixture:
+#
+#   - runFlow:
+#       file: subflows/fill-login-form.yaml
+#       env:
+#         LOGIN_EMAIL: ${TRAINER_EMAIL}
+#         LOGIN_PASSWORD: ${TRAINER_PASSWORD}
 #
 # Android exposes the form's DOM ids (username/password) once the page is
 # interacted with, but not always before that, so each tap falls back to the
@@ -24,7 +32,7 @@ appId: com.gymido.app
           commands:
             - tapOn:
                 point: "50%,33%"
-      - inputText: ${MEMBER_EMAIL}
+      - inputText: ${LOGIN_EMAIL}
       - runFlow:
           when:
             visible:
@@ -39,15 +47,15 @@ appId: com.gymido.app
           commands:
             - tapOn:
                 point: "50%,39%"
-      - inputText: ${MEMBER_PASSWORD}
+      - inputText: ${LOGIN_PASSWORD}
 - runFlow:
     when:
       platform: iOS
     commands:
       - tapOn: ".*Email address.*"
-      - inputText: ${MEMBER_EMAIL}
+      - inputText: ${LOGIN_EMAIL}
       - tapOn: ".*Password.*"
-      - inputText: ${MEMBER_PASSWORD}
+      - inputText: ${LOGIN_PASSWORD}
 # Android only: hideKeyboard fails on iOS ("Couldn't hide the keyboard") because
 # the hosted page's inputs are web fields with no standard dismiss action.
 - runFlow:

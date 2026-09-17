@@ -1,0 +1,40 @@
+# Spec §4 landing rules, trainer account.
+#
+# What this proves: the tenant Action puts an Auth0 RBAC role into the
+# `https://gymido.app/roles` claim and the app reads it. The placeholder screens
+# print "Roles: …", so the assertion reads it straight off the device.
+# Verified 2026-09-17 on Android: "Roles: Trainer" rendered.
+#
+# The Auth0 role is "Trainer" (capital T) while roles.js compares
+# case-insensitively, so the assertion is deliberately loose on case.
+#
+# Why the landing is Onboarding and not Trainer dashboard: resolveLanding checks
+# profileMissing BEFORE any role rule, and this account was created through the
+# Management API, so it has no backend profile and /profile 404s. That ordering
+# is the spec, not a bug.
+#
+# KNOWN GAP: the Trainer-dashboard branch of resolveLanding is not reachable
+# from the app today — it needs a trainer WITH a profile, and OnboardingScreen
+# is still a placeholder with no profile-creation form. resolveLanding.test.js
+# covers the branch in unit form. Revisit this flow when onboarding ships.
+#
+# Requires -e TRAINER_EMAIL=... -e TRAINER_PASSWORD=... (see README).
+#
+# Side effect: an interactive trainer login sets the stored workspace to
+# "trainer" and that survives sign-out by design (workspacePreference.js), so
+# this flow leaves state behind. Harmless — the landing rules only read the
+# workspace for users who actually hold the trainer role.
+appId: com.gymido.app
+---
+- runFlow:
+    file: subflows/sign-in-as.yaml
+    env:
+      LOGIN_EMAIL: ${TRAINER_EMAIL}
+      LOGIN_PASSWORD: ${TRAINER_PASSWORD}
+- extendedWaitUntil:
+    visible: "Signed in as ${TRAINER_EMAIL}"
+    timeout: 90000
+- assertVisible: "Roles: .*[Tt]rainer.*"
+# Profile gate wins over the role rule; see the note above.
+- assertVisible: "Onboarding"
+- assertNotVisible: "Account unavailable"

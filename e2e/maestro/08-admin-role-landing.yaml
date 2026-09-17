@@ -1,0 +1,32 @@
+# Spec §4 landing rules, admin account.
+#
+# What this proves: the `admin` RBAC role reaches the app in the
+# `https://gymido.app/roles` claim, and mobile gives an admin no admin surface.
+# Verified 2026-09-17 on Android: "Roles: admin" rendered.
+#
+# Why the landing is Onboarding and not Home: resolveLanding checks
+# profileMissing BEFORE the admin rule, and this account was created through the
+# Management API, so it has no backend profile and /profile 404s. Either way the
+# point holds — an admin gets an ordinary member screen, never an admin one.
+#
+# KNOWN GAP: same as 07 — the admin→Home branch needs an account WITH a profile,
+# which the app cannot create while OnboardingScreen is a placeholder.
+# resolveLanding.test.js covers the branch in unit form.
+#
+# Requires -e ADMIN_EMAIL=... -e ADMIN_PASSWORD=... (see README).
+appId: com.gymido.app
+---
+- runFlow:
+    file: subflows/sign-in-as.yaml
+    env:
+      LOGIN_EMAIL: ${ADMIN_EMAIL}
+      LOGIN_PASSWORD: ${ADMIN_PASSWORD}
+- extendedWaitUntil:
+    visible: "Signed in as ${ADMIN_EMAIL}"
+    timeout: 90000
+- assertVisible: "Roles: .*[Aa]dmin.*"
+# Profile gate wins over the role rule; see the note above.
+- assertVisible: "Onboarding"
+# The real invariant: no admin surface on mobile, whatever the landing.
+- assertNotVisible: "Trainer dashboard"
+- assertNotVisible: "Account unavailable"

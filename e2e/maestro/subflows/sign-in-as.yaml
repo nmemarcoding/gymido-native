@@ -1,0 +1,21 @@
+# Signs in from a cold, signed-out start with whichever account the caller names.
+#
+# Requires LOGIN_EMAIL / LOGIN_PASSWORD; they propagate to fill-login-form.
+# Leaves the app on whatever screen the landing rules choose — the caller
+# asserts that, because it is the thing under test.
+#
+#   - runFlow:
+#       file: subflows/sign-in-as.yaml
+#       env:
+#         LOGIN_EMAIL: ${TRAINER_EMAIL}
+#         LOGIN_PASSWORD: ${TRAINER_PASSWORD}
+appId: com.gymido.app
+---
+- runFlow: ensure-signed-out.yaml
+- tapOn:
+    id: "welcome-log-in"
+- waitForAnimationToEnd:
+    timeout: 8000
+- runFlow: dismiss-browser-interstitials.yaml
+- runFlow: wait-for-login-form.yaml
+- runFlow: fill-login-form.yaml

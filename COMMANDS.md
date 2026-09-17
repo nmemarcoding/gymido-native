@@ -167,7 +167,25 @@ maestro test -p android e2e/maestro/01-welcome-no-auto-redirect.yaml
 maestro test --udid <simulator-udid> e2e/maestro/02-login-opens-universal-login.yaml
 ```
 
-Credentials live in `.env.e2e.local` (gitignored). See `e2e/maestro/README.md` for what each flow covers and a troubleshooting table.
+Role-landing flows (07-09) each need their own account. Source the env file so secrets stay off the command line:
+
+```bash
+set -a && . ./.env.e2e.local && set +a
+maestro test -p android e2e/maestro/07-trainer-role-landing.yaml \
+  -e TRAINER_EMAIL="$TRAINER_EMAIL" -e TRAINER_PASSWORD="$TRAINER_PASSWORD"
+maestro test -p android e2e/maestro/08-admin-role-landing.yaml \
+  -e ADMIN_EMAIL="$ADMIN_EMAIL" -e ADMIN_PASSWORD="$ADMIN_PASSWORD"
+maestro test -p android e2e/maestro/09-deactivated-account.yaml \
+  -e DEACTIVATED_EMAIL="$DEACTIVATED_EMAIL" -e DEACTIVATED_PASSWORD="$DEACTIVATED_PASSWORD"
+```
+
+The Android emulator needs at least 4 GB of RAM or Maestro reads an empty view hierarchy and every assertion fails while the app is fine:
+
+```bash
+emulator -avd Pixel_API_36 -memory 6144 -no-snapshot-load
+```
+
+Credentials live in `.env.e2e.local` (gitignored) — treat that file as **live admin credentials**, not just test config. It currently has no `MEMBER_*` entries, so flows 04-06 need the member password supplied separately. See `e2e/maestro/README.md` for what each flow covers and a troubleshooting table.
 
 Offline refresh behaviour:
 
