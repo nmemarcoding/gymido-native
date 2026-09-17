@@ -99,14 +99,30 @@ Once the native app is installed, day-to-day JS work only needs Metro (`npm star
 
 ```bash
 npx expo run:android --device            # pick your USB device; needs USB debugging enabled
-npx expo run:ios --device                # pick your iPhone; needs a signing identity
 ```
 
-iOS on hardware needs an Apple Developer signing identity and provisioning profile. Check what you have:
+iOS needs a signing identity. A **free personal Apple ID team** is enough for a test build on your own device; that build expires after 7 days.
+
+One-time — Mac: Xcode → Settings → Accounts → add your Apple ID. Phone: connect by USB, unlock, tap **Trust This Computer**, then Settings → Privacy & Security → **Developer Mode** → on → restart.
 
 ```bash
-security find-identity -v -p codesigning     # "0 valid identities found" means you cannot build for a real device
+xcrun devicectl list devices                                       # device UDID
+defaults read com.apple.dt.Xcode IDEProvisioningTeamByIdentifier   # your Team ID
 ```
+
+`npx expo run:ios --device <udid>` fails with "No code signing certificates are available to use" until a certificate exists — it checks for one rather than creating it. This creates it and installs:
+
+```bash
+cd ios && xcodebuild -workspace Gymido.xcworkspace -scheme Gymido \
+  -configuration Release -destination "id=<udid>" \
+  -allowProvisioningUpdates DEVELOPMENT_TEAM=<teamid> CODE_SIGN_STYLE=Automatic \
+  -derivedDataPath /tmp/gymido-device && cd ..
+
+xcrun devicectl device install app --device <udid> \
+  /tmp/gymido-device/Build/Products/Release-iphoneos/Gymido.app
+```
+
+Requires the phone unlocked and connected. After installing, trust the certificate on the phone: Settings → General → **VPN & Device Management**. The app will not launch before that. See `e2e/scripts/ios-offline-real-device.md` for the offline test this build is used for.
 
 ---
 
@@ -194,6 +210,10 @@ npx cross-env APP_ENV=staging expo config --type public
 ## Troubleshooting
 
 Commands worth reaching for, in rough order of how often they help.
+
+```bash
+sudo xcodebuild -license accept && sudo xcodebuild -runFirstLaunch   # after an Xcode major upgrade; devicectl, simctl and pods all fail until this is done
+```
 
 ```bash
 npx expo start --clear                                   # restart Metro with a cleared cache
