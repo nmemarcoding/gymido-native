@@ -10,7 +10,11 @@ appId: com.gymido.app
     timeout: 8000
 - runFlow: subflows/dismiss-browser-interstitials.yaml
 - runFlow: subflows/wait-for-login-form.yaml
-- runFlow: subflows/fill-login-form.yaml
+- runFlow:
+    file: subflows/fill-login-form.yaml
+    env:
+      LOGIN_EMAIL: ${MEMBER_EMAIL}
+      LOGIN_PASSWORD: ${MEMBER_PASSWORD}
 - extendedWaitUntil:
     visible: "Signed in as ${MEMBER_EMAIL}"
     timeout: 90000

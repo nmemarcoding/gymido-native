@@ -9,6 +9,7 @@ UI smoke tests for the Login & Sign Up flow, run against the dev client on an iO
 - The dev client installed on the device: `npm run ios` / `npm run android`
 - Metro running: `npm start`
 - A member test account in the Auth0 dev tenant
+- For flows 07-09, the trainer / admin / deactivated test accounts. Credentials live in gitignored `.env.e2e.local`; that file holds **live admin credentials**, so never commit or quote it.
 
 ## Running
 
@@ -21,6 +22,15 @@ maestro test -p android e2e/maestro \
 
 # Single flow on a specific device
 maestro test --udid <simulator-udid> e2e/maestro/02-login-opens-universal-login.yaml
+
+# Role-landing flows (07-09). Source the gitignored env file rather than typing secrets.
+set -a && . ./.env.e2e.local && set +a
+maestro test -p android e2e/maestro/07-trainer-role-landing.yaml \
+  -e TRAINER_EMAIL="$TRAINER_EMAIL" -e TRAINER_PASSWORD="$TRAINER_PASSWORD"
+maestro test -p android e2e/maestro/08-admin-role-landing.yaml \
+  -e ADMIN_EMAIL="$ADMIN_EMAIL" -e ADMIN_PASSWORD="$ADMIN_PASSWORD"
+maestro test -p android e2e/maestro/09-deactivated-account.yaml \
+  -e DEACTIVATED_EMAIL="$DEACTIVATED_EMAIL" -e DEACTIVATED_PASSWORD="$DEACTIVATED_PASSWORD"
 ```
 
 Never commit credentials. Pass them with `-e`, from your shell or `.env.e2e.local`.
@@ -35,8 +45,13 @@ Never commit credentials. Pass them with `-e`, from your shell or `.env.e2e.loca
 | `04-login-lands-signed-in` | Login succeeds and lands on the screen the landing rules choose |
 | `05-change-password-validation` | Length and mismatch errors, on submit only |
 | `06-sign-out` | Sign out returns to Welcome |
+| `07-trainer-role-landing` | A trainer's RBAC role reaches the app; profile gate decides the landing |
+| `08-admin-role-landing` | An admin's role reaches the app and mobile gives them no admin surface |
+| `09-deactivated-account` | A backend-deactivated user gets Account unavailable, not Home |
 
-`subflows/` holds shared steps: `launch-dev-client`, `ensure-signed-out`, `dismiss-browser-interstitials`, and `cancel-universal-login`, which differs per platform.
+`subflows/` holds shared steps: `launch-dev-client`, `ensure-signed-out`, `ensure-signed-in`, `sign-in-as`, `dismiss-browser-interstitials`, and `cancel-universal-login`, which differs per platform.
+
+`fill-login-form` takes **`LOGIN_EMAIL` / `LOGIN_PASSWORD`**, not `MEMBER_*`, so any account can drive it; callers map their own fixture in via `runFlow: {file, env}`. `sign-in-as` wraps the whole cold-start-to-signed-in sequence the same way and leaves the app on whatever the landing rules chose, because that is what flows 07-09 assert.
 
 On a freshly booted Android emulator, Chrome shows first-run and promo dialogs that cover the Custom Tab, so the Auth0 login form never becomes visible. `dismiss-browser-interstitials` clears them with conditional taps and is a no-op afterwards.
 
@@ -54,7 +69,34 @@ Flows that sign in need `-e MEMBER_EMAIL=… -e MEMBER_PASSWORD=…`; that now i
   - Chrome does not reliably expose the web form's *field* nodes (`resource-id="username"`) in the accessibility tree, even while the page is plainly rendered; surrounding links and buttons are always exposed. Waiting on the field produced failures on a working page.
 - `fill-login-form` taps the fields by id when they are exposed and falls back to their on-screen position when they are not.
 - `05` never submits a valid password, so a smoke run can't change the test account.
-- Not covered here: trainer, admin and deactivated landings (they need those accounts), and the offline refresh check (see `e2e/scripts/`).
+- Not covered here: the offline refresh check (see `e2e/scripts/`).
+
+## The profile gate outranks the role rules
+
+Verified on Android 2026-09-17. `resolveLanding` checks `profileMissing` **before** any role
+rule, so a signed-in user with no backend profile lands on Onboarding regardless of role:
+
+| Account | Role claim reaching the app | Landing |
+|---|---|---|
+| trainer | `Roles: Trainer` | Onboarding |
+| admin | `Roles: admin` | Onboarding |
+| deactivated | n/a — `meErrored` is checked first | Account unavailable |
+
+Two consequences for anyone reading these flows:
+
+- **The role claim is proven, the role *landing* is not.** The trainer and admin accounts were
+  created through the Management API and have no profile, so `GET /profile` 404s. Flows 07 and 08
+  assert the `Roles: …` line — that is the real thing under test, since it proves the tenant Action
+  populates `https://gymido.app/roles`. Asserting `Trainer dashboard` or `Home` would have been
+  asserting the profile gate instead.
+- **KNOWN GAP: the trainer→TrainerDashboard and admin→Home branches cannot be reached from the
+  app at all today.** They need an account *with* a profile, and `OnboardingScreen` is still a
+  placeholder with no profile-creation form, so nothing can get past the gate. `resolveLanding.test.js`
+  covers both branches in unit form. Revisit 07 and 08 when onboarding ships.
+
+Flow 07 also leaves state behind: an interactive trainer login sets the stored workspace to
+`trainer`, and that survives sign-out by design (`workspacePreference.js`). Harmless, because the
+landing rules only read the workspace for users who hold the trainer role.
 
 ## Why these flows look the way they do
 
