@@ -1,0 +1,58 @@
+# SKELETON — planning only, not a runnable Maestro flow yet.
+# Real flow to be authored at: e2e/maestro/10-signup-opens-universal-login.yaml
+#
+# Sign up opens Auth0 Universal Login in the system browser (with
+# screen_hint: 'signup'), and cancelling returns to Welcome.
+#
+# This exercises SIGNUP, the counterpart to 02-login-opens-universal-login.yaml
+# which exercises LOGIN. Same hosted-login-page mechanics, different entry
+# point (welcome-sign-up) and different Auth0 additionalParameters
+# (screen_hint: 'signup' instead of prompt: 'select_account').
+#
+# No credentials are needed: this flow only opens Universal Login and
+# cancels back out, it never submits the signup form.
+#
+# Source files:
+#   - src/features/auth/screens/WelcomeScreen.js
+#     (renders the "Sign up" Button with testID "welcome-sign-up",
+#      wired to the `signup` handler from authService)
+#   - src/features/auth/authService.js
+#     (`signup()` calls `authenticate('signup')`, which sets
+#      additionalParameters to { screen_hint: 'signup' })
+#
+appId: com.gymido.app
+---
+# 1. runFlow: subflows/ensure-signed-out.yaml
+#    Establish signed-out state so Welcome is on screen, independent of
+#    whatever flow ran before this one (flows do not run in file order).
+#
+# 2. tapOn: { id: "welcome-sign-up" }
+#    Tap the Sign Up button on WelcomeScreen (testID "welcome-sign-up"),
+#    invoking authService.signup() -> authenticate('signup') -> opens
+#    Auth0 Universal Login with screen_hint: 'signup' in the system browser.
+#
+# 3. waitForAnimationToEnd: { timeout: 8000 }
+#    Let the browser-open transition settle before interacting further,
+#    matching flow 02's timing.
+#
+# 4. runFlow: subflows/dismiss-browser-interstitials.yaml
+#    Clear first-run/promo dialogs (Android Chrome) or the system consent
+#    sheet (iOS) that can cover the Custom Tab / hosted page.
+#
+# 5. runFlow: subflows/wait-for-login-form.yaml
+#    Wait for the Auth0 hosted page to actually render.
+#
+# 6. assertVisible: "Continue with Google"
+#    Anchor "is the hosted page up?" on this text per README conventions
+#    (never the email field — Chrome doesn't expose it reliably, and Auth0's
+#    trailing-space labels break full-string text matches). Confirms the
+#    signup variant of the hosted page loaded, same anchor as login since
+#    the social-login button is present regardless of screen_hint.
+#
+# 7. runFlow: subflows/cancel-universal-login.yaml
+#    Cancel out of the hosted browser flow (platform-specific subflow).
+#
+# 8. extendedWaitUntil: { visible: { id: "welcome-log-in" }, timeout: 60000 }
+#    Assert we're back on Welcome (using the welcome-log-in testID as the
+#    landing anchor, same as flow 02, since welcome-sign-up and
+#    welcome-log-in are both on WelcomeScreen).
