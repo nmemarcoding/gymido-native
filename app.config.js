@@ -23,10 +23,10 @@ function loadEnv(appEnv) {
 
 const env = loadEnv(APP_ENV);
 
-// Web parity (RN-SPEC-plans §7): production reinterprets backend timestamps as
-// Los Angeles wall-clock until a server offset is calibrated; development and
-// staging leave it unset unless the env file sets it.
-const API_SERVER_TZ_DEFAULTS = { production: 'America/Los_Angeles' };
+// Web parity (RN-SPEC-time §1.3): every web build loads .env.production, so
+// every non-development native build reinterprets backend timestamps as
+// Los Angeles wall-clock. Only local development leaves it unset.
+const API_SERVER_TZ_DEFAULTS = { staging: 'America/Los_Angeles', production: 'America/Los_Angeles' };
 
 // The Auth0 domain is baked into the native build, so fail early without it.
 for (const key of ['AUTH0_DOMAIN', 'AUTH0_CLIENT_ID']) {

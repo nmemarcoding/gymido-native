@@ -1,17 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Port of the web app's self-calibrating server clock (shared/utils/serverClock.js
-// + the response hook in shared/api/api.js). The backend may serialize local
-// wall-clock timestamps as UTC; comparing the HTTP `Date` header with a
-// timestamp the server just set gives the offset to add to backend timestamps.
-//
-// Parity notes (RN-SPEC-plans §7, ⚠10): same key, same field search order,
-// same rounding and bound. A cancel response carries an old created_at, so it
-// can store a wrong offset; that is web behavior and is kept.
+// Port of the web app's shared/utils/serverClock.js (RN-SPEC-time §1.2).
+// DORMANT by design: the web can't read the cross-origin `Date` header, so
+// calibrateServerClock is never called there and no offset is ever stored.
+// Native never reads `Date` either, so nothing calls calibrateServerClock and
+// getServerOffsetMinutes() returns null. The read path is kept so the
+// parseTimestamp code path matches the web.
 
 export const SERVER_OFFSET_STORAGE_KEY = 'server_utc_offset_minutes';
 const MAX_OFFSET_MINUTES = 14 * 60;
-const MUTATION_METHODS = new Set(['post', 'put', 'patch']);
 
 // localStorage is synchronous on the web; AsyncStorage is not. The offset is
 // mirrored in memory so parseTimestamp can stay synchronous.
@@ -83,52 +80,4 @@ export function calibrateServerClock(serverDateHeader, freshTimestamp) {
     return;
   }
   setServerOffsetMinutes(offsetMinutes);
-}
-
-// A timestamp the server just generated: created_at on POST, updated_at on
-// PUT/PATCH, on the entity itself or one level of non-array nesting.
-export function findFreshTimestamp(body, method) {
-  if (!body || typeof body !== 'object') {
-    return null;
-  }
-  const fields = method === 'post' ? ['created_at', 'updated_at'] : ['updated_at', 'created_at'];
-  const pick = (obj) => {
-    if (!obj || typeof obj !== 'object') {
-      return null;
-    }
-    return fields.map((field) => obj[field]).find((value) => typeof value === 'string') || null;
-  };
-
-  const direct = pick(body);
-  if (direct) {
-    return direct;
-  }
-  for (const key of Object.keys(body)) {
-    const child = body[key];
-    if (child && typeof child === 'object' && !Array.isArray(child)) {
-      const nested = pick(child);
-      if (nested) {
-        return nested;
-      }
-    }
-  }
-  return null;
-}
-
-// Axios response hook. Never lets calibration interfere with a response.
-export function calibrateFromResponse(response) {
-  try {
-    const method = response?.config?.method?.toLowerCase();
-    const headers = response?.headers;
-    const dateHeader = typeof headers?.get === 'function' ? headers.get('date') : headers?.date;
-    if (dateHeader && MUTATION_METHODS.has(method)) {
-      const fresh = findFreshTimestamp(response.data?.data, method);
-      if (fresh) {
-        calibrateServerClock(dateHeader, fresh);
-      }
-    }
-  } catch {
-    /* ignore */
-  }
-  return response;
 }
