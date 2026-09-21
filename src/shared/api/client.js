@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 import { env } from '../config/env';
+import { calibrateFromResponse } from './serverClock';
 
 if (!env.apiBaseUrl && __DEV__) {
   console.warn('[api] API_BASE_URL is not set. Check your .env.<APP_ENV> file.');
@@ -47,3 +48,7 @@ apiClient.interceptors.request.use(async (config) => {
   }
   return config;
 });
+
+// Learns the server's UTC offset from mutation responses (RN-SPEC-plans §7).
+// Errors pass through untouched: no redirect, logout or retry on 401/403.
+apiClient.interceptors.response.use(calibrateFromResponse);

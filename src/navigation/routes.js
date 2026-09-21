@@ -8,6 +8,16 @@ export const routes = Object.freeze({
   TrainerDashboard: 'TrainerDashboard',
   Onboarding: 'Onboarding',
   Settings: 'Settings',
+  // Member tabs, rendered by the Home route (RN-SPEC-plans §1.3, §9).
+  WorkoutTab: 'WorkoutTab',
+  ExercisesTab: 'ExercisesTab',
+  LibraryTab: 'LibraryTab',
+  ProgressTab: 'ProgressTab',
+  TrainerTab: 'TrainerTab',
+  SettingsTab: 'SettingsTab',
+  // Library tab stack.
+  PlansList: 'PlansList',
+  PlanDetail: 'PlanDetail',
 });
 
 // Screens that exist only while signed in.

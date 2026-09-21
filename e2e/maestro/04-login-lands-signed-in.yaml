@@ -18,4 +18,4 @@ appId: com.gymido.app
 - extendedWaitUntil:
     visible: "Signed in as ${MEMBER_EMAIL}"
     timeout: 90000
-- assertVisible: "Onboarding|Home"
+- assertVisible: "Onboarding|Workout"

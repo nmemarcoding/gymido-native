@@ -5,10 +5,10 @@ import AccountUnavailableScreen from '../features/auth/screens/AccountUnavailabl
 import SessionLoadingScreen from '../features/auth/screens/SessionLoadingScreen';
 import SignInFailedScreen from '../features/auth/screens/SignInFailedScreen';
 import WelcomeScreen from '../features/auth/screens/WelcomeScreen';
-import HomeScreen from '../features/home/HomeScreen';
 import OnboardingScreen from '../features/onboarding/OnboardingScreen';
 import SettingsScreen from '../features/settings/SettingsScreen';
 import TrainerDashboardScreen from '../features/trainer/TrainerDashboardScreen';
+import MemberTabs from './MemberTabs';
 import { resolveLanding } from './resolveLanding';
 import { routes } from './routes';
 
@@ -60,11 +60,12 @@ export default function RootNavigator() {
     >
       {signedIn ? (
         <Stack.Group screenOptions={{ headerShown: true, animation: 'default' }}>
+          {/* Home is the member tab shell (RN-SPEC-plans §1.3); it draws its own headers. */}
           <Stack.Screen
             name={routes.Home}
-            component={HomeScreen}
+            component={MemberTabs}
             initialParams={initialParamsFor(landing, routes.Home)}
-            options={{ title: 'Home' }}
+            options={{ title: 'Home', headerShown: false }}
           />
           <Stack.Screen
             name={routes.TrainerDashboard}
