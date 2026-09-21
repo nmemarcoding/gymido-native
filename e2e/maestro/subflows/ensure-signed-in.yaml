@@ -25,5 +25,5 @@ appId: com.gymido.app
             LOGIN_EMAIL: ${MEMBER_EMAIL}
             LOGIN_PASSWORD: ${MEMBER_PASSWORD}
 - extendedWaitUntil:
-    visible: "Home|Onboarding|Trainer dashboard|Settings"
+    visible: "Workout|Onboarding|Trainer dashboard|Settings"
     timeout: 90000

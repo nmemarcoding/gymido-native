@@ -148,10 +148,13 @@ A release build for real iOS hardware or the App Store requires signing (see abo
 ## Testing
 
 ```bash
-npm test                   # Jest unit tests
+npm test                   # Jest unit + screen tests (React Native Testing Library)
 npm test -- --watch        # re-run on change
+npm test -- src/features/plans   # one feature's tests
 npm run doctor             # expo-doctor: dependency and config checks
 ```
+
+Jest runs in `America/Los_Angeles` (`jest.globalSetup.js`) so the UTC-date and timestamp parity tests mean the same thing on every machine. Screen tests mock HTTP at the Axios client (`src/test/mockApi.js`) with spec-shaped payloads (`src/test/planFixtures.js`); animations run on the reduce-motion path by default (`jest.setup.js`).
 
 E2E smoke tests (Maestro). **Requires Metro running (`npm start`), the dev client installed, and a booted device:**
 
@@ -220,6 +223,8 @@ Inspect what the app will actually receive:
 ```bash
 npx cross-env APP_ENV=staging expo config --type public
 ```
+
+`API_SERVER_TZ` (optional) is the zone backend timestamps are reinterpreted in before the first server-clock calibration. Unset means no reinterpretation, except `production`, which defaults to `America/Los_Angeles` to match the web build.
 
 **Changing `AUTH0_DOMAIN` requires a native rebuild** (`npm run native:clean`), because the config plugin bakes the callback scheme into the native projects. Changing `API_BASE_URL` only needs a Metro restart.
 

@@ -23,6 +23,11 @@ function loadEnv(appEnv) {
 
 const env = loadEnv(APP_ENV);
 
+// Web parity (RN-SPEC-plans §7): production reinterprets backend timestamps as
+// Los Angeles wall-clock until a server offset is calibrated; development and
+// staging leave it unset unless the env file sets it.
+const API_SERVER_TZ_DEFAULTS = { production: 'America/Los_Angeles' };
+
 // The Auth0 domain is baked into the native build, so fail early without it.
 for (const key of ['AUTH0_DOMAIN', 'AUTH0_CLIENT_ID']) {
   if (!env[key]) {
@@ -46,6 +51,16 @@ module.exports = {
     ios: {
       bundleIdentifier: 'com.gymido.app',
       supportsTablet: true,
+      // Owner decision O2: phones stay portrait (from `orientation` above);
+      // iPads rotate to any orientation.
+      infoPlist: {
+        'UISupportedInterfaceOrientations~ipad': [
+          'UIInterfaceOrientationPortrait',
+          'UIInterfaceOrientationPortraitUpsideDown',
+          'UIInterfaceOrientationLandscapeLeft',
+          'UIInterfaceOrientationLandscapeRight',
+        ],
+      },
     },
     android: {
       package: 'com.gymido.app',
@@ -57,12 +72,13 @@ module.exports = {
       },
     },
     // Registers the {bundleId}.auth0 callback scheme on both platforms.
-    plugins: [['react-native-auth0', { domain: env.AUTH0_DOMAIN }]],
+    plugins: [['react-native-auth0', { domain: env.AUTH0_DOMAIN }], './plugins/withForcedLightTheme'],
     // Read at runtime through src/shared/config/env.js. Not secret.
     // Unset values are left undefined (omitted): Expo serializes null as {}.
     extra: {
       appEnv: APP_ENV,
       apiBaseUrl: env.API_BASE_URL || undefined,
+      apiServerTz: env.API_SERVER_TZ || API_SERVER_TZ_DEFAULTS[APP_ENV] || undefined,
       auth0: {
         domain: env.AUTH0_DOMAIN || undefined,
         clientId: env.AUTH0_CLIENT_ID || undefined,

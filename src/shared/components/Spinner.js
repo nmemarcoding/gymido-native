@@ -1,10 +1,17 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet } from 'react-native';
+import { Animated, Easing } from 'react-native';
 
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { colors, motion } from '../theme/tokens';
 
-export default function Spinner({ size = 40 }) {
+// thickness / trackColor / arcColor let the Plans screens draw their 20px,
+// 2px-ring spinners (RN-SPEC-plans §3.7, §4.6); defaults are unchanged.
+export default function Spinner({
+  size = 40,
+  thickness = 4,
+  trackColor = colors.border,
+  arcColor = colors.brand400,
+}) {
   const reducedMotion = useReducedMotion();
   const rotation = useRef(new Animated.Value(0)).current;
 
@@ -32,17 +39,16 @@ export default function Spinner({ size = 40 }) {
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
       style={[
-        styles.ring,
-        { width: size, height: size, borderRadius: size / 2, transform: [{ rotate }] },
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          borderWidth: thickness,
+          borderColor: trackColor,
+          borderTopColor: arcColor,
+          transform: [{ rotate }],
+        },
       ]}
     />
   );
 }
-
-const styles = StyleSheet.create({
-  ring: {
-    borderWidth: 4,
-    borderColor: colors.border,
-    borderTopColor: colors.brand400,
-  },
-});

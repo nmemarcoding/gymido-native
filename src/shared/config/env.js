@@ -12,6 +12,8 @@ function stringOrNull(value) {
 export const env = Object.freeze({
   appEnv: stringOrNull(extra.appEnv) ?? 'development',
   apiBaseUrl: stringOrNull(extra.apiBaseUrl),
+  // IANA zone for the timestamp fallback in shared/utils/timestamps.js.
+  apiServerTz: stringOrNull(extra.apiServerTz),
   auth0: Object.freeze({
     domain: stringOrNull(extra.auth0?.domain),
     clientId: stringOrNull(extra.auth0?.clientId),
