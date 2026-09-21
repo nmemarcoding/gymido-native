@@ -1,9 +1,8 @@
 import { AxiosHeaders } from 'axios';
 
 import { apiClient, setAccessTokenProvider } from './client';
-import { getServerOffsetMinutes, resetServerOffsetCache } from './serverClock';
 
-// RN-SPEC-plans §6.1 transport and §7 calibration hook.
+// RN-SPEC-plans §6.1 transport; RN-SPEC-time §1.1 (the Date header is never read).
 
 function runRequestInterceptors(config) {
   return apiClient.interceptors.request.handlers.reduce(
@@ -26,19 +25,13 @@ test('every request carries X-Timezone (device IANA zone) and the bearer token',
   setAccessTokenProvider(null);
 });
 
-test('mutation responses calibrate the server clock', () => {
-  resetServerOffsetCache();
-  const [handler] = apiClient.interceptors.response.handlers;
-  const response = {
-    config: { method: 'post' },
-    headers: { date: 'Mon, 21 Sep 2026 20:00:00 GMT' },
-    data: { success: true, data: { enrollment: { created_at: '2026-09-21T13:00:00Z' } } },
-  };
-  expect(handler.fulfilled(response)).toBe(response);
-  expect(getServerOffsetMinutes()).toBe(420);
+test('X-Timezone is omitted when the device zone is unavailable (web parity)', async () => {
+  const spy = jest.spyOn(Intl, 'DateTimeFormat').mockImplementation(() => ({ resolvedOptions: () => ({}) }));
+  const config = await runRequestInterceptors({ headers: new AxiosHeaders() });
+  expect(config.headers.has('X-Timezone')).toBe(false);
+  spy.mockRestore();
 });
 
-test('errors pass through untouched (no redirect, logout or retry)', () => {
-  const [handler] = apiClient.interceptors.response.handlers;
-  expect(handler.rejected).toBeFalsy();
+test('no response interceptors: errors pass through and the Date header is never read', () => {
+  expect(apiClient.interceptors.response.handlers.filter(Boolean)).toHaveLength(0);
 });

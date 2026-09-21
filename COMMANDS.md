@@ -224,7 +224,7 @@ Inspect what the app will actually receive:
 npx cross-env APP_ENV=staging expo config --type public
 ```
 
-`API_SERVER_TZ` (optional) is the zone backend timestamps are reinterpreted in before the first server-clock calibration. Unset means no reinterpretation, except `production`, which defaults to `America/Los_Angeles` to match the web build.
+`API_SERVER_TZ` (optional) is the zone backend timestamps are reinterpreted in (web parity, RN-SPEC-time §1.3). Unset means no reinterpretation, except `staging` and `production`, which default to `America/Los_Angeles` to match the web builds.
 
 **Changing `AUTH0_DOMAIN` requires a native rebuild** (`npm run native:clean`), because the config plugin bakes the callback scheme into the native projects. Changing `API_BASE_URL` only needs a Metro restart.
 

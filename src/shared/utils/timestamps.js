@@ -46,8 +46,54 @@ export function reinterpretWallClockInZone(date, timeZone) {
   return new Date(date.getTime() - offsetMs);
 }
 
-// Backend timestamp → Date or null. Correction priority: the calibrated server
-// offset, then the per-environment API_SERVER_TZ, then none.
+// Deterministic America/Los_Angeles reinterpretation for a Hermes build whose
+// Intl lacks timeZone support (RN-SPEC-time §1.3): -8h, or -7h between the
+// 2nd Sunday of March 10:00 UTC and the 1st Sunday of November 09:00 UTC.
+function nthSundayUtc(year, month, nth) {
+  const firstWeekday = new Date(Date.UTC(year, month, 1)).getUTCDay();
+  return 1 + ((7 - firstWeekday) % 7) + (nth - 1) * 7;
+}
+
+export function reinterpretLosAngelesFallback(date) {
+  const year = date.getUTCFullYear();
+  const dstStart = Date.UTC(year, 2, nthSundayUtc(year, 2, 2), 10);
+  const dstEnd = Date.UTC(year, 10, nthSundayUtc(year, 10, 1), 9);
+  const time = date.getTime();
+  const offsetHours = time >= dstStart && time < dstEnd ? -7 : -8;
+  return new Date(time - offsetHours * 3600000);
+}
+
+// Startup self-test of Hermes Intl timeZone support; cached after first use.
+let intlZoneSupported;
+export function intlTimeZoneWorks() {
+  if (intlZoneSupported === undefined) {
+    try {
+      const summer = reinterpretWallClockInZone(new Date('2026-07-01T12:00:00Z'), 'America/Los_Angeles');
+      const winter = reinterpretWallClockInZone(new Date('2026-01-15T12:00:00Z'), 'America/Los_Angeles');
+      intlZoneSupported =
+        summer.toISOString() === '2026-07-01T19:00:00.000Z' && winter.toISOString() === '2026-01-15T20:00:00.000Z';
+    } catch {
+      intlZoneSupported = false;
+    }
+  }
+  return intlZoneSupported;
+}
+
+// Test hook.
+export function setIntlTimeZoneWorksForTest(value) {
+  intlZoneSupported = value;
+}
+
+function reinterpret(date, timeZone) {
+  if (!intlTimeZoneWorks() && timeZone === 'America/Los_Angeles') {
+    return reinterpretLosAngelesFallback(date);
+  }
+  return reinterpretWallClockInZone(date, timeZone);
+}
+
+// Backend timestamp → Date or null (RN-SPEC-time §1.3). Priority: the stored
+// server offset (always null: calibration is dormant), then the
+// per-environment API_SERVER_TZ wall-clock reinterpretation, then none.
 export function parseTimestamp(value, serverTimeZone = env.apiServerTz) {
   const date = parseDateValue(value);
   if (!date) {
@@ -59,7 +105,7 @@ export function parseTimestamp(value, serverTimeZone = env.apiServerTz) {
   }
   if (serverTimeZone) {
     try {
-      return reinterpretWallClockInZone(date, serverTimeZone);
+      return reinterpret(date, serverTimeZone);
     } catch {
       return date;
     }

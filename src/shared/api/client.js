@@ -1,7 +1,6 @@
 import axios from 'axios';
 
 import { env } from '../config/env';
-import { calibrateFromResponse } from './serverClock';
 
 if (!env.apiBaseUrl && __DEV__) {
   console.warn('[api] API_BASE_URL is not set. Check your .env.<APP_ENV> file.');
@@ -20,11 +19,13 @@ export function authorizationHeader(accessToken) {
   return { Authorization: `Bearer ${accessToken}` };
 }
 
+// The device IANA zone, read on every request. Like the web, the header is
+// omitted when the zone is unavailable (the server then uses UTC).
 function getTimeZone() {
   try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
   } catch {
-    return 'UTC';
+    return null;
   }
 }
 
@@ -39,7 +40,10 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use(async (config) => {
-  config.headers.set('X-Timezone', getTimeZone());
+  const timeZone = getTimeZone();
+  if (timeZone) {
+    config.headers.set('X-Timezone', timeZone);
+  }
   if (!config.headers.has('Authorization') && accessTokenProvider) {
     const accessToken = await accessTokenProvider();
     if (accessToken) {
@@ -49,6 +53,6 @@ apiClient.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Learns the server's UTC offset from mutation responses (RN-SPEC-plans §7).
-// Errors pass through untouched: no redirect, logout or retry on 401/403.
-apiClient.interceptors.response.use(calibrateFromResponse);
+// No response interceptor: errors pass through untouched (no redirect, logout
+// or retry on 401/403), and the `Date` header is never read. The web can't see
+// it (CORS), so server-clock calibration stays dormant (RN-SPEC-time §1.1).
