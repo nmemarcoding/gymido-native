@@ -1,0 +1,12 @@
+# iOS only: Auth0's logout goes through the same system sheet as login
+# ("“Gymido” Wants to Use “gymido-dev.us.auth0.com” to Sign In") → Continue.
+appId: com.gymido.app
+---
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - extendedWaitUntil:
+          visible: ".*Wants to Use.*"
+          timeout: 20000
+      - tapOn: "Continue"

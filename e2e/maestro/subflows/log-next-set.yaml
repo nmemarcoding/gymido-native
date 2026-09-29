@@ -1,0 +1,16 @@
+# Logs the first not-yet-done set on the stage: a weight (erased first —
+# inputText APPENDS), then "Did it". The next set is the first enabled action.
+appId: com.gymido.app
+---
+- scrollUntilVisible:
+    element:
+      text: "Did it"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "set-weight-.*"
+    index: 0
+- eraseText: 10
+- inputText: "20"
+- hideKeyboard
+- tapOn: "Did it"

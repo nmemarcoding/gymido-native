@@ -1,0 +1,58 @@
+# Crash hunt: exercise switching through the sheet, then completing a workout
+# (completion popup), then starting and discarding another.
+appId: com.gymido.app
+---
+- runFlow: ../subflows/open-personal-workout.yaml
+- runFlow: ../subflows/start-session.yaml
+
+- tapOn:
+    id: "session-show-all"
+- extendedWaitUntil:
+    visible:
+      id: "exercise-sheet"
+    timeout: 20000
+- tapOn:
+    id: "sheet-action-.*"
+    index: 1
+- extendedWaitUntil:
+    notVisible:
+      id: "exercise-sheet"
+    timeout: 20000
+- assertVisible:
+    id: "exercise-stage"
+- tapOn:
+    id: "nav-segment-.*"
+    index: 0
+- assertVisible:
+    id: "exercise-stage"
+
+# Log one set so the workout has something, then finish early.
+- runFlow: ../subflows/log-next-set.yaml
+- runFlow:
+    when:
+      visible:
+        id: "rest-timer-skip"
+    commands:
+      - tapOn:
+          id: "rest-timer-skip"
+- scrollUntilVisible:
+    element:
+      id: "complete-workout"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "complete-workout"
+- extendedWaitUntil:
+    visible:
+      id: "completion-popup"
+    timeout: 60000
+- tapOn:
+    id: "completion-dismiss"
+- extendedWaitUntil:
+    visible:
+      id: "today-hero-card|plan-day-card-.*|workout-empty-state"
+    timeout: 60000
+
+# A second session, discarded.
+- runFlow: ../subflows/start-session.yaml
+- runFlow: ../subflows/discard-session.yaml

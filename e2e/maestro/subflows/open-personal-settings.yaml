@@ -1,0 +1,19 @@
+# The Personal workspace's Settings tab (Change password, Sign out). The E2E rig
+# is a trainer, and trainers land in the Trainer workspace, whose tab set has
+# no Settings tab: switch through the Workspace block on the trainer Profile tab.
+appId: com.gymido.app
+---
+- runFlow:
+    when:
+      visible:
+        id: "tab-TrainerProfileTab"
+    commands:
+      - tapOn:
+          id: "tab-TrainerProfileTab"
+      - tapOn: "Personal"
+- extendedWaitUntil:
+    visible:
+      id: "tab-SettingsTab"
+    timeout: 30000
+- tapOn:
+    id: "tab-SettingsTab"

@@ -65,6 +65,48 @@ appId: com.gymido.app
             platform: iOS
           commands:
             - openLink: "exp+gymido-native://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081"
+# `clearState` also wipes the dev client's "you have seen this" flag, so the
+# developer-menu onboarding sheet comes back and covers the app. Dismiss it
+# before anything asserts on app content — and note its button is also labelled
+# "Continue", the same as Auth0's submit, so leaving it up breaks the login flow
+# in a way that looks like an Auth0 problem.
+# iOS, dev client only (recorded): a deep link first asks "Open in “Gymido”?",
+# and a fresh install opens the dev menu, whose close button is id xmark.
+- runFlow:
+    when:
+      platform: iOS
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+      - waitForAnimationToEnd:
+          timeout: 8000
+- runFlow:
+    when:
+      platform: iOS
+      visible:
+        id: "xmark"
+    commands:
+      - tapOn:
+          id: "xmark"
+- runFlow:
+    when:
+      visible: "This is the developer menu.*"
+    commands:
+      - tapOn: "Continue"
+      - waitForAnimationToEnd:
+          timeout: 3000
+# Dismissing the onboarding leaves the dev menu itself open behind it. It is a
+# sheet with no labelled close control, so swipe it away.
+- runFlow:
+    when:
+      visible: "Toggle element inspector"
+    commands:
+      - swipe:
+          start: 50%, 50%
+          end: 50%, 98%
+          duration: 400
+      - waitForAnimationToEnd:
+          timeout: 3000
 # Fails fast and clearly if the bundle never loads (Metro down, wrong host):
 # the dev launcher screen has no app-root.
 - extendedWaitUntil:

@@ -1,0 +1,43 @@
+# Welcome → the hosted Auth0 page, ready to type into. Built from the recorded
+# walkthrough (README, "Login walkthrough"), elements seen on screen only.
+#   Android: Chrome Custom Tab. Chrome's own url_bar is always in the
+#     accessibility tree; the web fields (ids username / password) appear
+#     within ~6 s of the tab opening.
+#   iOS: the system sheet "“Gymido” Wants to Use “gymido-dev.us.auth0.com” to
+#     Sign In" → Continue, then the web-auth page (no field ids; labels only).
+# Either platform may land on Auth0's "Authorize App" consent page instead of
+# the form when an Auth0 session survived; login.yaml handles that.
+appId: com.gymido.app
+---
+- tapOn:
+    id: "welcome-log-in"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runFlow: dismiss-browser-interstitials.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "com.android.chrome:id/url_bar"
+            text: ".*auth0\\.com.*"
+          timeout: 60000
+      # Bounded: the fields usually show within ~6 s.
+      - repeat:
+          while:
+            notVisible:
+              id: "username"
+          times: 8
+          commands:
+            - waitForAnimationToEnd:
+                timeout: 1500
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - extendedWaitUntil:
+          visible: ".*Wants to Use.*"
+          timeout: 20000
+      - tapOn: "Continue"
+      - extendedWaitUntil:
+          visible: "Continue with Google|Authorize.*"
+          timeout: 60000

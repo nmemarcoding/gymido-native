@@ -7,23 +7,17 @@
 # Requires MEMBER_EMAIL / MEMBER_PASSWORD when a login is actually needed.
 appId: com.gymido.app
 ---
-- runFlow: launch-dev-client.yaml
+- runFlow: launch-app.yaml
 - runFlow:
     when:
       visible:
         id: "welcome-log-in"
     commands:
-      - tapOn:
-          id: "welcome-log-in"
-      - waitForAnimationToEnd:
-          timeout: 8000
-      - runFlow: dismiss-browser-interstitials.yaml
-      - runFlow: wait-for-login-form.yaml
       - runFlow:
-          file: fill-login-form.yaml
+          file: login.yaml
           env:
             LOGIN_EMAIL: ${MEMBER_EMAIL}
             LOGIN_PASSWORD: ${MEMBER_PASSWORD}
 - extendedWaitUntil:
-    visible: "Workout|Onboarding|Trainer dashboard|Settings"
+    visible: "Workout|Create Profile|Dashboard|Settings|Coaching"
     timeout: 90000

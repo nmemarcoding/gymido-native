@@ -1,0 +1,29 @@
+# Signs out through the UI from any signed-in shell screen (recorded path).
+# A trainer lands in the Trainer workspace, which has no Settings tab:
+# Profile tab → Workspace "Personal" → Settings tab. The UI sign-out also
+# clears the Auth0 browser session, so the next login shows the form.
+# iOS shows the system "… Wants to Use … to Sign In" sheet for the logout too.
+appId: com.gymido.app
+---
+- runFlow:
+    when:
+      visible:
+        id: "tab-TrainerProfileTab"
+    commands:
+      - tapOn:
+          id: "tab-TrainerProfileTab"
+      - tapOn: "Personal"
+- tapOn:
+    id: "tab-SettingsTab"
+- scrollUntilVisible:
+    element:
+      id: "settings-sign-out"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "settings-sign-out"
+- runFlow: confirm-ios-logout.yaml
+- extendedWaitUntil:
+    visible:
+      id: "welcome-log-in"
+    timeout: 30000

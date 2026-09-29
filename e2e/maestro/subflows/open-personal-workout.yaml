@@ -1,0 +1,35 @@
+# Signed in as the E2E rig (the trainer account, with a profile and an active
+# plan), in the Personal workspace, on the Workout tab, with NO session running:
+# a leftover session from an earlier run is discarded first.
+appId: com.gymido.app
+---
+- runFlow: ensure-signed-in.yaml
+# Trainers land in the Trainer workspace; the Workout tab lives in Personal.
+# On phones the Workspace switch is only on Trainer Profile (RN-SPEC-app-shell §6.5).
+- runFlow:
+    when:
+      visible:
+        id: "tab-TrainerProfileTab"
+    commands:
+      - tapOn:
+          id: "tab-TrainerProfileTab"
+      - extendedWaitUntil:
+          visible:
+            id: "mobile-mode-switch"
+          timeout: 30000
+      - tapOn: "Personal"
+- extendedWaitUntil:
+    visible:
+      id: "tab-WorkoutTab"
+    timeout: 30000
+- tapOn:
+    id: "tab-WorkoutTab"
+- extendedWaitUntil:
+    visible:
+      id: "today-hero-card|session-scroll|workout-empty-state|plan-day-card-.*"
+    timeout: 60000
+- runFlow:
+    when:
+      visible:
+        id: "session-scroll"
+    file: discard-session.yaml

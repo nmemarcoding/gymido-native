@@ -1,0 +1,18 @@
+# Cold-launches the app: the dev client through Metro by default, or a release
+# build (JS embedded, no dev launcher) with `-e RELEASE_BUILD=true`.
+appId: com.gymido.app
+---
+- runFlow:
+    when:
+      true: ${RELEASE_BUILD == 'true'}
+    commands:
+      - stopApp
+      - launchApp
+      - extendedWaitUntil:
+          visible:
+            id: "app-root"
+          timeout: 60000
+- runFlow:
+    when:
+      true: ${RELEASE_BUILD != 'true'}
+    file: launch-dev-client.yaml

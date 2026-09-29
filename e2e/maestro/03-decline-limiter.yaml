@@ -6,12 +6,10 @@ appId: com.gymido.app
 - repeat:
     times: 3
     commands:
-      - tapOn:
-          id: "welcome-log-in"
-      - waitForAnimationToEnd:
-          timeout: 8000
-      - runFlow: subflows/dismiss-browser-interstitials.yaml
-      - runFlow: subflows/wait-for-login-form.yaml
+      # open-login-page waits on Chrome's url_bar on Android, which stays
+      # current when a Custom Tab is reopened (the web page's accessibility
+      # tree can go stale then).
+      - runFlow: subflows/open-login-page.yaml
       - runFlow: subflows/cancel-universal-login.yaml
       - extendedWaitUntil:
           visible: "Gymido|Sign-in failed"
