@@ -5,16 +5,19 @@ export const routes = Object.freeze({
   SignInFailed: 'SignInFailed',
   AccountUnavailable: 'AccountUnavailable',
   Home: 'Home',
-  TrainerDashboard: 'TrainerDashboard',
   Onboarding: 'Onboarding',
-  Settings: 'Settings',
-  // Member tabs, rendered by the Home route (RN-SPEC-plans §1.3, §9).
+  // App-shell tabs, rendered by the Home route (RN-SPEC-app-shell §3.4).
+  HomeTab: 'HomeTab',
   WorkoutTab: 'WorkoutTab',
   ExercisesTab: 'ExercisesTab',
   LibraryTab: 'LibraryTab',
   ProgressTab: 'ProgressTab',
   TrainerTab: 'TrainerTab',
   SettingsTab: 'SettingsTab',
+  TrainerDashboardTab: 'TrainerDashboardTab',
+  TrainerClientsTab: 'TrainerClientsTab',
+  TrainerPlansTab: 'TrainerPlansTab',
+  TrainerProfileTab: 'TrainerProfileTab',
   // Library tab stack.
   PlansList: 'PlansList',
   PlanDetail: 'PlanDetail',
@@ -23,7 +26,5 @@ export const routes = Object.freeze({
 // Screens that exist only while signed in.
 export const signedInRouteNames = new Set([
   routes.Home,
-  routes.TrainerDashboard,
   routes.Onboarding,
-  routes.Settings,
 ]);

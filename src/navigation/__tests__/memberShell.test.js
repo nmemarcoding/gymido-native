@@ -55,7 +55,7 @@ describe('tabs (RN-SPEC-plans §1.3)', () => {
     useSafeAreaInsets.mockReturnValue({ top: 47, bottom: 34, left: 0, right: 0 });
     mockApi(libraryApi());
     await renderMemberApp();
-    expect(screen.getByTestId('tab-bar')).toHaveStyle({ paddingBottom: 50, paddingTop: 12 });
+    expect(screen.getByTestId('tab-bar-grid')).toHaveStyle({ paddingBottom: 50, paddingTop: 12 });
     useSafeAreaInsets.mockReturnValue({ top: 0, bottom: 0, left: 0, right: 0 });
   });
 });

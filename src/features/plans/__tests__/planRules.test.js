@@ -142,6 +142,18 @@ describe('derivePlansList (RN-SPEC-plans §3.2)', () => {
     expect(derivePlansList(plans, null).groups.map(([name]) => name)).toEqual(['2026', 'Strength']);
   });
 
+  test('§3.2: integer-like names first in ascending numeric order, then the rest in first-appearance order', () => {
+    const plans = [
+      planItem({ id: 1, category: category(1, 'Strength') }),
+      planItem({ id: 2, category: category(2, '10') }),
+      planItem({ id: 3, category: category(3, 'Cardio') }),
+      planItem({ id: 4, category: category(4, '2') }),
+      planItem({ id: 5, category: category(5, '007') }),
+    ];
+    // '007' is not a canonical integer key, so it keeps insertion order.
+    expect(derivePlansList(plans, null).groups.map(([name]) => name)).toEqual(['2', '10', 'Strength', 'Cardio', '007']);
+  });
+
   test('⚠6: private trainer plans returned for admins are not filtered', () => {
     const plans = [planItem({ id: 1 }), planItem({ id: 50, name: 'Trainer private plan' })];
     expect(derivePlansList(plans, null).browseCount).toBe(2);

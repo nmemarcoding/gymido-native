@@ -49,6 +49,16 @@ export function InlineError({ title = 'Something went wrong', message }) {
   );
 }
 
+// SuccessState (RN-SPEC-profile-create §6): like InlineError in green.
+export function SuccessState({ title = 'Success', message }) {
+  return (
+    <View style={styles.success} testID="success-state">
+      <Text style={styles.successTitle}>{title}</Text>
+      {message ? <Text style={styles.successMessage}>{message}</Text> : null}
+    </View>
+  );
+}
+
 export function EmptyState({ title, message }) {
   useAnnounceOnMount(`${title} ${message}`);
   return (
@@ -136,6 +146,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 24,
     color: colors.errorText,
+  },
+  success: {
+    borderRadius: radii.xxl,
+    borderWidth: 1,
+    borderColor: colors.successBorder,
+    backgroundColor: colors.successFill,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  successTitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '600',
+    color: colors.successText,
+  },
+  successMessage: {
+    marginTop: 4,
+    fontSize: 14,
+    lineHeight: 24,
+    color: colors.successText,
   },
   emptyState: {
     borderRadius: radii.surfaceCard,

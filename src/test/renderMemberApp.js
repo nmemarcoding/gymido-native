@@ -1,7 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { render } from '@testing-library/react-native';
 
-import MemberTabs from '../navigation/MemberTabs';
+import AppShell from '../navigation/AppShell';
 import { routes } from '../navigation/routes';
 
 // Renders the real member tab shell with the Library stack (or any tab) open.
@@ -31,7 +31,7 @@ export async function renderMemberApp({ initialState = libraryState(), onStateCh
       initialState={initialState}
       onStateChange={onStateChange}
     >
-      <MemberTabs />
+      <AppShell />
     </NavigationContainer>
   );
   return { ...result, navigation };

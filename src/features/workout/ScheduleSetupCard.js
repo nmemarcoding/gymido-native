@@ -44,7 +44,8 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
       }
       onScheduled();
     } catch (submitError) {
-      setSaveError(getWebApiErrorMessage(submitError) || 'Failed to save your training days.');
+      // The web's '||' fallback is unreachable, so it doesn't ship (RN-SPEC-plans §5).
+      setSaveError(getWebApiErrorMessage(submitError));
     } finally {
       setIsSaving(false);
     }
@@ -80,6 +81,7 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
           disabled={isSaving}
           onPress={handleSave}
           colorsFor={(pressed) => ({ backgroundColor: pressed ? colors.brand500 : colors.brand400 })}
+          transitionMs={200}
           style={({ pressed }) => [styles.button, pressed && !isSaving && styles.buttonSunk]}
         >
           {isSaving ? (
@@ -108,6 +110,8 @@ const styles = StyleSheet.create({
     ...textStyles.body,
     color: colors.textSecondary,
   },
+  // RN-SPEC-plans §5 (as the web's class conflicts resolve): shared Button,
+  // 14px/600, fully rounded, 16×12, shadow-soft; 200ms transitions.
   button: {
     width: '100%',
     flexDirection: 'row',
@@ -117,9 +121,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    boxShadow: shadows.lift1,
+    boxShadow: shadows.plansSoft,
   },
-  // Web `press-3d`: sinks 1px with the inset press shadow while held.
+  // Pressed: brand-500, 1px sink, inset shadow-press replaces shadow-soft.
   buttonSunk: {
     transform: [{ translateY: 1 }],
     boxShadow: shadows.press,
@@ -128,9 +132,9 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonLabel: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '700',
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '600',
     color: colors.navy,
   },
   mt6: { marginTop: 6 },

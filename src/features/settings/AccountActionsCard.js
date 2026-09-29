@@ -2,13 +2,13 @@ import { useState } from 'react';
 
 import Button from '../../shared/components/Button';
 import Card from '../../shared/components/Card';
-import Screen from '../../shared/components/Screen';
 import { Body, Eyebrow, Heading } from '../../shared/components/Typography';
 import { logout } from '../auth/authService';
 import ChangePasswordModal from '../profile/ChangePasswordModal';
 
-// Placeholder until the Settings spec arrives: only the auth actions.
-export default function SettingsScreen() {
+// The account actions from the Login & Sign Up spec (change password, sign
+// out). Placeholder home until the Settings/Profile spec arrives.
+export default function AccountActionsCard() {
   const [changePasswordVisible, setChangePasswordVisible] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -22,7 +22,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <Screen>
+    <>
       <Card>
         <Eyebrow>Placeholder</Eyebrow>
         <Heading>Settings</Heading>
@@ -41,6 +41,6 @@ export default function SettingsScreen() {
         />
       </Card>
       <ChangePasswordModal visible={changePasswordVisible} onClose={() => setChangePasswordVisible(false)} />
-    </Screen>
+    </>
   );
 }

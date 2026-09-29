@@ -6,7 +6,7 @@ describe('resolveLanding', () => {
     expect(
       resolveLanding({
         meErrored: true,
-        pendingDestination: { name: routes.Settings },
+        pendingDestination: { name: routes.Home },
         profileMissing: true,
         roles: ['trainer'],
         workspace: 'trainer',
@@ -15,8 +15,15 @@ describe('resolveLanding', () => {
   });
 
   it('restores a pending destination before the profile gate', () => {
-    const pendingDestination = { name: routes.Settings, params: { from: 'test' } };
+    const pendingDestination = { name: routes.Home, params: { from: 'test' } };
     expect(resolveLanding({ pendingDestination, profileMissing: true })).toBe(pendingDestination);
+  });
+
+  // The standalone Settings route was deleted (unreachable in the app); a
+  // destination recorded under that name by an older build must not strand the
+  // user on a route that no longer exists.
+  it('ignores a pending destination for the deleted Settings route', () => {
+    expect(resolveLanding({ pendingDestination: { name: 'Settings' } })).toEqual({ name: routes.Home });
   });
 
   it('ignores a pending destination outside the signed-in app', () => {
@@ -29,14 +36,12 @@ describe('resolveLanding', () => {
     });
   });
 
-  it('lands admins on Home even when they are also trainers in the trainer workspace', () => {
+  it('lands admins on Home (no admin branch, O1)', () => {
     expect(resolveLanding({ roles: ['Admin', 'trainer'], workspace: 'trainer' })).toEqual({ name: routes.Home });
   });
 
-  it('lands trainers in the trainer workspace on the trainer dashboard', () => {
-    expect(resolveLanding({ roles: ['TRAINER'], workspace: 'trainer' })).toEqual({
-      name: routes.TrainerDashboard,
-    });
+  it('lands trainers on Home; the shell Landing rule then applies Trainer mode (§3.3)', () => {
+    expect(resolveLanding({ roles: ['TRAINER'], workspace: 'trainer' })).toEqual({ name: routes.Home });
   });
 
   it('lands trainers who switched to the member workspace on Home', () => {
