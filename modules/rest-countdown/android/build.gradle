@@ -1,0 +1,15 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'app.gymido'
+version = '1.0.0'
+
+android {
+  namespace "app.gymido.restcountdown"
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+  }
+}

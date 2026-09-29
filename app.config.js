@@ -64,6 +64,11 @@ module.exports = {
     },
     android: {
       package: 'com.gymido.app',
+      // RN-SPEC-profile-create §10: the window resizes for the keyboard.
+      softwareKeyboardLayoutMode: 'resize',
+      // A2: exact rest alerts, offered once. Never USE_EXACT_ALARM, which Play
+      // restricts to alarm-clock and calendar apps.
+      permissions: ['android.permission.SCHEDULE_EXACT_ALARM'],
       adaptiveIcon: {
         backgroundColor: '#E6F4FE',
         foregroundImage: './assets/android-icon-foreground.png',
@@ -72,10 +77,24 @@ module.exports = {
       },
     },
     // Registers the {bundleId}.auth0 callback scheme on both platforms.
-    plugins: [['react-native-auth0', { domain: env.AUTH0_DOMAIN }], './plugins/withForcedLightTheme'],
+    plugins: [
+      ['react-native-auth0', { domain: env.AUTH0_DOMAIN }],
+      './plugins/withForcedLightTheme',
+      './plugins/withSceneLifecycle',
+      // O13: the rest countdown's widget extension (iOS Lock Screen). No App
+      // Group, no push, no entitlements at all.
+      './plugins/withRestCountdownWidget',
+      // Keep in this position. Plugin order decides which entitlements mod runs
+      // first, so a moved or new plugin can bring aps-environment back (the
+      // removed expo-widgets did); restCountdownPrebuild.test.js checks it.
+      './plugins/withoutPushCapability',
+    ],
     // Read at runtime through src/shared/config/env.js. Not secret.
     // Unset values are left undefined (omitted): Expo serializes null as {}.
     extra: {
+      eas: {
+        projectId: '5135bb59-a3be-4a09-93cb-057c12fe0506',
+      },
       appEnv: APP_ENV,
       apiBaseUrl: env.API_BASE_URL || undefined,
       apiServerTz: env.API_SERVER_TZ || API_SERVER_TZ_DEFAULTS[APP_ENV] || undefined,

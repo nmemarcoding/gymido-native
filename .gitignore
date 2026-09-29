@@ -151,6 +151,10 @@ expo-env.d.ts
 /ios
 /android
 
+# Build output of the in-repo native modules (Gradle writes it beside them)
+/modules/*/android/build/
+/modules/*/android/.cxx/
+
 # Native signing / credentials
 .kotlin/
 *.orig.*
