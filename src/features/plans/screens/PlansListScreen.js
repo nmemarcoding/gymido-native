@@ -3,8 +3,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { routes } from '../../../navigation/routes';
-import { LargeTitleHeader } from '../../../navigation/shell/PageHeaders';
-import PageLayout from '../../../navigation/shell/PageLayout';
+import { ShellPage } from '../../../navigation/shell/ShellChrome';
 import { useFocusGeneration } from '../../../navigation/shell/useFocusGeneration';
 import { EmptyState, InlineError, Loader } from '../../../shared/components/feedback';
 import { colors, textStyles } from '../../../shared/theme/tokens';
@@ -124,14 +123,13 @@ function PlansListContent({ generation, isCurrent }) {
 export default function PlansListScreen() {
   const { generation, isCurrent } = useFocusGeneration();
   return (
-    <PageLayout testID="plans-list-screen">
-      <LargeTitleHeader title="Library" />
+    <ShellPage path="/plans" testID="plans-list-screen">
       {generation === 0 ? (
         <Loader label="Loading plans" />
       ) : (
         <PlansListContent key={generation} generation={generation} isCurrent={isCurrent} />
       )}
-    </PageLayout>
+    </ShellPage>
   );
 }
 

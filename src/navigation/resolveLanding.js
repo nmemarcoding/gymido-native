@@ -1,16 +1,10 @@
-import { rolesInclude } from '../features/auth/roles';
-import { Workspace } from '../features/workspace/workspace';
 import { routes, signedInRouteNames } from './routes';
 
 // Where a user lands after sign-in. Rules are checked in order; the first
-// match wins. Mobile has no admin portal, so admins land on Home.
-export function resolveLanding({
-  meErrored = false,
-  pendingDestination = null,
-  profileMissing = false,
-  roles = [],
-  workspace = Workspace.member,
-}) {
+// match wins. Everyone with a profile lands on Home ("/"), whose Landing rule
+// (RN-SPEC-app-shell §3.3) sends a trainer in Trainer mode on to /trainer.
+// [O1] no admin branch: admins get whatever their other claims give them.
+export function resolveLanding({ meErrored = false, pendingDestination = null, profileMissing = false }) {
   if (meErrored) {
     return { name: routes.AccountUnavailable };
   }
@@ -19,12 +13,6 @@ export function resolveLanding({
   }
   if (profileMissing) {
     return { name: routes.Onboarding };
-  }
-  if (rolesInclude(roles, 'admin')) {
-    return { name: routes.Home };
-  }
-  if (rolesInclude(roles, 'trainer') && workspace === Workspace.trainer) {
-    return { name: routes.TrainerDashboard };
   }
   return { name: routes.Home };
 }

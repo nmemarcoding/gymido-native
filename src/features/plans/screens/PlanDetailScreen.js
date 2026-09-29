@@ -3,9 +3,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { routes } from '../../../navigation/routes';
-import { replaceWithWorkout } from '../../../navigation/shell/libraryNavigation';
-import { CompactHeader } from '../../../navigation/shell/PageHeaders';
-import PageLayout from '../../../navigation/shell/PageLayout';
+import { ShellPage } from '../../../navigation/shell/ShellChrome';
+import { replaceWithWorkout } from '../../../navigation/shell/shellNavigation';
 import { useFocusGeneration } from '../../../navigation/shell/useFocusGeneration';
 import { getWebApiErrorMessage } from '../../../shared/api/apiError';
 import { InlineError, Loader, Toast } from '../../../shared/components/feedback';
@@ -229,14 +228,9 @@ function PlanDetailContent({ planId, generation, isCurrent, routeKey }) {
 
       replaceWithWorkout(navigation, routeKey, `${plan?.name || 'Plan'} activated.`);
     } catch (submitError) {
-      if (submitError?.response?.status === 409) {
-        setActivationError(
-          getWebApiErrorMessage(submitError) ||
-            'You already have an active plan. Finish or deactivate it before starting another one.'
-        );
-      } else {
-        setActivationError(getWebApiErrorMessage(submitError) || 'Failed to activate this plan.');
-      }
+      // The web's 409 / generic fallbacks are unreachable (the message helper
+      // never returns ''), so they don't ship (RN-SPEC-plans §4.7).
+      setActivationError(getWebApiErrorMessage(submitError));
     } finally {
       setIsActivating(false);
     }
@@ -329,8 +323,7 @@ export default function PlanDetailScreen() {
   const planId = route.params?.planId;
 
   return (
-    <PageLayout testID="plan-detail-screen">
-      <CompactHeader />
+    <ShellPage path={`/plans/${planId ?? ''}`} testID="plan-detail-screen">
       <View style={styles.pullUp}>
         {generation === 0 ? (
           <Loader label="Loading plan" />
@@ -344,7 +337,7 @@ export default function PlanDetailScreen() {
           />
         )}
       </View>
-    </PageLayout>
+    </ShellPage>
   );
 }
 

@@ -10,13 +10,13 @@ const TRANSPARENT = 'rgba(0,0,0,0)';
 // Pressable whose web `hover:` colors apply only while the finger is down, with
 // the 150ms transition-colors (RN-SPEC-plans §9.1). Disabled controls get no
 // pressed style. `colorsFor(pressed)` returns { backgroundColor, borderColor };
-// `style` may be a function of { pressed }.
-export function ColorPressable({ colorsFor, style, disabled, children, ...rest }) {
+// `style` may be a function of { pressed }. `transitionMs` defaults to 150.
+export function ColorPressable({ colorsFor, style, disabled, children, transitionMs, ...rest }) {
   const [pressed, setPressed] = useState(false);
   const active = pressed && !disabled;
   const target = colorsFor(active);
-  const backgroundColor = useColorTransition(target.backgroundColor ?? TRANSPARENT);
-  const borderColor = useColorTransition(target.borderColor ?? TRANSPARENT);
+  const backgroundColor = useColorTransition(target.backgroundColor ?? TRANSPARENT, transitionMs);
+  const borderColor = useColorTransition(target.borderColor ?? TRANSPARENT, transitionMs);
   const resolvedStyle = typeof style === 'function' ? style({ pressed: active }) : style;
 
   return (

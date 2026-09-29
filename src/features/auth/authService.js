@@ -5,6 +5,7 @@ import { isNetworkError } from '../../shared/api/apiError';
 import { setAccessTokenProvider } from '../../shared/api/client';
 import { env } from '../../shared/config/env';
 import { getProfile } from '../profile/api/profileApi';
+import { useProfileStore } from '../profile/profileStore';
 import { Workspace } from '../workspace/workspace';
 import { loadWorkspace, setWorkspace } from '../workspace/workspacePreference';
 import { getMe } from './api/authApi';
@@ -72,11 +73,18 @@ async function loadUser(credentials, claims) {
     user = { email: claims.email, roles };
   }
 
+  // ProfileGate (RN-SPEC-app-shell §3.2): a null profile or a 404 is 'missing';
+  // any other error is 'error', which renders the app anyway (⚠S7).
   let profileMissing = false;
+  useProfileStore.setState({ profileStatus: 'loading' });
   try {
-    await getProfile(credentials.accessToken);
+    const data = await getProfile(credentials.accessToken);
+    const profile = data?.profile ?? null;
+    profileMissing = profile === null;
+    useProfileStore.setState({ profile, profileStatus: profileMissing ? 'missing' : 'loaded', profileError: null });
   } catch (error) {
     profileMissing = error?.response?.status === 404;
+    useProfileStore.setState({ profile: null, profileStatus: profileMissing ? 'missing' : 'error', profileError: error });
     if (!profileMissing) {
       logAuthError('profile', error);
     }

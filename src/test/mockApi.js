@@ -63,6 +63,7 @@ export function mockApi(handlers) {
   jest.spyOn(apiClient, 'get').mockImplementation(dispatch('GET'));
   jest.spyOn(apiClient, 'post').mockImplementation(dispatch('POST'));
   jest.spyOn(apiClient, 'put').mockImplementation(dispatch('PUT'));
+  jest.spyOn(apiClient, 'patch').mockImplementation(dispatch('PATCH'));
 
   return {
     calls,
