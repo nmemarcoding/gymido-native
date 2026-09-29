@@ -8,15 +8,11 @@
 # The Auth0 role is "Trainer" (capital T) while roles.js compares
 # case-insensitively, so the assertion is deliberately loose on case.
 #
-# Why the landing is Onboarding and not Trainer dashboard: resolveLanding checks
-# profileMissing BEFORE any role rule, and this account was created through the
-# Management API, so it has no backend profile and /profile 404s. That ordering
-# is the spec, not a bug.
-#
-# KNOWN GAP: the Trainer-dashboard branch of resolveLanding is not reachable
-# from the app today — it needs a trainer WITH a profile, and OnboardingScreen
-# is still a placeholder with no profile-creation form. resolveLanding.test.js
-# covers the branch in unit form. Revisit this flow when onboarding ships.
+# Landing: the Trainer workspace, on Dashboard. Since 25 Sep 2026 this account
+# is the E2E rig, with a profile and an active plan (created through the app),
+# so the profile gate passes and the role rule lands it on the trainer tabs.
+# This closes the old gap where the Trainer-dashboard branch of resolveLanding
+# was unreachable from the app.
 #
 # Requires -e TRAINER_EMAIL=... -e TRAINER_PASSWORD=... (see README).
 #
@@ -32,9 +28,11 @@ appId: com.gymido.app
       LOGIN_EMAIL: ${TRAINER_EMAIL}
       LOGIN_PASSWORD: ${TRAINER_PASSWORD}
 - extendedWaitUntil:
-    visible: "Signed in as ${TRAINER_EMAIL}"
+    visible:
+      id: "tab-TrainerDashboardTab"
     timeout: 90000
-- assertVisible: "Roles: .*[Tt]rainer.*"
-# Profile gate wins over the role rule; see the note above.
-- assertVisible: "Onboarding"
+# The page itself, not the "Dashboard" tab label: a blank Home under the
+# trainer tab bar used to pass here.
+- assertVisible:
+    id: "coming-soon-TrainerDashboardTab"
 - assertNotVisible: "Account unavailable"

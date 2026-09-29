@@ -1,0 +1,73 @@
+# Crash hunt, rest paths (RN-SPEC-time §7.2, O4, O13): +5s, −5s to zero (the
+# silent end), skip, un-complete during a rest, and a natural end at zero.
+# Draw-time crashes hide when backgrounded, so the screen must stay on and the
+# app in the foreground throughout (adb shell svc power stayon true).
+# Requires the plan's sets to carry a planned rest.
+appId: com.gymido.app
+---
+- runFlow: ../subflows/open-personal-workout.yaml
+- runFlow: ../subflows/start-session.yaml
+
+# 1. +5s, then −5s all the way to zero: the silent end (no alert, no advance).
+- runFlow: ../subflows/log-next-set.yaml
+- extendedWaitUntil:
+    visible:
+      id: "rest-timer-expanded"
+    timeout: 20000
+- tapOn: "Increase rest timer by 5 seconds"
+- repeat:
+    while:
+      visible:
+        id: "rest-timer-expanded"
+    times: 60
+    commands:
+      - tapOn: "Decrease rest timer by 5 seconds"
+- assertNotVisible:
+    id: "rest-timer-expanded"
+- assertVisible:
+    id: "session-scroll"
+
+# 2. Skip.
+- runFlow: ../subflows/log-next-set.yaml
+- extendedWaitUntil:
+    visible:
+      id: "rest-timer-expanded"
+    timeout: 20000
+- tapOn:
+    id: "rest-timer-skip"
+- assertNotVisible:
+    id: "rest-timer-expanded"
+
+# 3. Un-complete the set while its rest runs: the rest clears.
+- runFlow: ../subflows/log-next-set.yaml
+- extendedWaitUntil:
+    visible:
+      id: "rest-timer-expanded"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      text: "Undo"
+    direction: UP
+    timeout: 20000
+- tapOn:
+    text: "Undo"
+    index: 0
+- extendedWaitUntil:
+    notVisible:
+      id: "rest-timer-expanded"
+    timeout: 20000
+
+# 4. Natural end at zero, in the foreground — the path that used to crash.
+- runFlow: ../subflows/log-next-set.yaml
+- extendedWaitUntil:
+    visible:
+      id: "rest-timer-expanded|rest-timer-collapsed"
+    timeout: 20000
+- extendedWaitUntil:
+    notVisible:
+      id: "rest-timer-layer"
+    timeout: 400000
+- assertVisible:
+    id: "session-scroll"
+
+- runFlow: ../subflows/discard-session.yaml

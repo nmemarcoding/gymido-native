@@ -1,20 +1,26 @@
-# Closes the hosted Auth0 page without signing in.
-# iOS shows a Cancel button on the web-auth sheet; Android uses the Custom Tab's
-# back/close, which sometimes only dismisses a Chrome tooltip on the first press.
+# Closes the hosted Auth0 page without signing in (recorded elements).
+#   Android: the Custom Tab's own "Close tab" button (id close_button).
+#   iOS: the web-auth sheet's "Cancel" (id Close), or "Cancel" on the system
+#   "Wants to Use" sheet if it is still up.
 appId: com.gymido.app
 ---
 - runFlow:
     when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: "com.android.chrome:id/close_button"
+- runFlow:
+    when:
       platform: iOS
+      visible: ".*Wants to Use.*"
     commands:
       - tapOn: "Cancel"
 - runFlow:
     when:
-      platform: Android
+      platform: iOS
+      visible:
+        id: "Close"
     commands:
-      - pressKey: Back
-      - runFlow:
-          when:
-            visible: "Continue with Google"
-          commands:
-            - pressKey: Back
+      - tapOn:
+          id: "Close"

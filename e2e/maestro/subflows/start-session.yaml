@@ -1,0 +1,28 @@
+# From the Workout hub with no session: start today's workout, or the first
+# plan day when today isn't a scheduled day.
+appId: com.gymido.app
+---
+- runFlow:
+    when:
+      visible:
+        id: "hero-start"
+    commands:
+      - tapOn:
+          id: "hero-start"
+- runFlow:
+    when:
+      notVisible:
+        id: "hero-start"
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "plan-day-start-.*"
+          direction: DOWN
+          timeout: 30000
+      - tapOn:
+          id: "plan-day-start-.*"
+          index: 0
+- extendedWaitUntil:
+    visible:
+      id: "session-scroll"
+    timeout: 60000

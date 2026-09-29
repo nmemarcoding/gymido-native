@@ -124,6 +124,10 @@ xcrun devicectl device install app --device <udid> \
 
 Requires the phone unlocked and connected. After installing, trust the certificate on the phone: Settings → General → **VPN & Device Management**. The app will not launch before that. See `e2e/scripts/ios-offline-real-device.md` for the offline test this build is used for.
 
+**The rest countdown (O13).** The build signs two targets: the app (`com.gymido.app`) and its Lock Screen widget extension `RestCountdownWidget` (`com.gymido.app.RestCountdown`). The free team signs both because neither has an App Group or push entitlement; `plugins/__tests__/restCountdownPrebuild.test.js` fails if a config change ever adds one. On the phone, the first rest countdown shows iOS's own "allow Live Activities" choice under it; it stops once answered. If Live Activities are off (Settings → Gymido), the countdown is skipped quietly and the rest alert still arrives. The simulator can't draw Lock Screen Live Activities, so check the card on a real phone.
+
+A free team can register only 10 new App IDs per 7 days, and each bundle ID above counts once. **Moving to a paid Apple Developer account for release:** bundle IDs are unique across teams, so the personal team's registrations of `com.gymido.app` and `com.gymido.app.RestCountdown` may have to lapse or be removed before the paid team can register them.
+
 ---
 
 ## Building
@@ -154,7 +158,13 @@ npm test -- src/features/plans   # one feature's tests
 npm run doctor             # expo-doctor: dependency and config checks
 ```
 
+The iOS simulator runs Live Activities but never draws the Lock Screen, so the rest countdown's card is checked by snapshot instead: `npm run snapshot:rest-countdown` (needs Xcode) renders `plugins/restCountdown/RestCountdownCardView.swift` — the file the widget itself uses — to PNGs in `/tmp/gymido-rest-countdown` and checks the gold field, the navy ink and the exact copy (OCR). It can't check the progress bar's fill (ImageRenderer can't draw the platform ProgressView), the system Lock Screen compositing or VoiceOver.
+
+Two guard tests run as part of `npm test`: `src/test/importGraph.test.js` walks every import from `index.js` the way Metro bundles it, so a renamed or deleted module fails in Jest instead of in a release build; `plugins/__tests__/restCountdownPrebuild.test.js` runs a real `expo prebuild` into a temporary folder (a few seconds) and checks the signing-sensitive output.
+
 Jest runs in `America/Los_Angeles` (`jest.globalSetup.js`) so the UTC-date and timestamp parity tests mean the same thing on every machine. Screen tests mock HTTP at the Axios client (`src/test/mockApi.js`) with spec-shaped payloads (`src/test/planFixtures.js`); animations run on the reduce-motion path by default (`jest.setup.js`).
+
+**iOS simulator builds for E2E must be signed.** `npm run ios` / `expo run:ios` sign the simulator app ad-hoc, which is enough. A hand-built `xcodebuild … CODE_SIGNING_ALLOWED=NO` app can't use the keychain, so login ends on "Sign-in failed … Failed to store credentials in the Keychain." When building with `xcodebuild` for a simulator, target it by id (`-destination 'platform=iOS Simulator,id=<udid>'`) and leave signing at its default.
 
 E2E smoke tests (Maestro). **Requires Metro running (`npm start`), the dev client installed, and a booted device:**
 
@@ -170,16 +180,12 @@ maestro test -p android e2e/maestro/01-welcome-no-auto-redirect.yaml
 maestro test --udid <simulator-udid> e2e/maestro/02-login-opens-universal-login.yaml
 ```
 
-Role-landing flows (07-09) each need their own account. Source the env file so secrets stay off the command line:
+The trainer role-landing flow (07) needs its own account. Source the env file so secrets stay off the command line:
 
 ```bash
 set -a && . ./.env.e2e.local && set +a
 maestro test -p android e2e/maestro/07-trainer-role-landing.yaml \
   -e TRAINER_EMAIL="$TRAINER_EMAIL" -e TRAINER_PASSWORD="$TRAINER_PASSWORD"
-maestro test -p android e2e/maestro/08-admin-role-landing.yaml \
-  -e ADMIN_EMAIL="$ADMIN_EMAIL" -e ADMIN_PASSWORD="$ADMIN_PASSWORD"
-maestro test -p android e2e/maestro/09-deactivated-account.yaml \
-  -e DEACTIVATED_EMAIL="$DEACTIVATED_EMAIL" -e DEACTIVATED_PASSWORD="$DEACTIVATED_PASSWORD"
 ```
 
 The Android emulator needs at least 4 GB of RAM or Maestro reads an empty view hierarchy and every assertion fails while the app is fine:
@@ -188,7 +194,12 @@ The Android emulator needs at least 4 GB of RAM or Maestro reads an empty view h
 emulator -avd Pixel_API_36 -memory 6144 -no-snapshot-load
 ```
 
-Credentials live in `.env.e2e.local` (gitignored) — treat that file as **live admin credentials**, not just test config. It currently has no `MEMBER_*` entries, so flows 04-06 need the member password supplied separately. See `e2e/maestro/README.md` for what each flow covers and a troubleshooting table.
+Credentials live in `.env.e2e.local` (gitignored) — treat that file as **live admin credentials**, not just test config. It currently has no `MEMBER_*` entries. It does have `PROFILED_EMAIL` / `PROFILED_PASSWORD`, an owner-shared account **with a profile**: flows 05/06 (Settings is only reachable inside the app shell) and anything past Create Profile need it, passed as the `MEMBER_*` variables:
+
+```bash
+set -a && . ./.env.e2e.local && set +a
+npm run e2e:ios -- -e MEMBER_EMAIL="$PROFILED_EMAIL" -e MEMBER_PASSWORD="$PROFILED_PASSWORD"
+``` See `e2e/maestro/README.md` for what each flow covers and a troubleshooting table.
 
 Offline refresh behaviour:
 

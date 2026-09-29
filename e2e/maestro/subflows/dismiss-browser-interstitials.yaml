@@ -12,12 +12,13 @@ appId: com.gymido.app
 # left up, which looks exactly like the hosted page failing to load.
 # Scoped to the moment right after tapping Log in, so it cannot collide with
 # Auth0's own Continue button.
+# iOS offers to save the password in Keychain right after the form is
+# submitted. It covers the page, so the flow stalls on whatever comes next.
 - runFlow:
     when:
-      platform: iOS
-      visible: ".*Wants to Use.*"
+      visible: "Save Password?"
     commands:
-      - tapOn: "Continue"
+      - tapOn: "Not Now"
       - waitForAnimationToEnd:
           timeout: 4000
 - runFlow:

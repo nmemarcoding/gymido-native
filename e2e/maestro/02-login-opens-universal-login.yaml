@@ -3,12 +3,8 @@
 appId: com.gymido.app
 ---
 - runFlow: subflows/ensure-signed-out.yaml
-- tapOn:
-    id: "welcome-log-in"
-- waitForAnimationToEnd:
-    timeout: 8000
-- runFlow: subflows/dismiss-browser-interstitials.yaml
-- runFlow: subflows/wait-for-login-form.yaml
+- runFlow: subflows/open-login-page.yaml
+# Parity with the web: Google sign-in is offered on the hosted page.
 - assertVisible: "Continue with Google"
 - runFlow: subflows/cancel-universal-login.yaml
 - extendedWaitUntil:

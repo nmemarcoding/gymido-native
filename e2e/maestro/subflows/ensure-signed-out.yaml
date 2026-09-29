@@ -1,26 +1,24 @@
-# Leaves the app on the Welcome screen, signing out first if a session exists.
+# Leaves the app on the Welcome screen.
+#
+# Preferred path: sign out through the UI (Settings tab), because the app's
+# logout also calls Auth0 clearSession, which clears the browser SSO cookie —
+# without that, the next login skips the Universal Login form entirely.
+#
+# Fallback: wipe app state (+ the iOS keychain, which survives clearState).
+# That signs the app out but leaves the Auth0 browser session, so a following
+# login may not show the form. It is only reachable for an account with no
+# profile, which stops on Create Profile where there is no sign-out control
+# (RN-SPEC-profile-create ⚠P7). See e2e/maestro/README.md.
 appId: com.gymido.app
 ---
-- runFlow: launch-dev-client.yaml
-# On a placeholder screen: go to Settings first.
+- runFlow: launch-app.yaml
+# Signed in anywhere in the shell: sign out through the UI (sign-out.yaml),
+# which also clears the Auth0 browser session.
 - runFlow:
     when:
       visible:
-        id: "placeholder-open-settings"
-    commands:
-      - tapOn:
-          id: "placeholder-open-settings"
-      - extendedWaitUntil:
-          visible:
-            id: "settings-sign-out"
-          timeout: 20000
-- runFlow:
-    when:
-      visible:
-        id: "settings-sign-out"
-    commands:
-      - tapOn:
-          id: "settings-sign-out"
+        id: "tab-bar"
+    file: sign-out.yaml
 - runFlow:
     when:
       visible:
@@ -28,6 +26,21 @@ appId: com.gymido.app
     commands:
       - tapOn:
           id: "account-unavailable-sign-out"
+      - runFlow: confirm-ios-logout.yaml
+# Fallback for screens with no sign-out (e.g. Create Profile).
+- runFlow:
+    when:
+      notVisible:
+        id: "welcome-log-in"
+    commands:
+      - stopApp
+      - runFlow:
+          when:
+            platform: iOS
+          commands:
+            - clearKeychain
+      - clearState
+      - runFlow: launch-app.yaml
 - extendedWaitUntil:
     visible:
       id: "welcome-log-in"

@@ -1,0 +1,16 @@
+# Discards the running session through its own UI, back to the hub.
+appId: com.gymido.app
+---
+- scrollUntilVisible:
+    element:
+      id: "discard-workout"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "discard-workout"
+- tapOn:
+    id: "discard-confirm"
+- extendedWaitUntil:
+    visible:
+      id: "today-hero-card|plan-day-card-.*|workout-empty-state"
+    timeout: 60000

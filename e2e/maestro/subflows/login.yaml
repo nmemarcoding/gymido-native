@@ -1,0 +1,48 @@
+# Signs in from the Welcome screen with LOGIN_EMAIL / LOGIN_PASSWORD (pass
+# them with -e; never write them into a file). Only recorded elements.
+# Ends right after the form is submitted; the caller asserts the landing.
+appId: com.gymido.app
+---
+- runFlow: open-login-page.yaml
+# A surviving Auth0 session shows the consent page instead of the form.
+- runFlow:
+    when:
+      visible: "Accept"
+    commands:
+      - tapOn: "Accept"
+- runFlow:
+    when:
+      platform: Android
+      visible:
+        id: "username"
+    commands:
+      - tapOn:
+          id: "username"
+      - eraseText: 60
+      - inputText: ${LOGIN_EMAIL}
+      - tapOn:
+          id: "password"
+      - eraseText: 60
+      - inputText: ${LOGIN_PASSWORD}
+      - hideKeyboard
+      - tapOn: "Continue"
+- runFlow:
+    when:
+      platform: iOS
+      visible: "Continue with Google"
+    commands:
+      - tapOn: "Email address"
+      - eraseText: 60
+      - inputText: ${LOGIN_EMAIL}
+      - tapOn: "Password"
+      - eraseText: 60
+      - inputText: ${LOGIN_PASSWORD}
+      - tapOn: "Continue"
+# The consent page can also follow a submitted form.
+- waitForAnimationToEnd:
+    timeout: 5000
+- runFlow:
+    when:
+      visible: "Accept"
+    commands:
+      - tapOn: "Accept"
