@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["RestCountdownModule"]
+  },
+  "android": {
+    "modules": ["app.gymido.restcountdown.RestCountdownModule"]
+  }
+}
