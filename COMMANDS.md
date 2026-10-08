@@ -173,6 +173,8 @@ npm run e2e:android -- -e MEMBER_EMAIL=<email> -e MEMBER_PASSWORD=<password>
 npm run e2e:ios     -- -e MEMBER_EMAIL=<email> -e MEMBER_PASSWORD=<password>
 ```
 
+Both scripts first run `node e2e/scripts/check-env.js`, which fails if a value in `.env.e2e.local` has leading/trailing whitespace, a CR or quotes (it prints key names only). A stray space after the trainer email once made Auth0 answer "Wrong email or password". Run it yourself before a direct `maestro test`.
+
 Single flow, or a specific device:
 
 ```bash

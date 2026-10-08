@@ -11,8 +11,8 @@
     "android": "cross-env APP_ENV=development expo run:android",
     "native:clean": "cross-env APP_ENV=development expo prebuild --clean",
     "test": "jest",
-    "e2e:android": "maestro test -p android e2e/maestro",
-    "e2e:ios": "maestro test -p ios e2e/maestro",
+    "e2e:android": "node e2e/scripts/check-env.js && maestro test -p android e2e/maestro",
+    "e2e:ios": "node e2e/scripts/check-env.js && maestro test -p ios e2e/maestro",
     "doctor": "expo-doctor",
     "snapshot:rest-countdown": "sh scripts/snapshot-rest-countdown.sh"
   },
