@@ -4,6 +4,8 @@ appId: com.gymido.app
 ---
 - runFlow: ../subflows/open-personal-workout.yaml
 - runFlow: ../subflows/start-session.yaml
+# Nav visuals (§19.8): a fresh session, nothing filled.
+- takeScreenshot: w2-nav-fresh
 
 - tapOn:
     id: "session-show-all"
@@ -20,12 +22,18 @@ appId: com.gymido.app
     timeout: 20000
 - assertVisible:
     id: "exercise-stage"
+# Viewing exercise 2: the viewed ring moved, exercise 1 keeps the active ring.
+- takeScreenshot: w2-nav-switched
+# Back to exercise 1 by its segment's name: "index: 0" picked the ACTIVE
+# segment on iOS (a no-op tap), since Maestro orders matches by position.
 - tapOn:
     id: "nav-segment-.*"
-    index: 0
+    text: "Exercise 1: .*"
+- assertVisible: "(?i)exercise 1 of .*"
 - assertVisible:
     id: "exercise-stage"
 
+- takeScreenshot: w2-after-sheet-switch
 # Log one set so the workout has something, then finish early.
 - runFlow: ../subflows/log-next-set.yaml
 - runFlow:
@@ -35,17 +43,25 @@ appId: com.gymido.app
     commands:
       - tapOn:
           id: "rest-timer-skip"
+# Exercise 1 partly done (1 of its sets): partial fill.
+- takeScreenshot: w2-nav-partial
+# Centred clear of the exercise nav bar (see discard-session).
 - scrollUntilVisible:
     element:
       id: "complete-workout"
     direction: DOWN
     timeout: 30000
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: w2-before-complete
 - tapOn:
     id: "complete-workout"
 - extendedWaitUntil:
     visible:
       id: "completion-popup"
     timeout: 60000
+- takeScreenshot: w2-completion-popup
 - tapOn:
     id: "completion-dismiss"
 - extendedWaitUntil:
@@ -56,3 +72,4 @@ appId: com.gymido.app
 # A second session, discarded.
 - runFlow: ../subflows/start-session.yaml
 - runFlow: ../subflows/discard-session.yaml
+- takeScreenshot: w2-end

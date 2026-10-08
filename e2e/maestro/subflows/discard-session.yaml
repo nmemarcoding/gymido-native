@@ -1,11 +1,16 @@
 # Discards the running session through its own UI, back to the hub.
 appId: com.gymido.app
 ---
+# Centred: "visible" in the hierarchy isn't clear of the exercise nav bar that
+# overlays the list bottom; the link sat under it and the tap hit the bar.
 - scrollUntilVisible:
     element:
       id: "discard-workout"
     direction: DOWN
     timeout: 30000
+    centerElement: true
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn:
     id: "discard-workout"
 - tapOn:

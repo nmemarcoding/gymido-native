@@ -1,16 +1,87 @@
-# Logs the first not-yet-done set on the stage: a weight (erased first —
-# inputText APPENDS), then "Did it". The next set is the first enabled action.
+# Logs the next set on the stage: a weight of 20, then "Did it".
+#
+# The next set is the row whose "Did it" is ENABLED: done sets show "Undo" but
+# keep an editable weight field, and later sets show a disabled "Did it".
+# Targeting "set-weight-.*" index 0 used to hit set 1 again once it was done.
+#
+# Replacing the value: inputText APPENDS and eraseText only deletes left of the
+# caret, which iOS puts where the tap lands (a "2045" got logged, 2026-10-08).
+# So: tap to focus, double-tap to select the number, type over the selection.
+# The exact-value check before "Did it" is the hard guard: nothing is logged
+# unless the field reads 20. (No "is empty" check: Maestro reports an empty iOS
+# field's placeholder as its text.)
 appId: com.gymido.app
 ---
 - scrollUntilVisible:
     element:
       text: "Did it"
+      enabled: true
     direction: DOWN
     timeout: 30000
+    centerElement: true
+# Centre the row clear of the exercise nav bar (it overlays the list bottom),
+# then let the scroll settle: a tap on a still-moving list only stops it. The
+# optional wait on a missing element is a fixed ~1 s pause (Maestro has no sleep).
+- waitForAnimationToEnd:
+    timeout: 5000
+- extendedWaitUntil:
+    visible:
+      id: "e2e-never-present"
+    timeout: 1000
+    optional: true
 - tapOn:
     id: "set-weight-.*"
+    childOf:
+      id: "set-row-.*"
+      containsDescendants:
+        - text: "Did it"
+          enabled: true
     index: 0
-- eraseText: 10
+- doubleTapOn:
+    id: "set-weight-.*"
+    childOf:
+      id: "set-row-.*"
+      containsDescendants:
+        - text: "Did it"
+          enabled: true
+    index: 0
 - inputText: "20"
-- hideKeyboard
-- tapOn: "Did it"
+- assertVisible:
+    id: "set-weight-.*"
+    text: "20"
+    childOf:
+      id: "set-row-.*"
+      containsDescendants:
+        - text: "Did it"
+          enabled: true
+    index: 0
+# No hideKeyboard: "Did it" takes the first tap with the keypad up (SessionShell
+# keyboardShouldPersistTaps) and closes it itself. iOS's decimal pad has no Done
+# key, and on Android hideKeyboard is a Back press that left the session.
+- tapOn:
+    text: "Did it"
+    enabled: true
+# The first rest start asks for notification permission while it is still
+# undetermined (RN-SPEC-time §7.2, restAlerts.js). The OS dialog covers the
+# rest timer; allow it, since the rest-alert paths need it granted.
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: ".*(Would Like to Send You Notifications|to send you notifications).*"
+    commands:
+      - tapOn: "Allow"
+# Android A2 (RN-SPEC-time): the one-time exact-alarm offer follows the first
+# rest once notifications are allowed. It's modal; "Not now" keeps us in the app
+# ("Open settings" leaves it).
+- runFlow:
+    when:
+      visible:
+        id: "exact-alarm-dialog"
+    commands:
+      - takeScreenshot: a2-offer-before-not-now
+      - tapOn:
+          id: "exact-alarm-not-now"
+      - extendedWaitUntil:
+          notVisible:
+            id: "exact-alarm-dialog"
+          timeout: 10000
