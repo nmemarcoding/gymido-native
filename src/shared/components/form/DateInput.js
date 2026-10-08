@@ -1,6 +1,6 @@
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Keyboard, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '../../theme/tokens';
 import BottomSheet from './BottomSheet';
@@ -43,6 +43,8 @@ export default function DateInput({ label, value, onChangeValue, helperText, err
   };
 
   const openPicker = () => {
+    // Web parity: a select/date click moves focus off a focused input.
+    Keyboard.dismiss();
     if (Platform.OS === 'android') {
       DateTimePickerAndroid.open({
         value: current,

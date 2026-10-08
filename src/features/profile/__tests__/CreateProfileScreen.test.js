@@ -1,7 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { act, fireEvent, render, screen, userEvent } from '@testing-library/react-native';
-import { Text } from 'react-native';
+import { Keyboard, Text } from 'react-native';
 
 import { routes } from '../../../navigation/routes';
 import { httpError, mockApi, networkError } from '../../../test/mockApi';
@@ -281,4 +281,16 @@ test('O5: the one Weight unit selector drives both weights in the payload', asyn
     goal_weight_value: 78,
     goal_weight_unit: 'kg',
   });
+});
+
+// Web parity: the submit click moves focus off the input (WebButton closes the
+// keyboard), whether or not validation then passes.
+test('"Create profile" dismisses the keyboard', async () => {
+  mockApi({});
+  const dismiss = jest.spyOn(Keyboard, 'dismiss');
+  const user = userEvent.setup();
+  await renderScreen();
+  await user.type(field('First Name'), 'John');
+  await user.press(submit());
+  expect(dismiss).toHaveBeenCalled();
 });

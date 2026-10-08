@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Keyboard, StyleSheet, Text, View } from 'react-native';
 
 import { ColorPressable } from '../../../features/plans/components/PlanBits';
 import { colors, radii, shadows } from '../../theme/tokens';
@@ -18,7 +18,11 @@ export default function WebButton({ title, onPress, loading = false, disabled = 
         accessibilityLabel={title}
         accessibilityState={{ disabled: inactive, busy: loading }}
         disabled={inactive}
-        onPress={onPress}
+        // Like Button: a web click moves focus off a focused input.
+        onPress={(event) => {
+          Keyboard.dismiss();
+          onPress?.(event);
+        }}
         colorsFor={(pressed) => ({ backgroundColor: pressed ? colors.brand500 : colors.brand400 })}
         transitionMs={200}
         style={styles.button}
