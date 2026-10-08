@@ -86,9 +86,12 @@ export default function SessionShell({ header, nav, overlay, scrollToKey, childr
         {header}
       </View>
 
+      {/* "handled": with the default the first tap on a set action while the
+          weight keyboard is up only dismisses the keyboard (see PageLayout). */}
       <ScrollView
         ref={scrollRef}
         testID="session-scroll"
+        keyboardShouldPersistTaps="handled"
         onLayout={(event) => {
           viewportHeight.current = event.nativeEvent.layout.height;
         }}

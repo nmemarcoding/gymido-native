@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, radii } from '../../../shared/theme/tokens';
@@ -33,6 +33,7 @@ import {
   SET_KEY,
   validateWeight,
 } from './runtimeRules';
+import { NavSegmentBar, isSwipeUpToSheet } from './NavSegment';
 import { useRestTimer } from './useRestTimer';
 
 const LOCK_REST = 'Rest timer running — wait or skip it first';
@@ -321,6 +322,7 @@ export default function SessionRuntime({
         <ExerciseNav
           exercises={exercises}
           viewingExerciseIndex={viewingExerciseIndex}
+          activeExerciseIndex={activeExerciseIndex}
           onView={setViewingExerciseIndex}
           onShowAll={() => setShowAllSheet(true)}
         />
@@ -450,10 +452,28 @@ export default function SessionRuntime({
 
 // §19.8 WorkoutExerciseNav. Pinned to the bottom by SessionShell (§19.0); this
 // is only its contents.
-function ExerciseNav({ exercises, viewingExerciseIndex, onView, onShowAll }) {
+function ExerciseNav({ exercises, viewingExerciseIndex, activeExerciseIndex, onView, onShowAll }) {
   const insets = useSafeAreaInsets();
+  // §19.8: swipe up anywhere on the bar opens the sheet. Only a mostly-vertical
+  // upward drag claims the touch, so taps still reach the segments.
+  const onShowAllRef = useRef(onShowAll);
+  onShowAllRef.current = onShowAll;
+  const swipe = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_event, gesture) => gesture.dy < -10 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+      onPanResponderRelease: (_event, gesture) => {
+        if (isSwipeUpToSheet(gesture)) {
+          onShowAllRef.current();
+        }
+      },
+    })
+  ).current;
   return (
-    <View style={[styles.nav, { paddingBottom: Math.max(12, insets.bottom) }]} testID="workout-exercise-nav">
+    <View
+      style={[styles.nav, { paddingBottom: Math.max(12, insets.bottom) }]}
+      testID="workout-exercise-nav"
+      {...swipe.panHandlers}
+    >
       <View style={styles.navHead}>
         <Text style={styles.navCount}>{`Exercise ${Math.min(viewingExerciseIndex + 1, exercises.length)} of ${exercises.length}`}</Text>
         <Pressable accessibilityRole="button" onPress={onShowAll}>
@@ -464,16 +484,22 @@ function ExerciseNav({ exercises, viewingExerciseIndex, onView, onShowAll }) {
         {exercises.map((exercise, index) => {
           const sets = exercise.sets || [];
           const ratio = sets.length ? sets.filter((set) => set.is_completed).length / sets.length : 0;
+          const done = sets.filter((set) => set.is_completed).length;
+          const isViewed = index === viewingExerciseIndex;
+          const isActive = index === activeExerciseIndex;
+          // Web parity (WorkoutExerciseNav): each segment is a 44-tall button and
+          // the bar (NavSegmentBar) sits centred in it; it was a 6-10pt tap target.
           return (
             <Pressable
               key={exercise.id}
               testID={`nav-segment-${exercise.id}`}
               accessibilityRole="button"
-              accessibilityLabel={`Exercise ${index + 1}`}
+              accessibilityLabel={`Exercise ${index + 1}: ${done} of ${sets.length} sets done`}
+              accessibilityState={{ selected: isViewed }}
               onPress={() => onView(index)}
-              style={[styles.segment, index === viewingExerciseIndex && styles.segmentActive]}
+              style={styles.segmentButton}
             >
-              <View style={[styles.segmentFill, { width: `${ratio * 100}%` }]} />
+              <NavSegmentBar id={exercise.id} ratio={ratio} isViewed={isViewed} isActive={isActive} />
             </Pressable>
           );
         })}
@@ -560,18 +586,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: 6,
   },
-  segment: {
+  segmentButton: {
     flex: 1,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.surfaceMuted,
-    overflow: 'hidden',
-  },
-  segmentActive: {
-    height: 10,
-  },
-  segmentFill: {
-    height: '100%',
-    backgroundColor: colors.brand400,
+    minHeight: 44,
+    justifyContent: 'center',
   },
 });

@@ -25,6 +25,15 @@ import { createTimerDragConfig } from './timerDrag';
 
 export const TIMER_COLLAPSED_SIZE = 80;
 export const TIMER_EXPANDED_SIZE = 288;
+// The expanded ring, in the disc's 40-unit viewBox (radius 18.5, stroke 2:
+// inner edge at 17.5/20 of the disc radius, as on the web).
+export const EXPANDED_RING = { radius: 18.5, stroke: 2 };
+// Web parity: the "−" is 32 high with its top at 28/288 of the disc, ~10pt
+// inside the ring. It sat at 12 and overlapped the ring. hitSlop keeps the
+// tap target at 44 without growing the button.
+export const MINIMIZE_SIZE = 32;
+export const MINIMIZE_TOP = Math.round((TIMER_EXPANDED_SIZE * 28) / 288);
+export const MINIMIZE_HIT_SLOP = (44 - MINIMIZE_SIZE) / 2;
 
 // §22.2. The whole widget drags; the four inner controls do not start one,
 // matching the web's stopPropagation() on their pointer-down. A PanResponder
@@ -166,12 +175,13 @@ export function RestTimerWidget({ restTimer, minimized, dragLock, onExpand, onMi
 
   return (
     <View testID="rest-timer-expanded" style={[styles.timerBase, styles.timerExpanded]}>
-      <CountdownRing ratio={ratio} size={288} radius={18.5} stroke={2} />
+      <CountdownRing ratio={ratio} size={TIMER_EXPANDED_SIZE} radius={EXPANDED_RING.radius} stroke={EXPANDED_RING.stroke} />
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Minimize rest timer"
         {...dragLock}
         onPress={onMinimize}
+        hitSlop={MINIMIZE_HIT_SLOP}
         style={styles.minimize}
       >
         <Text style={styles.minimizeLabel}>–</Text>
@@ -460,10 +470,10 @@ const styles = StyleSheet.create({
   },
   minimize: {
     position: 'absolute',
-    top: 12,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    top: MINIMIZE_TOP,
+    width: MINIMIZE_SIZE,
+    height: MINIMIZE_SIZE,
+    borderRadius: MINIMIZE_SIZE / 2,
     backgroundColor: 'rgba(17,24,39,0.10)',
     alignItems: 'center',
     justifyContent: 'center',

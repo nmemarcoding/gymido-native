@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
-import { act, screen, userEvent, waitFor, within } from '@testing-library/react-native';
+import { Keyboard } from 'react-native';
+import { act, fireEvent, screen, userEvent, waitFor, within } from '@testing-library/react-native';
 
 import { routes } from '../../../navigation/routes';
 import { httpError, mockApi, networkError } from '../../../test/mockApi';
@@ -7,6 +8,22 @@ import { installNotificationTray } from '../../../test/notificationTray';
 import { currentPlan, day, daysList, planItem } from '../../../test/planFixtures';
 import { renderMemberApp } from '../../../test/renderMemberApp';
 import { useWorkoutSessionStore } from '../workoutSessionStore';
+import { EXPANDED_RING, MINIMIZE_SIZE, MINIMIZE_TOP, TIMER_EXPANDED_SIZE } from '../runtime/Overlays';
+
+// Counts CompletionPopup mounts: on iOS a remount across the session → hub
+// switch drops the popup's Modal (it flashed and vanished, W2 iOS 2026-10-08).
+let mockCompletionPopupMounts = 0;
+jest.mock('../runtime/Overlays', () => {
+  const React = require('react');
+  const actual = jest.requireActual('../runtime/Overlays');
+  function CountedCompletionPopup(props) {
+    React.useEffect(() => {
+      mockCompletionPopupMounts += 1;
+    }, []);
+    return React.createElement(actual.CompletionPopup, props);
+  }
+  return { ...actual, CompletionPopup: CountedCompletionPopup };
+});
 
 const PLAN = planItem({ id: 3, name: 'Strength Base', days_per_week: 3 });
 const DAYS = [day(11, 1, 'Chest & Biceps', 3)];
@@ -130,6 +147,78 @@ describe('runtime shell (§19)', () => {
     expect(screen.getByTestId('workout-exercise-nav')).toBeOnTheScreen();
   });
 
+  // With the default ("never") the first tap on a set action while the weight
+  // keyboard is up only dismissed the keyboard. Jest can't drive the native
+  // responder, so this pins the prop.
+  test('the set list keeps taps while the keyboard is up', async () => {
+    runtimeApi();
+    await renderMemberApp({ initialState: workoutState() });
+    const scroll = await screen.findByTestId('session-scroll');
+    expect(scroll.props.keyboardShouldPersistTaps).toBe('handled');
+  });
+
+  // Web parity (WorkoutExerciseNav, RN-SPEC-workout §19.8): 44-tall segment
+  // buttons with the bar centred. Bars are 10 (viewed) / 6 tall; the rings sit
+  // OUTSIDE without layout space: viewed 2px brand-400 at 50%, the active
+  // exercise when not viewed 1px brand-300. They were 6-10pt tap targets, and
+  // the fill was a width percentage.
+  test('§19.8: exercise nav segments are 44pt buttons, rings outside the bar, web labels', async () => {
+    const user = userEvent.setup();
+    const exercise = (id, order, name, sets) => ({
+      id,
+      order_index: order,
+      exercise_name_snapshot: name,
+      exercise: { id: id - 296, name, primary_muscle_group: { name: 'Chest' } },
+      sets,
+    });
+    runtimeApi({
+      current: session({
+        exercises: [
+          exercise(301, 1, 'Bench Press', [set(201, 1, { completed: true }), set(202, 2)]),
+          exercise(302, 2, 'Row', [set(211, 1), set(212, 2)]),
+        ],
+      }),
+    });
+    await renderMemberApp({ initialState: workoutState() });
+
+    const one = await screen.findByRole('button', { name: 'Exercise 1: 1 of 2 sets done' });
+    expect(one).toHaveStyle({ minHeight: 44, justifyContent: 'center' });
+    expect(one).toBeSelected();
+    expect(screen.getByTestId('nav-segment-bar-301')).toHaveStyle({ height: 10 });
+    expect(screen.getByTestId('nav-segment-ring-301')).toHaveStyle({
+      position: 'absolute',
+      top: -2,
+      left: -2,
+      right: -2,
+      bottom: -2,
+      borderWidth: 2,
+      borderColor: 'rgba(244,180,0,0.5)',
+    });
+    expect(screen.getByTestId('nav-segment-track-301')).toHaveStyle({
+      backgroundColor: '#eff1f4',
+      boxShadow: 'inset 0 2px 6px rgba(17,24,39,0.12)',
+    });
+    const two = screen.getByRole('button', { name: 'Exercise 2: 0 of 2 sets done' });
+    expect(two).not.toBeSelected();
+    expect(screen.getByTestId('nav-segment-bar-302')).toHaveStyle({ height: 6 });
+    expect(screen.queryByTestId('nav-segment-ring-302')).not.toBeOnTheScreen();
+
+    // The fill waits for layout (SVG needs a size), spans the bar, scaled by done/total.
+    await fireEvent(screen.getByTestId('nav-segment-bar-301'), 'layout', { nativeEvent: { layout: { width: 50, height: 10 } } });
+    expect(screen.getByTestId('nav-segment-fill-301')).toHaveStyle({ transform: [{ scaleX: 0.5 }] });
+
+    // Viewing exercise 2: it gets the viewed bar; exercise 1 (still active) the 1px ring. No layout shift.
+    await user.press(two);
+    expect(screen.getByTestId('nav-segment-bar-302')).toHaveStyle({ height: 10 });
+    expect(screen.getByTestId('nav-segment-bar-301')).toHaveStyle({ height: 6 });
+    expect(screen.getByTestId('nav-segment-ring-301')).toHaveStyle({ top: -1, borderWidth: 1, borderColor: '#f7ce4f' });
+
+    // Swipe-up wiring (the rule itself is unit-tested in NavSegment.test.js).
+    const nav = screen.getByTestId('workout-exercise-nav');
+    expect(nav.props.onMoveShouldSetResponder).toEqual(expect.any(Function));
+    expect(nav.props.onResponderRelease).toEqual(expect.any(Function));
+  });
+
   test('a session started today shows no banner', async () => {
     runtimeApi();
     await renderMemberApp({ initialState: workoutState() });
@@ -159,6 +248,20 @@ describe('logging a set (§20, §21)', () => {
     await user.press(screen.getByTestId('set-action-201'));
     expect(screen.getByText('Weight must be greater than 0.')).toBeOnTheScreen();
     expect(api.mutations()).toEqual([]);
+  });
+
+  // Web parity: the click moves focus off the input. With the list keeping taps
+  // (keyboardShouldPersistTaps="handled") nothing else closes the keypad.
+  test('"Did it" dismisses the keyboard, even when the weight is rejected', async () => {
+    const dismiss = jest.spyOn(Keyboard, 'dismiss');
+    const user = userEvent.setup();
+    runtimeApi({ overrides: { [PATCH_201]: {} } });
+    await renderMemberApp({ initialState: workoutState() });
+    await user.press(await screen.findByTestId('set-action-201'));
+    expect(dismiss).toHaveBeenCalledTimes(1);
+    await user.type(screen.getByTestId('set-weight-201'), '100');
+    await user.press(screen.getByTestId('set-action-201'));
+    expect(dismiss).toHaveBeenCalledTimes(2);
   });
 
   test('sends the target reps, the typed weight and a device completed_at', async () => {
@@ -273,6 +376,19 @@ describe('rest timer (§22, RN-SPEC-time §7.2 + O4)', () => {
     await user.press(screen.getByTestId('set-action-201'));
     return screen.findByTestId('rest-timer-expanded');
   }
+
+  // Owner report: the "−" sat on the ring. Web parity: top at 28/288, ~10pt
+  // inside the ring's inner edge; the tap target stays 44 via hitSlop.
+  test('the "−" sits clear inside the ring with a 44pt tap target', async () => {
+    const user = userEvent.setup();
+    await startRest(user);
+    const minimize = screen.getByRole('button', { name: 'Minimize rest timer' });
+    const ringInnerEdgeFromTop =
+      TIMER_EXPANDED_SIZE / 2 - ((EXPANDED_RING.radius - EXPANDED_RING.stroke / 2) * TIMER_EXPANDED_SIZE) / 40;
+    expect(minimize).toHaveStyle({ top: 28, height: 32 });
+    expect(MINIMIZE_TOP - ringInnerEdgeFromTop).toBeGreaterThanOrEqual(8);
+    expect(MINIMIZE_SIZE + 2 * minimize.props.hitSlop).toBeGreaterThanOrEqual(44);
+  });
 
   test('a completed set with planned rest starts the timer and [O4] schedules one notification', async () => {
     const user = userEvent.setup();
@@ -829,6 +945,42 @@ describe('completing and discarding (§23, §24)', () => {
 
     await user.press(within(popup).getByTestId('completion-dismiss'));
     expect(screen.queryByTestId('completion-popup')).not.toBeOnTheScreen();
+  });
+
+  // iOS dropped the popup when its Modal remounted across the session → hub
+  // switch (it flashed for about a second, W2 iOS 2026-10-08). On a device the
+  // reload lags, so the popup first renders over the session; the gate holds
+  // the reload to reproduce that order.
+  test('§23.2: the popup is one instance across the session → hub switch', async () => {
+    mockCompletionPopupMounts = 0;
+    let releaseReload;
+    const reloadGate = new Promise((resolve) => {
+      releaseReload = resolve;
+    });
+    const user = userEvent.setup();
+    runtimeApi({
+      overrides: {
+        'POST /workouts/77/complete': {},
+        'GET /workouts/current': [
+          { session: session() },
+          async () => {
+            await reloadGate;
+            return { session: null };
+          },
+        ],
+      },
+    });
+    await renderMemberApp({ initialState: workoutState() });
+    await user.press(await screen.findByTestId('complete-workout'));
+    expect(await screen.findByTestId('completion-popup')).toBeOnTheScreen();
+    expect(screen.getByTestId('exercise-stage')).toBeOnTheScreen();
+
+    await act(async () => {
+      releaseReload();
+    });
+    expect(await screen.findByTestId('today-hero-card')).toBeOnTheScreen();
+    expect(screen.getByTestId('completion-popup')).toBeOnTheScreen();
+    expect(mockCompletionPopupMounts).toBe(1);
   });
 
   test('[O9] a failed completion keeps the session on screen', async () => {
