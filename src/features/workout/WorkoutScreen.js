@@ -333,121 +333,130 @@ function WorkoutContent({ generation, isCurrent, onSaved, successMessage }) {
     </ShellPage>
   );
 
-  if (status === 'loading') {
-    return page(<WorkoutSkeleton />);
-  }
+  // §23.2: the popup must survive the session → hub switch. It used to be
+  // rendered inside each branch; on iOS the session branch's Modal unmounting
+  // while the hub's mounted dropped the new one, so the popup flashed for about
+  // a second and vanished (W2 iOS, 2026-10-08). One instance at a fixed position
+  // next to the body stays mounted across the switch.
+  const body = (() => {
+    if (status === 'loading') {
+      return page(<WorkoutSkeleton />);
+    }
 
-  if (status === 'error') {
-    return page(<WorkoutErrorState message={error?.message || 'Please try again.'} onRetry={loadWorkoutPage} />);
-  }
+    if (status === 'error') {
+      return page(<WorkoutErrorState message={error?.message || 'Please try again.'} onRetry={loadWorkoutPage} />);
+    }
 
-  // §1.2: the session check precedes the plan check. The session does NOT use
-  // ShellPage: §19.0 needs the header and the exercise nav outside the scroll,
-  // which SessionShell owns.
-  if (session?.id) {
-    return (
-      <SessionRuntime
-        session={sessionForRender}
-        reloadError={reloadError}
-        isRetrying={isRetrying}
-        onRetryReload={retryReload}
-        currentPlan={currentPlan}
-        runtime={runtime}
-        onComplete={handleCompleteWorkout}
-        isCompleting={isCompleting}
-        isAbandoning={isAbandoning}
-        pendingSetId={pendingSetId}
-        banner={toasts}
-        overlay={
-          <>
-            {/* §22.1: fixed to the window on the web, so it sits outside the
-                scroll rather than in the content. */}
-            {runtime.restTimer ? (
-              <DraggableRestTimer
-                restTimer={runtime.restTimer}
-                minimized={runtime.minimized}
-                position={runtime.timerPosition}
-                onMove={runtime.setTimerPosition}
-                onExpand={() => runtime.setMinimized(false)}
-                onMinimize={() => runtime.setMinimized(true)}
-                onAdjust={runtime.adjustRestTimer}
-                onSkip={runtime.skipRestTimer}
-              />
-            ) : null}
-            {/* §23.2: rendered in both branches, so it survives the switch. */}
-            {completionPopup ? (
-              <CompletionPopup popup={completionPopup} onDismiss={() => setCompletionPopup(null)} />
-            ) : null}
-          </>
-        }
-      />
-    );
-  }
+    // §1.2: the session check precedes the plan check. The session does NOT use
+    // ShellPage: §19.0 needs the header and the exercise nav outside the scroll,
+    // which SessionShell owns.
+    if (session?.id) {
+      return (
+        <SessionRuntime
+          session={sessionForRender}
+          reloadError={reloadError}
+          isRetrying={isRetrying}
+          onRetryReload={retryReload}
+          currentPlan={currentPlan}
+          runtime={runtime}
+          onComplete={handleCompleteWorkout}
+          isCompleting={isCompleting}
+          isAbandoning={isAbandoning}
+          pendingSetId={pendingSetId}
+          banner={toasts}
+          overlay={
+            <>
+              {/* §22.1: fixed to the window on the web, so it sits outside the
+                  scroll rather than in the content. */}
+              {runtime.restTimer ? (
+                <DraggableRestTimer
+                  restTimer={runtime.restTimer}
+                  minimized={runtime.minimized}
+                  position={runtime.timerPosition}
+                  onMove={runtime.setTimerPosition}
+                  onExpand={() => runtime.setMinimized(false)}
+                  onMinimize={() => runtime.setMinimized(true)}
+                  onAdjust={runtime.adjustRestTimer}
+                  onSkip={runtime.skipRestTimer}
+                />
+              ) : null}
+            </>
+          }
+        />
+      );
+    }
 
-  if (!currentPlan?.enrollment?.plan) {
+    if (!currentPlan?.enrollment?.plan) {
+      return page(
+        <View style={styles.root}>
+          {toasts}
+          <WorkoutEmptyState
+            onBrowsePlans={() => {
+              // ⚠W8: the web reloads at /plans; native switches to the Library tab.
+              const tabNavigation = findTabNavigation(navigation);
+              if (tabNavigation) {
+                openTab(tabNavigation, routes.LibraryTab);
+              }
+            }}
+          />
+        </View>
+      );
+    }
+
     return page(
       <View style={styles.root}>
         {toasts}
-        <WorkoutEmptyState
-          onBrowsePlans={() => {
-            // ⚠W8: the web reloads at /plans; native switches to the Library tab.
-            const tabNavigation = findTabNavigation(navigation);
-            if (tabNavigation) {
-              openTab(tabNavigation, routes.LibraryTab);
-            }
-          }}
+        {computeNeedsSchedule(currentPlan, planDays) ? (
+          <ScheduleSetupCard
+            key={currentPlan.enrollment.id}
+            planName={currentPlan?.enrollment?.plan?.name}
+            planDays={planDays}
+            enrollmentId={currentPlan.enrollment.id}
+            onScheduled={() => {
+              onSaved('Training days saved.');
+              loadWorkoutPage();
+            }}
+          />
+        ) : null}
+
+        <TodayHeroCard
+          planName={hubPlanName(currentPlan)}
+          planDayCount={planDays.length}
+          todayStatus={todayStatus}
+          completedCount={completedCount}
+          showStart={showsHeroStart(todayStatus)}
+          isStarting={isStartingDayId === todayStatus?.plan_day?.id}
+          onStart={() => handleStartWorkout(todayStatus?.plan_day?.id)}
         />
+
+        <View style={styles.section}>
+          <Text style={styles.sectionHeading}>All training days</Text>
+          <View style={styles.grid}>
+            {planDays.map((day, index) => (
+              <PlanDayCard
+                key={day.id}
+                index={index}
+                day={day}
+                weekdays={weekdaysByDayId[day.id] || []}
+                isDone={completedThisWeekDayIds.includes(day.id)}
+                // ⚠W5: only the pressed Start disables.
+                isStarting={isStartingDayId === day.id}
+                onStart={() => handleStartWorkout(day.id)}
+              />
+            ))}
+          </View>
+        </View>
       </View>
     );
-  }
+  })();
 
-  return page(
-    <View style={styles.root}>
-      {toasts}
+  return (
+    <>
+      {body}
       {completionPopup ? (
         <CompletionPopup popup={completionPopup} onDismiss={() => setCompletionPopup(null)} />
       ) : null}
-      {computeNeedsSchedule(currentPlan, planDays) ? (
-        <ScheduleSetupCard
-          key={currentPlan.enrollment.id}
-          planName={currentPlan?.enrollment?.plan?.name}
-          planDays={planDays}
-          enrollmentId={currentPlan.enrollment.id}
-          onScheduled={() => {
-            onSaved('Training days saved.');
-            loadWorkoutPage();
-          }}
-        />
-      ) : null}
-
-      <TodayHeroCard
-        planName={hubPlanName(currentPlan)}
-        planDayCount={planDays.length}
-        todayStatus={todayStatus}
-        completedCount={completedCount}
-        showStart={showsHeroStart(todayStatus)}
-        isStarting={isStartingDayId === todayStatus?.plan_day?.id}
-        onStart={() => handleStartWorkout(todayStatus?.plan_day?.id)}
-      />
-
-      <View style={styles.section}>
-        <Text style={styles.sectionHeading}>All training days</Text>
-        <View style={styles.grid}>
-          {planDays.map((day, index) => (
-            <PlanDayCard
-              key={day.id}
-              index={index}
-              day={day}
-              weekdays={weekdaysByDayId[day.id] || []}
-              isDone={completedThisWeekDayIds.includes(day.id)}
-              // ⚠W5: only the pressed Start disables.
-              isStarting={isStartingDayId === day.id}
-              onStart={() => handleStartWorkout(day.id)}
-            />
-          ))}
-        </View>
-      </View>
-    </View>
+    </>
   );
 }
 

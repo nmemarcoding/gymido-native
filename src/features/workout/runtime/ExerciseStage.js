@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Keyboard, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import GradientFill from '../../../shared/components/GradientFill';
@@ -128,7 +128,12 @@ export function SetRow({
           accessibilityState={{ disabled: isPending || isLocked, busy: isPending }}
           accessibilityHint={isLocked ? lockReason : undefined}
           disabled={isPending || isLocked}
-          onPress={onToggle}
+          // Web parity: clicking the button moves focus off the weight input, so
+          // the keyboard closes on "Did it" and "Undo" alike, valid or not.
+          onPress={() => {
+            Keyboard.dismiss();
+            onToggle();
+          }}
           colorsFor={() => ({
             backgroundColor: completed ? colors.surface : isLocked ? colors.surfaceMuted : 'rgba(0,0,0,0)',
           })}

@@ -27,6 +27,8 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 const DIRECTIONS = {
   vertical: { x1: '0', y1: '0', x2: '0', y2: '1' },
   diagonal: { x1: '0', y1: '0', x2: '1', y2: '1' },
+  // `to right` (the exercise nav fill, RN-SPEC-workout §19.8).
+  horizontal: { x1: '0', y1: '0', x2: '1', y2: '0' },
 };
 
 export default function GradientFill({ id, width, height, radius = 0, colors, direction = 'diagonal' }) {
