@@ -112,6 +112,11 @@ function DesktopSidebar({ path }) {
 // The member shell (§4): content scrolls under the status bar inset with the
 // header inside the scroll content. [O2] safe areas are respected: bottom
 // inset added to the content padding, side insets to the shell padding.
+// keyboardShouldPersistTaps="handled": with the default ("never") the scroll
+// view claims the first tap while the keyboard is up and only dismisses it, so
+// a button needs two taps. Modals rendered from a page (ChangePasswordModal)
+// sit under this ScrollView in the React tree and lose that tap too. On web
+// one click always reaches the button.
 export default function PageLayout({ children, testID, path = '/' }) {
   const { isDesktop, gutter } = useLayoutMetrics();
   const insets = useSafeAreaInsets();
@@ -127,6 +132,7 @@ export default function PageLayout({ children, testID, path = '/' }) {
         >
           <DesktopSidebar path={path} />
           <ScrollView
+            keyboardShouldPersistTaps="handled"
             style={styles.desktopContent}
             contentContainerStyle={{ paddingBottom: DESKTOP_CONTENT_BOTTOM_PADDING + insets.bottom }}
           >
@@ -140,6 +146,7 @@ export default function PageLayout({ children, testID, path = '/' }) {
   return (
     <View testID={testID} style={[styles.root, { paddingTop: insets.top }]}>
       <ScrollView
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
           styles.mobileScroll,
           { paddingBottom: MOBILE_CONTENT_BOTTOM_PADDING + insets.bottom },

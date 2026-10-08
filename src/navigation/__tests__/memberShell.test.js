@@ -192,6 +192,37 @@ describe('phone vs tablet (§2.8)', () => {
   });
 });
 
+// iOS flow 05: with the default ("never") the page ScrollView took the first tap
+// on ChangePasswordModal's Cancel while the keyboard was up (the modal sits under
+// it in the React tree), so Cancel needed two taps. Jest can't drive the native
+// responder, so these pin the prop on the ScrollView that wraps the content.
+function enclosingScrollView(element) {
+  let node = element;
+  while (node && node.type !== 'RCTScrollView') {
+    node = node.parent;
+  }
+  return node;
+}
+
+describe('taps while the keyboard is up', () => {
+  test('phone: Settings content keeps taps (Change password)', async () => {
+    const user = userEvent.setup();
+    mockApi(libraryApi());
+    await renderMemberApp();
+    await user.press(screen.getByTestId(`tab-${routes.SettingsTab}`));
+    const button = await screen.findByTestId('settings-change-password');
+    expect(enclosingScrollView(button).props.keyboardShouldPersistTaps).toBe('handled');
+  });
+
+  test('≥768pt: the desktop content scroll keeps taps too', async () => {
+    useWindowDimensions.mockImplementation(() => ({ width: 1024, height: 768, scale: 2, fontScale: 1 }));
+    mockApi(libraryApi());
+    await renderMemberApp();
+    const card = await screen.findByText('Strength Base');
+    expect(enclosingScrollView(card).props.keyboardShouldPersistTaps).toBe('handled');
+  });
+});
+
 describe('motion (§2.6)', () => {
   test('with reduce motion off, the day chevron animates without errors', async () => {
     useReducedMotion.mockReturnValue(false);
