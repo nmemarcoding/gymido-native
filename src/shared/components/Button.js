@@ -1,8 +1,11 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Keyboard, Pressable, StyleSheet, Text } from 'react-native';
 
 import { colors, shadows } from '../theme/tokens';
 
 // Touch has no hover, so the pressed state stands in for web's hover styles.
+// A press closes the keyboard: on web every button click moves focus off a
+// focused input. Pages keep taps while the keyboard is up (PageLayout), so
+// nothing else would close it.
 export default function Button({ title, onPress, variant = 'primary', loading = false, disabled = false, testID }) {
   const inactive = disabled || loading;
   const isPrimary = variant === 'primary';
@@ -14,7 +17,10 @@ export default function Button({ title, onPress, variant = 'primary', loading = 
       accessibilityLabel={title}
       accessibilityState={{ disabled: inactive, busy: loading }}
       disabled={inactive}
-      onPress={onPress}
+      onPress={(event) => {
+        Keyboard.dismiss();
+        onPress?.(event);
+      }}
       style={({ pressed }) => [
         styles.base,
         isPrimary ? styles.primary : styles.secondary,

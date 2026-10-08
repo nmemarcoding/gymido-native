@@ -1,6 +1,6 @@
 import { Picker } from '@react-native-picker/picker';
 import { useRef, useState } from 'react';
-import { Platform, Pressable, Text, View } from 'react-native';
+import { Keyboard, Platform, Pressable, Text, View } from 'react-native';
 
 import BottomSheet from './BottomSheet';
 import { AnimatedBox, Field, FieldFooter, FieldLabel, fieldHint, fieldStyles, useBoxStyle } from './FieldChrome';
@@ -34,6 +34,8 @@ export default function Select({
   const choose = (index) => onChangeValue(options[index].value);
 
   const openPicker = () => {
+    // Web parity: a select/date click moves focus off a focused input.
+    Keyboard.dismiss();
     if (Platform.OS === 'android') {
       androidPicker.current?.focus();
     } else {
