@@ -3,6 +3,14 @@
 appId: com.gymido.app
 ---
 - runFlow: subflows/ensure-signed-out.yaml
+# The limiter counts cancels in memory, and the previous flow (02) may have
+# cancelled seconds ago; restart so the count starts from zero.
+- runFlow:
+    when:
+      # ensure-signed-out may have just cold-launched the app (output.coldLaunched,
+      # cleared again by a UI sign-out); a second cold launch would only cost time.
+      true: ${!output.coldLaunched}
+    file: subflows/launch-app.yaml
 - repeat:
     times: 3
     commands:

@@ -45,23 +45,26 @@ Watch-outs: Chrome exposes a password field's typed VALUE in the tree, so never 
 
 ## Running
 
+**The easy way:** `npm run e2e:ios` / `npm run e2e:android`, plus an optional flow prefix (`W1`, `04`, …); credentials come from `.env.e2e.local`. `e2e/scripts/run-e2e.js` boots the default simulator ("Gymido E2E iPhone") or AVD (`Gymido_E2E_Phone`) if needed, checks the app is installed, detects dev client vs release (starting Metro for the dev client), afterwards stops whatever it started (`KEEP_DEVICE=1` to skip), and pins Maestro to that device with `--device`, so a connected phone is never used. Details: "Run the E2E tests yourself" in `COMMANDS.md`.
+
+By hand:
+
 ```bash
 export PATH="$HOME/.maestro/bin:$PATH"
 
-# Whole suite, in order (flows run alphabetically and share session state)
-maestro test -p android e2e/maestro \
-  -e MEMBER_EMAIL=<email> -e MEMBER_PASSWORD=<password>
+# Whole suite (credentials as MAESTRO_* environment variables, which Maestro hands to flows)
+MAESTRO_MEMBER_EMAIL=<email> MAESTRO_MEMBER_PASSWORD=<password> maestro test -p android e2e/maestro
 
 # Single flow on a specific device
 maestro test --udid <simulator-udid> e2e/maestro/02-login-opens-universal-login.yaml
 
 # Trainer role-landing flow (07). Source the gitignored env file rather than typing secrets.
 set -a && . ./.env.e2e.local && set +a
-maestro test -p android e2e/maestro/07-trainer-role-landing.yaml \
-  -e TRAINER_EMAIL="$TRAINER_EMAIL" -e TRAINER_PASSWORD="$TRAINER_PASSWORD"
+MAESTRO_TRAINER_EMAIL="$TRAINER_EMAIL" MAESTRO_TRAINER_PASSWORD="$TRAINER_PASSWORD" \
+  maestro test -p android e2e/maestro/07-trainer-role-landing.yaml
 ```
 
-Never commit credentials. Pass them with `-e`, from your shell or `.env.e2e.local`.
+Never commit credentials. `npm run e2e:*` reads them from `.env.e2e.local` itself; by hand, export them as `MAESTRO_*`.
 
 ## Flows
 
@@ -75,7 +78,7 @@ Never commit credentials. Pass them with `-e`, from your shell or `.env.e2e.loca
 | `06-sign-out` | Sign out returns to Welcome |
 | `07-trainer-role-landing` | A trainer's RBAC role reaches the app; profile gate decides the landing |
 
-`subflows/` holds shared steps: `launch-dev-client`, `ensure-signed-out`, `ensure-signed-in`, `sign-in-as`, `dismiss-browser-interstitials`, and `cancel-universal-login`, which differs per platform.
+`subflows/` holds shared steps: `launch-dev-client`, `ensure-signed-out`, `ensure-signed-in-as`, `sign-in-as`, `dismiss-browser-interstitials`, and `cancel-universal-login`, which differs per platform.
 
 `login` takes **`LOGIN_EMAIL` / `LOGIN_PASSWORD`**, not `MEMBER_*`, so any account can drive it; callers map their own fixture in via `runFlow: {file, env}`. `sign-in-as` wraps the whole cold-start-to-signed-in sequence the same way and leaves the app on whatever the landing rules chose, because that is what flows 07-09 assert.
 
@@ -83,9 +86,17 @@ On a freshly booted Android emulator, Chrome shows first-run and promo dialogs t
 
 Flows launch through `subflows/launch-dev-client.yaml`, which opens the dev-client deep link. Plain `launchApp` stops at the Expo dev launcher screen and never loads the bundle. Against a release build with JS embedded, replace that subflow's body with `- launchApp` and Metro is no longer needed.
 
-Every flow establishes its own state — `ensure-signed-out` or `ensure-signed-in` — so they can run in any order and individually. Maestro does **not** run files alphabetically (an observed order was 04, 06, 01, 03, 02, 05), so flows must never depend on a previous one having run.
+Every flow establishes its own state, so it also runs on its own (`npm run e2e:android -- 05`):
 
-Flows that sign in need `-e MEMBER_EMAIL=… -e MEMBER_PASSWORD=…`; that now includes 05 and 06, which log in if no session exists.
+- **Signed out:** `ensure-signed-out` (01–03, and 04/07 before their real login).
+- **An account:** `ensure-signed-in-as` with `ACCOUNT: member|trainer` plus that account's `LOGIN_EMAIL`/`LOGIN_PASSWORD` (`${MAESTRO_MEMBER_*}` or `${MAESTRO_TRAINER_*}`). It reuses the session when the right account is signed in, signs the other one out through the UI first, and logs in only when needed. The account is told apart by trainer-only UI (Trainer workspace tabs, the Workspace switch on Settings): the member rig has no trainer role. The app shows no email, so it can't tell two members apart.
+- **The real login:** 04 (member) and 07 (trainer) always sign out and log in through Universal Login.
+
+**Order:** `config.yaml` fixes the suite order by account, signed out (01–03) → member (04, 05, 06) → trainer (07), so each account logs in once per run. Add a new flow to its account's group (one that signs out goes last in it). A Jest guard (`e2e/scripts/__tests__/runE2e.test.js`) fails if a numbered flow is missing from `flowsOrder` or out of group. `npm run e2e:*` runs the suite on 3 devices in parallel by default (`E2E_SHARDS`): signed-out flows side by side first, then one device per account running that account's group in order, so no two flows share an account at the same time. Only `ensure-app-running`, the sign-out fallback, 01 (cold start) and 03 (in-memory limiter) may cold-launch the app; everything else reuses the running app.
+
+**Speed rule for new steps:** a `when: visible` check on an element that isn't there waits about 7 s (Maestro's lookup timeout, not configurable in 2.10), and `notVisible` on one that IS there does the same. Check for the element the common case shows (instant), keep the outcome in an `output.*` flag, and nest later checks behind that flag (a `when: true: ${…}` script condition costs nothing). Put `platform:` on platform-only checks, and give rare dialogs one combined regex gate.
+
+Flows that sign in need `MAESTRO_MEMBER_EMAIL` / `MAESTRO_MEMBER_PASSWORD` (`npm run e2e:*` supplies them from `.env.e2e.local`); that now includes 05 and 06, which log in if no session exists.
 
 ## Notes
 

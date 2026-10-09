@@ -1,0 +1,86 @@
+# Leaves the app signed in as the account the caller names, logging in only
+# when needed: the right account already signed in is reused, the other one is
+# signed out through the UI first, and a signed-out app just logs in.
+#
+#   - runFlow:
+#       file: subflows/ensure-signed-in-as.yaml
+#       env:
+#         ACCOUNT: member                          # or trainer
+#         LOGIN_EMAIL: ${MAESTRO_MEMBER_EMAIL}     # the same account's values
+#         LOGIN_PASSWORD: ${MAESTRO_MEMBER_PASSWORD}
+#
+# The caller passes the credentials so run-e2e's scan sees which ones the flow
+# needs.
+#
+# Account detection: the app shows no email, but it shows trainer-only UI to
+# users with the trainer role and nothing of it to others (shellRules
+# isTrainerUser): the Trainer workspace tabs, and on Settings (/profile) the
+# Workspace switch (`mobile-mode-switch` on phones, `mode-switch` in the tablet
+# sidebar). The member rig has no trainer role, so "trainer UI present" means
+# the trainer rig. That is a role check: it can't tell two members apart.
+appId: com.gymido.app
+---
+# Reuses the running app when it is on Welcome or the shell; else cold-launches.
+- runFlow: ensure-app-running.yaml
+# Detection, cheapest first: the member workspace (Settings tab) is the common
+# case, so it is a positive check; each later check is nested behind the flag
+# and costs nothing once the answer is known (see ensure-app-running).
+- evalScript: ${output.signedInAs = 'unknown'}
+- runFlow:
+    when:
+      visible:
+        id: "tab-SettingsTab"
+    commands:
+      - tapOn:
+          id: "tab-SettingsTab"
+      - waitForAnimationToEnd:
+          timeout: 3000
+      # Trainers also get the Workspace switch on Settings; members don't, and
+      # an absent element makes notVisible instant.
+      - evalScript: ${output.signedInAs = 'trainer'}
+      - runFlow:
+          when:
+            notVisible:
+              id: "mobile-mode-switch|mode-switch"
+          commands:
+            - evalScript: ${output.signedInAs = 'member'}
+- runFlow:
+    when:
+      true: ${output.signedInAs == 'unknown'}
+    commands:
+      - runFlow:
+          when:
+            visible:
+              id: "tab-TrainerProfileTab"
+          commands:
+            - evalScript: ${output.signedInAs = 'trainer'}
+- runFlow:
+    when:
+      true: ${output.signedInAs == 'unknown'}
+    commands:
+      - runFlow:
+          when:
+            visible:
+              id: "welcome-log-in"
+          commands:
+            - evalScript: ${output.signedInAs = 'none'}
+# Signed in, but not in the shell (Create Profile, account unavailable): treat
+# it as the wrong account so ensure-signed-out's fallbacks clear it.
+- runFlow:
+    when:
+      true: ${output.signedInAs == 'unknown'}
+    commands:
+      - evalScript: ${output.signedInAs = 'other'}
+- runFlow:
+    when:
+      true: ${output.signedInAs != 'none' && output.signedInAs != ACCOUNT}
+    commands:
+      - runFlow: ensure-signed-out.yaml
+      - evalScript: ${output.signedInAs = 'none'}
+- runFlow:
+    when:
+      true: ${output.signedInAs == 'none'}
+    file: login.yaml
+- extendedWaitUntil:
+    visible: "Workout|Create Profile|Dashboard|Settings|Coaching"
+    timeout: 90000

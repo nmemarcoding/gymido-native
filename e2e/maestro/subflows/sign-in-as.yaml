@@ -7,8 +7,8 @@
 #   - runFlow:
 #       file: subflows/sign-in-as.yaml
 #       env:
-#         LOGIN_EMAIL: ${TRAINER_EMAIL}
-#         LOGIN_PASSWORD: ${TRAINER_PASSWORD}
+#         LOGIN_EMAIL: ${MAESTRO_TRAINER_EMAIL}
+#         LOGIN_PASSWORD: ${MAESTRO_TRAINER_PASSWORD}
 appId: com.gymido.app
 ---
 - runFlow: ensure-signed-out.yaml

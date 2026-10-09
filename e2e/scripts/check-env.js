@@ -40,6 +40,21 @@ function checkEnvText(text) {
   return problems;
 }
 
+// Variables the chosen flows need but no source supplied. `required` maps each
+// name to the keys that can supply it, e.g. MEMBER_EMAIL → [MEMBER_EMAIL,
+// PROFILED_EMAIL]. Prints names only, never a value.
+function checkRequired(required, values) {
+  const missing = Object.keys(required).filter((name) => !values[name]);
+  if (!missing.length) {
+    return 0;
+  }
+  console.error('check-env: the chosen flows need values that are not set. Add them to .env.e2e.local:');
+  missing.forEach((name) => {
+    console.error(`  ${name}: set ${required[name].join(' or ')} (or pass -e ${name}=…)`);
+  });
+  return 1;
+}
+
 function main(argv) {
   const file = path.resolve(argv[2] || '.env.e2e.local');
   if (!fs.existsSync(file)) {
@@ -62,4 +77,4 @@ if (require.main === module) {
   process.exit(main(process.argv));
 }
 
-module.exports = { checkEnvText, main };
+module.exports = { checkEnvText, checkRequired, main };

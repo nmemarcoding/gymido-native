@@ -166,42 +166,47 @@ Jest runs in `America/Los_Angeles` (`jest.globalSetup.js`) so the UTC-date and t
 
 **iOS simulator builds for E2E must be signed.** `npm run ios` / `expo run:ios` sign the simulator app ad-hoc, which is enough. A hand-built `xcodebuild … CODE_SIGNING_ALLOWED=NO` app can't use the keychain, so login ends on "Sign-in failed … Failed to store credentials in the Keychain." When building with `xcodebuild` for a simulator, target it by id (`-destination 'platform=iOS Simulator,id=<udid>'`) and leave signing at its default.
 
-E2E smoke tests (Maestro). **Requires Metro running (`npm start`), the dev client installed, and a booted device:**
+### Run the E2E tests yourself (Maestro)
+
+One command per platform:
 
 ```bash
-npm run e2e:android -- -e MEMBER_EMAIL=<email> -e MEMBER_PASSWORD=<password>
-npm run e2e:ios     -- -e MEMBER_EMAIL=<email> -e MEMBER_PASSWORD=<password>
+npm run e2e:ios
+npm run e2e:android
+npm run e2e:android -- W1      # one flow: W1, W2, 04, 07-trainer… (file-name prefix)
 ```
 
-Both scripts first run `node e2e/scripts/check-env.js`, which fails if a value in `.env.e2e.local` has leading/trailing whitespace, a CR or quotes (it prints key names only). A stray space after the trainer email once made Auth0 answer "Wrong email or password". Run it yourself before a direct `maestro test`.
+It boots the test simulators/emulators, checks the app is installed, reads the test accounts from `.env.e2e.local`, runs the suite on several devices in parallel (never a phone on USB or Wi-Fi) and afterwards shuts down whatever it started.
 
-Single flow, or a specific device:
+- **Parallel:** the whole suite runs on 3 devices by default (`E2E_SHARDS=2`, or `E2E_SHARDS=1` for the old single-device run). Phase 1 runs the signed-out flows (01–03) side by side; phase 2 gives each account one device and runs its flows in order (member: 04 → 05 → 06; trainer: 07), so two tests never use the same account at the same time and every sign-out happens with nobody else on that account. A named flow (`-- 04`) always runs on one device. Extra devices are created once: "Gymido E2E iPhone 2/3" fresh with the app copied from the first simulator, `Gymido_E2E_Phone_2/_3` as copies of the first AVD with the app's and Chrome's data cleared, so every device has its own Auth0 session. Each flow's log is in the folder the summary line prints.
+- **New tests that sign out or switch accounts:** give them the account they use (member or trainer) and put them LAST in that account's group in `e2e/maestro/config.yaml`; a Jest guard fails if any flow could overlap another on the same account.
+
+- **One-time setup:** Maestro installed (above); `.env.e2e.local` in the repo root; the app installed on the test device. If the app is missing, the script stops and prints the exact build/install command (`npm run ios -- --device "Gymido E2E iPhone"`, or the release APK for Android).
+- **Accounts and order:** each flow names its account (member or trainer) and reuses the session when that account is already signed in, so a full run logs in once per account: the suite runs signed-out flows (01–03), then member (04 real login, 05, 06 signs out), then trainer (07 real login). New flows go into their account's group in `e2e/maestro/config.yaml`. The member flows use `MEMBER_EMAIL`/`MEMBER_PASSWORD`, or `PROFILED_EMAIL`/`PROFILED_PASSWORD` when those aren't set; flow 07 uses `TRAINER_EMAIL`/`TRAINER_PASSWORD`. Only these four keys are read, never the admin or Management API ones. They reach Maestro as `MAESTRO_*` environment variables, not on the command line. If a flow needs one that's missing, the run stops and names it. `-e MEMBER_EMAIL=…` (etc.) overrides the file for one run.
+- **Devices:** iOS uses the simulator "Gymido E2E iPhone" (iOS 27), Android the AVD `Gymido_E2E_Phone` (started with 6 GB RAM). Use another with `E2E_IOS_SIMULATOR=<name or UDID>` / `E2E_ANDROID_AVD=<name>`.
+- **Dev client vs release:** the script detects which build is installed. A release build runs with `RELEASE_BUILD=true` automatically; for the dev client it starts Metro if it isn't running. W1/W2 on Android need the release APK, and the script refuses the dev client for them.
+- **iOS release build (the E2E default):** `npm run e2e:ios:release` builds the Release app (JS bundled, no Metro, development tenant, ad-hoc signed by Xcode; no Apple team needed) and installs it on every E2E simulator, in about 1–2 minutes. Run it again after JS changes: `npm run e2e:ios` warns when the installed release build is older than the app's latest source change. A dev client installed with `npm run ios` still works as before (slower: Metro plus a bundle reload per launch).
+- **Cleanup:** when Maestro ends (pass, fail, Ctrl-C or SIGTERM) the script stops whatever it started: the simulator, DeviceHub, the emulator, Metro. Anything that was already running stays up, and the script prints one line saying so. `KEEP_DEVICE=1 npm run e2e:ios` leaves everything running for debugging. The exit code is Maestro's.
+- **Plain-text copies:** Maestro itself records the typed email and password in `~/.maestro/tests/*/commands.json` and `maestro.log` ("Inputting text: …"), however they are passed. Delete old runs there if that matters.
+
+The script first runs `node e2e/scripts/check-env.js`, which fails if a value in `.env.e2e.local` has leading/trailing whitespace, a CR or quotes (it prints key names only). A stray space after the trainer email once made Auth0 answer "Wrong email or password". Run it yourself before a direct `maestro test`.
+
+Running `maestro test` by hand, the flows read `MAESTRO_MEMBER_EMAIL` / `MAESTRO_MEMBER_PASSWORD` / `MAESTRO_TRAINER_EMAIL` / `MAESTRO_TRAINER_PASSWORD` from the environment (Maestro passes `MAESTRO_*` variables to flows itself):
 
 ```bash
-maestro test -p android e2e/maestro/01-welcome-no-auto-redirect.yaml
 maestro test --udid <simulator-udid> e2e/maestro/02-login-opens-universal-login.yaml
-```
-
-The trainer role-landing flow (07) needs its own account. Source the env file so secrets stay off the command line:
-
-```bash
 set -a && . ./.env.e2e.local && set +a
-maestro test -p android e2e/maestro/07-trainer-role-landing.yaml \
-  -e TRAINER_EMAIL="$TRAINER_EMAIL" -e TRAINER_PASSWORD="$TRAINER_PASSWORD"
+MAESTRO_TRAINER_EMAIL="$TRAINER_EMAIL" MAESTRO_TRAINER_PASSWORD="$TRAINER_PASSWORD" \
+  maestro test -p android e2e/maestro/07-trainer-role-landing.yaml
 ```
 
-The Android emulator needs at least 4 GB of RAM or Maestro reads an empty view hierarchy and every assertion fails while the app is fine:
+The Android emulator needs at least 4 GB of RAM or Maestro reads an empty view hierarchy and every assertion fails while the app is fine (the script passes this itself):
 
 ```bash
-emulator -avd Pixel_API_36 -memory 6144 -no-snapshot-load
+emulator -avd Gymido_E2E_Phone -memory 6144 -no-snapshot-load
 ```
 
-Credentials live in `.env.e2e.local` (gitignored) — treat that file as **live admin credentials**, not just test config. It currently has no `MEMBER_*` entries. It does have `PROFILED_EMAIL` / `PROFILED_PASSWORD`, an owner-shared account **with a profile**: flows 05/06 (Settings is only reachable inside the app shell) and anything past Create Profile need it, passed as the `MEMBER_*` variables:
-
-```bash
-set -a && . ./.env.e2e.local && set +a
-npm run e2e:ios -- -e MEMBER_EMAIL="$PROFILED_EMAIL" -e MEMBER_PASSWORD="$PROFILED_PASSWORD"
-``` See `e2e/maestro/README.md` for what each flow covers and a troubleshooting table.
+`.env.e2e.local` is gitignored; treat it as **live admin credentials**, not just test config. `PROFILED_*` is an owner-shared account **with a profile**: flows 05/06 (Settings is only reachable inside the app shell) and anything past Create Profile need it. See `e2e/maestro/README.md` for what each flow covers and a troubleshooting table.
 
 Offline refresh behaviour:
 

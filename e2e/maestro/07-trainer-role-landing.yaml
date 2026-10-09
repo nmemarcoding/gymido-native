@@ -14,7 +14,7 @@
 # This closes the old gap where the Trainer-dashboard branch of resolveLanding
 # was unreachable from the app.
 #
-# Requires -e TRAINER_EMAIL=... -e TRAINER_PASSWORD=... (see README).
+# Needs MAESTRO_TRAINER_EMAIL / MAESTRO_TRAINER_PASSWORD; npm run e2e:* supplies them (see README).
 #
 # Side effect: an interactive trainer login sets the stored workspace to
 # "trainer" and that survives sign-out by design (workspacePreference.js), so
@@ -25,8 +25,9 @@ appId: com.gymido.app
 - runFlow:
     file: subflows/sign-in-as.yaml
     env:
-      LOGIN_EMAIL: ${TRAINER_EMAIL}
-      LOGIN_PASSWORD: ${TRAINER_PASSWORD}
+      LOGIN_EMAIL: ${MAESTRO_TRAINER_EMAIL}
+      LOGIN_PASSWORD: ${MAESTRO_TRAINER_PASSWORD}
+      REQUIRE_FORM: 'true'
 - extendedWaitUntil:
     visible:
       id: "tab-TrainerDashboardTab"

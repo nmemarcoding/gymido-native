@@ -2,3 +2,27 @@
 # steps that are run via runFlow and would fail on their own.
 flows:
   - "*.yaml"
+# Fixed order, grouped by account, so each account logs in ONCE per suite run:
+# signed out (01–03) → member (04 real login, 05 reuses it, 06 signs out) →
+# trainer (07 real login). A new flow goes into its account's group; one that
+# signs out goes last in its group. Every flow still sets up its own account
+# (ensure-signed-out / ensure-signed-in-as / sign-in-as), so a single flow or a
+# failure earlier in the list can't leave it on the wrong one.
+executionOrder:
+  continueOnFailure: true
+  flowsOrder:
+    - 01-welcome-no-auto-redirect
+    - 02-login-opens-universal-login
+    - 03-decline-limiter
+    - 04-login-lands-signed-in
+    - 05-change-password-validation
+    - 06-sign-out
+    - 07-trainer-role-landing
+# Fewer and shorter settle waits between steps. The app's own reduced-motion
+# path then runs (e.g. the exercise-nav fill without its 300 ms ease-out); no
+# flow asserts on an animation.
+platform:
+  ios:
+    disableAnimations: true
+  android:
+    disableAnimations: true

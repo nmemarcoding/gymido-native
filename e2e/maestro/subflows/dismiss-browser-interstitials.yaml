@@ -16,29 +16,37 @@ appId: com.gymido.app
 # submitted. It covers the page, so the flow stalls on whatever comes next.
 - runFlow:
     when:
+      platform: iOS
       visible: "Save Password?"
     commands:
       - tapOn: "Not Now"
       - waitForAnimationToEnd:
           timeout: 4000
+# Chrome's first-run and promo dialogs (Android). One combined check, so a
+# browser past them pays one ~7 s lookup instead of three.
 - runFlow:
     when:
-      visible: "Use without an account"
+      platform: Android
+      visible: "Use without an account|No thanks|Got it"
     commands:
-      - tapOn: "Use without an account"
-      - waitForAnimationToEnd:
-          timeout: 4000
-- runFlow:
-    when:
-      visible: "No thanks"
-    commands:
-      - tapOn: "No thanks"
-      - waitForAnimationToEnd:
-          timeout: 4000
-- runFlow:
-    when:
-      visible: "Got it"
-    commands:
-      - tapOn: "Got it"
-      - waitForAnimationToEnd:
-          timeout: 4000
+      - runFlow:
+          when:
+            visible: "Use without an account"
+          commands:
+            - tapOn: "Use without an account"
+            - waitForAnimationToEnd:
+                timeout: 4000
+      - runFlow:
+          when:
+            visible: "No thanks"
+          commands:
+            - tapOn: "No thanks"
+            - waitForAnimationToEnd:
+                timeout: 4000
+      - runFlow:
+          when:
+            visible: "Got it"
+          commands:
+            - tapOn: "Got it"
+            - waitForAnimationToEnd:
+                timeout: 4000

@@ -1,10 +1,15 @@
 # Spec §4: sign out lands on Welcome, not back in Auth0.
-# Runs signed in — execute after 04.
+# Runs signed in as the member (config.yaml runs it after 04 and 05).
 # REQUIRES an account WITH a profile: Settings (and Sign out) live in the app
 # shell's Settings tab; a profile-less account stops on Create Profile, which
 # has no sign-out (RN-SPEC-profile-create ⚠P7).
 appId: com.gymido.app
 ---
-- runFlow: subflows/ensure-signed-in.yaml
+- runFlow:
+    file: subflows/ensure-signed-in-as.yaml
+    env:
+      ACCOUNT: member
+      LOGIN_EMAIL: ${MAESTRO_MEMBER_EMAIL}
+      LOGIN_PASSWORD: ${MAESTRO_MEMBER_PASSWORD}
 - runFlow: subflows/sign-out.yaml
 - assertNotVisible: "Continue with Google"

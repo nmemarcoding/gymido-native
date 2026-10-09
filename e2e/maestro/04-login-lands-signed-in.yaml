@@ -1,5 +1,5 @@
 # Signs in with the member test account and checks the landing screen.
-# Requires -e MEMBER_EMAIL=... -e MEMBER_PASSWORD=... (see README).
+# Needs MAESTRO_MEMBER_EMAIL / MAESTRO_MEMBER_PASSWORD; npm run e2e:* supplies them (see README).
 # A member with no profile lands on Onboarding (spec §4 profile gate).
 appId: com.gymido.app
 ---
@@ -7,8 +7,9 @@ appId: com.gymido.app
 - runFlow:
     file: subflows/login.yaml
     env:
-      LOGIN_EMAIL: ${MEMBER_EMAIL}
-      LOGIN_PASSWORD: ${MEMBER_PASSWORD}
+      LOGIN_EMAIL: ${MAESTRO_MEMBER_EMAIL}
+      LOGIN_PASSWORD: ${MAESTRO_MEMBER_PASSWORD}
+      REQUIRE_FORM: 'true'
 - extendedWaitUntil:
     visible: "Create Profile|Workout|Dashboard|Coaching"
     timeout: 90000

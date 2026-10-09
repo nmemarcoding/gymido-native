@@ -1,0 +1,28 @@
+# Reuses the app when it is already in front on a known screen (Welcome or the
+# signed-in shell), so consecutive flows continue where the previous one left
+# off instead of restarting it; anything else gets a cold launch-app.yaml.
+#
+# "Anything else" covers a cold start (app not running, e.g. a single-flow run),
+# an Auth0 page or browser left in front, Create Profile, a dev-client menu and
+# any screen a failed flow left behind. A flow that needs a real cold start
+# (01, 03) calls launch-app.yaml itself, or skips that when output.coldLaunched
+# says this step just did one.
+#
+# Speed: a `visible` check is instant when the element is there and waits ~7 s
+# (Maestro's lookup timeout) when it isn't; `notVisible` is the reverse. So the
+# common case (app up) is a positive check, and the launch hangs off a flag.
+appId: com.gymido.app
+---
+- evalScript: ${output.appUp = false; output.coldLaunched = false}
+- runFlow:
+    when:
+      visible:
+        id: "welcome-log-in|tab-bar"
+    commands:
+      - evalScript: ${output.appUp = true}
+- runFlow:
+    when:
+      true: ${!output.appUp}
+    commands:
+      - runFlow: launch-app.yaml
+      - evalScript: ${output.coldLaunched = true}

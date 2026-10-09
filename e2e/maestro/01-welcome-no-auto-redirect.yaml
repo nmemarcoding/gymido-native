@@ -2,6 +2,14 @@
 appId: com.gymido.app
 ---
 - runFlow: subflows/ensure-signed-out.yaml
+# The spec is about a COLD start, so restart the app even when the previous
+# flow left it on Welcome.
+- runFlow:
+    when:
+      # ensure-signed-out may have just cold-launched the app (output.coldLaunched,
+      # cleared again by a UI sign-out); a second cold launch would only cost time.
+      true: ${!output.coldLaunched}
+    file: subflows/launch-app.yaml
 - assertVisible: "Gymido"
 - assertVisible:
     id: "welcome-log-in"

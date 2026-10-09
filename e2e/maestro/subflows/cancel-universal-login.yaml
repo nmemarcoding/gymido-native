@@ -10,12 +10,10 @@ appId: com.gymido.app
     commands:
       - tapOn:
           id: "com.android.chrome:id/close_button"
-- runFlow:
-    when:
-      platform: iOS
-      visible: ".*Wants to Use.*"
-    commands:
-      - tapOn: "Cancel"
+# iOS: the page's Close button is the usual case, so check it first (an
+# absent element costs ~7 s per check); the earlier system sheet only matters
+# when Close isn't there.
+- evalScript: ${output.loginCancelled = false}
 - runFlow:
     when:
       platform: iOS
@@ -24,3 +22,14 @@ appId: com.gymido.app
     commands:
       - tapOn:
           id: "Close"
+      - evalScript: ${output.loginCancelled = true}
+- runFlow:
+    when:
+      platform: iOS
+      true: ${!output.loginCancelled}
+    commands:
+      - runFlow:
+          when:
+            visible: ".*Wants to Use.*"
+          commands:
+            - tapOn: "Cancel"
