@@ -1,15 +1,30 @@
-# Signed in as the E2E rig (the trainer account, with a profile and an active
-# plan), in the Personal workspace, on the Workout tab, with NO session running:
-# a leftover session from an earlier run is discarded first.
+# Signed in as the MEMBER rig (with a profile and an active plan), on the
+# Workout tab, with NO session running: a leftover session from an earlier run
+# is discarded first. The Trainer-workspace branch below only matters if a
+# caller ever switches this to the trainer rig.
 appId: com.gymido.app
 ---
-- runFlow: ensure-signed-in.yaml
+- runFlow:
+    file: ensure-signed-in-as.yaml
+    env:
+      ACCOUNT: member
+      LOGIN_EMAIL: ${MAESTRO_MEMBER_EMAIL}
+      LOGIN_PASSWORD: ${MAESTRO_MEMBER_PASSWORD}
 # Trainers land in the Trainer workspace; the Workout tab lives in Personal.
 # On phones the Workspace switch is only on Trainer Profile (RN-SPEC-app-shell §6.5).
+# Member workspace is the common case: a positive check on its tab-WorkoutTab is
+# instant, and the Trainer-workspace switch only runs when it is absent
+# (a false `visible` check would wait ~7 s; see ensure-app-running).
+- evalScript: ${output.inPersonal = false}
 - runFlow:
     when:
       visible:
-        id: "tab-TrainerProfileTab"
+        id: "tab-WorkoutTab"
+    commands:
+      - evalScript: ${output.inPersonal = true}
+- runFlow:
+    when:
+      true: ${!output.inPersonal}
     commands:
       - tapOn:
           id: "tab-TrainerProfileTab"

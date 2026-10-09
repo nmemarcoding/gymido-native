@@ -29,14 +29,29 @@ appId: com.gymido.app
       platform: iOS
     commands:
       - openLink: "exp+gymido-native://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081"
+      # A fresh simulator asks "Open in “Gymido”?" for EVERY link; answer it
+      # here, or the next retry leaves the sheet up.
+      - runFlow:
+          when:
+            visible: "Open"
+          commands:
+            - tapOn: "Open"
 # Bounded, non-failing waits with two retries: the bundle can take a while, and
 # a dropped deep link leaves the dev launcher up with no app-root.
 - waitForAnimationToEnd:
     timeout: 15000
+# A loaded app is a positive (instant) check; `notVisible` on a loaded app
+# would wait ~7 s each time. The retry hangs off the flag.
+- evalScript: ${output.devUp = false}
 - runFlow:
     when:
-      notVisible:
+      visible:
         id: "app-root"
+    commands:
+      - evalScript: ${output.devUp = true}
+- runFlow:
+    when:
+      true: ${!output.devUp}
     commands:
       - runFlow:
           when:
@@ -48,12 +63,27 @@ appId: com.gymido.app
             platform: iOS
           commands:
             - openLink: "exp+gymido-native://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081"
+            # A fresh simulator asks "Open in “Gymido”?" for EVERY link; answer it
+            # here, or the next retry leaves the sheet up.
+            - runFlow:
+                when:
+                  visible: "Open"
+                commands:
+                  - tapOn: "Open"
       - waitForAnimationToEnd:
           timeout: 20000
+# A loaded app is a positive (instant) check; `notVisible` on a loaded app
+# would wait ~7 s each time. The retry hangs off the flag.
+- evalScript: ${output.devUp = false}
 - runFlow:
     when:
-      notVisible:
+      visible:
         id: "app-root"
+    commands:
+      - evalScript: ${output.devUp = true}
+- runFlow:
+    when:
+      true: ${!output.devUp}
     commands:
       - runFlow:
           when:
@@ -65,6 +95,13 @@ appId: com.gymido.app
             platform: iOS
           commands:
             - openLink: "exp+gymido-native://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081"
+            # A fresh simulator asks "Open in “Gymido”?" for EVERY link; answer it
+            # here, or the next retry leaves the sheet up.
+            - runFlow:
+                when:
+                  visible: "Open"
+                commands:
+                  - tapOn: "Open"
 # `clearState` also wipes the dev client's "you have seen this" flag, so the
 # developer-menu onboarding sheet comes back and covers the app. Dismiss it
 # before anything asserts on app content — and note its button is also labelled
@@ -72,14 +109,39 @@ appId: com.gymido.app
 # in a way that looks like an Auth0 problem.
 # iOS, dev client only (recorded): a deep link first asks "Open in “Gymido”?",
 # and a fresh install opens the dev menu, whose close button is id xmark.
+# The three text-labelled dev-client screens share ONE gate, so an app that
+# is past them pays one ~7 s lookup instead of three.
 - runFlow:
     when:
-      platform: iOS
-      visible: "Open"
+      visible: "Open|This is the developer menu.*|Toggle element inspector"
     commands:
-      - tapOn: "Open"
-      - waitForAnimationToEnd:
-          timeout: 8000
+      - runFlow:
+          when:
+            platform: iOS
+            visible: "Open"
+          commands:
+            - tapOn: "Open"
+            - waitForAnimationToEnd:
+                timeout: 8000
+      - runFlow:
+          when:
+            visible: "This is the developer menu.*"
+          commands:
+            - tapOn: "Continue"
+            - waitForAnimationToEnd:
+                timeout: 3000
+      # Dismissing the onboarding leaves the dev menu itself open behind it. It
+      # is a sheet with no labelled close control, so swipe it away.
+      - runFlow:
+          when:
+            visible: "Toggle element inspector"
+          commands:
+            - swipe:
+                start: 50%, 50%
+                end: 50%, 98%
+                duration: 400
+            - waitForAnimationToEnd:
+                timeout: 3000
 - runFlow:
     when:
       platform: iOS
@@ -88,25 +150,6 @@ appId: com.gymido.app
     commands:
       - tapOn:
           id: "xmark"
-- runFlow:
-    when:
-      visible: "This is the developer menu.*"
-    commands:
-      - tapOn: "Continue"
-      - waitForAnimationToEnd:
-          timeout: 3000
-# Dismissing the onboarding leaves the dev menu itself open behind it. It is a
-# sheet with no labelled close control, so swipe it away.
-- runFlow:
-    when:
-      visible: "Toggle element inspector"
-    commands:
-      - swipe:
-          start: 50%, 50%
-          end: 50%, 98%
-          duration: 400
-      - waitForAnimationToEnd:
-          timeout: 3000
 # Fails fast and clearly if the bundle never loads (Metro down, wrong host):
 # the dev launcher screen has no app-root.
 - extendedWaitUntil:

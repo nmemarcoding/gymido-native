@@ -1,20 +1,62 @@
 # Signs in from the Welcome screen with LOGIN_EMAIL / LOGIN_PASSWORD (pass
 # them with -e; never write them into a file). Only recorded elements.
 # Ends right after the form is submitted; the caller asserts the landing.
+#
+# Speed: a `visible` check on an absent element waits ~7 s (Maestro's lookup
+# timeout), so the credential form is detected ONCE with a positive check and
+# the branches below hang off that flag.
 appId: com.gymido.app
 ---
 - runFlow: open-login-page.yaml
-# A surviving Auth0 session shows the consent page instead of the form.
+- evalScript: ${output.formShown = false}
 - runFlow:
     when:
-      visible: "Accept"
+      visible: "Continue with Google"
     commands:
-      - tapOn: "Accept"
+      - evalScript: ${output.formShown = true}
+# Flows that test the real login (04, 07) pass REQUIRE_FORM=true. A surviving
+# Auth0 browser session (e.g. from an interrupted run) shows the consent page
+# instead of the credential form. Self-heal: cancel, end that browser session
+# with Auth0's logout endpoint in the device browser (Safari / Chrome share
+# cookies with the login sheet; nobody gets logged in or out of the app), come
+# back and open the login page again. Then the form must be there.
+- runFlow:
+    when:
+      true: ${REQUIRE_FORM == 'true' && !output.formShown}
+    commands:
+      - runFlow: cancel-universal-login.yaml
+      - openLink: "https://${MAESTRO_AUTH0_DOMAIN}/v2/logout"
+      - runFlow: dismiss-browser-interstitials.yaml
+      - waitForAnimationToEnd:
+          timeout: 5000
+      - runFlow: ensure-app-running.yaml
+      - runFlow: open-login-page.yaml
+      - runFlow:
+          when:
+            visible: "Continue with Google"
+          commands:
+            - evalScript: ${output.formShown = true}
+- runFlow:
+    when:
+      true: ${REQUIRE_FORM == 'true'}
+    commands:
+      - assertVisible: "Continue with Google"
+# Other callers accept a surviving Auth0 session: its consent page instead of
+# the form. Only looked for when the form isn't there.
+- runFlow:
+    when:
+      true: ${!output.formShown}
+    commands:
+      - runFlow:
+          when:
+            visible: "Accept"
+          commands:
+            - tapOn: "Accept"
+# Android keeps the field clear: Chrome's autofill can pre-fill the form.
 - runFlow:
     when:
       platform: Android
-      visible:
-        id: "username"
+      true: ${output.formShown}
     commands:
       - tapOn:
           id: "username"
@@ -26,16 +68,19 @@ appId: com.gymido.app
       - inputText: ${LOGIN_PASSWORD}
       - hideKeyboard
       - tapOn: "Continue"
+# iOS skips the clear (7.6 s per field): every run of this flow opens a fresh
+# Universal Login page, and the E2E simulators never save passwords ("Save
+# Password?" below is always "Not Now"), so the fields start empty. A path
+# that re-submits on the SAME page (e.g. a retry after a failed login) must
+# clear them first.
 - runFlow:
     when:
       platform: iOS
-      visible: "Continue with Google"
+      true: ${output.formShown}
     commands:
       - tapOn: "Email address"
-      - eraseText: 60
       - inputText: ${LOGIN_EMAIL}
       - tapOn: "Password"
-      - eraseText: 60
       - inputText: ${LOGIN_PASSWORD}
       - tapOn: "Continue"
 # The consent page can also follow a submitted form.
@@ -46,3 +91,11 @@ appId: com.gymido.app
       visible: "Accept"
     commands:
       - tapOn: "Accept"
+# iOS can offer to save the password over the web-auth sheet after a submit
+# (seen on fresh simulators); it blocks the redirect back to the app.
+- runFlow:
+    when:
+      platform: iOS
+      visible: "Save Password?"
+    commands:
+      - tapOn: "Not Now"

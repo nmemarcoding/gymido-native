@@ -2,7 +2,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { checkEnvText, main } = require('../check-env');
+const { checkEnvText, checkRequired, main } = require('../check-env');
 
 describe('checkEnvText', () => {
   test('a clean file has no problems; comments and blank lines are skipped', () => {
@@ -48,5 +48,18 @@ describe('main', () => {
     fs.writeFileSync(file, 'TRAINER_PASSWORD=s3cret\n');
     expect(main(['node', 'check-env.js', file])).toBe(0);
     expect(main(['node', 'check-env.js', path.join(dir, 'missing')])).toBe(0);
+  });
+});
+
+describe('checkRequired', () => {
+  test('names each missing variable and where it can come from, never a value', () => {
+    const errors = [];
+    jest.spyOn(console, 'error').mockImplementation((line) => errors.push(line));
+    const required = { MEMBER_EMAIL: ['MEMBER_EMAIL', 'PROFILED_EMAIL'], TRAINER_PASSWORD: ['TRAINER_PASSWORD'] };
+    expect(checkRequired(required, { MEMBER_EMAIL: 'secret@x.co' })).toBe(1);
+    expect(errors.slice(1)).toEqual(['  TRAINER_PASSWORD: set TRAINER_PASSWORD (or pass -e TRAINER_PASSWORD=…)']);
+    expect(errors.join('\n')).not.toContain('secret');
+    expect(checkRequired(required, { MEMBER_EMAIL: 'a', TRAINER_PASSWORD: 'b' })).toBe(0);
+    jest.restoreAllMocks();
   });
 });

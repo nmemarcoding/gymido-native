@@ -11,27 +11,47 @@
 # (RN-SPEC-profile-create ⚠P7). See e2e/maestro/README.md.
 appId: com.gymido.app
 ---
-- runFlow: launch-app.yaml
+# Reuses the running app when it is on Welcome or the shell; else cold-launches.
+- runFlow: ensure-app-running.yaml
+# Checks in order of likelihood, each nested behind a flag so that once the
+# state is known the rest cost nothing (see ensure-app-running for why).
+- evalScript: ${output.signedOut = false}
+- runFlow:
+    when:
+      visible:
+        id: "welcome-log-in"
+    commands:
+      - evalScript: ${output.signedOut = true}
 # Signed in anywhere in the shell: sign out through the UI (sign-out.yaml),
 # which also clears the Auth0 browser session.
 - runFlow:
     when:
-      visible:
-        id: "tab-bar"
-    file: sign-out.yaml
+      true: ${!output.signedOut}
+    commands:
+      - runFlow:
+          when:
+            visible:
+              id: "tab-bar"
+          commands:
+            - runFlow: sign-out.yaml
+            - evalScript: ${output.signedOut = true; output.coldLaunched = false}
 - runFlow:
     when:
-      visible:
-        id: "account-unavailable-sign-out"
+      true: ${!output.signedOut}
     commands:
-      - tapOn:
-          id: "account-unavailable-sign-out"
-      - runFlow: confirm-ios-logout.yaml
+      - runFlow:
+          when:
+            visible:
+              id: "account-unavailable-sign-out"
+          commands:
+            - tapOn:
+                id: "account-unavailable-sign-out"
+            - runFlow: confirm-ios-logout.yaml
+            - evalScript: ${output.signedOut = true; output.coldLaunched = false}
 # Fallback for screens with no sign-out (e.g. Create Profile).
 - runFlow:
     when:
-      notVisible:
-        id: "welcome-log-in"
+      true: ${!output.signedOut}
     commands:
       - stopApp
       - runFlow:
@@ -41,6 +61,7 @@ appId: com.gymido.app
             - clearKeychain
       - clearState
       - runFlow: launch-app.yaml
+      - evalScript: ${output.coldLaunched = true}
 - extendedWaitUntil:
     visible:
       id: "welcome-log-in"

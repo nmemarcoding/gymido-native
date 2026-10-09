@@ -3,10 +3,19 @@
 # no Settings tab: switch through the Workspace block on the trainer Profile tab.
 appId: com.gymido.app
 ---
+# Member workspace is the common case: a positive check on its tab-SettingsTab is
+# instant, and the Trainer-workspace switch only runs when it is absent
+# (a false `visible` check would wait ~7 s; see ensure-app-running).
+- evalScript: ${output.inPersonal = false}
 - runFlow:
     when:
       visible:
-        id: "tab-TrainerProfileTab"
+        id: "tab-SettingsTab"
+    commands:
+      - evalScript: ${output.inPersonal = true}
+- runFlow:
+    when:
+      true: ${!output.inPersonal}
     commands:
       - tapOn:
           id: "tab-TrainerProfileTab"
