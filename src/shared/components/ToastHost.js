@@ -64,6 +64,25 @@ function SlideUp({ children, style }) {
   return <Animated.View style={[style, { opacity: progress, transform: [{ translateY }] }]}>{children}</Animated.View>;
 }
 
+// A page-level toast: the same card rendered in place, without the close
+// button (app-shell spec §8; plans §4.7, workout §3.5).
+export function InlineToast({ tone, title, message, testID, style }) {
+  const colorsForTone = TONES[tone] ?? TONES[ToastTone.info];
+
+  useEffect(() => {
+    AccessibilityInfo.announceForAccessibility([title, message].filter(Boolean).join(' '));
+  }, [title, message]);
+
+  return (
+    <SlideUp style={[styles.card, { borderColor: colorsForTone.border, backgroundColor: colorsForTone.background }, style]}>
+      <View testID={testID} accessibilityRole="alert" accessibilityLiveRegion="polite">
+        {title ? <Text style={[styles.title, { color: colorsForTone.text }]}>{title}</Text> : null}
+        {message ? <Text style={[styles.message, { color: colorsForTone.text }]}>{message}</Text> : null}
+      </View>
+    </SlideUp>
+  );
+}
+
 function ToastRow({ toast, onClose }) {
   const tone = TONES[toast.tone] ?? TONES[ToastTone.info];
 

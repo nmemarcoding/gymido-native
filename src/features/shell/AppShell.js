@@ -3,8 +3,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useEffect } from 'react';
 
 import { routes } from '../../navigation/routes';
+import ExerciseDetailScreen from '../exercises/screens/ExerciseDetailScreen';
 import { unmountBell } from '../notifications/bellPolling';
 import HomeScreen from '../home/HomeScreen';
+import PlanDetailScreen from '../plans/screens/PlanDetailScreen';
+import PlansLibraryScreen from '../plans/screens/PlansLibraryScreen';
 import SettingsScreen from '../settings/SettingsScreen';
 import TrainerDashboardScreen from '../trainer/TrainerDashboardScreen';
 import CreatePlanScreen from '../trainer/plans/screens/CreatePlanScreen';
@@ -25,7 +28,9 @@ const SCREENS = {
   [routes.Home]: HomeScreen,
   [routes.Workout]: makeShellPlaceholder('Workout'),
   [routes.Exercises]: makeShellPlaceholder('Exercises'),
-  [routes.PlansLibrary]: makeShellPlaceholder('Library'),
+  [routes.PlansLibrary]: PlansLibraryScreen,
+  [routes.PlanDetail]: PlanDetailScreen,
+  [routes.ExerciseDetail]: ExerciseDetailScreen,
   [routes.Progress]: makeShellPlaceholder('Progress'),
   [routes.MyTrainer]: makeShellPlaceholder('Trainer'),
   [routes.Settings]: SettingsScreen,
@@ -41,6 +46,8 @@ const SCREENS = {
 
 // Extra screens stacked above a tab's root.
 const STACK_EXTRAS = {
+  [ShellTab.Library]: [routes.PlanDetail, routes.ExerciseDetail],
+  [ShellTab.Exercises]: [routes.ExerciseDetail],
   [ShellTab.TClients]: [routes.TrainerClient],
   [ShellTab.TPlans]: [routes.TrainerPlanCreate, routes.TrainerPlan],
 };

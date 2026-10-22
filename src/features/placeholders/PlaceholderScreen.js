@@ -7,6 +7,7 @@ import { Body, Eyebrow, Heading } from '../../shared/components/Typography';
 import { env } from '../../shared/config/env';
 import { useAuthStore } from '../auth/authStore';
 import ShellPage from '../shell/ShellPage';
+import HandoffToast from '../workout/HandoffToast';
 import { openShellPath } from '../shell/shellLinks';
 import { isShellScreen } from '../shell/shellNavigation';
 
@@ -21,6 +22,7 @@ export default function PlaceholderScreen({ title }) {
 
   return (
     <Wrapper>
+      {route.params?.message ? <HandoffToast message={route.params.message} /> : null}
       <Card>
         <Eyebrow>Placeholder</Eyebrow>
         <Heading>{title}</Heading>

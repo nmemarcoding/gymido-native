@@ -24,6 +24,9 @@ const SCREENS = {
   [routes.Workout]: [ShellTab.Workout, () => '/workout'],
   [routes.Exercises]: [ShellTab.Exercises, () => '/exercises'],
   [routes.PlansLibrary]: [ShellTab.Library, () => '/plans'],
+  [routes.PlanDetail]: [ShellTab.Library, (params) => `/plans/${params?.planId ?? ''}`],
+  // Lives on the Plans or Exercises stack; its path makes Exercises the active tab (⚠X-7).
+  [routes.ExerciseDetail]: [ShellTab.Exercises, (params) => `/exercises/${params?.exerciseId ?? ''}`],
   [routes.Progress]: [ShellTab.Progress, () => '/progress'],
   [routes.MyTrainer]: [ShellTab.Trainer, () => '/my-trainer'],
   [routes.Settings]: [ShellTab.Settings, () => '/profile'],

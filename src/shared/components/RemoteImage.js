@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image } from 'react-native';
 
 import { getRemoteImageSources } from '../images/remoteImageSources';
@@ -23,12 +23,24 @@ export function nextImageState(state, event) {
 }
 
 // Remote image with the Google-Drive fallback chain; once the candidates run
-// out it renders nothing (as the web leaves an empty well).
-export default function RemoteImage({ url, style, resizeMode = 'cover' }) {
+// out it renders nothing (as the web leaves an empty well). `onExhausted`
+// (optional) fires once after the last candidate fails, so a caller can show
+// its own fallback (plans §4.4, S2 only).
+export default function RemoteImage({ url, style, resizeMode = 'cover', onExhausted }) {
   const sources = useMemo(() => getRemoteImageSources(url), [url]);
   const [state, setState] = useState({ index: 0, attempt: 0, cancels: 0 });
+  const exhausted = state.index >= sources.length;
+  // Read through a ref so a new callback identity never re-fires it.
+  const exhaustedCallback = useRef(onExhausted);
+  exhaustedCallback.current = onExhausted;
 
-  if (state.index >= sources.length) {
+  useEffect(() => {
+    if (exhausted) {
+      exhaustedCallback.current?.();
+    }
+  }, [exhausted]);
+
+  if (exhausted) {
     return null;
   }
   return (

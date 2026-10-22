@@ -5,6 +5,7 @@ import Card from '../../shared/components/Card';
 import { Body, Eyebrow, Heading } from '../../shared/components/Typography';
 import { logout } from '../auth/authService';
 import ChangePasswordModal from '../profile/ChangePasswordModal';
+import ExerciseRowFixture from '../plans/components/ExerciseRowFixture';
 import ChartFixture from '../trainer/clients/components/ChartFixture';
 import ShellPage from '../shell/ShellPage';
 
@@ -43,6 +44,7 @@ export default function SettingsScreen() {
       </Card>
       {/* Development-only visual check of the weight chart (renders nothing in release). */}
       <ChartFixture />
+      <ExerciseRowFixture />
       <ChangePasswordModal visible={changePasswordVisible} onClose={() => setChangePasswordVisible(false)} />
     </ShellPage>
   );

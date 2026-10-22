@@ -26,6 +26,9 @@ const MUSCLE_TILES = {
   LOWER_BACK: ['#F97316', colors.navy],
   LATS: ['#0EA5E9', WHITE],
   GLUTES: ['#84CC16', '#000000'],
+  // C11 (23 Oct 2026, owner).
+  UPPER_BACK: ['#3A4D6A', WHITE],
+  FOREARMS: ['#14B8A6', WHITE],
 };
 
 export function getMuscleTileColors(code) {

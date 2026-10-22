@@ -32,6 +32,12 @@ export const colors = Object.freeze({
   successBorder: 'rgba(34, 197, 94, 0.30)',
   successFill: '#f0fdf4',
   successText: '#008236',
+  brand300: '#f7ce4f',
+  success: '#22c55e',
+  successTint: 'rgba(34, 197, 94, 0.10)',
+  trainerLockBorder: 'rgba(221, 160, 0, 0.30)',
+  rowPressed: 'rgba(239, 241, 244, 0.40)',
+  rowPressedStrong: 'rgba(239, 241, 244, 0.50)',
 });
 
 export const typography = Object.freeze({
@@ -60,6 +66,7 @@ export const typography = Object.freeze({
 export const shadows = Object.freeze({
   soft: '0px 8px 24px rgba(11, 29, 58, 0.08)',
   glow: '0px 8px 24px rgba(244, 180, 0, 0.28)',
+  lift1: '0px 1px 2px rgba(17, 24, 39, 0.04), 0px 4px 12px -2px rgba(17, 24, 39, 0.06)',
   modal: '0px 25px 50px -12px rgba(0, 0, 0, 0.25)',
   insetSoft: 'inset 0px 1px 0px rgba(255, 255, 255, 0.8)',
   // ⚠ A blue glow on a gold button, a leftover on the web. Reproduced on purpose.
