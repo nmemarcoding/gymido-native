@@ -2,7 +2,9 @@ const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
 
-const APP_ENVS = ['development', 'staging', 'production'];
+// localtest-* point a dev client at a local API (gitignored .env files):
+// Android emulators reach the host at 10.0.2.2, iOS simulators at localhost.
+const APP_ENVS = ['development', 'staging', 'production', 'localtest-android', 'localtest-ios'];
 const APP_ENV = process.env.APP_ENV || 'development';
 
 if (!APP_ENVS.includes(APP_ENV)) {

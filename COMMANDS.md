@@ -95,6 +95,27 @@ $ANDROID_HOME/emulator/emulator -avd Pixel_API_36 -memory 6144      # Android, s
 
 Once the native app is installed, day-to-day JS work only needs Metro (`npm start`); rebuild only after changing native dependencies or `app.config.js`.
 
+**iOS: build React Native core from source.** The prebuilt RN core lacks `RCTPackagerConnection`, which `expo-dev-launcher` needs, so a default iOS build fails to link. Set the variable for the pod install and the build:
+
+```bash
+cd ios && RCT_USE_PREBUILT_RNCORE=0 pod install && cd ..
+RCT_USE_PREBUILT_RNCORE=0 npm run ios
+```
+
+Every Expo module then compiles from source too, so iOS builds take longer.
+
+**Android needs JDK 17.** Under JDK 25 the worklets CMake step fails. Export `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home` before `npm run android`.
+
+### Local test API
+
+To point a dev client at a local backend on `:8080`, create a gitignored `.env.localtest-android` (`API_BASE_URL=http://10.0.2.2:8080`) or `.env.localtest-ios` (`API_BASE_URL=http://localhost:8080`) with the other values copied from `.env.development`, then start Metro with that env:
+
+```bash
+APP_ENV=localtest-android npx expo start --dev-client
+```
+
+The placeholder screens show the active environment.
+
 ### Physical devices
 
 ```bash
