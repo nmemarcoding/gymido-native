@@ -48,22 +48,22 @@ export default function FormField({ label, helperText, error, multiline = false,
 
   return (
     <FieldFrame label={label} helperText={helperText} error={error} kind={multiline ? 'textarea' : 'input'}>
-      <TextInput
-        testID={testID}
-        accessibilityLabel={label}
-        placeholderTextColor={colors.textMuted}
-        editable={editable}
-        multiline={multiline}
-        textAlignVertical={multiline ? 'top' : 'center'}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        style={[
-          fieldBoxStyle({ focused, error: Boolean(error), disabled: !editable }),
-          styles.text,
-          multiline && { minHeight: rows * 20 + 24 },
-        ]}
-        {...inputProps}
-      />
+      {/* The border lives on a wrapper: on Android a bordered TextInput drops
+          its left padding once a value is typed (M1 / F1). */}
+      <View style={[fieldBoxStyle({ focused, error: Boolean(error), disabled: !editable }), styles.inputBox]}>
+        <TextInput
+          testID={testID}
+          accessibilityLabel={label}
+          placeholderTextColor={colors.textMuted}
+          editable={editable}
+          multiline={multiline}
+          textAlignVertical={multiline ? 'top' : 'center'}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={[styles.input, styles.text, multiline && { minHeight: rows * 20 + 24 }]}
+          {...inputProps}
+        />
+      </View>
     </FieldFrame>
   );
 }
@@ -100,6 +100,14 @@ const styles = StyleSheet.create({
   },
   boxDisabled: {
     backgroundColor: colors.surfaceMuted,
+  },
+  inputBox: {
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+  },
+  input: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
   text: {
     fontSize: 14,

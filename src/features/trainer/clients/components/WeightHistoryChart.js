@@ -1,37 +1,35 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { CurveType, LineChart } from 'react-native-gifted-charts';
+import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop, Text as SvgText } from 'react-native-svg';
 
 import EmptyState from '../../../../shared/components/EmptyState';
 import { colors, radii, shadows } from '../../../../shared/theme/tokens';
 import { formatWeight } from '../clientFormat';
-import { buildWeightSeries, thinLabels } from '../weightChartData';
+import { buildWeightSeries, fixedDomainTicks, monotoneXPath, thinLabels } from '../weightChartData';
 
 const TEAL = '#009ca6';
 const GRID = '#e2e8f0';
-const AXIS_TEXT = { fontSize: 12, color: '#6b7280' };
+const AXIS_COLOR = '#6b7280';
+const FONT_SIZE = 12;
 const HEIGHT = 288;
 const Y_AXIS_WIDTH = 40;
+const X_AXIS_HEIGHT = 30;
 const MARGIN = { top: 10, right: 12, bottom: 8 };
-const EDGE_LABEL_WIDTH = 64;
+// Recharts axis geometry: tick labels sit tickSize (6) + tickMargin (2) off
+// the plot; the y label baseline is centred (0.355em), the x one drops 0.71em.
+const LABEL_OFFSET = 8;
+const Y_LABEL_DY = FONT_SIZE * 0.355;
+const X_LABEL_DY = FONT_SIZE * 0.71;
+const TOOLTIP_GAP = 10;
 
-// gifted-charts centres each x label in a `spacing`-wide slot on its point, so
-// the first and last slots hang half outside the clipped plot. Those two are
-// anchored inward instead: the first starts at its point, the last ends there.
-function edgeLabel(label, spacing, align) {
-  const offset = align === 'left' ? spacing / 2 : spacing / 2 - EDGE_LABEL_WIDTH;
-  return () => (
-    <Text numberOfLines={1} style={[AXIS_TEXT, styles.edgeLabel, { left: offset, textAlign: align }]}>
-      {label}
-    </Text>
-  );
-}
-
-// The weight chart (trainer clients spec §C5.3) on react-native-gifted-charts.
-// Resolved mechanisms (owner-accepted): the "monotone" curve is drawn with
-// the library's quadratic curve, and x labels are pre-thinned (thinLabels).
+// The weight chart (trainer clients spec §C5.3), drawn with react-native-svg
+// so it matches the web's Recharts output: a d3 monotoneX curve, ticks from
+// Recharts' fixed-domain rule, and the first/last x labels kept inside the
+// plot (preserveStartEnd).
 export default function WeightHistoryChart({ logs, profile }) {
   const [width, setWidth] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(null);
+  const [tooltipWidth, setTooltipWidth] = useState(0);
   const series = buildWeightSeries(logs, profile);
 
   // ⚠C-8: this empty state speaks to the member, as on the web.
@@ -44,113 +42,121 @@ export default function WeightHistoryChart({ logs, profile }) {
     );
   }
 
-  const plotWidth = Math.max(0, width - Y_AXIS_WIDTH - MARGIN.right);
-  const spacing = series.points.length > 1 ? plotWidth / (series.points.length - 1) : plotWidth;
+  const left = Y_AXIS_WIDTH;
+  const right = Math.max(left, width - MARGIN.right);
+  const top = MARGIN.top;
+  const bottom = HEIGHT - MARGIN.bottom - X_AXIS_HEIGHT;
+  const spacing = (right - left) / (series.points.length - 1);
+  const xAt = (index) => left + index * spacing;
+  const yAt = (value) => bottom - ((value - series.min) / (series.max - series.min)) * (bottom - top);
+
+  const coords = series.points.map((point, index) => [xAt(index), yAt(point.value)]);
+  const line = monotoneXPath(coords);
+  const area = `${line}L${coords[coords.length - 1][0]},${bottom}L${coords[0][0]},${bottom}Z`;
+  const ticks = fixedDomainTicks(series.min, series.max);
   const labels = thinLabels(
     series.points.map((point) => point.label),
     spacing
   );
-  const range = series.max - series.min;
-  // Grid lines must sit on the values their labels show: whole-kg steps when
-  // the domain is a short whole range, else 4 sections labelled to 1 decimal.
-  const wholeSteps = Number.isInteger(range) && range > 0 && range <= 8;
-  const sections = wholeSteps ? range : 4;
+  const lastIndex = labels.length - 1;
+
+  function pick(event) {
+    const index = Math.round((event.nativeEvent.locationX - left) / spacing);
+    setActiveIndex(Math.min(lastIndex, Math.max(0, index)));
+  }
+
+  const active = activeIndex === null ? null : series.points[activeIndex];
+  const activeX = activeIndex === null ? 0 : xAt(activeIndex);
+  const tooltipLeft =
+    activeX + TOOLTIP_GAP + tooltipWidth <= width
+      ? activeX + TOOLTIP_GAP
+      : Math.max(0, activeX - TOOLTIP_GAP - tooltipWidth);
 
   return (
     <View style={styles.wrap} onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
       {width > 0 ? (
-        <LineChart
-          data={series.points.map((point, index) => {
-            const last = index === series.points.length - 1;
-            const edge = index === 0 ? 'left' : last ? 'right' : null;
-            return {
-              value: point.value,
-              label: labels[index],
-              labelComponent: edge && labels[index] ? edgeLabel(labels[index], spacing, edge) : undefined,
-            };
-          })}
-          width={plotWidth}
-          height={HEIGHT - MARGIN.top - MARGIN.bottom - 24}
-          initialSpacing={0}
-          endSpacing={0}
-          spacing={spacing}
-          disableScroll
-          areaChart
-          curved
-          curveType={CurveType.QUADRATIC}
-          color={TEAL}
-          thickness={2.5}
-          startFillColor={TEAL}
-          endFillColor={TEAL}
-          startOpacity={0.22}
-          endOpacity={0.02}
-          dataPointsColor={TEAL}
-          dataPointsRadius={3}
-          customDataPoint={() => <View style={styles.dot} />}
-          yAxisOffset={series.min}
-          maxValue={range}
-          noOfSections={sections}
-          yAxisLabelWidth={Y_AXIS_WIDTH}
-          yAxisThickness={0}
-          xAxisThickness={0}
-          yAxisTextStyle={AXIS_TEXT}
-          xAxisLabelTextStyle={AXIS_TEXT}
-          formatYLabel={(label) => String(Math.round(Number(label) * 10) / 10)}
-          rulesType="dashed"
-          dashWidth={3}
-          dashGap={3}
-          rulesColor={GRID}
-          showVerticalLines={false}
-          pointerConfig={{
-            pointerStripColor: GRID,
-            pointerStripWidth: 1,
-            pointerColor: TEAL,
-            radius: 5,
-            pointerComponent: () => <View style={styles.activeDot} />,
-            pointerLabelWidth: 160,
-            pointerLabelHeight: 70,
-            autoAdjustPointerLabelPosition: true,
-            pointerLabelComponent: (items, _secondary, index) => (
-              <View style={styles.tooltip}>
-                <Text style={styles.tooltipLabel}>{series.points[index ?? 0]?.label}</Text>
-                <Text style={styles.tooltipValue}>{formatWeight(items?.[0]?.value, series.unit)}</Text>
-              </View>
-            ),
-          }}
-        />
+        <View
+          onStartShouldSetResponder={() => true}
+          onResponderTerminationRequest={() => true}
+          onResponderGrant={pick}
+          onResponderMove={pick}
+        >
+          <Svg width={width} height={HEIGHT}>
+            <Defs>
+              <LinearGradient id="weightFill" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor={TEAL} stopOpacity={0.22} />
+                <Stop offset="1" stopColor={TEAL} stopOpacity={0.02} />
+              </LinearGradient>
+            </Defs>
+            {ticks.map((tick) => (
+              <Line
+                key={`grid-${tick}`}
+                x1={left}
+                x2={right}
+                y1={yAt(tick)}
+                y2={yAt(tick)}
+                stroke={GRID}
+                strokeDasharray="3 3"
+              />
+            ))}
+            {ticks.map((tick) => (
+              <SvgText
+                key={`y-${tick}`}
+                x={left - LABEL_OFFSET}
+                y={yAt(tick) + Y_LABEL_DY}
+                fontSize={FONT_SIZE}
+                fill={AXIS_COLOR}
+                textAnchor="end"
+              >
+                {String(tick)}
+              </SvgText>
+            ))}
+            {labels.map((label, index) =>
+              label ? (
+                <SvgText
+                  key={`x-${index}`}
+                  x={index === 0 ? left : index === lastIndex ? right : xAt(index)}
+                  y={bottom + LABEL_OFFSET + X_LABEL_DY}
+                  fontSize={FONT_SIZE}
+                  fill={AXIS_COLOR}
+                  textAnchor={index === 0 ? 'start' : index === lastIndex ? 'end' : 'middle'}
+                >
+                  {label}
+                </SvgText>
+              ) : null
+            )}
+            <Path d={area} fill="url(#weightFill)" />
+            <Path d={line} fill="none" stroke={TEAL} strokeWidth={2.5} />
+            {active ? <Line x1={activeX} x2={activeX} y1={top} y2={bottom} stroke={GRID} strokeWidth={1} /> : null}
+            {coords.map(([x, y], index) => (
+              <Circle key={`dot-${index}`} cx={x} cy={y} r={3} fill={TEAL} stroke="#ffffff" strokeWidth={2} />
+            ))}
+            {active ? (
+              <Circle cx={activeX} cy={yAt(active.value)} r={5} fill={TEAL} stroke="#ffffff" strokeWidth={2} />
+            ) : null}
+          </Svg>
+          {active ? (
+            <View
+              pointerEvents="none"
+              onLayout={(event) => setTooltipWidth(event.nativeEvent.layout.width)}
+              style={[styles.tooltip, { left: tooltipLeft, top }]}
+            >
+              <Text style={styles.tooltipLabel}>{active.label}</Text>
+              <Text style={styles.tooltipValue}>{formatWeight(active.value, series.unit)}</Text>
+            </View>
+          ) : null}
+        </View>
       ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  edgeLabel: {
-    position: 'absolute',
-    top: 0,
-    width: EDGE_LABEL_WIDTH,
-  },
   wrap: {
     height: HEIGHT,
-    paddingTop: MARGIN.top,
-    paddingBottom: MARGIN.bottom,
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: TEAL,
-    borderWidth: 2,
-    borderColor: '#ffffff',
-  },
-  activeDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: TEAL,
-    borderWidth: 2,
-    borderColor: '#ffffff',
   },
   tooltip: {
+    position: 'absolute',
     borderRadius: radii.xxl,
     borderWidth: 1,
     borderColor: colors.border,
