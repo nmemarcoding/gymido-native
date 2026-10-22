@@ -1,22 +1,26 @@
-import { useNavigation } from '@react-navigation/native';
+import { useRoute } from '@react-navigation/native';
 
-import { routes } from '../../navigation/routes';
 import Button from '../../shared/components/Button';
 import Card from '../../shared/components/Card';
 import Screen from '../../shared/components/Screen';
 import { Body, Eyebrow, Heading } from '../../shared/components/Typography';
 import { env } from '../../shared/config/env';
 import { useAuthStore } from '../auth/authStore';
+import ShellPage from '../shell/ShellPage';
+import { openShellPath } from '../shell/shellLinks';
+import { isShellScreen } from '../shell/shellNavigation';
 
 // Stand-in for signed-in screens that don't have a spec yet. Shows the session
 // details needed to check the landing rules.
 export default function PlaceholderScreen({ title }) {
-  const navigation = useNavigation();
+  const route = useRoute();
+  // Inside the tab shell it gets the shell chrome; elsewhere (Onboarding) a plain screen.
+  const Wrapper = isShellScreen(route.name) ? ShellPage : Screen;
   const user = useAuthStore((state) => state.user);
   const roles = user?.roles?.length ? user.roles.join(', ') : 'none';
 
   return (
-    <Screen>
+    <Wrapper>
       <Card>
         <Eyebrow>Placeholder</Eyebrow>
         <Heading>{title}</Heading>
@@ -27,9 +31,9 @@ export default function PlaceholderScreen({ title }) {
           testID="placeholder-open-settings"
           title="Settings"
           variant="secondary"
-          onPress={() => navigation.navigate(routes.Settings)}
+          onPress={() => openShellPath('/profile')}
         />
       </Card>
-    </Screen>
+    </Wrapper>
   );
 }

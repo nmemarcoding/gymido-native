@@ -11,3 +11,9 @@ export async function changePassword(password) {
   const response = await apiClient.post('/profile/change-password', { password });
   return response.data;
 }
+
+// Create profile (RN-SPEC-profile-create §5).
+export async function createProfile(payload) {
+  const response = await apiClient.post('/profile', payload);
+  return response.data?.data?.profile ?? response.data?.data ?? null;
+}

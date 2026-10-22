@@ -5,10 +5,9 @@ import AccountUnavailableScreen from '../features/auth/screens/AccountUnavailabl
 import SessionLoadingScreen from '../features/auth/screens/SessionLoadingScreen';
 import SignInFailedScreen from '../features/auth/screens/SignInFailedScreen';
 import WelcomeScreen from '../features/auth/screens/WelcomeScreen';
-import HomeScreen from '../features/home/HomeScreen';
-import OnboardingScreen from '../features/onboarding/OnboardingScreen';
-import SettingsScreen from '../features/settings/SettingsScreen';
-import TrainerDashboardScreen from '../features/trainer/TrainerDashboardScreen';
+import CreateProfileScreen from '../features/profile/CreateProfileScreen';
+import AppShell from '../features/shell/AppShell';
+import { getScreenTab, isShellScreen } from '../features/shell/shellNavigation';
 import { resolveLanding } from './resolveLanding';
 import { routes } from './routes';
 
@@ -23,8 +22,16 @@ const SIGNED_OUT_SCREENS = {
 // Restoring, authenticating and loading the user all share one loading screen.
 const LOADING_SCREEN = { name: routes.SessionLoading, component: SessionLoadingScreen };
 
-function initialParamsFor(landing, name) {
-  return landing?.name === name ? landing.params : undefined;
+// Shell screens open inside their tab: the root lands on AppShell, which
+// starts on that tab, whose stack starts on the screen.
+function landingRoute(landing) {
+  if (!landing || !isShellScreen(landing.name)) {
+    return { name: landing?.name, params: landing?.params };
+  }
+  return {
+    name: routes.AppShell,
+    params: { screen: getScreenTab(landing.name), params: { screen: landing.name, params: landing.params } },
+  };
 }
 
 export default function RootNavigator() {
@@ -49,40 +56,27 @@ export default function RootNavigator() {
     : null;
 
   const statusScreen = SIGNED_OUT_SCREENS[status] ?? LOADING_SCREEN;
+  const initial = landingRoute(landing);
 
   return (
     // A navigator reads initialRouteName only on mount, so the key remounts it
     // on sign-in to apply the landing rules.
     <Stack.Navigator
       key={signedIn ? 'signed-in' : 'signed-out'}
-      initialRouteName={landing?.name}
+      initialRouteName={initial.name}
       screenOptions={{ headerShown: false, animation: 'fade' }}
     >
       {signedIn ? (
-        <Stack.Group screenOptions={{ headerShown: true, animation: 'default' }}>
+        <Stack.Group screenOptions={{ animation: 'default' }}>
           <Stack.Screen
-            name={routes.Home}
-            component={HomeScreen}
-            initialParams={initialParamsFor(landing, routes.Home)}
-            options={{ title: 'Home' }}
-          />
-          <Stack.Screen
-            name={routes.TrainerDashboard}
-            component={TrainerDashboardScreen}
-            initialParams={initialParamsFor(landing, routes.TrainerDashboard)}
-            options={{ title: 'Trainer dashboard' }}
+            name={routes.AppShell}
+            component={AppShell}
+            initialParams={initial.name === routes.AppShell ? initial.params : undefined}
           />
           <Stack.Screen
             name={routes.Onboarding}
-            component={OnboardingScreen}
-            initialParams={initialParamsFor(landing, routes.Onboarding)}
-            options={{ title: 'Onboarding' }}
-          />
-          <Stack.Screen
-            name={routes.Settings}
-            component={SettingsScreen}
-            initialParams={initialParamsFor(landing, routes.Settings)}
-            options={{ title: 'Settings' }}
+            component={CreateProfileScreen}
+            initialParams={initial.name === routes.Onboarding ? initial.params : undefined}
           />
         </Stack.Group>
       ) : (

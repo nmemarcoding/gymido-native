@@ -74,7 +74,9 @@ async function loadUser(credentials, claims) {
 
   let profileMissing = false;
   try {
-    await getProfile(credentials.accessToken);
+    // 200 with `profile: null` is missing too (profile-create spec §1).
+    const result = await getProfile(credentials.accessToken);
+    profileMissing = !result?.profile;
   } catch (error) {
     profileMissing = error?.response?.status === 404;
     if (!profileMissing) {

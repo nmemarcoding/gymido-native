@@ -1,4 +1,18 @@
-import { getApiErrorMessage, isNetworkError } from './apiError';
+import { DEFAULT_ERROR_MESSAGE, getApiErrorMessage, getServerMessage, isNetworkError } from './apiError';
+
+describe('getServerMessage', () => {
+  it('uses message, then the first error, then the transport text, then the default', () => {
+    expect(getServerMessage({ response: { data: { message: 'Validation failed', errors: { a: ['x'] } } } })).toBe(
+      'Validation failed'
+    );
+    expect(getServerMessage({ response: { data: { message: '  ', errors: { name: ['Name taken'] } } } })).toBe('Name taken');
+    expect(getServerMessage({ message: 'Network Error' })).toBe('Network Error');
+    expect(getServerMessage({ message: 'Request failed with status code 500', response: { data: {} } })).toBe(
+      'Request failed with status code 500'
+    );
+    expect(getServerMessage({})).toBe(DEFAULT_ERROR_MESSAGE);
+  });
+});
 
 describe('getApiErrorMessage', () => {
   it('prefers the API message', () => {

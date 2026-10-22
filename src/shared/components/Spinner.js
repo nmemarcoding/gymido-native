@@ -4,7 +4,8 @@ import { Animated, Easing, StyleSheet } from 'react-native';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { colors, motion } from '../theme/tokens';
 
-export default function Spinner({ size = 40 }) {
+// `color` is the moving top segment, `track` the rest of the ring.
+export default function Spinner({ size = 40, thickness = 4, color = colors.brand400, track = colors.border }) {
   const reducedMotion = useReducedMotion();
   const rotation = useRef(new Animated.Value(0)).current;
 
@@ -33,16 +34,20 @@ export default function Spinner({ size = 40 }) {
       importantForAccessibility="no-hide-descendants"
       style={[
         styles.ring,
-        { width: size, height: size, borderRadius: size / 2, transform: [{ rotate }] },
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          borderWidth: thickness,
+          borderColor: track,
+          borderTopColor: color,
+          transform: [{ rotate }],
+        },
       ]}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  ring: {
-    borderWidth: 4,
-    borderColor: colors.border,
-    borderTopColor: colors.brand400,
-  },
+  ring: {},
 });

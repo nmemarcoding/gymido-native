@@ -2,6 +2,18 @@
 appId: com.gymido.app
 ---
 - runFlow: launch-dev-client.yaml
+# Trainer mode: the dashboard has no Settings button; its Profile tab does.
+- runFlow:
+    when:
+      visible:
+        id: "tab-TProfile"
+    commands:
+      - tapOn:
+          id: "tab-TProfile"
+      - extendedWaitUntil:
+          visible:
+            id: "placeholder-open-settings"
+          timeout: 20000
 # On a placeholder screen: go to Settings first.
 - runFlow:
     when:
@@ -21,6 +33,14 @@ appId: com.gymido.app
     commands:
       - tapOn:
           id: "settings-sign-out"
+      # iOS asks before Auth0's clearSession opens its browser session.
+      - runFlow:
+          when:
+            platform: iOS
+          commands:
+            - tapOn:
+                text: "Continue"
+                optional: true
 - runFlow:
     when:
       visible:
