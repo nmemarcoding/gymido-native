@@ -44,9 +44,12 @@ const SCREENS = {
   [routes.TrainerProfile]: makeShellPlaceholder('Trainer profile'),
 };
 
-// Extra screens stacked above a tab's root.
+// Extra screens stacked above a tab's root (5-tab nav, 23 Oct): Workout only
+// in the Today stack, the trainer hub only in the Profile stack.
 const STACK_EXTRAS = {
-  [ShellTab.Library]: [routes.PlanDetail, routes.ExerciseDetail],
+  [ShellTab.Today]: [routes.Workout],
+  [ShellTab.Plans]: [routes.PlanDetail, routes.ExerciseDetail],
+  [ShellTab.Profile]: [routes.MyTrainer],
   [ShellTab.Exercises]: [routes.ExerciseDetail],
   [ShellTab.TClients]: [routes.TrainerClient],
   [ShellTab.TPlans]: [routes.TrainerPlanCreate, routes.TrainerPlan],
@@ -82,7 +85,7 @@ export default function AppShell({ route }) {
 
   return (
     <Tabs.Navigator
-      initialRouteName={route.params?.screen ?? ShellTab.Home}
+      initialRouteName={route.params?.screen ?? ShellTab.Today}
       backBehavior="history"
       tabBar={(props) => <ShellOverlay {...props} />}
       screenOptions={{ headerShown: false }}

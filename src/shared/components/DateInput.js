@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '600',
-    color: colors.brand600,
+    color: colors.brand700,
   },
   scrim: {
     flex: 1,

@@ -67,21 +67,22 @@ export function planCountLabel(count) {
   return `${count} plan${count === 1 ? '' : 's'}`;
 }
 
-// §4.4. "sets" is always plural (⚠15); "×" is U+00D7.
+// §4.4. "×" is U+00D7. Dated changes (23 Oct): equal ends read "12 reps",
+// and one set reads "1 set" (⚠15 retired).
 export function formatSetSummary(item) {
   const summary = item?.target_set_summary;
   if (!summary?.set_count) {
     return 'Open prescription';
   }
   let reps;
-  if (summary.target_reps_min && summary.target_reps_max) {
+  if (summary.target_reps_min && summary.target_reps_max && summary.target_reps_min !== summary.target_reps_max) {
     reps = `${summary.target_reps_min}-${summary.target_reps_max} reps`;
   } else if (summary.target_reps_min) {
     reps = `${summary.target_reps_min} reps`;
   } else {
     reps = 'Reps open';
   }
-  return `${summary.set_count} sets × ${reps}`;
+  return `${summary.set_count} ${summary.set_count === 1 ? 'set' : 'sets'} × ${reps}`;
 }
 
 export function estimateMinutes(exercises) {

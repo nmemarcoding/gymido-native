@@ -124,20 +124,18 @@ const styles = StyleSheet.create({
   itemPressed: {
     backgroundColor: colors.surfaceMuted,
   },
+  // Batch A (A2, 23 Oct): sentence case, weight 600, tracking 0.
   label: {
     width: '100%',
     textAlign: 'center',
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    fontWeight: '600',
   },
   labelCompact: {
-    fontSize: 10,
-    lineHeight: 15,
-    letterSpacing: -0.25,
+    fontSize: 11,
+    lineHeight: 14,
   },
   labelRoomy: {
-    fontSize: 11,
-    lineHeight: 16.5,
-    letterSpacing: 0.275,
+    fontSize: 12,
+    lineHeight: 16,
   },
 });

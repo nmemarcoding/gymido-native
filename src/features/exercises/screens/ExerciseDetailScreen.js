@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 2.016,
     textTransform: 'uppercase',
-    color: colors.brand600,
+    color: colors.brand700,
   },
   title: {
     marginTop: 4,
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 2.52,
     textTransform: 'uppercase',
-    color: colors.brand600,
+    color: colors.brand700,
   },
   chipRow: {
     flexDirection: 'row',
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     fontWeight: '900',
     textTransform: 'uppercase',
-    color: colors.brand600,
+    color: colors.brand700,
   },
   textColumn: {
     flex: 1,

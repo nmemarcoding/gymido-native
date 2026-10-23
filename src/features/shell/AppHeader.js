@@ -1,12 +1,14 @@
 import { useIsFocused } from '@react-navigation/native';
 import { useEffect } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { breakpoints, colors } from '../../shared/theme/tokens';
 import { mountBell } from '../notifications/bellPolling';
 import NotificationBell from '../notifications/NotificationBell';
 import ModeSwitch from './ModeSwitch';
-import { getHeaderTitle, isCompactHeader } from './shellRules';
+import { openShellPath } from './shellLinks';
+import { getHeaderBackLink, getHeaderTitle, isCompactHeader } from './shellRules';
+import { useShellUiStore } from './shellUiStore';
 
 // App-shell spec §6.1. The bell lives in a different spot in the full and
 // compact variants, so changing variant remounts it (⚠S4): the focused
@@ -17,7 +19,9 @@ export default function AppHeader({ path, query = '', mode }) {
   const compact = isCompactHeader(path, query);
   const tablet = width >= breakpoints.md;
   const sm = width >= breakpoints.sm;
-  const title = getHeaderTitle(path);
+  const isSessionActive = useShellUiStore((state) => state.isSessionActive);
+  const title = getHeaderTitle(path, isSessionActive);
+  const backLink = getHeaderBackLink(path, isSessionActive);
 
   useEffect(() => {
     if (isFocused) {
@@ -36,16 +40,31 @@ export default function AppHeader({ path, query = '', mode }) {
   const box = { marginHorizontal: -edge, paddingHorizontal: edge };
 
   if (compact) {
-    return <View style={[box, styles.compact]}>{actions}</View>;
+    // Nav polish (23 Oct): the phone Exercises root also shows its H1, pushed
+    // left; tablets and every other compact route stay untitled.
+    const exercisesTitle = path === '/exercises' && !tablet;
+    return (
+      <View style={[box, styles.compact, exercisesTitle && styles.compactTitled]}>
+        {exercisesTitle ? (
+          <Text accessibilityRole="header" style={styles.title}>
+            Exercises
+          </Text>
+        ) : null}
+        {actions}
+      </View>
+    );
   }
 
   return (
     <View style={[box, styles.full]}>
       <View style={styles.row}>
         {title ? (
-          <Text accessibilityRole="header" style={styles.title}>
-            {title}
-          </Text>
+          <View style={styles.titleColumn}>
+            {backLink ? <BackLink label={backLink.label} onPress={() => openShellPath(backLink.path)} /> : null}
+            <Text accessibilityRole="header" style={styles.title}>
+              {title}
+            </Text>
+          </View>
         ) : (
           <View />
         )}
@@ -55,7 +74,35 @@ export default function AppHeader({ path, query = '', mode }) {
   );
 }
 
+// §6.1 back link (5-tab nav): above the H1, 14px / 700 brand-700, underlined
+// while pressed, 44 pt touch height (A3). Goes to that tab's root.
+function BackLink({ label, onPress }) {
+  return (
+    <View style={styles.backBlock}>
+      <Pressable testID="header-back-link" accessibilityRole="link" onPress={onPress} hitSlop={12}>
+        {({ pressed }) => <Text style={[styles.backText, pressed && styles.backPressed]}>{label}</Text>}
+      </Pressable>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  titleColumn: {
+    flexShrink: 1,
+  },
+  backBlock: {
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  backText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '700',
+    color: colors.brand700,
+  },
+  backPressed: {
+    textDecorationLine: 'underline',
+  },
   full: {
     paddingTop: 8,
     paddingBottom: 20,
@@ -68,6 +115,10 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     flexDirection: 'row',
     justifyContent: 'flex-end',
+  },
+  compactTitled: {
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
   row: {
     flexDirection: 'row',

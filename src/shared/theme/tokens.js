@@ -47,7 +47,7 @@ export const typography = Object.freeze({
     fontWeight: '700',
     letterSpacing: 2,
     textTransform: 'uppercase',
-    color: colors.brand600,
+    color: colors.brand700,
   },
   heading: {
     fontSize: 24,

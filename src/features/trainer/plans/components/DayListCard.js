@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 2.88,
     textTransform: 'uppercase',
-    color: colors.brand600,
+    color: colors.brand700,
   },
   heading: {
     marginTop: 4,

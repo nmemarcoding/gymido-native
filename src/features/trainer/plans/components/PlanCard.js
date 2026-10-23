@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 2.016,
     textTransform: 'uppercase',
-    color: colors.brand600,
+    color: colors.brand700,
   },
   title: {
     marginTop: 6,

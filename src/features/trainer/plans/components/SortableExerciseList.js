@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 2.88,
     textTransform: 'uppercase',
-    color: colors.brand600,
+    color: colors.brand700,
   },
   text: {
     flex: 1,

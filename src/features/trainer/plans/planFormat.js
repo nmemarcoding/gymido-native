@@ -2,10 +2,11 @@
 
 const DOT = ' · ';
 
-// §A5.7 set summary. A 0 counts as absent for reps and rest.
+// §A5.7 set summary. A 0 counts as absent for reps and rest; equal ends
+// read "12 reps" (dated change 23 Oct).
 export function formatSetSummary({ target_reps_min: min, target_reps_max: max, target_weight_value: weight, target_weight_unit: unit, rest_seconds: rest } = {}) {
   let reps = 'Open reps';
-  if (min && max) {
+  if (min && max && min !== max) {
     reps = `${min}-${max} reps`;
   } else if (min) {
     reps = `${min} reps`;

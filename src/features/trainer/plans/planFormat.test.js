@@ -24,6 +24,7 @@ describe('formatSetSummary', () => {
   it('handles one-sided reps and open values', () => {
     expect(formatSetSummary({ target_reps_min: 8 })).toBe('8 reps · Open weight · Open rest');
     expect(formatSetSummary({ target_reps_max: 10 })).toBe('10 reps · Open weight · Open rest');
+    expect(formatSetSummary({ target_reps_min: 12, target_reps_max: 12 })).toBe('12 reps · Open weight · Open rest');
     expect(formatSetSummary({})).toBe('Open reps · Open weight · Open rest');
   });
 

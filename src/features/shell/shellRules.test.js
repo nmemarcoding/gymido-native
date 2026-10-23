@@ -2,6 +2,7 @@ import { Workspace } from '../workspace/workspace';
 import {
   MEMBER_TABS,
   TRAINER_TABS,
+  getHeaderBackLink,
   getHeaderTitle,
   getTabs,
   isCompactHeader,
@@ -16,15 +17,26 @@ const trainer = { roles: [' Trainer '] };
 const member = { roles: ['member'] };
 
 describe('getHeaderTitle (§6.1)', () => {
-  it('follows the first-match table', () => {
-    expect(getHeaderTitle('/')).toBe('Dashboard');
-    expect(getHeaderTitle('/workout')).toBe('');
-    expect(getHeaderTitle('/exercises/3')).toBe('Library');
-    expect(getHeaderTitle('/plansX')).toBe('Library');
-    expect(getHeaderTitle('/profile/edit')).toBe('Settings');
+  it('follows the first-match table (5-tab nav)', () => {
+    expect(getHeaderTitle('/')).toBe('Today');
+    expect(getHeaderTitle('/workout')).toBe('Workout');
+    expect(getHeaderTitle('/exercises/3')).toBe('Exercises');
+    expect(getHeaderTitle('/plansX')).toBe('Plans');
+    expect(getHeaderTitle('/profile/edit')).toBe('Profile');
+    expect(getHeaderTitle('/my-trainer')).toBe('Coaching');
     expect(getHeaderTitle('/trainers/9')).toBe('Coaching');
     expect(getHeaderTitle('/trainer/plans/4')).toBe('Coaching');
     expect(getHeaderTitle('/somewhere')).toBe('Workout');
+  });
+
+  it('drops the Workout title and back link during a session', () => {
+    expect(getHeaderTitle('/workout', true)).toBe('');
+    expect(getHeaderTitle('/plans', true)).toBe('Plans');
+    expect(getHeaderBackLink('/workout')).toEqual({ label: '← Today', path: '/' });
+    expect(getHeaderBackLink('/workout', true)).toBeNull();
+    expect(getHeaderBackLink('/my-trainer')).toEqual({ label: '← Profile', path: '/profile' });
+    expect(getHeaderBackLink('/trainers/3')).toBeNull();
+    expect(getHeaderBackLink('/plans')).toBeNull();
   });
 
   it('marks compact routes', () => {
@@ -59,19 +71,12 @@ describe('workspace mode (§5)', () => {
 });
 
 describe('tabs (§6.3)', () => {
-  it('has 6 member and 4 trainer tabs in order', () => {
-    expect(getTabs(Workspace.member).map((t) => t.label)).toEqual([
-      'Workout',
-      'Exercises',
-      'Library',
-      'Progress',
-      'Trainer',
-      'Settings',
-    ]);
-    expect(getTabs(Workspace.trainer).map((t) => t.label)).toEqual(['Dashboard', 'Clients', 'Plans', 'Profile']);
+  it('has 5 member and 4 trainer tabs in order', () => {
+    expect(getTabs(Workspace.member).map((t) => t.label)).toEqual(['Today', 'Plans', 'Exercises', 'Progress', 'Profile']);
+    expect(getTabs(Workspace.trainer).map((t) => t.label)).toEqual(['Today', 'Clients', 'Plans', 'Profile']);
   });
 
-  it('activates by path or path prefix, Dashboard exact only', () => {
+  it('activates by path or path prefix, the Today tabs exact only', () => {
     const [dashboard, clients, plans] = TRAINER_TABS;
     expect(isNavItemActive(dashboard, '/trainer')).toBe(true);
     expect(isNavItemActive(dashboard, '/trainer/plans')).toBe(false);
@@ -79,8 +84,16 @@ describe('tabs (§6.3)', () => {
     expect(isNavItemActive(clients, '/trainer/clientsX')).toBe(false);
   });
 
-  it('leaves no tab active on Home (⚠S1)', () => {
-    expect(MEMBER_TABS.some((tab) => isNavItemActive(tab, '/'))).toBe(false);
+  it('lights Today on Home and Workout, Profile on the trainer area (⚠S1 retired)', () => {
+    const active = (path) => MEMBER_TABS.filter((tab) => isNavItemActive(tab, path)).map((tab) => tab.label);
+    expect(active('/')).toEqual(['Today']);
+    expect(active('/workout')).toEqual(['Today']);
+    expect(active('/plans/4')).toEqual(['Plans']);
+    expect(active('/exercises/9')).toEqual(['Exercises']);
+    expect(active('/my-trainer')).toEqual(['Profile']);
+    expect(active('/trainers/2')).toEqual(['Profile']);
+    expect(active('/trainer/apply')).toEqual(['Profile']);
+    expect(active('/notifications')).toEqual([]);
   });
 
   it('shows the phone workspace switch only on the profile pages for trainers', () => {

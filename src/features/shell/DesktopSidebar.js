@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, radii, shadows } from '../../shared/theme/tokens';
 import { logout } from '../auth/authService';
+import GymIcon from './GymIcon';
 import { openShellPath } from './shellLinks';
 import { SIDEBAR_INTRO, getSidebarItems, isNavItemActive } from './shellRules';
 
@@ -28,11 +29,18 @@ export default function DesktopSidebar({ mode, path }) {
                 onPress={() => openShellPath(item.path)}
                 style={({ pressed }) => [styles.item, active && styles.itemActive, !active && pressed && styles.itemPressed]}
               >
-                {({ pressed }) => (
-                  <Text style={[styles.itemText, active ? styles.itemTextActive : pressed && styles.itemTextPressed]}>
-                    {item.label}
-                  </Text>
-                )}
+                {({ pressed }) => {
+                  const color = active ? colors.brand700 : pressed ? colors.textPrimary : colors.textSecondary;
+                  // 5-tab nav: each item leads with its tab icon (decorative).
+                  return (
+                    <>
+                      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                        <GymIcon name={item.icon} size={24} color={color} />
+                      </View>
+                      <Text style={[styles.itemText, { color }]}>{item.label}</Text>
+                    </>
+                  );
+                }}
               </Pressable>
             );
           })}
@@ -75,7 +83,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 2.88,
     textTransform: 'uppercase',
-    color: colors.brand600,
+    color: colors.brand700,
   },
   title: {
     marginTop: 8,
@@ -103,7 +111,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: 'transparent',
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   itemActive: {
     backgroundColor: colors.brand50,
@@ -117,12 +127,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: '600',
     color: colors.textSecondary,
-  },
-  itemTextActive: {
-    color: colors.brand700,
-  },
-  itemTextPressed: {
-    color: colors.textPrimary,
   },
   quick: {
     padding: 16,

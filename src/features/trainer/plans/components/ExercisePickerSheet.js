@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 1.6,
     textTransform: 'uppercase',
-    color: colors.brand600,
+    color: colors.brand700,
   },
   list: {
     flex: 1,

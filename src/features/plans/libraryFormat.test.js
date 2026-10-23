@@ -66,10 +66,11 @@ describe('S1 copy', () => {
 });
 
 describe('S2 helpers (§4.4)', () => {
-  it('formats set summaries, always plural (⚠15)', () => {
+  it('formats set summaries: "1 set" and one count for equal ends (23 Oct)', () => {
     expect(formatSetSummary({})).toBe('Open prescription');
     expect(formatSetSummary({ target_set_summary: { set_count: 3, target_reps_min: 8, target_reps_max: 12 } })).toBe('3 sets × 8-12 reps');
-    expect(formatSetSummary({ target_set_summary: { set_count: 1, target_reps_min: 8 } })).toBe('1 sets × 8 reps');
+    expect(formatSetSummary({ target_set_summary: { set_count: 1, target_reps_min: 8 } })).toBe('1 set × 8 reps');
+    expect(formatSetSummary({ target_set_summary: { set_count: 4, target_reps_min: 12, target_reps_max: 12 } })).toBe('4 sets × 12 reps');
     expect(formatSetSummary({ target_set_summary: { set_count: 2, target_reps_max: 10 } })).toBe('2 sets × Reps open');
   });
 

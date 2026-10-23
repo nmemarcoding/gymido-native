@@ -96,8 +96,9 @@ export function formatDuration(seconds) {
 }
 
 // §C5.1 set target: both truthy → "min-max", else min ?? max (a 0 min shows "0").
+// Equal ends show one number (dated change 23 Oct): "10 target".
 export function formatTarget(min, max) {
-  if (min && max) {
+  if (min && max && min !== max) {
     return `${min}-${max}`;
   }
   return min ?? max ?? null;

@@ -4,25 +4,43 @@ import { Workspace } from '../workspace/workspace';
 // The app-shell rules of RN-SPEC-app-shell, keyed by each screen's web path
 // (its identity: §3.4 maps every native screen to exactly one path).
 
-// §6.1: first match wins; '/' is exact, every other entry is startsWith.
+// §6.1 (5-tab nav, 23 Oct): first match wins; '/' is exact, every other
+// entry is startsWith.
 const TITLES = [
-  ['/workout', ''],
-  ['/exercises', 'Library'],
-  ['/plans', 'Library'],
+  ['/workout', 'Workout'],
+  ['/exercises', 'Exercises'],
+  ['/plans', 'Plans'],
   ['/progress', 'Progress'],
   ['/notifications', 'Notifications'],
-  ['/profile', 'Settings'],
+  ['/profile', 'Profile'],
   ['/my-trainer', 'Coaching'],
   ['/trainers', 'Coaching'],
   ['/trainer', 'Coaching'],
 ];
 
-export function getHeaderTitle(path) {
+// During a workout session the Workout header is untitled (session override).
+export function getHeaderTitle(path, isSessionActive = false) {
   if (path === '/') {
-    return 'Dashboard';
+    return 'Today';
+  }
+  if (isSessionActive && path.startsWith('/workout')) {
+    return '';
   }
   const match = TITLES.find(([prefix]) => path.startsWith(prefix));
   return match ? match[1] : 'Workout';
+}
+
+// §6.1 back links: the exact path only, never during a session.
+const BACK_LINKS = Object.freeze({
+  '/workout': { label: '← Today', path: '/' },
+  '/my-trainer': { label: '← Profile', path: '/profile' },
+});
+
+export function getHeaderBackLink(path, isSessionActive = false) {
+  if (isSessionActive && path.startsWith('/workout')) {
+    return null;
+  }
+  return BACK_LINKS[path] ?? null;
 }
 
 export function isCompactHeader(path, query = '') {
@@ -60,52 +78,42 @@ export function resolveMode({ user, path, storedPreference }) {
   return storedPreference === Workspace.trainer ? Workspace.trainer : Workspace.member;
 }
 
-// §6.3 tab sets. `exact` tabs match only their own path.
+// §6.3 tab sets (5-tab nav, 23 Oct). `exact` tabs match only their own path;
+// `extra` prefixes also light the tab (Today owns /workout, Profile owns the
+// trainer area).
 export const TRAINER_TABS = Object.freeze([
-  { key: 'TDashboard', label: 'Dashboard', path: '/trainer', icon: 'dashboard', exact: true },
+  { key: 'TToday', label: 'Today', path: '/trainer', icon: 'dashboard', exact: true },
   { key: 'TClients', label: 'Clients', path: '/trainer/clients', icon: 'users' },
   { key: 'TPlans', label: 'Plans', path: '/trainer/plans', icon: 'plans' },
   { key: 'TProfile', label: 'Profile', path: '/trainer/profile', icon: 'profile' },
 ]);
 
 export const MEMBER_TABS = Object.freeze([
-  { key: 'Workout', label: 'Workout', path: '/workout', icon: 'workout' },
+  { key: 'Today', label: 'Today', path: '/', icon: 'workout', exact: true, extra: ['/workout'] },
+  { key: 'Plans', label: 'Plans', path: '/plans', icon: 'library' },
   { key: 'Exercises', label: 'Exercises', path: '/exercises', icon: 'exercises' },
-  { key: 'Library', label: 'Library', path: '/plans', icon: 'library' },
   { key: 'Progress', label: 'Progress', path: '/progress', icon: 'progress' },
-  { key: 'Trainer', label: 'Trainer', path: '/my-trainer', icon: 'trainer' },
-  { key: 'Settings', label: 'Settings', path: '/profile', icon: 'settings' },
+  { key: 'Profile', label: 'Profile', path: '/profile', icon: 'profile', extra: ['/my-trainer', '/trainers', '/trainer/apply'] },
 ]);
 
 export function getTabs(mode) {
   return mode === Workspace.trainer ? TRAINER_TABS : MEMBER_TABS;
 }
 
-// §6.3 / §6.4 active rule.
-export function isNavItemActive(item, path) {
-  if (item.exact) {
-    return path === item.path;
-  }
-  return path === item.path || path.startsWith(`${item.path}/`);
+// §6.3 / §6.4 active rule: the item's own path (exact for the Today tabs),
+// or any of its extra prefixes.
+function matches(path, prefix) {
+  return path === prefix || path.startsWith(`${prefix}/`);
 }
 
-// §6.4 sidebar (no icons). [O1] "Profile" for everyone.
-export const MEMBER_SIDEBAR = Object.freeze([
-  { label: 'Home', path: '/', exact: true },
-  { label: 'Plans', path: '/plans' },
-  { label: 'Exercises', path: '/exercises' },
-  { label: 'Workout', path: '/workout' },
-  { label: 'Progress', path: '/progress' },
-  { label: 'Trainer', path: '/my-trainer' },
-  { label: 'Profile', path: '/profile' },
-]);
+export function isNavItemActive(item, path) {
+  const own = item.exact ? path === item.path : matches(path, item.path);
+  return own || (item.extra ?? []).some((prefix) => matches(path, prefix));
+}
 
-export const TRAINER_SIDEBAR = Object.freeze([
-  { label: 'Dashboard', path: '/trainer', exact: true },
-  { label: 'Clients', path: '/trainer/clients' },
-  { label: 'Workout Plans', path: '/trainer/plans' },
-  { label: 'Trainer Profile', path: '/trainer/profile' },
-]);
+// §6.4: the sidebar mirrors the tab bar, icons included. [O1] "Profile" for everyone.
+export const MEMBER_SIDEBAR = MEMBER_TABS;
+export const TRAINER_SIDEBAR = TRAINER_TABS;
 
 export const SIDEBAR_INTRO = Object.freeze({
   [Workspace.member]: {

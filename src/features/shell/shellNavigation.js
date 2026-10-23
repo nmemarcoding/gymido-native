@@ -4,34 +4,33 @@ import { routes } from '../../navigation/routes';
 // each sits in one tab's stack. `root` is the screen a tab press resets to.
 
 export const ShellTab = Object.freeze({
-  Home: 'HomeTab',
-  Workout: 'WorkoutTab',
+  Today: 'TodayTab',
+  Plans: 'PlansTab',
   Exercises: 'ExercisesTab',
-  Library: 'LibraryTab',
   Progress: 'ProgressTab',
-  Trainer: 'TrainerTab',
-  Settings: 'SettingsTab',
+  Profile: 'ProfileTab',
   Notifications: 'NotificationsTab',
-  TDashboard: 'TDashboard',
+  TToday: 'TToday',
   TClients: 'TClients',
   TPlans: 'TPlans',
   TProfile: 'TProfile',
 });
 
-// Screen name → [tab, path(params)].
+// Screen name → [tab stack, path(params)]. 5-tab nav (23 Oct): Workout lives
+// only in the Today stack, the trainer hub in the Profile stack.
 const SCREENS = {
-  [routes.Home]: [ShellTab.Home, () => '/'],
-  [routes.Workout]: [ShellTab.Workout, () => '/workout'],
+  [routes.Home]: [ShellTab.Today, () => '/'],
+  [routes.Workout]: [ShellTab.Today, () => '/workout'],
+  [routes.PlansLibrary]: [ShellTab.Plans, () => '/plans'],
+  [routes.PlanDetail]: [ShellTab.Plans, (params) => `/plans/${params?.planId ?? ''}`],
   [routes.Exercises]: [ShellTab.Exercises, () => '/exercises'],
-  [routes.PlansLibrary]: [ShellTab.Library, () => '/plans'],
-  [routes.PlanDetail]: [ShellTab.Library, (params) => `/plans/${params?.planId ?? ''}`],
   // Lives on the Plans or Exercises stack; its path makes Exercises the active tab (⚠X-7).
   [routes.ExerciseDetail]: [ShellTab.Exercises, (params) => `/exercises/${params?.exerciseId ?? ''}`],
   [routes.Progress]: [ShellTab.Progress, () => '/progress'],
-  [routes.MyTrainer]: [ShellTab.Trainer, () => '/my-trainer'],
-  [routes.Settings]: [ShellTab.Settings, () => '/profile'],
+  [routes.Settings]: [ShellTab.Profile, () => '/profile'],
+  [routes.MyTrainer]: [ShellTab.Profile, () => '/my-trainer'],
   [routes.Notifications]: [ShellTab.Notifications, () => '/notifications'],
-  [routes.TrainerDashboard]: [ShellTab.TDashboard, () => '/trainer'],
+  [routes.TrainerDashboard]: [ShellTab.TToday, () => '/trainer'],
   [routes.TrainerClients]: [ShellTab.TClients, () => '/trainer/clients'],
   [routes.TrainerClient]: [ShellTab.TClients, (params) => `/trainer/clients/${params?.clientUserId ?? ''}`],
   [routes.TrainerPlans]: [ShellTab.TPlans, () => '/trainer/plans'],
@@ -41,15 +40,13 @@ const SCREENS = {
 };
 
 export const TAB_ROOTS = Object.freeze({
-  [ShellTab.Home]: routes.Home,
-  [ShellTab.Workout]: routes.Workout,
+  [ShellTab.Today]: routes.Home,
+  [ShellTab.Plans]: routes.PlansLibrary,
   [ShellTab.Exercises]: routes.Exercises,
-  [ShellTab.Library]: routes.PlansLibrary,
   [ShellTab.Progress]: routes.Progress,
-  [ShellTab.Trainer]: routes.MyTrainer,
-  [ShellTab.Settings]: routes.Settings,
+  [ShellTab.Profile]: routes.Settings,
   [ShellTab.Notifications]: routes.Notifications,
-  [ShellTab.TDashboard]: routes.TrainerDashboard,
+  [ShellTab.TToday]: routes.TrainerDashboard,
   [ShellTab.TClients]: routes.TrainerClients,
   [ShellTab.TPlans]: routes.TrainerPlans,
   [ShellTab.TProfile]: routes.TrainerProfile,
@@ -84,18 +81,19 @@ export function getFocusedLeaf(state) {
   return route;
 }
 
-// Paths of the tabs' web routes, so the tab bar can open one by path.
-export const TAB_FOR_PATH = Object.freeze({
-  '/': ShellTab.Home,
-  '/workout': ShellTab.Workout,
-  '/exercises': ShellTab.Exercises,
-  '/plans': ShellTab.Library,
-  '/progress': ShellTab.Progress,
-  '/my-trainer': ShellTab.Trainer,
-  '/profile': ShellTab.Settings,
-  '/notifications': ShellTab.Notifications,
-  '/trainer': ShellTab.TDashboard,
-  '/trainer/clients': ShellTab.TClients,
-  '/trainer/plans': ShellTab.TPlans,
-  '/trainer/profile': ShellTab.TProfile,
+// Web paths the shell opens by path: a tab root, or a screen pushed on its
+// tab's root (Workout on Home, the trainer hub on Profile).
+export const SCREEN_FOR_PATH = Object.freeze({
+  '/': routes.Home,
+  '/workout': routes.Workout,
+  '/plans': routes.PlansLibrary,
+  '/exercises': routes.Exercises,
+  '/progress': routes.Progress,
+  '/profile': routes.Settings,
+  '/my-trainer': routes.MyTrainer,
+  '/notifications': routes.Notifications,
+  '/trainer': routes.TrainerDashboard,
+  '/trainer/clients': routes.TrainerClients,
+  '/trainer/plans': routes.TrainerPlans,
+  '/trainer/profile': routes.TrainerProfile,
 });

@@ -2,7 +2,6 @@ import { CommonActions, useNavigation, useRoute } from '@react-navigation/native
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
-import { navigationRef } from '../../../navigation/navigationRef';
 import { routes } from '../../../navigation/routes';
 import { getServerMessage, getStatus } from '../../../shared/api/apiError';
 import Loader from '../../../shared/components/Loader';
@@ -15,7 +14,6 @@ import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { breakpoints, colors, radii, shadows } from '../../../shared/theme/tokens';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
-import { ShellTab } from '../../shell/shellNavigation';
 import { getMuscleTileColors } from '../../trainer/plans/components/ExerciseThumb';
 import { DumbbellIcon } from '../../trainer/plans/components/pickerIcons';
 import {
@@ -123,15 +121,12 @@ function PlanDetail() {
   const totalExercises = days.reduce((sum, day) => sum + (exercisesByDay[day.id]?.length ?? 0), 0);
   const difficulty = plan?.difficulty_level?.name;
 
-  // §4.8: remove S2 from the Plans stack (the web `replace`), then show
-  // Workout with the message.
+  // §4.8 + 5-tab nav: remove S2 from the Plans stack (the web `replace`), then
+  // show Workout in the Today stack ([Home, Workout]) with the message.
   function handOff(message) {
     const state = navigation.getState();
     const remaining = state.routes.filter((item) => item.key !== route.key);
-    navigationRef.navigate(routes.AppShell, {
-      screen: ShellTab.Workout,
-      params: { screen: routes.Workout, params: { message } },
-    });
+    openShellPath('/workout', { message });
     navigation.dispatch({
       ...CommonActions.reset({ ...state, routes: remaining, index: remaining.length - 1 }),
       target: state.key,

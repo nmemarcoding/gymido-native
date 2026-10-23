@@ -150,7 +150,16 @@ function NotificationRow({ item, tablet }) {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={item.title ? `Notification: ${item.title}` : 'Notification'}
-      onPress={() => unread && markNotificationAsRead(item.id)}
+      onPress={() => {
+        if (unread) {
+          markNotificationAsRead(item.id);
+        }
+        // Click rule (23 Oct, owner): an invitation also closes the panel and opens My trainer.
+        if (item.type === 'trainer_invitation') {
+          closePanel();
+          openShellPath('/my-trainer');
+        }
+      }}
       style={({ pressed }) => [
         styles.row,
         unread ? styles.rowUnread : styles.rowRead,
@@ -229,7 +238,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 2.016,
     textTransform: 'uppercase',
-    color: colors.brand600,
+    color: colors.brand700,
   },
   headTitle: {
     marginTop: 2,
@@ -319,7 +328,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '600',
-    color: colors.brand600,
+    color: colors.brand700,
   },
   footer: {
     borderTopWidth: 1,
@@ -333,7 +342,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '600',
-    color: colors.brand600,
+    color: colors.brand700,
   },
   viewAllPressed: {
     color: colors.brand700,

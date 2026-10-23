@@ -52,6 +52,7 @@ describe('number formats', () => {
     expect(formatDuration(45)).toBe('45s');
     expect(formatDuration(150)).toBe('3 min');
     expect(formatTarget(8, 12)).toBe('8-12');
+    expect(formatTarget(10, 10)).toBe(10);
     expect(formatTarget(0, null)).toBe(0);
     expect(formatTarget(null, 10)).toBe(10);
     expect(formatSex('prefer_not_to_say')).toBe('Prefer not to say');
