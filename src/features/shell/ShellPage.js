@@ -1,8 +1,9 @@
 import { useRoute } from '@react-navigation/native';
-import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { NestableScrollContainer } from 'react-native-draggable-flatlist';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useKeyboardHeight } from '../../shared/hooks/useKeyboardHeight';
 import { breakpoints, colors } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
 import AppHeader from './AppHeader';
@@ -26,9 +27,14 @@ export default function ShellPage({ children, nestable = false, testID = 'app-ro
   const tablet = width >= breakpoints.md;
   const gutter = tablet ? 24 : width >= breakpoints.sm ? 20 : 16;
   const Scroller = nestable ? NestableScrollContainer : ScrollView;
+  // Inputs never stay under the keyboard: iOS insets the ScrollView itself
+  // (automaticallyAdjustKeyboardInsets); edge-to-edge Android isn't resized,
+  // so the content grows by the keyboard height while it is open.
+  const keyboardHeight = useKeyboardHeight();
+  const keyboardPad = Platform.OS === 'android' ? keyboardHeight : 0;
 
   const content = (
-    <View style={[styles.content, { paddingBottom: (tablet ? 40 : 112) + insets.bottom }]}>
+    <View style={[styles.content, { paddingBottom: (tablet ? 40 : 112) + insets.bottom + keyboardPad }]}>
       <AppHeader path={path} mode={mode} />
       {!tablet && showsMobileModeSwitch({ user, path }) ? (
         <View style={styles.mobileSwitch}>
@@ -45,6 +51,7 @@ export default function ShellPage({ children, nestable = false, testID = 'app-ro
     <View testID={testID} style={[styles.screen, { paddingTop: insets.top }]}>
       <Scroller
         keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
         contentContainerStyle={{
           paddingTop: tablet ? 24 : 0,
           paddingLeft: gutter + insets.left,

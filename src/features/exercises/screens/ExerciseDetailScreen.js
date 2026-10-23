@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { routes } from '../../../navigation/routes';
-import { getServerMessage, getStatus } from '../../../shared/api/apiError';
 import EmptyState from '../../../shared/components/EmptyState';
 import ErrorAlert from '../../../shared/components/ErrorAlert';
 import Loader from '../../../shared/components/Loader';
@@ -18,6 +17,7 @@ import {
   factChips,
   isComingSoon,
   primaryMuscleName,
+  resolveExerciseLoad,
   substituteSummary,
   substituteTileCode,
 } from '../exerciseProfile';
@@ -50,22 +50,8 @@ function ExerciseDetail() {
     let alive = true;
     setLoad({ status: 'loading' });
     Promise.allSettled([getExercise(exerciseId), getExerciseProfile(exerciseId)]).then(([exerciseResult, profileResult]) => {
-      if (!alive) {
-        return;
-      }
-      const notFound = [exerciseResult, profileResult].some(
-        (result) => result.status === 'rejected' && getStatus(result.reason) === 404
-      );
-      if (notFound) {
-        setLoad({ status: 'notFound' });
-      } else if (exerciseResult.status === 'rejected') {
-        setLoad({ status: 'error', message: getServerMessage(exerciseResult.reason) });
-      } else {
-        setLoad({
-          status: 'loaded',
-          exercise: exerciseResult.value,
-          profile: profileResult.status === 'fulfilled' ? profileResult.value : null,
-        });
+      if (alive) {
+        setLoad(resolveExerciseLoad(exerciseResult, profileResult));
       }
     });
     return () => {
@@ -104,7 +90,7 @@ function ExerciseDetail() {
 
   return (
     <View style={styles.page}>
-      <Pressable testID="exercise-detail-back" accessibilityRole="button" onPress={goBack} style={styles.back} hitSlop={8}>
+      <Pressable testID="exercise-detail-back" accessibilityRole="button" onPress={goBack} style={styles.back} hitSlop={12}>
         <Text style={styles.backText}>← Back</Text>
       </Pressable>
 
@@ -117,7 +103,7 @@ function ExerciseDetail() {
 
       <View style={styles.media}>
         {exercise?.thumbnail?.url ? (
-          <RemoteImage url={exercise.thumbnail.url} style={styles.mediaImage} />
+          <RemoteImage url={exercise.thumbnail.url} style={styles.mediaImage} accessibilityLabel={exercise.name} />
         ) : (
           <Text style={styles.mediaPlaceholder}>{primaryMuscle || 'Exercise'}</Text>
         )}
@@ -160,8 +146,8 @@ function ExerciseDetail() {
       {equipment ? (
         <Card title="Equipment" testID="exercise-detail-equipment">
           <View style={styles.equipmentLines}>
-            {equipment.map((line) => (
-              <Text key={line} style={styles.strong}>
+            {equipment.map((line, index) => (
+              <Text key={`${index}-${line}`} style={styles.strong}>
                 {line}
               </Text>
             ))}
@@ -298,11 +284,13 @@ const styles = StyleSheet.create({
     left: 0,
   },
   mediaPlaceholder: {
+    paddingHorizontal: 12,
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '700',
     letterSpacing: 2.52,
     textTransform: 'uppercase',
+    textAlign: 'center',
     color: colors.brand700,
   },
   chipRow: {

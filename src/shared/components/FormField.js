@@ -43,11 +43,11 @@ export function fieldBoxStyle({ focused, error, disabled }) {
   ];
 }
 
-export default function FormField({ label, helperText, error, multiline = false, rows = 4, editable = true, testID, ...inputProps }) {
+export default function FormField({ label, helperText, error, multiline = false, rows = 4, editable = true, testID, labelStyle, ...inputProps }) {
   const [focused, setFocused] = useState(false);
 
   return (
-    <FieldFrame label={label} helperText={helperText} error={error} kind={multiline ? 'textarea' : 'input'}>
+    <FieldFrame label={label} helperText={helperText} error={error} kind={multiline ? 'textarea' : 'input'} labelStyle={labelStyle}>
       {/* The border lives on a wrapper: on Android a bordered TextInput drops
           its left padding once a value is typed (M1 / F1). */}
       <View style={[fieldBoxStyle({ focused, error: Boolean(error), disabled: !editable }), styles.inputBox]}>

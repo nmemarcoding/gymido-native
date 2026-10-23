@@ -12,6 +12,7 @@ import { ToastTone } from '../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { breakpoints, colors, radii, shadows } from '../../../shared/theme/tokens';
+import CopyToMyPlansCard from '../../myPlans/components/CopyToMyPlansCard';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
 import { getMuscleTileColors } from '../../trainer/plans/components/ExerciseThumb';
@@ -99,7 +100,9 @@ function PlanDetail() {
         Number(current?.enrollment?.workout_plan_id) === Number(planId) ? current.enrollment.plan : null;
       const plan = matchingPlan || enrolledPlan;
       const requiredDays = days.length;
-      setLoad({ status: 'loaded', plan, days, exercisesByDay, current, requiredDays });
+      // M5: only a plan the public endpoint returned can be copied.
+      const isPublic = planResult.status === 'fulfilled';
+      setLoad({ status: 'loaded', plan, days, exercisesByDay, current, requiredDays, isPublic });
       setSelectedDayId(days[0]?.id ?? null);
       setSelectedWeekdays(initialWeekdays({ currentPlan: current, plan, requiredDays }));
     })();
@@ -112,7 +115,7 @@ function PlanDetail() {
     return <Loader label="Loading plan" />;
   }
 
-  const { plan, days, exercisesByDay, current, requiredDays } = load;
+  const { plan, days, exercisesByDay, current, requiredDays, isPublic } = load;
   // ⚠8: compared literally, so no enrollment and no plan is `undefined === undefined`.
   const isCurrentPlan = current?.enrollment?.plan?.id === plan?.id;
   const currentEnrollmentId = current?.enrollment?.id;
@@ -260,6 +263,7 @@ function PlanDetail() {
           disabled={isActivating || (isTrainerLocked && !isCurrentPlan)}
           onSubmit={handleActivate}
         />
+        {isPublic ? <CopyToMyPlansCard planId={planId} style={styles.copyCard} /> : null}
       </View>
     </View>
   );
@@ -465,6 +469,9 @@ function ScheduleCard({ isCurrentPlan, requiredDays, selected, onToggle, isActiv
 }
 
 const styles = StyleSheet.create({
+  copyCard: {
+    marginTop: 20,
+  },
   page: {
     gap: 20,
     paddingBottom: 24,

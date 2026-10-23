@@ -1,3 +1,5 @@
+import { getServerMessage, getStatus } from '../../shared/api/apiError';
+
 // Derived values of the exercise detail (RN-SPEC-exercise-detail §X1.3).
 // Labels always come from the server's `name` fields.
 
@@ -70,4 +72,25 @@ export function substituteSummary(substitute) {
   const muscle = substitute?.primary_muscle_group?.name || '';
   const parts = [muscle, ...(equipmentLines(substitute?.equipment) ?? [])].filter(Boolean);
   return parts.join(' · ') || muscle || 'Exercise';
+}
+
+// §X1.1 step 3, from the two settled calls (Promise.allSettled), in order:
+// a 404 from either → not found (⚠X-2); the exercise call failed → error
+// with the server message; otherwise loaded, a non-404 profile failure
+// degrading silently to `profile: null` (⚠X-1).
+export function resolveExerciseLoad(exerciseResult, profileResult) {
+  const notFound = [exerciseResult, profileResult].some(
+    (result) => result.status === 'rejected' && getStatus(result.reason) === 404
+  );
+  if (notFound) {
+    return { status: 'notFound' };
+  }
+  if (exerciseResult.status === 'rejected') {
+    return { status: 'error', message: getServerMessage(exerciseResult.reason) };
+  }
+  return {
+    status: 'loaded',
+    exercise: exerciseResult.value,
+    profile: profileResult.status === 'fulfilled' ? profileResult.value : null,
+  };
 }

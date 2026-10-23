@@ -4,19 +4,29 @@ import { useEffect } from 'react';
 
 import { routes } from '../../navigation/routes';
 import ExerciseDetailScreen from '../exercises/screens/ExerciseDetailScreen';
+import ExercisesScreen from '../exercises/screens/ExercisesScreen';
+import MyPlanCreateScreen from '../myPlans/MyPlanCreateScreen';
+import MyPlanScreen from '../myPlans/MyPlanScreen';
+import MyPlansScreen from '../myPlans/MyPlansScreen';
 import TrainerHubScreen from '../myTrainer/TrainerHubScreen';
 import { unmountBell } from '../notifications/bellPolling';
+import NotificationsScreen from '../notifications/NotificationsScreen';
 import HomeScreen from '../home/HomeScreen';
 import PlanDetailScreen from '../plans/screens/PlanDetailScreen';
 import PlansLibraryScreen from '../plans/screens/PlansLibraryScreen';
+import EditProfileScreen from '../profile/screens/EditProfileScreen';
+import ProfileSettingsScreen from '../profile/screens/ProfileSettingsScreen';
+import ProgressScreen from '../progress/ProgressScreen';
 import WorkoutScreen from '../workout/screens/WorkoutScreen';
-import SettingsScreen from '../settings/SettingsScreen';
 import TrainerDashboardScreen from '../trainer/TrainerDashboardScreen';
 import CreatePlanScreen from '../trainer/plans/screens/CreatePlanScreen';
 import PlanScreen from '../trainer/plans/screens/PlanScreen';
 import ClientDetailScreen from '../trainer/clients/screens/ClientDetailScreen';
 import ClientsListScreen from '../trainer/clients/screens/ClientsListScreen';
 import PlansListScreen from '../trainer/plans/screens/PlansListScreen';
+import TrainerApplyScreen from '../trainers/screens/TrainerApplyScreen';
+import TrainerDetailScreen from '../trainers/screens/TrainerDetailScreen';
+import TrainersScreen from '../trainers/screens/TrainersScreen';
 import ShellOverlay from './ShellOverlay';
 import { ShellTab, TAB_ROOTS } from './shellNavigation';
 import { closePanel } from './shellUiStore';
@@ -29,16 +39,21 @@ const Stack = createNativeStackNavigator();
 const SCREENS = {
   [routes.Home]: HomeScreen,
   [routes.Workout]: WorkoutScreen,
-  [routes.Exercises]: makeShellPlaceholder('Exercises'),
+  [routes.Exercises]: ExercisesScreen,
   [routes.PlansLibrary]: PlansLibraryScreen,
   [routes.PlanDetail]: PlanDetailScreen,
+  [routes.MyPlans]: MyPlansScreen,
+  [routes.MyPlanCreate]: MyPlanCreateScreen,
+  [routes.MyPlan]: MyPlanScreen,
   [routes.ExerciseDetail]: ExerciseDetailScreen,
-  [routes.Progress]: makeShellPlaceholder('Progress'),
+  [routes.Progress]: ProgressScreen,
   [routes.MyTrainer]: TrainerHubScreen,
-  [routes.Trainers]: makeShellPlaceholder('Trainers'),
-  [routes.TrainerApply]: makeShellPlaceholder('Become a trainer'),
-  [routes.Settings]: SettingsScreen,
-  [routes.Notifications]: makeShellPlaceholder('Notifications'),
+  [routes.Trainers]: TrainersScreen,
+  [routes.TrainerDetail]: TrainerDetailScreen,
+  [routes.TrainerApply]: TrainerApplyScreen,
+  [routes.Settings]: ProfileSettingsScreen,
+  [routes.EditProfile]: EditProfileScreen,
+  [routes.Notifications]: NotificationsScreen,
   [routes.TrainerDashboard]: TrainerDashboardScreen,
   [routes.TrainerClients]: ClientsListScreen,
   [routes.TrainerClient]: ClientDetailScreen,
@@ -52,8 +67,8 @@ const SCREENS = {
 // in the Today stack, the trainer hub only in the Profile stack.
 const STACK_EXTRAS = {
   [ShellTab.Today]: [routes.Workout],
-  [ShellTab.Plans]: [routes.PlanDetail, routes.ExerciseDetail],
-  [ShellTab.Profile]: [routes.MyTrainer, routes.Trainers, routes.TrainerApply],
+  [ShellTab.Plans]: [routes.PlanDetail, routes.ExerciseDetail, routes.MyPlans, routes.MyPlanCreate, routes.MyPlan],
+  [ShellTab.Profile]: [routes.EditProfile, routes.MyTrainer, routes.Trainers, routes.TrainerDetail, routes.TrainerApply],
   [ShellTab.Exercises]: [routes.ExerciseDetail],
   [ShellTab.TClients]: [routes.TrainerClient],
   [ShellTab.TPlans]: [routes.TrainerPlanCreate, routes.TrainerPlan],

@@ -25,9 +25,11 @@ export function nextImageState(state, event) {
 // Remote image with the Google-Drive fallback chain; once the candidates run
 // out it renders nothing (as the web leaves an empty well). `onExhausted`
 // (optional) fires once after the last candidate fails, so a caller can show
-// its own fallback (plans §4.4, S2 only).
-export default function RemoteImage({ url, style, resizeMode = 'cover', onExhausted }) {
-  const sources = useMemo(() => getRemoteImageSources(url), [url]);
+// its own fallback (plans §4.4, S2 only). `sources` (optional, memoised by the
+// caller) replaces the default candidate list (the Exercises grid's w400 Drive
+// thumbnail first, RN-SPEC-exercises F4); `accessibilityLabel` is the web alt.
+export default function RemoteImage({ url, sources: customSources, style, resizeMode = 'cover', onExhausted, accessibilityLabel }) {
+  const sources = useMemo(() => customSources ?? getRemoteImageSources(url), [customSources, url]);
   const [state, setState] = useState({ index: 0, attempt: 0, cancels: 0 });
   const exhausted = state.index >= sources.length;
   // Read through a ref so a new callback identity never re-fires it.
@@ -49,6 +51,8 @@ export default function RemoteImage({ url, style, resizeMode = 'cover', onExhaus
       source={{ uri: sources[state.index] }}
       resizeMode={resizeMode}
       style={style}
+      accessible={Boolean(accessibilityLabel)}
+      accessibilityLabel={accessibilityLabel}
       onError={(event) => setState((current) => nextImageState(current, event))}
     />
   );

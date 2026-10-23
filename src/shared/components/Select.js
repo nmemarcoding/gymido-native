@@ -1,6 +1,6 @@
 import { Picker } from '@react-native-picker/picker';
 import { useState } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Keyboard, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '../theme/tokens';
@@ -22,10 +22,13 @@ export default function Select({
   trailing,
   labelStyle,
   testID,
+  // A spoken name for a select with no visible label (e.g. the set-row unit).
+  accessibilityLabel,
 }) {
   const [open, setOpen] = useState(false);
   const insets = useSafeAreaInsets();
-  const selected = options.find((option) => option.value === value);
+  // Like a browser <select>: a value that matches no option shows the first.
+  const selected = options.find((option) => option.value === value) ?? options[0];
   const items = options.map((option) => (
     <Picker.Item key={String(option.value)} label={option.label} value={option.value} />
   ));
@@ -50,12 +53,14 @@ export default function Select({
           {box}
           <Picker
             testID={testID}
-            accessibilityLabel={label}
+            accessibilityLabel={accessibilityLabel ?? label}
             mode="dialog"
-            prompt={label}
+            prompt={label ?? accessibilityLabel}
             enabled={!disabled}
             selectedValue={value}
             onValueChange={(next) => onChange(next)}
+            // Like a browser <select> taking focus: opening it closes the keyboard.
+            onFocus={() => Keyboard.dismiss()}
             style={styles.androidPicker}
           >
             {items}
@@ -70,11 +75,15 @@ export default function Select({
       <Pressable
         testID={testID}
         accessibilityRole="button"
-        accessibilityLabel={label}
+        accessibilityLabel={accessibilityLabel ?? label}
         accessibilityValue={{ text: selected?.label ?? '' }}
         accessibilityState={{ disabled }}
         disabled={disabled}
-        onPress={() => setOpen(true)}
+        onPress={() => {
+          // Like a browser <select> taking focus: opening it closes the keyboard.
+          Keyboard.dismiss();
+          setOpen(true);
+        }}
       >
         {box}
       </Pressable>

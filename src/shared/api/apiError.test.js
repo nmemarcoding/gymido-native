@@ -38,3 +38,16 @@ describe('isNetworkError', () => {
     expect(isNetworkError(new Error('boom'))).toBe(false);
   });
 });
+
+describe('getServerMessage fallback chain', () => {
+  it("ends with web's default when message, errors and transport text are all empty", () => {
+    expect(getServerMessage({ response: { data: { message: ' ', errors: {} } }, message: '' })).toBe('Something went wrong. Please try again.');
+    expect(getServerMessage(undefined)).toBe('Something went wrong. Please try again.');
+  });
+
+  it('prefers message, then the first errors field, then the transport text', () => {
+    expect(getServerMessage({ response: { data: { message: 'Nope' } } })).toBe('Nope');
+    expect(getServerMessage({ response: { data: { errors: { name: ['Name is required'] } } } })).toBe('Name is required');
+    expect(getServerMessage({ message: 'Network Error' })).toBe('Network Error');
+  });
+});

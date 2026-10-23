@@ -56,8 +56,18 @@ export function SharedPlanScreen({ planId, adapter }) {
   return <PlanBuilder key={`${planId}-${remountKey}`} planId={planId} adapter={adapter} />;
 }
 
+// Adapters without extra header actions, banners or overlays.
+const NO_EXTENSION = Object.freeze({ headerActions: null, banners: null, overlays: null });
+function useNoExtension() {
+  return NO_EXTENSION;
+}
+
 function PlanBuilder({ planId, adapter }) {
   const { text } = adapter;
+  // C6: an adapter may add its own pieces (the member's "Start this plan",
+  // §M3.4) through a hook. The adapter is fixed for a mount, so the hook
+  // order never changes.
+  const useExtension = adapter.useExtension ?? useNoExtension;
   // C9: set only by a copy landing; consumed on the first load.
   const nameTheCopy = Boolean(useRoute().params?.nameTheCopy);
   const navigation = useNavigation();
@@ -99,6 +109,7 @@ function PlanBuilder({ planId, adapter }) {
   const capabilities = useMemo(() => adapter.getCapabilities({ isOwnPlan }), [adapter, isOwnPlan]);
   const canEdit = canEditPlan(capabilities);
   const { mutations } = adapter;
+  const extension = useExtension({ planId, plan, days });
 
   const selectDay = useCallback((dayId) => {
     selectedDayRef.current = dayId;
@@ -147,6 +158,10 @@ function PlanBuilder({ planId, adapter }) {
       }
       if (getStatus(error) === 404) {
         setStatus('notFound');
+      } else if (adapter.renderOnHold && getStatus(error) === 403) {
+        // Member §M3.3: a 403 on load shows the on-hold screen.
+        setLoadError(getServerMessage(error));
+        setStatus('onHold');
       } else {
         setLoadError(getServerMessage(error));
         setStatus('error');
@@ -527,6 +542,9 @@ function PlanBuilder({ planId, adapter }) {
       </PlanPage>
     );
   }
+  if (status === 'onHold') {
+    return <PlanPage testID="plan-screen">{adapter.renderOnHold({ message: loadError, navigation })}</PlanPage>;
+  }
   if (status === 'error') {
     return (
       <PlanPage testID="plan-screen">
@@ -547,7 +565,12 @@ function PlanBuilder({ planId, adapter }) {
   return (
     <PlanPage testID="plan-screen" nestable>
       {/* ⚠T3-3: pushes a fresh list rather than going back. */}
-      <TextLink testID="plan-all-plans" label={text.backLabel} onPress={() => adapter.openBack(navigation)} />
+      <TextLink
+        testID="plan-all-plans"
+        label={text.backLabel}
+        onPress={() => adapter.openBack(navigation)}
+        style={adapter.backLinkHitArea ? styles.backLink : undefined}
+      />
 
       <View style={[styles.pageHeader, wide ? styles.pageHeaderWide : styles.pageHeaderPhone]}>
         <View style={styles.pageHeaderText}>
@@ -562,6 +585,7 @@ function PlanBuilder({ planId, adapter }) {
         </View>
         {capabilities.editPlan || capabilities.deletePlan || (isOwnPlan && capabilities.copyPlan) ? (
           <View style={[styles.headerActions, !wide && styles.headerActionsPhone]}>
+            {extension.headerActions}
             {capabilities.editPlan ? (
               <PillButton testID="plan-edit-details" title="Edit details" variant="secondary" onPress={openEditPlan} />
             ) : null}
@@ -622,6 +646,7 @@ function PlanBuilder({ planId, adapter }) {
       )}
       {canEdit && isInactive ? <InactiveBanner body={text.inactiveBannerBody} /> : null}
       {canEdit ? <ClientsBanner count={affectedCount} /> : null}
+      {extension.banners}
 
       <View style={twoColumns ? styles.bodyTwo : styles.bodyOne}>
         <View style={[styles.leftColumn, twoColumns && styles.leftColumnFixed]}>
@@ -692,6 +717,7 @@ function PlanBuilder({ planId, adapter }) {
         onClose={closeAction}
         onConfirm={confirmAction}
       />
+      {extension.overlays}
     </PlanPage>
   );
 
@@ -748,6 +774,12 @@ function PlanBuilder({ planId, adapter }) {
 }
 
 const styles = StyleSheet.create({
+  // Batch A: M3's "← My plans" gets the 44 pt text-link hit area.
+  backLink: {
+    minHeight: 44,
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+  },
   loader: {
     paddingVertical: 48,
   },

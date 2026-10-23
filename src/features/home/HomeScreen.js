@@ -11,6 +11,7 @@ import { colors, radii, shadows } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
 import { getCurrentPlan, listPlanDays } from '../plans/api/libraryApi';
 import { getProfile } from '../profile/api/profileApi';
+import { setStoredProfile } from '../profile/profileStore';
 import ShellPage from '../shell/ShellPage';
 import { openPlanDetailAlone, openShellPath } from '../shell/shellLinks';
 import { getDashboard } from './api/homeApi';
@@ -70,10 +71,21 @@ function Home() {
     []
   );
 
+  // A fetched profile also refreshes the shared profile store (P1 reads it).
+  const applyProfile = useCallback((body) => {
+    const fresh = body?.profile ?? null;
+    if (fresh) {
+      setStoredProfile(fresh);
+    }
+    if (mounted.current) {
+      setProfile(fresh);
+    }
+  }, []);
+
   // H1.1: dashboard + profile in parallel; the profile can't fail the page.
   useEffect(() => {
     const profileLoad = getProfile()
-      .then((body) => mounted.current && setProfile(body?.profile ?? null))
+      .then(applyProfile)
       .catch(() => {});
     const setupLoad = loadSetupDayCount().then((count) => mounted.current && setSetupDayCount(count));
     Promise.allSettled([getDashboard(), profileLoad, setupLoad]).then(([dashboard]) => {
@@ -86,7 +98,7 @@ function Home() {
         setLoad({ status: 'error', dashboard: null, error: dashboard.reason });
       }
     });
-  }, []);
+  }, [applyProfile]);
 
   // H1.7: after a weight log, refresh quietly; failures keep the old content.
   const quietRefresh = useCallback(() => {
@@ -94,9 +106,9 @@ function Home() {
       .then((dashboard) => mounted.current && setLoad((current) => ({ ...current, dashboard })))
       .catch(() => {});
     getProfile()
-      .then((body) => mounted.current && setProfile(body?.profile ?? null))
+      .then(applyProfile)
       .catch(() => {});
-  }, []);
+  }, [applyProfile]);
 
   // ⚠H-8: the timer starts when the message first appears; a second log sets
   // the same text and does not restart it.

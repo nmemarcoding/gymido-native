@@ -34,6 +34,8 @@ export function getHeaderTitle(path, isSessionActive = false) {
 const BACK_LINKS = Object.freeze({
   '/workout': { label: '← Today', path: '/' },
   '/my-trainer': { label: '← Profile', path: '/profile' },
+  // Dated change (23 Oct 2026): the Trainers list only; /trainers/:id has none.
+  '/trainers': { label: '← Coaching', path: '/my-trainer' },
 });
 
 export function getHeaderBackLink(path, isSessionActive = false) {

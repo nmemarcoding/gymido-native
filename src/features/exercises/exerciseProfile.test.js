@@ -3,6 +3,7 @@ import {
   factChips,
   isComingSoon,
   primaryMuscleName,
+  resolveExerciseLoad,
   substituteSummary,
   substituteTileCode,
 } from './exerciseProfile';
@@ -56,5 +57,39 @@ describe('exercise detail derived values (§X1.3)', () => {
     );
     expect(substituteSummary({ primary_muscle_group: { name: 'Legs' }, equipment: [] })).toBe('Legs');
     expect(substituteSummary({})).toBe('Exercise');
+  });
+});
+
+describe('exercise detail load resolution (§X1.1, ⚠X-1, ⚠X-2)', () => {
+  const ok = (value) => ({ status: 'fulfilled', value });
+  const fail = (status, message) => ({
+    status: 'rejected',
+    reason: { message: `Request failed with status code ${status}`, response: { status, data: message ? { message } : {} } },
+  });
+  const exercise = { name: 'Squat' };
+  const profile = { mechanic: 'compound' };
+
+  it('loads both', () => {
+    expect(resolveExerciseLoad(ok(exercise), ok(profile))).toEqual({ status: 'loaded', exercise, profile });
+  });
+
+  it('shows not found for a 404 from either call, even when the other succeeded', () => {
+    expect(resolveExerciseLoad(fail(404), ok(profile))).toEqual({ status: 'notFound' });
+    expect(resolveExerciseLoad(ok(exercise), fail(404))).toEqual({ status: 'notFound' });
+    expect(resolveExerciseLoad(fail(500), fail(404))).toEqual({ status: 'notFound' });
+  });
+
+  it('errors with the server message when the exercise call fails', () => {
+    expect(resolveExerciseLoad(fail(500, 'Boom'), ok(profile))).toEqual({ status: 'error', message: 'Boom' });
+    expect(resolveExerciseLoad(fail(500), fail(422))).toEqual({
+      status: 'error',
+      message: 'Request failed with status code 500',
+    });
+  });
+
+  it('degrades a non-404 profile failure to the basics with no profile', () => {
+    const load = resolveExerciseLoad(ok(exercise), fail(500));
+    expect(load).toEqual({ status: 'loaded', exercise, profile: null });
+    expect(isComingSoon(load.profile)).toBe(false);
   });
 });

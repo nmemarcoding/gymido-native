@@ -5,6 +5,7 @@ import { isNetworkError } from '../../shared/api/apiError';
 import { setAccessTokenProvider } from '../../shared/api/client';
 import { env } from '../../shared/config/env';
 import { getProfile } from '../profile/api/profileApi';
+import { setStoredProfile } from '../profile/profileStore';
 import { Workspace } from '../workspace/workspace';
 import { loadWorkspace, setWorkspace } from '../workspace/workspacePreference';
 import { getMe } from './api/authApi';
@@ -73,10 +74,12 @@ async function loadUser(credentials, claims) {
   }
 
   let profileMissing = false;
+  let loadedProfile = null;
   try {
     // 200 with `profile: null` is missing too (profile-create spec §1).
     const result = await getProfile(credentials.accessToken);
-    profileMissing = !result?.profile;
+    loadedProfile = result?.profile ?? null;
+    profileMissing = !loadedProfile;
   } catch (error) {
     profileMissing = error?.response?.status === 404;
     if (!profileMissing) {
@@ -86,6 +89,11 @@ async function loadUser(credentials, claims) {
 
   const workspace = await loadWorkspace();
   setState({ status: AuthStatus.signedIn, user, profileMissing, meErrored: false, workspace });
+  // The gate's profile fills the shared store (P1 renders from it). Written
+  // after signedIn so the store's sign-out/created resets can't clear it.
+  if (loadedProfile) {
+    setStoredProfile(loadedProfile);
+  }
 }
 
 async function authenticate(attempt) {

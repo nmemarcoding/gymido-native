@@ -1,0 +1,28 @@
+# Regression (23 Oct): opening Exercises and scrolling the list crashed Android
+# (Fabric addViewAt IndexOutOfBounds: clipped subviews + a sticky search bar
+# that appears after load). Read-only. Env: LOGIN_EMAIL / LOGIN_PASSWORD
+# (+ EXPECT_NAME to reuse a signed-in session).
+appId: com.gymido.app
+---
+- runFlow: subflows/sign-in-as.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-Exercises"
+    timeout: 60000
+- tapOn:
+    id: "tab-Exercises"
+- extendedWaitUntil:
+    visible:
+      id: "exercises-list"
+    timeout: 30000
+- repeat:
+    times: 4
+    commands:
+      - swipe:
+          start: 50%, 75%
+          end: 50%, 20%
+          duration: 400
+- assertVisible:
+    id: "exercises-list"
+- assertVisible:
+    id: "exercises-bar"

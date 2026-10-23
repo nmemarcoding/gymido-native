@@ -28,7 +28,7 @@ export function formatDateInput(value) {
 // Web `<input type="date">` (profile-create spec §3.5): looks like an Input,
 // opens the platform date picker (iOS inline in a sheet with "Done", Android
 // the dialog), no min/max, and a "Clear" button while it has a value.
-export default function DateInput({ label, value, onChange, error, testID }) {
+export default function DateInput({ label, value, onChange, error, testID, labelStyle, accessibilityLabel }) {
   const [open, setOpen] = useState(false);
   const insets = useSafeAreaInsets();
   const pickerDate = value ? fromLocalDateString(value) : new Date();
@@ -43,11 +43,11 @@ export default function DateInput({ label, value, onChange, error, testID }) {
   };
 
   return (
-    <FieldFrame label={label} error={error} kind="input">
+    <FieldFrame label={label} error={error} kind="input" labelStyle={labelStyle}>
       <Pressable
         testID={testID}
         accessibilityRole="button"
-        accessibilityLabel={label}
+        accessibilityLabel={accessibilityLabel ?? label}
         accessibilityValue={{ text: value ? formatDateInput(value) : '' }}
         onPress={() => setOpen(true)}
         style={[fieldBoxStyle({ focused: open, error: Boolean(error), disabled: false }), styles.box]}

@@ -25,8 +25,9 @@ const TOOLTIP_GAP = 10;
 // The weight chart (trainer clients spec §C5.3), drawn with react-native-svg
 // so it matches the web's Recharts output: a d3 monotoneX curve, ticks from
 // Recharts' fixed-domain rule, and the first/last x labels kept inside the
-// plot (preserveStartEnd).
-export default function WeightHistoryChart({ logs, profile }) {
+// plot (preserveStartEnd). `unit` (optional) overrides the tooltip unit;
+// Progress passes its newest-log unit (RN-SPEC-progress §PR1.2).
+export default function WeightHistoryChart({ logs, profile, unit }) {
   const [width, setWidth] = useState(0);
   const [activeIndex, setActiveIndex] = useState(null);
   const [tooltipWidth, setTooltipWidth] = useState(0);
@@ -142,7 +143,7 @@ export default function WeightHistoryChart({ logs, profile }) {
               style={[styles.tooltip, { left: tooltipLeft, top }]}
             >
               <Text style={styles.tooltipLabel}>{active.label}</Text>
-              <Text style={styles.tooltipValue}>{formatWeight(active.value, series.unit)}</Text>
+              <Text style={styles.tooltipValue}>{formatWeight(active.value, unit || series.unit)}</Text>
             </View>
           ) : null}
         </View>
