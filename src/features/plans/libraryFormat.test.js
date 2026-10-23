@@ -111,6 +111,7 @@ describe('S2 schedule (§4.2, §4.6, §4.7)', () => {
     expect(toggleWeekday([1, 2, 3], 2, 3)).toEqual([1, 3]);
     expect(selectedWeekdaysLabel([1, 5])).toBe('Selected: Mon, Fri');
     expect(selectedWeekdaysLabel([])).toBe('Selected: None yet');
+    expect(selectedWeekdaysLabel([1, 2, 3], true)).toBe('Selected: Monday, Tuesday, Wednesday');
   });
 
   it('pairs day 1 with the earliest weekday and covers every day (⚠1)', () => {

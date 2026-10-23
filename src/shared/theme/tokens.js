@@ -34,6 +34,7 @@ export const colors = Object.freeze({
   successText: '#008236',
   brand300: '#f7ce4f',
   success: '#22c55e',
+  warning: '#f59e0b',
   successTint: 'rgba(34, 197, 94, 0.10)',
   trainerLockBorder: 'rgba(221, 160, 0, 0.30)',
   rowPressed: 'rgba(239, 241, 244, 0.40)',
@@ -67,6 +68,10 @@ export const shadows = Object.freeze({
   soft: '0px 8px 24px rgba(11, 29, 58, 0.08)',
   glow: '0px 8px 24px rgba(244, 180, 0, 0.28)',
   lift1: '0px 1px 2px rgba(17, 24, 39, 0.04), 0px 4px 12px -2px rgba(17, 24, 39, 0.06)',
+  lift2: '0px 2px 4px rgba(17, 24, 39, 0.05), 0px 12px 28px -6px rgba(17, 24, 39, 0.10)',
+  brand: '0px 6px 16px -4px rgba(244, 180, 0, 0.45), 0px 14px 32px -12px rgba(244, 180, 0, 0.30)',
+  press: 'inset 0px 2px 6px rgba(17, 24, 39, 0.12)',
+  emboss: 'inset 0px 1px 0px rgba(255, 255, 255, 0.9), 0px 1px 2px rgba(17, 24, 39, 0.05)',
   modal: '0px 25px 50px -12px rgba(0, 0, 0, 0.25)',
   insetSoft: 'inset 0px 1px 0px rgba(255, 255, 255, 0.8)',
   // ⚠ A blue glow on a gold button, a leftover on the web. Reproduced on purpose.

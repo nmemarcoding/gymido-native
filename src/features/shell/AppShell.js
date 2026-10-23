@@ -4,10 +4,12 @@ import { useEffect } from 'react';
 
 import { routes } from '../../navigation/routes';
 import ExerciseDetailScreen from '../exercises/screens/ExerciseDetailScreen';
+import TrainerHubScreen from '../myTrainer/TrainerHubScreen';
 import { unmountBell } from '../notifications/bellPolling';
 import HomeScreen from '../home/HomeScreen';
 import PlanDetailScreen from '../plans/screens/PlanDetailScreen';
 import PlansLibraryScreen from '../plans/screens/PlansLibraryScreen';
+import WorkoutScreen from '../workout/screens/WorkoutScreen';
 import SettingsScreen from '../settings/SettingsScreen';
 import TrainerDashboardScreen from '../trainer/TrainerDashboardScreen';
 import CreatePlanScreen from '../trainer/plans/screens/CreatePlanScreen';
@@ -26,13 +28,15 @@ const Stack = createNativeStackNavigator();
 // Screens whose specs haven't been built yet render a shell placeholder.
 const SCREENS = {
   [routes.Home]: HomeScreen,
-  [routes.Workout]: makeShellPlaceholder('Workout'),
+  [routes.Workout]: WorkoutScreen,
   [routes.Exercises]: makeShellPlaceholder('Exercises'),
   [routes.PlansLibrary]: PlansLibraryScreen,
   [routes.PlanDetail]: PlanDetailScreen,
   [routes.ExerciseDetail]: ExerciseDetailScreen,
   [routes.Progress]: makeShellPlaceholder('Progress'),
-  [routes.MyTrainer]: makeShellPlaceholder('Trainer'),
+  [routes.MyTrainer]: TrainerHubScreen,
+  [routes.Trainers]: makeShellPlaceholder('Trainers'),
+  [routes.TrainerApply]: makeShellPlaceholder('Become a trainer'),
   [routes.Settings]: SettingsScreen,
   [routes.Notifications]: makeShellPlaceholder('Notifications'),
   [routes.TrainerDashboard]: TrainerDashboardScreen,
@@ -49,7 +53,7 @@ const SCREENS = {
 const STACK_EXTRAS = {
   [ShellTab.Today]: [routes.Workout],
   [ShellTab.Plans]: [routes.PlanDetail, routes.ExerciseDetail],
-  [ShellTab.Profile]: [routes.MyTrainer],
+  [ShellTab.Profile]: [routes.MyTrainer, routes.Trainers, routes.TrainerApply],
   [ShellTab.Exercises]: [routes.ExerciseDetail],
   [ShellTab.TClients]: [routes.TrainerClient],
   [ShellTab.TPlans]: [routes.TrainerPlanCreate, routes.TrainerPlan],

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -66,11 +66,20 @@ function SlideUp({ children, style }) {
 
 // A page-level toast: the same card rendered in place, without the close
 // button (app-shell spec §8; plans §4.7, workout §3.5).
+// Web toasts are role=status / aria-live polite. Android announces through
+// the view's accessibilityLiveRegion; iOS has no live regions, so it gets
+// an explicit announcement (announcing on Android too would read it twice).
+function announcePolitely(parts) {
+  if (Platform.OS === 'ios') {
+    AccessibilityInfo.announceForAccessibility(parts.filter(Boolean).join(' '));
+  }
+}
+
 export function InlineToast({ tone, title, message, testID, style }) {
   const colorsForTone = TONES[tone] ?? TONES[ToastTone.info];
 
   useEffect(() => {
-    AccessibilityInfo.announceForAccessibility([title, message].filter(Boolean).join(' '));
+    announcePolitely([title, message]);
   }, [title, message]);
 
   return (
@@ -87,7 +96,7 @@ function ToastRow({ toast, onClose }) {
   const tone = TONES[toast.tone] ?? TONES[ToastTone.info];
 
   useEffect(() => {
-    AccessibilityInfo.announceForAccessibility([toast.title, toast.message].filter(Boolean).join(' '));
+    announcePolitely([toast.title, toast.message]);
   }, [toast.title, toast.message]);
 
   // The card runs its own slide-up inside the row's, so it plays twice, nested.

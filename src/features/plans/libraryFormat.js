@@ -2,13 +2,13 @@
 // RN-SPEC-plans §3.2, §4 and §10. Pure, so it can be tested.
 
 export const WEEKDAYS = Object.freeze([
-  { id: 1, label: 'Mon' },
-  { id: 2, label: 'Tue' },
-  { id: 3, label: 'Wed' },
-  { id: 4, label: 'Thu' },
-  { id: 5, label: 'Fri' },
-  { id: 6, label: 'Sat' },
-  { id: 7, label: 'Sun' },
+  { id: 1, label: 'Mon', name: 'Monday' },
+  { id: 2, label: 'Tue', name: 'Tuesday' },
+  { id: 3, label: 'Wed', name: 'Wednesday' },
+  { id: 4, label: 'Thu', name: 'Thursday' },
+  { id: 5, label: 'Fri', name: 'Friday' },
+  { id: 6, label: 'Sat', name: 'Saturday' },
+  { id: 7, label: 'Sun', name: 'Sunday' },
 ]);
 
 // §3.2, exactly. Groups use a plain object read back with Object.entries,
@@ -149,8 +149,11 @@ export function toggleWeekday(selected, id, requiredDays) {
   return [...selected, id].sort((a, b) => a - b);
 }
 
-export function selectedWeekdaysLabel(selected) {
-  const labels = WEEKDAYS.filter((weekday) => selected.includes(weekday.id)).map((weekday) => weekday.label);
+// S2 lists short labels; S3 lists full day names (`fullNames`, block 3 G1).
+export function selectedWeekdaysLabel(selected, fullNames = false) {
+  const labels = WEEKDAYS.filter((weekday) => selected.includes(weekday.id)).map((weekday) =>
+    fullNames ? weekday.name : weekday.label
+  );
   return `Selected: ${labels.join(', ') || 'None yet'}`;
 }
 

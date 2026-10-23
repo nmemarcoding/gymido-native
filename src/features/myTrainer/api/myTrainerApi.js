@@ -22,3 +22,15 @@ export async function listPendingTrainerRequests() {
   const items = data(await apiClient.get('/my-trainer/requests', { params: { status: 'pending' } })).items;
   return Array.isArray(items) ? items : [];
 }
+
+export async function acceptTrainerRequest(requestId) {
+  return data(await apiClient.post(`/my-trainer/requests/${requestId}/accept`));
+}
+
+export async function rejectTrainerRequest(requestId) {
+  return data(await apiClient.post(`/my-trainer/requests/${requestId}/reject`));
+}
+
+export async function endCoaching() {
+  return data(await apiClient.delete('/my-trainer'));
+}

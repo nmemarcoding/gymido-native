@@ -27,8 +27,8 @@ import {
   replaceSchedule,
 } from '../api/libraryApi';
 import { ActiveBadge, Eyebrow, Pill, SectionHeading, planStyles } from '../components/PlanBits';
+import WeekdayGrid from '../components/WeekdayGrid';
 import {
-  WEEKDAYS,
   buildScheduleItems,
   dayMetaLabel,
   estimateMinutes,
@@ -37,7 +37,6 @@ import {
   formatSetSummary,
   initialWeekdays,
   muscleFocus,
-  selectedWeekdaysLabel,
   todayUTC,
   toggleWeekday,
   workoutDaysLabel,
@@ -449,29 +448,7 @@ function ScheduleCard({ isCurrentPlan, requiredDays, selected, onToggle, isActiv
           ? `These are the ${requiredDays} day${requiredDays === 1 ? '' : 's'} you train on. Adjust them and tap update to reschedule.`
           : 'Choose the weekdays to train. Activating this plan replaces any current active plan.'}
       </Text>
-      <View style={styles.weekGrid}>
-        {WEEKDAYS.map((weekday) => {
-          const isSelected = selected.includes(weekday.id);
-          return (
-            <Pressable
-              key={weekday.id}
-              testID={`plan-weekday-${weekday.id}`}
-              accessibilityRole="button"
-              accessibilityState={{ selected: isSelected }}
-              onPress={() => onToggle(weekday.id)}
-              style={({ pressed }) => [
-                styles.weekChip,
-                isSelected ? styles.weekChipSelected : pressed ? styles.weekChipPressed : styles.weekChipIdle,
-              ]}
-            >
-              <Text style={[styles.weekChipText, { color: isSelected ? colors.navy : colors.textSecondary }]}>
-                {weekday.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      <Text style={styles.selectedLabel}>{selectedWeekdaysLabel(selected)}</Text>
+      <WeekdayGrid selected={selected} onToggle={onToggle} testIDPrefix="plan-weekday" />
       <Pressable
         testID="plan-activate"
         accessibilityRole="button"
@@ -793,37 +770,6 @@ const styles = StyleSheet.create({
   },
   scheduleCard: {
     padding: 20,
-  },
-  weekGrid: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 16,
-  },
-  weekChip: {
-    flex: 1,
-    alignItems: 'center',
-    borderRadius: radii.xl,
-    paddingVertical: 12,
-  },
-  weekChipSelected: {
-    backgroundColor: colors.brand400,
-  },
-  weekChipIdle: {
-    backgroundColor: colors.background,
-  },
-  weekChipPressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  weekChipText: {
-    fontSize: 11.52,
-    lineHeight: 17.28,
-    fontWeight: '700',
-  },
-  selectedLabel: {
-    marginTop: 12,
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.textMuted,
   },
   cta: {
     flexDirection: 'row',
