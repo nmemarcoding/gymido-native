@@ -201,14 +201,18 @@ function WorkoutPage() {
 
   // §1.2, in order. [O10] the skeleton never covers a live session.
   const branch = (() => {
+    // Owner directive (23 Oct 2026, web matched): below md an active session
+    // shows no header row and no bell, so SessionChrome sits right under the
+    // top inset; from md the compact row (ModeSwitch + bell) stays.
     if (page.session?.id && status !== 'error') {
       const mode = resolveMode({ user, path: '/workout', storedPreference });
+      const header = width >= breakpoints.md ? <AppHeader path="/workout" query="active=1" mode={mode} /> : null;
       return (
         <SessionRuntime
           session={applyOverlay(page.session, overlay)}
           planName={page.currentPlan?.enrollment?.plan?.name}
           exerciseStatsMap={page.exerciseStatsMap}
-          header={<AppHeader path="/workout" query="active=1" mode={mode} />}
+          header={header}
           reload={() => load({ silent: true })}
           writeOverlay={writeOverlay}
           actionError={actionError}

@@ -286,7 +286,7 @@ export default function SessionRuntime({
     // (§19.8). (ported from the 28 Sep build)
     <View style={[styles.frame, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
       <View testID="session-column" style={styles.column}>
-        <View style={{ paddingHorizontal: gutter }}>{header}</View>
+        {header ? <View style={{ paddingHorizontal: gutter }}>{header}</View> : null}
         <SessionChrome
           planName={planName || 'Workout'}
           completedSets={progress.completedSets}

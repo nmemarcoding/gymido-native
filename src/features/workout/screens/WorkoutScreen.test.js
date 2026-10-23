@@ -74,6 +74,27 @@ beforeEach(() => {
 });
 
 describe('WorkoutScreen', () => {
+  it('shows no header row (no bell) in a phone-width active session (owner directive, 23 Oct)', async () => {
+    loadWorkoutPage.mockResolvedValue(withSession);
+    const tree = await render();
+    expect(find(tree, 'runtime')).toHaveLength(1);
+    expect(mockRuntime.header).toBeNull();
+    act(() => tree.unmount());
+  });
+
+  it('keeps the compact header row from md (tablets)', async () => {
+    const dimensions = require('react-native/Libraries/Utilities/useWindowDimensions');
+    const spy = jest.spyOn(dimensions, 'default').mockReturnValue({ width: 1024, height: 768, scale: 2, fontScale: 1 });
+    try {
+      loadWorkoutPage.mockResolvedValue(withSession);
+      const tree = await render();
+      expect(mockRuntime.header).not.toBeNull();
+      act(() => tree.unmount());
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('keeps ONE completion popup mounted across the session → hub switch (#42, §23.2)', async () => {
     loadWorkoutPage.mockResolvedValue(withSession);
     const tree = await render();

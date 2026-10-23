@@ -44,7 +44,6 @@ function render(props = {}) {
         session={SESSION}
         planName="Plan"
         exerciseStatsMap={{}}
-        header={null}
         reload={jest.fn(() => Promise.resolve())}
         writeOverlay={jest.fn()}
         actionError=""
