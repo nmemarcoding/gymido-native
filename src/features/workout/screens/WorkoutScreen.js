@@ -68,6 +68,9 @@ function WorkoutPage() {
   const [isStartingDayId, setIsStartingDayId] = useState(null);
   // [O12]: confirmed writes, the failed-reload bar and its retry.
   const [overlay, setOverlay] = useState({});
+  // The latest overlay for the writers below, so reconciling (and its error)
+  // happens outside a state updater, which must stay pure.
+  const overlayRef = useRef({});
   const [reloadError, setReloadError] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [popup, setPopup] = useState(null);
@@ -95,13 +98,12 @@ function WorkoutPage() {
       setLoadError(null);
       setStatus('loaded');
       setReloadError(false);
-      setOverlay((current) => {
-        const { kept, contradicted } = reconcileOverlay(result.data.session, current, startSeq);
-        if (contradicted) {
-          setActionError(CONTRADICTED);
-        }
-        return kept;
-      });
+      const { kept, contradicted } = reconcileOverlay(result.data.session, overlayRef.current, startSeq);
+      overlayRef.current = kept;
+      setOverlay(kept);
+      if (contradicted) {
+        setActionError(CONTRADICTED);
+      }
     } else if (silent && sessionRef.current?.id) {
       setReloadError(true);
     } else {
@@ -114,7 +116,8 @@ function WorkoutPage() {
   const writeOverlay = useCallback((setId, fields) => {
     writeSeq.current += 1;
     const seq = writeSeq.current;
-    setOverlay((current) => ({ ...current, [setId]: { fields, seq } }));
+    overlayRef.current = { ...overlayRef.current, [setId]: { fields, seq } };
+    setOverlay(overlayRef.current);
   }, []);
 
   // Focus (§1.3 refined by §26.1): no session → a fresh hub; a running

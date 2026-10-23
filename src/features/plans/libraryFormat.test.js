@@ -12,7 +12,6 @@ import {
   planCardDaysLabel,
   planCountLabel,
   selectedWeekdaysLabel,
-  todayUTC,
   toggleWeekday,
 } from './libraryFormat';
 
@@ -119,9 +118,5 @@ describe('S2 schedule (§4.2, §4.6, §4.7)', () => {
       { workout_plan_day_id: 10, weekday_id: 2 },
       { workout_plan_day_id: 11, weekday_id: 4 },
     ]);
-  });
-
-  it('uses the UTC date, not the local one (⚠7)', () => {
-    expect(todayUTC(new Date('2026-09-22T03:00:00Z'))).toBe('2026-09-22');
   });
 });

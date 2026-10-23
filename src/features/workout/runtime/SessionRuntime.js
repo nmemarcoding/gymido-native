@@ -151,10 +151,11 @@ export default function SessionRuntime({
   }, [highlightedSetKey]);
 
   // §23.1 automatic completion (⚠W13). It fires when the counts reach "all
-  // done", guarded by isCompleting; a failed completion doesn't re-fire it.
+  // done"; a failed completion doesn't re-fire it. completingRef is set
+  // synchronously in handleComplete, so the effect and a Complete tap in the
+  // same frame can't both send POST /complete.
   const completeRef = useRef(null);
   const completingRef = useRef(false);
-  completingRef.current = isCompleting;
   useEffect(() => {
     if (progress.totalSets > 0 && progress.completedSets === progress.totalSets && !completingRef.current) {
       completeRef.current?.();
@@ -215,6 +216,10 @@ export default function SessionRuntime({
   }
 
   async function handleComplete() {
+    if (completingRef.current) {
+      return;
+    }
+    completingRef.current = true;
     const snapshot = completionSnapshot(session, planName, elapsed);
     setActionError('');
     setIsCompleting(true);
@@ -228,6 +233,7 @@ export default function SessionRuntime({
     } catch (error) {
       setActionError(getServerMessage(error));
     } finally {
+      completingRef.current = false;
       setIsCompleting(false);
     }
   }

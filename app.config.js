@@ -24,6 +24,9 @@ function loadEnv(appEnv) {
 }
 
 const env = loadEnv(APP_ENV);
+// Builds handed to anyone (staging testers, production) get the release
+// hardening; development and localtest dev clients keep the dev-server bits.
+const RELEASE_ENV = APP_ENV === 'production' || APP_ENV === 'staging';
 
 // The Auth0 domain is baked into the native build, so fail early without it.
 for (const key of ['AUTH0_DOMAIN', 'AUTH0_CLIENT_ID']) {
@@ -31,6 +34,36 @@ for (const key of ['AUTH0_DOMAIN', 'AUTH0_CLIENT_ID']) {
     throw new Error(`[app.config] ${key} is not set. Copy .env.example to .env.${APP_ENV}.`);
   }
 }
+
+// Kept in release: INTERNET, ACCESS_NETWORK_STATE, POST_NOTIFICATIONS,
+// SCHEDULE_EXACT_ALARM (rest alerts, A2), VIBRATE, WAKE_LOCK and
+// MODIFY_AUDIO_SETTINGS (the rest-done beep).
+const RELEASE_BLOCKED_PERMISSIONS = [
+  'android.permission.SYSTEM_ALERT_WINDOW',
+  'android.permission.READ_EXTERNAL_STORAGE',
+  'android.permission.WRITE_EXTERNAL_STORAGE',
+  'android.permission.RECEIVE_BOOT_COMPLETED',
+  'android.permission.USE_BIOMETRIC',
+  'android.permission.USE_FINGERPRINT',
+  'com.google.android.c2dm.permission.RECEIVE',
+  'com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE',
+  'android.permission.READ_APP_BADGE',
+  'com.sec.android.provider.badge.permission.READ',
+  'com.sec.android.provider.badge.permission.WRITE',
+  'com.htc.launcher.permission.READ_SETTINGS',
+  'com.htc.launcher.permission.UPDATE_SHORTCUT',
+  'com.sonyericsson.home.permission.BROADCAST_BADGE',
+  'com.sonymobile.home.permission.PROVIDER_INSERT_BADGE',
+  'com.anddoes.launcher.permission.UPDATE_COUNT',
+  'com.majeur.launcher.permission.UPDATE_BADGE',
+  'com.huawei.android.launcher.permission.CHANGE_BADGE',
+  'com.huawei.android.launcher.permission.READ_SETTINGS',
+  'com.huawei.android.launcher.permission.WRITE_SETTINGS',
+  'com.oppo.launcher.permission.READ_SETTINGS',
+  'com.oppo.launcher.permission.WRITE_SETTINGS',
+  'me.everything.badger.permission.BADGE_COUNT_READ',
+  'me.everything.badger.permission.BADGE_COUNT_WRITE',
+];
 
 module.exports = {
   expo: {
@@ -68,6 +101,13 @@ module.exports = {
         backgroundImage: './assets/android-icon-background.png',
         monochromeImage: './assets/android-icon-monochrome.png',
       },
+      // No cloud/device-transfer backup of app data (sign-in state, preferences).
+      allowBackup: false,
+      // Permissions the app never uses, added by the template (overlay,
+      // storage) or by libraries (FCM push, auth0 biometrics, boot receiver,
+      // install referrer, launcher badges). Release builds drop them; dev
+      // builds keep the overlay for the dev menu.
+      blockedPermissions: RELEASE_ENV ? RELEASE_BLOCKED_PERMISSIONS : [],
     },
     // Registers the {bundleId}.auth0 callback scheme on both platforms.
     // The rest-countdown widget is RN-SPEC-time O13 (modules/rest-countdown).
@@ -82,6 +122,10 @@ module.exports = {
       './plugins/withRestCountdownWidget',
       // iOS 27 scene life cycle (plugins/withSceneLifecycle.js).
       './plugins/withSceneLifecycle',
+      // Release builds drop the dev client's local-network keys (plugins/withReleaseHardening.js).
+      ['./plugins/withReleaseHardening', { enabled: RELEASE_ENV }],
+      // Android release builds use the owner's upload key, never the template debug key.
+      './plugins/withReleaseSigning',
       // LAST: strips expo-notifications' push entitlement after every other
       // mod (a free Apple team can't sign aps-environment; local
       // notifications don't need it). See plugins/withoutPushCapability.js.

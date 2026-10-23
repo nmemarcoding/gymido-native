@@ -1,4 +1,5 @@
 import { getServerMessage, getStatus } from '../../shared/api/apiError';
+import { formatLocalDateForInput } from '../../shared/time/format';
 import { slugify } from '../trainer/plans/planFormat';
 
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
@@ -14,10 +15,6 @@ export function memberSlug(name, random = Math.random) {
   return `${base}-${suffix}`;
 }
 
-// RN-SPEC-time formatDateForInput: the UTC calendar date of the device clock.
-export function formatDateForInput(date = new Date()) {
-  return date.toISOString().slice(0, 10);
-}
 
 export const ON_HOLD_TAIL = 'They’re kept safe and come back when coaching ends. Your trainer manages your training for now.';
 
@@ -64,7 +61,7 @@ export function getStartHint({ isCurrent, plan, days }) {
 // `cancelled: true` is added once the old enrollment is known to be gone (the
 // cancel succeeded, or 404: already cancelled), so a failed enrol after it
 // doesn't make every retry cancel a plan that no longer exists.
-export async function runStartPlan({ planId, planName, enrollment, api, today = formatDateForInput() }) {
+export async function runStartPlan({ planId, planName, enrollment, api, today = formatLocalDateForInput() }) {
   let cancelled = false;
   if (enrollment) {
     try {

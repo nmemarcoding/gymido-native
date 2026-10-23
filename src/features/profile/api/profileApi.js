@@ -18,8 +18,9 @@ export async function createProfile(payload) {
   return response.data?.data?.profile ?? response.data?.data ?? null;
 }
 
-// Edit profile (RN-SPEC-profile P2.5): the full body; returns `data.profile`.
+// Edit profile (RN-SPEC-profile P2.5, dated change 23 Oct 2026: PATCH);
+// returns `data.profile`.
 export async function updateProfile(payload) {
-  const response = await apiClient.put('/profile', payload);
+  const response = await apiClient.patch('/profile', payload);
   return response.data?.data?.profile ?? null;
 }

@@ -20,6 +20,7 @@ import {
   editFormFromProfile,
   editHasChanges,
   firstFieldErrors,
+  isGoalWeightOptional,
   updateEditHeightUnit,
   validateEditProfile,
 } from '../editProfileForm';
@@ -153,7 +154,7 @@ function EditProfileForm({ profile }) {
       return;
     }
     setErrorMessage('');
-    const errors = validateEditProfile(form);
+    const errors = validateEditProfile(form, { goalOptional: isGoalWeightOptional(profile) });
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
@@ -161,7 +162,13 @@ function EditProfileForm({ profile }) {
     setSubmitting(true);
     try {
       const saved = await updateProfile(buildEditProfilePayload(form));
-      setStoredProfile(saved);
+      // The save succeeded; a response without `profile` must not read as "no
+      // profile", so read it back instead.
+      if (saved) {
+        setStoredProfile(saved);
+      } else {
+        fetchProfile();
+      }
       // ⚠P-11: replace Edit with a new Settings; no toast.
       navigation.replace(routes.Settings);
     } catch (error) {
@@ -267,7 +274,11 @@ function EditProfileForm({ profile }) {
             )}
           </View>
           {weightRow('current_weight_value', 'Current Weight', 'current_weight_unit')}
-          {weightRow('goal_weight_value', 'Goal Weight', 'goal_weight_unit')}
+          {weightRow(
+            'goal_weight_value',
+            isGoalWeightOptional(profile) ? 'Goal Weight (optional)' : 'Goal Weight',
+            'goal_weight_unit'
+          )}
           <View style={pair}>
             <View style={cell}>
               <DateInput

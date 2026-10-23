@@ -1,7 +1,7 @@
 import { View } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
-import { openShellPath } from '../shell/shellLinks';
+import { handOffToWorkout } from '../shell/shellLinks';
 import { cancelEnrollment, getCurrentPlan, startPlan } from './api/myPlansApi';
 import { useMemberStart } from './useMemberStart';
 
@@ -16,7 +16,7 @@ jest.mock('@react-navigation/native', () => ({
   useRoute: () => ({ key: 'm3' }),
   CommonActions: { reset: (state) => ({ type: 'RESET', payload: state }) },
 }));
-jest.mock('../shell/shellLinks', () => ({ openShellPath: jest.fn() }));
+jest.mock('../shell/shellLinks', () => ({ handOffToWorkout: jest.fn() }));
 jest.mock('./api/myPlansApi', () => ({
   getCurrentPlan: jest.fn(),
   cancelEnrollment: jest.fn(),
@@ -91,10 +91,7 @@ describe('useMemberStart (§M3.4)', () => {
     await act(async () => dialog.props.onConfirm());
     expect(cancelEnrollment).toHaveBeenCalledWith(4);
     expect(startPlan).toHaveBeenCalledWith('7', expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/));
-    expect(openShellPath).toHaveBeenCalledWith('/workout', { message: 'Strength activated.' });
-    expect(mockNavigation.dispatch).toHaveBeenCalledWith(
-      expect.objectContaining({ target: 'plans-stack', payload: expect.objectContaining({ routes: [{ key: 'lib' }], index: 0 }) })
-    );
+    expect(handOffToWorkout).toHaveBeenCalledWith(expect.anything(), expect.anything(), 'Strength activated.');
   });
 
   it('retries without cancelling again after a cancel went through but the enrol failed (W4)', async () => {
@@ -104,13 +101,13 @@ describe('useMemberStart (§M3.4)', () => {
     const tree = await render({ planId: '7', plan, days });
     await act(async () => find(tree, 'my-plan-start').props.onPress());
     await act(async () => find(tree, 'my-plan-switch-dialog').props.onConfirm());
-    expect(openShellPath).not.toHaveBeenCalled();
+    expect(handOffToWorkout).not.toHaveBeenCalled();
     // Second press: no enrollment left, so no confirm and no second cancel.
     await act(async () => find(tree, 'my-plan-start').props.onPress());
     expect(find(tree, 'my-plan-switch-dialog').props.isOpen).toBe(false);
     expect(cancelEnrollment).toHaveBeenCalledTimes(1);
     expect(startPlan).toHaveBeenCalledTimes(2);
-    expect(openShellPath).toHaveBeenCalledWith('/workout', { message: 'Strength activated.' });
+    expect(handOffToWorkout).toHaveBeenCalledWith(expect.anything(), expect.anything(), 'Strength activated.');
   });
 
   it('starts at once with no current plan and keeps a 403 inline (⚠M-3)', async () => {

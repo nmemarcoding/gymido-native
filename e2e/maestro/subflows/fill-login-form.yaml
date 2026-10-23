@@ -48,14 +48,16 @@ appId: com.gymido.app
             - tapOn:
                 point: "50%,39%"
       - inputText: ${LOGIN_PASSWORD}
+# iOS: automated sign-in is DISABLED (23 Oct 2026). The hosted login page put
+# the password into the wrong field and screenshots captured it in plain text.
+# Fail fast, before anything is typed: sign the account in by hand, then run
+# flows with session reuse (EXPECT_NAME). Re-enable only after a fix is proven
+# with a masked-OCR check (see FASTEST-TEST-PLAYBOOK §3a).
 - runFlow:
     when:
       platform: iOS
     commands:
-      - tapOn: ".*Email address.*"
-      - inputText: ${LOGIN_EMAIL}
-      - tapOn: ".*Password.*"
-      - inputText: ${LOGIN_PASSWORD}
+      - assertTrue: ${false}
 # Android only: hideKeyboard fails on iOS ("Couldn't hide the keyboard") because
 # the hosted page's inputs are web fields with no standard dismiss action.
 - runFlow:

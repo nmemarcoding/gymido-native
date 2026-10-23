@@ -165,11 +165,3 @@ export function workoutDaysLabel(count) {
 export function buildScheduleItems(days, selected, requiredDays) {
   return days.slice(0, requiredDays).map((day, index) => ({ workout_plan_day_id: day.id, weekday_id: selected[index] }));
 }
-
-// ⚠7: the UTC calendar date of the device clock, not the local date.
-export function todayUTC(now = new Date()) {
-  const year = now.getUTCFullYear();
-  const month = String(now.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(now.getUTCDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}

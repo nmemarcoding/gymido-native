@@ -25,6 +25,21 @@ export function openShellPath(path, params) {
   navigationRef.navigate(routes.AppShell, { screen: tab, params: nested });
 }
 
+// The start/activate/accept hand-off (S2 §4.8, M3, G2; 5-tab nav): drop the
+// current screen from its stack (the web `replace`), then show Workout in the
+// Today stack with the message. When it was the stack's only screen (S2
+// opened alone from Home), the stack falls back to its tab root: a reset to
+// no routes is rejected by the router and would leave the screen in place.
+export function handOffToWorkout(navigation, route, message) {
+  const state = navigation.getState();
+  const remaining = state.routes.filter((item) => item.key !== route.key);
+  openShellPath('/workout', { message });
+  const reset = remaining.length
+    ? CommonActions.reset({ ...state, routes: remaining, index: remaining.length - 1 })
+    : CommonActions.reset({ index: 0, routes: [{ name: TAB_ROOTS[getScreenTab(route.name)] }] });
+  navigation.dispatch({ ...reset, target: state.key });
+}
+
 // Home's "View plan" (RN-SPEC-home §H1.3): the Plans tab with its stack set to
 // [S2] alone. Navigating into an unmounted stack already gives [S2]; into a
 // mounted one it pushes, so trim that stack back to S2.

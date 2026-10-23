@@ -1,4 +1,4 @@
-import { CommonActions, useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -7,7 +7,7 @@ import ConfirmDialog from '../../shared/components/ConfirmDialog';
 import PillButton from '../../shared/components/PillButton';
 import { ToastTone, addToast } from '../../shared/components/toastStore';
 import { colors, radii } from '../../shared/theme/tokens';
-import { openShellPath } from '../shell/shellLinks';
+import { handOffToWorkout } from '../shell/shellLinks';
 import { cancelEnrollment, getCurrentPlan, startPlan } from './api/myPlansApi';
 import { statusBoxStyles } from './components/OnHoldBox';
 import { canStartPlan, getStartHint, isCurrentPlan, runStartPlan } from './myPlanFormat';
@@ -45,17 +45,6 @@ export function useMemberStart({ planId, plan, days }) {
   const isCurrent = isCurrentPlan(current, planId);
   const hint = getStartHint({ isCurrent, plan, days });
 
-  // Replace M3 with Workout in the Today stack carrying the message, as S2's
-  // hand-off does (5-tab nav): drop M3 from the Plans stack, then open Workout.
-  function handOff(message) {
-    const state = navigation.getState();
-    const remaining = state.routes.filter((item) => item.key !== route.key);
-    openShellPath('/workout', { message });
-    navigation.dispatch({
-      ...CommonActions.reset({ ...state, routes: remaining, index: remaining.length - 1 }),
-      target: state.key,
-    });
-  }
 
   async function start() {
     setStarting(true);
@@ -67,7 +56,7 @@ export function useMemberStart({ planId, plan, days }) {
       setCurrent(null);
     }
     if (outcome.type === 'success') {
-      handOff(outcome.message);
+      handOffToWorkout(navigation, route, outcome.message);
     } else if (outcome.type === 'inline') {
       if (mounted.current) {
         setStartError(outcome.message);

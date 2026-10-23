@@ -198,3 +198,34 @@ describe('display name and initials (P1.2)', () => {
     expect(profileInitials('')).toBe('●');
   });
 });
+
+describe('optional goal weight (P2.4 dated change, 23 Oct 2026)', () => {
+  const { isGoalWeightOptional } = require('./editProfileForm');
+  const noGoal = { ...PROFILE, goal_weight_value: null, goal_weight_unit: null };
+
+  it('is optional only while the loaded profile has no goal', () => {
+    expect(isGoalWeightOptional(noGoal)).toBe(true);
+    expect(isGoalWeightOptional({ ...PROFILE, goal_weight_value: '' })).toBe(true);
+    expect(isGoalWeightOptional(PROFILE)).toBe(false);
+  });
+
+  it('accepts a blank goal when optional, still rejects a blank saved goal and a non-positive one', () => {
+    const blank = { ...editFormFromProfile(noGoal), goal_weight_value: '' };
+    expect(validateEditProfile(blank, { goalOptional: true }).goal_weight_value).toBeUndefined();
+    expect(validateEditProfile(blank, { goalOptional: false }).goal_weight_value).toBe('Goal weight is required');
+    expect(validateEditProfile({ ...blank, goal_weight_value: '0' }, { goalOptional: true }).goal_weight_value).toBe(
+      'Goal weight must be greater than zero'
+    );
+  });
+
+  it('omits both goal keys when the goal is blank, keeps null for date of birth and sex', () => {
+    const payload = buildEditProfilePayload({ ...editFormFromProfile(noGoal), goal_weight_value: '  ', date_of_birth: '', sex: '' });
+    expect(payload).not.toHaveProperty('goal_weight_value');
+    expect(payload).not.toHaveProperty('goal_weight_unit');
+    expect(payload).toMatchObject({ date_of_birth: null, sex: null });
+    expect(buildEditProfilePayload({ ...editFormFromProfile(noGoal), goal_weight_value: '75' })).toMatchObject({
+      goal_weight_value: 75,
+      goal_weight_unit: 'kg',
+    });
+  });
+});

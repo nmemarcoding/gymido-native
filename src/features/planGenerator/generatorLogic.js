@@ -2,7 +2,7 @@
 // (RN-SPEC-PLAN-GENERATOR §G1–§G2). Pure, so it can be tested.
 
 import { breakpoints } from '../../shared/theme/tokens';
-import { todayUTC } from '../plans/libraryFormat';
+import { formatLocalDateForInput } from '../../shared/time/format';
 import { QUESTIONS, bandLabel, goalLabel, presetLabel } from './generatorCopy';
 
 // Option lists may carry plain codes or `{code}` objects.
@@ -226,11 +226,12 @@ export function planNotice(preview, lockedAfter409) {
   return null;
 }
 
-// §G2.4 accept body; `started_on` is the UTC date of the device clock.
+// §G2.4 accept body; `started_on` is the device's LOCAL date (owner decision,
+// 23 Oct 2026: ⚠7/⚠T6 retired, web fixed the same way).
 export function buildAcceptBody(previewHash, replace, now = new Date()) {
   return {
     preview_hash: previewHash,
-    started_on: todayUTC(now),
+    started_on: formatLocalDateForInput(now),
     replace_active_enrollment: Boolean(replace),
   };
 }

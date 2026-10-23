@@ -61,3 +61,24 @@ describe('notificationStore (§7.1)', () => {
     expect(useNotificationStore.getState().notifications).toEqual([{ id: 1 }]);
   });
 });
+
+describe('sign-out reset', () => {
+  const { AuthStatus, useAuthStore } = require('../auth/authStore');
+
+  it('clears the last account and drops a page that lands after sign-out', async () => {
+    useAuthStore.setState({ status: AuthStatus.signedIn });
+    apiClient.get.mockResolvedValueOnce(page([{ id: 1 }], 1));
+    await useNotificationStore.getState().fetchNotifications();
+    expect(useNotificationStore.getState().unreadCount).toBe(1);
+
+    let resolveLate;
+    apiClient.get.mockReturnValueOnce(new Promise((resolve) => (resolveLate = resolve)));
+    const late = useNotificationStore.getState().fetchNotifications();
+    useAuthStore.setState({ status: AuthStatus.signedOut });
+    expect(useNotificationStore.getState()).toMatchObject({ notifications: [], unreadCount: 0, isLoading: false });
+
+    resolveLate(page([{ id: 2 }], 1));
+    expect(await late).toBeNull();
+    expect(useNotificationStore.getState().notifications).toEqual([]);
+  });
+});

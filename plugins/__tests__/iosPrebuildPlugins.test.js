@@ -85,3 +85,25 @@ describe('withRestCountdownWidget extension target', () => {
     });
   });
 });
+
+describe('withReleaseHardening', () => {
+  const withReleaseHardening = require('../withReleaseHardening');
+  const devPlist = () => ({
+    NSAppTransportSecurity: { NSAllowsArbitraryLoads: false, NSAllowsLocalNetworking: true },
+    NSLocalNetworkUsageDescription: 'Expo Dev Launcher …',
+    NSBonjourServices: ['_expo._tcp'],
+    NSSupportsLiveActivities: true,
+  });
+
+  it('strips the dev-server keys in a release build, after the earlier mods', async () => {
+    let config = { name: 'x', slug: 'x', ios: {}, mods: { ios: { infoPlist: async (mod) => ({ ...mod, modResults: devPlist() }) } } };
+    config = withReleaseHardening(config, { enabled: true });
+    const result = await run(config, 'infoPlist', {});
+    expect(result.modResults).toEqual({ NSAppTransportSecurity: { NSAllowsArbitraryLoads: false }, NSSupportsLiveActivities: true });
+  });
+
+  it('leaves dev builds alone', () => {
+    const config = { name: 'x', slug: 'x', ios: {} };
+    expect(withReleaseHardening(config, { enabled: false })).toBe(config);
+  });
+});

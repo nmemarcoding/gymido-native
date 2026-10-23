@@ -2,7 +2,6 @@ import {
   ON_HOLD_TAIL,
   canStartPlan,
   copyErrorMessage,
-  formatDateForInput,
   getStartHint,
   isCurrentPlan,
   memberSlug,
@@ -27,10 +26,6 @@ describe('memberSlug (§M2, D1)', () => {
   it('draws a new suffix each call', () => {
     const seen = new Set(Array.from({ length: 20 }, () => memberSlug('x')));
     expect(seen.size).toBeGreaterThan(1);
-  });
-
-  it('formats the UTC date for started_on', () => {
-    expect(formatDateForInput(new Date('2026-10-22T23:30:00-07:00'))).toBe('2026-10-23');
   });
 });
 

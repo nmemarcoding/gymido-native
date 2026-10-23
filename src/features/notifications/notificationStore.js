@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { apiClient } from '../../shared/api/client';
+import { AuthStatus, useAuthStore } from '../auth/authStore';
 
 // App-shell spec §7.1. `unreadCount` counts only LOADED items without
 // `read_at` (⚠S2). Mutation errors set `error`, which nothing displays.
@@ -12,7 +13,7 @@ export async function fetchNotificationsPage(page) {
   return response.data?.data ?? {};
 }
 
-export const useNotificationStore = create((set, get) => ({
+const INITIAL = {
   notifications: [],
   unreadCount: 0,
   isLoading: false,
@@ -20,11 +21,22 @@ export const useNotificationStore = create((set, get) => ({
   currentPage: 1,
   totalPages: 1,
   hasMore: false,
+};
+
+// Bumped on every reset, so a page that arrives after sign-out is dropped.
+let session = 0;
+
+export const useNotificationStore = create((set, get) => ({
+  ...INITIAL,
 
   fetchNotifications: async (page = 1) => {
+    const fetchSession = session;
     set({ isLoading: true, error: null });
     try {
       const data = await fetchNotificationsPage(page);
+      if (fetchSession !== session) {
+        return null;
+      }
       const items = data.items ?? [];
       const notifications = page === 1 ? items : [...get().notifications, ...items];
       const totalPages = data.total_pages ?? 1;
@@ -38,7 +50,9 @@ export const useNotificationStore = create((set, get) => ({
       });
       return data;
     } catch (error) {
-      set({ error, isLoading: false });
+      if (fetchSession === session) {
+        set({ error, isLoading: false });
+      }
       return null;
     }
   },
@@ -87,3 +101,15 @@ export const useNotificationStore = create((set, get) => ({
     }
   },
 }));
+
+export function resetNotificationStore() {
+  session += 1;
+  useNotificationStore.setState({ ...INITIAL });
+}
+
+// A new session never sees the last account's notifications.
+useAuthStore.subscribe((state, previous) => {
+  if (previous.status === AuthStatus.signedIn && state.status !== AuthStatus.signedIn) {
+    resetNotificationStore();
+  }
+});

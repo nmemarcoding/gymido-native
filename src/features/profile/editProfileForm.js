@@ -76,8 +76,14 @@ export function editHasChanges(profile, form) {
   return Number(profile.height_value) !== Number(payloadHeight(form));
 }
 
+// P2.4 dated change (23 Oct 2026, owner): the goal weight is optional only
+// while the loaded profile has none saved.
+export function isGoalWeightOptional(profile) {
+  return text(profile?.goal_weight_value).trim() === '';
+}
+
 // P2.4, all rules, a later write to the same key wins.
-export function validateEditProfile(form) {
+export function validateEditProfile(form, { goalOptional = false } = {}) {
   const errors = {};
   if (!text(form.first_name).trim()) {
     errors.first_name = 'First name is required';
@@ -111,21 +117,27 @@ export function validateEditProfile(form) {
       errors.height_value = 'Height must be greater than zero';
     }
   }
-  const weight = (key, name) => {
+  const weight = (key, name, optional = false) => {
     const value = text(form[key]);
     if (!value.trim()) {
-      errors[key] = `${name} weight is required`;
+      if (!optional) {
+        errors[key] = `${name} weight is required`;
+      }
     } else if (!(parseNumber(value) > 0)) {
       errors[key] = `${name} weight must be greater than zero`;
     }
   };
   weight('current_weight_value', 'Current');
-  weight('goal_weight_value', 'Goal');
+  weight('goal_weight_value', 'Goal', goalOptional);
   return errors;
 }
 
-// P2.5: the full PUT /profile body.
+// P2.5: the PATCH /profile body. A blank (optional) goal omits both goal
+// keys, never null; date of birth and sex still send null when blank.
 export function buildEditProfilePayload(form) {
+  const goal = text(form.goal_weight_value).trim()
+    ? { goal_weight_value: parseNumber(form.goal_weight_value), goal_weight_unit: form.goal_weight_unit }
+    : {};
   return {
     first_name: text(form.first_name).trim(),
     last_name: text(form.last_name).trim(),
@@ -133,8 +145,7 @@ export function buildEditProfilePayload(form) {
     height_unit: form.height_unit,
     current_weight_value: parseNumber(form.current_weight_value),
     current_weight_unit: form.current_weight_unit,
-    goal_weight_value: parseNumber(form.goal_weight_value),
-    goal_weight_unit: form.goal_weight_unit,
+    ...goal,
     date_of_birth: form.date_of_birth || null,
     sex: form.sex || null,
   };

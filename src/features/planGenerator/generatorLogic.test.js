@@ -269,12 +269,12 @@ describe('preview display (G2.2)', () => {
 });
 
 describe('accept (G2.4)', () => {
-  test('body uses the UTC date of the device clock', () => {
-    // 23:30 on 22 Oct in UTC-5 is 04:30 on 23 Oct UTC.
-    const now = new Date(Date.UTC(2026, 9, 23, 4, 30));
+  test('body uses the local date of the device clock (owner decision, 23 Oct 2026)', () => {
+    // 23:30 local on 22 Oct is still the 22nd, whatever the zone.
+    const now = new Date(2026, 9, 22, 23, 30);
     expect(buildAcceptBody('abc', true, now)).toEqual({
       preview_hash: 'abc',
-      started_on: '2026-10-23',
+      started_on: '2026-10-22',
       replace_active_enrollment: true,
     });
     expect(buildAcceptBody('abc', false, now).replace_active_enrollment).toBe(false);

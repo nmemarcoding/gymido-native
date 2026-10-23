@@ -1,4 +1,4 @@
-import { CommonActions, useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
@@ -16,7 +16,7 @@ import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
 import { breakpoints, colors, radii } from '../../../shared/theme/tokens';
 import { Eyebrow, planStyles } from '../../plans/components/PlanBits';
 import ShellPage from '../../shell/ShellPage';
-import { openShellPath } from '../../shell/shellLinks';
+import { handOffToWorkout, openShellPath } from '../../shell/shellLinks';
 import { acceptGeneratedPlan, getGeneratorProfile, previewGeneratedPlan, saveGeneratorProfile } from '../api/generatorApi';
 import { Callout, WhyLine } from '../components/GeneratorControls';
 import {
@@ -97,17 +97,6 @@ function PlanGeneratorPreview() {
     runPreview();
   }, [runPreview]);
 
-  // Accept → remove G2 from the Plans stack (the web `replace`), then show
-  // Workout in the Today stack with the message, as S2's hand-off does.
-  function handOff(message) {
-    const state = navigation.getState();
-    const remaining = state.routes.filter((item) => item.key !== route.key);
-    openShellPath('/workout', { message });
-    navigation.dispatch({
-      ...CommonActions.reset({ ...state, routes: remaining, index: remaining.length - 1 }),
-      target: state.key,
-    });
-  }
 
   // ⚠G-4: save the profile with the chosen split, then preview again.
   async function handleSplitChange(code) {
@@ -139,7 +128,7 @@ function PlanGeneratorPreview() {
     try {
       await acceptGeneratedPlan(buildAcceptBody(preview.preview_hash, replace));
       if (mounted.current) {
-        handOff(createdMessage(preview.plan_name));
+        handOffToWorkout(navigation, route, createdMessage(preview.plan_name));
       }
     } catch (error) {
       if (!mounted.current) {

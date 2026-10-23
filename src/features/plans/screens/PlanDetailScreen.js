@@ -1,4 +1,4 @@
-import { CommonActions, useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
@@ -12,9 +12,10 @@ import { ToastTone } from '../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { breakpoints, colors, radii, shadows } from '../../../shared/theme/tokens';
+import { formatLocalDateForInput } from '../../../shared/time/format';
 import CopyToMyPlansCard from '../../myPlans/components/CopyToMyPlansCard';
 import ShellPage from '../../shell/ShellPage';
-import { openShellPath } from '../../shell/shellLinks';
+import { handOffToWorkout, openShellPath } from '../../shell/shellLinks';
 import { getMuscleTileColors } from '../../trainer/plans/components/ExerciseThumb';
 import { DumbbellIcon } from '../../trainer/plans/components/pickerIcons';
 import {
@@ -38,7 +39,6 @@ import {
   formatSetSummary,
   initialWeekdays,
   muscleFocus,
-  todayUTC,
   toggleWeekday,
   workoutDaysLabel,
 } from '../libraryFormat';
@@ -123,17 +123,6 @@ function PlanDetail() {
   const totalExercises = days.reduce((sum, day) => sum + (exercisesByDay[day.id]?.length ?? 0), 0);
   const difficulty = plan?.difficulty_level?.name;
 
-  // §4.8 + 5-tab nav: remove S2 from the Plans stack (the web `replace`), then
-  // show Workout in the Today stack ([Home, Workout]) with the message.
-  function handOff(message) {
-    const state = navigation.getState();
-    const remaining = state.routes.filter((item) => item.key !== route.key);
-    openShellPath('/workout', { message });
-    navigation.dispatch({
-      ...CommonActions.reset({ ...state, routes: remaining, index: remaining.length - 1 }),
-      target: state.key,
-    });
-  }
 
   // §4.7, exactly.
   async function handleActivate() {
@@ -148,12 +137,17 @@ function PlanDetail() {
     try {
       if (isCurrentPlan && currentEnrollmentId) {
         await replaceSchedule(currentEnrollmentId, items);
-        handOff(`${name} schedule updated.`);
+        handOffToWorkout(navigation, route, `${name} schedule updated.`);
         return;
       }
       if (currentEnrollmentId) {
         try {
           await cancelEnrollment(currentEnrollmentId);
+          // The old enrollment is gone even if the enrol below fails: a retry
+          // starts directly instead of cancelling it again (as M3 does).
+          if (mounted.current) {
+            setLoad((previous) => ({ ...previous, current: null }));
+          }
         } catch (error) {
           if (getStatus(error) === 409) {
             if (mounted.current) {
@@ -165,7 +159,7 @@ function PlanDetail() {
           throw error;
         }
       }
-      const created = await enrollInPlan({ workout_plan_id: Number(planId), started_on: todayUTC() });
+      const created = await enrollInPlan({ workout_plan_id: Number(planId), started_on: formatLocalDateForInput() });
       const enrollmentId = created.enrollment?.id ?? created.id;
       try {
         await createSchedule(enrollmentId, items);
@@ -175,7 +169,7 @@ function PlanDetail() {
         }
         await replaceSchedule(enrollmentId, items);
       }
-      handOff(`${name} activated.`);
+      handOffToWorkout(navigation, route, `${name} activated.`);
     } catch (error) {
       if (mounted.current) {
         setActivationError(getServerMessage(error));
