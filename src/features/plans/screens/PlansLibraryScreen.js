@@ -10,6 +10,7 @@ import Loader from '../../../shared/components/Loader';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
 import { colors, radii, shadows } from '../../../shared/theme/tokens';
 import MyPlansEntryCard from '../../myPlans/components/MyPlansEntryCard';
+import GeneratorEntryCard from '../../planGenerator/components/GeneratorEntryCard';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
 import { getCurrentPlan, listPlans } from '../api/libraryApi';
@@ -71,8 +72,9 @@ function PlansLibrary() {
       {library.hasActivePlan ? (
         <ActivePlanCard plan={library.activePlanDetail} weekdays={library.activeWeekdays} onView={openPlan} />
       ) : null}
-      {/* M4 (RN-SPEC-MEMBER-PLANS §M4). */}
+      {/* M4, then G-E1 right after it (RN-SPEC-MEMBER-PLANS §M4, PLAN-GENERATOR §G0). */}
       <MyPlansEntryCard />
+      <GeneratorEntryCard />
       {library.noPlansAtAll ? (
         <EmptyState title="No plans available" message="No active workout plans were returned by the backend." />
       ) : null}

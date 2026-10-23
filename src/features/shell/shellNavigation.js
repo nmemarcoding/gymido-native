@@ -26,6 +26,8 @@ const SCREENS = {
   [routes.MyPlans]: [ShellTab.Plans, () => '/plans/mine'],
   [routes.MyPlanCreate]: [ShellTab.Plans, () => '/plans/mine/new'],
   [routes.MyPlan]: [ShellTab.Plans, (params) => `/plans/mine/${params?.planId ?? ''}`],
+  [routes.PlanGenerator]: [ShellTab.Plans, () => '/plans/generate'],
+  [routes.PlanGeneratorPreview]: [ShellTab.Plans, () => '/plans/generate/preview'],
   [routes.Exercises]: [ShellTab.Exercises, () => '/exercises'],
   // Lives on the Plans or Exercises stack; its path makes Exercises the active tab (⚠X-7).
   [routes.ExerciseDetail]: [ShellTab.Exercises, (params) => `/exercises/${params?.exerciseId ?? ''}`],
@@ -103,6 +105,7 @@ export const SCREEN_FOR_PATH = Object.freeze({
   '/profile/edit': routes.EditProfile,
   '/plans/mine': routes.MyPlans,
   '/plans/mine/new': routes.MyPlanCreate,
+  '/plans/generate': routes.PlanGenerator,
   '/notifications': routes.Notifications,
   '/trainer': routes.TrainerDashboard,
   '/trainer/clients': routes.TrainerClients,

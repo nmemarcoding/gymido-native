@@ -13,6 +13,8 @@ import { unmountBell } from '../notifications/bellPolling';
 import NotificationsScreen from '../notifications/NotificationsScreen';
 import HomeScreen from '../home/HomeScreen';
 import PlanDetailScreen from '../plans/screens/PlanDetailScreen';
+import PlanGeneratorPreviewScreen from '../planGenerator/screens/PlanGeneratorPreviewScreen';
+import PlanGeneratorScreen from '../planGenerator/screens/PlanGeneratorScreen';
 import PlansLibraryScreen from '../plans/screens/PlansLibraryScreen';
 import EditProfileScreen from '../profile/screens/EditProfileScreen';
 import ProfileSettingsScreen from '../profile/screens/ProfileSettingsScreen';
@@ -45,6 +47,8 @@ const SCREENS = {
   [routes.MyPlans]: MyPlansScreen,
   [routes.MyPlanCreate]: MyPlanCreateScreen,
   [routes.MyPlan]: MyPlanScreen,
+  [routes.PlanGenerator]: PlanGeneratorScreen,
+  [routes.PlanGeneratorPreview]: PlanGeneratorPreviewScreen,
   [routes.ExerciseDetail]: ExerciseDetailScreen,
   [routes.Progress]: ProgressScreen,
   [routes.MyTrainer]: TrainerHubScreen,
@@ -73,6 +77,8 @@ const STACK_EXTRAS = {
     routes.MyPlans,
     routes.MyPlanCreate,
     routes.MyPlan,
+    routes.PlanGenerator,
+    routes.PlanGeneratorPreview,
   ],
   [ShellTab.Profile]: [routes.EditProfile, routes.MyTrainer, routes.Trainers, routes.TrainerDetail, routes.TrainerApply],
   [ShellTab.Exercises]: [routes.ExerciseDetail],
