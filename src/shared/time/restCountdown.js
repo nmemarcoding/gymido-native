@@ -14,6 +14,15 @@ export const restCountdown = {
   canScheduleExactAlarms: async () => (native ? native.canScheduleExactAlarms() : null),
   // Synchronous on the native side; a throw here would land in an onPress
   // handler (fatal in release), so it never escapes.
+  // §7.2 step 2: the native rest-end buzz. False when the module is absent
+  // (Jest, older dev clients), so the caller falls back to RN Vibration.
+  vibrateRestEnd: () => {
+    try {
+      return Boolean(native?.vibrateRestEnd());
+    } catch {
+      return false;
+    }
+  },
   openExactAlarmSettings: () => {
     try {
       native?.openExactAlarmSettings();

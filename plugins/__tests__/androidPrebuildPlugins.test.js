@@ -29,14 +29,16 @@ describe('withReleaseSigning', () => {
 
   it('signs release with its own config and keeps debug on the debug key', () => {
     expect(result).toMatch(/release \{\s*if \(findProperty\('GYMIDO_UPLOAD_STORE_FILE'\)\)/);
-    expect(result).toMatch(/release \{\s*\/\/ Caution![^]*?signingConfig signingConfigs\.release/);
+    expect(result).toMatch(/release \{\s*\/\/ Caution![^]*?signingConfig\(findProperty\('GYMIDO_UPLOAD_STORE_FILE'\) \? signingConfigs\.release : signingConfigs\.debug\)/);
     expect(result).toMatch(/debug \{\s*signingConfig signingConfigs\.debug/);
     expect(result.match(/signingConfig signingConfigs\.debug/g)).toHaveLength(1);
   });
 
-  it('fails release tasks closed when the key is not configured', () => {
+  it('fails release tasks closed without the key, unless debug signing is explicitly allowed (internal builds)', () => {
     expect(result).toContain("it.name.contains('Release')");
     expect(result).toContain('throw new GradleException');
+    expect(result).toContain("System.getenv('GYMIDO_ALLOW_DEBUG_SIGNING') == '1'");
+    expect(result).toContain('INTERNAL TEST BUILD: signed with the public debug key. Not for public distribution.');
   });
 
   it('is idempotent and refuses an unknown template', () => {

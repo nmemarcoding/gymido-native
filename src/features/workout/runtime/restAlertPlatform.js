@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { createAudioPlayer, setAudioModeAsync, setIsAudioActiveAsync } from 'expo-audio';
 import * as Notifications from 'expo-notifications';
 import * as Speech from 'expo-speech';
 import { AccessibilityInfo, AppState, Linking, Platform } from 'react-native';
@@ -8,6 +8,7 @@ import { restCountdown } from '../../../shared/time/restCountdown';
 import {
   EXACT_ALARM_OFFERED_KEY,
   NOTIFICATION_PERMISSION_ASKED_KEY,
+  LEGACY_REST_CHANNEL_ID,
   REST_BANNER_CHANNEL_ID,
   REST_CHANNEL_ID,
   SPEAK_INTRO_SHOWN_KEY,
@@ -26,6 +27,22 @@ let audioMode = null;
 let screenReaderOn = false;
 // The two-beep WAV is 0.56 s; the spoken cue starts once it has played.
 const SPEAK_AFTER_BEEP_MS = 600;
+// Audio-session hygiene: once the beep (and the spoken cue) are done, the
+// session is released, so other audio un-ducks and nothing in our app holds
+// an active playback session (iOS can hold back haptics while one is active).
+// Released on leaving the foreground too. The next play activates it again.
+const RELEASE_AFTER_BEEP_MS = 900;
+let releaseTimer = null;
+
+function releaseAudioSession(delayMs = 0) {
+  clearTimeout(releaseTimer);
+  releaseTimer = setTimeout(() => {
+    releaseTimer = null;
+    Promise.resolve()
+      .then(() => setIsAudioActiveAsync(false))
+      .catch(() => {});
+  }, delayMs);
+}
 
 // Owner ruling (23 Oct 2026): the rest-done beep plays even with the iPhone
 // ring/silent switch on, and DUCKS other audio (music keeps playing, quieter)
@@ -69,16 +86,25 @@ export function initRestAlerts() {
   AccessibilityInfo.addEventListener('screenReaderChanged', (enabled) => {
     screenReaderOn = Boolean(enabled);
   });
+  AppState.addEventListener('change', (next) => {
+    if (next !== 'active') {
+      releaseAudioSession();
+    }
+  });
   Notifications.setNotificationHandler({
     handleNotification: async (notification) => restNotificationBehavior(notification.request.content.data, AppState.currentState),
   });
   if (Platform.OS === 'android') {
     // No `sound` key: the channel then uses the system default sound. On a
     // channel, `sound: 'default'` names a custom file and fails.
+    // Vibrates with the old build's pattern (that build's channel had it).
     Notifications.setNotificationChannelAsync(REST_CHANNEL_ID, {
       name: 'Rest timer',
       importance: Notifications.AndroidImportance.HIGH,
+      enableVibrate: true,
+      vibrationPattern: [0, 200, 100, 200],
     }).catch(() => {});
+    Notifications.deleteNotificationChannelAsync?.(LEGACY_REST_CHANNEL_ID)?.catch?.(() => {});
     // Q4: heads-up, but silent; the §7.2 beep is the sound.
     Notifications.setNotificationChannelAsync(REST_BANNER_CHANNEL_ID, {
       name: 'Rest complete',
@@ -136,6 +162,8 @@ const restAlertPlatform = {
         }
         player.seekTo(0);
         player.play();
+        // The spoken cue, when it follows, takes this over (speakRestEnd).
+        releaseAudioSession(RELEASE_AFTER_BEEP_MS);
       } catch {
         // Best effort, as on the web.
       }
@@ -148,16 +176,20 @@ const restAlertPlatform = {
     if (!isSpeakRestAlertsOn()) {
       return;
     }
+    // Keep the session for the speech; it is released when the speech ends.
+    clearTimeout(releaseTimer);
     ensureAudioMode().then(() => {
       setTimeout(() => {
         try {
           if (screenReaderOn) {
+            releaseAudioSession();
             return;
           }
+          const release = () => releaseAudioSession();
           Speech.stop();
-          Speech.speak(text, { language: 'en', useApplicationAudioSession: true });
+          Speech.speak(text, { language: 'en', useApplicationAudioSession: true, onDone: release, onStopped: release, onError: release });
         } catch {
-          // Best effort.
+          releaseAudioSession();
         }
       }, SPEAK_AFTER_BEEP_MS);
     });

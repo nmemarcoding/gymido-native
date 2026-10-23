@@ -122,12 +122,12 @@ describe('rest notification handler (O4 rule 4, A1)', () => {
 });
 
 describe('rest notification requests', () => {
-  it('schedules at the end instant with the default sound on the rest-timer channel', () => {
+  it('schedules at the end instant with the default sound on the vibrating rest-timer-v2 channel', () => {
     const request = restNotificationRequest({ source: 'scheduled', setId: 7, endMs: 5000, token: 't' }, 'android');
     expect(request).toEqual({
       identifier: REST_NOTIFICATION_ID,
       content: { title: 'Rest complete', body: 'Time for your next set.', sound: 'default', data: { kind: 'rest-end', source: 'scheduled', setId: 7, token: 't' } },
-      trigger: { type: 'date', date: 5000, channelId: 'rest-timer' },
+      trigger: { type: 'date', date: 5000, channelId: 'rest-timer-v2' },
     });
   });
 

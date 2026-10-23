@@ -4,6 +4,7 @@ jest.mock(
     AndroidImportance: { HIGH: 4 },
     setNotificationHandler: jest.fn(),
     setNotificationChannelAsync: jest.fn(() => Promise.resolve()),
+    deleteNotificationChannelAsync: jest.fn(() => Promise.resolve()),
     getPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
     requestPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'denied' })),
   }),
@@ -14,6 +15,7 @@ jest.mock(
   () => ({
     createAudioPlayer: jest.fn(() => ({ seekTo: jest.fn(), play: jest.fn() })),
     setAudioModeAsync: jest.fn(() => Promise.resolve()),
+    setIsAudioActiveAsync: jest.fn(() => Promise.resolve()),
   }),
   { virtual: true }
 );
@@ -130,7 +132,13 @@ describe('spoken rest cue (owner request, 23 Oct 2026)', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(setAudioModeAsync).toHaveBeenCalled();
-    expect(Speech.speak).toHaveBeenCalledWith(REST_SPOKEN_TEXT, { language: 'en', useApplicationAudioSession: true });
+    expect(Speech.speak).toHaveBeenCalledWith(REST_SPOKEN_TEXT, expect.objectContaining({ language: 'en', useApplicationAudioSession: true }));
+    // The session is released when the speech ends.
+    const { setIsAudioActiveAsync } = require('expo-audio');
+    Speech.speak.mock.calls[0][1].onDone();
+    jest.runOnlyPendingTimers();
+    await Promise.resolve();
+    expect(setIsAudioActiveAsync).toHaveBeenCalledWith(false);
   });
 
   it('stays silent when "Speak rest alerts" is off, and stores the choice', async () => {

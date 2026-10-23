@@ -1,5 +1,7 @@
 import ActivityKit
+import AudioToolbox
 import ExpoModulesCore
+import UIKit
 
 // RN-SPEC-time O13 (iOS): a self-ending Live Activity. Requested at rest
 // start, then ended at once with .after(endDate), so iOS removes it at zero
@@ -81,6 +83,19 @@ public class RestCountdownModule: Module {
     }
 
     Function("openExactAlarmSettings") {}
+
+    // RN-SPEC-time §7.2 step 2: the rest-end buzz. A Taptic notification
+    // haptic (still played while the app's audio session is active for the
+    // beep and the spoken cue) plus the classic system vibration.
+    Function("vibrateRestEnd") { () -> Bool in
+      DispatchQueue.main.async {
+        let generator = UINotificationFeedbackGenerator()
+        generator.prepare()
+        generator.notificationOccurred(.warning)
+        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+      }
+      return true
+    }
   }
 
   private func request(_ options: CountdownOptions) async {

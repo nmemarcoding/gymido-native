@@ -4,6 +4,7 @@
   "main": "index.js",
   "private": true,
   "scripts": {
+    "apk": "node scripts/build-apk.js",
     "start": "cross-env APP_ENV=development expo start --dev-client",
     "start:staging": "cross-env APP_ENV=staging expo start --dev-client",
     "start:production": "cross-env APP_ENV=production expo start --dev-client",

@@ -12,7 +12,10 @@ import { restCountdown } from '../../../shared/time/restCountdown';
 // A1 rule 9.
 export const REST_NOTIFICATION_ID = 'gymido.rest';
 export const REST_END_KIND = 'rest-end';
-export const REST_CHANNEL_ID = 'rest-timer';
+// v2 (23 Oct 2026): the first channel had no vibration, and a channel's
+// settings can't change after creation. The legacy one is deleted at startup.
+export const REST_CHANNEL_ID = 'rest-timer-v2';
+export const LEGACY_REST_CHANNEL_ID = 'rest-timer';
 // Q4 (frontend, 23 Oct 2026): Android's foreground banner posts on its own
 // HIGH channel with no sound or vibration, so it heads up silently.
 export const REST_BANNER_CHANNEL_ID = 'rest-timer-banner';
@@ -167,7 +170,8 @@ export function createRestAlertController({
   now = () => Date.now(),
   os = Platform.OS,
   apiLevel = typeof Platform.Version === 'number' ? Platform.Version : 0,
-  vibrate = (pattern) => Vibration.vibrate(pattern),
+  // The native buzz (alarm usage on Android, a Taptic haptic on iOS), else RN.
+  vibrate = (pattern) => countdown.vibrateRestEnd?.() || Vibration.vibrate(pattern),
   onOfferExactAlarm = () => {},
   // The spoken cue's copy and the one-time pop-up (owner request, 23 Oct).
   hasNextSet = () => true,

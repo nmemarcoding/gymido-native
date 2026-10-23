@@ -12,6 +12,11 @@
 // Fail closed: any :app release task stops with an error when the key isn't
 // configured, instead of falling back to the debug key. Debug builds are
 // unchanged.
+//
+// Internal test builds only (owner decision, 23 Oct 2026; no public release
+// yet): GYMIDO_ALLOW_DEBUG_SIGNING=1 (Gradle property or environment, set by
+// `npm run apk`) signs a release build with the debug key, with a loud
+// warning. Never for a public/Play Store build.
 const { withAppBuildGradle } = require('expo/config-plugins');
 
 const RELEASE_SIGNING = `
@@ -26,10 +31,14 @@ const RELEASE_SIGNING = `
 
 const FAIL_CLOSED = `
 // Gymido: release builds need the owner's upload key (plugins/withReleaseSigning.js).
+def gymidoAllowDebugSigning = findProperty('GYMIDO_ALLOW_DEBUG_SIGNING') == '1' || System.getenv('GYMIDO_ALLOW_DEBUG_SIGNING') == '1'
 gradle.taskGraph.whenReady { graph ->
     def releaseTask = graph.allTasks.any { it.project == project && it.name.contains('Release') }
     if (releaseTask && !findProperty('GYMIDO_UPLOAD_STORE_FILE')) {
-        throw new GradleException('Release build without the Gymido upload key. Set GYMIDO_UPLOAD_STORE_FILE, GYMIDO_UPLOAD_STORE_PASSWORD, GYMIDO_UPLOAD_KEY_ALIAS and GYMIDO_UPLOAD_KEY_PASSWORD in ~/.gradle/gradle.properties.')
+        if (!gymidoAllowDebugSigning) {
+            throw new GradleException('Release build without the Gymido upload key. Set GYMIDO_UPLOAD_STORE_FILE, GYMIDO_UPLOAD_STORE_PASSWORD, GYMIDO_UPLOAD_KEY_ALIAS and GYMIDO_UPLOAD_KEY_PASSWORD in ~/.gradle/gradle.properties.')
+        }
+        logger.warn('INTERNAL TEST BUILD: signed with the public debug key. Not for public distribution.')
     }
 }
 `;
@@ -46,7 +55,7 @@ function applyReleaseSigning(gradle) {
   return (
     gradle
       .replace(debugConfig, `$1${RELEASE_SIGNING}`)
-      .replace(releaseUsesDebug, '$1signingConfig signingConfigs.release') + FAIL_CLOSED
+      .replace(releaseUsesDebug, "$1signingConfig(findProperty('GYMIDO_UPLOAD_STORE_FILE') ? signingConfigs.release : signingConfigs.debug)") + FAIL_CLOSED
   );
 }
 

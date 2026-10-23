@@ -7,8 +7,13 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.media.AudioAttributes
 import android.net.Uri
 import android.os.Build
+import android.os.VibrationAttributes
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -89,6 +94,13 @@ class RestCountdownModule : Module() {
     // activity for the exact-alarm screen, so fall back to the app's details
     // settings, and swallow anything else (a sync Function throw would surface
     // as a JS exception inside the onPress handler).
+    // RN-SPEC-time §7.2 step 2: the rest-end buzz, with ALARM usage so it isn't
+    // dropped like an attribute-less (usage unknown) vibration can be.
+    // Best effort; returns false when there is no vibrator to use.
+    Function("vibrateRestEnd") {
+      vibrateRestEnd()
+    }
+
     Function("openExactAlarmSettings") {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         try {
@@ -185,5 +197,41 @@ class RestCountdownModule : Module() {
   private fun launchIntent(): PendingIntent? {
     val intent = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return null
     return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+  }
+
+  private fun vibrateRestEnd(): Boolean {
+    return try {
+      val pattern = longArrayOf(0, 200, 100, 200)
+      val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
+      } else {
+        @Suppress("DEPRECATION")
+        context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+      }
+      if (!vibrator.hasVibrator()) {
+        return false
+      }
+      when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ->
+          vibrator.vibrate(
+            VibrationEffect.createWaveform(pattern, -1),
+            VibrationAttributes.createForUsage(VibrationAttributes.USAGE_ALARM)
+          )
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.O -> {
+          @Suppress("DEPRECATION")
+          vibrator.vibrate(
+            VibrationEffect.createWaveform(pattern, -1),
+            AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build()
+          )
+        }
+        else -> {
+          @Suppress("DEPRECATION")
+          vibrator.vibrate(pattern, -1)
+        }
+      }
+      true
+    } catch (e: Exception) {
+      false
+    }
   }
 }
