@@ -24,6 +24,8 @@ const appEnv = stringOrNull(extra.appEnv) ?? 'development';
 
 export const env = Object.freeze({
   appEnv,
+  // Paid-team builds only (app.config.js GYMIDO_IOS_TIME_SENSITIVE).
+  iosTimeSensitive: extra.iosTimeSensitive === true,
   apiBaseUrl: resolveApiBaseUrl(stringOrNull(extra.apiBaseUrl), appEnv),
   auth0: Object.freeze({
     domain: stringOrNull(extra.auth0?.domain),

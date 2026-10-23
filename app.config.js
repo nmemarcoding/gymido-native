@@ -27,6 +27,10 @@ const env = loadEnv(APP_ENV);
 // Builds handed to anyone (staging testers, production) get the release
 // hardening; development and localtest dev clients keep the dev-server bits.
 const RELEASE_ENV = APP_ENV === 'production' || APP_ENV === 'staging';
+// iOS Time Sensitive rest alerts (Siri announce) need a PAID Apple Developer
+// team: personal (free) teams can't sign the capability. Opt in at prebuild
+// with GYMIDO_IOS_TIME_SENSITIVE=1 (shell or .env file); off by default.
+const IOS_TIME_SENSITIVE = (process.env.GYMIDO_IOS_TIME_SENSITIVE ?? env.GYMIDO_IOS_TIME_SENSITIVE) === '1';
 
 // The Auth0 domain is baked into the native build, so fail early without it.
 for (const key of ['AUTH0_DOMAIN', 'AUTH0_CLIENT_ID']) {
@@ -126,8 +130,8 @@ module.exports = {
       ['./plugins/withReleaseHardening', { enabled: RELEASE_ENV }],
       // Android release builds use the owner's upload key, never the template debug key.
       './plugins/withReleaseSigning',
-      // The rest-end alert is Time Sensitive so Siri can announce it (iOS).
-      './plugins/withTimeSensitiveNotifications',
+      // Opt-in (paid team only): the rest-end alert's Time Sensitive entitlement.
+      ...(IOS_TIME_SENSITIVE ? ['./plugins/withTimeSensitiveNotifications'] : []),
       // LAST: strips expo-notifications' push entitlement after every other
       // mod (a free Apple team can't sign aps-environment; local
       // notifications don't need it). See plugins/withoutPushCapability.js.
@@ -137,6 +141,7 @@ module.exports = {
     // Unset values are left undefined (omitted): Expo serializes null as {}.
     extra: {
       appEnv: APP_ENV,
+      iosTimeSensitive: IOS_TIME_SENSITIVE,
       apiBaseUrl: env.API_BASE_URL || undefined,
       auth0: {
         domain: env.AUTH0_DOMAIN || undefined,

@@ -1,5 +1,6 @@
 import { Platform, Vibration } from 'react-native';
 
+import { env } from '../../../shared/config/env';
 import { restCountdown } from '../../../shared/time/restCountdown';
 
 // Rest-end alerts: the §7.2 parity alert plus Owner override O4, amendments
@@ -86,14 +87,15 @@ export function shouldOfferExactAlarm({ os, apiLevel, canExact, granted, request
 
 // iOS: the SCHEDULED (background) alert is Time Sensitive, so Siri's Announce
 // Notifications reads it out over headphones/CarPlay (owner request, 23 Oct
-// 2026; needs plugins/withTimeSensitiveNotifications.js). The foreground
-// banner stays default: the app already speaks then (no double read).
-// Android has no equivalent.
-function timeSensitive(os) {
-  return os === 'ios' ? { interruptionLevel: 'timeSensitive' } : {};
+// 2026). Only in builds that carry the entitlement (a paid team, opt-in via
+// GYMIDO_IOS_TIME_SENSITIVE; plugins/withTimeSensitiveNotifications.js). The
+// foreground banner stays default: the app already speaks then. Android has
+// no equivalent.
+function timeSensitive(os, enabled) {
+  return os === 'ios' && enabled ? { interruptionLevel: 'timeSensitive' } : {};
 }
 
-export function restNotificationRequest({ source, setId, endMs, token }, os = Platform.OS) {
+export function restNotificationRequest({ source, setId, endMs, token }, os = Platform.OS, iosTimeSensitive = env.iosTimeSensitive) {
   const data = { kind: REST_END_KIND, source, setId, token };
   if (source === 'foreground') {
     // §7.2 step 3: immediate, and no `sound` (decision 28 Sep 2026). iOS
@@ -103,7 +105,7 @@ export function restNotificationRequest({ source, setId, endMs, token }, os = Pl
   }
   return {
     identifier: REST_NOTIFICATION_ID,
-    content: { title: REST_TITLE, body: REST_BODY, sound: 'default', data, ...timeSensitive(os) },
+    content: { title: REST_TITLE, body: REST_BODY, sound: 'default', data, ...timeSensitive(os, iosTimeSensitive) },
     trigger: { type: 'date', date: endMs, channelId: REST_CHANNEL_ID },
   };
 }

@@ -135,12 +135,16 @@ describe('rest notification requests', () => {
     expect(request.content).not.toHaveProperty('sound');
   });
 
-  it('marks only the iOS SCHEDULED alert Time Sensitive (Siri announce); the foreground banner and Android stay default', () => {
-    expect(restNotificationRequest({ source: 'scheduled', setId: 7, endMs: 5000, token: 't' }, 'ios').content.interruptionLevel).toBe('timeSensitive');
-    expect(restNotificationRequest({ source: 'foreground', setId: 7, endMs: 5000, token: 't' }, 'ios').content).not.toHaveProperty('interruptionLevel');
+  it('with the opt-in, marks only the iOS SCHEDULED alert Time Sensitive; the foreground banner and Android stay default', () => {
+    expect(restNotificationRequest({ source: 'scheduled', setId: 7, endMs: 5000, token: 't' }, 'ios', true).content.interruptionLevel).toBe('timeSensitive');
+    expect(restNotificationRequest({ source: 'foreground', setId: 7, endMs: 5000, token: 't' }, 'ios', true).content).not.toHaveProperty('interruptionLevel');
     for (const source of ['scheduled', 'foreground']) {
-      expect(restNotificationRequest({ source, setId: 7, endMs: 5000, token: 't' }, 'android').content).not.toHaveProperty('interruptionLevel');
+      expect(restNotificationRequest({ source, setId: 7, endMs: 5000, token: 't' }, 'android', true).content).not.toHaveProperty('interruptionLevel');
     }
+  });
+
+  it('is off by default (free teams cannot sign the entitlement)', () => {
+    expect(restNotificationRequest({ source: 'scheduled', setId: 7, endMs: 5000, token: 't' }, 'ios').content).not.toHaveProperty('interruptionLevel');
   });
 
   it('posts the Android foreground banner on its own silent channel (Q4)', () => {
