@@ -41,6 +41,7 @@ export const NO_PLATFORM = {
   schedule: async () => {},
   playBeep: () => {},
   speakRestEnd: () => {},
+  vibrateEnabled: () => true,
   stopSpeech: () => {},
   readSpeakIntroShown: async () => true,
   markSpeakIntroShown: async () => {},
@@ -121,9 +122,9 @@ export function createRestNotifier(platform, makeToken) {
   };
 
   // Snapshot first, then remove every match, awaited (rule 10 steps 1–2).
-  async function removeWhere(match) {
+  async function removeWhere(match, { delivered: includeDelivered = true } = {}) {
     const pending = (await platform.getScheduled()).filter((item) => match(item?.content?.data));
-    const delivered = (await platform.getPresented()).filter((item) => match(item?.request?.content?.data));
+    const delivered = includeDelivered ? (await platform.getPresented()).filter((item) => match(item?.request?.content?.data)) : [];
     await Promise.all([
       ...pending.map((item) => platform.cancelScheduled(item.identifier)),
       ...delivered.map((item) => platform.dismiss(item.request.identifier)),
@@ -142,9 +143,11 @@ export function createRestNotifier(platform, makeToken) {
         return token;
       });
     },
-    // Rule 3: no rest-end notification survives.
+    // Rule 3: cancel the PENDING rest-end notification. A delivered one stays:
+    // rule 11 (dismiss on return) was dropped, and removing an alert the OS
+    // has just delivered stops Siri announcing it (as the 28 Sep build did).
     cancelAll() {
-      return enqueue(() => removeWhere(isRestEnd));
+      return enqueue(() => removeWhere(isRestEnd, { delivered: false }));
     },
     // Rule 14: only this send's own notification.
     cancelToken(token) {
@@ -330,8 +333,14 @@ export function createRestAlertController({
         lastSpokenSetId = setId;
         platform.speakRestEnd(hasNextSet(setId) ? REST_SPOKEN_TEXT : REST_SPOKEN_LAST);
       }
-      if (os === 'android') {
-        vibrate([0, 200, 100, 200]);
+      // §7.2 step 2 (dated change 23 Oct 2026): both platforms, unless
+      // "Vibrate on rest end" is off. iOS buzzes once (it ignores patterns).
+      if (platform.vibrateEnabled()) {
+        if (os === 'android') {
+          vibrate([0, 200, 100, 200]);
+        } else {
+          vibrate();
+        }
       }
       if (await granted()) {
         // Never stale: it is the alert for a rest that has already ended.

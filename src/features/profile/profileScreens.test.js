@@ -95,6 +95,25 @@ describe('P1 Settings', () => {
     expect(row().props.accessibilityState).toEqual({ checked: true });
   });
 
+  it('has the "Vibrate on rest end" switch, on by default, stored separately (P1.3 3b)', () => {
+    const AsyncStorage = require('@react-native-async-storage/async-storage');
+    setStoredProfile(PROFILE);
+    const tree = render(<ProfileSettingsScreen />);
+    const row = () => tree.root.find((node) => node.props.testID === 'settings-vibrate-rest-alerts' && node.props.onPress);
+    expect(texts(tree.root)).toEqual(expect.arrayContaining(['Vibrate on rest end', 'Buzz when rest is over']));
+    expect(row().props.accessibilityRole).toBe('switch');
+    expect(row().props.accessibilityState).toEqual({ checked: true });
+    act(() => {
+      row().props.onPress();
+    });
+    expect(row().props.accessibilityState).toEqual({ checked: false });
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith('gymido.vibrateRestAlerts', '0');
+    expect(AsyncStorage.setItem).not.toHaveBeenCalledWith('gymido.speakRestAlerts', expect.anything());
+    act(() => {
+      row().props.onPress();
+    });
+  });
+
   it('shows the error state with the transport text', () => {
     useProfileStore.setState({ profileStatus: 'error', profileError: new Error('Request failed with status code 500') });
     const shown = texts(render(<ProfileSettingsScreen />).root);

@@ -22,6 +22,7 @@ function fakePlatform({ permission = 'granted', canExact = null, offered = false
     stops: 0,
     lastSpoken: null,
     introShown: true,
+    vibrateOn: true,
     requests: 0,
     getPermission: async () => fake.permission,
     requestPermission: async () => {
@@ -62,6 +63,7 @@ function fakePlatform({ permission = 'granted', canExact = null, offered = false
     stopSpeech: () => {
       fake.stops += 1;
     },
+    vibrateEnabled: () => fake.vibrateOn,
     readSpeakIntroShown: async () => fake.introShown,
     markSpeakIntroShown: async () => {
       fake.introShown = true;
@@ -525,5 +527,69 @@ describe('spoken cue and A3 pop-up (owner request, 23 Oct 2026)', () => {
     controller.restStarted(6, 2_100_000);
     await settle();
     expect(onSpeakIntro).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('delivered background alert stays (rule 3 is pending-only, rule 11 dropped; Siri announce)', () => {
+  const delivered = (setId) => ({ identifier: REST_NOTIFICATION_ID, content: { data: { kind: 'rest-end', source: 'scheduled', setId, token: 'bg' } }, trigger: { type: 'date' } });
+
+  it('is not dismissed when the rest ends while the app is away, nor on resume', async () => {
+    const { platform, controller, advance } = setup();
+    controller.restStarted(5, 1_060_000);
+    await settle();
+    await controller.appStateChanged('background');
+    await settle();
+    // The OS delivers the scheduled alert at the end instant.
+    platform.pending = [];
+    platform.presented = [delivered(5)];
+    advance(70_000);
+    await controller.restEnded(5, 1_060_000);
+    await settle();
+    expect(platform.presented).toHaveLength(1);
+    await controller.appStateChanged('active');
+    await settle();
+    expect(platform.presented).toHaveLength(1);
+    expect(platform.beeps).toBe(0);
+  });
+
+  it('remove-then-send still replaces a delivered one (rule 10)', async () => {
+    const platform = fakePlatform();
+    platform.presented = [delivered(5)];
+    const notifier = createRestNotifier(platform, () => 't2');
+    await notifier.send({ source: 'foreground', setId: 6, endMs: 10 });
+    await settle();
+    expect(platform.all().map((item) => item.content.data.token)).toEqual(['t2']);
+  });
+});
+
+describe('rest-end vibration (§7.2 step 2, dated change 23 Oct 2026)', () => {
+  it('buzzes once on iOS and keeps the Android pattern, at the beep', async () => {
+    const ios = setup();
+    await ios.controller.restEnded(5, 2_000_000);
+    expect(ios.vibrate).toHaveBeenCalledTimes(1);
+    expect(ios.vibrate).toHaveBeenCalledWith();
+    const android = setup({}, { os: 'android', apiLevel: 34 });
+    await android.controller.restEnded(5, 2_000_000);
+    expect(android.vibrate).toHaveBeenCalledWith([0, 200, 100, 200]);
+  });
+
+  it('does not buzz when "Vibrate on rest end" is off; the beep still plays', async () => {
+    const { platform, controller, vibrate } = setup();
+    platform.vibrateOn = false;
+    await controller.restEnded(5, 2_000_000);
+    expect(vibrate).not.toHaveBeenCalled();
+    expect(platform.beeps).toBe(1);
+  });
+
+  it('follows the beep skip: no buzz when the background alert already went off', async () => {
+    const { controller, vibrate, advance } = setup();
+    controller.restStarted(5, 1_060_000);
+    await settle();
+    await controller.appStateChanged('background');
+    await settle();
+    advance(70_000);
+    await controller.appStateChanged('active');
+    await controller.restEnded(5, 1_060_000);
+    expect(vibrate).not.toHaveBeenCalled();
   });
 });

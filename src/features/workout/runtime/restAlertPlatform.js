@@ -13,7 +13,7 @@ import {
   SPEAK_INTRO_SHOWN_KEY,
   restNotificationBehavior,
 } from './restAlerts';
-import { isSpeakRestAlertsOn, loadSpeakRestAlerts } from './speakRestAlerts';
+import { isSpeakRestAlertsOn, isVibrateRestAlertsOn, loadSpeakRestAlerts } from './speakRestAlerts';
 
 // The expo side of the rest alerts (RN-SPEC-time §7.2, O4, A1, A2).
 // SessionRuntime uses it; App.js calls initRestAlerts() once at startup.
@@ -162,6 +162,7 @@ const restAlertPlatform = {
       }, SPEAK_AFTER_BEEP_MS);
     });
   },
+  vibrateEnabled: () => isVibrateRestAlertsOn(),
   stopSpeech: () => {
     try {
       Speech.stop();

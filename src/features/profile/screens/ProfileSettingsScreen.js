@@ -11,7 +11,12 @@ import { logout } from '../../auth/authService';
 import { useAuthStore } from '../../auth/authStore';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
-import { setSpeakRestAlerts, useSpeakRestAlerts } from '../../workout/runtime/speakRestAlerts';
+import {
+  setSpeakRestAlerts,
+  setVibrateRestAlerts,
+  useSpeakRestAlerts,
+  useVibrateRestAlerts,
+} from '../../workout/runtime/speakRestAlerts';
 import ChangePasswordModal from '../ChangePasswordModal';
 import CoachingCard from '../CoachingCard';
 import { profileDisplayName, profileInitials } from '../editProfileForm';
@@ -35,6 +40,7 @@ function Settings() {
   const email = useAuthStore((state) => state.user?.email);
   const [changePasswordVisible, setChangePasswordVisible] = useState(false);
   const speakRestAlerts = useSpeakRestAlerts((state) => state.enabled);
+  const vibrateRestAlerts = useVibrateRestAlerts((state) => state.enabled);
 
   useEffect(() => {
     if (useProfileStore.getState().profileStatus === ProfileStatus.idle) {
@@ -62,6 +68,27 @@ function Settings() {
 
   const displayName = profileDisplayName(profile, email);
   const openEdit = () => navigation.push(routes.EditProfile);
+  // RN-SPEC-profile P1.3 3b (23 Oct 2026, native only): the rest-end cues.
+  const workoutSwitches = [
+    {
+      id: 'speak',
+      testID: 'settings-speak-rest-alerts',
+      glyph: '♪',
+      label: 'Speak rest alerts',
+      hint: 'Say when rest is over',
+      value: speakRestAlerts,
+      onChange: setSpeakRestAlerts,
+    },
+    {
+      id: 'vibrate',
+      testID: 'settings-vibrate-rest-alerts',
+      glyph: '≋',
+      label: 'Vibrate on rest end',
+      hint: 'Buzz when rest is over',
+      value: vibrateRestAlerts,
+      onChange: setVibrateRestAlerts,
+    },
+  ];
   const rows = [
     { glyph: '▣', label: 'Personal Information', value: 'Name, DOB, sex', onPress: openEdit, id: 'personal' },
     { glyph: '▭', label: 'Body Measurements', value: 'Height, current, goal', onPress: openEdit, id: 'body' },
@@ -141,32 +168,37 @@ function Settings() {
           Workout
         </Text>
         <View style={styles.list}>
-          <Pressable
-            testID="settings-speak-rest-alerts"
-            accessibilityRole="switch"
-            accessibilityLabel="Speak rest alerts"
-            accessibilityHint="Say when rest is over"
-            accessibilityState={{ checked: speakRestAlerts }}
-            onPress={() => setSpeakRestAlerts(!speakRestAlerts)}
-            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-          >
-            <View style={styles.tile} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-              <Text style={styles.glyph}>♪</Text>
-            </View>
-            <View style={styles.rowText}>
-              <Text style={styles.rowLabel}>Speak rest alerts</Text>
-              <Text numberOfLines={1} style={styles.rowValue}>
-                Say when rest is over
-              </Text>
-            </View>
-            <Switch
-              testID="settings-speak-rest-alerts-switch"
-              value={speakRestAlerts}
-              onValueChange={setSpeakRestAlerts}
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-            />
-          </Pressable>
+          {workoutSwitches.map((row, index) => (
+            <Pressable
+              key={row.id}
+              testID={row.testID}
+              accessibilityRole="switch"
+              accessibilityLabel={row.label}
+              accessibilityHint={row.hint}
+              accessibilityState={{ checked: row.value }}
+              onPress={() => {
+                row.onChange(!row.value);
+              }}
+              style={({ pressed }) => [styles.row, index > 0 && styles.rowDivider, pressed && styles.rowPressed]}
+            >
+              <View style={styles.tile} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                <Text style={styles.glyph}>{row.glyph}</Text>
+              </View>
+              <View style={styles.rowText}>
+                <Text style={styles.rowLabel}>{row.label}</Text>
+                <Text numberOfLines={1} style={styles.rowValue}>
+                  {row.hint}
+                </Text>
+              </View>
+              <Switch
+                testID={`${row.testID}-switch`}
+                value={row.value}
+                onValueChange={row.onChange}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              />
+            </Pressable>
+          ))}
         </View>
       </View>
 
