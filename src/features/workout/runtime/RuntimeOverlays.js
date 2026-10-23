@@ -5,6 +5,7 @@ import {
   Easing,
   Modal,
   PanResponder,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -362,6 +363,68 @@ export function ExactAlarmDialog({ open, onNotNow, onOpenSettings }) {
   );
 }
 
+// RN-SPEC-time A3: the one-time "Hear your rest timer" pop-up, at a rest
+// start that showed no other dialog. Back, the scrim and "Keep it on" keep
+// the spoken cue on; it never asks for notification permission. Focus lands
+// on the title, then the primary button.
+export function SpeakIntroDialog({ open, onKeepOn, onTurnOff, onOpenAnnounceSettings }) {
+  const titleRef = useRef(null);
+  useEffect(() => {
+    if (open) {
+      const timer = setTimeout(() => {
+        const node = findNodeHandle(titleRef.current);
+        if (node) {
+          AccessibilityInfo.setAccessibilityFocus(node);
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [open]);
+  return (
+    <Modal transparent visible={open} animationType="fade" onRequestClose={onKeepOn} statusBarTranslucent>
+      <View style={styles.popupHost}>
+        <BlurLayer blurPx={8} overApp />
+        <Pressable testID="speak-intro-scrim" accessible={false} onPress={onKeepOn} style={[StyleSheet.absoluteFill, styles.dialogScrim]} />
+        <View testID="speak-intro-dialog" accessibilityViewIsModal role="dialog" accessibilityLabel="Hear your rest timer" style={styles.dialogCard}>
+          <Text ref={titleRef} textBreakStrategy="simple" accessibilityRole="header" style={styles.dialogTitle}>
+            Hear your rest timer
+          </Text>
+          <Text style={styles.dialogBody}>
+            We'll say "Rest complete" out loud when your rest ends. You can change this anytime in Profile.
+          </Text>
+          {Platform.OS === 'ios' ? (
+            <>
+              <Text style={styles.dialogBody}>With AirPods, Siri can also read it out if Announce Notifications is on.</Text>
+              <Pressable
+                testID="speak-intro-siri"
+                accessibilityRole="link"
+                onPress={onOpenAnnounceSettings}
+                style={({ pressed }) => [styles.siriLink, pressed && styles.siriLinkPressed]}
+              >
+                <Text style={styles.siriLinkText}>Set up Siri announcements</Text>
+              </Pressable>
+            </>
+          ) : null}
+          <View style={styles.dialogButtons}>
+            <Pressable testID="speak-intro-turn-off" accessibilityRole="button" onPress={onTurnOff} style={({ pressed }) => [styles.keep, pressed && styles.keepPressed]}>
+              <Text style={styles.keepText}>Turn off</Text>
+            </Pressable>
+            <Pressable
+              testID="speak-intro-keep-on"
+              accessibilityRole="button"
+              onPress={onKeepOn}
+              style={({ pressed }) => [styles.openSettings, pressed && styles.openSettingsPressed]}
+            >
+              <Text style={styles.openSettingsText}>Keep it on</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 // §23.1 manual completion button.
 export function CompleteWorkoutButton({ completing, onPress }) {
   return (
@@ -652,6 +715,21 @@ const styles = StyleSheet.create({
   },
   openSettingsPressed: {
     backgroundColor: colors.brand500,
+  },
+  siriLink: {
+    alignSelf: 'flex-start',
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  siriLinkPressed: {
+    opacity: 0.7,
+  },
+  siriLinkText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '700',
+    color: colors.brand700,
+    textDecorationLine: 'underline',
   },
   openSettingsText: {
     fontSize: 14,

@@ -22,7 +22,7 @@ import {
   StatTile,
   UpNextCard,
 } from './RuntimeParts';
-import { CompleteWorkoutButton, DiscardButton, DiscardDialog, ExactAlarmDialog, RestTimerWidget } from './RuntimeOverlays';
+import { CompleteWorkoutButton, DiscardButton, DiscardDialog, ExactAlarmDialog, RestTimerWidget, SpeakIntroDialog } from './RuntimeOverlays';
 import restAlertPlatform from './restAlertPlatform';
 import {
   buildSetPatch,
@@ -97,8 +97,11 @@ export default function SessionRuntime({
   // automaticallyAdjustKeyboardInsets below).
   const keyboardHeight = useKeyboardHeight();
 
-  // Rest-done sound and alerts (time §7.2, O4, A1, A2).
-  const restAlerts = useRestAlerts(restAlertPlatform);
+  // Rest-done sound and alerts (time §7.2, O4, A1, A2, A3). The spoken copy
+  // is the short form once no set is left besides the one just done.
+  const restAlerts = useRestAlerts(restAlertPlatform, (setId) =>
+    (session.exercises ?? []).some((exercise) => (exercise.sets ?? []).some((set) => !set.is_completed && set.id !== setId))
+  );
   const rest = useRestTimer({ onRestComplete: setHighlightedSetKey, alerts: restAlerts.alerts });
 
   const exercises = session.exercises ?? [];
@@ -407,6 +410,12 @@ export default function SessionRuntime({
       />
       <DiscardDialog open={showDiscard} onKeep={() => setShowDiscard(false)} onDiscard={handleAbandon} />
       <ExactAlarmDialog open={restAlerts.offerOpen} onNotNow={restAlerts.closeOffer} onOpenSettings={restAlerts.openSettings} />
+      <SpeakIntroDialog
+        open={restAlerts.introOpen}
+        onKeepOn={restAlerts.keepSpeaking}
+        onTurnOff={restAlerts.turnOffSpeaking}
+        onOpenAnnounceSettings={restAlerts.openAnnounceSettings}
+      />
     </View>
   );
 }

@@ -18,6 +18,10 @@ function fakePlatform({ permission = 'granted', canExact = null, offered = false
     pending: [],
     presented: [],
     beeps: 0,
+    spoken: 0,
+    stops: 0,
+    lastSpoken: null,
+    introShown: true,
     requests: 0,
     getPermission: async () => fake.permission,
     requestPermission: async () => {
@@ -50,6 +54,17 @@ function fakePlatform({ permission = 'granted', canExact = null, offered = false
     },
     playBeep: () => {
       fake.beeps += 1;
+    },
+    speakRestEnd: (text) => {
+      fake.spoken += 1;
+      fake.lastSpoken = text;
+    },
+    stopSpeech: () => {
+      fake.stops += 1;
+    },
+    readSpeakIntroShown: async () => fake.introShown,
+    markSpeakIntroShown: async () => {
+      fake.introShown = true;
     },
     canScheduleExactAlarms: async () => canExact,
     openExactAlarmSettings: jest.fn(),
@@ -106,7 +121,7 @@ describe('rest notification handler (O4 rule 4, A1)', () => {
 
 describe('rest notification requests', () => {
   it('schedules at the end instant with the default sound on the rest-timer channel', () => {
-    const request = restNotificationRequest({ source: 'scheduled', setId: 7, endMs: 5000, token: 't' });
+    const request = restNotificationRequest({ source: 'scheduled', setId: 7, endMs: 5000, token: 't' }, 'android');
     expect(request).toEqual({
       identifier: REST_NOTIFICATION_ID,
       content: { title: 'Rest complete', body: 'Time for your next set.', sound: 'default', data: { kind: 'rest-end', source: 'scheduled', setId: 7, token: 't' } },
@@ -118,6 +133,14 @@ describe('rest notification requests', () => {
     const request = restNotificationRequest({ source: 'foreground', setId: 7, endMs: 5000, token: 't' }, 'ios');
     expect(request.trigger).toBeNull();
     expect(request.content).not.toHaveProperty('sound');
+  });
+
+  it('marks only the iOS SCHEDULED alert Time Sensitive (Siri announce); the foreground banner and Android stay default', () => {
+    expect(restNotificationRequest({ source: 'scheduled', setId: 7, endMs: 5000, token: 't' }, 'ios').content.interruptionLevel).toBe('timeSensitive');
+    expect(restNotificationRequest({ source: 'foreground', setId: 7, endMs: 5000, token: 't' }, 'ios').content).not.toHaveProperty('interruptionLevel');
+    for (const source of ['scheduled', 'foreground']) {
+      expect(restNotificationRequest({ source, setId: 7, endMs: 5000, token: 't' }, 'android').content).not.toHaveProperty('interruptionLevel');
+    }
   });
 
   it('posts the Android foreground banner on its own silent channel (Q4)', () => {
@@ -210,6 +233,7 @@ describe('rest alert controller (O4)', () => {
     await controller.restEnded(5, 2_000_000);
     await settle();
     expect(platform.beeps).toBe(1);
+    expect(platform.spoken).toBe(1);
     expect(platform.all()).toHaveLength(0);
   });
 
@@ -269,6 +293,7 @@ describe('rest alert controller (O4)', () => {
     await controller.restEnded(5, 2_000_000);
     await settle();
     expect(platform.beeps).toBe(1);
+    expect(platform.spoken).toBe(1);
     expect(vibrate).toHaveBeenCalledWith([0, 200, 100, 200]);
     expect(platform.pending).toHaveLength(0);
     expect(platform.presented).toHaveLength(1);
@@ -285,6 +310,7 @@ describe('rest alert controller (O4)', () => {
     await controller.restEnded(5, now() - 30_000);
     await settle();
     expect(platform.beeps).toBe(0);
+    expect(platform.spoken).toBe(0);
     expect(platform.all()).toHaveLength(0);
   });
 
@@ -300,6 +326,7 @@ describe('rest alert controller (O4)', () => {
     await controller.appStateChanged('active');
     await settle();
     expect(platform.beeps).toBe(0);
+    expect(platform.spoken).toBe(0);
     expect(platform.all()).toHaveLength(0);
   });
 
@@ -315,6 +342,7 @@ describe('rest alert controller (O4)', () => {
     await controller.restEnded(5, endMs);
     await settle();
     expect(platform.beeps).toBe(1);
+    expect(platform.spoken).toBe(1);
   });
 
   it('offers exact alarms once, after the rest started, never in the same start as the permission prompt (A2)', async () => {
@@ -436,5 +464,62 @@ describe('controller lifecycle', () => {
     controller.restStarted(5, 2_000_000, 90);
     await settle();
     expect(platform.pending).toHaveLength(1);
+  });
+});
+
+describe('spoken cue and A3 pop-up (owner request, 23 Oct 2026)', () => {
+  const { REST_SPOKEN_LAST, REST_SPOKEN_TEXT } = require('./restAlerts');
+
+  it('speaks with the beep, once per set, with the short copy when no set is left', async () => {
+    const left = { 5: true, 6: false };
+    const { platform, controller } = setup({}, { hasNextSet: (setId) => left[setId] });
+    await controller.restEnded(5, 2_000_000);
+    await controller.restEnded(5, 2_000_000);
+    expect(platform.beeps).toBe(2);
+    expect(platform.spoken).toBe(1);
+    expect(platform.lastSpoken).toBe(REST_SPOKEN_TEXT);
+    await controller.restEnded(6, 2_100_000);
+    expect(platform.lastSpoken).toBe(REST_SPOKEN_LAST);
+  });
+
+  it('stops speech on a new rest and on dispose, not on backgrounding', async () => {
+    const { platform, controller } = setup();
+    controller.restStarted(5, 2_000_000);
+    await settle();
+    expect(platform.stops).toBe(1);
+    await controller.appStateChanged('background');
+    expect(platform.stops).toBe(1);
+    controller.dispose();
+    expect(platform.stops).toBe(2);
+  });
+
+  it('fresh install: rest 1 asks for permission, the pop-up waits for rest 2 and shows once', async () => {
+    const onSpeakIntro = jest.fn();
+    const { platform, controller } = setup({ permission: 'undetermined' }, { onSpeakIntro });
+    platform.introShown = false;
+    controller.restStarted(5, 2_000_000);
+    await settle();
+    expect(platform.requests).toBe(1);
+    expect(onSpeakIntro).not.toHaveBeenCalled();
+    controller.restStarted(6, 2_100_000);
+    await settle();
+    expect(onSpeakIntro).toHaveBeenCalledTimes(1);
+    expect(platform.introShown).toBe(true);
+    controller.restStarted(7, 2_200_000);
+    await settle();
+    expect(onSpeakIntro).toHaveBeenCalledTimes(1);
+  });
+
+  it('Android: a rest that shows the A2 offer leaves the pop-up for the next rest', async () => {
+    const onSpeakIntro = jest.fn();
+    const { platform, controller, onOfferExactAlarm } = setup({ canExact: false }, { os: 'android', apiLevel: 34, onSpeakIntro });
+    platform.introShown = false;
+    controller.restStarted(5, 2_000_000);
+    await settle();
+    expect(onOfferExactAlarm).toHaveBeenCalledTimes(1);
+    expect(onSpeakIntro).not.toHaveBeenCalled();
+    controller.restStarted(6, 2_100_000);
+    await settle();
+    expect(onSpeakIntro).toHaveBeenCalledTimes(1);
   });
 });

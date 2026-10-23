@@ -126,6 +126,8 @@ module.exports = {
       ['./plugins/withReleaseHardening', { enabled: RELEASE_ENV }],
       // Android release builds use the owner's upload key, never the template debug key.
       './plugins/withReleaseSigning',
+      // The rest-end alert is Time Sensitive so Siri can announce it (iOS).
+      './plugins/withTimeSensitiveNotifications',
       // LAST: strips expo-notifications' push entitlement after every other
       // mod (a free Apple team can't sign aps-environment; local
       // notifications don't need it). See plugins/withoutPushCapability.js.

@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { routes } from '../../../navigation/routes';
 import EmptyState from '../../../shared/components/EmptyState';
@@ -11,6 +11,7 @@ import { logout } from '../../auth/authService';
 import { useAuthStore } from '../../auth/authStore';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
+import { setSpeakRestAlerts, useSpeakRestAlerts } from '../../workout/runtime/speakRestAlerts';
 import ChangePasswordModal from '../ChangePasswordModal';
 import CoachingCard from '../CoachingCard';
 import { profileDisplayName, profileInitials } from '../editProfileForm';
@@ -33,6 +34,7 @@ function Settings() {
   const profileError = useProfileStore((state) => state.profileError);
   const email = useAuthStore((state) => state.user?.email);
   const [changePasswordVisible, setChangePasswordVisible] = useState(false);
+  const speakRestAlerts = useSpeakRestAlerts((state) => state.enabled);
 
   useEffect(() => {
     if (useProfileStore.getState().profileStatus === ProfileStatus.idle) {
@@ -130,6 +132,41 @@ function Settings() {
               </Text>
             </Pressable>
           ))}
+        </View>
+      </View>
+
+      {/* RN-SPEC-profile P1.3 3b (23 Oct 2026, native only): the spoken rest cue. */}
+      <View>
+        <Text accessibilityRole="header" style={styles.sectionHeading}>
+          Workout
+        </Text>
+        <View style={styles.list}>
+          <Pressable
+            testID="settings-speak-rest-alerts"
+            accessibilityRole="switch"
+            accessibilityLabel="Speak rest alerts"
+            accessibilityHint="Say when rest is over"
+            accessibilityState={{ checked: speakRestAlerts }}
+            onPress={() => setSpeakRestAlerts(!speakRestAlerts)}
+            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+          >
+            <View style={styles.tile} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+              <Text style={styles.glyph}>♪</Text>
+            </View>
+            <View style={styles.rowText}>
+              <Text style={styles.rowLabel}>Speak rest alerts</Text>
+              <Text numberOfLines={1} style={styles.rowValue}>
+                Say when rest is over
+              </Text>
+            </View>
+            <Switch
+              testID="settings-speak-rest-alerts-switch"
+              value={speakRestAlerts}
+              onValueChange={setSpeakRestAlerts}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            />
+          </Pressable>
         </View>
       </View>
 

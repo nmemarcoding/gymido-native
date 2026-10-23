@@ -22,6 +22,7 @@ jest.mock('../api/workoutApi', () => ({
   updateSessionSet: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('./restAlertPlatform', () => ({ __esModule: true, default: require('./restAlerts').NO_PLATFORM }));
+jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn(() => Promise.resolve()) }));
 
 const set = (id, done = false) => ({ id, set_number: id % 10, is_completed: done, target_reps_min: 8, rest_seconds_planned: 0 });
 const SESSION = {

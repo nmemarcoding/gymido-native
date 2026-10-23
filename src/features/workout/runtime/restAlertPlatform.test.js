@@ -17,6 +17,7 @@ jest.mock(
   }),
   { virtual: true }
 );
+jest.mock('expo-speech', () => ({ speak: jest.fn(), stop: jest.fn() }), { virtual: true });
 jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn(() => Promise.resolve()) }));
 
 const Notifications = require('expo-notifications');
@@ -101,5 +102,49 @@ describe('restAlertPlatform', () => {
     Notifications.getPermissionsAsync.mockResolvedValue({ status: 'denied', granted: false, canAskAgain: true });
     AsyncStorage.getItem.mockImplementationOnce(() => Promise.reject(new Error('io')));
     await expect(restAlertPlatform.getPermission()).resolves.toBe('denied');
+  });
+});
+
+describe('spoken rest cue (owner request, 23 Oct 2026)', () => {
+  const Speech = require('expo-speech');
+  const { REST_SPOKEN_TEXT } = require('./restAlerts');
+  const { loadSpeakRestAlerts, setSpeakRestAlerts } = require('./speakRestAlerts');
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    Speech.speak.mockClear();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('is on by default and speaks the copy after the beep, in the beep audio mode', async () => {
+    AsyncStorage.getItem.mockResolvedValueOnce(null);
+    await loadSpeakRestAlerts();
+    restAlertPlatform.speakRestEnd(REST_SPOKEN_TEXT);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(Speech.speak).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(600);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(setAudioModeAsync).toHaveBeenCalled();
+    expect(Speech.speak).toHaveBeenCalledWith(REST_SPOKEN_TEXT, { language: 'en', useApplicationAudioSession: true });
+  });
+
+  it('stays silent when "Speak rest alerts" is off, and stores the choice', async () => {
+    await setSpeakRestAlerts(false);
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith('gymido.speakRestAlerts', '0');
+    restAlertPlatform.speakRestEnd(REST_SPOKEN_TEXT);
+    await Promise.resolve();
+    jest.advanceTimersByTime(1000);
+    expect(Speech.speak).not.toHaveBeenCalled();
+    AsyncStorage.getItem.mockResolvedValueOnce('0');
+    await loadSpeakRestAlerts();
+    restAlertPlatform.speakRestEnd(REST_SPOKEN_TEXT);
+    jest.advanceTimersByTime(1000);
+    expect(Speech.speak).not.toHaveBeenCalled();
+    await setSpeakRestAlerts(true);
   });
 });

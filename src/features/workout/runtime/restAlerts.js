@@ -21,6 +21,12 @@ export const EXACT_ALARM_OFFERED_KEY = 'gymido.exactAlarmOffered';
 export const NOTIFICATION_PERMISSION_ASKED_KEY = 'gymido.notificationPermissionAsked';
 export const REST_TITLE = 'Rest complete';
 export const REST_BODY = 'Time for your next set.';
+// The spoken cue at rest end (owner request, 23 Oct 2026; RN-SPEC-time
+// dated change): the short form when the session has no set left.
+export const REST_SPOKEN_TEXT = 'Rest complete. Time for your next set.';
+export const REST_SPOKEN_LAST = 'Rest complete.';
+// A3: the one-time "Hear your rest timer" pop-up, recorded when it shows.
+export const SPEAK_INTRO_SHOWN_KEY = 'gymido.restAlertIntroShown';
 
 // Until expo-notifications and expo-audio are installed: no permission, so
 // O4 does nothing and only the Android vibration remains (§7.2 step 2).
@@ -33,6 +39,10 @@ export const NO_PLATFORM = {
   dismiss: async () => {},
   schedule: async () => {},
   playBeep: () => {},
+  speakRestEnd: () => {},
+  stopSpeech: () => {},
+  readSpeakIntroShown: async () => true,
+  markSpeakIntroShown: async () => {},
   canScheduleExactAlarms: async () => null,
   openExactAlarmSettings: () => {},
   readOffered: async () => true,
@@ -74,6 +84,15 @@ export function shouldOfferExactAlarm({ os, apiLevel, canExact, granted, request
   return os === 'android' && apiLevel >= 31 && canExact === false && granted && !requestedNow && !offered;
 }
 
+// iOS: the SCHEDULED (background) alert is Time Sensitive, so Siri's Announce
+// Notifications reads it out over headphones/CarPlay (owner request, 23 Oct
+// 2026; needs plugins/withTimeSensitiveNotifications.js). The foreground
+// banner stays default: the app already speaks then (no double read).
+// Android has no equivalent.
+function timeSensitive(os) {
+  return os === 'ios' ? { interruptionLevel: 'timeSensitive' } : {};
+}
+
 export function restNotificationRequest({ source, setId, endMs, token }, os = Platform.OS) {
   const data = { kind: REST_END_KIND, source, setId, token };
   if (source === 'foreground') {
@@ -84,7 +103,7 @@ export function restNotificationRequest({ source, setId, endMs, token }, os = Pl
   }
   return {
     identifier: REST_NOTIFICATION_ID,
-    content: { title: REST_TITLE, body: REST_BODY, sound: 'default', data },
+    content: { title: REST_TITLE, body: REST_BODY, sound: 'default', data, ...timeSensitive(os) },
     trigger: { type: 'date', date: endMs, channelId: REST_CHANNEL_ID },
   };
 }
@@ -145,6 +164,9 @@ export function createRestAlertController({
   apiLevel = typeof Platform.Version === 'number' ? Platform.Version : 0,
   vibrate = (pattern) => Vibration.vibrate(pattern),
   onOfferExactAlarm = () => {},
+  // The spoken cue's copy and the one-time pop-up (owner request, 23 Oct).
+  hasNextSet = () => true,
+  onSpeakIntro = () => {},
   appState = 'active',
   countdown = restCountdown,
 }) {
@@ -152,6 +174,7 @@ export function createRestAlertController({
   const makeToken = () => `rest-${Date.now()}-${(tokens += 1)}`;
   const notifier = createRestNotifier(platform, makeToken);
   let rest = null;
+  let lastSpokenSetId = null;
   let state = appState;
   let away = null;
   let backgroundedAtMs = null;
@@ -214,6 +237,7 @@ export function createRestAlertController({
     // O13's countdown follows the permission answer (Android needs it) but
     // doesn't depend on it (iOS Live Activities don't).
     async restStarted(setId, endMs, totalSeconds) {
+      platform.stopSpeech();
       rest = { setId, endMs, totalSeconds };
       const mine = rest;
       let status = await readPermission();
@@ -227,20 +251,29 @@ export function createRestAlertController({
         return;
       }
       startCountdown(setId);
-      if (status !== 'granted') {
-        return;
+      let offeredNow = false;
+      if (status === 'granted') {
+        scheduleRest();
+        if (os === 'android' && apiLevel >= 31) {
+          const offered = await platform.readOffered().catch(() => true);
+          const canExact = await platform.canScheduleExactAlarms().catch(() => null);
+          // Same rest (a ±5 s adjust replaces the object, not the rest).
+          if (rest?.setId === setId && !disposed && shouldOfferExactAlarm({ os, apiLevel, canExact, granted: true, requestedNow, offered })) {
+            // A2 rule 4: recorded the moment it is shown.
+            platform.markOffered().catch(() => {});
+            onOfferExactAlarm();
+            offeredNow = true;
+          }
+        }
       }
-      scheduleRest();
-      if (os !== 'android' || apiLevel < 31) {
-        return;
-      }
-      const offered = await platform.readOffered().catch(() => true);
-      const canExact = await platform.canScheduleExactAlarms().catch(() => null);
-      // Same rest (a ±5 s adjust replaces the object, not the rest).
-      if (rest?.setId === setId && !disposed && shouldOfferExactAlarm({ os, apiLevel, canExact, granted: true, requestedNow, offered })) {
-        // A2 rule 4: recorded the moment it is shown.
-        platform.markOffered().catch(() => {});
-        onOfferExactAlarm();
+      // The speak pop-up never stacks: a rest that asked for permission or
+      // offered A2 leaves it for the next rest start.
+      if (!requestedNow && !offeredNow && rest?.setId === setId && !disposed) {
+        const shown = await platform.readSpeakIntroShown().catch(() => true);
+        if (!shown && rest?.setId === setId && !disposed) {
+          platform.markSpeakIntroShown().catch(() => {});
+          onSpeakIntro();
+        }
       }
     },
 
@@ -290,6 +323,11 @@ export function createRestAlertController({
         return;
       }
       platform.playBeep();
+      // Spoken exactly when the beep plays, once per set.
+      if (lastSpokenSetId !== setId) {
+        lastSpokenSetId = setId;
+        platform.speakRestEnd(hasNextSet(setId) ? REST_SPOKEN_TEXT : REST_SPOKEN_LAST);
+      }
       if (os === 'android') {
         vibrate([0, 200, 100, 200]);
       }
@@ -325,6 +363,7 @@ export function createRestAlertController({
 
     dispose() {
       disposed = true;
+      platform.stopSpeech();
       this.restCleared();
     },
   };

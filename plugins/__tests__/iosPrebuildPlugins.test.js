@@ -107,3 +107,15 @@ describe('withReleaseHardening', () => {
     expect(withReleaseHardening(config, { enabled: false })).toBe(config);
   });
 });
+
+describe('withTimeSensitiveNotifications', () => {
+  const withTimeSensitiveNotifications = require('../withTimeSensitiveNotifications');
+
+  it('adds the Time Sensitive entitlement and survives withoutPushCapability', async () => {
+    let config = withNotifications({ name: 'x', slug: 'x', ios: {} }, {});
+    config = withTimeSensitiveNotifications(config);
+    config = withoutPushCapability(config);
+    const result = await run(config, 'entitlements', {});
+    expect(result.modResults).toEqual({ [withTimeSensitiveNotifications.TIME_SENSITIVE]: true });
+  });
+});

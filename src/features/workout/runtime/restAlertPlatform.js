@@ -1,10 +1,19 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as Notifications from 'expo-notifications';
-import { AppState, Platform } from 'react-native';
+import * as Speech from 'expo-speech';
+import { AccessibilityInfo, AppState, Linking, Platform } from 'react-native';
 
 import { restCountdown } from '../../../shared/time/restCountdown';
-import { EXACT_ALARM_OFFERED_KEY, NOTIFICATION_PERMISSION_ASKED_KEY, REST_BANNER_CHANNEL_ID, REST_CHANNEL_ID, restNotificationBehavior } from './restAlerts';
+import {
+  EXACT_ALARM_OFFERED_KEY,
+  NOTIFICATION_PERMISSION_ASKED_KEY,
+  REST_BANNER_CHANNEL_ID,
+  REST_CHANNEL_ID,
+  SPEAK_INTRO_SHOWN_KEY,
+  restNotificationBehavior,
+} from './restAlerts';
+import { isSpeakRestAlertsOn, loadSpeakRestAlerts } from './speakRestAlerts';
 
 // The expo side of the rest alerts (RN-SPEC-time §7.2, O4, A1, A2).
 // SessionRuntime uses it; App.js calls initRestAlerts() once at startup.
@@ -12,6 +21,11 @@ import { EXACT_ALARM_OFFERED_KEY, NOTIFICATION_PERMISSION_ASKED_KEY, REST_BANNER
 let initialized = false;
 let player = null;
 let audioMode = null;
+// A3: no speech while VoiceOver/TalkBack is on (the beep still plays). Read
+// once at startup, then kept current by the change listener.
+let screenReaderOn = false;
+// The two-beep WAV is 0.56 s; the spoken cue starts once it has played.
+const SPEAK_AFTER_BEEP_MS = 600;
 
 // Owner ruling (23 Oct 2026): the rest-done beep plays even with the iPhone
 // ring/silent switch on, and DUCKS other audio (music keeps playing, quieter)
@@ -46,6 +60,15 @@ export function initRestAlerts() {
   }
   initialized = true;
   ensureAudioMode();
+  loadSpeakRestAlerts();
+  AccessibilityInfo.isScreenReaderEnabled()
+    .then((enabled) => {
+      screenReaderOn = Boolean(enabled);
+    })
+    .catch(() => {});
+  AccessibilityInfo.addEventListener('screenReaderChanged', (enabled) => {
+    screenReaderOn = Boolean(enabled);
+  });
   Notifications.setNotificationHandler({
     handleNotification: async (notification) => restNotificationBehavior(notification.request.content.data, AppState.currentState),
   });
@@ -117,6 +140,39 @@ const restAlertPlatform = {
         // Best effort, as on the web.
       }
     }),
+  // The spoken cue (owner request, 23 Oct 2026): the system voice, through
+  // the app's audio session in the beep's mode (silent switch on, ducking).
+  // Foreground only, like the beep; skipped when "Speak rest alerts" is off
+  // or a screen reader is on (it would talk over VoiceOver/TalkBack).
+  speakRestEnd: (text) => {
+    if (!isSpeakRestAlertsOn()) {
+      return;
+    }
+    ensureAudioMode().then(() => {
+      setTimeout(() => {
+        try {
+          if (screenReaderOn) {
+            return;
+          }
+          Speech.stop();
+          Speech.speak(text, { language: 'en', useApplicationAudioSession: true });
+        } catch {
+          // Best effort.
+        }
+      }, SPEAK_AFTER_BEEP_MS);
+    });
+  },
+  stopSpeech: () => {
+    try {
+      Speech.stop();
+    } catch {
+      // Best effort.
+    }
+  },
+  readSpeakIntroShown: async () => (await AsyncStorage.getItem(SPEAK_INTRO_SHOWN_KEY)) !== null,
+  markSpeakIntroShown: () => AsyncStorage.setItem(SPEAK_INTRO_SHOWN_KEY, '1'),
+  // The pop-up's iOS "Set up Siri announcements": Gymido's page in Settings.
+  openNotificationSettings: () => Linking.openSettings(),
   // A2 rules 2 and 3, from the O13 module (Android; iOS answers true).
   canScheduleExactAlarms: () => restCountdown.canScheduleExactAlarms(),
   openExactAlarmSettings: () => restCountdown.openExactAlarmSettings(),

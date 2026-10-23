@@ -38,6 +38,7 @@
     "expo-dev-client": "~57.0.20",
     "expo-notifications": "~57.0.24",
     "expo-screen-orientation": "~57.0.3",
+    "expo-speech": "~57.0.3",
     "expo-status-bar": "~57.0.1",
     "jwt-decode": "^4.0.0",
     "react": "19.2.3",

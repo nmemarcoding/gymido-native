@@ -6,6 +6,7 @@ jest.mock('./api/profileApi', () => ({ getProfile: jest.fn(), updateProfile: jes
 jest.mock('../../shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 const mockNavigation = { push: jest.fn(), replace: jest.fn(), navigate: jest.fn() };
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => mockNavigation }));
+jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn(() => Promise.resolve()) }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 
 import { act, create } from 'react-test-renderer';
@@ -73,6 +74,25 @@ describe('P1 Settings', () => {
     expect(openShellPath).toHaveBeenCalledWith('/progress');
     act(() => byTestId(tree.root, 'settings-sign-out').props.onPress());
     expect(logout).toHaveBeenCalled();
+  });
+
+  it('has the Workout "Speak rest alerts" switch, on by default, toggled by the whole row (P1.3 3b)', () => {
+    const AsyncStorage = require('@react-native-async-storage/async-storage');
+    setStoredProfile(PROFILE);
+    const tree = render(<ProfileSettingsScreen />);
+    const row = () => tree.root.find((node) => node.props.testID === 'settings-speak-rest-alerts' && node.props.onPress);
+    expect(texts(tree.root)).toEqual(expect.arrayContaining(['Workout', 'Speak rest alerts', 'Say when rest is over']));
+    expect(row().props.accessibilityRole).toBe('switch');
+    expect(row().props.accessibilityState).toEqual({ checked: true });
+    act(() => {
+      row().props.onPress();
+    });
+    expect(row().props.accessibilityState).toEqual({ checked: false });
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith('gymido.speakRestAlerts', '0');
+    act(() => {
+      row().props.onPress();
+    });
+    expect(row().props.accessibilityState).toEqual({ checked: true });
   });
 
   it('shows the error state with the transport text', () => {
