@@ -17,7 +17,7 @@ export default function MyPlanCard({ plan, onOpen, style }) {
           </Text>
         ) : null}
       </View>
-      <Text numberOfLines={1} ellipsizeMode="tail" style={styles.title}>
+      <Text textBreakStrategy="simple" numberOfLines={1} ellipsizeMode="tail" style={styles.title}>
         {plan.name}
       </Text>
       <Text style={styles.meta}>{formatDaysPerWeek(plan)}</Text>

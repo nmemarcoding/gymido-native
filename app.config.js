@@ -48,6 +48,17 @@ module.exports = {
     ios: {
       bundleIdentifier: 'com.gymido.app',
       supportsTablet: true,
+      // app-shell O2: iPhone portrait, iPad all four and split view.
+      requireFullScreen: false,
+      infoPlist: {
+        UISupportedInterfaceOrientations: ['UIInterfaceOrientationPortrait'],
+        'UISupportedInterfaceOrientations~ipad': [
+          'UIInterfaceOrientationPortrait',
+          'UIInterfaceOrientationPortraitUpsideDown',
+          'UIInterfaceOrientationLandscapeLeft',
+          'UIInterfaceOrientationLandscapeRight',
+        ],
+      },
     },
     android: {
       package: 'com.gymido.app',
@@ -59,7 +70,23 @@ module.exports = {
       },
     },
     // Registers the {bundleId}.auth0 callback scheme on both platforms.
-    plugins: [['react-native-auth0', { domain: env.AUTH0_DOMAIN }]],
+    // The rest-countdown widget is RN-SPEC-time O13 (modules/rest-countdown).
+    // expo-audio + expo-notifications: the rest-done sound and O4 alerts
+    // (RN-SPEC-time §7.2, O4); the notification icon is the monochrome mark.
+    plugins: [
+      ['react-native-auth0', { domain: env.AUTH0_DOMAIN }],
+      // Playback of a short foreground beep only: no microphone, no
+      // background audio (each default would add a store-review flag).
+      ['expo-audio', { microphonePermission: false, recordAudioAndroid: false, enableBackgroundPlayback: false }],
+      ['expo-notifications', { icon: './assets/android-icon-monochrome.png', color: '#f4b400' }],
+      './plugins/withRestCountdownWidget',
+      // iOS 27 scene life cycle (plugins/withSceneLifecycle.js).
+      './plugins/withSceneLifecycle',
+      // LAST: strips expo-notifications' push entitlement after every other
+      // mod (a free Apple team can't sign aps-environment; local
+      // notifications don't need it). See plugins/withoutPushCapability.js.
+      './plugins/withoutPushCapability',
+    ],
     // Read at runtime through src/shared/config/env.js. Not secret.
     // Unset values are left undefined (omitted): Expo serializes null as {}.
     extra: {

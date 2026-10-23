@@ -11,6 +11,17 @@ import { navigationRef } from './navigation/navigationRef';
 import RouteErrorBoundary from './shared/components/RouteErrorBoundary';
 import { appBlurTargetRef } from './shared/components/blurTarget';
 import ToastHost from './shared/components/ToastHost';
+import { initRestAlerts } from './features/workout/runtime/restAlertPlatform';
+import { unlockTabletOrientation } from './shared/device/tabletOrientation';
+import { restCountdown } from './shared/time/restCountdown';
+
+// RN-SPEC-time O13.3 launch sweep, before anything rest-related: a cold
+// start holds no rest, so no countdown may outlive the last process.
+restCountdown.end().catch(() => {});
+// O4: the notification handler and Android channels, once at startup.
+initRestAlerts();
+// app-shell O2: Android tablets rotate; phones stay portrait from the manifest.
+unlockTabletOrientation();
 
 // Only Android's blur reads a target; iOS skips the extra wrapper.
 const AppBlurTarget = Platform.OS === 'android' ? BlurTargetView : View;

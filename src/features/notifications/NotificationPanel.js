@@ -35,7 +35,7 @@ export default function NotificationPanel() {
       <View style={styles.head}>
         <View style={styles.headText}>
           <Text style={styles.eyebrow}>Notifications</Text>
-          <Text style={styles.headTitle}>Recent activity</Text>
+          <Text numberOfLines={1} textBreakStrategy="simple" style={styles.headTitle}>Recent activity</Text>
         </View>
         {unreadCount > 0 ? (
           <Pressable

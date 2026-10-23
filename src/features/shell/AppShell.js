@@ -24,13 +24,13 @@ import PlanScreen from '../trainer/plans/screens/PlanScreen';
 import ClientDetailScreen from '../trainer/clients/screens/ClientDetailScreen';
 import ClientsListScreen from '../trainer/clients/screens/ClientsListScreen';
 import PlansListScreen from '../trainer/plans/screens/PlansListScreen';
+import TrainerProfileScreen from '../trainer/profile/screens/TrainerProfileScreen';
 import TrainerApplyScreen from '../trainers/screens/TrainerApplyScreen';
 import TrainerDetailScreen from '../trainers/screens/TrainerDetailScreen';
 import TrainersScreen from '../trainers/screens/TrainersScreen';
 import ShellOverlay from './ShellOverlay';
 import { ShellTab, TAB_ROOTS } from './shellNavigation';
 import { closePanel } from './shellUiStore';
-import { makeShellPlaceholder } from './ShellPlaceholderScreen';
 
 const Tabs = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -60,14 +60,20 @@ const SCREENS = {
   [routes.TrainerPlans]: PlansListScreen,
   [routes.TrainerPlanCreate]: CreatePlanScreen,
   [routes.TrainerPlan]: PlanScreen,
-  [routes.TrainerProfile]: makeShellPlaceholder('Trainer profile'),
+  [routes.TrainerProfile]: TrainerProfileScreen,
 };
 
 // Extra screens stacked above a tab's root (5-tab nav, 23 Oct): Workout only
 // in the Today stack, the trainer hub only in the Profile stack.
 const STACK_EXTRAS = {
   [ShellTab.Today]: [routes.Workout],
-  [ShellTab.Plans]: [routes.PlanDetail, routes.ExerciseDetail, routes.MyPlans, routes.MyPlanCreate, routes.MyPlan],
+  [ShellTab.Plans]: [
+    routes.PlanDetail,
+    routes.ExerciseDetail,
+    routes.MyPlans,
+    routes.MyPlanCreate,
+    routes.MyPlan,
+  ],
   [ShellTab.Profile]: [routes.EditProfile, routes.MyTrainer, routes.Trainers, routes.TrainerDetail, routes.TrainerApply],
   [ShellTab.Exercises]: [routes.ExerciseDetail],
   [ShellTab.TClients]: [routes.TrainerClient],

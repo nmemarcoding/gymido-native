@@ -154,7 +154,7 @@ function RowThumb({ exercise }) {
   const code = exercise.exercise?.primary_muscle_group?.code;
   return (
     <View style={[styles.thumbFrame, styles.thumbTile]}>
-      <Text style={styles.thumbText}>{code ? code.slice(0, 3) : 'EX'}</Text>
+      <Text numberOfLines={1} textBreakStrategy="simple" style={styles.thumbText}>{code ? code.slice(0, 3) : 'EX'}</Text>
     </View>
   );
 }

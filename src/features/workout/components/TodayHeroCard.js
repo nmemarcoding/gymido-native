@@ -27,7 +27,7 @@ export default function TodayHeroCard({ planName, dayCountLabel, state, detail, 
         <View style={styles.topRow}>
           <View style={styles.textColumn}>
             <Text style={styles.eyebrow}>Your plan</Text>
-            <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.planName, wide && styles.planNameWide]}>
+            <Text textBreakStrategy="simple" numberOfLines={2} ellipsizeMode="tail" style={[styles.planName, wide && styles.planNameWide]}>
               {planName}
             </Text>
             <Text style={styles.dayCount}>{dayCountLabel}</Text>
@@ -43,7 +43,7 @@ export default function TodayHeroCard({ planName, dayCountLabel, state, detail, 
             thickness={9}
             label={`${ringValue} of ${ringTotal} training days completed this week`}
           >
-            <Text style={styles.ringValue}>{ringValue}</Text>
+            <Text numberOfLines={1} textBreakStrategy="simple" style={styles.ringValue}>{ringValue}</Text>
             <Text style={styles.ringTotal}>{`of ${ringTotal}`}</Text>
           </ProgressRing>
         </View>

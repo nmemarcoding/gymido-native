@@ -36,7 +36,7 @@ export default function BrandButton({ label, onPress, loading = false, disabled 
             </View>
           </View>
           {loading ? <Spinner size={20} thickness={2} color={colors.navy} track="rgba(17, 24, 39, 0.4)" /> : null}
-          <Text style={[styles.label, labelStyle]}>{label}</Text>
+          <Text numberOfLines={1} textBreakStrategy="simple" style={[styles.label, labelStyle]}>{label}</Text>
         </>
       )}
     </Pressable>

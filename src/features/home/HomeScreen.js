@@ -157,7 +157,7 @@ function Home() {
         <View testID="home-stats" style={[styles.strip, styles.card]}>
           {stats.items.map((item, index) => (
             <View key={item.label} style={[styles.stripItem, index > 0 && styles.divider]}>
-              <Text style={styles.stripValue}>{item.value}</Text>
+              <Text numberOfLines={1} textBreakStrategy="simple" style={styles.stripValue}>{item.value}</Text>
               <Text style={styles.stripLabel}>{item.label}</Text>
             </View>
           ))}
@@ -181,7 +181,7 @@ function Home() {
                 ['To goal', weight.toGoal],
               ].map(([label, value], index) => (
                 <View key={label} style={[styles.weightItem, index > 0 && styles.divider]}>
-                  <Text style={styles.weightValue}>{value}</Text>
+                  <Text numberOfLines={1} textBreakStrategy="simple" style={styles.weightValue}>{value}</Text>
                   <Text style={styles.stripLabel}>{label}</Text>
                 </View>
               ))}
@@ -204,7 +204,7 @@ function Home() {
               onPress={() => setModalOpen(true)}
               style={({ pressed }) => [styles.smallPrimary, pressed && styles.primaryPressed]}
             >
-              <Text style={styles.primaryText}>Add weight log</Text>
+              <Text numberOfLines={1} textBreakStrategy="simple" style={styles.primaryText}>Add weight log</Text>
             </Pressable>
           </View>
         )}
@@ -257,7 +257,7 @@ function TodayCard({ plan, card }) {
       <View style={styles.todayContent}>
         <View style={styles.todayTop}>
           <View style={styles.textColumn}>
-            <Text style={styles.headline}>{card.headline}</Text>
+            <Text textBreakStrategy="simple" style={styles.headline}>{card.headline}</Text>
             <Text numberOfLines={2} ellipsizeMode="tail" style={styles.sub}>
               {card.sub ?? plan.name}
             </Text>
@@ -272,7 +272,7 @@ function TodayCard({ plan, card }) {
             onPress={() => openShellPath('/workout')}
             style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed]}
           >
-            <Text style={styles.primaryText}>{card.primary}</Text>
+            <Text numberOfLines={1} textBreakStrategy="simple" style={styles.primaryText}>{card.primary}</Text>
           </Pressable>
           <Pressable
             testID="home-view-plan"

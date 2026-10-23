@@ -96,7 +96,7 @@ function ExerciseDetail() {
 
       <View>
         <Text style={styles.eyebrow}>{primaryMuscle || 'Exercise'}</Text>
-        <Text accessibilityRole="header" style={styles.title}>
+        <Text textBreakStrategy="simple" accessibilityRole="header" style={styles.title}>
           {exercise?.name}
         </Text>
       </View>
@@ -178,7 +178,7 @@ function ExerciseDetail() {
                   {substitute.thumbnail?.url ? (
                     <RemoteImage url={substitute.thumbnail.url} style={styles.tileImage} />
                   ) : (
-                    <Text style={styles.tileCode}>{substituteTileCode(substitute)}</Text>
+                    <Text numberOfLines={1} textBreakStrategy="simple" style={styles.tileCode}>{substituteTileCode(substitute)}</Text>
                   )}
                 </View>
                 <View style={styles.textColumn}>

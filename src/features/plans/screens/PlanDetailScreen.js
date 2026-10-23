@@ -209,7 +209,7 @@ function PlanDetail() {
 
       <View style={[planStyles.card, styles.summary]}>
         <Eyebrow>{plan?.category?.name || 'Workout plan'}</Eyebrow>
-        <Text accessibilityRole="header" style={[planStyles.title2xl, styles.mt6]}>
+        <Text accessibilityRole="header" textBreakStrategy="simple" style={[planStyles.title2xl, styles.mt6]}>
           {plan?.name}
         </Text>
         {plan?.description ? (
@@ -274,7 +274,7 @@ function PlanDetail() {
 function Stat({ value, label, divider = false, text = false }) {
   return (
     <View style={[styles.stat, divider && styles.statDivider]}>
-      <Text numberOfLines={text ? 2 : undefined} style={[styles.statValue, text && styles.statValueText]}>
+      <Text textBreakStrategy="simple" numberOfLines={text ? 2 : undefined} style={[styles.statValue, text && styles.statValueText]}>
         {value}
       </Text>
       <Text style={styles.statLabel}>{label}</Text>
@@ -313,7 +313,7 @@ function DayRow({ day, exercises, isOpen, onToggle, onOpenExercise }) {
       >
         <View style={styles.dayHeaderLeft}>
           <View style={[styles.dayNumber, isOpen ? styles.dayNumberOpen : styles.dayNumberClosed]}>
-            <Text style={[styles.dayNumberText, { color: isOpen ? colors.navy : colors.textSecondary }]}>
+            <Text numberOfLines={1} textBreakStrategy="simple" style={[styles.dayNumberText, { color: isOpen ? colors.navy : colors.textSecondary }]}>
               {day.day_number || '•'}
             </Text>
           </View>
@@ -391,11 +391,11 @@ export function ExerciseRow({ item, position, onPress }) {
             <DumbbellIcon color={iconColor} size={wide ? 28 : 24} />
           )}
           <View style={styles.orderBadge}>
-            <Text style={styles.orderText}>{position}</Text>
+            <Text numberOfLines={1} textBreakStrategy="simple" style={styles.orderText}>{position}</Text>
           </View>
         </View>
         <View style={styles.textColumn}>
-          <Text numberOfLines={2} ellipsizeMode="tail" style={styles.exerciseName}>
+          <Text textBreakStrategy="simple" numberOfLines={2} ellipsizeMode="tail" style={styles.exerciseName}>
             {exercise.name}
           </Text>
           {muscle ? (
@@ -444,7 +444,7 @@ function ScheduleCard({ isCurrentPlan, requiredDays, selected, onToggle, isActiv
   return (
     <View testID="plan-schedule-card" style={[planStyles.card, styles.scheduleCard]}>
       <Eyebrow>{isCurrentPlan ? 'Schedule' : 'Start this plan'}</Eyebrow>
-      <Text style={[planStyles.titleXl, styles.mt6]}>
+      <Text textBreakStrategy="simple" style={[planStyles.titleXl, styles.mt6]}>
         {isCurrentPlan ? 'Your training days' : `Pick ${workoutDaysLabel(requiredDays)}`}
       </Text>
       <Text style={[planStyles.body, styles.mt6]}>
@@ -462,7 +462,7 @@ function ScheduleCard({ isCurrentPlan, requiredDays, selected, onToggle, isActiv
         style={({ pressed }) => [styles.cta, pressed && !disabled && styles.ctaPressed, disabled && styles.ctaDisabled]}
       >
         {isActivating ? <Spinner size={20} thickness={2} color={colors.navy} track="rgba(17, 24, 39, 0.4)" /> : null}
-        <Text style={styles.ctaText}>{isCurrentPlan ? 'UPDATE SCHEDULE' : 'START WORKOUT PLAN'}</Text>
+        <Text numberOfLines={1} textBreakStrategy="simple" style={styles.ctaText}>{isCurrentPlan ? 'UPDATE SCHEDULE' : 'START WORKOUT PLAN'}</Text>
       </Pressable>
     </View>
   );

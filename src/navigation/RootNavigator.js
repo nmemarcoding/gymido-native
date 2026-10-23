@@ -7,6 +7,7 @@ import SignInFailedScreen from '../features/auth/screens/SignInFailedScreen';
 import WelcomeScreen from '../features/auth/screens/WelcomeScreen';
 import CreateProfileScreen from '../features/profile/CreateProfileScreen';
 import AppShell from '../features/shell/AppShell';
+import NotFoundScreen from '../features/shell/NotFoundScreen';
 import { getScreenTab, isShellScreen } from '../features/shell/shellNavigation';
 import { resolveLanding } from './resolveLanding';
 import { routes } from './routes';
@@ -78,10 +79,17 @@ export default function RootNavigator() {
             component={CreateProfileScreen}
             initialParams={initial.name === routes.Onboarding ? initial.params : undefined}
           />
+          <Stack.Screen name={routes.NotFound} component={NotFoundRoute} />
         </Stack.Group>
       ) : (
         <Stack.Screen name={statusScreen.name} component={statusScreen.component} />
       )}
     </Stack.Navigator>
   );
+}
+
+// App-shell §3.1 / §9.4: any path the shell doesn't know lands here; "Go home"
+// replaces it with Today.
+function NotFoundRoute({ navigation }) {
+  return <NotFoundScreen onGoHome={() => navigation.replace(routes.AppShell)} />;
 }

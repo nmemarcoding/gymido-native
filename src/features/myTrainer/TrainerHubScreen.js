@@ -279,7 +279,7 @@ function ActiveTrainerCard({ name, trainer, status, onEnd }) {
         <View style={styles.activeTop}>
           <View style={styles.textColumn}>
             <Text style={styles.eyebrow}>Your trainer</Text>
-            <Text numberOfLines={1} style={[styles.trainerName, styles.mt6]}>
+            <Text textBreakStrategy="simple" numberOfLines={1} style={[styles.trainerName, styles.mt6]}>
               {name}
             </Text>
             {trainer?.email ? <Text style={styles.email}>{trainer.email}</Text> : null}

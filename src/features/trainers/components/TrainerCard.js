@@ -15,7 +15,7 @@ export default function TrainerCard({ trainer, onPress, style }) {
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed, style]}
     >
       <Text style={styles.eyebrow}>Trainer</Text>
-      <Text numberOfLines={1} style={styles.name}>
+      <Text textBreakStrategy="simple" numberOfLines={1} style={styles.name}>
         {name}
       </Text>
       {trainer.bio ? (

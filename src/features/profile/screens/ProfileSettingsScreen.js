@@ -80,10 +80,10 @@ function Settings() {
     <View style={styles.column}>
       <View style={styles.identity}>
         <View style={styles.avatar} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <Text style={styles.initials}>{profileInitials(displayName)}</Text>
+          <Text numberOfLines={1} textBreakStrategy="simple" style={styles.initials}>{profileInitials(displayName)}</Text>
         </View>
         <View style={styles.identityText}>
-          <Text testID="settings-display-name" numberOfLines={2} style={styles.displayName}>
+          <Text textBreakStrategy="simple" testID="settings-display-name" numberOfLines={2} style={styles.displayName}>
             {displayName}
           </Text>
           <Text numberOfLines={1} style={styles.email}>

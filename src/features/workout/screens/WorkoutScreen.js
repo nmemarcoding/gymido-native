@@ -3,20 +3,26 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { getServerMessage } from '../../../shared/api/apiError';
+import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { InlineToast } from '../../../shared/components/ToastHost';
 import { ToastTone } from '../../../shared/components/toastStore';
 import { breakpoints, colors } from '../../../shared/theme/tokens';
+import { useAuthStore } from '../../auth/authStore';
 import ScheduleSetupCard from '../../plans/components/ScheduleSetupCard';
+import AppHeader from '../../shell/AppHeader';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
+import { resolveMode } from '../../shell/shellRules';
 import { useShellUiStore } from '../../shell/shellUiStore';
 import { startWorkout } from '../api/workoutApi';
-import Card3D from '../components/Card3D';
 import PlanDayCard from '../components/PlanDayCard';
 import TodayHeroCard from '../components/TodayHeroCard';
 import WorkoutSkeleton from '../components/WorkoutSkeleton';
 import { WorkoutEmptyState, WorkoutErrorState } from '../components/WorkoutStates';
 import { loadWorkoutPage } from '../loadWorkoutPage';
+import { CompletionPopup } from '../runtime/RuntimeOverlays';
+import SessionRuntime from '../runtime/SessionRuntime';
+import { applyOverlay, reconcileOverlay } from '../runtime/sessionMath';
 import {
   completedThisWeekCount,
   needsScheduleSetup,
@@ -26,8 +32,10 @@ import {
   todayState,
   trainingDaysLabel,
 } from '../workoutFormat';
+import useLeaveWorkoutGuard from './useLeaveWorkoutGuard';
 
 const SAVED_TOAST_MS = 3500;
+const CONTRADICTED = "That set didn't save after all. Tap it again.";
 const EMPTY = {
   session: null,
   currentPlan: null,
@@ -38,14 +46,10 @@ const EMPTY = {
 };
 
 // The Workout screen (RN-SPEC-workout), pushed only in the Today stack. The
-// hub (Part A) and the session runtime (Part B, block 6) are one screen with
-// two render branches. It never remounts on focus (§26.1, invariant D).
+// hub (Part A) and the session runtime (Part B) are one screen with two
+// render branches; it never remounts on focus (§26.1, invariant D).
 export default function WorkoutScreen() {
-  return (
-    <ShellPage testID="workout-screen">
-      <WorkoutPage />
-    </ShellPage>
-  );
+  return <WorkoutPage />;
 }
 
 function WorkoutPage() {
@@ -54,22 +58,31 @@ function WorkoutPage() {
   const isFocused = useIsFocused();
   const { width } = useWindowDimensions();
   const setSessionActive = useShellUiStore((state) => state.setSessionActive);
+  const user = useAuthStore((state) => state.user);
+  const storedPreference = useAuthStore((state) => state.workspace);
   const [status, setStatus] = useState('loading');
   const [loadError, setLoadError] = useState(null);
   const [page, setPage] = useState(EMPTY);
   const [actionError, setActionError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isStartingDayId, setIsStartingDayId] = useState(null);
+  // [O12]: confirmed writes, the failed-reload bar and its retry.
+  const [overlay, setOverlay] = useState({});
+  const [reloadError, setReloadError] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [popup, setPopup] = useState(null);
+  const writeSeq = useRef(0);
   const generation = useRef(0);
   const sessionRef = useRef(null);
   sessionRef.current = page.session;
 
   // §7 single loader. Every load gets a new generation and only the newest
   // may commit (invariant C, O12 §3a). Silent loads (a session is running,
-  // O10) keep the screen and never show the error state.
+  // O10) keep the screen; their failure raises the O12 bar instead.
   const load = useCallback(async ({ silent = false } = {}) => {
     generation.current += 1;
     const mine = generation.current;
+    const startSeq = writeSeq.current;
     if (!silent) {
       setStatus('loading');
     }
@@ -81,18 +94,32 @@ function WorkoutPage() {
       setPage(result.data);
       setLoadError(null);
       setStatus('loaded');
-    } else if (!silent) {
+      setReloadError(false);
+      setOverlay((current) => {
+        const { kept, contradicted } = reconcileOverlay(result.data.session, current, startSeq);
+        if (contradicted) {
+          setActionError(CONTRADICTED);
+        }
+        return kept;
+      });
+    } else if (silent && sessionRef.current?.id) {
+      setReloadError(true);
+    } else {
       setLoadError(result.error);
       setStatus('error');
     }
     return result;
   }, []);
 
-  // Focus (§1.3 refined by §26.1): no session → a fresh hub (loading, local
-  // state reset, reload); a running session → a silent refetch.
-  // Lifecycle pairing C: blur marks the in-flight load stale; each focus
-  // starts a new generation. Pairing B: the session flag is cleared on blur
-  // and unmount, and re-derived below while focused.
+  const writeOverlay = useCallback((setId, fields) => {
+    writeSeq.current += 1;
+    const seq = writeSeq.current;
+    setOverlay((current) => ({ ...current, [setId]: { fields, seq } }));
+  }, []);
+
+  // Focus (§1.3 refined by §26.1): no session → a fresh hub; a running
+  // session → a silent refetch. Pairing C: blur marks the in-flight load
+  // stale; pairing B: the session flag clears on blur and unmount.
   useFocusEffect(
     useCallback(() => {
       const running = Boolean(sessionRef.current?.id);
@@ -115,8 +142,16 @@ function WorkoutPage() {
     }
   }, [isFocused, page.session?.id, setSessionActive]);
 
-  // §1.3 / plans §4.8: a hand-off message shows once; the param is cleared
-  // so it never shows again on a later focus.
+  // Dated change 23 Oct 2026 (owner ruling): Back mid-session asks first.
+  const leaveGuard = useLeaveWorkoutGuard({ isActive: Boolean(page.session?.id), isFocused, navigation });
+
+  // §26.1: the completion popup is dismissed on blur.
+  useEffect(() => {
+    if (!isFocused) {
+      setPopup(null);
+    }
+  }, [isFocused]);
+
   const handoff = route.params?.message;
   useEffect(() => {
     if (handoff) {
@@ -134,7 +169,6 @@ function WorkoutPage() {
     return () => clearTimeout(timer);
   }, [successMessage]);
 
-  // §4, with [O7]: the server's message on failure.
   async function handleStart(dayId) {
     const enrollmentId = page.currentPlan?.enrollment?.id;
     if (!enrollmentId) {
@@ -149,37 +183,103 @@ function WorkoutPage() {
       setSuccessMessage('Workout started.');
       await load({ silent: Boolean(created.session?.id) });
     } catch (error) {
+      // [O7]
       setActionError(getServerMessage(error));
     } finally {
       setIsStartingDayId(null);
     }
   }
 
+  async function retryReload() {
+    setRetrying(true);
+    await load({ silent: true });
+    setRetrying(false);
+  }
+
+  // §1.2, in order. [O10] the skeleton never covers a live session.
+  const branch = (() => {
+    if (page.session?.id && status !== 'error') {
+      const mode = resolveMode({ user, path: '/workout', storedPreference });
+      return (
+        <SessionRuntime
+          session={applyOverlay(page.session, overlay)}
+          planName={page.currentPlan?.enrollment?.plan?.name}
+          exerciseStatsMap={page.exerciseStatsMap}
+          header={<AppHeader path="/workout" query="active=1" mode={mode} />}
+          reload={() => load({ silent: true })}
+          writeOverlay={writeOverlay}
+          actionError={actionError}
+          setActionError={setActionError}
+          successMessage={successMessage}
+          setSuccessMessage={setSuccessMessage}
+          reloadError={reloadError}
+          retrying={retrying}
+          onRetry={retryReload}
+          onCompleted={setPopup}
+        />
+      );
+    }
+
+    return (
+      <ShellPage testID="workout-screen">
+        <Hub
+          status={status}
+          loadError={loadError}
+          page={page}
+          width={width}
+          actionError={actionError}
+          successMessage={successMessage}
+          isStartingDayId={isStartingDayId}
+          onRetry={() => load()}
+          onStart={handleStart}
+          onScheduleSaved={async () => {
+            setSuccessMessage('Training days saved.');
+            await load();
+          }}
+        />
+      </ShellPage>
+    );
+  })();
+
+  // §23.2: the popup must survive the session → hub switch, so it is rendered
+  // ONCE, beside whichever branch shows, never inside a branch: a Modal that
+  // unmounts in one parent while a new one mounts in another made the popup
+  // flash for about a second and vanish on iOS (W2, 8 Oct 2026). (ported
+  // from the 28 Sep build)
+  return (
+    <>
+      {branch}
+      <CompletionPopup popup={popup} onClose={() => setPopup(null)} />
+      <ConfirmDialog
+        testID="leave-workout-dialog"
+        cancelTestID="leave-workout-stay"
+        confirmTestID="leave-workout-leave"
+        isOpen={leaveGuard.open}
+        onClose={leaveGuard.stay}
+        onConfirm={leaveGuard.leave}
+        title="Leave workout?"
+        description="Your workout stays saved. You can pick it up from Today."
+        confirmLabel="Leave"
+        cancelLabel="Stay"
+        tone="primary"
+      />
+    </>
+  );
+}
+
+function Hub({ status, loadError, page, width, actionError, successMessage, isStartingDayId, onRetry, onStart, onScheduleSaved }) {
   const toasts = (
     <>
-      {successMessage ? (
-        <InlineToast testID="workout-saved-toast" tone={ToastTone.success} title="Saved" message={successMessage} />
-      ) : null}
-      {actionError ? (
-        <InlineToast testID="workout-action-error" tone={ToastTone.error} title="Workout error" message={actionError} />
-      ) : null}
+      {successMessage ? <InlineToast testID="workout-saved-toast" tone={ToastTone.success} title="Saved" message={successMessage} /> : null}
+      {actionError ? <InlineToast testID="workout-action-error" tone={ToastTone.error} title="Workout error" message={actionError} /> : null}
     </>
   );
 
-  // §1.2, in order. [O10] the skeleton never covers a live session.
-  if (status === 'loading' && !page.session?.id) {
+  if (status === 'loading') {
     return <WorkoutSkeleton />;
   }
-  if (status === 'error' && !page.session?.id) {
-    return <WorkoutErrorState message={loadError?.message || 'Please try again.'} onRetry={() => load()} />;
-  }
-  if (page.session?.id) {
-    return (
-      <View style={styles.page}>
-        {toasts}
-        <SessionRuntimeStub planName={page.currentPlan?.enrollment?.plan?.name} />
-      </View>
-    );
+  if (status === 'error') {
+    return <WorkoutErrorState message={loadError?.message || 'Please try again.'} onRetry={onRetry} />;
   }
   if (!page.currentPlan?.enrollment?.plan) {
     return (
@@ -192,7 +292,6 @@ function WorkoutPage() {
 
   const { currentPlan, todayStatus, planDays, completedThisWeekDayIds } = page;
   const weekdaysByDay = scheduledWeekdaysByDayId(currentPlan.schedule);
-  const state = todayState(todayStatus);
   const heroDayId = todayStatus?.plan_day?.id;
   const columns = width >= 1280 ? 3 : width >= breakpoints.sm ? 2 : 1;
 
@@ -204,22 +303,19 @@ function WorkoutPage() {
           planName={currentPlan.enrollment.plan.name}
           planDays={planDays}
           enrollmentId={currentPlan.enrollment.id}
-          onSaved={async () => {
-            setSuccessMessage('Training days saved.');
-            await load();
-          }}
+          onSaved={onScheduleSaved}
         />
       ) : null}
       <TodayHeroCard
         planName={currentPlan.enrollment.plan.name || 'Your plan'}
         dayCountLabel={trainingDaysLabel(planDays.length)}
-        state={state}
+        state={todayState(todayStatus)}
         detail={todayDetail(todayStatus)}
         ringValue={completedThisWeekCount(planDays, completedThisWeekDayIds)}
         ringTotal={planDays.length}
         showStart={showsHeroStart(todayStatus)}
         starting={isStartingDayId === heroDayId}
-        onStart={() => handleStart(heroDayId)}
+        onStart={() => onStart(heroDayId)}
       />
       <View style={styles.section}>
         <Text accessibilityRole="header" style={styles.heading}>
@@ -234,7 +330,7 @@ function WorkoutPage() {
               weekdays={weekdaysByDay[day.id] ?? []}
               isDone={completedThisWeekDayIds.includes(day.id)}
               starting={isStartingDayId === day.id}
-              onStart={() => handleStart(day.id)}
+              onStart={() => onStart(day.id)}
             />
           ))}
         </DayGrid>
@@ -256,17 +352,6 @@ function DayGrid({ columns, children }) {
         </View>
       ))}
     </View>
-  );
-}
-
-// Placeholder for the session runtime (Part B, block 6): the seam of §18.
-function SessionRuntimeStub({ planName }) {
-  return (
-    <Card3D testID="workout-session-stub" style={styles.stub}>
-      <Text style={styles.stubEyebrow}>Workout in progress</Text>
-      <Text style={styles.stubTitle}>{planName || 'Your plan'}</Text>
-      <Text style={styles.stubBody}>The session screen arrives with the runtime block.</Text>
-    </Card3D>
   );
 }
 
@@ -294,29 +379,5 @@ const styles = StyleSheet.create({
   },
   fullWidth: {
     width: '100%',
-  },
-  stub: {
-    padding: 20,
-  },
-  stubEyebrow: {
-    fontSize: 11.2,
-    lineHeight: 16.8,
-    fontWeight: '700',
-    letterSpacing: 2.016,
-    textTransform: 'uppercase',
-    color: colors.brand700,
-  },
-  stubTitle: {
-    marginTop: 6,
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  stubBody: {
-    marginTop: 8,
-    fontSize: 14,
-    lineHeight: 24,
-    color: colors.textSecondary,
   },
 });

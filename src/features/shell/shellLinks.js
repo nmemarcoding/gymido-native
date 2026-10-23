@@ -10,8 +10,13 @@ import { SCREEN_FOR_PATH, ShellTab, TAB_ROOTS, getScreenTab } from './shellNavig
 // on that tab's root, never on another stack (5-tab nav, 23 Oct): opened from
 // Plans, Workout still shows as Today = [Home, Workout], so Back → Home.
 export function openShellPath(path, params) {
+  if (!navigationRef.isReady()) {
+    return;
+  }
   const screen = SCREEN_FOR_PATH[path];
-  if (!screen || !navigationRef.isReady()) {
+  // App-shell §3.1: anything else → /404 (replace).
+  if (!screen) {
+    navigationRef.navigate(routes.NotFound);
     return;
   }
   const tab = getScreenTab(screen);

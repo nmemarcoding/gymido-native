@@ -10,7 +10,7 @@ export default function PlanCard({ plan, onView, onAssign, assignLoading = false
   return (
     <View testID={`plan-card-${plan.id}`} style={[styles.card, style]}>
       <Text style={styles.eyebrow}>{plan.category?.name || 'Plan'}</Text>
-      <Text numberOfLines={1} ellipsizeMode="tail" style={styles.title}>
+      <Text textBreakStrategy="simple" numberOfLines={1} ellipsizeMode="tail" style={styles.title}>
         {plan.name}
       </Text>
       <Text style={styles.meta}>{formatDaysPerWeek(plan)}</Text>

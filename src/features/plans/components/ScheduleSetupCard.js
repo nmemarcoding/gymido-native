@@ -48,7 +48,7 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
   return (
     <View testID="schedule-setup" style={[planStyles.card, styles.card]}>
       <Eyebrow>Set up your week</Eyebrow>
-      <Text style={[planStyles.titleXl, styles.mt6]}>{`Pick ${required} training day${plural}`}</Text>
+      <Text textBreakStrategy="simple" style={[planStyles.titleXl, styles.mt6]}>{`Pick ${required} training day${plural}`}</Text>
       <Text style={[planStyles.body, styles.mt6]}>
         {`${planName || 'Your plan'} doesn’t have training days yet. Choose the weekdays you train and we’ll line up your sessions.`}
       </Text>

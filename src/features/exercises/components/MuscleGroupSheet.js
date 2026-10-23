@@ -73,7 +73,7 @@ export default function MuscleGroupSheet({ open, categories, categoryCounts, tot
           <ScrollView bounces={false} contentContainerStyle={[styles.content, { paddingBottom: Math.max(24, insets.bottom) }]}>
             <View style={styles.handle} accessibilityElementsHidden importantForAccessibility="no" />
             <View style={styles.titleRow}>
-              <Text accessibilityRole="header" style={styles.title}>
+              <Text textBreakStrategy="simple" accessibilityRole="header" style={styles.title}>
                 Muscle group
               </Text>
               <Pressable testID="muscle-sheet-close" accessibilityRole="button" onPress={onClose} hitSlop={12}>
@@ -102,7 +102,7 @@ export default function MuscleGroupSheet({ open, categories, categoryCounts, tot
                       <Text style={styles.optionCount}>{option.count}</Text>
                       {active ? (
                         <View style={styles.check}>
-                          <Text style={styles.checkText}>✓</Text>
+                          <Text numberOfLines={1} textBreakStrategy="simple" style={styles.checkText}>✓</Text>
                         </View>
                       ) : (
                         <View style={styles.checkSpacer} />

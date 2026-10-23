@@ -122,7 +122,7 @@ function TrainerDetail({ trainerUserId }) {
         <View style={styles.accent} accessibilityElementsHidden importantForAccessibility="no" />
         <View style={styles.content}>
           <Text style={styles.eyebrow}>Trainer</Text>
-          <Text accessibilityRole="header" style={styles.name}>
+          <Text textBreakStrategy="simple" accessibilityRole="header" style={styles.name}>
             {name}
           </Text>
           {trainer.email ? <Text style={styles.email}>{trainer.email}</Text> : null}

@@ -38,52 +38,54 @@ export default function PlanDayCard({ day, weekdays, isDone, starting, onStart, 
 
   return (
     <Animated.View style={[style, { opacity: rise, transform: [{ translateY }] }]}>
-      <Card3D testID={`workout-day-${day.id}`} style={[styles.card, isDone && styles.cardDone]}>
-        <View style={styles.accent} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <GradientFill colors={['#f7ce4f', '#dda000']} />
-          <View style={[StyleSheet.absoluteFill, styles.accentSolid, { opacity: isDone ? 0 : 1 }]} />
-        </View>
-        <View style={styles.body}>
-          <View style={styles.titleRow}>
-            <Text style={styles.title}>{dayTitle(day)}</Text>
-            {isDone ? (
-              <View style={styles.donePill}>
-                <GradientFill angle={135} colors={['#f7ce4f', '#dda000']} />
-                <Svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke={colors.navy} strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
-                  <Path d="M20 6 9 17l-5-5" />
-                </Svg>
-                <Text style={styles.doneText}>Done this week</Text>
-              </View>
-            ) : null}
+      <Card3D testID={`workout-day-${day.id}`} style={isDone ? styles.cardDone : undefined}>
+        <View style={styles.clip}>
+          <View style={styles.accent} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            <GradientFill colors={['#f7ce4f', '#dda000']} />
+            <View style={[StyleSheet.absoluteFill, styles.accentSolid, { opacity: isDone ? 0 : 1 }]} />
           </View>
-          <View style={styles.pills}>
-            {weekdays.length ? (
-              weekdays.map((weekday) => (
-                <View key={weekday.id} style={styles.pill}>
-                  <Text style={styles.pillText}>{weekday.name}</Text>
+          <View style={styles.body}>
+            <View style={styles.titleRow}>
+              <Text style={styles.title}>{dayTitle(day)}</Text>
+              {isDone ? (
+                <View style={styles.donePill}>
+                  <GradientFill angle={135} colors={['#f7ce4f', '#dda000']} />
+                  <Svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke={colors.navy} strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
+                    <Path d="M20 6 9 17l-5-5" />
+                  </Svg>
+                  <Text style={styles.doneText}>Done this week</Text>
                 </View>
-              ))
-            ) : (
-              <View style={styles.pill}>
-                <Text style={styles.pillText}>Unscheduled</Text>
-              </View>
-            )}
+              ) : null}
+            </View>
+            <View style={styles.pills}>
+              {weekdays.length ? (
+                weekdays.map((weekday) => (
+                  <View key={weekday.id} style={styles.pill}>
+                    <Text style={styles.pillText}>{weekday.name}</Text>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.pill}>
+                  <Text style={styles.pillText}>Unscheduled</Text>
+                </View>
+              )}
+            </View>
+            <Pressable
+              testID={`workout-day-start-${day.id}`}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: starting, busy: starting }}
+              disabled={starting}
+              onPress={onStart}
+              style={({ pressed }) => [
+                styles.start,
+                pressed && !starting ? styles.startPressed : styles.startResting,
+                starting && styles.startLoading,
+              ]}
+            >
+              {starting ? <Spinner size={16} thickness={2} color={colors.textPrimary} track="transparent" /> : null}
+              <Text style={styles.startText}>Start</Text>
+            </Pressable>
           </View>
-          <Pressable
-            testID={`workout-day-start-${day.id}`}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: starting, busy: starting }}
-            disabled={starting}
-            onPress={onStart}
-            style={({ pressed }) => [
-              styles.start,
-              pressed && !starting ? styles.startPressed : styles.startResting,
-              starting && styles.startLoading,
-            ]}
-          >
-            {starting ? <Spinner size={16} thickness={2} color={colors.textPrimary} track="transparent" /> : null}
-            <Text style={styles.startText}>Start</Text>
-          </Pressable>
         </View>
       </Card3D>
     </Animated.View>
@@ -91,8 +93,13 @@ export default function PlanDayCard({ day, weekdays, isDone, starting, onStart, 
 }
 
 const styles = StyleSheet.create({
-  card: {
+  // The card's border changes when the day is done, so the card never clips
+  // (Android blank-render class); the inner clip layer, whose style never
+  // changes, rounds the accent strip instead.
+  clip: {
+    flexGrow: 1,
     flexDirection: 'row',
+    borderRadius: radii.xxxl,
     overflow: 'hidden',
   },
   cardDone: {

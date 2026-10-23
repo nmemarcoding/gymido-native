@@ -166,3 +166,8 @@ expo-env.d.ts
 
 # macOS
 .DS_Store
+
+# Local Expo modules: Gradle/Xcode caches
+modules/*/android/.gradle/
+modules/*/android/build/
+modules/*/ios/build/

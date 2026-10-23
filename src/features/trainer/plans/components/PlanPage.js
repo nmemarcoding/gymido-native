@@ -28,7 +28,7 @@ export function PageEyebrow({ children }) {
 
 export function PageTitle({ children, style }) {
   return (
-    <Text accessibilityRole="header" style={[styles.title, style]}>
+    <Text textBreakStrategy="simple" accessibilityRole="header" style={[styles.title, style]}>
       {children}
     </Text>
   );

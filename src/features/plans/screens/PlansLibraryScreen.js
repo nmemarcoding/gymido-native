@@ -107,7 +107,7 @@ function ActivePlanCard({ plan, weekdays, onView }) {
         <View style={styles.topRow}>
           <View style={styles.textColumn}>
             <Eyebrow>Active plan</Eyebrow>
-            <Text numberOfLines={2} style={[planStyles.title2xl, styles.mt6]}>
+            <Text numberOfLines={2} textBreakStrategy="simple" style={[planStyles.title2xl, styles.mt6]}>
               {plan?.name}
             </Text>
             <Text style={styles.activeSummary}>{activePlanSummary(plan)}</Text>
@@ -131,7 +131,7 @@ function ActivePlanCard({ plan, weekdays, onView }) {
             onPress={() => openShellPath('/workout')}
             style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed]}
           >
-            <Text style={styles.primaryText}>Go to workout</Text>
+            <Text numberOfLines={1} textBreakStrategy="simple" style={styles.primaryText}>Go to workout</Text>
           </Pressable>
           {plan?.id ? (
             <Pressable
@@ -161,7 +161,7 @@ function PlanCard({ plan, onPress }) {
       <View style={styles.topRow}>
         <View style={styles.textColumn}>
           {plan.category?.name ? <Eyebrow>{plan.category.name}</Eyebrow> : null}
-          <Text numberOfLines={2} style={[planStyles.titleLg, styles.mt6]}>
+          <Text numberOfLines={2} textBreakStrategy="simple" style={[planStyles.titleLg, styles.mt6]}>
             {plan.name}
           </Text>
           <View style={styles.pillRow}>

@@ -153,7 +153,7 @@ export default function ExercisePickerSheet({
         >
           {wide ? null : <View style={styles.grabber} />}
           <View style={{ paddingHorizontal: gutter, paddingTop: wide ? 24 : 16, paddingBottom: wide ? 16 : 12 }}>
-            <Text accessibilityRole="header" style={[styles.title, wide && styles.titleWide]}>
+            <Text textBreakStrategy="simple" accessibilityRole="header" style={[styles.title, wide && styles.titleWide]}>
               Add exercise
             </Text>
             <Text style={styles.subtitle}>Search and select exercises to add to this day.</Text>
@@ -213,8 +213,8 @@ export default function ExercisePickerSheet({
 
           <View style={[styles.divider, { marginHorizontal: gutter }]} />
           <View style={[styles.meta, { paddingHorizontal: gutter }]}>
-            <Text style={styles.metaCount}>{countLabel(visible.length, 'exercise', 'exercises')}</Text>
-            {selectedCount > 0 ? <Text style={styles.metaSelected}>{selectedCount} selected</Text> : null}
+            <Text numberOfLines={1} textBreakStrategy="simple" style={styles.metaCount}>{countLabel(visible.length, 'exercise', 'exercises')}</Text>
+            {selectedCount > 0 ? <Text numberOfLines={1} textBreakStrategy="simple" style={styles.metaSelected}>{selectedCount} selected</Text> : null}
           </View>
 
           {/* Virtualized: the catalog runs to hundreds of rows. Same look as a plain list. */}
@@ -273,7 +273,7 @@ export default function ExercisePickerSheet({
               <Text style={[styles.footerLabel, styles.addLabel]}>Add Selected</Text>
               {selectedCount > 0 ? (
                 <View style={styles.bubble}>
-                  <Text style={styles.bubbleText}>{selectedCount}</Text>
+                  <Text numberOfLines={1} textBreakStrategy="simple" style={styles.bubbleText}>{selectedCount}</Text>
                 </View>
               ) : null}
             </Pressable>
@@ -304,8 +304,8 @@ function PickerRow({ exercise, isAdded, isSelected, onToggle }) {
         <Text style={styles.rowName}>{exercise.name}</Text>
         <Text style={styles.rowSlug}>{exercise.slug}</Text>
         <View style={styles.chips}>
-          <Text style={styles.chip}>{exercise.primary_muscle_group?.name || 'Any'}</Text>
-          <Text style={styles.chip}>{equipmentName}</Text>
+          <Text numberOfLines={1} textBreakStrategy="simple" style={styles.chip}>{exercise.primary_muscle_group?.name || 'Any'}</Text>
+          <Text numberOfLines={1} textBreakStrategy="simple" style={styles.chip}>{equipmentName}</Text>
         </View>
       </View>
       <View style={styles.rowTrailing}>

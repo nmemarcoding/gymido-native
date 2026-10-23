@@ -127,7 +127,7 @@ function ClientDetail({ clientUserId }) {
         <View>
           {/* ⚠C-5: pushes C1 rather than going back. */}
           <BrandLink testID="client-all-clients" label="← All clients" onPress={() => navigation.push(routes.TrainerClients)} />
-          <Text accessibilityRole="header" style={styles.title}>
+          <Text textBreakStrategy="simple" accessibilityRole="header" style={styles.title}>
             {heading}
           </Text>
         </View>
@@ -233,7 +233,7 @@ function ClientDetail({ clientUserId }) {
             <View style={[styles.planCard, styles.sectionBody]}>
               <View style={styles.planBar} />
               <View style={styles.planBody}>
-                <Text numberOfLines={1} style={styles.planName}>
+                <Text textBreakStrategy="simple" numberOfLines={1} style={styles.planName}>
                   {plan.enrollment?.plan?.name || 'Current plan'}
                 </Text>
                 <Text style={styles.planMeta}>

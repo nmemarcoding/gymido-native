@@ -46,7 +46,7 @@ export default function AppHeader({ path, query = '', mode }) {
     return (
       <View style={[box, styles.compact, exercisesTitle && styles.compactTitled]}>
         {exercisesTitle ? (
-          <Text accessibilityRole="header" style={styles.title}>
+          <Text textBreakStrategy="simple" accessibilityRole="header" style={styles.title}>
             Exercises
           </Text>
         ) : null}
@@ -61,7 +61,7 @@ export default function AppHeader({ path, query = '', mode }) {
         {title ? (
           <View style={styles.titleColumn}>
             {backLink ? <BackLink label={backLink.label} onPress={() => openShellPath(backLink.path)} /> : null}
-            <Text accessibilityRole="header" style={styles.title}>
+            <Text textBreakStrategy="simple" accessibilityRole="header" style={styles.title}>
               {title}
             </Text>
           </View>

@@ -16,7 +16,7 @@ export function TrainerStatCard({ label, value, tone = 'slate', subtitle, style 
   return (
     <View style={[styles.statCard, style]}>
       <Text style={styles.statLabel}>{label}</Text>
-      <Text style={[styles.statValue, { color: STAT_TONES[tone] }]}>{value}</Text>
+      <Text numberOfLines={1} textBreakStrategy="simple" style={[styles.statValue, { color: STAT_TONES[tone] }]}>{value}</Text>
       {subtitle ? <Text style={styles.statSubtitle}>{subtitle}</Text> : null}
     </View>
   );
@@ -92,7 +92,7 @@ export function CoachingHeader({ title, subtitle, children }) {
     <View style={styles.header}>
       <View style={styles.headerLeft}>
         <Text style={styles.eyebrow}>Coaching</Text>
-        <Text accessibilityRole="header" style={styles.title}>
+        <Text textBreakStrategy="simple" accessibilityRole="header" style={styles.title}>
           {title}
         </Text>
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}

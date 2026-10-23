@@ -5,6 +5,7 @@ export const routes = Object.freeze({
   SignInFailed: 'SignInFailed',
   AccountUnavailable: 'AccountUnavailable',
   Onboarding: 'Onboarding',
+  NotFound: 'NotFound',
   // The signed-in tab shell (app-shell spec §3.4) and the screens inside it.
   AppShell: 'AppShell',
   Home: 'Home',
@@ -36,6 +37,7 @@ export const routes = Object.freeze({
 // Screens that exist only while signed in.
 export const signedInRouteNames = new Set([
   routes.Onboarding,
+  routes.NotFound,
   routes.Home,
   routes.Workout,
   routes.Exercises,

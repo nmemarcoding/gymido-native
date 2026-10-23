@@ -20,7 +20,7 @@ export function WorkoutErrorState({ message, onRetry }) {
             <Path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
           </Svg>
         </View>
-        <Text style={styles.title}>Workout unavailable</Text>
+        <Text textBreakStrategy="simple" style={styles.title}>Workout unavailable</Text>
         {message ? <Text style={styles.body}>{message}</Text> : null}
         <Pressable
           testID="workout-error-retry"
@@ -53,7 +53,7 @@ export function WorkoutEmptyState({ onBrowse }) {
             <Rect x={21} y={30} width={22} height={4} rx={2} fill="rgba(17, 24, 39, 0.70)" />
           </Svg>
         </View>
-        <Text style={[styles.title, styles.emptyTitle]}>No active workout plan</Text>
+        <Text textBreakStrategy="simple" style={[styles.title, styles.emptyTitle]}>No active workout plan</Text>
         <Text style={styles.body}>Pick a plan first, then come back here to start a workout with real backend data.</Text>
         <BrandButton
           testID="workout-browse-plans"

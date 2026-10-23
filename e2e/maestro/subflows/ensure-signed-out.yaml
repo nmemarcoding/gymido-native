@@ -2,7 +2,8 @@
 appId: com.gymido.app
 ---
 - runFlow: launch-dev-client.yaml
-# Trainer mode: the dashboard has no Settings button; its Profile tab does.
+# Trainer mode: switch to the member workspace (the Workspace switch sits on
+# the trainer tabs); sign-out then lives on the member Profile tab below.
 - runFlow:
     when:
       visible:
@@ -10,9 +11,11 @@ appId: com.gymido.app
     commands:
       - tapOn:
           id: "tab-TProfile"
+      - tapOn:
+          id: "mode-switch-member"
       - extendedWaitUntil:
           visible:
-            id: "placeholder-open-settings"
+            id: "tab-Profile"
           timeout: 20000
 # Member mode (5-tab nav): the Profile tab root holds the account actions.
 - runFlow:

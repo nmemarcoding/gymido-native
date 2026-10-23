@@ -156,7 +156,7 @@ function BodyTab({ weightProgress, weightLogs, unit, onAddWeight }) {
         {weightStats(weightProgress, unit).map((item, index) => (
           <View key={item.label} style={[styles.stripItem, index > 0 && styles.divider]}>
             <Text style={styles.statLabel}>{item.label}</Text>
-            <Text style={[styles.stripValue, item.brand && styles.brandValue]}>{item.value}</Text>
+            <Text numberOfLines={1} textBreakStrategy="simple" style={[styles.stripValue, item.brand && styles.brandValue]}>{item.value}</Text>
           </View>
         ))}
       </View>
@@ -165,7 +165,7 @@ function BodyTab({ weightProgress, weightLogs, unit, onAddWeight }) {
         <View style={styles.goalRow}>
           <View style={styles.textColumn}>
             <Text style={styles.sectionTitle}>Goal progress</Text>
-            <Text testID="progress-goal-value" style={styles.goalValue}>{`${formatNumber(completion, 0)}%`}</Text>
+            <Text numberOfLines={1} textBreakStrategy="simple" testID="progress-goal-value" style={styles.goalValue}>{`${formatNumber(completion, 0)}%`}</Text>
           </View>
           <Pressable
             testID="progress-add-weight"
@@ -273,7 +273,7 @@ function ActivityTab({ overview, history, frequency }) {
               item ? (
                 <View key={item.label} style={[styles.statCard, styles.cardShadow]}>
                   <Text style={styles.statLabel}>{item.label}</Text>
-                  <Text style={styles.statValue}>{item.value}</Text>
+                  <Text numberOfLines={1} textBreakStrategy="simple" style={styles.statValue}>{item.value}</Text>
                 </View>
               ) : (
                 <View key={`spacer-${index}`} style={styles.cell} />
