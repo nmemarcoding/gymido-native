@@ -46,6 +46,7 @@ export const NO_PLATFORM = {
   speakRestEnd: () => {},
   vibrateEnabled: () => true,
   stopSpeech: () => {},
+  speakIntroEligible: () => false,
   readSpeakIntroShown: async () => true,
   markSpeakIntroShown: async () => {},
   canScheduleExactAlarms: async () => null,
@@ -247,6 +248,8 @@ export function createRestAlertController({
     // doesn't depend on it (iOS Live Activities don't).
     async restStarted(setId, endMs, totalSeconds) {
       platform.stopSpeech();
+      // A new rest may be spoken again, even for a re-completed set.
+      lastSpokenSetId = null;
       rest = { setId, endMs, totalSeconds };
       const mine = rest;
       let status = await readPermission();
@@ -277,7 +280,7 @@ export function createRestAlertController({
       }
       // The speak pop-up never stacks: a rest that asked for permission or
       // offered A2 leaves it for the next rest start.
-      if (!requestedNow && !offeredNow && rest?.setId === setId && !disposed) {
+      if (!requestedNow && !offeredNow && rest?.setId === setId && !disposed && platform.speakIntroEligible()) {
         const shown = await platform.readSpeakIntroShown().catch(() => true);
         if (!shown && rest?.setId === setId && !disposed) {
           platform.markSpeakIntroShown().catch(() => {});

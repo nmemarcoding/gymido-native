@@ -6,7 +6,6 @@
 //   npm run apk                    build → builds/gymido-release-<date>.apk
 //   npm run apk -- --install       …and install it (USB device first, else a
 //                                  running emulator)
-//   npm run apk -- --clean         regenerate android/ first (prebuild --clean)
 //
 // Signing: the owner's upload key when GYMIDO_UPLOAD_* is set (in
 // ~/.gradle/gradle.properties). Otherwise, FOR NOW (no public release yet,
@@ -15,7 +14,8 @@
 //
 // Sets JAVA_HOME to JDK 17 and ANDROID_HOME when they aren't, writes
 // .env.production from .env.example's public values when it is missing, and
-// generates android/ when it doesn't exist (it is gitignored).
+// ALWAYS regenerates android/ for production (prebuild --clean): a folder left
+// by a dev/localtest prebuild, or by an older plugin, must never ship.
 
 const { execFileSync, spawnSync } = require('child_process');
 const fs = require('fs');
@@ -96,10 +96,8 @@ function main(argv) {
     console.log('apk: wrote .env.production from .env.example (public values only).');
   }
 
-  if (argv.includes('--clean') || !fs.existsSync(path.join(ROOT, 'android'))) {
-    console.log('apk: generating android/ (production)…');
-    run('npx', ['expo', 'prebuild', '--clean', '--platform', 'android'], { cwd: ROOT, env });
-  }
+  console.log('apk: regenerating android/ for production…');
+  run('npx', ['expo', 'prebuild', '--clean', '--platform', 'android'], { cwd: ROOT, env });
 
   const gradleProperties = readFileOr(path.join(os.homedir(), '.gradle/gradle.properties'), '');
   if (hasUploadKey(env, gradleProperties)) {

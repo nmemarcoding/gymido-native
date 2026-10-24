@@ -23,6 +23,7 @@ function fakePlatform({ permission = 'granted', canExact = null, offered = false
     lastSpoken: null,
     introShown: true,
     vibrateOn: true,
+    introEligible: true,
     requests: 0,
     getPermission: async () => fake.permission,
     requestPermission: async () => {
@@ -64,6 +65,7 @@ function fakePlatform({ permission = 'granted', canExact = null, offered = false
       fake.stops += 1;
     },
     vibrateEnabled: () => fake.vibrateOn,
+    speakIntroEligible: () => fake.introEligible,
     readSpeakIntroShown: async () => fake.introShown,
     markSpeakIntroShown: async () => {
       fake.introShown = true;
@@ -591,5 +593,29 @@ describe('rest-end vibration (§7.2 step 2, dated change 23 Oct 2026)', () => {
     await controller.appStateChanged('active');
     await controller.restEnded(5, 1_060_000);
     expect(vibrate).not.toHaveBeenCalled();
+  });
+});
+
+describe('review fixes (24 Oct)', () => {
+  it('never offers the speak pop-up when the cue would not be spoken (switch off / screen reader)', async () => {
+    const onSpeakIntro = jest.fn();
+    const { platform, controller } = setup({}, { onSpeakIntro });
+    platform.introShown = false;
+    platform.introEligible = false;
+    controller.restStarted(5, 2_000_000);
+    await settle();
+    expect(onSpeakIntro).not.toHaveBeenCalled();
+    expect(platform.introShown).toBe(false);
+  });
+
+  it('speaks again for a new rest of the same set (re-completed), still once per rest', async () => {
+    const { platform, controller } = setup();
+    await controller.restEnded(5, 2_000_000);
+    await controller.restEnded(5, 2_000_000);
+    expect(platform.spoken).toBe(1);
+    controller.restStarted(5, 2_100_000);
+    await settle();
+    await controller.restEnded(5, 2_100_000);
+    expect(platform.spoken).toBe(2);
   });
 });

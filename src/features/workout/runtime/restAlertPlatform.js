@@ -30,9 +30,16 @@ const SPEAK_AFTER_BEEP_MS = 600;
 // Audio-session hygiene: once the beep (and the spoken cue) are done, the
 // session is released, so other audio un-ducks and nothing in our app holds
 // an active playback session (iOS can hold back haptics while one is active).
-// Released on leaving the foreground too. The next play activates it again.
+// Released on going to the background too. Every play re-activates it first:
+// on Android, expo-audio refuses to play at all while it is released.
 const RELEASE_AFTER_BEEP_MS = 900;
 let releaseTimer = null;
+let speechTimer = null;
+// A spoken cue is due or playing: only its end (or a stop) releases.
+let speechPending = false;
+// Resolves once the latest beep has started (activating the session can take
+// a moment), so the spoken cue is timed from the beep, never over it.
+let beepStarted = Promise.resolve();
 
 function releaseAudioSession(delayMs = 0) {
   clearTimeout(releaseTimer);
@@ -42,6 +49,57 @@ function releaseAudioSession(delayMs = 0) {
       .then(() => setIsAudioActiveAsync(false))
       .catch(() => {});
   }, delayMs);
+}
+
+function activateAudioSession() {
+  clearTimeout(releaseTimer);
+  releaseTimer = null;
+  return Promise.resolve()
+    .then(() => setIsAudioActiveAsync(true))
+    .catch(() => {});
+}
+
+// The beep player, created (and so preloaded) at startup: the first load of
+// the WAV takes longer than the spoken cue's delay, which made the very first
+// cue start before its beep.
+function ensurePlayer() {
+  if (!player) {
+    player = createAudioPlayer(require('../../../../assets/sounds/rest-done.wav'));
+  }
+  return player;
+}
+
+// Resolves when the player actually reports playing (or after a cap): after
+// the session was released, Android takes up to ~1 s to restart the beep's
+// track, so timing the spoken cue from play() alone could put it first.
+const BEEP_START_CAP_MS = 1500;
+
+function whenPlaying(audioPlayer) {
+  return new Promise((resolve) => {
+    let subscription = null;
+    let cap = null;
+    const done = () => {
+      clearTimeout(cap);
+      subscription?.remove?.();
+      resolve();
+    };
+    cap = setTimeout(done, BEEP_START_CAP_MS);
+    try {
+      subscription = audioPlayer.addListener?.('playbackStatusUpdate', (status) => {
+        if (status?.playing) {
+          done();
+        }
+      });
+    } catch {
+      done();
+    }
+  });
+}
+
+function endSpeech() {
+  clearTimeout(speechTimer);
+  speechTimer = null;
+  speechPending = false;
 }
 
 // Owner ruling (23 Oct 2026): the rest-done beep plays even with the iPhone
@@ -77,6 +135,11 @@ export function initRestAlerts() {
   }
   initialized = true;
   ensureAudioMode();
+  try {
+    ensurePlayer();
+  } catch {
+    // Best effort; playBeep tries again.
+  }
   loadSpeakRestAlerts();
   AccessibilityInfo.isScreenReaderEnabled()
     .then((enabled) => {
@@ -86,8 +149,11 @@ export function initRestAlerts() {
   AccessibilityInfo.addEventListener('screenReaderChanged', (enabled) => {
     screenReaderOn = Boolean(enabled);
   });
+  // Background only: 'inactive' (Control Center, a system dialog) must not
+  // cut a beep or the spoken cue.
   AppState.addEventListener('change', (next) => {
-    if (next !== 'active') {
+    if (next === 'background') {
+      endSpeech();
       releaseAudioSession();
     }
   });
@@ -155,19 +221,28 @@ const restAlertPlatform = {
   // §7.2 step 1: the pre-rendered two-beep WAV, best effort.
   // The audio mode is applied first (once); the beep plays either way.
   playBeep: () =>
-    ensureAudioMode().then(() => {
-      try {
-        if (!player) {
-          player = createAudioPlayer(require('../../../../assets/sounds/rest-done.wav'));
+    (beepStarted = ensureAudioMode()
+      .then(activateAudioSession)
+      .then(() => {
+        try {
+          ensurePlayer();
+          const started = whenPlaying(player);
+          player.seekTo(0);
+          player.play();
+          // A spoken cue that follows releases the session when it ends.
+          // Released once the beep has played; a spoken cue that follows
+          // releases it when the speech ends instead.
+          started.then(() => {
+            if (!speechPending) {
+              releaseAudioSession(RELEASE_AFTER_BEEP_MS);
+            }
+          });
+          return started;
+        } catch {
+          // Best effort, as on the web.
+          return undefined;
         }
-        player.seekTo(0);
-        player.play();
-        // The spoken cue, when it follows, takes this over (speakRestEnd).
-        releaseAudioSession(RELEASE_AFTER_BEEP_MS);
-      } catch {
-        // Best effort, as on the web.
-      }
-    }),
+      })),
   // The spoken cue (owner request, 23 Oct 2026): the system voice, through
   // the app's audio session in the beep's mode (silent switch on, ducking).
   // Foreground only, like the beep; skipped when "Speak rest alerts" is off
@@ -176,30 +251,59 @@ const restAlertPlatform = {
     if (!isSpeakRestAlertsOn()) {
       return;
     }
-    // Keep the session for the speech; it is released when the speech ends.
+    // Set synchronously, before the beep's own release can be scheduled.
+    speechPending = true;
     clearTimeout(releaseTimer);
-    ensureAudioMode().then(() => {
-      setTimeout(() => {
-        try {
-          if (screenReaderOn) {
-            releaseAudioSession();
-            return;
-          }
-          const release = () => releaseAudioSession();
-          Speech.stop();
-          Speech.speak(text, { language: 'en', useApplicationAudioSession: true, onDone: release, onStopped: release, onError: release });
-        } catch {
-          releaseAudioSession();
+    clearTimeout(speechTimer);
+    const release = () => {
+      endSpeech();
+      releaseAudioSession();
+    };
+    // Timed from the beep's start; cancellable (a new rest, leaving the
+    // session or the background clear it).
+    beepStarted.then(() => {
+      if (!speechPending) {
+        return;
+      }
+      clearTimeout(speechTimer);
+      speechTimer = setTimeout(() => {
+        speechTimer = null;
+        if (screenReaderOn) {
+          release();
+          return;
         }
+        ensureAudioMode()
+          .then(activateAudioSession)
+          .then(() => {
+            if (!speechPending) {
+              return;
+            }
+            Speech.stop();
+            Speech.speak(text, {
+              language: 'en',
+              useApplicationAudioSession: true,
+              onDone: release,
+              onStopped: release,
+              onError: release,
+            });
+          })
+          .catch(release);
       }, SPEAK_AFTER_BEEP_MS);
     });
   },
+  // A3: offer the pop-up only when the cue would actually be spoken.
+  speakIntroEligible: () => isSpeakRestAlertsOn() && !screenReaderOn,
   vibrateEnabled: () => isVibrateRestAlertsOn(),
   stopSpeech: () => {
+    const wasPending = speechPending;
+    endSpeech();
     try {
       Speech.stop();
     } catch {
       // Best effort.
+    }
+    if (wasPending) {
+      releaseAudioSession();
     }
   },
   readSpeakIntroShown: async () => (await AsyncStorage.getItem(SPEAK_INTRO_SHOWN_KEY)) !== null,

@@ -128,10 +128,15 @@ describe('spoken rest cue (owner request, 23 Oct 2026)', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(Speech.speak).not.toHaveBeenCalled();
-    jest.advanceTimersByTime(600);
-    await Promise.resolve();
-    await Promise.resolve();
+    jest.advanceTimersByTime(599);
+    expect(Speech.speak).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(1);
+    for (let i = 0; i < 20; i += 1) {
+      await Promise.resolve();
+    }
     expect(setAudioModeAsync).toHaveBeenCalled();
+    // Re-activated before speaking (Android refuses to play while released).
+    expect(require('expo-audio').setIsAudioActiveAsync).toHaveBeenCalledWith(true);
     expect(Speech.speak).toHaveBeenCalledWith(REST_SPOKEN_TEXT, expect.objectContaining({ language: 'en', useApplicationAudioSession: true }));
     // The session is released when the speech ends.
     const { setIsAudioActiveAsync } = require('expo-audio');
