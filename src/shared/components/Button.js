@@ -25,7 +25,7 @@ export default function Button({ title, onPress, variant = 'primary', loading = 
       {loading ? (
         <ActivityIndicator color={colors.textPrimary} />
       ) : (
-        <Text style={styles.label}>{title}</Text>
+        <Text textBreakStrategy="simple" style={styles.label}>{title}</Text>
       )}
     </Pressable>
   );

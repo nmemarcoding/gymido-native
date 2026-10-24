@@ -9,13 +9,45 @@
 #       env:
 #         LOGIN_EMAIL: ${TRAINER_EMAIL}
 #         LOGIN_PASSWORD: ${TRAINER_PASSWORD}
+#
+# Session reuse (FASTEST-TEST-PLAYBOOK): pass EXPECT_NAME (a regex for the
+# member's display name on the Profile tab, e.g. ".*mamad.*") and, when that
+# member is already signed in, the sign-out + Auth0 login (~65-90 s) is
+# skipped; the flow continues from the Today tab. Without EXPECT_NAME it
+# always signs out and in, as before. Member accounts only.
 appId: com.gymido.app
 ---
-- runFlow: ensure-signed-out.yaml
-- tapOn:
-    id: "welcome-log-in"
-- waitForAnimationToEnd:
-    timeout: 8000
-- runFlow: dismiss-browser-interstitials.yaml
-- runFlow: wait-for-login-form.yaml
-- runFlow: fill-login-form.yaml
+- evalScript: ${output.sessionReused = false}
+- runFlow:
+    when:
+      true: ${typeof EXPECT_NAME !== 'undefined' && EXPECT_NAME !== ''}
+    commands:
+      - runFlow: launch-dev-client.yaml
+      - runFlow:
+          when:
+            visible:
+              id: "tab-Profile"
+          commands:
+            - tapOn:
+                id: "tab-Profile"
+            - runFlow:
+                when:
+                  visible:
+                    id: "settings-display-name"
+                    text: ${EXPECT_NAME}
+                commands:
+                  - evalScript: ${output.sessionReused = true}
+                  - tapOn:
+                      id: "tab-Today"
+- runFlow:
+    when:
+      true: ${!output.sessionReused}
+    commands:
+      - runFlow: ensure-signed-out.yaml
+      - tapOn:
+          id: "welcome-log-in"
+      - waitForAnimationToEnd:
+          timeout: 8000
+      - runFlow: dismiss-browser-interstitials.yaml
+      - runFlow: wait-for-login-form.yaml
+      - runFlow: fill-login-form.yaml

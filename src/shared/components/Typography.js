@@ -3,12 +3,12 @@ import { StyleSheet, Text } from 'react-native';
 import { typography } from '../theme/tokens';
 
 export function Eyebrow({ children, style }) {
-  return <Text style={[styles.eyebrow, style]}>{children}</Text>;
+  return <Text textBreakStrategy="simple" style={[styles.eyebrow, style]}>{children}</Text>;
 }
 
 export function Heading({ children, style }) {
   return (
-    <Text accessibilityRole="header" style={[styles.heading, style]}>
+    <Text accessibilityRole="header" textBreakStrategy="simple" style={[styles.heading, style]}>
       {children}
     </Text>
   );

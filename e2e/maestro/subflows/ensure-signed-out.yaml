@@ -2,6 +2,33 @@
 appId: com.gymido.app
 ---
 - runFlow: launch-dev-client.yaml
+# Trainer mode: switch to the member workspace (the Workspace switch sits on
+# the trainer tabs); sign-out then lives on the member Profile tab below.
+- runFlow:
+    when:
+      visible:
+        id: "tab-TProfile"
+    commands:
+      - tapOn:
+          id: "tab-TProfile"
+      - tapOn:
+          id: "mode-switch-member"
+      - extendedWaitUntil:
+          visible:
+            id: "tab-Profile"
+          timeout: 20000
+# Member mode (5-tab nav): the Profile tab root holds the account actions.
+- runFlow:
+    when:
+      visible:
+        id: "tab-Profile"
+    commands:
+      - tapOn:
+          id: "tab-Profile"
+      - extendedWaitUntil:
+          visible:
+            id: "settings-sign-out"
+          timeout: 20000
 # On a placeholder screen: go to Settings first.
 - runFlow:
     when:
@@ -19,8 +46,24 @@ appId: com.gymido.app
       visible:
         id: "settings-sign-out"
     commands:
+      # P1 is taller than the old Settings page: centre the button first, or
+      # the tap lands on the floating tab bar above it.
+      - scrollUntilVisible:
+          element:
+            id: "settings-sign-out"
+          direction: DOWN
+          centerElement: true
+          timeout: 10000
       - tapOn:
           id: "settings-sign-out"
+      # iOS asks before Auth0's clearSession opens its browser session.
+      - runFlow:
+          when:
+            platform: iOS
+          commands:
+            - tapOn:
+                text: "Continue"
+                optional: true
 - runFlow:
     when:
       visible:

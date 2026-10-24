@@ -1,4 +1,18 @@
-import { getApiErrorMessage, isNetworkError } from './apiError';
+import { DEFAULT_ERROR_MESSAGE, getApiErrorMessage, getServerMessage, isNetworkError } from './apiError';
+
+describe('getServerMessage', () => {
+  it('uses message, then the first error, then the transport text, then the default', () => {
+    expect(getServerMessage({ response: { data: { message: 'Validation failed', errors: { a: ['x'] } } } })).toBe(
+      'Validation failed'
+    );
+    expect(getServerMessage({ response: { data: { message: '  ', errors: { name: ['Name taken'] } } } })).toBe('Name taken');
+    expect(getServerMessage({ message: 'Network Error' })).toBe('Network Error');
+    expect(getServerMessage({ message: 'Request failed with status code 500', response: { data: {} } })).toBe(
+      'Request failed with status code 500'
+    );
+    expect(getServerMessage({})).toBe(DEFAULT_ERROR_MESSAGE);
+  });
+});
 
 describe('getApiErrorMessage', () => {
   it('prefers the API message', () => {
@@ -22,5 +36,18 @@ describe('isNetworkError', () => {
     expect(isNetworkError({ isAxiosError: true })).toBe(true);
     expect(isNetworkError({ isAxiosError: true, response: { status: 500 } })).toBe(false);
     expect(isNetworkError(new Error('boom'))).toBe(false);
+  });
+});
+
+describe('getServerMessage fallback chain', () => {
+  it("ends with web's default when message, errors and transport text are all empty", () => {
+    expect(getServerMessage({ response: { data: { message: ' ', errors: {} } }, message: '' })).toBe('Something went wrong. Please try again.');
+    expect(getServerMessage(undefined)).toBe('Something went wrong. Please try again.');
+  });
+
+  it('prefers message, then the first errors field, then the transport text', () => {
+    expect(getServerMessage({ response: { data: { message: 'Nope' } } })).toBe('Nope');
+    expect(getServerMessage({ response: { data: { errors: { name: ['Name is required'] } } } })).toBe('Name is required');
+    expect(getServerMessage({ message: 'Network Error' })).toBe('Network Error');
   });
 });

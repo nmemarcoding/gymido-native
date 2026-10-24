@@ -1,0 +1,6 @@
+{
+  "name": "rest-countdown",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Gymido live rest countdown (RN-SPEC-time O13), a local Expo module."
+}

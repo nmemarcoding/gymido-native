@@ -11,3 +11,16 @@ export async function changePassword(password) {
   const response = await apiClient.post('/profile/change-password', { password });
   return response.data;
 }
+
+// Create profile (RN-SPEC-profile-create §5).
+export async function createProfile(payload) {
+  const response = await apiClient.post('/profile', payload);
+  return response.data?.data?.profile ?? response.data?.data ?? null;
+}
+
+// Edit profile (RN-SPEC-profile P2.5, dated change 23 Oct 2026: PATCH);
+// returns `data.profile`.
+export async function updateProfile(payload) {
+  const response = await apiClient.patch('/profile', payload);
+  return response.data?.data?.profile ?? null;
+}
