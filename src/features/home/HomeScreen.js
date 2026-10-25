@@ -6,6 +6,7 @@ import { InlineError } from '../../shared/components/FeedbackBox';
 import Loader from '../../shared/components/Loader';
 import { InlineToast } from '../../shared/components/ToastHost';
 import { ToastTone } from '../../shared/components/toastStore';
+import TextLink, { textLinkRow } from '../../shared/components/TextLink';
 import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
 import { colors, radii, shadows } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
@@ -21,9 +22,9 @@ import WeightLogModal from './WeightLogModal';
 const SAVED_TOAST_MS = 3500;
 
 const PILL_TONES = {
-  success: { background: colors.successTint, text: colors.success, dot: colors.success },
+  success: { background: colors.successTint, text: colors.success700, dot: colors.success },
   brand: { background: colors.brand50, text: colors.brand700, dot: colors.brand400 },
-  warning: { background: 'rgba(245, 158, 11, 0.10)', text: colors.warning, dot: colors.warning },
+  warning: { background: 'rgba(245, 158, 11, 0.10)', text: colors.warning700, dot: colors.warning },
   // A1: the muted pill text is text-secondary.
   muted: { background: colors.surfaceMuted, text: colors.textSecondary, dot: colors.textMuted },
 };
@@ -265,23 +266,10 @@ function TodayCard({ plan, card }) {
           </View>
           <StatusPill tone={card.tone} label={card.pill} />
         </View>
-        <View style={styles.buttons}>
-          <Pressable
-            testID="home-today-primary"
-            accessibilityRole="button"
-            onPress={() => openShellPath('/workout')}
-            style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed]}
-          >
-            <Text numberOfLines={1} textBreakStrategy="simple" style={styles.primaryText}>{card.primary}</Text>
-          </Pressable>
-          <Pressable
-            testID="home-view-plan"
-            accessibilityRole="button"
-            onPress={() => openPlanDetailAlone(plan.id)}
-            style={({ pressed }) => [styles.viewPlan, pressed && styles.secondaryPressed]}
-          >
-            <Text style={styles.secondaryText}>View plan</Text>
-          </Pressable>
+        {/* Design system v1 #19: both actions are text links. */}
+        <View style={textLinkRow}>
+          <TextLink testID="home-today-primary" label={card.primary} arrow onPress={() => openShellPath('/workout')} />
+          <TextLink testID="home-view-plan" label="View plan" onPress={() => openPlanDetailAlone(plan.id)} />
         </View>
       </View>
     </View>
@@ -357,20 +345,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '600',
-    color: colors.warning,
-  },
-  buttons: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 20,
-  },
-  primary: {
-    flex: 1,
-    alignItems: 'center',
-    borderRadius: radii.xl,
-    backgroundColor: colors.brand400,
-    paddingVertical: 12,
-    boxShadow: shadows.glow,
+    color: colors.warning700,
   },
   primaryPressed: {
     backgroundColor: colors.brand500,
@@ -380,14 +355,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: '900',
     color: colors.navy,
-  },
-  viewPlan: {
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
   },
   secondaryButton: {
     alignItems: 'center',
@@ -448,7 +415,7 @@ const styles = StyleSheet.create({
   },
   stripLabel: {
     marginTop: 2,
-    fontSize: 9.92,
+    fontSize: 11,
     lineHeight: 14.88,
     fontWeight: '700',
     letterSpacing: 1.19,

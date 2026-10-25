@@ -18,6 +18,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import BlurLayer from '../../../shared/components/BlurLayer';
 import GradientFill from '../../../shared/components/GradientFill';
+import PillButton from '../../../shared/components/PillButton';
 import Spinner from '../../../shared/components/Spinner';
 import { formatNumber, formatWeight } from '../../../shared/format/numbers';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
@@ -61,6 +62,8 @@ function CountdownRing({ size, radius, strokeWidth, ratio }) {
   );
 }
 
+const PULSE_EASING = Easing.out(Easing.ease);
+
 function Countdown({ seconds, style }) {
   const reducedMotion = useReducedMotion();
   const pulse = useRef(new Animated.Value(1)).current;
@@ -70,10 +73,12 @@ function Countdown({ seconds, style }) {
       pulse.setValue(1);
       return undefined;
     }
+    // Design system v1 #12: the digits pulse 1 → 1.06, once a second,
+    // ease-out; the depleting ring is the motion-free cue.
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.18, duration: 500, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1.06, duration: 500, easing: PULSE_EASING, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 500, easing: PULSE_EASING, useNativeDriver: true }),
       ])
     );
     loop.start();
@@ -84,7 +89,33 @@ function Countdown({ seconds, style }) {
   );
 }
 
+// Design system v1 P10: the workout dialogs pop in (260 ms, ease-pop: a
+// slight overshoot to scale 1), instantly under reduced motion.
+function usePopIn(open) {
+  const reducedMotion = useReducedMotion();
+  const progress = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!open) {
+      progress.setValue(0);
+      return undefined;
+    }
+    if (reducedMotion) {
+      progress.setValue(1);
+      return undefined;
+    }
+    const animation = Animated.timing(progress, { toValue: 1, duration: 260, easing: POP, useNativeDriver: true });
+    animation.start();
+    return () => animation.stop();
+  }, [open, progress, reducedMotion]);
+  return { opacity: progress, transform: [{ scale: progress.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] }) }] };
+}
+
 const EXPAND_ACTIONS = [{ name: 'activate', label: 'Expand rest timer' }];
+// Design system v1 #10: 44 pt targets, visuals unchanged. Measured with P2's
+// spacing: the ±5 row ends 16 pt above Skip rest, so these never overlap
+// (4 + 9 < 16) and a −5 tap can't skip.
+const ADJUST_HIT_SLOP = { top: 4, bottom: 4 };
+const SKIP_HIT_SLOP = { top: 9, bottom: 9 };
 
 // §22.1–§22.2: draggable in both sizes (4 pt threshold, 8 pt clamp from the
 // safe-area edges, re-clamped on every tick), no release animation; the four
@@ -175,6 +206,7 @@ export function RestTimerWidget({ timer, minimized, onMinimize, onExpand, onAdju
             accessibilityRole="button"
             accessibilityLabel="Minimize rest timer"
             onPress={onMinimize}
+            hitSlop={6}
             style={styles.minimize}
           >
             <Text numberOfLines={1} textBreakStrategy="simple" style={styles.minimizeText}>–</Text>
@@ -187,6 +219,7 @@ export function RestTimerWidget({ timer, minimized, onMinimize, onExpand, onAdju
               accessibilityRole="button"
               accessibilityLabel="Decrease rest timer by 5 seconds"
               onPress={() => onAdjust(-5)}
+              hitSlop={ADJUST_HIT_SLOP}
               style={styles.adjust}
             >
               <Text numberOfLines={1} textBreakStrategy="simple" style={styles.adjustText}>−5s</Text>
@@ -196,12 +229,13 @@ export function RestTimerWidget({ timer, minimized, onMinimize, onExpand, onAdju
               accessibilityRole="button"
               accessibilityLabel="Increase rest timer by 5 seconds"
               onPress={() => onAdjust(5)}
+              hitSlop={ADJUST_HIT_SLOP}
               style={styles.adjust}
             >
               <Text numberOfLines={1} textBreakStrategy="simple" style={styles.adjustText}>+5s</Text>
             </Pressable>
           </View>
-          <Pressable testID="rest-timer-skip" accessibilityRole="button" onPress={onSkip} style={styles.skip}>
+          <Pressable testID="rest-timer-skip" accessibilityRole="button" onPress={onSkip} hitSlop={SKIP_HIT_SLOP} style={styles.skip}>
             <Text numberOfLines={1} textBreakStrategy="simple" style={styles.skipText}>Skip rest</Text>
           </Pressable>
         </>
@@ -266,39 +300,25 @@ export function CompletionPopup({ popup, onClose }) {
             </View>
           </View>
           <Text style={styles.popupLine}>{`${popup.completedSets}/${popup.totalSets} ${setsWord(popup.totalSets)} done. Consistency wins.`}</Text>
-          <AwesomeButton onPress={onClose} />
+          {/* Design system v1 #18: a primary pill, no hero gradient. */}
+          <View style={styles.awesome}>
+            <PillButton testID="completion-awesome" title="Awesome" fullWidth onPress={onClose} />
+          </View>
         </Animated.View>
       </View>
     </Modal>
   );
 }
 
-function AwesomeButton({ onPress }) {
-  return (
-    <Pressable testID="completion-awesome" accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.awesome, pressed ? styles.sink : styles.brandShadow]}>
-      {({ pressed }) => (
-        <>
-          <View style={[StyleSheet.absoluteFill, styles.pillClip]}>
-            <GradientFill colors={['#f7ce4f', '#f4b400']} />
-            <View style={[StyleSheet.absoluteFill, { opacity: pressed ? 1 : 0 }]}>
-              <GradientFill colors={['#f4b400', '#dda000']} />
-            </View>
-          </View>
-          <Text numberOfLines={1} textBreakStrategy="simple" style={styles.awesomeText}>Awesome</Text>
-        </>
-      )}
-    </Pressable>
-  );
-}
-
 // §24: Android back = "Keep going".
 export function DiscardDialog({ open, onKeep, onDiscard }) {
+  const pop = usePopIn(open);
   return (
-    <Modal transparent visible={open} animationType="fade" onRequestClose={onKeep} statusBarTranslucent>
+    <Modal transparent visible={open} animationType="none" onRequestClose={onKeep} statusBarTranslucent>
       <View style={styles.popupHost}>
         <BlurLayer blurPx={8} overApp />
         <View style={[StyleSheet.absoluteFill, styles.dialogScrim]} />
-        <View testID="discard-dialog" accessibilityViewIsModal accessibilityRole="none" accessibilityLabel="Discard this workout?" style={styles.dialogCard}>
+        <Animated.View testID="discard-dialog" accessibilityViewIsModal accessibilityRole="none" accessibilityLabel="Discard this workout?" style={[styles.dialogCard, pop]}>
           <Text textBreakStrategy="simple" style={styles.dialogTitle}>Discard this workout?</Text>
           <Text style={styles.dialogBody}>Your progress won't be saved and this session will be discarded.</Text>
           <View style={styles.dialogButtons}>
@@ -309,7 +329,7 @@ export function DiscardDialog({ open, onKeep, onDiscard }) {
               <Text style={styles.discardText}>Discard</Text>
             </Pressable>
           </View>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -471,7 +491,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.30)',
-    boxShadow: '0px 10px 30px -6px rgba(17, 24, 39, 0.25), 0px 0px 0px 1px rgba(17, 24, 39, 0.10)',
+    boxShadow: `${shadows.lift3}, 0px 0px 0px 1px rgba(17, 24, 39, 0.10)`,
   },
   countdownSmall: {
     fontSize: 20,
@@ -482,17 +502,17 @@ const styles = StyleSheet.create({
   },
   countdownLarge: {
     fontSize: 60,
-    lineHeight: 66,
+    lineHeight: 60,
     fontWeight: '900',
     fontVariant: ['tabular-nums'],
     color: colors.navy,
   },
   countdownDanger: {
-    color: colors.danger,
+    color: colors.danger800,
   },
   minimize: {
     position: 'absolute',
-    top: 20,
+    top: 28,
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -504,20 +524,20 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 22,
     fontWeight: '900',
-    color: colors.navy,
+    color: 'rgba(17, 24, 39, 0.70)',
   },
   resting: {
-    fontSize: 9.6,
-    lineHeight: 14,
+    fontSize: 11,
+    lineHeight: 16,
     fontWeight: '900',
-    letterSpacing: 2.88,
+    letterSpacing: 3.3,
     textTransform: 'uppercase',
-    color: 'rgba(17, 24, 39, 0.60)',
+    color: 'rgba(17, 24, 39, 0.80)',
   },
   adjustRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 12,
+    gap: 8,
+    marginTop: 16,
   },
   adjust: {
     width: 48,
@@ -542,10 +562,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   skipText: {
-    fontSize: 9.6,
-    lineHeight: 14,
+    fontSize: 11,
+    lineHeight: 16,
     fontWeight: '900',
-    letterSpacing: 1.92,
+    letterSpacing: 2.2,
     textTransform: 'uppercase',
     color: '#f7ce4f',
   },
@@ -556,10 +576,10 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   popupScrim: {
-    backgroundColor: 'rgba(17, 24, 39, 0.60)',
+    backgroundColor: colors.scrim,
   },
   dialogScrim: {
-    backgroundColor: 'rgba(17, 24, 39, 0.50)',
+    backgroundColor: colors.scrim,
   },
   popupCard: {
     width: '100%',
@@ -619,23 +639,7 @@ const styles = StyleSheet.create({
   // Android blank-render class (see RuntimeParts actionClip): the pressable's
   // shadow changes on press, so only the inner pillClip layer clips.
   awesome: {
-    alignItems: 'center',
     marginTop: 24,
-    borderRadius: radii.full,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  pillClip: {
-    borderRadius: radii.full,
-    overflow: 'hidden',
-  },
-  awesomeText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '900',
-    letterSpacing: 2.24,
-    textTransform: 'uppercase',
-    color: colors.navy,
   },
   brandShadow: {
     boxShadow: shadows.brand,
@@ -699,11 +703,11 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
     borderRadius: radii.full,
-    backgroundColor: colors.danger,
+    backgroundColor: colors.danger600,
     boxShadow: shadows.lift2,
   },
   discardPressed: {
-    backgroundColor: colors.dangerPressed,
+    backgroundColor: colors.danger700,
   },
   openSettings: {
     flex: 1,

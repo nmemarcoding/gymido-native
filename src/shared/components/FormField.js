@@ -125,6 +125,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '500',
-    color: colors.danger,
+    color: colors.danger700,
   },
 });

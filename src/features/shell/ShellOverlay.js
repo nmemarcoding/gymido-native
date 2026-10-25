@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 
-import { breakpoints } from '../../shared/theme/tokens';
+import { breakpoints, colors } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
 import NotificationPanel from '../notifications/NotificationPanel';
 import BottomNav from './BottomNav';
@@ -55,6 +55,6 @@ const styles = StyleSheet.create({
     left: 0,
   },
   scrim: {
-    backgroundColor: 'rgba(17, 24, 39, 0.30)',
+    backgroundColor: colors.scrimLight,
   },
 });

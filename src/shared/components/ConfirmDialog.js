@@ -20,6 +20,8 @@ export default function ConfirmDialog({
   // and `${testID}-confirm`).
   cancelTestID,
   confirmTestID,
+  entrance,
+  compact,
 }) {
   const close = () => {
     if (dismissible) {
@@ -35,6 +37,8 @@ export default function ConfirmDialog({
       title={title}
       description={description}
       size="md"
+      entrance={entrance}
+      compact={compact}
       footer={
         <ModalActions>
           <PillButton testID={cancelTestID ?? (testID ? `${testID}-cancel` : undefined)} title={cancelLabel} variant="secondary" onPress={close} />

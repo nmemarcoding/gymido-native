@@ -3,8 +3,8 @@ import { StyleSheet, View } from 'react-native';
 
 import { getApiErrorMessage } from '../../shared/api/apiError';
 import AppModal from '../../shared/components/AppModal';
+import FormField from '../../shared/components/FormField';
 import PillButton from '../../shared/components/PillButton';
-import TextField from '../../shared/components/TextField';
 import { showToast } from '../../shared/components/toastStore';
 import { changePassword } from './api/profileApi';
 import { validateChangePassword } from './validateChangePassword';
@@ -80,7 +80,7 @@ export default function ChangePasswordModal({ visible, onClose }) {
       }
     >
       <View style={styles.body}>
-        <TextField
+        <FormField
           testID="change-password-new"
           label="New password"
           helperText="At least 8 characters, meeting your login password policy."
@@ -95,7 +95,7 @@ export default function ChangePasswordModal({ visible, onClose }) {
           returnKeyType="done"
           onSubmitEditing={handleSubmit}
         />
-        <TextField
+        <FormField
           testID="change-password-confirm"
           label="Confirm new password"
           error={error}

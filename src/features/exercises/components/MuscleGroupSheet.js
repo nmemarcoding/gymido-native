@@ -121,7 +121,7 @@ export default function MuscleGroupSheet({ open, categories, categoryCounts, tot
 
 const styles = StyleSheet.create({
   scrim: {
-    backgroundColor: 'rgba(17, 24, 39, 0.40)',
+    backgroundColor: colors.scrim,
   },
   host: {
     flex: 1,

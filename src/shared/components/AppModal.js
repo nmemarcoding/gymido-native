@@ -19,11 +19,13 @@ import { breakpoints, colors, motion, radii, shadows } from '../theme/tokens';
 import BlurLayer from './BlurLayer';
 
 const EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
+// Design system v1 P10: the workout dialogs pop in (ease-pop, 260 ms).
+const EASE_POP = Easing.bezier(0.34, 1.56, 0.64, 1);
 const MAX_WIDTHS = { md: 448, lg: 512, '2xl': 672 };
 
 // Trainer plans spec §A3.1. RN <Modal> gives the paired scroll lock for free;
 // Android back and the scrim both call onClose.
-export default function AppModal({ isOpen, onClose, title, description, size = 'lg', footer, children, testID }) {
+export default function AppModal({ isOpen, onClose, title, description, size = 'lg', footer, children, testID, entrance = 'slide', compact = false }) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const wide = width >= breakpoints.sm;
@@ -42,17 +44,19 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
       progress.setValue(1);
       return undefined;
     }
+    const pop = entrance === 'pop';
     const animation = Animated.timing(progress, {
       toValue: 1,
-      duration: motion.fadeMs,
-      easing: EASE_OUT,
+      duration: pop ? 260 : motion.fadeMs,
+      easing: pop ? EASE_POP : EASE_OUT,
       useNativeDriver: true,
     });
     animation.start();
     return () => animation.stop();
-  }, [isOpen, progress, reducedMotion]);
+  }, [isOpen, progress, reducedMotion, entrance]);
 
-  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [motion.cardOffsetY, 0] });
+  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [entrance === 'pop' ? 0 : motion.cardOffsetY, 0] });
+  const scale = progress.interpolate({ inputRange: [0, 1], outputRange: [entrance === 'pop' ? 0.95 : 1, 1] });
 
   return (
     <Modal transparent visible={isOpen} animationType="none" onRequestClose={onClose} statusBarTranslucent>
@@ -76,7 +80,7 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
             wide ? styles.cardWide : styles.cardPhone,
             // §A3.1 (dated note): also clear the safe-area top and bottom.
             { maxWidth: MAX_WIDTHS[size], maxHeight: height - (wide ? 64 : 48) - insets.top - bottomInset },
-            { opacity: progress, transform: [{ translateY }] },
+            { opacity: progress, transform: [{ translateY }, { scale }] },
           ]}
         >
           <ScrollView
@@ -89,7 +93,7 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
             <Text accessibilityRole="header" style={[styles.title, wide && styles.titleWide]}>
               {title}
             </Text>
-            {description ? <Text style={[styles.description, wide && styles.descriptionWide]}>{description}</Text> : null}
+            {description ? <Text style={[styles.description, wide && styles.descriptionWide, compact && styles.descriptionCompact]}>{description}</Text> : null}
             <View style={[styles.children, wide && styles.childrenWide]}>{children}</View>
           </ScrollView>
           {footer ? <View style={[styles.footer, wide && styles.footerWide]}>{footer}</View> : null}
@@ -111,7 +115,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrimColor: {
-    backgroundColor: colors.modalScrim,
+    backgroundColor: colors.scrim,
   },
   scrimPhone: {
     justifyContent: 'flex-end',
@@ -176,6 +180,11 @@ const styles = StyleSheet.create({
   descriptionWide: {
     fontSize: 18,
     lineHeight: 29,
+  },
+  // Design system v1: the workout dialogs' body is 14/24 at every width.
+  descriptionCompact: {
+    fontSize: 14,
+    lineHeight: 24,
   },
   children: {
     gap: 12,

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import Button from '../../../shared/components/Button';
+import PillButton from '../../../shared/components/PillButton';
 import Card from '../../../shared/components/Card';
 import ErrorBox from '../../../shared/components/ErrorBox';
 import Screen from '../../../shared/components/Screen';
@@ -28,7 +28,7 @@ export default function SignInFailedScreen() {
         <Heading>Sign-in failed</Heading>
         <Body>Auth0 rejected the login request.</Body>
         <ErrorBox title="Something went wrong" message={signInError} />
-        <Button testID="sign-in-failed-try-again" title="Try again" loading={retrying} onPress={handleRetry} />
+        <PillButton fullWidth testID="sign-in-failed-try-again" title="Try again" loading={retrying} onPress={handleRetry} />
       </Card>
     </Screen>
   );

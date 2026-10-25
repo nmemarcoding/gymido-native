@@ -32,6 +32,8 @@ export default function ProfileSettingsScreen() {
   );
 }
 
+const SWITCH_TRACK = { false: colors.border, true: colors.brand400 };
+
 function Settings() {
   const navigation = useNavigation();
   const profile = useProfileStore((state) => state.profile);
@@ -194,6 +196,9 @@ function Settings() {
                 testID={`${row.testID}-switch`}
                 value={row.value}
                 onValueChange={row.onChange}
+                // Design system v1 #17: the gold track (no ✓ in the thumb).
+                trackColor={SWITCH_TRACK}
+                ios_backgroundColor={colors.border}
                 accessibilityElementsHidden
                 importantForAccessibility="no-hide-descendants"
               />
@@ -362,6 +367,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     fontWeight: '700',
-    color: colors.danger,
+    color: colors.danger700,
   },
 });

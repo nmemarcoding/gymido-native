@@ -137,8 +137,8 @@ const styles = StyleSheet.create({
   },
   ringTotal: {
     marginTop: 2,
-    fontSize: 9.6,
-    lineHeight: 9.6,
+    fontSize: 11,
+    lineHeight: 11,
     fontWeight: '700',
     letterSpacing: 1.34,
     textTransform: 'uppercase',

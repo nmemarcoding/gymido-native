@@ -147,8 +147,6 @@ function Progress() {
 function BodyTab({ weightProgress, weightLogs, unit, onAddWeight }) {
   const completion = goalCompletion(weightProgress);
   const rows = recentLogRows(weightLogs);
-  // §P2.2 padding step: 20 horizontal below sm, 24 at ≥640.
-  const wide = useWindowDimensions().width >= breakpoints.sm;
 
   return (
     <>
@@ -196,35 +194,27 @@ function BodyTab({ weightProgress, weightLogs, unit, onAddWeight }) {
         )}
       </View>
 
-      <Card style={styles.titledCard}>
-        <View style={[styles.titledHeader, wide && styles.titledHeaderWide]}>
-          <Text accessibilityRole="header" style={styles.titledTitle}>
-            Recent logs
-          </Text>
-          <Text style={styles.titledSubtitle}>The latest entries you added.</Text>
-        </View>
-        <View style={[styles.titledBody, wide && styles.titledBodyWide]}>
-          {rows.length === 0 ? (
-            <Text style={styles.noLogs}>No weight logs yet.</Text>
-          ) : (
-            <View style={styles.logList}>
-              {rows.map((row) => (
-                <View key={row.key} testID={`progress-log-${row.key}`} style={styles.logRow}>
-                  <View style={styles.logTop}>
-                    <View style={styles.textColumn}>
-                      <Text style={styles.logWeight}>{row.weight}</Text>
-                      <Text style={styles.logDate}>{row.date}</Text>
-                    </View>
-                    <View style={styles.unitPill}>
-                      <Text style={styles.countPillText}>{row.unit}</Text>
-                    </View>
+      <Card title="Recent logs" subtitle="The latest entries you added.">
+        {rows.length === 0 ? (
+          <Text style={styles.noLogs}>No weight logs yet.</Text>
+        ) : (
+          <View style={styles.logList}>
+            {rows.map((row) => (
+              <View key={row.key} testID={`progress-log-${row.key}`} style={styles.logRow}>
+                <View style={styles.logTop}>
+                  <View style={styles.textColumn}>
+                    <Text style={styles.logWeight}>{row.weight}</Text>
+                    <Text style={styles.logDate}>{row.date}</Text>
                   </View>
-                  {row.note ? <Text style={styles.logNote}>{row.note}</Text> : null}
+                  <View style={styles.unitPill}>
+                    <Text style={styles.countPillText}>{row.unit}</Text>
+                  </View>
                 </View>
-              ))}
-            </View>
-          )}
-        </View>
+                {row.note ? <Text style={styles.logNote}>{row.note}</Text> : null}
+              </View>
+            ))}
+          </View>
+        )}
       </Card>
     </>
   );
@@ -486,41 +476,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   // Profile §P2.2 Card: radius 23.2, transparent border, clipped.
-  titledCard: {
-    borderRadius: radii.surfaceCard,
-    borderColor: 'transparent',
-    padding: 0,
-    gap: 0,
-    overflow: 'hidden',
-  },
-  titledHeader: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(229, 231, 235, 0.70)',
-  },
-  titledTitle: {
-    fontSize: 20,
-    lineHeight: 28,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-    color: colors.textPrimary,
-  },
-  titledSubtitle: {
-    marginTop: 4,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.textSecondary,
-  },
-  titledHeaderWide: {
-    paddingHorizontal: 24,
-  },
-  titledBody: {
-    padding: 20,
-  },
-  titledBodyWide: {
-    paddingHorizontal: 24,
-  },
   noLogs: {
     fontSize: 14,
     lineHeight: 20,
@@ -607,7 +562,7 @@ const styles = StyleSheet.create({
   },
   barCount: {
     marginTop: 4,
-    fontSize: 10,
+    fontSize: 11,
     lineHeight: 14,
     fontWeight: '600',
     color: colors.textMuted,

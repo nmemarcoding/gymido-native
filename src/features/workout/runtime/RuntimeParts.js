@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
     boxShadow: `${shadows.emboss}, inset 0px 0px 0px 1px rgba(17, 24, 39, 0.05)`,
   },
   statLabel: {
-    fontSize: 10.4,
+    fontSize: 11,
     lineHeight: 15.6,
     fontWeight: '700',
     letterSpacing: 1.56,
@@ -725,7 +725,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   doneText: {
-    fontSize: 10.4,
+    fontSize: 11,
     lineHeight: 15.6,
     fontWeight: '700',
     letterSpacing: 0.26,
@@ -756,7 +756,7 @@ const styles = StyleSheet.create({
   weightError: {
     borderColor: colors.danger,
     backgroundColor: '#fef2f2',
-    color: colors.danger,
+    color: colors.danger700,
     outlineWidth: 2,
     outlineColor: '#ffc9c9',
     outlineStyle: 'solid',
@@ -817,6 +817,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '600',
-    color: colors.danger,
+    color: colors.danger700,
   },
 });

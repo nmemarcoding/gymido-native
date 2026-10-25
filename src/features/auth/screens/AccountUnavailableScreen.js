@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import Button from '../../../shared/components/Button';
+import PillButton from '../../../shared/components/PillButton';
 import Card from '../../../shared/components/Card';
 import Screen from '../../../shared/components/Screen';
 import { Body, Eyebrow, Heading } from '../../../shared/components/Typography';
@@ -28,7 +28,7 @@ export default function AccountUnavailableScreen() {
           You signed in, but this login isn't connected to a Gymido account. If you normally sign in with an
           email and password, sign out and use that instead.
         </Body>
-        <Button testID="account-unavailable-sign-out" title="Sign out" loading={signingOut} onPress={handleSignOut} />
+        <PillButton fullWidth testID="account-unavailable-sign-out" title="Sign out" loading={signingOut} onPress={handleSignOut} />
       </Card>
     </Screen>
   );

@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     boxShadow: shadows.lift1,
   },
   doneText: {
-    fontSize: 10.4,
+    fontSize: 11,
     lineHeight: 15.6,
     fontWeight: '700',
     letterSpacing: 0.26,

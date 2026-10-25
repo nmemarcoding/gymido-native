@@ -4,7 +4,7 @@ import Svg, { Path, Rect } from 'react-native-svg';
 
 import GradientFill from '../../../shared/components/GradientFill';
 import { colors, shadows } from '../../../shared/theme/tokens';
-import BrandButton from './BrandButton';
+import PillButton from '../../../shared/components/PillButton';
 import Card3D from './Card3D';
 
 // H1 (RN-SPEC-workout §2.1): the transport message, else "Please try again."
@@ -55,13 +55,10 @@ export function WorkoutEmptyState({ onBrowse }) {
         </View>
         <Text textBreakStrategy="simple" style={[styles.title, styles.emptyTitle]}>No active workout plan</Text>
         <Text style={styles.body}>Pick a plan first, then come back here to start a workout with real backend data.</Text>
-        <BrandButton
-          testID="workout-browse-plans"
-          label="Browse plans"
-          onPress={onBrowse}
-          style={styles.browse}
-          labelStyle={styles.browseLabel}
-        />
+        {/* Design system v1 #18: the hero gradient is only for Start/Complete workout. */}
+        <View style={styles.browse}>
+          <PillButton testID="workout-browse-plans" title="Browse plans" onPress={onBrowse} />
+        </View>
       </View>
     </Card3D>
   );
@@ -141,13 +138,5 @@ const styles = StyleSheet.create({
   },
   browse: {
     marginTop: 24,
-    height: 48,
-    borderRadius: 9999,
-    paddingHorizontal: 28,
-  },
-  browseLabel: {
-    fontSize: 14,
-    lineHeight: 20,
-    letterSpacing: 0.35,
   },
 });
