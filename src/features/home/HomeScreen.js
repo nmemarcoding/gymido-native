@@ -6,7 +6,6 @@ import { InlineError } from '../../shared/components/FeedbackBox';
 import Loader from '../../shared/components/Loader';
 import { InlineToast } from '../../shared/components/ToastHost';
 import { ToastTone } from '../../shared/components/toastStore';
-import TextLink, { textLinkRow } from '../../shared/components/TextLink';
 import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
 import { colors, radii, shadows } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
@@ -266,10 +265,23 @@ function TodayCard({ plan, card }) {
           </View>
           <StatusPill tone={card.tone} label={card.pill} />
         </View>
-        {/* Design system v1 #19: both actions are text links. */}
-        <View style={textLinkRow}>
-          <TextLink testID="home-today-primary" label={card.primary} arrow onPress={() => openShellPath('/workout')} />
-          <TextLink testID="home-view-plan" label="View plan" onPress={() => openPlanDetailAlone(plan.id)} />
+        <View style={styles.buttons}>
+          <Pressable
+            testID="home-today-primary"
+            accessibilityRole="button"
+            onPress={() => openShellPath('/workout')}
+            style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed]}
+          >
+            <Text numberOfLines={1} textBreakStrategy="simple" style={styles.primaryText}>{card.primary}</Text>
+          </Pressable>
+          <Pressable
+            testID="home-view-plan"
+            accessibilityRole="button"
+            onPress={() => openPlanDetailAlone(plan.id)}
+            style={({ pressed }) => [styles.viewPlan, pressed && styles.secondaryPressed]}
+          >
+            <Text style={styles.secondaryText}>View plan</Text>
+          </Pressable>
         </View>
       </View>
     </View>
@@ -347,6 +359,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.warning700,
   },
+  buttons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 20,
+  },
+  primary: {
+    flex: 1,
+    alignItems: 'center',
+    borderRadius: radii.xl,
+    backgroundColor: colors.brand400,
+    paddingVertical: 12,
+    boxShadow: shadows.glow,
+  },
   primaryPressed: {
     backgroundColor: colors.brand500,
   },
@@ -355,6 +380,14 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: '900',
     color: colors.navy,
+  },
+  viewPlan: {
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   secondaryButton: {
     alignItems: 'center',

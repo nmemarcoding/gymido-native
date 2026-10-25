@@ -7,7 +7,6 @@ import { getStatus } from '../../../shared/api/apiError';
 import EmptyState from '../../../shared/components/EmptyState';
 import { InlineError } from '../../../shared/components/FeedbackBox';
 import Loader from '../../../shared/components/Loader';
-import TextLink, { textLinkRow } from '../../../shared/components/TextLink';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
 import { colors, radii, shadows } from '../../../shared/theme/tokens';
 import MyPlansEntryCard from '../../myPlans/components/MyPlansEntryCard';
@@ -127,10 +126,25 @@ function ActivePlanCard({ plan, weekdays, onView }) {
             </View>
           </View>
         ) : null}
-        {/* Design system v1 #19: the same text-link row as the Today card. */}
-        <View style={textLinkRow}>
-          <TextLink testID="plans-go-to-workout" label="Go to workout" arrow onPress={() => openShellPath('/workout')} />
-          {plan?.id ? <TextLink testID="plans-view-active" label="View plan" onPress={() => onView(plan.id)} /> : null}
+        <View style={styles.actions}>
+          <Pressable
+            testID="plans-go-to-workout"
+            accessibilityRole="button"
+            onPress={() => openShellPath('/workout')}
+            style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed]}
+          >
+            <Text numberOfLines={1} textBreakStrategy="simple" style={styles.primaryText}>Go to workout</Text>
+          </Pressable>
+          {plan?.id ? (
+            <Pressable
+              testID="plans-view-active"
+              accessibilityRole="button"
+              onPress={() => onView(plan.id)}
+              style={({ pressed }) => [styles.secondary, pressed && styles.secondaryPressed]}
+            >
+              <Text style={styles.secondaryText}>View plan</Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
     </View>
@@ -232,6 +246,45 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 6,
     marginTop: 8,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 20,
+  },
+  primary: {
+    flex: 1,
+    alignItems: 'center',
+    borderRadius: radii.xl,
+    backgroundColor: colors.brand400,
+    paddingVertical: 12,
+    boxShadow: shadows.glow,
+  },
+  primaryPressed: {
+    backgroundColor: colors.brand500,
+  },
+  primaryText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '900',
+    color: colors.navy,
+  },
+  secondary: {
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  secondaryPressed: {
+    backgroundColor: colors.surfaceMuted,
+  },
+  secondaryText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
   planCard: {
     padding: 20,
