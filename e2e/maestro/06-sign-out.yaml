@@ -30,6 +30,14 @@ appId: com.gymido.app
     timeout: 10000
 - tapOn:
     id: "settings-sign-out"
+# iOS asks before Auth0's clearSession opens its browser session.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: "Continue"
+          optional: true
 - extendedWaitUntil:
     visible:
       id: "welcome-log-in"
