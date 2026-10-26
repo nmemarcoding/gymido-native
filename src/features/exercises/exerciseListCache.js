@@ -8,19 +8,24 @@ import { AuthStatus, useAuthStore } from '../auth/authStore';
 export const MAX_CACHED_SEARCHES = 10;
 const lists = new Map();
 
+// No search is stored as ''.
+const keyOf = (search) => search ?? '';
+
 export function getCachedList(search) {
-  if (!lists.has(search)) {
+  const key = keyOf(search);
+  if (!lists.has(key)) {
     return null;
   }
-  const items = lists.get(search);
-  lists.delete(search);
-  lists.set(search, items);
+  const items = lists.get(key);
+  lists.delete(key);
+  lists.set(key, items);
   return items;
 }
 
 export function setCachedList(search, items) {
-  lists.delete(search);
-  lists.set(search, items);
+  const key = keyOf(search);
+  lists.delete(key);
+  lists.set(key, items);
   if (lists.size > MAX_CACHED_SEARCHES) {
     lists.delete(lists.keys().next().value);
   }

@@ -1,42 +1,41 @@
-import { MAX_CACHED_SEARCHES, clearExerciseListCache, getCachedList, setCachedList } from './exerciseListCache';
+import { clearExerciseListCache, getCachedList, setCachedList } from './exerciseListCache';
 
-const fill = (count) => {
-  for (let index = 0; index < count; index += 1) {
-    setCachedList(`s${index}`, [index]);
-  }
-};
+// The four cases of RN-SPEC-exercises §E1.1a "Cache tests to match".
+const store = (names) => names.forEach((name) => setCachedList(name, [name]));
+const range = (count) => Array.from({ length: count }, (_, index) => `s${index}`);
 
 beforeEach(() => clearExerciseListCache());
 
 describe('exercise list cache (§E1.1a, LRU 10)', () => {
-  it('stores and reads a list per search, null when missing', () => {
-    setCachedList('', [1, 2]);
-    expect(getCachedList('')).toEqual([1, 2]);
-    expect(getCachedList('row')).toBeNull();
+  it('one list per search, no search stored as ""', () => {
+    setCachedList(undefined, ['all']);
+    setCachedList('row', ['rows']);
+    expect(getCachedList('')).toEqual(['all']);
+    expect(getCachedList('row')).toEqual(['rows']);
+    expect(getCachedList('squat')).toBeNull();
   });
 
-  it('keeps at most 10 searches; an 11th drops the least recently used', () => {
-    fill(MAX_CACHED_SEARCHES + 1);
-    expect(MAX_CACHED_SEARCHES).toBe(10);
+  it('keeps only the last 10 searches', () => {
+    store(range(11));
     expect(getCachedList('s0')).toBeNull();
-    expect(getCachedList('s1')).toEqual([1]);
-    expect(getCachedList('s10')).toEqual([10]);
+    for (const name of range(11).slice(1)) {
+      expect(getCachedList(name)).toEqual([name]);
+    }
   });
 
-  it('a read makes a search the newest', () => {
-    fill(MAX_CACHED_SEARCHES);
+  it('drops the least recently used, a read counts as a use', () => {
+    store(range(10));
     getCachedList('s0');
-    setCachedList('new', []);
-    expect(getCachedList('s0')).toEqual([0]);
+    setCachedList('new', ['new']);
+    expect(getCachedList('s0')).toEqual(['s0']);
     expect(getCachedList('s1')).toBeNull();
+    expect(getCachedList('new')).toEqual(['new']);
   });
 
-  it('a store of a known search makes it the newest without growing the cache', () => {
-    fill(MAX_CACHED_SEARCHES);
-    setCachedList('s0', ['fresh']);
-    setCachedList('new', []);
-    expect(getCachedList('s0')).toEqual(['fresh']);
-    expect(getCachedList('s1')).toBeNull();
-    expect(getCachedList('s2')).toEqual([2]);
+  it('replacing a search does not count twice', () => {
+    store(range(10));
+    setCachedList('s5', ['fresh']);
+    expect(getCachedList('s0')).toEqual(['s0']);
+    expect(getCachedList('s5')).toEqual(['fresh']);
   });
 });
