@@ -161,6 +161,22 @@ describe('P2 Edit profile', () => {
     expect(mockNavigation.replace).toHaveBeenCalledWith(routes.Settings);
   });
 
+  it('keeps "82,5" as typed on a decimal keypad and saves 82.5 (T-16)', async () => {
+    setStoredProfile(PROFILE);
+    const tree = render(<EditProfileScreen />);
+    const weight = () => tree.root.find((node) => node.props.testID === 'edit-profile-current_weight_value' && node.props.onChangeText);
+    expect(weight().props.keyboardType).toBe('decimal-pad');
+    act(() => weight().props.onChangeText('82,5'));
+    expect(weight().props.value).toBe('82,5');
+    act(() => weight().props.onChangeText('81,5'));
+    updateProfile.mockResolvedValue({ ...PROFILE, current_weight_value: 81.5 });
+    const save = tree.root.find((node) => node.props.testID === 'edit-profile-save' && 'disabled' in node.props);
+    await act(async () => {
+      await save.props.onPress();
+    });
+    expect(updateProfile).toHaveBeenCalledWith(expect.objectContaining({ current_weight_value: 81.5 }));
+  });
+
   it('shows client errors and does not call the API', async () => {
     setStoredProfile(PROFILE);
     const tree = render(<EditProfileScreen />);

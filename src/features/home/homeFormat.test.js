@@ -76,12 +76,18 @@ describe('quick stats, weight and recent workouts', () => {
 });
 
 describe('weight log (H2)', () => {
-  it('validates in order with JavaScript Number', () => {
+  it('validates in order with parseDecimal (T-16)', () => {
     expect(validateWeightLog('  ', 'kg')).toEqual({ field: 'weight_value', message: 'Weight is required' });
-    expect(validateWeightLog('83,5', 'kg').message).toBe('Weight must be a positive number');
+    expect(validateWeightLog('83,5', 'kg')).toBeNull();
     expect(validateWeightLog('0', 'kg').message).toBe('Weight must be a positive number');
-    expect(validateWeightLog('1e2', '')).toEqual({ field: 'weight_unit', message: 'Weight unit is required' });
+    expect(validateWeightLog('1e2', 'kg').message).toBe('Weight must be a positive number');
+    expect(validateWeightLog('abc', 'kg').message).toBe('Weight must be a positive number');
+    expect(validateWeightLog('83', '')).toEqual({ field: 'weight_unit', message: 'Weight unit is required' });
     expect(validateWeightLog(' 83 ', 'kg')).toBeNull();
+  });
+
+  it('sends 83.5 for "83,5"', () => {
+    expect(weightLogBody('83,5', 'kg', new Date(2026, 9, 25)).weight_value).toBe(83.5);
   });
 
   it('posts the local date and a null note', () => {

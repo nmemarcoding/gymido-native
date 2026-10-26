@@ -125,6 +125,8 @@ describe('comma decimal weights (W3)', () => {
     expect(parseWeight('')).toBeNaN();
     expect(validateDraftWeight('22,5')).toBeNull();
     expect(validateDraftWeight('0,0')).toBe('Weight must be greater than 0.');
+    expect(validateDraftWeight('1e2')).toBe('Weight must be greater than 0.');
+    expect(validateDraftWeight('8,5,1')).toBe('Weight must be greater than 0.');
   });
 
   it('sends 22.5 for "22,5"', () => {

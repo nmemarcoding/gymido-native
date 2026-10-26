@@ -1,3 +1,5 @@
+import { parseDecimal } from '../../shared/format/numbers';
+
 // Create profile (RN-SPEC-profile-create): form state, height maths,
 // validation and payload, exact (bugs included, O5/O6 applied).
 
@@ -22,11 +24,12 @@ export function numberValue(text) {
   return NUMBER_TEXT.test(text) ? text : '';
 }
 
+// §4 (T-16): read with parseDecimal, so "83,5" → 83.5 and junk → null.
 export function parseNumber(value) {
   if (value === '' || value === null || value === undefined) {
     return null;
   }
-  const number = Number(value);
+  const number = parseDecimal(value);
   return Number.isFinite(number) ? number : null;
 }
 
@@ -106,10 +109,10 @@ export function validateCreateProfile(form) {
       errors.height_value = 'Height must be greater than zero';
     }
   }
-  if (form.current_weight_value !== '' && !(parseNumber(form.current_weight_value) > 0)) {
+  if (String(form.current_weight_value).trim() !== '' && !(parseNumber(form.current_weight_value) > 0)) {
     errors.current_weight_value = 'Current weight must be greater than zero';
   }
-  if (form.goal_weight_value !== '' && !(parseNumber(form.goal_weight_value) > 0)) {
+  if (String(form.goal_weight_value).trim() !== '' && !(parseNumber(form.goal_weight_value) > 0)) {
     errors.goal_weight_value = 'Goal weight must be greater than zero';
   }
   return errors;

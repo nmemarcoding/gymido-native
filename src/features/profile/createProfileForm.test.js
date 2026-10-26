@@ -102,3 +102,24 @@ describe('payload (§5.1)', () => {
     expect(payload).toMatchObject({ height_value: 180, sex: 'prefer_not_to_say', date_of_birth: '1990-09-21' });
   });
 });
+
+describe('comma decimal weights (T-16)', () => {
+  it('validates and sends "83,5" as 83.5 and rejects junk', () => {
+    const base = form({ first_name: 'a', last_name: 'b', height_unit: 'cm', height_value: '180' });
+    expect(validateCreateProfile(form({ ...base, current_weight_value: '83,5', goal_weight_value: ',5' }))).toEqual({});
+    expect(validateCreateProfile(form({ ...base, current_weight_value: 'abc', goal_weight_value: '1e2' }))).toEqual({
+      current_weight_value: 'Current weight must be greater than zero',
+      goal_weight_value: 'Goal weight must be greater than zero',
+    });
+    const payload = buildCreateProfilePayload(form({ ...base, current_weight_value: '83,5', goal_weight_value: '78,' }));
+    expect(payload.current_weight_value).toBe(83.5);
+    expect(payload.goal_weight_value).toBe(78);
+  });
+
+  it('treats a spaces-only weight as empty, not as an error', () => {
+    const base = form({ first_name: 'a', last_name: 'b', height_unit: 'cm', height_value: '180' });
+    expect(validateCreateProfile(form({ ...base, current_weight_value: '   ', goal_weight_value: ' ' }))).toEqual({});
+    const payload = buildCreateProfilePayload(form({ ...base, current_weight_value: '   ', goal_weight_value: ' ' }));
+    expect(payload).toEqual(expect.objectContaining({ current_weight_value: null, current_weight_unit: null, goal_weight_value: null, goal_weight_unit: null }));
+  });
+});
