@@ -24,3 +24,8 @@ export async function updateProfile(payload) {
   const response = await apiClient.patch('/profile', payload);
   return response.data?.data?.profile ?? null;
 }
+
+// Delete account (RN-SPEC-profile P1b.7, T-43): no body; the 200 body is not read.
+export async function deleteAccount() {
+  await apiClient.delete('/profile');
+}

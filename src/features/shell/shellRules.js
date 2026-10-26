@@ -62,6 +62,20 @@ export function isTrainerUser(user) {
   );
 }
 
+// §2 isAdminUser. [O1] keeps it out of the shell; RN-SPEC-profile P1b.1
+// (T-43, 26 Oct 2026) uses it only to hide Delete account.
+export function isAdminUser(user) {
+  const roles = Array.isArray(user?.roles) ? user.roles : [];
+  return (
+    rolesInclude(
+      roles.map((role) => String(role).trim()),
+      'admin'
+    ) ||
+    String(user?.role || user?.role_code || '').trim().toLowerCase() === 'admin' ||
+    Number(user?.role_id ?? user?.roleID ?? NaN) === 2
+  );
+}
+
 // §5: /trainer and /trainer/* force Trainer mode, except /trainer/apply.
 export function isTrainerWorkspace(path) {
   if (path === '/trainer/apply' || path.startsWith('/trainer/apply/')) {

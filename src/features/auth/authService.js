@@ -19,6 +19,8 @@ const { getState, setState } = useAuthStore;
 
 let reauthInFlight = false;
 let resumeRefreshInFlight = false;
+// RN-SPEC-profile P1b.6: in memory only, never persisted.
+let accountDeletedNotice = false;
 
 function logAuthError(context, error) {
   if (__DEV__) {
@@ -228,4 +230,23 @@ export async function logout() {
     // The user can dismiss the iOS sign-out prompt; the local sign-out already happened.
     logAuthError('clearSession', error);
   }
+}
+
+// RN-SPEC-profile P1b.6 (T-43): after DELETE /profile the server would
+// re-provision an empty account on the same token, so this signs out at once
+// with the normal logout. That clears the stored credentials before
+// clearSession, so they are gone even if clearSession fails or the iOS sheet
+// is cancelled; they are cleared once more after it (the spec's order), in
+// case the first clear failed. Welcome then shows the one-time notice.
+export async function signOutDeletedAccount() {
+  accountDeletedNotice = true;
+  await logout();
+  await clearStoredCredentials();
+}
+
+// Welcome reads the notice once; a second read is false.
+export function takeAccountDeletedNotice() {
+  const shown = accountDeletedNotice;
+  accountDeletedNotice = false;
+  return shown;
 }
