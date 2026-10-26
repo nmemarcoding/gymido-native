@@ -1,3 +1,4 @@
+import { profileAfterWeightLog } from '../profile/profileStore';
 import {
   activityStats,
   averageWorkoutDuration,
@@ -9,7 +10,6 @@ import {
   gridRows,
   logCountLabel,
   maxFrequency,
-  profileAfterWeightLog,
   progressUnit,
   recentLogRows,
   weightStats,

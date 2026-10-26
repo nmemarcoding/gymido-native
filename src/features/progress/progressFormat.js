@@ -38,17 +38,6 @@ export function convertWeight(value, from, to) {
   return number;
 }
 
-// T-34 F1 (RN-SPEC-progress, 25 Oct 2026): a weight log saved on Progress
-// becomes the profile's current weight + unit, with no refetch. null (leave
-// the store alone) without a profile or without both saved fields.
-export function profileAfterWeightLog(profile, saved) {
-  const log = saved?.weight_log;
-  if (!profile || log?.weight_value == null || !log?.weight_unit) {
-    return null;
-  }
-  return { ...profile, current_weight_value: log.weight_value, current_weight_unit: log.weight_unit };
-}
-
 // ⚠PR-3: only losing weight counts; the gap is floored at 1; missing goal or
 // current → 0. T-34: all in the current unit. total_change is in that unit;
 // starting_weight (the earliest log's unit) is only a fallback without it.
