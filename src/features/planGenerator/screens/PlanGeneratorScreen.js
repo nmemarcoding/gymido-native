@@ -1,6 +1,16 @@
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import {
+  AccessibilityInfo,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  findNodeHandle,
+  useWindowDimensions,
+} from 'react-native';
 
 import { getServerMessage, getStatus } from '../../../shared/api/apiError';
 import EmptyState from '../../../shared/components/EmptyState';
@@ -35,7 +45,15 @@ import {
   answersFromProfile,
   buildProfileBody,
   choosePreset,
-  isFocusDisabled,
+  deepLinkStep,
+  focusHint,
+  goEasyAreaLabel,
+  goEasyAreasOf,
+  goEasyHint,
+  goEasyNotice,
+  isAreaBlocked,
+  isFocusBlocked,
+  isFocusPillDisabled,
   isStepAnswered,
   optionCode,
   removeExclusion,
@@ -45,6 +63,7 @@ import {
   step6NextLabel,
   stepErrorsFrom422,
   toggleFocus,
+  toggleGoEasyArea,
   toggleId,
   visibleSearchResults,
 } from '../generatorLogic';
@@ -52,6 +71,8 @@ import { generatorRoutes } from '../generatorRoutes';
 
 const REVIEW = STEP_COUNT + 1;
 const SEARCH_DELAY_MS = 300;
+// As the app's other focus moves: give the screen time to lay out first.
+const FOCUS_DELAY_MS = 300;
 
 // G1 (RN-SPEC-PLAN-GENERATOR §G1). Every focus remounts and reloads (§8.1).
 export default function PlanGeneratorScreen() {
@@ -65,6 +86,7 @@ export default function PlanGeneratorScreen() {
 
 function PlanGenerator() {
   const navigation = useNavigation();
+  const route = useRoute();
   const { width } = useWindowDimensions();
   const wide = width >= breakpoints.sm;
   const [load, setLoad] = useState({ status: 'loading' });
@@ -77,6 +99,10 @@ function PlanGenerator() {
   const [saveError, setSaveError] = useState('');
   const [saving, setSaving] = useState(false);
   const mounted = useRef(true);
+  // T-18 deep link: the `step` route param, read once on mount.
+  const deepStep = useRef(deepLinkStep(route.params?.step));
+  const [focusHeading, setFocusHeading] = useState(false);
+  const headingRef = useRef(null);
 
   useEffect(() => {
     mounted.current = true;
@@ -97,7 +123,9 @@ function PlanGenerator() {
         if (result?.available) {
           setOptions(result.options ?? {});
           setAnswers(answersFromProfile(result.profile));
-          setStep(1);
+          // T-18: a deep-linked step opens after the load, heading focused.
+          setStep(deepStep.current ?? 1);
+          setFocusHeading(deepStep.current !== null);
           setLoad({ status: 'ready' });
         } else {
           setLoad({ status: 'unavailable' });
@@ -112,6 +140,20 @@ function PlanGenerator() {
       alive = false;
     };
   }, [reloadKey]);
+
+  useEffect(() => {
+    if (!focusHeading || load.status !== 'ready') {
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      setFocusHeading(false);
+      const node = findNodeHandle(headingRef.current);
+      if (node) {
+        AccessibilityInfo.setAccessibilityFocus(node);
+      }
+    }, FOCUS_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [focusHeading, load.status]);
 
   if (load.status === 'loading') {
     return <Loader label={COPY.loadingQuestions} style={styles.loader} />;
@@ -148,7 +190,7 @@ function PlanGenerator() {
     setSaveError('');
     setStepErrors({});
     try {
-      await saveGeneratorProfile(buildProfileBody(answers));
+      await saveGeneratorProfile(buildProfileBody(answers, {}, goEasyAreasOf(options)));
       if (mounted.current) {
         setSaving(false);
         navigation.push(generatorRoutes.PlanGeneratorPreview);
@@ -216,7 +258,7 @@ function PlanGenerator() {
     <View style={styles.column}>
       <View>
         <Eyebrow>{stepEyebrow(step)}</Eyebrow>
-        <Text textBreakStrategy="simple" accessibilityRole="header" style={styles.title}>
+        <Text ref={headingRef} testID="generator-step-title" textBreakStrategy="simple" accessibilityRole="header" style={styles.title}>
           {QUESTIONS[step - 1]}
         </Text>
         {step === STEP_COUNT ? <Text style={styles.optional}>{COPY.optional}</Text> : null}
@@ -391,31 +433,70 @@ function EquipmentStep({ answers, options, setAnswers, editing, setEditing }) {
   );
 }
 
-// §G1.2 step 6
+// T-18/T-40: a step-6 pill's hint is its section label; a blocked pill also
+// gets the block hint (web: `aria-describedby` on the hint).
+const pillHint = (sectionLabel, blockHint) => (blockHint ? `${sectionLabel}. ${blockHint}` : sectionLabel);
+
+// §G1.2 step 6; T-18 adds "Anything to go easy on?" when areas are offered.
 function FocusAvoidStep({ answers, options, setAnswers }) {
   const max = options.max_focus_muscles;
   const reasons = (options.exclusion_reasons ?? ['DISLIKE', 'DISCOMFORT']).map(optionCode);
+  const focusMuscles = options.focus_muscles ?? [];
+  const areas = goEasyAreasOf(options);
+  const hasAreas = areas.length > 0;
+  const focusBlockHint = hasAreas ? focusHint(answers, areas, focusMuscles) : '';
+  const areaBlockHint = hasAreas ? goEasyHint(answers, areas) : '';
 
   return (
-    <View style={styles.stepColumn}>
+    <View style={[styles.stepColumn, hasAreas && styles.stepColumnGoEasy]}>
       <View>
         <Text style={styles.sectionLabel}>{COPY.focusMuscles}</Text>
         <Text style={styles.sectionHint}>{pickUpTo(max)}</Text>
         <PillRow style={styles.mt12}>
-          {(options.focus_muscles ?? []).map((muscle) => (
+          {focusMuscles.map((muscle) => (
             <OptionPill
               key={muscle.id}
               testID={`generator-focus-${muscle.id}`}
               label={muscle.name}
               selected={answers.focus_muscle_ids.includes(muscle.id)}
-              disabled={isFocusDisabled(answers.focus_muscle_ids, muscle.id, max)}
+              disabled={isFocusPillDisabled(answers, muscle.id, max, areas)}
+              accessibilityHint={pillHint(COPY.focusMuscles, isFocusBlocked(answers, muscle.id, areas) ? focusBlockHint : '')}
               onPress={() =>
-                setAnswers((current) => ({ ...current, focus_muscle_ids: toggleFocus(current.focus_muscle_ids, muscle.id, max) }))
+                setAnswers((current) =>
+                  isFocusBlocked(current, muscle.id, areas)
+                    ? current
+                    : { ...current, focus_muscle_ids: toggleFocus(current.focus_muscle_ids, muscle.id, max) }
+                )
               }
             />
           ))}
         </PillRow>
+        {hasAreas ? <BlockHint testID="generator-focus-block-hint" text={focusBlockHint} /> : null}
       </View>
+      {hasAreas ? (
+        <View testID="generator-go-easy">
+          <Text style={styles.sectionLabel}>{COPY.goEasyLabel}</Text>
+          <Text style={[styles.sectionHint, styles.textSecondary]}>{goEasyNotice(options)}</Text>
+          <PillRow style={styles.mt12}>
+            {areas.map((area) => {
+              const blocked = isAreaBlocked(answers, area);
+              return (
+                <OptionPill
+                  key={area.id}
+                  testID={`generator-go-easy-${area.id}`}
+                  label={goEasyAreaLabel(area)}
+                  selected={(answers.go_easy_area_ids ?? []).includes(area.id)}
+                  disabled={blocked}
+                  accessibilityRole="togglebutton"
+                  accessibilityHint={pillHint(COPY.goEasyLabel, blocked ? areaBlockHint : '')}
+                  onPress={() => setAnswers((current) => toggleGoEasyArea(current, area))}
+                />
+              );
+            })}
+          </PillRow>
+          <BlockHint testID="generator-go-easy-block-hint" text={areaBlockHint} />
+        </View>
+      ) : null}
       <View>
         <Text style={styles.sectionLabel}>{COPY.exercisesToAvoid}</Text>
         <AvoidSearch
@@ -461,6 +542,25 @@ function FocusAvoidStep({ answers, options, setAnswers }) {
           </View>
         ) : null}
       </View>
+    </View>
+  );
+}
+
+// T-18 block hint: shown only while a block exists (mt 8). A polite live
+// region: Android reads the region's change; iOS has none, so it announces.
+function BlockHint({ text, testID }) {
+  useEffect(() => {
+    if (text && Platform.OS === 'ios') {
+      AccessibilityInfo.announceForAccessibility(text);
+    }
+  }, [text]);
+  return (
+    <View accessibilityLiveRegion="polite">
+      {text ? (
+        <Text testID={testID} style={[styles.blockHint, styles.mt8]}>
+          {text}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -563,6 +663,10 @@ const styles = StyleSheet.create({
   stepColumn: {
     gap: 20,
   },
+  // T-18: step 6 sections, gap 24, with go-easy areas.
+  stepColumnGoEasy: {
+    gap: 24,
+  },
   flex: {
     flex: 1,
     minWidth: 0,
@@ -645,6 +749,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     color: colors.textMuted,
+  },
+  textSecondary: {
+    color: colors.textSecondary,
+  },
+  blockHint: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.textSecondary,
   },
   search: {
     borderRadius: radii.xxl,

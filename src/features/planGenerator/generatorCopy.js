@@ -107,6 +107,13 @@ export const COPY = Object.freeze({
   acceptError: 'Could not start this plan',
   acceptServerError: "We couldn't create your plan. Please try again.",
   whyThis: 'Why this:',
+  // Go-easy areas (dated change 25 Oct 2026, T-18).
+  goEasyLabel: 'Anything to go easy on?',
+  goEasyFallback: "We'll avoid exercises that put heavy load on the areas you pick.",
+  goEasyReviewPrefix: 'Go easy on: ',
+  nothingToGoEasyOn: 'Nothing to go easy on',
+  editGoEasyAreas: 'Edit go-easy areas',
+  changeMyEquipment: 'Change my equipment',
 });
 
 export const stepEyebrow = (step) => `Step ${step} of ${STEP_COUNT}`;
@@ -120,3 +127,37 @@ export const confirmDescription = (planName) => `Your current plan (${planName})
 export const createdMessage = (planName) => `${planName} created.`;
 export const dayTitle = (day) => `Day ${day?.day_number}: ${day?.title}`;
 export const dayMinutes = (minutes) => `~${minutes} min`;
+
+// T-18 block hints: names lower case mid-sentence, the first word
+// capitalised; joined "a", "a and b", "a, b and c" (no Oxford comma).
+export function joinNames(names) {
+  if (names.length <= 1) {
+    return names.join('');
+  }
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
+const capitalise = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+const lower = (names) => names.map((name) => String(name).toLowerCase());
+
+// Under go-easy, naming the blocked areas.
+export function goEasyBlockedHint(names) {
+  if (!names.length) {
+    return '';
+  }
+  const joined = capitalise(joinNames(lower(names)));
+  return names.length === 1
+    ? `${joined} is one of your focus muscles. Remove it there to go easy on it.`
+    : `${joined} are your focus muscles. Remove them there to go easy on them.`;
+}
+
+// Under Focus, naming the selected areas that block a Focus pill.
+export function focusBlockedHint(names) {
+  if (!names.length) {
+    return '';
+  }
+  const joined = joinNames(lower(names));
+  return names.length === 1
+    ? `You're going easy on your ${joined}, so it can't be a focus.`
+    : `You're going easy on your ${joined}, so they can't be a focus.`;
+}
