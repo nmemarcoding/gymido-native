@@ -64,21 +64,18 @@ export default function InviteClientModal({ isOpen, onClose, onInvited }) {
   // Every new email-shaped query fires; responses aren't cancelled (⚠C-2).
   // The previous answer stays on screen until this one arrives.
   async function search(term) {
-    // A Retry (or any new search) clears an error at once; earlier results
-    // stay under the spinner, else nothing shows (FE a5e852b3).
-    if (error) {
-      setError('');
-      setAnswered(false);
-    }
+    // A Retry (or any new search) clears an error at once; the last
+    // successful answer stays under the spinner, else nothing shows (FE
+    // a5e852b3). `answered` = there is a successful answer to show.
+    setError('');
     setLoading(true);
     try {
       const found = await searchMembers(term);
       setResults(found);
-      setError('');
+      setAnswered(true);
     } catch (failure) {
       setError(getServerMessage(failure));
     }
-    setAnswered(true);
     setLoading(false);
   }
 
@@ -167,11 +164,14 @@ export default function InviteClientModal({ isOpen, onClose, onInvited }) {
   );
 
   function renderResults() {
-    if (!liveShaped || !isEmailShaped(query) || !answered) {
+    if (!liveShaped || !isEmailShaped(query)) {
       return null;
     }
     if (error) {
       return <ErrorAlert title="Could not search" description={error} onRetry={() => search(query)} />;
+    }
+    if (!answered) {
+      return null;
     }
     if (results.length === 0) {
       // The same for a typo, an unknown or an inactive account; never say which.

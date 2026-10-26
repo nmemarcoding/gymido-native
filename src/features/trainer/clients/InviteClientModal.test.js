@@ -340,6 +340,26 @@ describe('C1a exact-email invite (§C3.3 T-32 M1)', () => {
     expect(texts(tree)).toContain('client@example.com');
   });
 
+  it('a Retry after an earlier success keeps that list under the spinner (review, web parity)', async () => {
+    searchMembers.mockResolvedValueOnce([MEMBER]);
+    const tree = render();
+    type(tree, 'client@example.com');
+    await settle(300);
+    searchMembers.mockRejectedValueOnce({ response: { status: 500, data: { message: 'Server down' } } });
+    const retryFirst = tree.root.find((node) => node.props.testID === 'invite-search' && node.props.onSubmitEditing);
+    await act(async () => retryFirst.props.onSubmitEditing());
+    expect(texts(tree)).toContain('Could not search');
+    const pending = deferred();
+    searchMembers.mockReturnValueOnce(pending.promise);
+    act(() => {
+      tree.root.find((node) => typeof node.props.onRetry === 'function').props.onRetry();
+    });
+    expect(texts(tree)).not.toContain('Could not search');
+    expect(texts(tree)).toContain('client@example.com');
+    expect(tree.root.findAllByType(Spinner)).toHaveLength(1);
+    await act(async () => pending.resolve([MEMBER]));
+  });
+
   it('per-opening reset: closing clears the field, result and "Invited" marks; reopening starts with the helper', async () => {
     searchMembers.mockResolvedValue([MEMBER]);
     inviteClient.mockResolvedValue({ id: 9 });
