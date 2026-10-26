@@ -17,9 +17,11 @@ describe('dark chrome (v2)', () => {
   });
 
   it('paints the root view and the splash with color-ground', () => {
-    expect(config).toContain(`backgroundColor: '${GROUND}',\n    splash: {`);
-    const splash = config.slice(config.indexOf('splash: {'), config.indexOf('},', config.indexOf('splash: {')));
+    expect(config).toContain(`userInterfaceStyle: 'dark',\n    backgroundColor: '${GROUND}',`);
+    const splash = config.slice(config.indexOf("['expo-splash-screen'"), config.indexOf(']', config.indexOf("['expo-splash-screen'")));
     expect(splash).toContain(`backgroundColor: '${GROUND}'`);
+    // The legacy `splash` key is gone: expo-splash-screen owns the splash.
+    expect(config).not.toMatch(/^\s{4}splash: \{/m);
   });
 
   it('draws light status-bar content', () => {
