@@ -43,7 +43,9 @@ export function fieldBoxStyle({ focused, error, disabled }) {
   ];
 }
 
-export default function FormField({ label, helperText, error, multiline = false, rows = 4, editable = true, testID, labelStyle, ...inputProps }) {
+// `trailing` sits inside the box at the right, vertically centred on the
+// field (e.g. an in-field spinner); the text then keeps clear of it.
+export default function FormField({ label, helperText, error, multiline = false, rows = 4, editable = true, testID, labelStyle, trailing, ...inputProps }) {
   const [focused, setFocused] = useState(false);
 
   return (
@@ -60,9 +62,10 @@ export default function FormField({ label, helperText, error, multiline = false,
           textAlignVertical={multiline ? 'top' : 'center'}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          style={[styles.input, styles.text, multiline && { minHeight: rows * 20 + 24 }]}
+          style={[styles.input, styles.text, multiline && { minHeight: rows * 20 + 24 }, trailing && styles.inputWithTrailing]}
           {...inputProps}
         />
+        {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
       </View>
     </FieldFrame>
   );
@@ -108,6 +111,16 @@ const styles = StyleSheet.create({
   input: {
     paddingVertical: 12,
     paddingHorizontal: 16,
+  },
+  inputWithTrailing: {
+    paddingRight: 44,
+  },
+  trailing: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 14,
+    justifyContent: 'center',
   },
   text: {
     fontSize: 14,

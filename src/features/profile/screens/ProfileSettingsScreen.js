@@ -19,7 +19,9 @@ import {
 } from '../../workout/runtime/speakRestAlerts';
 import ChangePasswordModal from '../ChangePasswordModal';
 import CoachingCard from '../CoachingCard';
+import DeleteAccountAction from '../DeleteAccountAction';
 import { profileDisplayName, profileInitials } from '../editProfileForm';
+import { hasGymidoPassword } from '../passwordReset';
 import { ProfileStatus, fetchProfile, useProfileStore } from '../profileStore';
 
 // RN-SPEC-profile P1 (Settings), the Profile tab root. Renders from the shared
@@ -40,6 +42,7 @@ function Settings() {
   const profileStatus = useProfileStore((state) => state.profileStatus);
   const profileError = useProfileStore((state) => state.profileError);
   const email = useAuthStore((state) => state.user?.email);
+  const sub = useAuthStore((state) => state.claims?.sub);
   const [changePasswordVisible, setChangePasswordVisible] = useState(false);
   const speakRestAlerts = useSpeakRestAlerts((state) => state.enabled);
   const vibrateRestAlerts = useVibrateRestAlerts((state) => state.enabled);
@@ -104,14 +107,25 @@ function Settings() {
     { glyph: '▣', label: 'Personal Information', value: 'Name, DOB, sex', onPress: openEdit, id: 'personal' },
     { glyph: '▭', label: 'Body Measurements', value: 'Height, current, goal', onPress: openEdit, id: 'body' },
     { glyph: '◖', label: 'Units of Measurement', value: 'Height + weight units', onPress: openEdit, id: 'units' },
-    {
-      glyph: '◈',
-      label: 'Change Password',
-      value: 'Update your login password',
-      onPress: () => setChangePasswordVisible(true),
-      id: 'password',
-      testID: 'settings-change-password',
-    },
+    // P1a (25 Oct 2026, T-32 H1): an account without a Gymido password (any
+    // sub but `auth0|`) gets a plain, non-interactive "Password" row instead.
+    hasGymidoPassword(sub)
+      ? {
+          glyph: '◈',
+          label: 'Change Password',
+          value: 'Update your login password',
+          onPress: () => setChangePasswordVisible(true),
+          id: 'password',
+          testID: 'settings-change-password',
+        }
+      : {
+          glyph: '◈',
+          label: 'Password',
+          value: "You sign in with Google, so there's no Gymido password to change.",
+          id: 'password',
+          testID: 'settings-password-info',
+          plain: true,
+        },
     // ⚠P-3: switches to Progress; it doesn't open the weight modal.
     { glyph: '+', label: 'Add weight log manually', value: 'Track your weight trend', onPress: () => openShellPath('/progress'), id: 'weight' },
   ];
@@ -147,29 +161,48 @@ function Settings() {
           Account
         </Text>
         <View style={styles.list}>
-          {rows.map((row, index) => (
-            <Pressable
-              key={row.id}
-              testID={row.testID ?? `settings-row-${row.id}`}
-              accessibilityRole="button"
-              accessibilityLabel={`${row.label}, ${row.value}`}
-              onPress={row.onPress}
-              style={({ pressed }) => [styles.row, index > 0 && styles.rowDivider, pressed && styles.rowPressed]}
-            >
-              <View style={styles.tile} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-                <Text style={styles.glyph}>{row.glyph}</Text>
+          {rows.map((row, index) =>
+            row.plain ? (
+              <View
+                key={row.id}
+                testID={row.testID}
+                accessible
+                accessibilityRole="text"
+                accessibilityLabel={`${row.label}, ${row.value}`}
+                style={[styles.row, index > 0 && styles.rowDivider]}
+              >
+                <View style={styles.tile} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                  <Text style={styles.glyph}>{row.glyph}</Text>
+                </View>
+                <View style={styles.rowText}>
+                  <Text style={styles.rowLabel}>{row.label}</Text>
+                  <Text style={styles.plainValue}>{row.value}</Text>
+                </View>
               </View>
-              <View style={styles.rowText}>
-                <Text style={styles.rowLabel}>{row.label}</Text>
-                <Text numberOfLines={1} style={styles.rowValue}>
-                  {row.value}
+            ) : (
+              <Pressable
+                key={row.id}
+                testID={row.testID ?? `settings-row-${row.id}`}
+                accessibilityRole="button"
+                accessibilityLabel={`${row.label}, ${row.value}`}
+                onPress={row.onPress}
+                style={({ pressed }) => [styles.row, index > 0 && styles.rowDivider, pressed && styles.rowPressed]}
+              >
+                <View style={styles.tile} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                  <Text style={styles.glyph}>{row.glyph}</Text>
+                </View>
+                <View style={styles.rowText}>
+                  <Text style={styles.rowLabel}>{row.label}</Text>
+                  <Text numberOfLines={1} style={styles.rowValue}>
+                    {row.value}
+                  </Text>
+                </View>
+                <Text style={styles.chevron} accessibilityElementsHidden importantForAccessibility="no">
+                  ›
                 </Text>
-              </View>
-              <Text style={styles.chevron} accessibilityElementsHidden importantForAccessibility="no">
-                ›
-              </Text>
-            </Pressable>
-          ))}
+              </Pressable>
+            )
+          )}
         </View>
       </View>
 
@@ -229,7 +262,10 @@ function Settings() {
         <Text style={styles.logoutText}>Logout</Text>
       </Pressable>
 
-      <ChangePasswordModal visible={changePasswordVisible} onClose={() => setChangePasswordVisible(false)} />
+      {/* P1.3 item 5 / P1b (T-43): 12 + the 20 gap reads 32 below Logout. */}
+      <DeleteAccountAction style={styles.deleteAccount} />
+
+      <ChangePasswordModal visible={changePasswordVisible} onClose={() => setChangePasswordVisible(false)} email={email} />
     </View>
   );
 }
@@ -359,6 +395,11 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     color: colors.textMuted,
   },
+  plainValue: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textSecondary,
+  },
   chevron: {
     fontSize: 18,
     lineHeight: 24,
@@ -374,6 +415,9 @@ const styles = StyleSheet.create({
   },
   logoutPressed: {
     backgroundColor: colors.errorFill,
+  },
+  deleteAccount: {
+    paddingTop: 12,
   },
   logoutText: {
     fontSize: 16,

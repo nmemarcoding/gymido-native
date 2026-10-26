@@ -73,7 +73,7 @@ module.exports = {
   expo: {
     name: 'Gymido',
     slug: 'gymido-native',
-    version: '1.0.2',
+    version: '1.0.3',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
@@ -85,7 +85,7 @@ module.exports = {
     ios: {
       bundleIdentifier: 'com.gymido.app',
       // Release builds: bump with every store/installed release (1.0.0 shipped as 1).
-      buildNumber: '3',
+      buildNumber: '4',
       supportsTablet: true,
       // app-shell O2: iPhone portrait, iPad all four and split view.
       requireFullScreen: false,
@@ -102,7 +102,7 @@ module.exports = {
     android: {
       package: 'com.gymido.app',
       // Release builds: bump with every store/installed release (1.0.0 shipped as 1).
-      versionCode: 3,
+      versionCode: 4,
       adaptiveIcon: {
         backgroundColor: '#E6F4FE',
         foregroundImage: './assets/android-icon-foreground.png',

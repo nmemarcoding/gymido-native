@@ -1,9 +1,13 @@
 # T-29 stage 4: submit, then wait for the signed-in app.
 # hideKeyboard first: the keyboard's accessory bar covers "Continue".
+# hideKeyboard can itself submit the form (the return key), so "Continue" may
+# already be gone: the tap is optional and tab-Today is the real check.
 appId: com.gymido.app
 ---
 - hideKeyboard
-- tapOn: "Continue"
+- tapOn:
+    text: "Continue"
+    optional: true
 - extendedWaitUntil:
     visible:
       id: "tab-Today"

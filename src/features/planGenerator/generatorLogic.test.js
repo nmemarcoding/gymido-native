@@ -2,8 +2,11 @@ import {
   COPY,
   QUESTIONS,
   bandLabel,
+  focusBlockedHint,
+  goEasyBlockedHint,
   goalLabel,
   humanizeCode,
+  joinNames,
   presetLabel,
   reasonLabel,
   stepEyebrow,
@@ -16,13 +19,23 @@ import {
   choosePreset,
   classifyAcceptError,
   classifyPreviewError,
+  deepLinkStep,
+  focusHint,
   formatPrescription,
   formatRest,
   formatWeeklySets,
+  goEasyAreaLabel,
+  goEasyAreasOf,
+  goEasyHint,
+  goEasyNotice,
+  isAreaBlocked,
+  isFocusBlocked,
   isFocusDisabled,
+  isFocusPillDisabled,
   isStepAnswered,
   optionCode,
   planNotice,
+  refusalActions,
   removeExclusion,
   reviewSummaries,
   searchTerm,
@@ -31,6 +44,7 @@ import {
   step6NextLabel,
   stepErrorsFrom422,
   toggleFocus,
+  toggleGoEasyArea,
   tabBarClearance,
   weeklyVolumeRows,
   toggleId,
@@ -100,6 +114,7 @@ describe('answers ↔ profile (G1.4)', () => {
       focus_muscle_ids: [],
       preferred_split: null,
       exclusions: [],
+      go_easy_area_ids: [],
     });
   });
 
@@ -312,5 +327,223 @@ describe('sticky bar clearance', () => {
     expect(tabBarClearance({ width: 767, insetBottom: 0 })).toBe(85);
     expect(tabBarClearance({ width: 768, insetBottom: 0 })).toBe(0);
     expect(tabBarClearance({ width: 820, insetBottom: 20 })).toBe(20);
+  });
+});
+
+// T-18 go-easy areas (RN-SPEC-PLAN-GENERATOR, dated change 25 Oct 2026).
+const AREAS = [
+  { id: 1, code: 'KNEES', name: 'Knees', focus_muscle_ids: [21, 22] },
+  { id: 2, code: 'LOWER_BACK', name: 'Lower back', focus_muscle_ids: [23] },
+  { id: 3, code: 'SHOULDERS', name: 'Shoulders', focus_muscle_ids: [24] },
+  { id: 4, code: 'WRISTS', name: '', focus_muscle_ids: [99] },
+];
+const GE_FOCUS = [
+  { id: 21, name: 'Quads' },
+  { id: 22, name: 'Glutes' },
+  { id: 23, name: 'Lower back' },
+  { id: 24, name: 'Shoulders' },
+];
+const blank = (patch = {}) => ({ ...answersFromProfile(null), ...patch });
+
+describe('T-18 go-easy: wire and PUT (G1.4)', () => {
+  test('G1.4 answers: go_easy_area_ids ← profile.go_easy_area_ids || []', () => {
+    expect(answersFromProfile({ ...PROFILE, go_easy_area_ids: [2, 1] }).go_easy_area_ids).toEqual([2, 1]);
+    expect(answersFromProfile(PROFILE).go_easy_area_ids).toEqual([]);
+    expect(answersFromProfile({ go_easy_area_ids: null }).go_easy_area_ids).toEqual([]);
+  });
+
+  test('PUT always sends go_easy_area_ids filtered to the offered ids when areas are offered', () => {
+    const answers = answersFromProfile({ ...PROFILE, go_easy_area_ids: [3, 77, 1] });
+    expect(buildProfileBody(answers, {}, AREAS).go_easy_area_ids).toEqual([3, 1]);
+    // [] clears them: the key is still sent.
+    const cleared = buildProfileBody({ ...answers, go_easy_area_ids: [] }, {}, AREAS);
+    expect(cleared).toHaveProperty('go_easy_area_ids', []);
+    // only stale ids → [].
+    expect(buildProfileBody({ ...answers, go_easy_area_ids: [77] }, {}, AREAS).go_easy_area_ids).toEqual([]);
+  });
+
+  test('PUT omits the key when no areas are offered', () => {
+    const answers = answersFromProfile({ ...PROFILE, go_easy_area_ids: [1] });
+    expect(buildProfileBody(answers, {}, [])).not.toHaveProperty('go_easy_area_ids');
+    expect(buildProfileBody(answers)).not.toHaveProperty('go_easy_area_ids');
+  });
+
+  test("the preview's split change (G2.2) re-saves without the key", () => {
+    const saved = answersFromProfile({ ...PROFILE, go_easy_area_ids: [1] });
+    const body = buildProfileBody(saved, { preferred_split: 'PPL6' });
+    expect(body).not.toHaveProperty('go_easy_area_ids');
+    expect(body.preferred_split).toBe('PPL6');
+  });
+
+  test('go_easy_areas read in server order; [] when missing', () => {
+    expect(goEasyAreasOf({ go_easy_areas: AREAS })).toBe(AREAS);
+    expect(goEasyAreasOf({})).toEqual([]);
+    expect(goEasyAreasOf(null)).toEqual([]);
+  });
+});
+
+describe('T-18 go-easy: step 6 section (G1.2)', () => {
+  test('notice = go_easy_notice, or the fallback when ""', () => {
+    expect(goEasyNotice({ go_easy_notice: 'Server notice.' })).toBe('Server notice.');
+    expect(goEasyNotice({ go_easy_notice: '' })).toBe("We'll avoid exercises that put heavy load on the areas you pick.");
+    expect(goEasyNotice({})).toBe("We'll avoid exercises that put heavy load on the areas you pick.");
+  });
+
+  test('pill label = name, else humanizeCode(code)', () => {
+    expect(goEasyAreaLabel(AREAS[0])).toBe('Knees');
+    expect(goEasyAreaLabel(AREAS[3])).toBe('Wrists');
+  });
+
+  test('tap toggles; none selected by default; no maximum', () => {
+    let a = blank();
+    expect(a.go_easy_area_ids).toEqual([]);
+    for (const area of AREAS) {
+      a = toggleGoEasyArea(a, area);
+    }
+    expect(a.go_easy_area_ids).toEqual([1, 2, 3, 4]);
+    a = toggleGoEasyArea(a, AREAS[1]);
+    expect(a.go_easy_area_ids).toEqual([1, 3, 4]);
+  });
+
+  test('pair block: a selected area disables every unselected Focus pill in its focus_muscle_ids', () => {
+    const a = blank({ go_easy_area_ids: [1] });
+    expect(isFocusBlocked(a, 21, AREAS)).toBe(true);
+    expect(isFocusBlocked(a, 22, AREAS)).toBe(true);
+    expect(isFocusBlocked(a, 23, AREAS)).toBe(false);
+    expect(isFocusPillDisabled(a, 21, 2, AREAS)).toBe(true);
+    expect(isFocusPillDisabled(a, 23, 2, AREAS)).toBe(false);
+    // A selected Focus pill is never blocked (only unselected ones).
+    expect(isFocusBlocked({ ...a, focus_muscle_ids: [21] }, 21, AREAS)).toBe(false);
+    // Unpicking re-enables.
+    expect(isFocusBlocked(toggleGoEasyArea(a, AREAS[0]), 21, AREAS)).toBe(false);
+  });
+
+  test('pair block: a selected Focus muscle disables every unselected area whose list contains it', () => {
+    const a = blank({ focus_muscle_ids: [22] });
+    expect(isAreaBlocked(a, AREAS[0])).toBe(true);
+    expect(isAreaBlocked(a, AREAS[1])).toBe(false);
+    // A blocked area can't be toggled on.
+    expect(toggleGoEasyArea(a, AREAS[0])).toBe(a);
+    // A selected area is never blocked.
+    expect(isAreaBlocked({ ...a, go_easy_area_ids: [1] }, AREAS[0])).toBe(false);
+    // Unpicking re-enables.
+    expect(isAreaBlocked(blank(), AREAS[0])).toBe(false);
+  });
+
+  test('a Focus pill can also be disabled by the cap (max 2), which shows no hint', () => {
+    const a = blank({ focus_muscle_ids: [23, 24] });
+    expect(isFocusPillDisabled(a, 21, 2, AREAS)).toBe(true);
+    expect(focusHint(a, AREAS, GE_FOCUS)).toBe('');
+    expect(goEasyHint(blank({ focus_muscle_ids: [] }), AREAS)).toBe('');
+  });
+
+  test('go-easy hint names the blocked areas: one', () => {
+    expect(goEasyHint(blank({ focus_muscle_ids: [21] }), AREAS)).toBe(
+      'Knees is one of your focus muscles. Remove it there to go easy on it.'
+    );
+  });
+
+  test('go-easy hint names the blocked areas: several (server order, lower case after the first word)', () => {
+    expect(goEasyHint(blank({ focus_muscle_ids: [23, 21] }), AREAS)).toBe(
+      'Knees and lower back are your focus muscles. Remove them there to go easy on them.'
+    );
+  });
+
+  test('focus hint names the selected areas that block an offered, unselected Focus pill: one', () => {
+    expect(focusHint(blank({ go_easy_area_ids: [2] }), AREAS, GE_FOCUS)).toBe(
+      "You're going easy on your lower back, so it can't be a focus."
+    );
+  });
+
+  test('focus hint: several', () => {
+    expect(focusHint(blank({ go_easy_area_ids: [3, 1] }), AREAS, GE_FOCUS)).toBe(
+      "You're going easy on your knees and shoulders, so they can't be a focus."
+    );
+  });
+
+  test("focus hint: an area whose focus muscles aren't offered adds no hint", () => {
+    expect(focusHint(blank({ go_easy_area_ids: [4] }), AREAS, GE_FOCUS)).toBe('');
+    expect(focusHint(blank({ go_easy_area_ids: [4, 2] }), AREAS, GE_FOCUS)).toBe(
+      "You're going easy on your lower back, so it can't be a focus."
+    );
+  });
+
+  test('names joined "a", "a and b", "a, b and c" (no Oxford comma)', () => {
+    expect(joinNames(['a'])).toBe('a');
+    expect(joinNames(['a', 'b'])).toBe('a and b');
+    expect(joinNames(['a', 'b', 'c'])).toBe('a, b and c');
+    expect(goEasyBlockedHint(['Knees', 'Lower back', 'Shoulders'])).toBe(
+      'Knees, lower back and shoulders are your focus muscles. Remove them there to go easy on them.'
+    );
+    expect(focusBlockedHint(['Knees', 'Lower back', 'Shoulders'])).toBe(
+      "You're going easy on your knees, lower back and shoulders, so they can't be a focus."
+    );
+    expect(goEasyBlockedHint([])).toBe('');
+    expect(focusBlockedHint([])).toBe('');
+  });
+
+  test('Skip only when focus, go-easy and avoid are all empty', () => {
+    expect(step6NextLabel(blank())).toBe('Skip');
+    expect(step6NextLabel(blank({ go_easy_area_ids: [1] }))).toBe('Next');
+  });
+
+  test('copy index additions', () => {
+    expect(COPY.goEasyLabel).toBe('Anything to go easy on?');
+    expect(COPY.goEasyFallback).toBe("We'll avoid exercises that put heavy load on the areas you pick.");
+    expect(COPY.goEasyReviewPrefix).toBe('Go easy on: ');
+    expect(COPY.nothingToGoEasyOn).toBe('Nothing to go easy on');
+    expect(COPY.editGoEasyAreas).toBe('Edit go-easy areas');
+    expect(COPY.changeMyEquipment).toBe('Change my equipment');
+  });
+});
+
+describe('T-18 go-easy: review, 422, deep link, preview (G1.3, G1.5, G2)', () => {
+  const options = { ...OPTIONS, go_easy_areas: AREAS };
+
+  test('G1.3 review row 6: "Go easy on: {names, server order}" between focus and avoid', () => {
+    const a = { ...answersFromProfile(PROFILE), go_easy_area_ids: [3, 1, 77] };
+    expect(reviewSummaries(a, options)[5].summary).toBe('Focus: Chest · Go easy on: Knees, Shoulders · Avoid: Dips');
+  });
+
+  test('G1.3 review row 6: "Nothing to go easy on"; e.g. "No focus · Go easy on: Knees · Nothing to avoid"', () => {
+    const empty = { ...answersFromProfile(PROFILE), focus_muscle_ids: [], exclusions: [] };
+    expect(reviewSummaries(empty, options)[5].summary).toBe('No focus · Nothing to go easy on · Nothing to avoid');
+    expect(reviewSummaries({ ...empty, go_easy_area_ids: [1] }, options)[5].summary).toBe(
+      'No focus · Go easy on: Knees · Nothing to avoid'
+    );
+  });
+
+  test('G1.3 review row 6: no go-easy part when no areas are offered', () => {
+    const a = { ...answersFromProfile(PROFILE), go_easy_area_ids: [1] };
+    expect(reviewSummaries(a, OPTIONS)[5].summary).toBe('Focus: Chest · Avoid: Dips');
+  });
+
+  test('G1.5 422: errors.go_easy_area_ids → step 6', () => {
+    expect(stepErrorsFrom422({ go_easy_area_ids: ['Clashes with a focus muscle.'] })).toEqual({
+      6: 'Clashes with a focus muscle.',
+    });
+  });
+
+  test('deep link: an integer 0–5 opens that step; anything else → step 1 as before', () => {
+    expect(deepLinkStep(0)).toBe(1);
+    expect(deepLinkStep(4)).toBe(5);
+    expect(deepLinkStep(5)).toBe(6);
+    for (const bad of [undefined, null, -1, 6, 2.5, '5', NaN]) {
+      expect(deepLinkStep(bad)).toBeNull();
+    }
+  });
+
+  test('G2.1: a 422 errors.go_easy_area_ids is its own kind; errors.profile keeps "profile"', () => {
+    expect(classifyPreviewError(httpError(422, { errors: { go_easy_area_ids: ['GO_EASY_FOCUS_CONFLICT'] } }))).toBe('goEasy');
+    expect(classifyPreviewError(httpError(422, { errors: { profile: ['x'] } }))).toBe('profile');
+    expect(classifyPreviewError(httpError(422, { errors: {} }))).toBe('other');
+  });
+
+  test('G2.3 refusal: only GO_EASY_TOO_RESTRICTIVE changes the actions; equipment_fix missing = false', () => {
+    expect(refusalActions({ code: 'GO_EASY_TOO_RESTRICTIVE', equipment_fix: true })).toEqual({ equipmentFix: true });
+    expect(refusalActions({ code: 'GO_EASY_TOO_RESTRICTIVE' })).toEqual({ equipmentFix: false });
+    expect(refusalActions({ code: 'GO_EASY_TOO_RESTRICTIVE', equipment_fix: 'yes' })).toEqual({ equipmentFix: false });
+    expect(refusalActions({ code: 'NO_EQUIPMENT' })).toBeNull();
+    expect(refusalActions(undefined)).toBeNull();
   });
 });

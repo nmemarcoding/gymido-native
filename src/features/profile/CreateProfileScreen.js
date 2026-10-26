@@ -17,6 +17,7 @@ import { breakpoints, colors, motion, radii, shadows } from '../../shared/theme/
 import { useAuthStore } from '../auth/authStore';
 import { getScreenTab } from '../shell/shellNavigation';
 import { createProfile } from './api/profileApi';
+import DeleteAccountAction from './DeleteAccountAction';
 import { setCreatedProfile } from './profileStore';
 import {
   INITIAL_PROFILE_FORM,
@@ -266,6 +267,9 @@ export default function CreateProfileScreen() {
             </View>
             <PillButton testID="profile-submit" title="Create profile" fullWidth loading={submitting} onPress={submit} />
           </View>
+          {/* T-43 (26 Oct 2026, RN-SPEC-profile P1b.4): end of the card
+              content; 20 + the 20 content gap reads 40. */}
+          <DeleteAccountAction profileLess disabled={submitting} style={styles.deleteAccount} />
         </View>
       </Animated.View>
     </ScrollView>
@@ -324,6 +328,9 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: 16,
+  },
+  deleteAccount: {
+    paddingTop: 20,
   },
   column: {
     gap: 16,

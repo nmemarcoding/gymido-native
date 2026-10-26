@@ -7,8 +7,10 @@ export async function getProfile(accessToken) {
   return response.data?.data ?? null;
 }
 
-export async function changePassword(password) {
-  const response = await apiClient.post('/profile/change-password', { password });
+// RN-SPEC-profile P1a (25 Oct 2026, T-32 H1): asks the server to have Auth0
+// email a password reset link. The body is always `{}`.
+export async function sendPasswordResetEmail() {
+  const response = await apiClient.post('/profile/change-password', {});
   return response.data;
 }
 
@@ -23,4 +25,9 @@ export async function createProfile(payload) {
 export async function updateProfile(payload) {
   const response = await apiClient.patch('/profile', payload);
   return response.data?.data?.profile ?? null;
+}
+
+// Delete account (RN-SPEC-profile P1b.7, T-43): no body; the 200 body is not read.
+export async function deleteAccount() {
+  await apiClient.delete('/profile');
 }

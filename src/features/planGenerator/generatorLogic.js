@@ -3,7 +3,7 @@
 
 import { breakpoints } from '../../shared/theme/tokens';
 import { formatLocalDateForInput } from '../../shared/time/format';
-import { QUESTIONS, bandLabel, goalLabel, presetLabel } from './generatorCopy';
+import { COPY, QUESTIONS, bandLabel, focusBlockedHint, goEasyBlockedHint, goalLabel, humanizeCode, presetLabel } from './generatorCopy';
 
 // Option lists may carry plain codes or `{code}` objects.
 export function optionCode(option) {
@@ -27,13 +27,18 @@ export function answersFromProfile(profile) {
     exclusions: Array.isArray(p.exclusions)
       ? p.exclusions.map((item) => ({ exercise: item.exercise, reason: item.reason }))
       : [],
+    // T-18: always present on the wire, `[]` by default.
+    go_easy_area_ids: Array.isArray(p.go_easy_area_ids) ? [...p.go_easy_area_ids] : [],
   };
 }
 
-// §G1.4 PUT body: every key, always.
-export function buildProfileBody(answers, overrides = {}) {
+// §G1.4 PUT body: every key, always. T-18: when go-easy areas are offered,
+// `go_easy_area_ids` is always sent, filtered to the offered ids (so `[]`
+// clears them and a stale id is dropped); with none offered the key is left
+// out. The preview's split change passes no areas, so the saved ones stay.
+export function buildProfileBody(answers, overrides = {}, goEasyAreas = []) {
   const a = { ...answers, ...overrides };
-  return {
+  const body = {
     goal: a.goal ?? null,
     experience_band: a.experience_band ?? null,
     days_per_week: a.days_per_week ?? null,
@@ -44,6 +49,11 @@ export function buildProfileBody(answers, overrides = {}) {
     preferred_split: a.preferred_split ?? null,
     exclusions: (a.exclusions ?? []).map((item) => ({ exercise_id: item.exercise?.id, reason: item.reason })),
   };
+  const offered = ids(goEasyAreas);
+  if (offered.length) {
+    body.go_easy_area_ids = (a.go_easy_area_ids ?? []).filter((id) => offered.includes(id));
+  }
+  return body;
 }
 
 const has = (value) => value !== null && value !== undefined && value !== '';
@@ -66,9 +76,14 @@ export function isStepAnswered(answers, step) {
   }
 }
 
-// ⚠G-5: the label only; it does the same as Next.
+// ⚠G-5: the label only; it does the same as Next. T-18: "Skip" only when
+// focus, go-easy and avoid are all empty.
 export function step6NextLabel(answers) {
-  return answers.focus_muscle_ids.length === 0 && answers.exclusions.length === 0 ? 'Skip' : 'Next';
+  return answers.focus_muscle_ids.length === 0 &&
+    (answers.go_easy_area_ids ?? []).length === 0 &&
+    answers.exclusions.length === 0
+    ? 'Skip'
+    : 'Next';
 }
 
 // §G1.2 step 5 / ⚠G-2: a preset replaces the equipment with its own list.
@@ -95,6 +110,76 @@ export function toggleFocus(selectedIds, id, max) {
     return selectedIds;
   }
   return toggleId(selectedIds, id);
+}
+
+// ---- T-18 go-easy areas (step 6) ----
+
+// `options.go_easy_areas[{id, code, name, focus_muscle_ids[]}]`, server order.
+export function goEasyAreasOf(options) {
+  return Array.isArray(options?.go_easy_areas) ? options.go_easy_areas : [];
+}
+
+// The pill label: `name`, else the code humanised.
+export function goEasyAreaLabel(area) {
+  return area?.name || humanizeCode(area?.code);
+}
+
+// `go_easy_notice`, or the fallback when it is "" (or missing).
+export function goEasyNotice(options) {
+  const notice = options?.go_easy_notice;
+  return typeof notice === 'string' && notice !== '' ? notice : COPY.goEasyFallback;
+}
+
+const focusIdsOf = (area) => (Array.isArray(area?.focus_muscle_ids) ? area.focus_muscle_ids : []);
+
+// Pair block (C5), ids only: a selected area blocks every unselected Focus
+// pill whose id is in its `focus_muscle_ids`.
+export function isFocusBlocked(answers, focusId, areas) {
+  if (answers.focus_muscle_ids.includes(focusId)) {
+    return false;
+  }
+  const selected = answers.go_easy_area_ids ?? [];
+  return areas.some((area) => selected.includes(area.id) && focusIdsOf(area).includes(focusId));
+}
+
+// …and a selected Focus muscle blocks every unselected area whose list
+// contains it.
+export function isAreaBlocked(answers, area) {
+  if ((answers.go_easy_area_ids ?? []).includes(area.id)) {
+    return false;
+  }
+  return focusIdsOf(area).some((id) => answers.focus_muscle_ids.includes(id));
+}
+
+// A Focus pill is disabled by the cap (max 2, no hint) or by a block.
+export function isFocusPillDisabled(answers, focusId, max, areas) {
+  return isFocusDisabled(answers.focus_muscle_ids, focusId, max) || isFocusBlocked(answers, focusId, areas);
+}
+
+export function toggleGoEasyArea(answers, area) {
+  if (isAreaBlocked(answers, area)) {
+    return answers;
+  }
+  return { ...answers, go_easy_area_ids: toggleId(answers.go_easy_area_ids ?? [], area.id) };
+}
+
+// The hint under go-easy names the blocked areas (server order); "" = none.
+export function goEasyHint(answers, areas) {
+  return goEasyBlockedHint(areas.filter((area) => isAreaBlocked(answers, area)).map(goEasyAreaLabel));
+}
+
+// The hint under Focus names the selected areas (server order) that block
+// an offered, unselected Focus pill. An area whose focus muscles aren't
+// offered adds no hint.
+export function focusHint(answers, areas, focusMuscles) {
+  const offered = ids(focusMuscles);
+  const selected = answers.go_easy_area_ids ?? [];
+  const blocking = areas.filter(
+    (area) =>
+      selected.includes(area.id) &&
+      focusIdsOf(area).some((id) => offered.includes(id) && !answers.focus_muscle_ids.includes(id))
+  );
+  return focusBlockedHint(blocking.map(goEasyAreaLabel));
 }
 
 export function addExclusion(exclusions, exercise) {
@@ -134,6 +219,8 @@ export const ERROR_KEY_STEPS = Object.freeze({
   focus_muscle_ids: 6,
   exclusions: 6,
   preferred_split: 6,
+  // T-18 (FIELD_STEP 5 on the web's 0-based steps).
+  go_easy_area_ids: 6,
 });
 
 export function stepErrorsFrom422(errors) {
@@ -161,13 +248,20 @@ export function reviewSummaries(answers, options) {
   const equipment = answers.equipment_type_ids.map((id) => equipmentNames.get(id)).filter(Boolean);
   const focus = answers.focus_muscle_ids.map((id) => focusNames.get(id)).filter(Boolean);
   const avoid = answers.exclusions.map((item) => item.exercise?.name).filter(Boolean);
+  const focusPart = focus.length ? `Focus: ${focus.join(', ')}` : 'No focus';
+  const avoidPart = avoid.length ? `Avoid: ${avoid.join(', ')}` : 'Nothing to avoid';
+  // T-18: the go-easy part only when areas are offered; names in server order.
+  const areas = goEasyAreasOf(options);
+  const selected = answers.go_easy_area_ids ?? [];
+  const goEasy = areas.filter((area) => selected.includes(area.id)).map(goEasyAreaLabel);
+  const goEasyPart = goEasy.length ? `${COPY.goEasyReviewPrefix}${goEasy.join(', ')}` : COPY.nothingToGoEasyOn;
   return [
     goalLabel(answers.goal),
     bandLabel(answers.experience_band),
     `${answers.days_per_week} days a week`,
     `${answers.session_minutes} min`,
     `${presetLabel(answers.equipment_preset)} · ${['Bodyweight', ...equipment].join(', ')}`,
-    `${focus.length ? `Focus: ${focus.join(', ')}` : 'No focus'} · ${avoid.length ? `Avoid: ${avoid.join(', ')}` : 'Nothing to avoid'}`,
+    (areas.length ? [focusPart, goEasyPart, avoidPart] : [focusPart, avoidPart]).join(' · '),
   ].map((summary, index) => ({ step: index + 1, question: QUESTIONS[index], summary }));
 }
 
@@ -271,6 +365,10 @@ export function classifyPreviewError(error) {
   if (status === 422 && error?.response?.data?.errors?.profile) {
     return 'profile';
   }
+  // T-18 GO_EASY_FOCUS_CONFLICT: the saved areas clash with a focus muscle.
+  if (status === 422 && error?.response?.data?.errors?.go_easy_area_ids) {
+    return 'goEasy';
+  }
   if (status === 503) {
     return 'unavailable';
   }
@@ -278,6 +376,21 @@ export function classifyPreviewError(error) {
     return 'forbidden';
   }
   return 'other';
+}
+
+// T-18 G2.3: the refusal's actions change only for GO_EASY_TOO_RESTRICTIVE;
+// "Change my equipment" only when `equipment_fix === true` (missing = false).
+export function refusalActions(reason) {
+  if (reason?.code !== 'GO_EASY_TOO_RESTRICTIVE') {
+    return null;
+  }
+  return { equipmentFix: reason.equipment_fix === true };
+}
+
+// Deep link (T-18): an integer 0–5 opens that step (0-based, as the web's
+// `state.step`); anything else → null (step 1 as before).
+export function deepLinkStep(param) {
+  return Number.isInteger(param) && param >= 0 && param < QUESTIONS.length ? param + 1 : null;
 }
 
 // §G2.4 ACTIVE_ENROLLMENT: after re-previewing, open the confirm only when

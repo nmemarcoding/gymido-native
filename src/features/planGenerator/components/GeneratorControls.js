@@ -38,13 +38,24 @@ export function ChoiceList({ children }) {
   return <View style={styles.choiceList}>{children}</View>;
 }
 
-// Batch A (A3): 44 tall on touch (padding-vertical 12).
-export function OptionPill({ label, selected, disabled = false, onPress, testID, accessibilityLabel }) {
+// Batch A (A3): 44 tall on touch (padding-vertical 12). T-18/T-40: step 6
+// pills pass their role and hint (the section label, plus a block hint).
+export function OptionPill({
+  label,
+  selected,
+  disabled = false,
+  onPress,
+  testID,
+  accessibilityLabel,
+  accessibilityRole = 'button',
+  accessibilityHint,
+}) {
   return (
     <Pressable
       testID={testID}
-      accessibilityRole="button"
+      accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityHint={accessibilityHint}
       accessibilityState={{ selected, disabled }}
       disabled={disabled}
       onPress={onPress}
@@ -87,10 +98,11 @@ const CALLOUT_TONES = {
   warning: { borderColor: 'rgba(245, 158, 11, 0.30)', backgroundColor: '#fffbeb', color: '#bb4d00' },
 };
 
-export function Callout({ tone = 'info', children, testID, style }) {
+// `role` is passed through (T-18: the GO_EASY_AREAS note is role="note").
+export function Callout({ tone = 'info', children, testID, style, role }) {
   const look = CALLOUT_TONES[tone];
   return (
-    <View testID={testID} style={[styles.callout, { borderColor: look.borderColor, backgroundColor: look.backgroundColor }, style]}>
+    <View testID={testID} role={role} style={[styles.callout, { borderColor: look.borderColor, backgroundColor: look.backgroundColor }, style]}>
       <Text style={[styles.calloutText, { color: look.color }]}>{children}</Text>
     </View>
   );

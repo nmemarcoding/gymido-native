@@ -1,58 +1,94 @@
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, StyleSheet, Text, View, findNodeHandle } from 'react-native';
 
 import { getApiErrorMessage } from '../../shared/api/apiError';
 import AppModal from '../../shared/components/AppModal';
-import FormField from '../../shared/components/FormField';
+import ErrorAlert from '../../shared/components/ErrorAlert';
 import PillButton from '../../shared/components/PillButton';
-import { showToast } from '../../shared/components/toastStore';
-import { changePassword } from './api/profileApi';
-import { validateChangePassword } from './validateChangePassword';
+import { colors } from '../../shared/theme/tokens';
+import { sendPasswordResetEmail } from './api/profileApi';
+import { markResetEmailSent, resetCooldownLeftMs, resetCooldownSeconds } from './passwordReset';
 
-export default function ChangePasswordModal({ visible, onClose }) {
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+// RN-SPEC-profile P1a (25 Oct 2026, T-32 H1): no in-app password form; the
+// modal asks for an Auth0 reset email and then counts down the 60 s cooldown.
+export default function ChangePasswordModal({ visible, onClose, email }) {
+  const [now, setNow] = useState(() => Date.now());
+  const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
-  const [saving, setSaving] = useState(false);
+  const [focusTarget, setFocusTarget] = useState(null);
+  const doneRef = useRef(null);
+  const errorRef = useRef(null);
 
-  const resetForm = () => {
-    setPassword('');
-    setConfirmPassword('');
-    setError(null);
-  };
+  const seconds = resetCooldownSeconds(resetCooldownLeftMs(now));
+
+  // Reopening inside the cooldown shows the sent state with the time left;
+  // after it, idle.
+  useEffect(() => {
+    if (visible) {
+      const openedAt = Date.now();
+      setNow(openedAt);
+      setSent(resetCooldownSeconds(resetCooldownLeftMs(openedAt)) > 0);
+      setError(null);
+    }
+  }, [visible]);
+
+  // Re-render on each whole second of the cooldown (the label isn't announced).
+  useEffect(() => {
+    if (!visible || seconds <= 0) {
+      return undefined;
+    }
+    const timer = setTimeout(() => setNow(Date.now()), resetCooldownLeftMs(now) % 1000 || 1000);
+    return () => clearTimeout(timer);
+  }, [visible, now, seconds]);
+
+  // Focus: "Done" after a success, the ErrorAlert after a failure.
+  useEffect(() => {
+    if (!focusTarget) {
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      const node = findNodeHandle((focusTarget.kind === 'done' ? doneRef : errorRef).current);
+      if (node) {
+        AccessibilityInfo.setAccessibilityFocus(node);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [focusTarget]);
 
   // The modal can't be dismissed while the request is in flight.
-  const handleCancel = () => {
-    if (saving) {
+  const handleClose = () => {
+    if (sending) {
       return;
     }
-    resetForm();
+    setError(null);
     onClose();
   };
 
-  const handleSubmit = async () => {
-    if (saving) {
+  const handleSend = async () => {
+    if (sending) {
       return;
     }
-    const validationError = validateChangePassword(password, confirmPassword);
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
+    // A re-send goes back to the idle layout while it runs (FE e7effd0a).
     setError(null);
-    setSaving(true);
+    setSent(false);
+    setSending(true);
     try {
-      await changePassword(password);
+      await sendPasswordResetEmail();
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError, 'Failed to change password.', 'password'));
-      setSaving(false);
+      // 404 / 502 / 503 carry their server message; the 200 message is never shown.
+      setError(getApiErrorMessage(requestError, 'Please try again.'));
+      setSent(false);
+      setSending(false);
+      setFocusTarget({ kind: 'error' });
       return;
     }
-    setSaving(false);
-    resetForm();
-    onClose();
-    showToast('Password changed', 'Your password has been updated.');
+    const sentAt = Date.now();
+    markResetEmailSent(sentAt);
+    setNow(sentAt);
+    setSent(true);
+    setSending(false);
+    setFocusTarget({ kind: 'done' });
   };
 
   // Web's Modal (the same AppModal as the weight log): bottom sheet below
@@ -61,63 +97,89 @@ export default function ChangePasswordModal({ visible, onClose }) {
     <AppModal
       testID="change-password-modal"
       isOpen={visible}
-      onClose={handleCancel}
-      size="md"
+      onClose={handleClose}
+      // Web's Modal default max-w-lg (FE e7effd0a).
+      size="lg"
       title="Change password"
-      description="Set a new password for signing in. This updates your Auth0 login."
       footer={
-        // ⚠P-5: the buttons sit inline, left aligned and touching, Cancel first.
+        // ⚠P-5: the buttons sit inline, left aligned and touching.
         <View style={styles.actions}>
-          <PillButton
-            testID="change-password-cancel"
-            title="Cancel"
-            variant="secondary"
-            disabled={saving}
-            onPress={handleCancel}
-          />
-          <PillButton testID="change-password-submit" title="Change password" loading={saving} onPress={handleSubmit} />
+          {sent ? (
+            <>
+              <PillButton
+                testID="change-password-resend"
+                title={seconds > 0 ? `Send again in ${seconds}s` : 'Send again'}
+                variant="secondary"
+                disabled={seconds > 0}
+                onPress={handleSend}
+              />
+              <PillButton ref={doneRef} testID="change-password-done" title="Done" onPress={handleClose} />
+            </>
+          ) : (
+            <>
+              <PillButton
+                testID="change-password-cancel"
+                title="Cancel"
+                variant="secondary"
+                disabled={sending}
+                onPress={handleClose}
+              />
+              <PillButton testID="change-password-submit" title="Send reset email" loading={sending} onPress={handleSend} />
+            </>
+          )}
         </View>
       }
     >
-      <View style={styles.body}>
-        <FormField
-          testID="change-password-new"
-          label="New password"
-          helperText="At least 8 characters, meeting your login password policy."
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoComplete="new-password"
-          textContentType="newPassword"
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!saving}
-          returnKeyType="done"
-          onSubmitEditing={handleSubmit}
-        />
-        <FormField
-          testID="change-password-confirm"
-          label="Confirm new password"
-          error={error}
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          secureTextEntry
-          autoComplete="new-password"
-          textContentType="newPassword"
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!saving}
-          returnKeyType="done"
-          onSubmitEditing={handleSubmit}
-        />
-      </View>
+      {sent ? (
+        <View testID="change-password-sent" role="status" accessibilityLiveRegion="polite">
+          <View style={styles.sentTitleRow}>
+            <Text style={styles.sentTitle} accessibilityElementsHidden importantForAccessibility="no">
+              ✓
+            </Text>
+            <Text style={styles.sentTitle}>Email sent</Text>
+          </View>
+          <Text style={styles.body}>Check your inbox for the link. It can take a few minutes, so look in spam too.</Text>
+        </View>
+      ) : (
+        <View style={styles.idle}>
+          <Text testID="change-password-body" style={styles.body}>
+            We'll email a link to <Text style={styles.email}>{email}</Text> so you can set a new password.
+          </Text>
+          {error ? (
+            // A focusable wrapper; the alert inside keeps its alert role.
+            <View ref={errorRef} testID="change-password-error" accessible>
+              <ErrorAlert title="Could not send the email" description={error} />
+            </View>
+          ) : null}
+        </View>
+      )}
     </AppModal>
   );
 }
 
 const styles = StyleSheet.create({
-  body: {
+  idle: {
     gap: 16,
+  },
+  body: {
+    fontSize: 14,
+    lineHeight: 24,
+    color: colors.textSecondary,
+  },
+  email: {
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  sentTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sentTitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '700',
+    color: colors.success700,
   },
   actions: {
     flexDirection: 'row',
