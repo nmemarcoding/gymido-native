@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radii } from '../../shared/theme/tokens';
 import { signOutDeletedAccount } from '../auth/authService';
 import { useAuthStore } from '../auth/authStore';
-import { hasPasswordLogin } from '../auth/loginMethod';
+import { hasGymidoPassword } from './passwordReset';
 import { isAdminUser, isTrainerUser } from '../shell/shellRules';
 import DeleteAccountDialog from './DeleteAccountDialog';
 
@@ -13,7 +13,7 @@ import DeleteAccountDialog from './DeleteAccountDialog';
 // the Create-profile variant (P1b.4); `disabled` while that form submits.
 export default function DeleteAccountAction({ profileLess = false, disabled = false, style }) {
   const user = useAuthStore((state) => state.user);
-  const googleOnly = useAuthStore((state) => !hasPasswordLogin(state.claims));
+  const googleOnly = useAuthStore((state) => !hasGymidoPassword(state.claims?.sub));
   const [open, setOpen] = useState(false);
 
   if (isAdminUser(user)) {

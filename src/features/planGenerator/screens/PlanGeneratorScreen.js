@@ -448,7 +448,7 @@ function FocusAvoidStep({ answers, options, setAnswers }) {
   const areaBlockHint = hasAreas ? goEasyHint(answers, areas) : '';
 
   return (
-    <View style={[styles.stepColumn, hasAreas && styles.stepColumnGoEasy]}>
+    <View testID="generator-step6" style={[styles.stepColumn, styles.stepSixColumn]}>
       <View>
         <Text style={styles.sectionLabel}>{COPY.focusMuscles}</Text>
         <Text style={styles.sectionHint}>{pickUpTo(max)}</Text>
@@ -663,8 +663,8 @@ const styles = StyleSheet.create({
   stepColumn: {
     gap: 20,
   },
-  // T-18: step 6 sections, gap 24, with go-easy areas.
-  stepColumnGoEasy: {
+  // §G1.2 step 6 sections: gap 24, areas or not (FE ac21d959).
+  stepSixColumn: {
     gap: 24,
   },
   flex: {

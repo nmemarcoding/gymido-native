@@ -1,3 +1,4 @@
+import { StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { getGeneratorProfile, previewGeneratedPlan, saveGeneratorProfile } from './api/generatorApi';
@@ -154,6 +155,12 @@ describe('T-18 G1.2 step 6 go-easy section', () => {
     expect(has(tree, 'generator-go-easy')).toBe(false);
     expect(hasHint(tree, 'generator-focus-block-hint')).toBe(false);
     expect(one(tree, 'generator-next').props.title).toBe('Skip');
+  });
+
+  it('step 6 sections are 24 apart, areas or not (§G1.2, FE ac21d959)', async () => {
+    const gap = (tree) => StyleSheet.flatten(tree.root.find((node) => node.props.testID === 'generator-step6' && typeof node.type === 'string').props.style).gap;
+    expect(gap(await renderStep6({ options: { go_easy_areas: [] } }))).toBe(24);
+    expect(gap(await renderStep6({ options: { go_easy_areas: AREAS } }))).toBe(24);
   });
 
   it('shows label, the server notice and one pill per area in server order (name, else humanizeCode)', async () => {

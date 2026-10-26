@@ -19,10 +19,13 @@ export function matchesDeleteConfirm(text) {
   return String(text ?? '').trim().toUpperCase() === 'DELETE';
 }
 
-// P1b.5 error text.
+// P1b.5 error text. The network copy only when the request got no HTTP
+// response (offline, blocked, timeout). A failed token fetch is not network:
+// the web sends the call without auth and handles the 401, so it reads
+// "Please try again." (FE ac21d959).
 export function deleteAccountErrorMessage(error) {
   if (!error?.response) {
-    return 'Check your connection and try again.';
+    return error?.isAxiosError ? 'Check your connection and try again.' : 'Please try again.';
   }
   if (getStatus(error) >= 500) {
     return 'Please try again.';
@@ -181,7 +184,7 @@ export default function DeleteAccountDialog({ isOpen, onClose, onDeleted, profil
             {...NO_AUTOFILL}
           />
           {phase === DeletePhase.error ? (
-            <View ref={alertRef} testID="delete-account-error" accessible={false}>
+            <View ref={alertRef} testID="delete-account-error" accessible>
               <ErrorAlert title="Couldn't delete your account" description={errorMessage} />
             </View>
           ) : null}

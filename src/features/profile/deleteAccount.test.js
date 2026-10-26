@@ -342,6 +342,14 @@ describe('P1b.5 states', () => {
     expect(deleteAccountErrorMessage({ response: { status: 401, data: {} } })).toBe('Please try again.');
   });
 
+  it('error text: a 401 with a message shows it; a failed token fetch is not network (FE ac21d959)', () => {
+    expect(deleteAccountErrorMessage({ response: { status: 401, data: { message: 'Session ended' } } })).toBe('Session ended');
+    expect(deleteAccountErrorMessage(new Error('No credentials found'))).toBe('Please try again.');
+    expect(deleteAccountErrorMessage({ isAxiosError: true, code: 'ECONNABORTED', message: 'timeout of 0ms exceeded' })).toBe(
+      'Check your connection and try again.'
+    );
+  });
+
   it('network error shows "Check your connection and try again." in the dialog', async () => {
     deleteAccount.mockRejectedValueOnce({ isAxiosError: true, message: 'Network Error' });
     const tree = renderSettings();
