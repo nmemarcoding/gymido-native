@@ -29,6 +29,7 @@ import {
   centeredScrollOffset,
   completionSnapshot,
   createPendingSets,
+  draftFromSavedSet,
   firstPendingSetKey,
   muscleGroups,
   nextSetKeyAfter,
@@ -187,7 +188,12 @@ export default function SessionRuntime({
     setPendingSetIds(pendingSets.current.snapshot());
     const body = buildSetPatch(set, draft);
     try {
-      await updateSessionSet(session.id, exercise.id, set.id, body);
+      const result = await updateSessionSet(session.id, exercise.id, set.id, body);
+      const saved = body.is_completed ? result?.workout_session_exercise_set : null;
+      if (saved) {
+        const sentUnit = body.actual_weight_unit || draft?.actualWeightUnit || 'lb';
+        setDrafts((current) => ({ ...current, [set.id]: draftFromSavedSet(saved, sentUnit) }));
+      }
       // O12 §3: the rest starts before anything else, then the overlay, then the reload.
       if (body.is_completed) {
         const seconds = restSecondsFor(set);
@@ -204,8 +210,8 @@ export default function SessionRuntime({
       writeOverlay(set.id, {
         is_completed: body.is_completed,
         actual_reps: body.actual_reps,
-        actual_weight_value: body.actual_weight_value,
-        actual_weight_unit: body.actual_weight_unit,
+        actual_weight_value: saved ? saved.actual_weight_value ?? null : body.actual_weight_value,
+        actual_weight_unit: saved ? saved.actual_weight_unit ?? null : body.actual_weight_unit,
         completed_at: body.completed_at,
       });
       setValidation((current) => ({ ...current, [set.id]: undefined }));

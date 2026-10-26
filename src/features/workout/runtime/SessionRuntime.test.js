@@ -1,7 +1,7 @@
 import { Keyboard, PanResponder, StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
-import { abandonWorkout } from '../api/workoutApi';
+import { abandonWorkout, updateSessionSet } from '../api/workoutApi';
 import SessionRuntime from './SessionRuntime';
 
 jest.mock('@react-navigation/native', () => ({ useIsFocused: () => true }));
@@ -90,6 +90,16 @@ describe('SessionRuntime', () => {
     expect(Keyboard.dismiss).toHaveBeenCalledTimes(1);
     act(() => byId(tree, 'discard-workout').props.onPress());
     expect(Keyboard.dismiss).toHaveBeenCalledTimes(2);
+  });
+
+  it('completes a set with no weight, then shows the weight the server kept (T-16)', async () => {
+    updateSessionSet.mockResolvedValueOnce({ workout_session_exercise_set: { id: 12, actual_weight_value: 70, actual_weight_unit: 'kg' } });
+    const { tree } = render();
+    act(() => byId(tree, 'set-weight-12').props.onChangeText('   '));
+    await act(async () => byId(tree, 'set-action-12').props.onPress());
+    expect(updateSessionSet).toHaveBeenCalledWith(1, 1, 12, expect.objectContaining({ actual_weight_value: null, actual_weight_unit: null, is_completed: true }));
+    expect(host(tree, 'weight-error-12')).toBeUndefined();
+    expect(byId(tree, 'set-weight-12').props.value).toBe('70');
   });
 
   it('a discard clears the previous action error first (#45, O9)', async () => {
