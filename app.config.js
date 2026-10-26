@@ -127,6 +127,20 @@ module.exports = {
       // background audio (each default would add a store-review flag).
       ['expo-audio', { microphonePermission: false, recordAudioAndroid: false, enableBackgroundPlayback: false }],
       ['expo-notifications', { icon: './assets/android-icon-monochrome.png', color: '#f4b400' }],
+      // v2 typeface (RN-SPEC-v2-foundation §2): Geist 1.8.0, the release web
+      // uses, embedded at build time so nothing loads at runtime
+      // (assets/fonts/README.md). fontFamily = the file name on both platforms.
+      [
+        'expo-font',
+        {
+          fonts: [
+            './assets/fonts/Geist-Regular.ttf',
+            './assets/fonts/Geist-Medium.ttf',
+            './assets/fonts/Geist-SemiBold.ttf',
+            './assets/fonts/Geist-Bold.ttf',
+          ],
+        },
+      ],
       './plugins/withRestCountdownWidget',
       // iOS 27 scene life cycle (plugins/withSceneLifecycle.js).
       './plugins/withSceneLifecycle',
