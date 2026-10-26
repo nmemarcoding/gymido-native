@@ -248,7 +248,7 @@ describe('P1a Change password: reset email (T-32 H1)', () => {
     expect(button(tree.root, 'change-password-resend').props.title).toBe('Send again in 59s');
     expect(button(tree.root, 'change-password-resend').props.disabled).toBe(true);
     expect(button(tree.root, 'change-password-resend').props.variant).toBe('secondary');
-    elapse(1);
+    elapse(2);
     expect(button(tree.root, 'change-password-resend').props.title).toBe('Send again in 58s');
     elapse(57);
     expect(button(tree.root, 'change-password-resend').props.title).toBe('Send again in 1s');
@@ -311,7 +311,7 @@ describe('P1a Change password: reset email (T-32 H1)', () => {
     elapse(20);
     act(() => byTestId(tree.root, 'settings-change-password').props.onPress());
     expect(texts(tree.root)).toContain('Email sent');
-    expect(button(tree.root, 'change-password-resend').props.title).toBe('Send again in 39s');
+    expect(button(tree.root, 'change-password-resend').props.title).toBe('Send again in 40s');
     act(() => button(tree.root, 'change-password-done').props.onPress());
     elapse(40);
     act(() => byTestId(tree.root, 'settings-change-password').props.onPress());

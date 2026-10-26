@@ -52,12 +52,14 @@ describe('P1a cooldown (T-32 H1)', () => {
     expect(resetCooldownLeftMs(90000)).toBe(0);
   });
 
-  it('counts the label from 59 down to 1 for the full 60 s, never 0 while left > 0 (FE e7effd0a)', () => {
+  it("counts the label with web's min(59, ceil(s)) for the full 60 s, never 0 while left > 0 (FE e7effd0a)", () => {
     expect(resetCooldownSeconds(60000)).toBe(59);
     expect(resetCooldownSeconds(59001)).toBe(59);
-    expect(resetCooldownSeconds(59000)).toBe(58);
-    expect(resetCooldownSeconds(2000)).toBe(1);
-    expect(resetCooldownSeconds(1001)).toBe(1);
+    expect(resetCooldownSeconds(59000)).toBe(59);
+    expect(resetCooldownSeconds(58001)).toBe(59);
+    expect(resetCooldownSeconds(58000)).toBe(58);
+    expect(resetCooldownSeconds(2000)).toBe(2);
+    expect(resetCooldownSeconds(1001)).toBe(2);
     expect(resetCooldownSeconds(1000)).toBe(1);
     expect(resetCooldownSeconds(1)).toBe(1);
     expect(resetCooldownSeconds(0)).toBe(0);
