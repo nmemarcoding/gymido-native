@@ -5,13 +5,13 @@ import { colors, radii, shadows } from '../theme/tokens';
 import PillButton from './PillButton';
 
 // Trainer plans spec §A3.5. Shows "Retry" only when `onRetry` is given.
-export default function ErrorAlert({ title, description, onRetry, style }) {
+export default function ErrorAlert({ title, description, onRetry, style, testID }) {
   useEffect(() => {
     AccessibilityInfo.announceForAccessibility([title, description].filter(Boolean).join('. '));
   }, [title, description]);
 
   return (
-    <View accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.box, style]}>
+    <View testID={testID} accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.box, style]}>
       {title ? <Text style={styles.title}>{title}</Text> : null}
       {description ? <Text style={styles.description}>{description}</Text> : null}
       {onRetry ? (

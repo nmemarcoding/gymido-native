@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { routes } from '../../../navigation/routes';
 import EmptyState from '../../../shared/components/EmptyState';
-import { InlineError } from '../../../shared/components/FeedbackBox';
+import ErrorAlert from '../../../shared/components/ErrorAlert';
 import Loader from '../../../shared/components/Loader';
 import { colors, radii, shadows } from '../../../shared/theme/tokens';
 import { logout } from '../../auth/authService';
@@ -44,8 +44,10 @@ function Settings() {
   const speakRestAlerts = useSpeakRestAlerts((state) => state.enabled);
   const vibrateRestAlerts = useVibrateRestAlerts((state) => state.enabled);
 
+  // P1.1 (T-16): a failed load is retried once, on mount only.
   useEffect(() => {
-    if (useProfileStore.getState().profileStatus === ProfileStatus.idle) {
+    const status = useProfileStore.getState().profileStatus;
+    if (status === ProfileStatus.idle || status === ProfileStatus.error) {
       fetchProfile();
     }
   }, []);
@@ -54,7 +56,14 @@ function Settings() {
     return <Loader label="Loading settings" />;
   }
   if (profileStatus === ProfileStatus.error) {
-    return <InlineError testID="settings-error" message={profileError?.message || 'Failed to load profile'} />;
+    return (
+      <ErrorAlert
+        testID="settings-error"
+        title="Something went wrong"
+        description={profileError?.message || 'Failed to load profile'}
+        onRetry={() => fetchProfile()}
+      />
+    );
   }
   if (profileStatus === ProfileStatus.missing || !profile) {
     return (
