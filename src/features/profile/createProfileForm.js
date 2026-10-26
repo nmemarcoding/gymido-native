@@ -109,10 +109,10 @@ export function validateCreateProfile(form) {
       errors.height_value = 'Height must be greater than zero';
     }
   }
-  if (form.current_weight_value !== '' && !(parseNumber(form.current_weight_value) > 0)) {
+  if (String(form.current_weight_value).trim() !== '' && !(parseNumber(form.current_weight_value) > 0)) {
     errors.current_weight_value = 'Current weight must be greater than zero';
   }
-  if (form.goal_weight_value !== '' && !(parseNumber(form.goal_weight_value) > 0)) {
+  if (String(form.goal_weight_value).trim() !== '' && !(parseNumber(form.goal_weight_value) > 0)) {
     errors.goal_weight_value = 'Goal weight must be greater than zero';
   }
   return errors;

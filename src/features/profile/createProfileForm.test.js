@@ -115,4 +115,11 @@ describe('comma decimal weights (T-16)', () => {
     expect(payload.current_weight_value).toBe(83.5);
     expect(payload.goal_weight_value).toBe(78);
   });
+
+  it('treats a spaces-only weight as empty, not as an error', () => {
+    const base = form({ first_name: 'a', last_name: 'b', height_unit: 'cm', height_value: '180' });
+    expect(validateCreateProfile(form({ ...base, current_weight_value: '   ', goal_weight_value: ' ' }))).toEqual({});
+    const payload = buildCreateProfilePayload(form({ ...base, current_weight_value: '   ', goal_weight_value: ' ' }));
+    expect(payload).toEqual(expect.objectContaining({ current_weight_value: null, current_weight_unit: null, goal_weight_value: null, goal_weight_unit: null }));
+  });
 });
