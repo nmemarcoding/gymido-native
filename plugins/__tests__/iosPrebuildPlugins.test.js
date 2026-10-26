@@ -102,6 +102,40 @@ describe('withReleaseHardening', () => {
     expect(result.modResults).toEqual({ NSAppTransportSecurity: { NSAllowsArbitraryLoads: false }, NSSupportsLiveActivities: true });
   });
 
+  it('drops the dev client exp+ scheme in a release build and keeps the auth0 callback (T-10)', async () => {
+    const urlTypes = [
+      { CFBundleURLSchemes: ['com.gymido.app.auth0'] },
+      { CFBundleURLSchemes: ['exp+gymido-native'] },
+    ];
+    let config = { name: 'Gymido', slug: 'gymido-native', ios: {}, mods: { ios: { infoPlist: async (mod) => ({ ...mod, modResults: { CFBundleURLTypes: urlTypes } }) } } };
+    config = withReleaseHardening(config, { enabled: true });
+    const result = await run(config, 'infoPlist', {});
+    expect(result.modResults.CFBundleURLTypes).toEqual([{ CFBundleURLSchemes: ['com.gymido.app.auth0'] }]);
+    expect(withReleaseHardening.devClientScheme({ slug: 'gymido-native' })).toBe('exp+gymido-native');
+  });
+
+  it('strips the dev scheme from the Android manifest in a release build (T-10)', async () => {
+    const manifest = {
+      manifest: {
+        application: [{
+          activity: [{
+            $: { 'android:name': '.MainActivity', 'android:launchMode': 'singleTask' },
+            'intent-filter': [{
+              action: [{ $: { 'android:name': 'android.intent.action.VIEW' } }],
+              category: [{ $: { 'android:name': 'android.intent.category.DEFAULT' } }, { $: { 'android:name': 'android.intent.category.BROWSABLE' } }],
+              data: [{ $: { 'android:scheme': 'com.gymido.app' } }, { $: { 'android:scheme': 'exp+gymido-native' } }],
+            }],
+          }],
+        }],
+      },
+    };
+    let config = { name: 'Gymido', slug: 'gymido-native', android: {}, mods: { android: { manifest: async (mod) => ({ ...mod, modResults: manifest }) } } };
+    config = withReleaseHardening(config, { enabled: true });
+    const result = await config.mods.android.manifest({ ...config, modResults: {}, modRequest: { platform: 'android', modName: 'manifest' } });
+    const schemes = result.modResults.manifest.application[0].activity[0]['intent-filter'][0].data.map((d) => d.$['android:scheme']);
+    expect(schemes).toEqual(['com.gymido.app']);
+  });
+
   it('leaves dev builds alone', () => {
     const config = { name: 'x', slug: 'x', ios: {} };
     expect(withReleaseHardening(config, { enabled: false })).toBe(config);
