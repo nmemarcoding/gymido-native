@@ -11,6 +11,7 @@ import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
 import { formatNumber } from '../../shared/format/numbers';
 import { breakpoints, colors, radii, shadows } from '../../shared/theme/tokens';
 import WeightLogModal from '../home/WeightLogModal';
+import { useProfileStore } from '../profile/profileStore';
 import ShellPage from '../shell/ShellPage';
 import WeightHistoryChart from '../trainer/clients/components/WeightHistoryChart';
 import { loadProgress } from './api/progressApi';
@@ -25,6 +26,7 @@ import {
   progressUnit,
   recentLogRows,
   weightStats,
+  weightUnits,
 } from './progressFormat';
 
 const SAVED_TOAST_MS = 3500;
@@ -145,13 +147,16 @@ function Progress() {
 
 // PR1.4
 function BodyTab({ weightProgress, weightLogs, unit, onAddWeight }) {
-  const completion = goalCompletion(weightProgress);
+  // T-34: the profile store, already loaded by the profile gate (no request).
+  const profile = useProfileStore((state) => state.profile);
+  const units = weightUnits(profile, weightLogs);
+  const completion = goalCompletion(weightProgress, units);
   const rows = recentLogRows(weightLogs);
 
   return (
     <>
       <View testID="progress-weight-stats" style={[styles.strip, styles.cardShadow]}>
-        {weightStats(weightProgress, unit).map((item, index) => (
+        {weightStats(weightProgress, units).map((item, index) => (
           <View key={item.label} style={[styles.stripItem, index > 0 && styles.divider]}>
             <Text style={styles.statLabel}>{item.label}</Text>
             <Text numberOfLines={1} textBreakStrategy="simple" style={[styles.stripValue, item.brand && styles.brandValue]}>{item.value}</Text>
