@@ -208,6 +208,12 @@ emulator -avd Pixel_API_36 -memory 6144 -no-snapshot-load
 
 Credentials live in `.env.e2e.local` (gitignored) — treat that file as **live admin credentials**, not just test config. It currently has no `MEMBER_*` entries, so flows 04-06 need the member password supplied separately. See `e2e/maestro/README.md` for what each flow covers and a troubleshooting table.
 
+iOS simulator sign-in (T-29): staged, with value-free checks between stages; logs purged, byte sweep at the end. Never screenshot while the form is filled, nor the Profile screen (it shows the email):
+
+```bash
+./e2e/scripts/ios-safe-sign-in.sh <simulator-udid> QA_MEMBER   # ACCOUNT = env-file prefix (<ACCOUNT>_EMAIL / _PASSWORD)
+```
+
 Offline refresh behaviour:
 
 ```bash

@@ -1,0 +1,11 @@
+# T-29 stage 1: the email, then ONE probe character in the password field.
+# The runner checks (value-free) that the email field holds exactly the email
+# and the password field one "•" before anything secret is typed.
+# MAESTRO_LOGIN_EMAIL comes from the runner's environment, never from -e.
+appId: com.gymido.app
+---
+- tapOn: "Email address"
+- inputText: ${MAESTRO_LOGIN_EMAIL}
+# Exact label: a loose ".*Password.*" also matches the keyboard's "Passwords".
+- tapOn: "Password"
+- inputText: "x"

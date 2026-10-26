@@ -1,0 +1,16 @@
+# T-29 stage 0 (iOS safe sign-in, run by e2e/scripts/ios-safe-sign-in.sh):
+# a signed-out app with Auth0's hosted login form open and empty.
+appId: com.gymido.app
+---
+- runFlow: ../subflows/launch-dev-client.yaml
+- runFlow: ../subflows/ensure-signed-out.yaml
+- tapOn:
+    id: "welcome-log-in"
+- waitForAnimationToEnd:
+    timeout: 8000
+- runFlow: ../subflows/dismiss-browser-interstitials.yaml
+# The iPhone SE shows the form without "Continue with Google" (below the
+# fold), so wait on the form's own field label.
+- extendedWaitUntil:
+    visible: "Email address"
+    timeout: 90000
