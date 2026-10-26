@@ -15,7 +15,7 @@ import { routes } from '../../navigation/routes';
 import { logout } from '../auth/authService';
 import { useAuthStore } from '../auth/authStore';
 import { openShellPath } from '../shell/shellLinks';
-import { updateProfile } from './api/profileApi';
+import { getProfile, updateProfile } from './api/profileApi';
 import { resetProfileStore, setStoredProfile, useProfileStore } from './profileStore';
 import EditProfileScreen from './screens/EditProfileScreen';
 import ProfileSettingsScreen from './screens/ProfileSettingsScreen';
@@ -49,6 +49,8 @@ const mounted = [];
 afterEach(() => {
   act(() => mounted.splice(0).forEach((tree) => tree.unmount()));
 });
+
+const retryButton = (root) => root.find((node) => node.props.title === 'Retry' && typeof node.props.onPress === 'function');
 
 function render(element) {
   let tree;
@@ -121,10 +123,23 @@ describe('P1 Settings', () => {
     });
   });
 
-  it('shows the error state with the transport text', () => {
-    useProfileStore.setState({ profileStatus: 'error', profileError: new Error('Request failed with status code 500') });
-    const shown = texts(render(<ProfileSettingsScreen />).root);
-    expect(shown).toEqual(expect.arrayContaining(['Something went wrong', 'Request failed with status code 500']));
+  it('retries a failed load once on mount, then shows the error with Retry (T-16)', async () => {
+    const failure = Object.assign(new Error('Request failed with status code 500'), { response: { status: 500 } });
+    getProfile.mockRejectedValue(failure);
+    useProfileStore.setState({ profileStatus: 'error', profileError: failure });
+    let tree;
+    await act(async () => {
+      tree = render(<ProfileSettingsScreen />);
+    });
+    expect(getProfile).toHaveBeenCalledTimes(1);
+    expect(texts(tree.root)).toEqual(expect.arrayContaining(['Something went wrong', 'Request failed with status code 500']));
+
+    getProfile.mockResolvedValue({ profile: PROFILE });
+    await act(async () => {
+      await retryButton(tree.root).props.onPress();
+    });
+    expect(getProfile).toHaveBeenCalledTimes(2);
+    expect(texts(tree.root)).toContain('Asad Khan');
   });
 });
 
@@ -159,6 +174,22 @@ describe('P2 Edit profile', () => {
     });
     expect(useProfileStore.getState().profile).toBe(saved);
     expect(mockNavigation.replace).toHaveBeenCalledWith(routes.Settings);
+  });
+
+  it('retries a failed load once on mount and never loops (T-16)', async () => {
+    getProfile.mockRejectedValue(Object.assign(new Error('Request failed with status code 503'), { response: { status: 503 } }));
+    useProfileStore.setState({ profileStatus: 'error', profileError: new Error('Request failed with status code 500') });
+    let tree;
+    await act(async () => {
+      tree = render(<EditProfileScreen />);
+    });
+    expect(getProfile).toHaveBeenCalledTimes(1);
+    expect(texts(tree.root)).toEqual(expect.arrayContaining(['Something went wrong', 'Request failed with status code 503']));
+    await act(async () => {
+      await retryButton(tree.root).props.onPress();
+    });
+    expect(getProfile).toHaveBeenCalledTimes(2);
+    expect(retryButton(tree.root)).toBeTruthy();
   });
 
   it('shows client errors and does not call the API', async () => {

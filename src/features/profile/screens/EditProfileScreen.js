@@ -5,6 +5,7 @@ import { Animated, Easing, Platform, StyleSheet, Text, View, useWindowDimensions
 import { routes } from '../../../navigation/routes';
 import { getServerMessage } from '../../../shared/api/apiError';
 import DateInput from '../../../shared/components/DateInput';
+import ErrorAlert from '../../../shared/components/ErrorAlert';
 import { InlineError } from '../../../shared/components/FeedbackBox';
 import FormField from '../../../shared/components/FormField';
 import Loader from '../../../shared/components/Loader';
@@ -65,8 +66,10 @@ function EditProfile() {
   const profileStatus = useProfileStore((state) => state.profileStatus);
   const profileError = useProfileStore((state) => state.profileError);
 
+  // P2.1 (T-16): a failed load is retried once, on mount only.
   useEffect(() => {
-    if (useProfileStore.getState().profileStatus === ProfileStatus.idle) {
+    const status = useProfileStore.getState().profileStatus;
+    if (status === ProfileStatus.idle || status === ProfileStatus.error) {
       fetchProfile();
     }
   }, []);
@@ -86,7 +89,14 @@ function EditProfile() {
     return <Loader label="Loading profile" />;
   }
   if (profileStatus === ProfileStatus.error || !profile) {
-    return <InlineError testID="edit-profile-load-error" message={profileError?.message || 'Failed to load profile'} />;
+    return (
+      <ErrorAlert
+        testID="edit-profile-load-error"
+        title="Something went wrong"
+        description={profileError?.message || 'Failed to load profile'}
+        onRetry={() => fetchProfile()}
+      />
+    );
   }
   return <EditProfileForm profile={profile} />;
 }
