@@ -1,6 +1,19 @@
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, FlatList, Platform, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import {
+  AccessibilityInfo,
+  Animated,
+  BackHandler,
+  Easing,
+  FlatList,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
@@ -11,6 +24,7 @@ import ErrorAlert from '../../../shared/components/ErrorAlert';
 import { InlineError } from '../../../shared/components/FeedbackBox';
 import Loader from '../../../shared/components/Loader';
 import RemoteImage from '../../../shared/components/RemoteImage';
+import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { breakpoints, colors, radii, shadows } from '../../../shared/theme/tokens';
 import { useAuthStore } from '../../auth/authStore';
 import AppHeader from '../../shell/AppHeader';
@@ -78,6 +92,11 @@ function ExercisesCatalog() {
   const loadRef = useRef(load);
   loadRef.current = load;
   const lastReturns = useRef(0);
+  // §E1.2 step 1 (T-12 F2): a search reload keeps the list, with a spinner
+  // in the search field.
+  const [searching, setSearching] = useState(false);
+  const listRef = useRef(null);
+  const scrollToTop = () => listRef.current?.scrollToOffset({ offset: 0, animated: false });
   // Bumped by every new load and on unmount; an older load's or retry's
   // answer is dropped.
   const loadId = useRef(0);
@@ -117,11 +136,17 @@ function ExercisesCatalog() {
     const shown = loadRef.current;
     const cached = getCachedList(applied);
     const quiet = Boolean(cached) || (isReturn && shown.status === 'loaded' && shown.items.length > 0);
+    // A new search while a list is shown (not a return, not the first load).
+    const searchReload = !isReturn && shown.status === 'loaded';
+    setSearching(false);
     if (quiet) {
       if (cached) {
         setLoad((current) =>
           current.items === cached ? current : { status: 'loaded', items: cached, error: null, partial: null, complete: true }
         );
+        if (searchReload) {
+          scrollToTop();
+        }
       }
       loadExerciseCatalog({ fetchPage: listExercisesPage, search: applied })
         .then(({ items, partial }) => {
@@ -136,13 +161,28 @@ function ExercisesCatalog() {
         })
         .catch(() => {});
     } else {
-      setLoad({ status: 'loading', items: [], error: null, partial: null, complete: false });
+      if (searchReload) {
+        setSearching(true);
+        AccessibilityInfo.announceForAccessibility('Searching…');
+      } else {
+        setLoad({ status: 'loading', items: [], error: null, partial: null, complete: false });
+      }
+      // Page 1 replaces the list (from the top, when it was a search reload).
+      let firstShown = false;
+      const showFirst = (items, rest) => {
+        firstShown = true;
+        setLoad({ status: 'loaded', items, error: null, complete: false, partial: null, ...rest });
+        setSearching(false);
+        if (searchReload) {
+          scrollToTop();
+        }
+      };
       loadExerciseCatalog({
         fetchPage: listExercisesPage,
         search: applied,
         onFirstPage: (items) => {
           if (alive()) {
-            setLoad({ status: 'loaded', items, error: null, partial: null, complete: false });
+            showFirst(items);
           }
         },
       })
@@ -150,12 +190,18 @@ function ExercisesCatalog() {
           if (!partial) {
             setCachedList(applied, items);
           }
-          if (alive()) {
+          if (!alive()) {
+            return;
+          }
+          if (firstShown) {
             setLoad({ status: 'loaded', items, error: null, partial, complete: !partial });
+          } else {
+            showFirst(items, { partial, complete: !partial });
           }
         })
         .catch((error) => {
           if (alive()) {
+            setSearching(false);
             setLoad({ status: 'error', items: [], error, partial: null, complete: false });
           }
         });
@@ -270,6 +316,7 @@ function ExercisesCatalog() {
             searchValue={searchValue}
             onChangeSearch={setSearchValue}
             onSubmitSearch={() => setSearch((current) => submitSearch(current, searchValue))}
+            searching={searching}
             showFilter={catalog.categories.length > 0}
             categoryFilter={categoryFilter}
             filterCount={countFor(catalog.categoryCounts, categoryFilter)}
@@ -320,7 +367,9 @@ function ExercisesCatalog() {
 
   const list = (
     <FlatList
+      ref={listRef}
       testID="exercises-list"
+      accessibilityState={{ busy: searching }}
       data={data}
       renderItem={renderItem}
       keyExtractor={(item) => item.key}
@@ -365,7 +414,7 @@ function ExercisesCatalog() {
 }
 
 // §E1.4 sticky bar: search form + filter button.
-function StickyBar({ padding, searchValue, onChangeSearch, onSubmitSearch, showFilter, categoryFilter, filterCount, onOpenFilter }) {
+function StickyBar({ padding, searchValue, onChangeSearch, onSubmitSearch, searching, showFilter, categoryFilter, filterCount, onOpenFilter }) {
   const [focused, setFocused] = useState(false);
   return (
     <View testID="exercises-bar" style={[styles.bar, padding]}>
@@ -387,11 +436,12 @@ function StickyBar({ padding, searchValue, onChangeSearch, onSubmitSearch, showF
           clearButtonMode={Platform.OS === 'ios' ? 'while-editing' : 'never'}
           autoCorrect={false}
           autoCapitalize="none"
-          style={[styles.searchInput, focused && styles.searchInputFocused]}
+          style={[styles.searchInput, searching && styles.searchInputSearching, focused && styles.searchInputFocused]}
         />
         <View pointerEvents="none" style={styles.searchGlyph} accessibilityElementsHidden importantForAccessibility="no">
           <Text style={styles.searchGlyphText}>⌕</Text>
         </View>
+        {searching ? <SearchSpinner /> : null}
       </View>
       {showFilter ? (
         <Pressable
@@ -420,6 +470,28 @@ function StickyBar({ padding, searchValue, onChangeSearch, onSubmitSearch, showF
           </View>
         </Pressable>
       ) : null}
+    </View>
+  );
+}
+
+// §E1.2 step 1 (T-12 F2): 18×18 at 14 from the right, a 2px `border` ring
+// with a brand-700 top arc; 1 turn/s, or 3 s with reduced motion (it never
+// stops). Not pressable, hidden from accessibility.
+function SearchSpinner() {
+  const reducedMotion = useReducedMotion();
+  const turn = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    turn.setValue(0);
+    const animation = Animated.loop(
+      Animated.timing(turn, { toValue: 1, duration: reducedMotion ? 3000 : 1000, easing: Easing.linear, useNativeDriver: true })
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [turn, reducedMotion]);
+  const rotate = turn.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  return (
+    <View testID="exercises-search-spinner" pointerEvents="none" style={styles.spinnerSlot} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Animated.View style={[styles.spinner, { transform: [{ rotate }] }]} />
     </View>
   );
 }
@@ -521,8 +593,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textPrimary,
   },
+  searchInputSearching: {
+    paddingRight: 44,
+  },
   searchInputFocused: {
     borderColor: colors.brand400,
+  },
+  spinnerSlot: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 14,
+    justifyContent: 'center',
+  },
+  spinner: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderTopColor: colors.brand700,
   },
   searchGlyph: {
     position: 'absolute',
