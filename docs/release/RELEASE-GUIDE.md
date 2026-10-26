@@ -1,10 +1,10 @@
-# Gymido mobile 1.0.1 — release guide (owner)
+# Gymido mobile 1.0.2 — release guide (owner)
 
 > Paths assume the repo is cloned at `~/Desktop/coding/gymido-native` and the release checkout lives at `~/gymido-release`. Adjust them to your machine.
 
-Build ref: the tag `1.0.1` (it points at the 1.0.1 merge on `main`). Version 1.0.1, iOS build number 2, Android versionCode 2. Build in a separate checkout, so your dev setup (dev client, localtest env) stays untouched.
+Build ref: the tag `1.0.2` (it points at the 1.0.2 merge on `main`). Version 1.0.2, iOS build number 3, Android versionCode 3. Build in a separate checkout, so your dev setup (dev client, localtest env) stays untouched.
 
-1.0.1 changes the build numbers in `app.config.js` (native config). Android's `npm run apk` always regenerates `android/`; for iOS, step 3.2 below ALWAYS regenerates `ios/` from the tag.
+1.0.2 changes the build numbers in `app.config.js` (native config). Android's `npm run apk` always regenerates `android/`; for iOS, step 3.2 below ALWAYS regenerates `ios/` from the tag.
 
 ---
 
@@ -45,13 +45,13 @@ Build ref: the tag `1.0.1` (it points at the 1.0.1 merge on `main`). Version 1.0
 Do this once, to make the release checkout:
 
 ```sh
-cd ~/Desktop/coding/gymido-native && git fetch --tags && git worktree add --detach ~/gymido-release 1.0.1
+cd ~/Desktop/coding/gymido-native && git fetch --tags && git worktree add --detach ~/gymido-release 1.0.2
 ```
 
 Then, for each build:
 
 ```sh
-cd ~/gymido-release && git fetch --tags && git checkout --detach 1.0.1 && npm ci && npm run apk -- --install
+cd ~/gymido-release && git fetch --tags && git checkout --detach 1.0.2 && npm ci && npm run apk -- --install
 ```
 
 What `npm run apk` does:
@@ -69,7 +69,7 @@ If a **dev build** of Gymido is on the phone, the signatures differ and the inst
 
 - Signer: `~/Library/Android/sdk/build-tools/36.0.0/apksigner verify --print-certs ~/gymido-release/builds/<file>.apk`. Internal builds show `CN=Android Debug`; with your upload key it shows your name.
 - Install by hand: `adb install -r ~/gymido-release/builds/<file>.apk`
-- **Version check (1.0.1):** `~/Library/Android/sdk/build-tools/36.0.0/aapt2 dump badging ~/gymido-release/builds/<file>.apk | grep versionCode` must show `versionCode='2'` and `versionName='1.0.1'`. Use your installed build-tools version in the path (list them with `ls ~/Library/Android/sdk/build-tools`). On the phone after installing: `adb shell dumpsys package com.gymido.app | grep -E 'versionCode|versionName'`.
+- **Version check (1.0.2):** `~/Library/Android/sdk/build-tools/36.0.0/aapt2 dump badging ~/gymido-release/builds/<file>.apk | grep versionCode` must show `versionCode='3'` and `versionName='1.0.2'`. Use your installed build-tools version in the path (list them with `ls ~/Library/Android/sdk/build-tools`). On the phone after installing: `adb shell dumpsys package com.gymido.app | grep -E 'versionCode|versionName'`.
 
 ## 3. iOS: install on your iPhone (free Apple ID team)
 
@@ -84,7 +84,7 @@ Bundle IDs your personal team will register:
 1. **Delete the old app from the iPhone** (long-press Gymido → Remove App). The dev build uses the same bundle ID.
 2. **ALWAYS regenerate the iOS project from the tag**, even if `~/gymido-release/ios` exists: an `ios/` left from 1.0.0 still says Version 1.0.0 / Build 1.
    ```sh
-   cd ~/gymido-release && git fetch --tags && git checkout --detach 1.0.1 && npm ci && APP_ENV=production npx expo prebuild --clean
+   cd ~/gymido-release && git fetch --tags && git checkout --detach 1.0.2 && npm ci && APP_ENV=production npx expo prebuild --clean
    ```
    `prebuild --clean` resets the Xcode project, so steps 4 and 5 (Team on both targets, Run = Release) must be redone every time.
 3. Open **ONLY** this workspace: `open ~/gymido-release/ios/Gymido.xcworkspace`
@@ -97,7 +97,7 @@ Bundle IDs your personal team will register:
    1. Open **Product → Scheme → Edit Scheme…**
    2. Choose **Run** (left) → **Info** tab → set **Build Configuration** to **Release**.
    3. Click **Close**.
-6. **Version check:** select the **Gymido** target → **General** → **Identity**: **Version 1.0.1**, **Build 2**. Anything else means step 2 didn't run on the tag; redo it.
+6. **Version check:** select the **Gymido** target → **General** → **Identity**: **Version 1.0.2**, **Build 3**. Anything else means step 2 didn't run on the tag; redo it.
 7. Pick your iPhone as the run destination (top bar), then **Product → Run (⌘R)**.
    - The first time, the iPhone may ask you to trust the developer: Settings → General → VPN & Device Management → your Apple ID → Trust.
 
@@ -122,7 +122,7 @@ cd ~/gymido-release && APP_ENV=production npx expo run:ios --device --configurat
 Use this when only app code changed (no new packages or native config). Reuse `~/gymido-release`:
 
 ```sh
-cd ~/gymido-release && git fetch --tags && git checkout --detach 1.0.1 && git log --oneline -1
+cd ~/gymido-release && git fetch --tags && git checkout --detach 1.0.2 && git log --oneline -1
 ```
 
 - **iOS:** same workspace and scheme (Run = Release), then ⌘R with the iPhone selected. It installs over the old build and keeps your sign-in. Terminal alternative:
@@ -134,7 +134,7 @@ cd ~/gymido-release && git fetch --tags && git checkout --detach 1.0.1 && git lo
 Example: `2413e95`, spoken rest alerts (`expo-speech`).
 
 ```sh
-cd ~/gymido-release && git fetch --tags && git checkout --detach 1.0.1 && npm ci && APP_ENV=production npx expo prebuild --clean
+cd ~/gymido-release && git fetch --tags && git checkout --detach 1.0.2 && npm ci && APP_ENV=production npx expo prebuild --clean
 ```
 
 - **iOS:** `prebuild --clean` regenerates the Xcode project, so redo these steps:
