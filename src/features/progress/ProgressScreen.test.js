@@ -1,4 +1,3 @@
-import { StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import ProgressScreen from './ProgressScreen';
@@ -17,17 +16,16 @@ it('exports the Progress screen component', () => {
   expect(typeof ProgressScreen).toBe('function');
 });
 
-// QA 26 Oct 2026: Android measures text before textTransform, so the caps
-// wrapped out of the line box ("WEIGHT" for "WEIGHT HISTORY"). The section
-// titles carry the caps in the text itself.
-it('writes the Body section titles in caps, with no textTransform', async () => {
+// QA 26 Oct 2026: Android's default highQuality break measured "WEIGHT
+// HISTORY" narrower than drawn, so it showed as "WEIGHT".
+it('Body section titles use the simple Android text break', async () => {
   let tree;
   await act(async () => {
     tree = create(<ProgressScreen />);
   });
-  const titles = ['GOAL PROGRESS', 'WEIGHT HISTORY'].map((title) =>
-    tree.root.find((node) => node.type === 'Text' && node.props.children === title)
-  );
-  titles.forEach((title) => expect(StyleSheet.flatten(title.props.style).textTransform).toBeUndefined());
+  ['Goal progress', 'Weight history'].forEach((title) => {
+    const text = tree.root.find((node) => node.type === 'Text' && node.props.children === title);
+    expect(text.props.textBreakStrategy).toBe('simple');
+  });
   act(() => tree.unmount());
 });
