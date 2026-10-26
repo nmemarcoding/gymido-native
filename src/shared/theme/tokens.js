@@ -93,8 +93,6 @@ export const shadows = Object.freeze({
   // Design system v1 #20: modals use lift-3.
   modal: '0px 4px 8px rgba(17, 24, 39, 0.06), 0px 24px 48px -12px rgba(17, 24, 39, 0.16)',
   insetSoft: 'inset 0px 1px 0px rgba(255, 255, 255, 0.8)',
-  // ⚠ A blue glow on a gold button, a leftover on the web. Reproduced on purpose.
-  pickerAddSelected: '0px 4px 16px rgba(96, 165, 250, 0.35)',
 });
 
 export const radii = Object.freeze({

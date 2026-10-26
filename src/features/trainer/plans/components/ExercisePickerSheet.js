@@ -636,8 +636,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
+  // T-27 (25 Oct 2026): the gold shadow-brand; was a leftover blue glow.
   addGlow: {
-    boxShadow: shadows.pickerAddSelected,
+    boxShadow: shadows.brand,
   },
   addDisabled: {
     opacity: 0.5,
