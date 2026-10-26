@@ -1,7 +1,7 @@
 # T-29 stage 4: submit, then wait for the signed-in app.
 # hideKeyboard first: the keyboard's accessory bar covers "Continue".
 # hideKeyboard can itself submit the form (the return key), so "Continue" may
-# already be gone: the tap is optional and tab-Today is the real check.
+# already be gone: the tap is optional and the landing wait is the real check.
 # hideKeyboard is optional too: it fails when no soft keyboard is up (26 Oct,
 # twice on the QA SE), which aborted a sign-in whose checks had all passed.
 appId: com.gymido.app
@@ -11,7 +11,9 @@ appId: com.gymido.app
 - tapOn:
     text: "Continue"
     optional: true
+# Signed in = any landing: member Today, trainer Today, or Onboarding (a
+# profile-less account lands on Create profile). Maestro ids are regexes.
 - extendedWaitUntil:
     visible:
-      id: "tab-Today"
+      id: "tab-T?Today|create-profile-screen"
     timeout: 60000
