@@ -1,6 +1,6 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Pressable, StyleSheet, Text, View, findNodeHandle, useWindowDimensions } from 'react-native';
 
 import { routes } from '../../../navigation/routes';
 import { getServerMessage } from '../../../shared/api/apiError';
@@ -36,11 +36,15 @@ import {
   formatPrescription,
   planNotice,
   previewExercise,
+  refusalActions,
   shouldConfirmAfterActive,
   weeklyVolumeRows,
 } from '../generatorLogic';
 import { generatorRoutes } from '../generatorRoutes';
 import { useTabBarClearance } from '../useTabBarClearance';
+
+// As the app's other focus moves: give the screen time to lay out first.
+const FOCUS_DELAY_MS = 300;
 
 // G2 (RN-SPEC-PLAN-GENERATOR §G2). Every focus remounts and previews again (§8.1).
 export default function PlanGeneratorPreviewScreen() {
@@ -84,6 +88,9 @@ function PlanGeneratorPreview() {
       const kind = classifyPreviewError(error);
       if (kind === 'profile') {
         navigation.replace(generatorRoutes.PlanGenerator);
+      } else if (kind === 'goEasy') {
+        // T-18: no error screen, no Retry; the questionnaire on step 6.
+        navigation.replace(generatorRoutes.PlanGenerator, { step: 5 });
       } else if (kind === 'unavailable') {
         setView({ status: 'unavailable' });
       } else {
@@ -173,6 +180,8 @@ function PlanGeneratorPreview() {
   }
 
   const openAnswers = () => navigation.push(generatorRoutes.PlanGenerator);
+  // T-18 deep links: `step` is the web's 0-based `state.step`.
+  const openStep = (step) => navigation.push(generatorRoutes.PlanGenerator, { step });
   const preview = view.preview;
   const notice = view.status === 'feasible' ? planNotice(preview, lockedAfter409) : null;
   const locked = notice?.kind === 'locked';
@@ -198,7 +207,7 @@ function PlanGeneratorPreview() {
               onRetry={view.forbidden ? undefined : () => runPreview()}
             />
           ) : null}
-          {view.status === 'infeasible' ? <NotFeasible reason={preview?.reason} onChange={openAnswers} /> : null}
+          {view.status === 'infeasible' ? <NotFeasible reason={preview?.reason} onChange={openAnswers} onOpenStep={openStep} /> : null}
           {view.status === 'feasible' ? (
             <Feasible
               preview={preview}
@@ -258,7 +267,12 @@ function Feasible({ preview, notice, changingSplit, onSplitChange, onOpenExercis
         />
       ) : null}
       {(preview.notes ?? []).map((note, index) => (
-        <Callout key={`note-${index}`} tone="info" testID={`generator-note-${index}`}>
+        <Callout
+          key={`note-${index}`}
+          tone="info"
+          testID={`generator-note-${index}`}
+          role={note?.code === 'GO_EASY_AREAS' ? 'note' : undefined}
+        >
           {note.text}
         </Callout>
       ))}
@@ -351,19 +365,75 @@ function ExerciseLine({ item, first, onOpenExercise }) {
 }
 
 // §G2.3
-function NotFeasible({ reason, onChange }) {
+function NotFeasible({ reason, onChange, onOpenStep }) {
+  const goEasy = refusalActions(reason);
+  const titleRef = useRef(null);
+  const { width } = useWindowDimensions();
+  const wide = width >= breakpoints.sm;
+
+  // T-18: when the go-easy refusal renders, focus moves to its title.
+  const isGoEasy = goEasy !== null;
+  useEffect(() => {
+    if (!isGoEasy) {
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      const node = findNodeHandle(titleRef.current);
+      if (node) {
+        AccessibilityInfo.setAccessibilityFocus(node);
+      }
+    }, FOCUS_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [isGoEasy]);
+
   return (
     <View testID="generator-not-feasible" style={styles.notFeasibleCard}>
-      <Text textBreakStrategy="simple" style={planStyles.titleXl}>{COPY.notFeasibleTitle}</Text>
+      <Text ref={titleRef} testID="generator-not-feasible-title" textBreakStrategy="simple" style={planStyles.titleXl}>
+        {COPY.notFeasibleTitle}
+      </Text>
       {reason?.message ? <Text style={[planStyles.body, styles.mt8]}>{reason.message}</Text> : null}
       {reason?.what_to_change ? (
         <Callout tone="info" style={styles.mt16}>
           {reason.what_to_change}
         </Callout>
       ) : null}
-      <View style={styles.notFeasibleAction}>
-        <PillButton testID="generator-change-answers" title={COPY.changeAnswers} onPress={onChange} />
-      </View>
+      {goEasy ? (
+        <GoEasyRefusalActions equipmentFix={goEasy.equipmentFix} wide={wide} onOpenStep={onOpenStep} />
+      ) : (
+        <View style={styles.notFeasibleAction}>
+          <PillButton testID="generator-change-answers" title={COPY.changeAnswers} onPress={onChange} />
+        </View>
+      )}
+    </View>
+  );
+}
+
+// T-18 GO_EASY_TOO_RESTRICTIVE: "Edit go-easy areas" → step 6 and, only with
+// `equipment_fix`, "Change my equipment" → step 5. <640: stacked full
+// width, primary first; ≥640: a right-aligned row, primary on the right.
+function GoEasyRefusalActions({ equipmentFix, wide, onOpenStep }) {
+  const primary = (
+    <PillButton
+      key="primary"
+      testID="generator-edit-go-easy"
+      title={COPY.editGoEasyAreas}
+      fullWidth={!wide}
+      onPress={() => onOpenStep(5)}
+    />
+  );
+  const secondary = equipmentFix ? (
+    <PillButton
+      key="secondary"
+      testID="generator-change-equipment"
+      title={COPY.changeMyEquipment}
+      variant="secondary"
+      fullWidth={!wide}
+      onPress={() => onOpenStep(4)}
+    />
+  ) : null;
+  return (
+    <View testID="generator-go-easy-actions" style={[styles.refusalActions, wide ? styles.barRowWide : styles.barStack]}>
+      {wide ? [secondary, primary] : [primary, secondary]}
     </View>
   );
 }
@@ -519,6 +589,10 @@ const styles = StyleSheet.create({
   notFeasibleAction: {
     marginTop: 20,
     alignItems: 'flex-start',
+  },
+  refusalActions: {
+    marginTop: 20,
+    gap: 12,
   },
   bar: {
     position: 'absolute',
