@@ -88,7 +88,11 @@ export function mountBell(variant) {
       return;
     }
     if (data) {
-      lastTotal = totalOf(data);
+      // Only an unset baseline: a slow mount fetch never overwrites a newer
+      // poll's total (web: previousCount === null).
+      if (lastTotal === null) {
+        lastTotal = totalOf(data);
+      }
     } else {
       poll();
     }

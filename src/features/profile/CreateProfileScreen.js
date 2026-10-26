@@ -17,6 +17,7 @@ import { breakpoints, colors, motion, radii, shadows } from '../../shared/theme/
 import { useAuthStore } from '../auth/authStore';
 import { getScreenTab } from '../shell/shellNavigation';
 import { createProfile } from './api/profileApi';
+import { setCreatedProfile } from './profileStore';
 import {
   INITIAL_PROFILE_FORM,
   buildCreateProfilePayload,
@@ -112,10 +113,10 @@ export default function CreateProfileScreen() {
     }
     setSubmitting(true);
     try {
-      await createProfile(buildCreateProfilePayload(form));
+      const created = await createProfile(buildCreateProfilePayload(form));
       // ⚠P6: set the message and leave in the same tick.
       setSuccessMessage('Profile created successfully. Redirecting you to the app.');
-      useAuthStore.setState({ profileMissing: false });
+      setCreatedProfile(created);
       const { user, workspace } = useAuthStore.getState();
       const landing = resolveLanding({ roles: user?.roles ?? [], workspace });
       navigation.reset({

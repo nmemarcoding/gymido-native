@@ -67,6 +67,23 @@ describe('bell polling (§7.2)', () => {
     expect(fetchNotifications).toHaveBeenCalledTimes(1);
   });
 
+  it('never lets a slow mount fetch overwrite a newer poll total (T-24 nit)', async () => {
+    const { fetchNotifications } = useNotificationStore.getState();
+    let resolveMount;
+    fetchNotifications.mockReturnValueOnce(new Promise((resolve) => (resolveMount = resolve)));
+    fetchNotificationsPage.mockResolvedValue({ total: 5, items: [] });
+    mountBell('full');
+    jest.advanceTimersByTime(30000);
+    await flush();
+    resolveMount({ total: 3, items: [] });
+    await flush();
+    jest.advanceTimersByTime(30000);
+    await flush();
+    // The baseline stayed at the poll's 5, so an unchanged 5 refetches nothing.
+    expect(fetchNotificationsPage).toHaveBeenCalledTimes(2);
+    expect(fetchNotifications).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps one mount per header variant (⚠S4)', async () => {
     useNotificationStore.getState().fetchNotifications.mockResolvedValue({ total: 0, items: [] });
     mountBell('full');

@@ -52,6 +52,16 @@ useAuthStore.subscribe((state, previous) => {
   }
 });
 
+// First-time create (T-24 follow-up, 25 Oct 2026, as web): clearing
+// profileMissing resets the store (above), and since T-24 nothing refetches
+// it, so the created profile is stored right after. No request.
+export function setCreatedProfile(profile) {
+  useAuthStore.setState({ profileMissing: false });
+  if (profile) {
+    setStoredProfile(profile);
+  }
+}
+
 // T-34 F1 / T-24 (RN-SPEC-progress PR1.2, RN-SPEC-home H1.7, 25 Oct 2026):
 // a saved weight log (the 201 body) becomes the profile's current weight +
 // unit, with no refetch. null (leave the store alone) without a profile or
