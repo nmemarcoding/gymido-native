@@ -1,16 +1,27 @@
+import { convertWeight } from '../../../shared/format/weight';
 import { formatDateWithOffset } from '../../../shared/time/format';
 
 // Data for the weight chart (trainer clients spec §C5.3), kept apart from the
 // drawing so it can be tested.
 
-// One point per log, oldest → newest; y is the raw number whatever its unit
-// (⚠C-9). Unit for the tooltip: first log's, else the profile's, else "kg".
-export function buildWeightSeries(logs, profile) {
+// One point per log, oldest → newest; y is in the chart's one unit (T-38).
+// T-38 (25 Oct 2026, retires ⚠C-9): one unit for the whole chart, each point
+// converted into it. Logs come oldest first, so the newest is the last.
+export function chartUnit(logs, profile) {
+  const hasCurrent = profile?.current_weight_value != null && Boolean(profile?.current_weight_unit);
+  if (hasCurrent) {
+    return profile.current_weight_unit;
+  }
+  return logs[logs.length - 1]?.weight_unit || profile?.current_weight_unit || 'kg';
+}
+
+// `unitOverride`: Progress passes its currentUnit (RN-SPEC-progress PR1.2).
+export function buildWeightSeries(logs, profile, unitOverride) {
+  const unit = unitOverride || chartUnit(logs, profile);
   const points = logs.map((log) => ({
-    value: Number(log.weight_value),
+    value: convertWeight(log.weight_value, log.weight_unit, unit),
     label: formatDateWithOffset(log.recorded_on, 1),
   }));
-  const unit = logs[0]?.weight_unit || profile?.current_weight_unit || 'kg';
   if (points.length === 0) {
     return { points, unit, min: 0, max: 0 };
   }

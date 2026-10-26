@@ -125,7 +125,7 @@ function Progress() {
       </View>
 
       {tab === 'body' ? (
-        <BodyTab weightProgress={weightProgress} weightLogs={weightLogs} unit={unit} onAddWeight={() => setModalOpen(true)} />
+        <BodyTab weightProgress={weightProgress} weightLogs={weightLogs} onAddWeight={() => setModalOpen(true)} />
       ) : (
         <ActivityTab overview={overview} history={history} frequency={frequency} />
       )}
@@ -148,7 +148,7 @@ function Progress() {
 }
 
 // PR1.4
-function BodyTab({ weightProgress, weightLogs, unit, onAddWeight }) {
+function BodyTab({ weightProgress, weightLogs, onAddWeight }) {
   // T-34: the profile store, already loaded by the profile gate (no request).
   const profile = useProfileStore((state) => state.profile);
   const units = weightUnits(profile, weightLogs);
@@ -195,7 +195,7 @@ function BodyTab({ weightProgress, weightLogs, unit, onAddWeight }) {
           </View>
         </View>
         {weightLogs.length > 0 ? (
-          <WeightHistoryChart logs={chartLogs(weightLogs)} unit={unit} />
+          <WeightHistoryChart logs={chartLogs(weightLogs)} unit={units.current} />
         ) : (
           <EmptyState title="No weight logs yet" message="Add your first weight entry to unlock the chart." />
         )}

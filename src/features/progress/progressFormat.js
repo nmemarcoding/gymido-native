@@ -1,4 +1,5 @@
 import { formatNumber, formatSignedNumber, formatWeight } from '../../shared/format/numbers';
+import { convertWeight } from '../../shared/format/weight';
 import { formatDateWithOffset, formatDuration } from '../../shared/time/format';
 
 // Derived values of RN-SPEC-progress §PR1.2, kept apart from the screen so
@@ -7,8 +8,8 @@ import { formatDateWithOffset, formatDuration } from '../../shared/time/format';
 const BAR_MAX = 52;
 const BAR_MIN = 8;
 
-// The newest log's unit (logs come newest first), else "kg". Since T-34
-// (25 Oct 2026) only the chart and the weight modal's default use it.
+// The newest log's unit (logs come newest first), else "kg". Since T-38
+// (25 Oct 2026) only the weight modal's default uses it.
 export function progressUnit(weightLogs) {
   return weightLogs?.[0]?.weight_unit || 'kg';
 }
@@ -23,20 +24,7 @@ export function weightUnits(profile, weightLogs) {
   return { current, goal: profile?.goal_weight_unit || current };
 }
 
-const KG_PER_LB = 0.45359237;
-
-// 1 lb = 0.45359237 kg exactly. Only lb → kg and kg → lb convert; any other
-// pair (same, unknown or missing units) passes through unchanged.
-export function convertWeight(value, from, to) {
-  const number = Number(value);
-  if (from === 'lb' && to === 'kg') {
-    return number * KG_PER_LB;
-  }
-  if (from === 'kg' && to === 'lb') {
-    return number / KG_PER_LB;
-  }
-  return number;
-}
+export { convertWeight };
 
 // ⚠PR-3: only losing weight counts; the gap is floored at 1; missing goal or
 // current → 0. T-34: all in the current unit. total_change is in that unit;

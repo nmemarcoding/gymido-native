@@ -1,22 +1,48 @@
-import { buildWeightSeries, fixedDomainTicks, logsSince, monotoneXPath, thinLabels } from './weightChartData';
+import { buildWeightSeries, chartUnit, fixedDomainTicks, logsSince, monotoneXPath, thinLabels } from './weightChartData';
 
 describe('buildWeightSeries (§C5.3)', () => {
-  it('plots raw numbers oldest first with a ±1 domain', () => {
-    const series = buildWeightSeries(
-      [
-        { recorded_on: '2026-09-01', weight_value: '80', weight_unit: 'kg' },
-        { recorded_on: '2026-09-10', weight_value: '176', weight_unit: 'lb' },
-      ],
-      null
-    );
-    expect(series.points.map((p) => p.value)).toEqual([80, 176]);
+  it('plots oldest first in one unit with a ±1 domain (T-38, retires ⚠C-9)', () => {
+    const logs = [
+      { recorded_on: '2026-09-01', weight_value: '80', weight_unit: 'kg' },
+      { recorded_on: '2026-09-10', weight_value: '176', weight_unit: 'lb' },
+    ];
+    // No profile current weight → the NEWEST (last) log's unit.
+    const series = buildWeightSeries(logs, null);
+    expect(series.unit).toBe('lb');
+    expect(series.points[0].value).toBeCloseTo(176.37, 2);
+    expect(series.points[1].value).toBe(176);
     expect(series.points[0].label).toBe('Sep 2');
-    expect(series).toMatchObject({ unit: 'kg', min: 79, max: 177 });
+    expect(series.min).toBeCloseTo(175, 5);
+    expect(series.max).toBeCloseTo(177.37, 2);
   });
 
-  it('falls back to the profile unit, then kg', () => {
+  it("uses the profile's current unit when it has a current weight", () => {
+    const logs = [
+      { recorded_on: '2026-09-01', weight_value: '80', weight_unit: 'kg' },
+      { recorded_on: '2026-09-02', weight_value: '78', weight_unit: 'kg' },
+      { recorded_on: '2026-09-03', weight_value: '170', weight_unit: 'lb' },
+    ];
+    const series = buildWeightSeries(logs, { current_weight_value: 77, current_weight_unit: 'kg' });
+    expect(series.unit).toBe('kg');
+    expect(series.points.map((p) => Math.round(p.value * 100) / 100)).toEqual([80, 78, 77.11]);
+  });
+
+  it('takes an explicit unit (Progress passes its currentUnit)', () => {
+    const logs = [{ weight_value: '80', weight_unit: 'kg' }, { weight_value: '170', weight_unit: 'lb' }];
+    const series = buildWeightSeries(logs, null, 'kg');
+    expect(series.unit).toBe('kg');
+    expect(series.points.map((p) => Math.round(p.value * 100) / 100)).toEqual([80, 77.11]);
+  });
+
+  it('falls back to the newest log, then the profile unit, then kg', () => {
+    expect(chartUnit([{ weight_unit: 'kg' }, { weight_unit: 'lb' }], { current_weight_value: null, current_weight_unit: 'kg' })).toBe('lb');
     expect(buildWeightSeries([], { current_weight_unit: 'lb' }).unit).toBe('lb');
     expect(buildWeightSeries([], null).unit).toBe('kg');
+  });
+
+  it('passes a log with no unit through unconverted', () => {
+    const series = buildWeightSeries([{ weight_value: '80' }, { weight_value: '81', weight_unit: 'kg' }], null);
+    expect(series.points.map((p) => p.value)).toEqual([80, 81]);
   });
 });
 
