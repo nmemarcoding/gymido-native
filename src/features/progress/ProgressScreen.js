@@ -169,7 +169,7 @@ function BodyTab({ weightProgress, weightLogs, unit, onAddWeight }) {
       <View testID="progress-goal" style={[styles.bigCard, styles.cardShadow]}>
         <View style={styles.goalRow}>
           <View style={styles.textColumn}>
-            <Text style={styles.sectionTitle}>Goal progress</Text>
+            <Text textBreakStrategy="simple" style={styles.sectionTitle}>Goal progress</Text>
             <Text numberOfLines={1} textBreakStrategy="simple" testID="progress-goal-value" style={styles.goalValue}>{`${formatNumber(completion, 0)}%`}</Text>
           </View>
           <Pressable
@@ -189,7 +189,7 @@ function BodyTab({ weightProgress, weightLogs, unit, onAddWeight }) {
 
       <View testID="progress-history" style={[styles.bigCard, styles.cardShadow]}>
         <View style={styles.historyHeader}>
-          <Text style={styles.sectionTitle}>Weight history</Text>
+          <Text textBreakStrategy="simple" style={styles.sectionTitle}>Weight history</Text>
           <View style={styles.countPill}>
             <Text style={styles.countPillText}>{logCountLabel(weightLogs.length)}</Text>
           </View>
@@ -282,7 +282,7 @@ function ActivityTab({ overview, history, frequency }) {
 
       <View testID="progress-consistency" style={[styles.bigCard, styles.cardShadow]}>
         <View style={styles.historyHeader}>
-          <Text style={styles.sectionTitle}>12-week consistency</Text>
+          <Text textBreakStrategy="simple" style={styles.sectionTitle}>12-week consistency</Text>
           <Text style={styles.perWeek}>per week</Text>
         </View>
         {frequency.length === 0 ? (
@@ -408,6 +408,9 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  // The titles use textBreakStrategy "simple": Android's default highQuality
+  // break measured them narrower than drawn, so "WEIGHT HISTORY" wrapped to
+  // "WEIGHT" in its one-line box (QA, 26 Oct 2026).
   sectionTitle: {
     fontSize: 14,
     lineHeight: 20,
