@@ -1,5 +1,5 @@
 import { formatDuration, formatLocalDateForInput } from '../time/format';
-import { formatNumber, formatSignedNumber, formatWeight } from './numbers';
+import { formatNumber, formatSignedNumber, formatWeight, parseDecimal } from './numbers';
 
 describe('en-US number formats (home §H1.5)', () => {
   it('formats numbers, weights and signed differences', () => {
@@ -30,5 +30,24 @@ describe('formatDuration (time §5)', () => {
 describe('formatLocalDateForInput', () => {
   it('uses the local calendar date', () => {
     expect(formatLocalDateForInput(new Date(2026, 9, 22, 23, 30))).toBe('2026-10-22');
+  });
+});
+
+describe('parseDecimal (T-16)', () => {
+  it('reads a comma or a dot as the decimal mark', () => {
+    expect(parseDecimal('83,5')).toBe(83.5);
+    expect(parseDecimal('83.5')).toBe(83.5);
+    expect(parseDecimal('83,')).toBe(83);
+    expect(parseDecimal(',5')).toBe(0.5);
+    expect(parseDecimal(' 83 ')).toBe(83);
+    expect(parseDecimal(82.5)).toBe(82.5);
+  });
+
+  it('is null when blank and NaN for anything else', () => {
+    expect(parseDecimal('  ')).toBeNull();
+    expect(parseDecimal(null)).toBeNull();
+    for (const text of ['abc', '8,5,1', '1e2', '-2', ',', '.']) {
+      expect(parseDecimal(text)).toBeNaN();
+    }
   });
 });

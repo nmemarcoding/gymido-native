@@ -1,3 +1,4 @@
+import { parseDecimal } from '../../../shared/format/numbers';
 import { parseDateValue } from '../../../shared/time/timestamps';
 
 // Pure rules of the session runtime (RN-SPEC-workout Part B, with O8 and
@@ -147,15 +148,10 @@ export function propagateDraft(drafts, exercise, setId, field, value) {
   return next;
 }
 
-// §20.5 "any positive number is accepted": the iOS decimal pad shows ","
-// as its only decimal key in comma locales (DE, FR, ES, IT), so "22,5" reads
-// as 22.5. Only the first comma is a decimal mark; "1,2,3" stays invalid.
+// §20.5/§21.1 (T-16): "22,5" reads as 22.5; blank or junk ("1,2,3", "1e2")
+// is NaN.
 export function parseWeight(value) {
-  if (value === null || value === undefined) {
-    return NaN;
-  }
-  const text = String(value).trim();
-  return text === '' ? NaN : Number(text.replace(',', '.'));
+  return parseDecimal(value) ?? NaN;
 }
 
 // "Did it" / "Undo" in flight, per set. A second tap on a set whose PATCH is

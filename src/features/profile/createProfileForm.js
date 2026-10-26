@@ -1,3 +1,5 @@
+import { parseDecimal } from '../../shared/format/numbers';
+
 // Create profile (RN-SPEC-profile-create): form state, height maths,
 // validation and payload, exact (bugs included, O5/O6 applied).
 
@@ -22,11 +24,12 @@ export function numberValue(text) {
   return NUMBER_TEXT.test(text) ? text : '';
 }
 
+// §4 (T-16): read with parseDecimal, so "83,5" → 83.5 and junk → null.
 export function parseNumber(value) {
   if (value === '' || value === null || value === undefined) {
     return null;
   }
-  const number = Number(value);
+  const number = parseDecimal(value);
   return Number.isFinite(number) ? number : null;
 }
 

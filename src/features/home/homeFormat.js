@@ -1,4 +1,4 @@
-import { formatNumber, formatSignedNumber, formatWeight } from '../../shared/format/numbers';
+import { formatNumber, formatSignedNumber, formatWeight, parseDecimal } from '../../shared/format/numbers';
 import { formatDate, formatDuration, formatLocalDateForInput } from '../../shared/time/format';
 
 // Rules and copy of RN-SPEC-home (dated changes of 23 Oct included). Pure.
@@ -91,7 +91,7 @@ export function validateWeightLog(value, unit) {
   if (String(value).trim() === '') {
     return { field: 'weight_value', message: 'Weight is required' };
   }
-  const number = Number(value);
+  const number = parseDecimal(value);
   if (!Number.isFinite(number) || number <= 0) {
     return { field: 'weight_value', message: 'Weight must be a positive number' };
   }
@@ -101,7 +101,7 @@ export function validateWeightLog(value, unit) {
   return null;
 }
 
-// H2 step 5 (23 Oct: the device's LOCAL date, no probe).
+// H2 step 5 (23 Oct: the device's LOCAL date, no probe). "83,5" sends 83.5 (T-16).
 export function weightLogBody(value, unit, now = new Date()) {
-  return { weight_value: Number(value), weight_unit: unit, recorded_on: formatLocalDateForInput(now), note: null };
+  return { weight_value: parseDecimal(value), weight_unit: unit, recorded_on: formatLocalDateForInput(now), note: null };
 }

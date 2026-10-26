@@ -46,6 +46,8 @@ const SEX_OPTIONS = [
 ];
 const NUMBER_FIELDS = ['height_value', 'height_feet', 'height_inches', 'current_weight_value', 'goal_weight_value'];
 const NUMBER_KEYBOARD = Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'numeric';
+// T-16: the weights are text with a decimal keypad, kept exactly as typed.
+const WEIGHT_FIELDS = ['current_weight_value', 'goal_weight_value'];
 const NO_AUTOFILL = { autoComplete: 'off', textContentType: 'none', importantForAutofill: 'no' };
 
 // Create profile (RN-SPEC-profile-create): one card, one form, no navigation
@@ -79,7 +81,7 @@ export default function CreateProfileScreen() {
   const shown = (key) => (key in display ? display[key] : String(form[key] ?? ''));
 
   function setText(key, text) {
-    if (NUMBER_FIELDS.includes(key)) {
+    if (NUMBER_FIELDS.includes(key) && !WEIGHT_FIELDS.includes(key)) {
       setDisplay((current) => ({ ...current, [key]: text }));
       setForm((current) => ({ ...current, [key]: numberValue(text) }));
     } else {
@@ -152,7 +154,7 @@ export default function CreateProfileScreen() {
       onSubmitEditing={submit}
       accessibilityState={{ invalid: Boolean(fieldErrors[key]) }}
       {...NO_AUTOFILL}
-      {...(NUMBER_FIELDS.includes(key) ? { keyboardType: NUMBER_KEYBOARD } : null)}
+      {...(NUMBER_FIELDS.includes(key) ? { keyboardType: WEIGHT_FIELDS.includes(key) ? 'decimal-pad' : NUMBER_KEYBOARD } : null)}
       {...props}
     />
   );
