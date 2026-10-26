@@ -71,7 +71,7 @@ describe('catalog load (§E1.2, F1)', () => {
     const fetchPage = jest.fn((n) => (n === 2 ? Promise.reject(failure) : Promise.resolve(page([ex(n)], 3))));
     await expect(loadExerciseCatalog({ fetchPage, search: 'row' })).resolves.toEqual({
       items: [ex(1)],
-      partial: { firstItems: [ex(1)], totalPages: 3, error: failure },
+      partial: { firstItems: [ex(1)], totalPages: 3, error: failure, search: 'row' },
     });
   });
 

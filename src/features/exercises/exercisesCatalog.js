@@ -29,8 +29,8 @@ export async function loadRestPages({ fetchPage, search = '', totalPages }) {
 // §E1.2 as changed by F1 (23 Oct 2026): page 1 first, handed to
 // `onFirstPage` so it shows at once; then pages 2…N. A page-1 failure
 // rejects. Step 4 (T-16, 25 Oct 2026): a failure on pages 2…N keeps page 1
-// and resolves with `partial` ({ firstItems, totalPages, error }) for a
-// Retry of those pages only.
+// and resolves with `partial` ({ firstItems, totalPages, error, search })
+// for a Retry of those pages only, for that search.
 export async function loadExerciseCatalog({ fetchPage, search = '', onFirstPage }) {
   const first = await fetchPage(1, search);
   const firstItems = pageItems(first);
@@ -43,7 +43,7 @@ export async function loadExerciseCatalog({ fetchPage, search = '', onFirstPage 
     const rest = await loadRestPages({ fetchPage, search, totalPages });
     return { items: firstItems.concat(rest), partial: null };
   } catch (error) {
-    return { items: firstItems, partial: { firstItems, totalPages, error } };
+    return { items: firstItems, partial: { firstItems, totalPages, error, search } };
   }
 }
 

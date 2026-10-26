@@ -162,6 +162,8 @@ function ExercisesCatalog() {
         .catch(() => {});
     } else {
       if (searchReload) {
+        // The old search's step-4 alert (and its Retry) goes when searching starts.
+        setLoad((current) => ({ ...current, partial: null }));
         setSearching(true);
         AccessibilityInfo.announceForAccessibility('Searching…');
       } else {
@@ -214,7 +216,8 @@ function ExercisesCatalog() {
   // §E1.2 step 4: Retry re-requests pages 2…N only, with the same search.
   const retryRestPages = () => {
     const { partial } = load;
-    if (!partial?.error) {
+    // Only ever completes the search that failed.
+    if (!partial?.error || partial.search !== search.applied) {
       return;
     }
     const id = loadId.current;

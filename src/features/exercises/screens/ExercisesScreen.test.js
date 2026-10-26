@@ -266,6 +266,17 @@ describe('§E1.2 step 1: a search reload keeps the list (T-12 F2)', () => {
     expect(spinners(tree)).toHaveLength(0);
   });
 
+  it("drops the old search's partial alert when a new search starts (review M1)", async () => {
+    listExercisesPage.mockImplementation((n) => (n === 1 ? Promise.resolve(page([ex(1)], 2)) : Promise.reject(failure)));
+    const tree = await render();
+    expect(texts(tree.root)).toContain("Some exercises didn't load");
+    const pending = deferred();
+    listExercisesPage.mockImplementation(() => pending.promise);
+    await searchFor(tree, 'row');
+    expect(texts(tree.root)).not.toContain("Some exercises didn't load");
+    expect(tree.root.findAll((node) => node.props.title === 'Retry')).toHaveLength(0);
+  });
+
   it('lets the newest search win', async () => {
     listExercisesPage.mockImplementation(() => Promise.resolve(page([ex(1)], 1)));
     const tree = await render();
