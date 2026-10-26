@@ -1,4 +1,4 @@
-import { AccessibilityInfo } from 'react-native';
+import { AccessibilityInfo, Platform } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { AuthStatus, useAuthStore } from '../../auth/authStore';
@@ -264,6 +264,23 @@ describe('§E1.2 step 1: a search reload keeps the list (T-12 F2)', () => {
     expect(shown).toContain('Ex 7');
     expect(shown).not.toContain('Ex 1');
     expect(spinners(tree)).toHaveLength(0);
+  });
+
+  it('hides the iOS clear button while a search loads (T-12 F2, the × sat on the spinner)', async () => {
+    listExercisesPage.mockImplementation(() => Promise.resolve(page([ex(1)], 1)));
+    const tree = await render();
+    const idle = Platform.OS === 'ios' ? 'while-editing' : 'never';
+    expect(input(tree).props.clearButtonMode).toBe(idle);
+    const rowPage = deferred();
+    listExercisesPage.mockImplementation(() => rowPage.promise);
+    await searchFor(tree, 'row');
+    expect(spinners(tree)).toHaveLength(1);
+    expect(input(tree).props.clearButtonMode).toBe('never');
+    await act(async () => {
+      rowPage.resolve(page([ex(7)], 1));
+    });
+    expect(spinners(tree)).toHaveLength(0);
+    expect(input(tree).props.clearButtonMode).toBe(idle);
   });
 
   it("drops the old search's partial alert when a new search starts (review M1)", async () => {

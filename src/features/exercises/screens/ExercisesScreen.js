@@ -436,7 +436,9 @@ function StickyBar({ padding, searchValue, onChangeSearch, onSubmitSearch, searc
           accessibilityLabel="Search exercises"
           returnKeyType="search"
           enterKeyHint="search"
-          clearButtonMode={Platform.OS === 'ios' ? 'while-editing' : 'never'}
+          // iOS's clear "×" would sit on the spinner, so it hides while a
+          // search loads (T-12 F2, PM/UX decision 26 Oct 2026).
+          clearButtonMode={!searching && Platform.OS === 'ios' ? 'while-editing' : 'never'}
           autoCorrect={false}
           autoCapitalize="none"
           style={[styles.searchInput, searching && styles.searchInputSearching, focused && styles.searchInputFocused]}
