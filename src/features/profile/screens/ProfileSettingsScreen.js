@@ -19,6 +19,7 @@ import {
 } from '../../workout/runtime/speakRestAlerts';
 import ChangePasswordModal from '../ChangePasswordModal';
 import CoachingCard from '../CoachingCard';
+import DeleteAccountAction from '../DeleteAccountAction';
 import { profileDisplayName, profileInitials } from '../editProfileForm';
 import { hasGymidoPassword } from '../passwordReset';
 import { ProfileStatus, fetchProfile, useProfileStore } from '../profileStore';
@@ -252,6 +253,9 @@ function Settings() {
         <Text style={styles.logoutText}>Logout</Text>
       </Pressable>
 
+      {/* P1.3 item 5 / P1b (T-43): 12 + the 20 gap reads 32 below Logout. */}
+      <DeleteAccountAction style={styles.deleteAccount} />
+
       <ChangePasswordModal visible={changePasswordVisible} onClose={() => setChangePasswordVisible(false)} email={email} />
     </View>
   );
@@ -402,6 +406,9 @@ const styles = StyleSheet.create({
   },
   logoutPressed: {
     backgroundColor: colors.errorFill,
+  },
+  deleteAccount: {
+    paddingTop: 12,
   },
   logoutText: {
     fontSize: 16,
