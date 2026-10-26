@@ -2,9 +2,12 @@
 # hideKeyboard first: the keyboard's accessory bar covers "Continue".
 # hideKeyboard can itself submit the form (the return key), so "Continue" may
 # already be gone: the tap is optional and tab-Today is the real check.
+# hideKeyboard is optional too: it fails when no soft keyboard is up (26 Oct,
+# twice on the QA SE), which aborted a sign-in whose checks had all passed.
 appId: com.gymido.app
 ---
-- hideKeyboard
+- hideKeyboard:
+    optional: true
 - tapOn:
     text: "Continue"
     optional: true
