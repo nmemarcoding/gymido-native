@@ -34,7 +34,7 @@ export default function SetList({ exercise, sets, capabilities, onEditSet, onDel
                   testID={`plan-set-delete-${set.id}`}
                   label="Delete"
                   accessibilityLabel={`Delete set ${set.set_number} of ${name}`}
-                  color={colors.danger}
+                  color={colors.danger700}
                   onPress={() => onDeleteSet(exercise, set)}
                 />
               ) : null}

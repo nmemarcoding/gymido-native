@@ -411,9 +411,10 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
   },
+  // Batch 2 #24: 11px in the same 44pt tile.
   tileCode: {
-    fontSize: 9.92,
-    lineHeight: 14,
+    fontSize: 11,
+    lineHeight: 15,
     fontWeight: '900',
     textTransform: 'uppercase',
     color: colors.brand700,

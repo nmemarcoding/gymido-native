@@ -8,7 +8,8 @@ import Card3D from './Card3D';
 import ProgressRing from './ProgressRing';
 
 const BADGES = {
-  completed: { dot: colors.success, text: colors.success, background: colors.successTint },
+  // Batch 2 #32: success-700 text on an opaque success-50 fill.
+  completed: { dot: colors.success, text: colors.success700, background: colors.successFill },
   training: { dot: colors.brand400, text: colors.brand700, background: colors.brand50 },
   // A1: text-secondary on the muted pill.
   rest: { dot: colors.textMuted, text: colors.textSecondary, background: colors.surfaceMuted },

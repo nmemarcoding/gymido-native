@@ -534,11 +534,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center',
   },
+  // Batch 2 #24: the 11px minimum (tracking 0.15em).
   statLabel: {
-    fontSize: 10.4,
-    lineHeight: 15.6,
+    fontSize: 11,
+    lineHeight: 16.5,
     fontWeight: '700',
-    letterSpacing: 1.56,
+    letterSpacing: 1.65,
     textTransform: 'uppercase',
     color: colors.textMuted,
   },
@@ -781,7 +782,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.xxl,
     backgroundColor: colors.brand400,
     paddingVertical: 16,
-    boxShadow: shadows.glow,
+    // Batch 2 #23: soft, not the glow.
+    boxShadow: shadows.soft,
   },
   ctaPressed: {
     backgroundColor: colors.brand500,
