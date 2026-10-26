@@ -27,6 +27,7 @@ fi
 
 for UDID in "$@"; do
   DATA="$(xcrun simctl get_app_container "$UDID" "$APP_ID" data)"
+  [ -n "$DATA" ] && [[ "$DATA" == *CoreSimulator/Devices/* ]] || { echo "no app container for $UDID" >&2; exit 1; }
   PLIST="$DATA/Library/Preferences/$APP_ID.plist"
   # A running app (or the simulator's cached prefs) would write its old values back.
   xcrun simctl terminate "$UDID" "$APP_ID" 2>/dev/null || true
