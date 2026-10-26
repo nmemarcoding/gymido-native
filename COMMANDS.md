@@ -208,6 +208,12 @@ emulator -avd Pixel_API_36 -memory 6144 -no-snapshot-load
 
 Credentials live in `.env.e2e.local` (gitignored) — treat that file as **live admin credentials**, not just test config. It currently has no `MEMBER_*` entries, so flows 04-06 need the member password supplied separately. See `e2e/maestro/README.md` for what each flow covers and a troubleshooting table.
 
+iOS simulator: skip the Expo dev menu's intro sheet and hide its grey gear (once per simulator, again after a reinstall):
+
+```bash
+./e2e/scripts/ios-skip-dev-menu-intro.sh <simulator-udid>...   # QA sims: "Gymido QA iPhone SE", "Gymido QA iPad"
+```
+
 Offline refresh behaviour:
 
 ```bash

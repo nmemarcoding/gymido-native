@@ -61,7 +61,8 @@ Maestro writes every `-e` value, passwords included, into its own `maestro.log` 
 - **iOS:**
   - `hideKeyboard` fails on the number pad (it has no return key). Tap a visible button instead.
   - With the simulator's hardware keyboard connected, iOS draws no soft keyboard. Turn it off for keyboard shots.
-  - The grey gear is the dev client's Tools button (dev-only). Turn it off in the dev menu by hand.
+  - The grey gear is the dev client's Tools button (dev-only). On a fresh simulator the dev menu also opens its intro sheet at launch, which blocks `launch-dev-client`.
+    - Fix both once per simulator (and again after the app is reinstalled): `e2e/scripts/ios-skip-dev-menu-intro.sh <udid>...` (T-39). The dev menu still opens with ⌃⌘Z.
 - **Slow API shots (skeletons):**
   - Use a local delay proxy (a ~10-line Node script, not in the repo: forward :8090 → :8080 and hold each response ~4 s) and set `API_BASE_URL` to `:8090` temporarily in the gitignored localtest env. ALWAYS restore it afterwards.
   - The emulator's GPRS throttle doesn't slow 10.0.2.2.
