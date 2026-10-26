@@ -107,6 +107,9 @@ describe('P1 Settings', () => {
     const toggle = tree.root.find((node) => node.props.testID === 'settings-vibrate-rest-alerts-switch' && node.props.onValueChange);
     expect(toggle.props.trackColor).toEqual({ false: '#e5e7eb', true: '#f4b400' });
     expect(toggle.props.ios_backgroundColor).toBe('#e5e7eb');
+    // QA 1.0.1: a white thumb in both states on both switches (Android's default ON thumb is teal).
+    expect(toggle.props.thumbColor).toBe('#ffffff');
+    expect(tree.root.find((node) => node.props.testID === 'settings-speak-rest-alerts-switch' && node.props.onValueChange).props.thumbColor).toBe('#ffffff');
     act(() => {
       row().props.onPress();
     });
