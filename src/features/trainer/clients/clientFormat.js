@@ -17,6 +17,14 @@ export function clientRowLabel(relationship) {
   return clientDisplayName(relationship.client);
 }
 
+// §C3.3 T-32 M1: the web's email-shaped gate, verbatim. Callers pass the
+// trimmed input.
+const EMAIL_SHAPED = /^[^@\s]+@[^@\s]*\.[^@\s]+$/;
+
+export function isEmailShaped(text) {
+  return EMAIL_SHAPED.test(text);
+}
+
 export function isAwaitingMyResponse(relationship, side) {
   return relationship.status === 'pending' && relationship.requested_by === (side === 'trainer' ? 'client' : 'trainer');
 }

@@ -116,6 +116,8 @@ export const motion = Object.freeze({
   cardEntranceMs: 240,
   cardOffsetY: 8,
   spinnerLoopMs: 1000,
+  // Reduced motion slows a spinner that opts in (`reducedMotionLoopMs`) instead of stopping it.
+  spinnerReducedLoopMs: 3000,
   fadeMs: 240,
   slideUpMs: 300,
   slideUpOffsetY: 10,
