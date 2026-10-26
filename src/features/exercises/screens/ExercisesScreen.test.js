@@ -180,6 +180,37 @@ describe('§E1.1a session cache and return (T-12 F3)', () => {
     expect(texts(tree.root)).not.toContain('Loading exercises');
   });
 
+  it('a return with no cache but a list on screen reloads quietly (review M2)', async () => {
+    listExercisesPage.mockImplementation((n) => (n === 1 ? Promise.resolve(page([ex(1)], 2)) : Promise.reject(failure)));
+    const tree = await render();
+    expect(getCachedList('')).toBeNull();
+
+    const first = deferred();
+    listExercisesPage.mockImplementation((n) => (n === 1 ? first.promise : Promise.resolve(page([ex(2)], 2))));
+    await leaveAndReturn();
+    expect(texts(tree.root)).not.toContain('Loading exercises');
+    expect(texts(tree.root)).toEqual(expect.arrayContaining(['Ex 1']));
+
+    await act(async () => {
+      first.resolve(page([ex(1)], 2));
+    });
+    const shown = texts(tree.root);
+    expect(shown).toEqual(expect.arrayContaining(['Ex 1', 'Ex 2']));
+    expect(shown).not.toContain("Some exercises didn't load");
+    expect(getCachedList('')).toEqual([ex(1), ex(2)]);
+  });
+
+  it('keeps what is shown when that quiet reload fails on page 1 (review M2)', async () => {
+    listExercisesPage.mockImplementation((n) => (n === 1 ? Promise.resolve(page([ex(1)], 2)) : Promise.reject(failure)));
+    const tree = await render();
+    listExercisesPage.mockRejectedValue(failure);
+    await leaveAndReturn();
+    const shown = texts(tree.root);
+    expect(shown).toEqual(expect.arrayContaining(['Ex 1', "Some exercises didn't load"]));
+    expect(shown).not.toContain('Exercises unavailable');
+    expect(shown).not.toContain('Loading exercises');
+  });
+
   it('is cleared on sign-out', async () => {
     useAuthStore.setState({ status: AuthStatus.signedIn });
     listExercisesPage.mockImplementation((n) => Promise.resolve(page([ex(n)], 1)));

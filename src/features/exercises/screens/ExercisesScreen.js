@@ -73,8 +73,11 @@ function ExercisesCatalog() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [isFilterOpen, setFilterOpen] = useState(false);
   // `partial`: pages 2…N failed (§E1.2 step 4); its `error` is null while a
-  // Retry is in flight, which hides the alert.
-  const [load, setLoad] = useState({ status: 'loading', items: [], error: null, partial: null });
+  // Retry is in flight, which hides the alert. `complete`: every page is in.
+  const [load, setLoad] = useState({ status: 'loading', items: [], error: null, partial: null, complete: false });
+  const loadRef = useRef(load);
+  loadRef.current = load;
+  const lastReturns = useRef(0);
   // Bumped by every new load and on unmount; an older load's or retry's
   // answer is dropped.
   const loadId = useRef(0);
@@ -100,30 +103,46 @@ function ExercisesCatalog() {
   // §E1.2 (F1): runs on mount, whenever the applied search changes, and on
   // a return. §E1.1a: a cached complete list shows at once and is reloaded
   // quietly; nothing changes until the whole new list is in, and a failure
-  // keeps the cached list with no error.
+  // keeps the cached list with no error. Native (T-12 F3 review M2): a
+  // return with no cache but a list on screen reloads quietly too, so the
+  // scroll is kept; only a complete result replaces it, a page-1 failure
+  // keeps it, and a later-page failure shows the step-4 alert if the list
+  // shown is not complete.
   useEffect(() => {
     const id = ++loadId.current;
     const alive = () => loadId.current === id;
     const applied = search.applied;
+    const isReturn = returns !== lastReturns.current;
+    lastReturns.current = returns;
+    const shown = loadRef.current;
     const cached = getCachedList(applied);
-    if (cached) {
-      setLoad((current) => (current.items === cached ? current : { status: 'loaded', items: cached, error: null, partial: null }));
+    const quiet = Boolean(cached) || (isReturn && shown.status === 'loaded' && shown.items.length > 0);
+    if (quiet) {
+      if (cached) {
+        setLoad((current) =>
+          current.items === cached ? current : { status: 'loaded', items: cached, error: null, partial: null, complete: true }
+        );
+      }
       loadExerciseCatalog({ fetchPage: listExercisesPage, search: applied })
         .then(({ items, partial }) => {
-          if (alive() && !partial) {
+          if (!partial) {
             setCachedList(applied, items);
-            setLoad({ status: 'loaded', items, error: null, partial: null });
+            if (alive()) {
+              setLoad({ status: 'loaded', items, error: null, partial: null, complete: true });
+            }
+          } else if (alive()) {
+            setLoad((current) => (current.complete || current.partial ? current : { ...current, partial }));
           }
         })
         .catch(() => {});
     } else {
-      setLoad({ status: 'loading', items: [], error: null, partial: null });
+      setLoad({ status: 'loading', items: [], error: null, partial: null, complete: false });
       loadExerciseCatalog({
         fetchPage: listExercisesPage,
         search: applied,
         onFirstPage: (items) => {
           if (alive()) {
-            setLoad({ status: 'loaded', items, error: null, partial: null });
+            setLoad({ status: 'loaded', items, error: null, partial: null, complete: false });
           }
         },
       })
@@ -132,12 +151,12 @@ function ExercisesCatalog() {
             setCachedList(applied, items);
           }
           if (alive()) {
-            setLoad({ status: 'loaded', items, error: null, partial });
+            setLoad({ status: 'loaded', items, error: null, partial, complete: !partial });
           }
         })
         .catch((error) => {
           if (alive()) {
-            setLoad({ status: 'error', items: [], error, partial: null });
+            setLoad({ status: 'error', items: [], error, partial: null, complete: false });
           }
         });
     }
@@ -160,7 +179,7 @@ function ExercisesCatalog() {
         const items = partial.firstItems.concat(rest);
         setCachedList(applied, items);
         if (loadId.current === id) {
-          setLoad({ status: 'loaded', items, error: null, partial: null });
+          setLoad({ status: 'loaded', items, error: null, partial: null, complete: true });
         }
       })
       .catch((error) => {
