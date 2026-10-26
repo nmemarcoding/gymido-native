@@ -1,7 +1,7 @@
-import { buildWeightSeries, chartUnit, fixedDomainTicks, logsSince, monotoneXPath, thinLabels, tickLabel } from './weightChartData';
+import { buildWeightSeries, chartUnit, logsSince, monotoneXPath, thinLabels, tickLabel, weightAxis } from './weightChartData';
 
 describe('buildWeightSeries (§C5.3)', () => {
-  it('plots oldest first in one unit with a ±1 domain (T-38, retires ⚠C-9)', () => {
+  it('plots oldest first in one unit on whole-number ticks (T-38, retires ⚠C-9)', () => {
     const logs = [
       { recorded_on: '2026-09-01', weight_value: '80', weight_unit: 'kg' },
       { recorded_on: '2026-09-10', weight_value: '176', weight_unit: 'lb' },
@@ -12,8 +12,10 @@ describe('buildWeightSeries (§C5.3)', () => {
     expect(series.points[0].value).toBeCloseTo(176.37, 2);
     expect(series.points[1].value).toBe(176);
     expect(series.points[0].label).toBe('Sep 2');
-    expect(series.min).toBeCloseTo(175, 5);
-    expect(series.max).toBeCloseTo(177.37, 2);
+    // 176 … 176.37 → lo 175, hi 177.37 → step 1 → 175 … 178.
+    expect(series.min).toBe(175);
+    expect(series.max).toBe(178);
+    expect(series.ticks).toEqual([175, 176, 177, 178]);
   });
 
   it("uses the profile's current unit when it has a current weight", () => {
@@ -68,21 +70,29 @@ describe('logsSince', () => {
   });
 });
 
-describe('fixedDomainTicks (Recharts fixed domain, tickCount 5)', () => {
-  it('matches the web ticks for the 80/82/81/81/79 fixture', () => {
-    expect(fixedDomainTicks(78, 83)).toEqual([78, 80, 82, 83]);
+describe('weightAxis (§C5.3 whole-number ticks, T-38 QA fix)', () => {
+  it('matches the four spec examples', () => {
+    expect(weightAxis(77.11, 78).ticks).toEqual([76, 77, 78, 79]);
+    expect(weightAxis(170, 171.96).ticks).toEqual([169, 170, 171, 172, 173]);
+    expect(weightAxis(61.3, 140.7).ticks).toEqual([50, 75, 100, 125, 150]);
+    expect(weightAxis(80, 80).ticks).toEqual([79, 80, 81]);
   });
 
-  it('ends exactly on max when the step divides the range', () => {
-    expect(fixedDomainTicks(0, 8)).toEqual([0, 2, 4, 6, 8]);
+  it('sets the domain to the first and last tick', () => {
+    expect(weightAxis(61.3, 140.7)).toEqual({ min: 50, max: 150, ticks: [50, 75, 100, 125, 150] });
   });
 
-  it('keeps decimal steps free of float noise', () => {
-    expect(fixedDomainTicks(79, 81)).toEqual([79, 79.5, 80, 80.5, 81]);
+  it('takes the first step that fits lo…hi in at most 4 intervals', () => {
+    // 79, 83 → lo 78, hi 84: 6 / 2 = 3 → step 2.
+    expect(weightAxis(79, 83).ticks).toEqual([78, 80, 82, 84]);
+    // 80, 83 → lo 79, hi 84: 5 / 2 = 2.5 → step 2, floored/ceiled to 78 … 84.
+    expect(weightAxis(80, 83).ticks).toEqual([78, 80, 82, 84]);
+    // 79, 82 → lo 78, hi 83: 5 / 1 = 5 > 4 → step 2 → 78 … 84.
+    expect(weightAxis(79, 82).ticks).toEqual([78, 80, 82, 84]);
   });
 
-  it('collapses an empty range to one tick', () => {
-    expect(fixedDomainTicks(80, 80)).toEqual([80]);
+  it('falls back to the largest step past its range', () => {
+    expect(weightAxis(1000, 4000).ticks.slice(0, 2)).toEqual([500, 1000]);
   });
 });
 
@@ -112,10 +122,11 @@ describe('monotoneXPath (d3 curveMonotoneX)', () => {
 });
 
 describe('tickLabel (T-38 QA)', () => {
-  it('prints at most one decimal, so converted domain ends are not raw floats', () => {
+  it('prints en-US with at most one decimal (a guard: ticks are whole)', () => {
     expect(tickLabel(76.1107029)).toBe('76.1');
     expect(tickLabel(79.5)).toBe('79.5');
     expect(tickLabel(80)).toBe('80');
     expect(tickLabel(169.96)).toBe('170');
+    expect(tickLabel(1000)).toBe('1,000');
   });
 });

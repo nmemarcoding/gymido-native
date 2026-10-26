@@ -5,14 +5,14 @@ import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop, Text as SvgText } 
 import EmptyState from '../../../../shared/components/EmptyState';
 import { colors, radii, shadows } from '../../../../shared/theme/tokens';
 import { formatWeight } from '../clientFormat';
-import { buildWeightSeries, fixedDomainTicks, monotoneXPath, thinLabels, tickLabel } from '../weightChartData';
+import { buildWeightSeries, monotoneXPath, thinLabels, tickLabel } from '../weightChartData';
 
 const TEAL = '#009ca6';
 const GRID = '#e2e8f0';
 const AXIS_COLOR = '#6b7280';
 const FONT_SIZE = 12;
 const HEIGHT = 288;
-const Y_AXIS_WIDTH = 40;
+const Y_AXIS_WIDTH = 44;
 const X_AXIS_HEIGHT = 30;
 const MARGIN = { top: 10, right: 12, bottom: 8 };
 // Recharts axis geometry: tick labels sit tickSize (6) + tickMargin (2) off
@@ -23,8 +23,8 @@ const X_LABEL_DY = FONT_SIZE * 0.71;
 const TOOLTIP_GAP = 10;
 
 // The weight chart (trainer clients spec §C5.3), drawn with react-native-svg
-// so it matches the web's Recharts output: a d3 monotoneX curve, ticks from
-// Recharts' fixed-domain rule, and the first/last x labels kept inside the
+// so it matches the web's Recharts output: a d3 monotoneX curve, the
+// whole-number y ticks of §C5.3 (T-38), and the first/last x labels kept inside the
 // plot (preserveStartEnd). `unit` (optional) is the chart's one unit (T-38):
 // Progress passes its currentUnit (RN-SPEC-progress §PR1.2); without it the
 // trainer rule (§C5.3) picks it.
@@ -55,7 +55,7 @@ export default function WeightHistoryChart({ logs, profile, unit }) {
   const coords = series.points.map((point, index) => [xAt(index), yAt(point.value)]);
   const line = monotoneXPath(coords);
   const area = `${line}L${coords[coords.length - 1][0]},${bottom}L${coords[0][0]},${bottom}Z`;
-  const ticks = fixedDomainTicks(series.min, series.max);
+  const { ticks } = series;
   const labels = thinLabels(
     series.points.map((point) => point.label),
     spacing
