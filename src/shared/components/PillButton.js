@@ -25,12 +25,15 @@ export default function PillButton({
   size = 'default',
   accessibilityLabel,
   testID,
+  // React 19: a plain prop, for callers that move accessibility focus here.
+  ref,
 }) {
   const inactive = disabled || loading;
   const look = VARIANTS[variant];
 
   return (
     <Pressable
+      ref={ref}
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? title}
