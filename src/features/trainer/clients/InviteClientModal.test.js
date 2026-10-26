@@ -293,6 +293,53 @@ describe('C1a exact-email invite (§C3.3 T-32 M1)', () => {
     expect(searchMembers).toHaveBeenCalledTimes(1);
   });
 
+  it('the helper follows each keystroke, before the 300 ms debounce (FE a5e852b3 #1)', async () => {
+    const tree = render();
+    type(tree, 'client@example.com');
+    expect(texts(tree)).not.toContain('Enter their full email address.');
+    expect(searchMembers).not.toHaveBeenCalled();
+    type(tree, 'client@example');
+    expect(texts(tree)).toContain('Enter their full email address.');
+  });
+
+  it('results show only while BOTH the live text and the searched query are email-shaped; the spinner follows the live text (FE a5e852b3 #1)', async () => {
+    searchMembers.mockResolvedValueOnce([MEMBER]);
+    const tree = render();
+    type(tree, 'client@example.com');
+    await settle(300);
+    expect(texts(tree)).toContain('client@example.com');
+    const pending = deferred();
+    searchMembers.mockReturnValueOnce(pending.promise);
+    type(tree, 'other@example.com');
+    await settle(300);
+    expect(tree.root.findAllByType(Spinner)).toHaveLength(1);
+    // Broken before the next debounce fires: no results and no spinner at once.
+    type(tree, 'other@example');
+    expect(texts(tree)).not.toContain('client@example.com');
+    expect(tree.root.findAllByType(Spinner)).toHaveLength(0);
+    expect(texts(tree)).not.toContain('Searching…');
+    await act(async () => pending.resolve([]));
+  });
+
+  it('Retry clears the error at once and shows only the spinner until the answer (FE a5e852b3 #4)', async () => {
+    searchMembers.mockRejectedValueOnce({ response: { status: 500, data: { message: 'Server down' } } });
+    const tree = render();
+    type(tree, 'client@example.com');
+    await settle(300);
+    expect(texts(tree)).toContain('Could not search');
+    const pending = deferred();
+    searchMembers.mockReturnValueOnce(pending.promise);
+    const retry = tree.root.find((node) => typeof node.props.onRetry === 'function');
+    act(() => {
+      retry.props.onRetry();
+    });
+    expect(texts(tree)).not.toContain('Could not search');
+    expect(texts(tree)).not.toContain('No member found');
+    expect(tree.root.findAllByType(Spinner)).toHaveLength(1);
+    await act(async () => pending.resolve([MEMBER]));
+    expect(texts(tree)).toContain('client@example.com');
+  });
+
   it('per-opening reset: closing clears the field, result and "Invited" marks; reopening starts with the helper', async () => {
     searchMembers.mockResolvedValue([MEMBER]);
     inviteClient.mockResolvedValue({ id: 9 });

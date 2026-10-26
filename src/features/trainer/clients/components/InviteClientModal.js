@@ -48,17 +48,28 @@ export default function InviteClientModal({ isOpen, onClose, onInvited }) {
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
+  // The helper and the spinner follow each keystroke; the request follows the
+  // debounced query, and the results need both to be email-shaped.
+  const liveShaped = isEmailShaped(input.trim());
+  const searching = loading && liveShaped;
+
   // iOS has no live regions, so the hidden "Searching…" status is announced
   // explicitly (Android reads it from the live region below).
   useEffect(() => {
-    if (loading && Platform.OS === 'ios') {
+    if (searching && Platform.OS === 'ios') {
       AccessibilityInfo.announceForAccessibility(SEARCHING_STATUS);
     }
-  }, [loading]);
+  }, [searching]);
 
   // Every new email-shaped query fires; responses aren't cancelled (⚠C-2).
   // The previous answer stays on screen until this one arrives.
   async function search(term) {
+    // A Retry (or any new search) clears an error at once; earlier results
+    // stay under the spinner, else nothing shows (FE a5e852b3).
+    if (error) {
+      setError('');
+      setAnswered(false);
+    }
     setLoading(true);
     try {
       const found = await searchMembers(term);
@@ -130,7 +141,7 @@ export default function InviteClientModal({ isOpen, onClose, onInvited }) {
         <FormField
           testID="invite-search"
           label="Client's email"
-          helperText={isEmailShaped(query) ? undefined : 'Enter their full email address.'}
+          helperText={liveShaped ? undefined : 'Enter their full email address.'}
           keyboardType="email-address"
           textContentType="emailAddress"
           autoComplete="off"
@@ -141,14 +152,14 @@ export default function InviteClientModal({ isOpen, onClose, onInvited }) {
           onChangeText={onChange}
           onSubmitEditing={onSubmit}
           trailing={
-            loading ? (
+            searching ? (
               <Spinner size={18} thickness={2} color={colors.brand700} track={colors.border} reducedMotionLoopMs={motion.spinnerReducedLoopMs} />
             ) : null
           }
         />
         {/* Always mounted, so Android's live region reads the text change. */}
         <View testID="invite-searching-status" accessibilityLiveRegion="polite" style={styles.hiddenStatus}>
-          <Text style={styles.hiddenText}>{loading ? SEARCHING_STATUS : ''}</Text>
+          <Text style={styles.hiddenText}>{searching ? SEARCHING_STATUS : ''}</Text>
         </View>
         {renderResults()}
       </View>
@@ -156,7 +167,7 @@ export default function InviteClientModal({ isOpen, onClose, onInvited }) {
   );
 
   function renderResults() {
-    if (!isEmailShaped(query) || !answered) {
+    if (!liveShaped || !isEmailShaped(query) || !answered) {
       return null;
     }
     if (error) {
