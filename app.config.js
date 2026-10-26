@@ -76,11 +76,14 @@ module.exports = {
     version: '1.0.3',
     orientation: 'portrait',
     icon: './assets/icon.png',
-    userInterfaceStyle: 'light',
+    // v2 is dark only (RN-SPEC-v2-foundation §1); the root view and the
+    // splash use color-ground, so a launch never flashes white.
+    userInterfaceStyle: 'dark',
+    backgroundColor: '#0A0B0F',
     splash: {
       image: './assets/splash-icon.png',
       resizeMode: 'contain',
-      backgroundColor: '#ffffff',
+      backgroundColor: '#0A0B0F',
     },
     ios: {
       bundleIdentifier: 'com.gymido.app',

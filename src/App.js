@@ -42,7 +42,8 @@ export default function App() {
           </NavigationContainer>
         </AppBlurTarget>
         <ToastHost />
-        <StatusBar style="dark" />
+        {/* v2 is dark only (RN-SPEC-v2-foundation §1): light status-bar content. */}
+        <StatusBar style="light" />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
