@@ -42,17 +42,30 @@ MAESTRO_LOGIN_PASSWORD="$(value "${ACCOUNT}_PASSWORD")"
 [ -n "$MAESTRO_LOGIN_EMAIL" ] && [ -n "$MAESTRO_LOGIN_PASSWORD" ] || { echo "no ${ACCOUNT}_EMAIL/_PASSWORD in the env file" >&2; exit 2; }
 export MAESTRO_LOGIN_EMAIL MAESTRO_LOGIN_PASSWORD
 
-# Deletes everything Maestro wrote since the run started.
+MAESTRO_LOGS="$HOME/Library/Logs/maestro"
+
+# Deletes everything Maestro wrote since the run started: its test output and
+# its own log folder (per-run logs and zips).
 purge() {
   rm -rf "$WORK/out"
   find "$HOME/.maestro/tests" -mindepth 1 -maxdepth 1 -newer "$MARK" -exec rm -rf {} + 2>/dev/null
+  find "$MAESTRO_LOGS" -mindepth 1 -maxdepth 1 -newer "$MARK" -exec rm -rf {} + 2>/dev/null
+}
+
+# The two values as grep -F patterns, from a builtin printf, so neither is
+# ever on a command line.
+patterns() {
+  printf '%s\n%s\n' "$MAESTRO_LOGIN_EMAIL" "$MAESTRO_LOGIN_PASSWORD"
 }
 
 # Runs one stage flow; prints only its name and the result.
 stage() {
   local name="$1"
   mkdir -p "$WORK/out"
-  (cd "$WORK/out" && maestro --device "$UDID" test --test-output-dir "$WORK/out" "$FLOWS/$name.yaml" > "$WORK/out/stage.log" 2>&1)
+  # In the background + wait, so a trap runs at once (exec: maestro is our
+  # direct child, which finish's pkill stops).
+  (cd "$WORK/out" && exec maestro --device "$UDID" test --test-output-dir "$WORK/out" "$FLOWS/$name.yaml" > "$WORK/out/stage.log" 2>&1) &
+  wait $!
   local code=$?
   # On a failure, name the failed step: status lines only, never a typed value.
   local failed=""
@@ -79,21 +92,36 @@ abort() {
   finish 1
 }
 
-# Byte sweep: no file Maestro (or this run) left may contain either value.
+# Byte sweep: no file Maestro (or this run) left may contain either value,
+# zipped Maestro logs included. Runs once, also on Ctrl-C or a kill; exits
+# non-zero when it had to delete something.
+FINISHED=""
 finish() {
+  [ -n "$FINISHED" ] && return
+  FINISHED=1
+  trap - INT TERM HUP
+  # A stage interrupted mid-run may still be writing.
+  pkill -P $$ 2>/dev/null
   purge
-  local hits
-  hits="$(grep -rlF -e "$MAESTRO_LOGIN_EMAIL" -e "$MAESTRO_LOGIN_PASSWORD" "$HOME/.maestro" "$WORK" 2>/dev/null)"
+  local hits zip
+  hits="$(grep -rlF -f <(patterns) "$HOME/.maestro" "$MAESTRO_LOGS" "$WORK" 2>/dev/null)"
+  while IFS= read -r zip; do
+    unzip -p "$zip" 2>/dev/null | grep -qF -f <(patterns) && hits="$hits"$'\n'"$zip"
+  done < <(find "$MAESTRO_LOGS" -name '*.zip' 2>/dev/null)
+  hits="$(printf '%s\n' "$hits" | sed '/^$/d' | sort -u)"
+  local code="$1"
   if [ -n "$hits" ]; then
     echo "sweep: deleting $(printf '%s\n' "$hits" | wc -l | tr -d ' ') file(s) that held a credential:"
     printf '%s\n' "$hits"
     printf '%s\n' "$hits" | while IFS= read -r file; do rm -f "$file"; done
+    [ "$code" -eq 0 ] && code=3
   else
     echo "sweep: clean"
   fi
   rm -rf "$WORK"
-  exit "$1"
+  exit "$code"
 }
+trap 'finish 1' INT TERM HUP
 
 stage stage-0-open-form || finish 1
 stage stage-1-email-probe || abort
