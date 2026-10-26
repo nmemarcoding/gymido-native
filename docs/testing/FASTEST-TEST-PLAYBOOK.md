@@ -44,6 +44,8 @@ Everything under `src/`, the e2e YAML, and `extra` values (API URL) is JS-only. 
 
 ## 3a. Test credentials: never left in Maestro output (rule since 23 Oct)
 
+- **iOS sign-in (T-29):** use `e2e/scripts/ios-safe-sign-in.sh <udid> <ACCOUNT>`. It types in stages (email + one probe character, erase, password, submit), checks the form between stages with `e2e/scripts/ios-login-check.py` (PASS/FAIL only), passes credentials as `MAESTRO_LOGIN_*` env vars (never `-e`), purges Maestro's output after every stage and byte-sweeps at the end. A failed check cancels the login sheet. Never screenshot the filled form or the Profile screen (it shows the account email); diagnose from the hierarchy instead.
+
 Maestro writes every `-e` value, passwords included, into its own `maestro.log` and `commands.json`, under `--test-output-dir` and `~/.maestro/tests`. On 23 Oct a sweep found 355 such files going back to 21 Oct, and a failure screenshot that showed a password typed into the wrong field.
 
 - **Don't pass a password with `-e` unless the run deletes those files straight away.** A local runner script (not in the repo) runs `find <output> ~/.maestro/tests \( -name maestro.log -o -name commands.json \) -delete` after every flow.

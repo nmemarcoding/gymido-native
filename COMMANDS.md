@@ -214,6 +214,12 @@ iOS simulator: skip the Expo dev menu's intro sheet and hide its grey gear (once
 ./e2e/scripts/ios-skip-dev-menu-intro.sh <simulator-udid>...   # QA sims: "Gymido QA iPhone SE", "Gymido QA iPad"
 ```
 
+iOS simulator sign-in (T-29): staged, with value-free checks between stages; logs purged, byte sweep at the end. Never screenshot while the form is filled, nor the Profile screen (it shows the email):
+
+```bash
+./e2e/scripts/ios-safe-sign-in.sh <simulator-udid> QA_MEMBER   # ACCOUNT = env-file prefix (<ACCOUNT>_EMAIL / _PASSWORD)
+```
+
 Offline refresh behaviour:
 
 ```bash

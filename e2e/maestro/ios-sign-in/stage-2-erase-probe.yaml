@@ -1,0 +1,4 @@
+# T-29 stage 2: erase the probe; the runner checks the password field is empty.
+appId: com.gymido.app
+---
+- eraseText: 1
