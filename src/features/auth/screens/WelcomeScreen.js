@@ -1,4 +1,4 @@
-import Button from '../../../shared/components/Button';
+import PillButton from '../../../shared/components/PillButton';
 import Card from '../../../shared/components/Card';
 import Screen from '../../../shared/components/Screen';
 import { Heading } from '../../../shared/components/Typography';
@@ -10,8 +10,8 @@ export default function WelcomeScreen() {
     <Screen>
       <Card>
         <Heading>Gymido</Heading>
-        <Button testID="welcome-log-in" title="Log in" onPress={login} />
-        <Button testID="welcome-sign-up" title="Sign up" variant="secondary" onPress={signup} />
+        <PillButton fullWidth testID="welcome-log-in" title="Log in" onPress={login} />
+        <PillButton fullWidth testID="welcome-sign-up" title="Sign up" variant="secondary" onPress={signup} />
       </Card>
     </Screen>
   );

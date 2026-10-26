@@ -259,6 +259,8 @@ function WorkoutPage() {
       <CompletionPopup popup={popup} onClose={() => setPopup(null)} />
       <ConfirmDialog
         testID="leave-workout-dialog"
+        entrance="pop"
+        compact
         cancelTestID="leave-workout-stay"
         confirmTestID="leave-workout-leave"
         isOpen={leaveGuard.open}

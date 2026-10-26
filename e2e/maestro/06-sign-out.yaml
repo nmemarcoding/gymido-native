@@ -3,15 +3,41 @@
 appId: com.gymido.app
 ---
 - runFlow: subflows/ensure-signed-in.yaml
+# Trainer mode: switch to the member workspace first (the Workspace switch
+# sits on the trainer Profile tab), or tab-Profile never appears.
 - runFlow:
     when:
       visible:
-        id: "placeholder-open-settings"
+        id: "tab-TProfile"
     commands:
       - tapOn:
-          id: "placeholder-open-settings"
+          id: "tab-TProfile"
+      - tapOn:
+          id: "mode-switch-member"
+      - extendedWaitUntil:
+          visible:
+            id: "tab-Profile"
+          timeout: 20000
+# Member mode: the Profile tab root holds the account actions.
+- tapOn:
+    id: "tab-Profile"
+# Centre the button, or the tap lands on the floating tab bar above it.
+- scrollUntilVisible:
+    element:
+      id: "settings-sign-out"
+    direction: DOWN
+    centerElement: true
+    timeout: 10000
 - tapOn:
     id: "settings-sign-out"
+# iOS asks before Auth0's clearSession opens its browser session.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: "Continue"
+          optional: true
 - extendedWaitUntil:
     visible:
       id: "welcome-log-in"

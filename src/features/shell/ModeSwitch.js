@@ -64,7 +64,8 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   segment: {
-    minHeight: 36,
+    // Design system v1 #16: the touch minimum.
+    minHeight: 44,
     paddingHorizontal: 16,
     borderRadius: radii.full,
     borderWidth: 1,

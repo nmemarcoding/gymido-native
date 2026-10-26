@@ -27,6 +27,13 @@ export default function WeekdayGrid({ selected, onToggle, testIDPrefix, touchHei
               ]}
             >
               <Text style={[styles.text, { color: isSelected ? colors.navy : colors.textSecondary }]}>{weekday.label}</Text>
+              {/* Design system v1 #14: selected is more than the gold fill. The
+                  9px ✓ is the owner-approved exception to the 11px floor. */}
+              {isSelected ? (
+                <Text style={styles.check} accessibilityElementsHidden importantForAccessibility="no">
+                  ✓
+                </Text>
+              ) : null}
             </Pressable>
           );
         })}
@@ -54,6 +61,17 @@ const styles = StyleSheet.create({
   },
   selected: {
     backgroundColor: colors.brand400,
+    // A 2px navy inset ring (no border, so the chip size never changes).
+    boxShadow: `inset 0px 0px 0px 2px ${colors.navy}`,
+  },
+  check: {
+    position: 'absolute',
+    top: 3,
+    right: 5,
+    fontSize: 9,
+    lineHeight: 10,
+    fontWeight: '900',
+    color: colors.navy,
   },
   idle: {
     backgroundColor: colors.background,

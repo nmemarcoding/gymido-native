@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
+import TextLink from '../../../shared/components/TextLink';
 import { colors, radii, shadows } from '../../../shared/theme/tokens';
 import { COPY } from '../generatorCopy';
 import { generatorRoutes } from '../generatorRoutes';
@@ -23,15 +24,8 @@ export default function GeneratorEntryCard() {
           <Text style={styles.title}>{COPY.entryTitle}</Text>
           <Text style={styles.body}>{COPY.entryBody}</Text>
         </View>
-        <Pressable
-          testID="generator-entry-start"
-          accessibilityRole="link"
-          accessibilityLabel={COPY.entryAction}
-          onPress={() => navigation.push(generatorRoutes.PlanGenerator)}
-          style={({ pressed }) => [styles.link, pressed && styles.linkPressed]}
-        >
-          <Text numberOfLines={1} textBreakStrategy="simple" style={styles.linkText}>{COPY.entryAction}</Text>
-        </Pressable>
+        {/* Design system v1 #19: "Get started →" is a text link. */}
+        <TextLink testID="generator-entry-start" label={COPY.entryAction} arrow onPress={() => navigation.push(generatorRoutes.PlanGenerator)} />
       </View>
     </View>
   );
@@ -78,22 +72,4 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   // Batch A (A3): min-height 44.
-  link: {
-    minHeight: 44,
-    justifyContent: 'center',
-    borderRadius: radii.xl,
-    backgroundColor: colors.brand400,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    boxShadow: shadows.glow,
-  },
-  linkPressed: {
-    backgroundColor: colors.brand500,
-  },
-  linkText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '900',
-    color: colors.navy,
-  },
 });

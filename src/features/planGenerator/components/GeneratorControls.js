@@ -50,7 +50,18 @@ export function OptionPill({ label, selected, disabled = false, onPress, testID,
       onPress={onPress}
       style={[styles.pill, selected ? styles.selected : styles.pillRest, disabled && styles.disabled]}
     >
-      <Text style={[styles.pillText, { color: selected ? colors.textPrimary : colors.textSecondary }]}>{label}</Text>
+      {/* Design system v1 #15: a leading ✓ when selected. Its space is always
+          reserved (transparent when off), so the pill never changes width. */}
+      <View style={styles.pillContent}>
+        <Text
+          style={[styles.pillCheck, !selected && styles.pillCheckOff]}
+          accessibilityElementsHidden
+          importantForAccessibility="no"
+        >
+          ✓
+        </Text>
+        <Text style={[styles.pillText, { color: selected ? colors.textPrimary : colors.textSecondary }]}>{label}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -178,6 +189,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 12,
+  },
+  pillContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pillCheck: {
+    fontSize: 12,
+    lineHeight: 20,
+    fontWeight: '900',
+    color: colors.navy,
+  },
+  pillCheckOff: {
+    opacity: 0,
   },
   pillRest: {
     borderColor: colors.border,

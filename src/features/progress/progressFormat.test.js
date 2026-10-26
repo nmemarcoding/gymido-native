@@ -1,9 +1,11 @@
+import { profileAfterWeightLog } from '../profile/profileStore';
 import {
   activityStats,
   averageWorkoutDuration,
   barHeight,
   chartLogs,
   completionRate,
+  convertWeight,
   goalCompletion,
   gridRows,
   logCountLabel,
@@ -11,6 +13,7 @@ import {
   progressUnit,
   recentLogRows,
   weightStats,
+  weightUnits,
 } from './progressFormat';
 
 describe('progressUnit (⚠PR-2)', () => {
@@ -22,20 +25,79 @@ describe('progressUnit (⚠PR-2)', () => {
   });
 });
 
-describe('weightStats', () => {
-  it('formats all three with the same unit, unconverted', () => {
-    const stats = weightStats({ current_weight: '80.25', goal_weight: 170, difference_to_goal: -5.5 }, 'kg');
+describe('weightUnits (T-34)', () => {
+  it("uses the profile's current unit only when it has a current weight, else the newest log's", () => {
+    const logs = [{ weight_unit: 'kg' }];
+    expect(weightUnits({ current_weight_value: 170, current_weight_unit: 'lb', goal_weight_unit: 'kg' }, logs)).toEqual({ current: 'lb', goal: 'kg' });
+    expect(weightUnits({ current_weight_value: null, current_weight_unit: 'lb', goal_weight_unit: 'lb' }, logs)).toEqual({ current: 'kg', goal: 'lb' });
+    expect(weightUnits({ current_weight_value: 80, current_weight_unit: '' }, [{ weight_unit: 'lb' }])).toEqual({ current: 'lb', goal: 'lb' });
+  });
+
+  it('falls back to the current unit for the goal, and to kg without logs', () => {
+    expect(weightUnits({ current_weight_value: 80, current_weight_unit: 'kg' }, [])).toEqual({ current: 'kg', goal: 'kg' });
+    expect(weightUnits(null, [])).toEqual({ current: 'kg', goal: 'kg' });
+  });
+});
+
+describe('weightStats (T-34)', () => {
+  it('labels Current with the current unit and Goal and To goal with the goal unit, unconverted', () => {
+    const stats = weightStats({ current_weight: 170, goal_weight: 75, difference_to_goal: 2.1 }, { current: 'lb', goal: 'kg' });
     expect(stats.map((s) => [s.label, s.value])).toEqual([
-      ['Current', '80.3 kg'],
-      ['Goal', '170 kg'],
-      ['To goal', '-5.5 kg'],
+      ['Current', '170 lb'],
+      ['Goal', '75 kg'],
+      ['To goal', '+2.1 kg'],
     ]);
-    expect(weightStats({ difference_to_goal: 2 }, 'kg')[2].value).toBe('+2 kg');
-    expect(weightStats(null, 'kg').map((s) => s.value)).toEqual(['—', '—', '—']);
+    const same = { current: 'kg', goal: 'kg' };
+    expect(weightStats({ current_weight: '80.25', goal_weight: 170, difference_to_goal: -5.5 }, same).map((s) => s.value)).toEqual(['80.3 kg', '170 kg', '-5.5 kg']);
+    expect(weightStats(null, same).map((s) => s.value)).toEqual(['—', '—', '—']);
+  });
+});
+
+describe('profileAfterWeightLog (T-34 F1)', () => {
+  it('patches the current weight + unit from the saved log, so Current keeps its unit', () => {
+    const profile = { current_weight_value: 80, current_weight_unit: 'kg', goal_weight_unit: 'kg', first_name: 'QA' };
+    const patched = profileAfterWeightLog(profile, { weight_log: { id: 9, weight_value: 170, weight_unit: 'lb' } });
+    expect(patched).toEqual({ ...profile, current_weight_value: 170, current_weight_unit: 'lb' });
+    const units = weightUnits(patched, [{ weight_unit: 'lb' }]);
+    const stats = weightStats({ current_weight: 170, goal_weight: 75, difference_to_goal: -2.1 }, units);
+    expect(stats.map((s) => s.value)).toEqual(['170 lb', '75 kg', '-2.1 kg']);
+  });
+
+  it('leaves the store alone without a profile or without both saved fields', () => {
+    expect(profileAfterWeightLog(null, { weight_log: { weight_value: 170, weight_unit: 'lb' } })).toBeNull();
+    expect(profileAfterWeightLog({ current_weight_unit: 'kg' }, { weight_log: { weight_value: 170 } })).toBeNull();
+    expect(profileAfterWeightLog({ current_weight_unit: 'kg' }, { weight_log: { weight_unit: 'lb' } })).toBeNull();
+    expect(profileAfterWeightLog({ current_weight_unit: 'kg' }, undefined)).toBeNull();
+  });
+});
+
+describe('convertWeight', () => {
+  it('converts between lb and kg and leaves same or unknown units alone', () => {
+    expect(convertWeight(100, 'lb', 'kg')).toBeCloseTo(45.359237);
+    expect(convertWeight(45.359237, 'kg', 'lb')).toBeCloseTo(100);
+    expect(convertWeight('80', 'kg', 'kg')).toBe(80);
+    expect(convertWeight(80, undefined, 'kg')).toBe(80);
+    expect(convertWeight(80, 'st', 'kg')).toBe(80);
+    expect(convertWeight(80, 'lb', 'st')).toBe(80);
   });
 });
 
 describe('goalCompletion (⚠PR-3)', () => {
+  it('works in the current unit, with start = current − total_change (T-34)', () => {
+    // RN-SPEC-progress PR1.2 example: 170 lb, total_change −10 (start 180 lb), goal 75 kg = 165.35 lb → 10 / 14.65.
+    const units = { current: 'lb', goal: 'kg' };
+    expect(goalCompletion({ current_weight: 170, total_change: -10, goal_weight: 75, starting_weight: 85 }, units)).toBeCloseTo(68.26, 1);
+    expect(goalCompletion({ current_weight: '170', total_change: '-10', goal_weight: '75' }, units)).toBeCloseTo(68.26, 1);
+    // total_change wins over starting_weight (which is in the earliest log's unit).
+    expect(goalCompletion({ current_weight: 90, total_change: -10, goal_weight: 80, starting_weight: 220 }, { current: 'kg', goal: 'kg' })).toBe(50);
+    // total_change 0 is present: no progress yet.
+    expect(goalCompletion({ current_weight: 90, total_change: 0, goal_weight: 80, starting_weight: 100 }, { current: 'kg', goal: 'kg' })).toBe(0);
+  });
+
+  it('keeps the max(1, …) floor in the current unit (T-34)', () => {
+    // start 80.5 lb, current 80.2 lb, goal 36.4 kg = 80.25 lb: gap 0.25 → floored to 1 → 30%.
+    expect(goalCompletion({ current_weight: 80.2, total_change: -0.3, goal_weight: 36.4 }, { current: 'lb', goal: 'kg' })).toBeCloseTo(30);
+  });
   it('measures loss from the start towards the goal', () => {
     expect(goalCompletion({ starting_weight: 100, current_weight: 90, goal_weight: 80 })).toBe(50);
     expect(goalCompletion({ starting_weight: '100', current_weight: '75', goal_weight: '80' })).toBe(100);

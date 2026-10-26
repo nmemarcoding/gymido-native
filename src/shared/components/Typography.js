@@ -21,5 +21,5 @@ export function Body({ children, style }) {
 const styles = StyleSheet.create({
   eyebrow: typography.eyebrow,
   heading: typography.heading,
-  body: typography.body,
+  body: typography.bodySm,
 });

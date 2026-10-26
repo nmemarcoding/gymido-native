@@ -368,7 +368,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   sheetScrim: {
-    backgroundColor: 'rgba(17, 24, 39, 0.50)',
+    backgroundColor: colors.scrim,
   },
   sheetHost: {
     flex: 1,

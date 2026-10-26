@@ -10,8 +10,7 @@ import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
 import { colors, radii, shadows } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
 import { getCurrentPlan, listPlanDays } from '../plans/api/libraryApi';
-import { getProfile } from '../profile/api/profileApi';
-import { setStoredProfile } from '../profile/profileStore';
+import { applySavedWeightLog, useProfileStore } from '../profile/profileStore';
 import ShellPage from '../shell/ShellPage';
 import { openPlanDetailAlone, openShellPath } from '../shell/shellLinks';
 import { getDashboard } from './api/homeApi';
@@ -21,9 +20,9 @@ import WeightLogModal from './WeightLogModal';
 const SAVED_TOAST_MS = 3500;
 
 const PILL_TONES = {
-  success: { background: colors.successTint, text: colors.success, dot: colors.success },
+  success: { background: colors.successTint, text: colors.success700, dot: colors.success },
   brand: { background: colors.brand50, text: colors.brand700, dot: colors.brand400 },
-  warning: { background: 'rgba(245, 158, 11, 0.10)', text: colors.warning, dot: colors.warning },
+  warning: { background: 'rgba(245, 158, 11, 0.10)', text: colors.warning700, dot: colors.warning },
   // A1: the muted pill text is text-secondary.
   muted: { background: colors.surfaceMuted, text: colors.textSecondary, dot: colors.textMuted },
 };
@@ -58,7 +57,8 @@ async function loadSetupDayCount() {
 function Home() {
   const email = useAuthStore((state) => state.user?.email);
   const [load, setLoad] = useState({ status: 'loading', dashboard: null, error: null });
-  const [profile, setProfile] = useState(null);
+  // T-24 (25 Oct 2026): the ProfileGate already loaded the profile; Home reads the store.
+  const profile = useProfileStore((state) => state.profile);
   const [setupDayCount, setSetupDayCount] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -71,24 +71,10 @@ function Home() {
     []
   );
 
-  // A fetched profile also refreshes the shared profile store (P1 reads it).
-  const applyProfile = useCallback((body) => {
-    const fresh = body?.profile ?? null;
-    if (fresh) {
-      setStoredProfile(fresh);
-    }
-    if (mounted.current) {
-      setProfile(fresh);
-    }
-  }, []);
-
-  // H1.1: dashboard + profile in parallel; the profile can't fail the page.
+  // H1.1 (T-24, 25 Oct 2026): only GET /dashboard; no profile request.
   useEffect(() => {
-    const profileLoad = getProfile()
-      .then(applyProfile)
-      .catch(() => {});
     const setupLoad = loadSetupDayCount().then((count) => mounted.current && setSetupDayCount(count));
-    Promise.allSettled([getDashboard(), profileLoad, setupLoad]).then(([dashboard]) => {
+    Promise.allSettled([getDashboard(), setupLoad]).then(([dashboard]) => {
       if (!mounted.current) {
         return;
       }
@@ -98,17 +84,15 @@ function Home() {
         setLoad({ status: 'error', dashboard: null, error: dashboard.reason });
       }
     });
-  }, [applyProfile]);
+  }, []);
 
   // H1.7: after a weight log, refresh quietly; failures keep the old content.
+  // T-24: the dashboard only; the profile store was patched from the log.
   const quietRefresh = useCallback(() => {
     getDashboard()
       .then((dashboard) => mounted.current && setLoad((current) => ({ ...current, dashboard })))
       .catch(() => {});
-    getProfile()
-      .then(applyProfile)
-      .catch(() => {});
-  }, [applyProfile]);
+  }, []);
 
   // ⚠H-8: the timer starts when the message first appears; a second log sets
   // the same text and does not restart it.
@@ -240,7 +224,8 @@ function Home() {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         defaultUnit={defaultWeightUnit(profile)}
-        onSuccess={() => {
+        onSuccess={(saved) => {
+          applySavedWeightLog(saved);
           setSuccessMessage('Weight logged successfully.');
           quietRefresh();
         }}
@@ -357,7 +342,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '600',
-    color: colors.warning,
+    color: colors.warning700,
   },
   buttons: {
     flexDirection: 'row',
@@ -448,7 +433,7 @@ const styles = StyleSheet.create({
   },
   stripLabel: {
     marginTop: 2,
-    fontSize: 9.92,
+    fontSize: 11,
     lineHeight: 14.88,
     fontWeight: '700',
     letterSpacing: 1.19,

@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrimColor: {
-    backgroundColor: colors.pickerScrim,
+    backgroundColor: colors.scrim,
   },
   scrimPhone: {
     justifyContent: 'flex-end',

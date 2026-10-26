@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo } from 'react-native';
 
 import { adjustTimer, rebasedTotal, remainingSeconds } from './restEngine';
 
 const TICK_MS = 500;
+
+// Design system v1 #13: the screen-reader announcement, with the true number.
+export function restAnnouncement(seconds) {
+  return seconds === 1 ? '1 second left' : `${seconds} seconds left`;
+}
 
 // useRestTimer (RN-SPEC-time §7.2, RN-SPEC-workout §22).
 // Lifecycle pairing D: the rest is cleared ONLY by a natural end, −5 s to
@@ -65,9 +71,17 @@ export default function useRestTimer({ onRestComplete, alerts }) {
       total.current = rebasedTotal(timer.secondsLeft, total.current, startMs.current, now);
       callbacks.current.alerts?.endMoved(endMs(), timer.totalSeconds);
     }
+    // Once per rest, at the first moment ≤ 10 s however it gets there (a
+    // natural tick, a short rest, −5 s); never again in that rest (not after
+    // +5 s back above 10). A new rest resets it.
     if (timer.secondsLeft <= 10 && !expandedFinal.current) {
       expandedFinal.current = true;
       setMinimized(false);
+      try {
+        AccessibilityInfo.announceForAccessibility(restAnnouncement(timer.secondsLeft));
+      } catch {
+        // Best effort.
+      }
     }
     const interval = setInterval(() => {
       const remaining = remainingSeconds(total.current, startMs.current, Date.now());

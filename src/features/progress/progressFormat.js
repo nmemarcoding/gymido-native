@@ -7,21 +7,52 @@ import { formatDateWithOffset, formatDuration } from '../../shared/time/format';
 const BAR_MAX = 52;
 const BAR_MIN = 8;
 
-// ⚠PR-2: the newest log's unit (logs come newest first), else "kg".
+// The newest log's unit (logs come newest first), else "kg". Since T-34
+// (25 Oct 2026) only the chart and the weight modal's default use it.
 export function progressUnit(weightLogs) {
   return weightLogs?.[0]?.weight_unit || 'kg';
 }
 
+// T-34 (dated change 25 Oct 2026, retires ⚠PR-2): each value's unit, as the
+// server sends it. current_weight is in the profile's current unit when the
+// profile has a current weight (else the newest log's); goal_weight and
+// difference_to_goal are in the goal unit.
+export function weightUnits(profile, weightLogs) {
+  const hasCurrent = profile?.current_weight_value != null && Boolean(profile?.current_weight_unit);
+  const current = hasCurrent ? profile.current_weight_unit : progressUnit(weightLogs);
+  return { current, goal: profile?.goal_weight_unit || current };
+}
+
+const KG_PER_LB = 0.45359237;
+
+// 1 lb = 0.45359237 kg exactly. Only lb → kg and kg → lb convert; any other
+// pair (same, unknown or missing units) passes through unchanged.
+export function convertWeight(value, from, to) {
+  const number = Number(value);
+  if (from === 'lb' && to === 'kg') {
+    return number * KG_PER_LB;
+  }
+  if (from === 'kg' && to === 'lb') {
+    return number / KG_PER_LB;
+  }
+  return number;
+}
+
 // ⚠PR-3: only losing weight counts; the gap is floored at 1; missing goal or
-// current → 0.
-export function goalCompletion(weightProgress) {
+// current → 0. T-34: all in the current unit. total_change is in that unit;
+// starting_weight (the earliest log's unit) is only a fallback without it.
+export function goalCompletion(weightProgress, units = {}) {
   const current = weightProgress?.current_weight;
-  const goal = weightProgress?.goal_weight;
-  if (!goal || !current) {
+  const goalWeight = weightProgress?.goal_weight;
+  if (!goalWeight || !current) {
     return 0;
   }
-  const start = Number(weightProgress.starting_weight || current);
-  const ratio = ((start - Number(current)) / Math.max(1, start - Number(goal))) * 100;
+  const totalChange = weightProgress.total_change;
+  const start = totalChange != null
+    ? Number(current) - Number(totalChange)
+    : Number(weightProgress.starting_weight || current);
+  const goal = convertWeight(goalWeight, units.goal, units.current);
+  const ratio = ((start - Number(current)) / Math.max(1, start - goal)) * 100;
   return Math.min(100, Math.max(0, ratio));
 }
 
@@ -51,11 +82,12 @@ export function barHeight(count, max) {
   return Math.max(BAR_MIN, Math.round((Number(count) / max) * BAR_MAX));
 }
 
-export function weightStats(weightProgress, unit) {
+// T-34: Current in the current unit; Goal and To goal in the goal's unit.
+export function weightStats(weightProgress, units) {
   return [
-    { label: 'Current', value: formatWeight(weightProgress?.current_weight, unit) },
-    { label: 'Goal', value: formatWeight(weightProgress?.goal_weight, unit) },
-    { label: 'To goal', value: formatSignedNumber(weightProgress?.difference_to_goal, unit), brand: true },
+    { label: 'Current', value: formatWeight(weightProgress?.current_weight, units.current) },
+    { label: 'Goal', value: formatWeight(weightProgress?.goal_weight, units.goal) },
+    { label: 'To goal', value: formatSignedNumber(weightProgress?.difference_to_goal, units.goal), brand: true },
   ];
 }
 

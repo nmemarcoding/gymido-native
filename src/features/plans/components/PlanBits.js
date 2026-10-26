@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     fontWeight: '700',
-    color: colors.success,
+    color: colors.success700,
   },
   sectionHeading: {
     fontSize: 14,
@@ -122,6 +122,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.35,
     textTransform: 'uppercase',
-    color: colors.textPrimary,
+    // Design system v1 P9: section headings are muted.
+    color: colors.textMuted,
   },
 });

@@ -9,6 +9,8 @@ jest.mock('react-native-svg', () => {
 });
 jest.mock('../../../shared/components/GradientFill', () => () => null);
 jest.mock('../../../shared/components/BlurLayer', () => () => null);
+let mockReducedMotion = false;
+jest.mock('../../../shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => mockReducedMotion }));
 
 function render(props) {
   let tree;
@@ -45,5 +47,47 @@ describe('RestTimerWidget accessibility (§22.1, M5)', () => {
     const disc = render({ minimized: false, onExpand: jest.fn() });
     expect(disc.props.accessible).toBeUndefined();
     expect(disc.props.accessibilityActions).toBeUndefined();
+  });
+});
+
+describe('last-10-seconds pulse and hit areas (design system v1 #8, #10, #12)', () => {
+  const { Animated } = require('react-native');
+  let loop;
+
+  beforeEach(() => {
+    // Stubbed: a real loop would keep animating forever in Jest.
+    loop = jest.spyOn(Animated, 'loop').mockReturnValue({ start: jest.fn(), stop: jest.fn(), reset: jest.fn() });
+  });
+
+  afterEach(() => {
+    loop.mockRestore();
+    mockReducedMotion = false;
+  });
+
+  it('pulses the digits (1 → 1.06) only in the last 10 seconds', () => {
+    render({ minimized: false, timer: { setId: 1, secondsLeft: 30, totalSeconds: 90 } });
+    expect(loop).not.toHaveBeenCalled();
+    render({ minimized: false, timer: { setId: 1, secondsLeft: 8, totalSeconds: 90 } });
+    expect(loop).toHaveBeenCalled();
+  });
+
+  it('never pulses under reduced motion', () => {
+    mockReducedMotion = true;
+    render({ minimized: false, timer: { setId: 1, secondsLeft: 8, totalSeconds: 90 } });
+    expect(loop).not.toHaveBeenCalled();
+  });
+
+  it('gives the controls 44 pt targets without overlapping Skip and ±5', () => {
+    let tree;
+    act(() => {
+      tree = create(
+        <RestTimerWidget timer={{ setId: 1, secondsLeft: 60, totalSeconds: 90 }} minimized={false} onMinimize={() => {}} onAdjust={() => {}} onSkip={() => {}} position={null} onPosition={() => {}} />
+      );
+    });
+    const byId = (id) => tree.root.find((node) => node.props.testID === id && node.props.onPress);
+    expect(byId('rest-timer-minus').props.hitSlop).toEqual({ top: 4, bottom: 4 });
+    expect(byId('rest-timer-plus').props.hitSlop).toEqual({ top: 4, bottom: 4 });
+    expect(byId('rest-timer-minimize').props.hitSlop).toBe(6);
+    expect(byId('rest-timer-skip').props.hitSlop).toEqual({ top: 9, bottom: 9 });
   });
 });

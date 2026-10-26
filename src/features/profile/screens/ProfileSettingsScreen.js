@@ -32,6 +32,8 @@ export default function ProfileSettingsScreen() {
   );
 }
 
+const SWITCH_TRACK = { false: colors.border, true: colors.brand400 };
+
 function Settings() {
   const navigation = useNavigation();
   const profile = useProfileStore((state) => state.profile);
@@ -194,6 +196,12 @@ function Settings() {
                 testID={`${row.testID}-switch`}
                 value={row.value}
                 onValueChange={row.onChange}
+                // Design system v1 #17: the gold track (no ✓ in the thumb). The
+                // thumb is white in both states, as on iOS; Android's default
+                // ON thumb is an off-palette teal.
+                trackColor={SWITCH_TRACK}
+                thumbColor={colors.surface}
+                ios_backgroundColor={colors.border}
                 accessibilityElementsHidden
                 importantForAccessibility="no-hide-descendants"
               />
@@ -362,6 +370,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     fontWeight: '700',
-    color: colors.danger,
+    color: colors.danger700,
   },
 });

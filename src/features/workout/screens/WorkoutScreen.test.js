@@ -128,6 +128,9 @@ describe('WorkoutScreen', () => {
       tone: 'primary',
       cancelTestID: 'leave-workout-stay',
       confirmTestID: 'leave-workout-leave',
+      // Design system v1: pops in (P10), body 14/24 like web's workout dialogs.
+      entrance: 'pop',
+      compact: true,
     });
     act(() => dialog().onClose());
     expect(dialog()).toBeUndefined();

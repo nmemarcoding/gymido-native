@@ -103,6 +103,13 @@ describe('P1 Settings', () => {
     expect(texts(tree.root)).toEqual(expect.arrayContaining(['Vibrate on rest end', 'Buzz when rest is over']));
     expect(row().props.accessibilityRole).toBe('switch');
     expect(row().props.accessibilityState).toEqual({ checked: true });
+    // Design system v1 #17: the gold track, the off colour behind it on iOS.
+    const toggle = tree.root.find((node) => node.props.testID === 'settings-vibrate-rest-alerts-switch' && node.props.onValueChange);
+    expect(toggle.props.trackColor).toEqual({ false: '#e5e7eb', true: '#f4b400' });
+    expect(toggle.props.ios_backgroundColor).toBe('#e5e7eb');
+    // QA 1.0.1: a white thumb in both states on both switches (Android's default ON thumb is teal).
+    expect(toggle.props.thumbColor).toBe('#ffffff');
+    expect(tree.root.find((node) => node.props.testID === 'settings-speak-rest-alerts-switch' && node.props.onValueChange).props.thumbColor).toBe('#ffffff');
     act(() => {
       row().props.onPress();
     });

@@ -29,18 +29,6 @@ appId: com.gymido.app
           visible:
             id: "settings-sign-out"
           timeout: 20000
-# On a placeholder screen: go to Settings first.
-- runFlow:
-    when:
-      visible:
-        id: "placeholder-open-settings"
-    commands:
-      - tapOn:
-          id: "placeholder-open-settings"
-      - extendedWaitUntil:
-          visible:
-            id: "settings-sign-out"
-          timeout: 20000
 - runFlow:
     when:
       visible:

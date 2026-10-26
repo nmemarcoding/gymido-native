@@ -19,11 +19,9 @@ export const colors = Object.freeze({
   brand50: '#fef8e7',
   brand700: '#7e5e00',
   danger: '#ef4444',
-  dangerPressed: '#e7000b',
   gray200: '#e5e7eb',
-  violet600: '#7f22fe',
-  modalScrim: 'rgba(0, 0, 0, 0.70)',
-  pickerScrim: 'rgba(17, 24, 39, 0.55)',
+  // Muscle colour for arms/biceps/triceps (design system v1: kept, named by role).
+  arms: '#7f22fe',
   pickerBubble: 'rgba(17, 24, 39, 0.15)',
   focusRing: 'rgba(244, 180, 0, 0.35)',
   focusRingError: 'rgba(239, 68, 68, 0.35)',
@@ -39,14 +37,25 @@ export const colors = Object.freeze({
   trainerLockBorder: 'rgba(221, 160, 0, 0.30)',
   rowPressed: 'rgba(239, 241, 244, 0.40)',
   rowPressedStrong: 'rgba(239, 241, 244, 0.50)',
+  // Design system v1 (24 Oct 2026) contrast fixes: text on tints/white and
+  // fills under white text meet 4.5:1; the base hues stay for dots and borders.
+  success700: '#008236',
+  warning700: '#bb4d00',
+  danger600: '#e7000b',
+  danger700: '#c10007',
+  danger800: '#991b1b',
+  // Overlay scrims (design system v1): navy/50 everywhere; navy/30 only behind
+  // the notification panel.
+  scrim: 'rgba(17, 24, 39, 0.50)',
+  scrimLight: 'rgba(17, 24, 39, 0.30)',
 });
 
 export const typography = Object.freeze({
   eyebrow: {
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: 11.2,
+    lineHeight: 16.8,
     fontWeight: '700',
-    letterSpacing: 2,
+    letterSpacing: 2.016,
     textTransform: 'uppercase',
     color: colors.brand700,
   },
@@ -56,9 +65,17 @@ export const typography = Object.freeze({
     fontWeight: '900',
     color: colors.textPrimary,
   },
-  body: {
+  // Design system v1: bodySm 14/20 is the default; body 14/24 only where the
+  // web uses leading-6.
+  bodySm: {
     fontSize: 14,
     lineHeight: 20,
+    fontWeight: '400',
+    color: colors.textSecondary,
+  },
+  body: {
+    fontSize: 14,
+    lineHeight: 24,
     fontWeight: '400',
     color: colors.textSecondary,
   },
@@ -72,7 +89,9 @@ export const shadows = Object.freeze({
   brand: '0px 6px 16px -4px rgba(244, 180, 0, 0.45), 0px 14px 32px -12px rgba(244, 180, 0, 0.30)',
   press: 'inset 0px 2px 6px rgba(17, 24, 39, 0.12)',
   emboss: 'inset 0px 1px 0px rgba(255, 255, 255, 0.9), 0px 1px 2px rgba(17, 24, 39, 0.05)',
-  modal: '0px 25px 50px -12px rgba(0, 0, 0, 0.25)',
+  lift3: '0px 4px 8px rgba(17, 24, 39, 0.06), 0px 24px 48px -12px rgba(17, 24, 39, 0.16)',
+  // Design system v1 #20: modals use lift-3.
+  modal: '0px 4px 8px rgba(17, 24, 39, 0.06), 0px 24px 48px -12px rgba(17, 24, 39, 0.16)',
   insetSoft: 'inset 0px 1px 0px rgba(255, 255, 255, 0.8)',
   // ⚠ A blue glow on a gold button, a leftover on the web. Reproduced on purpose.
   pickerAddSelected: '0px 4px 16px rgba(96, 165, 250, 0.35)',
