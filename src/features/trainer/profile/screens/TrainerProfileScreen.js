@@ -165,6 +165,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '600',
-    color: colors.success,
+    color: colors.success700,
   },
 });

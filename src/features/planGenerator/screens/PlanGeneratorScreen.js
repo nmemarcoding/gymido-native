@@ -721,7 +721,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 14,
     lineHeight: 20,
-    color: colors.danger,
+    color: colors.danger700,
   },
   disclaimer: {
     borderRadius: radii.xxl,

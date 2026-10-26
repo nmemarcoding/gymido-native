@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     fontWeight: '700',
-    color: '#22c55e',
+    color: colors.success700,
   },
   skipped: {
     fontSize: 12,
