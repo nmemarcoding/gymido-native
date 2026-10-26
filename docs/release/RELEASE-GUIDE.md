@@ -1,8 +1,10 @@
-# Gymido mobile 1.0.0 — release guide (owner)
+# Gymido mobile 1.0.1 — release guide (owner)
 
 > Paths assume the repo is cloned at `~/Desktop/coding/gymido-native` and the release checkout lives at `~/gymido-release`. Adjust them to your machine.
 
-Branch `feature/plan-engine` at `3d546cd`. Build in a separate checkout, so your dev setup (dev client, localtest env) stays untouched.
+Build ref: the tag `1.0.1` (it points at the 1.0.1 merge on `main`). Version 1.0.1, iOS build number 2, Android versionCode 2. Build in a separate checkout, so your dev setup (dev client, localtest env) stays untouched.
+
+1.0.1 changes the build numbers in `app.config.js` (native config), so an existing iOS release checkout needs the prebuild steps under "When the update adds native code" below. Android's `npm run apk` always prebuilds.
 
 ---
 
@@ -43,13 +45,13 @@ Branch `feature/plan-engine` at `3d546cd`. Build in a separate checkout, so your
 Do this once, to make the release checkout:
 
 ```sh
-cd ~/Desktop/coding/gymido-native && git worktree add --detach ~/gymido-release feature/plan-engine
+cd ~/Desktop/coding/gymido-native && git fetch --tags && git worktree add --detach ~/gymido-release 1.0.1
 ```
 
 Then, for each build:
 
 ```sh
-cd ~/gymido-release && git checkout --detach feature/plan-engine && npm ci && npm run apk -- --install
+cd ~/gymido-release && git fetch --tags && git checkout --detach 1.0.1 && npm ci && npm run apk -- --install
 ```
 
 What `npm run apk` does:
@@ -112,7 +114,7 @@ cd ~/gymido-release && APP_ENV=production npx expo run:ios --device --configurat
 Use this when only app code changed (no new packages or native config). Reuse `~/gymido-release`:
 
 ```sh
-cd ~/gymido-release && git checkout --detach feature/plan-engine && git log --oneline -1
+cd ~/gymido-release && git fetch --tags && git checkout --detach 1.0.1 && git log --oneline -1
 ```
 
 - **iOS:** same workspace and scheme (Run = Release), then ⌘R with the iPhone selected. It installs over the old build and keeps your sign-in. Terminal alternative:
@@ -124,7 +126,7 @@ cd ~/gymido-release && git checkout --detach feature/plan-engine && git log --on
 Example: `2413e95`, spoken rest alerts (`expo-speech`).
 
 ```sh
-cd ~/gymido-release && git checkout --detach feature/plan-engine && npm ci && APP_ENV=production npx expo prebuild --clean
+cd ~/gymido-release && git fetch --tags && git checkout --detach 1.0.1 && npm ci && APP_ENV=production npx expo prebuild --clean
 ```
 
 - **iOS:** `prebuild --clean` regenerates the Xcode project, so redo these steps:
