@@ -16,23 +16,35 @@ export function pageCount(data) {
   return Number(data?.pagination?.total_pages ?? 1) || 1;
 }
 
-// §E1.2 as changed by F1 (23 Oct 2026): page 1 first, handed to
-// `onFirstPage` so it shows at once; then pages 2…N in parallel, joined in
-// page order. Any failing page rejects the whole load.
-export async function loadExerciseCatalog({ fetchPage, search = '', onFirstPage }) {
-  const first = await fetchPage(1, search);
-  const firstItems = pageItems(first);
-  const totalPages = pageCount(first);
-  if (totalPages <= 1) {
-    return firstItems;
-  }
-  onFirstPage?.(firstItems);
+// §E1.2: pages 2…N in parallel, joined in page order; any failure rejects.
+export async function loadRestPages({ fetchPage, search = '', totalPages }) {
   const pages = [];
   for (let page = 2; page <= totalPages; page += 1) {
     pages.push(fetchPage(page, search));
   }
   const rest = await Promise.all(pages);
-  return firstItems.concat(...rest.map(pageItems));
+  return [].concat(...rest.map(pageItems));
+}
+
+// §E1.2 as changed by F1 (23 Oct 2026): page 1 first, handed to
+// `onFirstPage` so it shows at once; then pages 2…N. A page-1 failure
+// rejects. Step 4 (T-16, 25 Oct 2026): a failure on pages 2…N keeps page 1
+// and resolves with `partial` ({ firstItems, totalPages, error }) for a
+// Retry of those pages only.
+export async function loadExerciseCatalog({ fetchPage, search = '', onFirstPage }) {
+  const first = await fetchPage(1, search);
+  const firstItems = pageItems(first);
+  const totalPages = pageCount(first);
+  if (totalPages <= 1) {
+    return { items: firstItems, partial: null };
+  }
+  onFirstPage?.(firstItems);
+  try {
+    const rest = await loadRestPages({ fetchPage, search, totalPages });
+    return { items: firstItems.concat(rest), partial: null };
+  } catch (error) {
+    return { items: firstItems, partial: { firstItems, totalPages, error } };
+  }
 }
 
 // §E1.3: the group key falls back to "Other", the card label to "Exercise"

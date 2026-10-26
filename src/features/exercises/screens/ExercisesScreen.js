@@ -7,6 +7,7 @@ import Svg, { Path } from 'react-native-svg';
 import { routes } from '../../../navigation/routes';
 import BlurLayer from '../../../shared/components/BlurLayer';
 import EmptyState from '../../../shared/components/EmptyState';
+import ErrorAlert from '../../../shared/components/ErrorAlert';
 import { InlineError } from '../../../shared/components/FeedbackBox';
 import Loader from '../../../shared/components/Loader';
 import RemoteImage from '../../../shared/components/RemoteImage';
@@ -30,6 +31,7 @@ import {
   gridColumns,
   gridRows,
   loadExerciseCatalog,
+  loadRestPages,
   popSearch,
   submitSearch,
 } from '../exercisesCatalog';
@@ -67,35 +69,63 @@ function ExercisesCatalog() {
   const [search, setSearch] = useState(INITIAL_SEARCH);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [isFilterOpen, setFilterOpen] = useState(false);
-  const [load, setLoad] = useState({ status: 'loading', items: [], error: null });
+  // `partial`: pages 2…N failed (§E1.2 step 4); its `error` is null while a
+  // Retry is in flight, which hides the alert.
+  const [load, setLoad] = useState({ status: 'loading', items: [], error: null, partial: null });
+  // Bumped by every new load and on unmount; an older load's or retry's
+  // answer is dropped.
+  const loadId = useRef(0);
 
   // §E1.2 (F1): runs on mount and whenever the applied search changes.
   useEffect(() => {
-    let alive = true;
-    setLoad({ status: 'loading', items: [], error: null });
+    const id = ++loadId.current;
+    const alive = () => loadId.current === id;
+    setLoad({ status: 'loading', items: [], error: null, partial: null });
     loadExerciseCatalog({
       fetchPage: listExercisesPage,
       search: search.applied,
       onFirstPage: (items) => {
-        if (alive) {
-          setLoad({ status: 'loaded', items, error: null });
+        if (alive()) {
+          setLoad({ status: 'loaded', items, error: null, partial: null });
         }
       },
     })
-      .then((items) => {
-        if (alive) {
-          setLoad({ status: 'loaded', items, error: null });
+      .then(({ items, partial }) => {
+        if (alive()) {
+          setLoad({ status: 'loaded', items, error: null, partial });
         }
       })
       .catch((error) => {
-        if (alive) {
-          setLoad({ status: 'error', items: [], error });
+        if (alive()) {
+          setLoad({ status: 'error', items: [], error, partial: null });
         }
       });
     return () => {
-      alive = false;
+      loadId.current += 1;
     };
   }, [search.applied]);
+
+  // §E1.2 step 4: Retry re-requests pages 2…N only, with the same search.
+  const retryRestPages = () => {
+    const { partial } = load;
+    if (!partial?.error) {
+      return;
+    }
+    const id = loadId.current;
+    const applied = search.applied;
+    setLoad((current) => ({ ...current, partial: { ...partial, error: null } }));
+    loadRestPages({ fetchPage: listExercisesPage, search: applied, totalPages: partial.totalPages })
+      .then((rest) => {
+        if (loadId.current === id) {
+          setLoad({ status: 'loaded', items: partial.firstItems.concat(rest), error: null, partial: null });
+        }
+      })
+      .catch((error) => {
+        if (loadId.current === id) {
+          setLoad((current) => ({ ...current, partial: { ...partial, error } }));
+        }
+      });
+  };
 
   // ⚠E-10: Android back steps back through applied searches first.
   const searchRef = useRef(search);
@@ -130,6 +160,9 @@ function ExercisesCatalog() {
       rows.push({ type: 'error', key: 'error' });
     } else {
       rows.push({ type: 'bar', key: 'bar' });
+      if (load.partial?.error) {
+        rows.push({ type: 'partialError', key: 'partialError' });
+      }
       if (load.items.length === 0) {
         rows.push({ type: 'empty', key: 'empty' });
       } else {
@@ -138,7 +171,7 @@ function ExercisesCatalog() {
       }
     }
     return rows;
-  }, [load.status, load.items, catalog.groups, columns]);
+  }, [load.status, load.items, load.partial, catalog.groups, columns]);
 
   const renderItem = ({ item }) => {
     switch (item.type) {
@@ -162,7 +195,7 @@ function ExercisesCatalog() {
           </View>
         );
       case 'error':
-        // ⚠E-4: no retry, no search box.
+        // ⚠E-4 (narrowed 25 Oct to a page-1 failure): no retry, no search box.
         return (
           <View style={padding}>
             <InlineError testID="exercises-error" title="Exercises unavailable" message={catalogErrorMessage(load.error)} />
@@ -180,6 +213,17 @@ function ExercisesCatalog() {
             filterCount={countFor(catalog.categoryCounts, categoryFilter)}
             onOpenFilter={() => setFilterOpen(true)}
           />
+        );
+      case 'partialError':
+        return (
+          <View style={[padding, styles.contentTop]}>
+            <ErrorAlert
+              testID="exercises-partial-error"
+              title="Some exercises didn't load"
+              description={catalogErrorMessage(load.partial.error)}
+              onRetry={retryRestPages}
+            />
+          </View>
         );
       case 'empty':
         return (
