@@ -4,6 +4,7 @@ import {
   centeredScrollOffset,
   completionSnapshot,
   createPendingSets,
+  draftFromSavedSet,
   firstPendingSetKey,
   muscleGroups,
   nextSetKeyAfter,
@@ -79,6 +80,11 @@ describe('drafts (§20.2–§20.3)', () => {
     expect(seedDrafts({ exercises: [] }, {}, { 1: {} })).toEqual({});
   });
 
+  it('seeds a completed set with only its saved weight (T-16)', () => {
+    const done = { exercises: [{ id: 1, exercise: { id: 50 }, sets: [set(31, { is_completed: true, target_weight_value: 60 })] }] };
+    expect(seedDrafts(done, { 50: { value: 40, unit: 'kg' } }, {})[31]).toEqual({ actualWeightValue: '', actualWeightUnit: 'kg' });
+  });
+
   it('writes an edit to the set and every later set of the exercise (⚠W19)', () => {
     const exercise = session.exercises[1];
     const next = propagateDraft({ 21: { actualWeightValue: 1 }, 22: { actualWeightValue: 2 } }, exercise, 21, 'actualWeightValue', '60');
@@ -90,10 +96,25 @@ describe('drafts (§20.2–§20.3)', () => {
 
 describe('set toggle (§20.4, §21.1)', () => {
   it('validates the weight on completion', () => {
-    expect(validateDraftWeight('')).toBe('Enter a weight before marking this set complete.');
     expect(validateDraftWeight('0')).toBe('Weight must be greater than 0.');
     expect(validateDraftWeight('abc')).toBe('Weight must be greater than 0.');
     expect(validateDraftWeight('20')).toBeNull();
+  });
+
+  it('completes with no weight when the draft is blank (T-16)', () => {
+    for (const blank of ['', '   ', null, undefined]) {
+      expect(validateDraftWeight(blank)).toBeNull();
+    }
+    expect(buildSetPatch(set(12), { actualWeightValue: '  ', actualWeightUnit: 'kg' }, new Date('2026-10-25T10:00:00Z'))).toMatchObject({
+      actual_weight_value: null,
+      actual_weight_unit: null,
+      is_completed: true,
+    });
+  });
+
+  it('takes the saved weight after "Did it" (T-16)', () => {
+    expect(draftFromSavedSet({ actual_weight_value: 80, actual_weight_unit: 'kg' }, 'lb')).toEqual({ actualWeightValue: 80, actualWeightUnit: 'kg' });
+    expect(draftFromSavedSet({ actual_weight_value: null, actual_weight_unit: null }, 'lb')).toEqual({ actualWeightValue: '', actualWeightUnit: 'lb' });
   });
 
   it('sends target reps, the device time and a null unit without weight', () => {
