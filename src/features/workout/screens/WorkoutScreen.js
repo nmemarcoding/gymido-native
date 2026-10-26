@@ -214,6 +214,7 @@ function WorkoutPage() {
           exerciseStatsMap={page.exerciseStatsMap}
           header={header}
           reload={() => load({ silent: true })}
+          reloadWithLoader={() => load()}
           writeOverlay={writeOverlay}
           actionError={actionError}
           setActionError={setActionError}

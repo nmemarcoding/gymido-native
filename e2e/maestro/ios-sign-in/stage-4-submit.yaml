@@ -1,0 +1,10 @@
+# T-29 stage 4: submit, then wait for the signed-in app.
+# hideKeyboard first: the keyboard's accessory bar covers "Continue".
+appId: com.gymido.app
+---
+- hideKeyboard
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible:
+      id: "tab-Today"
+    timeout: 60000

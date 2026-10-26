@@ -83,4 +83,22 @@ describe('validateAddSet', () => {
       target_weight_unit: 'kg',
     });
   });
+
+  it('reads a comma decimal and rejects junk (T-16)', () => {
+    expect(validateAddSet({ ...blank, weight: '82,5' })).toEqual({});
+    for (const junk of ['abc', '8,5,1', '1e2']) {
+      expect(validateAddSet({ ...blank, weight: junk })).toEqual({ target_weight_value: 'Weight must be a positive number.' });
+    }
+    expect(buildAddSetPayload({ setNumber: 2, ...blank, weight: '82,5', unit: 'kg' })).toEqual({
+      set_number: 2,
+      target_weight_value: 82.5,
+      target_weight_unit: 'kg',
+    });
+  });
+
+  it('treats a spaces-only weight as no weight (T-16)', () => {
+    expect(validateAddSet({ ...blank, weight: '   ' })).toEqual({ target_reps_min: 'At least reps or weight must be specified.' });
+    expect(validateAddSet({ ...blank, repsMin: '8', weight: '  ' })).toEqual({});
+    expect(buildAddSetPayload({ setNumber: 3, ...blank, repsMin: '8', weight: '  ' })).toEqual({ set_number: 3, target_reps_min: 8 });
+  });
 });

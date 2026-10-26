@@ -25,9 +25,13 @@ appId: com.gymido.app
     commands:
       - tapOn:
           id: "tab-Profile"
-      - extendedWaitUntil:
-          visible:
+      # On a small phone (iPhone SE) sign-out starts below the fold, so
+      # scroll to it rather than wait for it.
+      - scrollUntilVisible:
+          element:
             id: "settings-sign-out"
+          direction: DOWN
+          centerElement: true
           timeout: 20000
 - runFlow:
     when:

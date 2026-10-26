@@ -1,3 +1,4 @@
+import { parseDecimal } from '../../../shared/format/numbers';
 import { parseDateValue } from '../../../shared/time/timestamps';
 
 // Pure rules of the session runtime (RN-SPEC-workout Part B, with O8 and
@@ -113,7 +114,8 @@ export function nextSetKeyAfter(ordered, justDoneId) {
 }
 
 // §20.2: seed drafts, never overwriting one that exists. Cleared entirely
-// when the session has no exercises.
+// when the session has no exercises. A completed set shows only what was
+// saved, which may be no weight (T-16, 25 Oct 2026).
 export function seedDrafts(session, statsMap, previous) {
   const exercises = session?.exercises ?? [];
   if (exercises.length === 0) {
@@ -124,7 +126,9 @@ export function seedDrafts(session, statsMap, previous) {
     const stats = statsMap?.[exercise.exercise?.id];
     for (const set of exercise.sets ?? []) {
       next[set.id] = next[set.id] || {
-        actualWeightValue: set.actual_weight_value ?? set.target_weight_value ?? stats?.value ?? '',
+        actualWeightValue: set.is_completed
+          ? set.actual_weight_value ?? ''
+          : set.actual_weight_value ?? set.target_weight_value ?? stats?.value ?? '',
         actualWeightUnit: set.actual_weight_unit || set.target_weight_unit || stats?.unit || 'lb',
       };
     }
@@ -147,15 +151,10 @@ export function propagateDraft(drafts, exercise, setId, field, value) {
   return next;
 }
 
-// §20.5 "any positive number is accepted": the iOS decimal pad shows ","
-// as its only decimal key in comma locales (DE, FR, ES, IT), so "22,5" reads
-// as 22.5. Only the first comma is a decimal mark; "1,2,3" stays invalid.
+// §20.5/§21.1 (T-16): "22,5" reads as 22.5; blank or junk ("1,2,3", "1e2")
+// is NaN.
 export function parseWeight(value) {
-  if (value === null || value === undefined) {
-    return NaN;
-  }
-  const text = String(value).trim();
-  return text === '' ? NaN : Number(text.replace(',', '.'));
+  return parseDecimal(value) ?? NaN;
 }
 
 // "Did it" / "Undo" in flight, per set. A second tap on a set whose PATCH is
@@ -178,10 +177,11 @@ export function createPendingSets() {
   };
 }
 
-// §21.1, on "Did it" only.
+// §21.1, on "Did it" only. The weight is optional (T-16, 25 Oct 2026): a
+// blank or spaces-only draft completes the set with no weight.
 export function validateDraftWeight(value) {
-  if (value === '' || value === null || value === undefined) {
-    return 'Enter a weight before marking this set complete.';
+  if (String(value ?? '').trim() === '') {
+    return null;
   }
   const number = parseWeight(value);
   if (!Number.isFinite(number) || number <= 0) {
@@ -203,6 +203,12 @@ export function buildSetPatch(set, draft, now = new Date()) {
     is_completed: completing,
     completed_at: completing ? now.toISOString() : null,
   };
+}
+
+// §20.2 (T-16): after a successful "Did it" the draft becomes the saved set,
+// since a null weight on the PATCH leaves an earlier saved weight in place.
+export function draftFromSavedSet(saved, sentUnit) {
+  return { actualWeightValue: saved.actual_weight_value ?? '', actualWeightUnit: saved.actual_weight_unit || sentUnit };
 }
 
 // §19.3 reps label (EN DASH; 23 Oct: equal ends read "12 reps").

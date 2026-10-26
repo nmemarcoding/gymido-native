@@ -2,7 +2,7 @@ import { CommonActions } from '@react-navigation/native';
 
 import { navigationRef } from '../../navigation/navigationRef';
 import { routes } from '../../navigation/routes';
-import { handOffToWorkout } from './shellLinks';
+import { handOffToWorkout, openShellPath } from './shellLinks';
 import { ShellTab } from './shellNavigation';
 
 jest.mock('../../navigation/navigationRef', () => ({
@@ -37,5 +37,18 @@ describe('handOffToWorkout', () => {
       ...CommonActions.reset({ index: 0, routes: [{ name: routes.PlansLibrary }] }),
       target: 'plans-stack',
     });
+  });
+});
+
+describe('openShellPath', () => {
+  it('gives every entry to a tab root a new `entry`, and pushed screens none (T-12 F3)', () => {
+    navigationRef.navigate.mockClear();
+    openShellPath('/exercises');
+    openShellPath('/exercises');
+    const [first, second] = navigationRef.navigate.mock.calls.map((call) => call[1].params);
+    expect(first.screen).toBe(routes.Exercises);
+    expect(second.params.entry).toBeGreaterThan(first.params.entry);
+    openShellPath('/workout', { message: 'Hi' });
+    expect(navigationRef.navigate.mock.calls[2][1].params).toEqual({ screen: routes.Workout, params: { message: 'Hi' }, initial: false });
   });
 });

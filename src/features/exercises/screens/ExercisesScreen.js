@@ -1,16 +1,30 @@
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, FlatList, Platform, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import {
+  AccessibilityInfo,
+  Animated,
+  BackHandler,
+  Easing,
+  FlatList,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
 import { routes } from '../../../navigation/routes';
 import BlurLayer from '../../../shared/components/BlurLayer';
 import EmptyState from '../../../shared/components/EmptyState';
+import ErrorAlert from '../../../shared/components/ErrorAlert';
 import { InlineError } from '../../../shared/components/FeedbackBox';
 import Loader from '../../../shared/components/Loader';
 import RemoteImage from '../../../shared/components/RemoteImage';
-import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
+import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { breakpoints, colors, radii, shadows } from '../../../shared/theme/tokens';
 import { useAuthStore } from '../../auth/authStore';
 import AppHeader from '../../shell/AppHeader';
@@ -20,6 +34,7 @@ import { getScreenPath } from '../../shell/shellNavigation';
 import { resolveMode, showsMobileModeSwitch } from '../../shell/shellRules';
 import { listExercisesPage } from '../api/exercisesApi';
 import MuscleGroupSheet from '../components/MuscleGroupSheet';
+import { getCachedList, setCachedList } from '../exerciseListCache';
 import {
   INITIAL_SEARCH,
   cardMuscleLabel,
@@ -30,19 +45,23 @@ import {
   gridColumns,
   gridRows,
   loadExerciseCatalog,
+  loadRestPages,
   popSearch,
   submitSearch,
 } from '../exercisesCatalog';
 
-// RN-SPEC-exercises §E1 (Exercises tab root, `/exercises`). Every focus is
-// a fresh mount (plans §8.1): search, filter and list reset and reload.
+// RN-SPEC-exercises §E1 (Exercises tab root, `/exercises`). §E1.1a (T-12
+// F3): a tab press or link (a new `entry` from openShellPath) is a fresh
+// mount, so search, filter and scroll reset. A pop back from an exercise
+// keeps this mounted screen as it was (filter, search, scroll) and reloads
+// the list quietly.
 //
 // Unlike ShellPage, the shell chrome (app-shell §4) is drawn inside one
 // virtualised FlatList so the search/filter bar can stick to the top while
 // 700+ cards scroll under it. Same header, mode switch, sidebar and paddings.
 export default function ExercisesScreen() {
-  const remountKey = useFocusRemountKey();
-  return <ExercisesCatalog key={remountKey} />;
+  const route = useRoute();
+  return <ExercisesCatalog key={route.params?.entry ?? 0} />;
 }
 
 function ExercisesCatalog() {
@@ -67,35 +86,157 @@ function ExercisesCatalog() {
   const [search, setSearch] = useState(INITIAL_SEARCH);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [isFilterOpen, setFilterOpen] = useState(false);
-  const [load, setLoad] = useState({ status: 'loading', items: [], error: null });
-
-  // §E1.2 (F1): runs on mount and whenever the applied search changes.
+  // `partial`: pages 2…N failed (§E1.2 step 4); its `error` is null while a
+  // Retry is in flight, which hides the alert. `complete`: every page is in.
+  const [load, setLoad] = useState({ status: 'loading', items: [], error: null, partial: null, complete: false });
+  const loadRef = useRef(load);
+  loadRef.current = load;
+  const lastReturns = useRef(0);
+  // §E1.2 step 1 (T-12 F2): a search reload keeps the list, with a spinner
+  // in the search field.
+  const [searching, setSearching] = useState(false);
+  const listRef = useRef(null);
+  const scrollToTop = () => listRef.current?.scrollToOffset({ offset: 0, animated: false });
+  // Bumped by every new load and on unmount; an older load's or retry's
+  // answer is dropped.
+  const loadId = useRef(0);
+  // §E1.1a: coming back to this screen (a pop from an exercise) loads again.
+  const [returns, setReturns] = useState(0);
   useEffect(() => {
-    let alive = true;
-    setLoad({ status: 'loading', items: [], error: null });
-    loadExerciseCatalog({
-      fetchPage: listExercisesPage,
-      search: search.applied,
-      onFirstPage: (items) => {
-        if (alive) {
-          setLoad({ status: 'loaded', items, error: null });
+    let blurred = false;
+    const offBlur = navigation.addListener('blur', () => {
+      blurred = true;
+    });
+    const offFocus = navigation.addListener('focus', () => {
+      if (blurred) {
+        blurred = false;
+        setReturns((value) => value + 1);
+      }
+    });
+    return () => {
+      offBlur();
+      offFocus();
+    };
+  }, [navigation]);
+
+  // §E1.2 (F1): runs on mount, whenever the applied search changes, and on
+  // a return. §E1.1a: a cached complete list shows at once and is reloaded
+  // quietly; nothing changes until the whole new list is in, and a failure
+  // keeps the cached list with no error. Native (T-12 F3 review M2): a
+  // return with no cache but a list on screen reloads quietly too, so the
+  // scroll is kept; only a complete result replaces it, a page-1 failure
+  // keeps it, and a later-page failure shows the step-4 alert if the list
+  // shown is not complete.
+  useEffect(() => {
+    const id = ++loadId.current;
+    const alive = () => loadId.current === id;
+    const applied = search.applied;
+    const isReturn = returns !== lastReturns.current;
+    lastReturns.current = returns;
+    const shown = loadRef.current;
+    const cached = getCachedList(applied);
+    const quiet = Boolean(cached) || (isReturn && shown.status === 'loaded' && shown.items.length > 0);
+    // A new search while a list is shown (not a return, not the first load).
+    const searchReload = !isReturn && shown.status === 'loaded';
+    setSearching(false);
+    if (quiet) {
+      if (cached) {
+        setLoad((current) =>
+          current.items === cached ? current : { status: 'loaded', items: cached, error: null, partial: null, complete: true }
+        );
+        if (searchReload) {
+          scrollToTop();
         }
-      },
-    })
-      .then((items) => {
-        if (alive) {
-          setLoad({ status: 'loaded', items, error: null });
+      }
+      loadExerciseCatalog({ fetchPage: listExercisesPage, search: applied })
+        .then(({ items, partial }) => {
+          if (!partial) {
+            setCachedList(applied, items);
+            if (alive()) {
+              setLoad({ status: 'loaded', items, error: null, partial: null, complete: true });
+            }
+          } else if (alive()) {
+            setLoad((current) => (current.complete || current.partial ? current : { ...current, partial }));
+          }
+        })
+        .catch(() => {});
+    } else {
+      if (searchReload) {
+        // The old search's step-4 alert (and its Retry) goes when searching starts.
+        setLoad((current) => ({ ...current, partial: null }));
+        setSearching(true);
+        AccessibilityInfo.announceForAccessibility('Searching…');
+      } else {
+        setLoad({ status: 'loading', items: [], error: null, partial: null, complete: false });
+      }
+      // Page 1 replaces the list (from the top, when it was a search reload).
+      let firstShown = false;
+      const showFirst = (items, rest) => {
+        firstShown = true;
+        setLoad({ status: 'loaded', items, error: null, complete: false, partial: null, ...rest });
+        setSearching(false);
+        if (searchReload) {
+          scrollToTop();
+        }
+      };
+      loadExerciseCatalog({
+        fetchPage: listExercisesPage,
+        search: applied,
+        onFirstPage: (items) => {
+          if (alive()) {
+            showFirst(items);
+          }
+        },
+      })
+        .then(({ items, partial }) => {
+          if (!partial) {
+            setCachedList(applied, items);
+          }
+          if (!alive()) {
+            return;
+          }
+          if (firstShown) {
+            setLoad({ status: 'loaded', items, error: null, partial, complete: !partial });
+          } else {
+            showFirst(items, { partial, complete: !partial });
+          }
+        })
+        .catch((error) => {
+          if (alive()) {
+            setSearching(false);
+            setLoad({ status: 'error', items: [], error, partial: null, complete: false });
+          }
+        });
+    }
+    return () => {
+      loadId.current += 1;
+    };
+  }, [search.applied, returns]);
+
+  // §E1.2 step 4: Retry re-requests pages 2…N only, with the same search.
+  const retryRestPages = () => {
+    const { partial } = load;
+    // Only ever completes the search that failed.
+    if (!partial?.error || partial.search !== search.applied) {
+      return;
+    }
+    const id = loadId.current;
+    const applied = search.applied;
+    setLoad((current) => ({ ...current, partial: { ...partial, error: null } }));
+    loadRestPages({ fetchPage: listExercisesPage, search: applied, totalPages: partial.totalPages })
+      .then((rest) => {
+        const items = partial.firstItems.concat(rest);
+        setCachedList(applied, items);
+        if (loadId.current === id) {
+          setLoad({ status: 'loaded', items, error: null, partial: null, complete: true });
         }
       })
       .catch((error) => {
-        if (alive) {
-          setLoad({ status: 'error', items: [], error });
+        if (loadId.current === id) {
+          setLoad((current) => ({ ...current, partial: { ...partial, error } }));
         }
       });
-    return () => {
-      alive = false;
-    };
-  }, [search.applied]);
+  };
 
   // ⚠E-10: Android back steps back through applied searches first.
   const searchRef = useRef(search);
@@ -130,6 +271,9 @@ function ExercisesCatalog() {
       rows.push({ type: 'error', key: 'error' });
     } else {
       rows.push({ type: 'bar', key: 'bar' });
+      if (load.partial?.error) {
+        rows.push({ type: 'partialError', key: 'partialError' });
+      }
       if (load.items.length === 0) {
         rows.push({ type: 'empty', key: 'empty' });
       } else {
@@ -138,7 +282,7 @@ function ExercisesCatalog() {
       }
     }
     return rows;
-  }, [load.status, load.items, catalog.groups, columns]);
+  }, [load.status, load.items, load.partial, catalog.groups, columns]);
 
   const renderItem = ({ item }) => {
     switch (item.type) {
@@ -162,7 +306,7 @@ function ExercisesCatalog() {
           </View>
         );
       case 'error':
-        // ⚠E-4: no retry, no search box.
+        // ⚠E-4 (narrowed 25 Oct to a page-1 failure): no retry, no search box.
         return (
           <View style={padding}>
             <InlineError testID="exercises-error" title="Exercises unavailable" message={catalogErrorMessage(load.error)} />
@@ -175,11 +319,23 @@ function ExercisesCatalog() {
             searchValue={searchValue}
             onChangeSearch={setSearchValue}
             onSubmitSearch={() => setSearch((current) => submitSearch(current, searchValue))}
+            searching={searching}
             showFilter={catalog.categories.length > 0}
             categoryFilter={categoryFilter}
             filterCount={countFor(catalog.categoryCounts, categoryFilter)}
             onOpenFilter={() => setFilterOpen(true)}
           />
+        );
+      case 'partialError':
+        return (
+          <View style={[padding, styles.contentTop]}>
+            <ErrorAlert
+              testID="exercises-partial-error"
+              title="Some exercises didn't load"
+              description={catalogErrorMessage(load.partial.error)}
+              onRetry={retryRestPages}
+            />
+          </View>
         );
       case 'empty':
         return (
@@ -214,7 +370,9 @@ function ExercisesCatalog() {
 
   const list = (
     <FlatList
+      ref={listRef}
       testID="exercises-list"
+      accessibilityState={{ busy: searching }}
       data={data}
       renderItem={renderItem}
       keyExtractor={(item) => item.key}
@@ -259,7 +417,7 @@ function ExercisesCatalog() {
 }
 
 // §E1.4 sticky bar: search form + filter button.
-function StickyBar({ padding, searchValue, onChangeSearch, onSubmitSearch, showFilter, categoryFilter, filterCount, onOpenFilter }) {
+function StickyBar({ padding, searchValue, onChangeSearch, onSubmitSearch, searching, showFilter, categoryFilter, filterCount, onOpenFilter }) {
   const [focused, setFocused] = useState(false);
   return (
     <View testID="exercises-bar" style={[styles.bar, padding]}>
@@ -278,14 +436,17 @@ function StickyBar({ padding, searchValue, onChangeSearch, onSubmitSearch, showF
           accessibilityLabel="Search exercises"
           returnKeyType="search"
           enterKeyHint="search"
-          clearButtonMode={Platform.OS === 'ios' ? 'while-editing' : 'never'}
+          // iOS's clear "×" would sit on the spinner, so it hides while a
+          // search loads (T-12 F2, PM/UX decision 26 Oct 2026).
+          clearButtonMode={!searching && Platform.OS === 'ios' ? 'while-editing' : 'never'}
           autoCorrect={false}
           autoCapitalize="none"
-          style={[styles.searchInput, focused && styles.searchInputFocused]}
+          style={[styles.searchInput, searching && styles.searchInputSearching, focused && styles.searchInputFocused]}
         />
         <View pointerEvents="none" style={styles.searchGlyph} accessibilityElementsHidden importantForAccessibility="no">
           <Text style={styles.searchGlyphText}>⌕</Text>
         </View>
+        {searching ? <SearchSpinner /> : null}
       </View>
       {showFilter ? (
         <Pressable
@@ -314,6 +475,28 @@ function StickyBar({ padding, searchValue, onChangeSearch, onSubmitSearch, showF
           </View>
         </Pressable>
       ) : null}
+    </View>
+  );
+}
+
+// §E1.2 step 1 (T-12 F2): 18×18 at 14 from the right, a 2px `border` ring
+// with a brand-700 top arc; 1 turn/s, or 3 s with reduced motion (it never
+// stops). Not pressable, hidden from accessibility.
+function SearchSpinner() {
+  const reducedMotion = useReducedMotion();
+  const turn = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    turn.setValue(0);
+    const animation = Animated.loop(
+      Animated.timing(turn, { toValue: 1, duration: reducedMotion ? 3000 : 1000, easing: Easing.linear, useNativeDriver: true })
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [turn, reducedMotion]);
+  const rotate = turn.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  return (
+    <View testID="exercises-search-spinner" pointerEvents="none" style={styles.spinnerSlot} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Animated.View style={[styles.spinner, { transform: [{ rotate }] }]} />
     </View>
   );
 }
@@ -415,8 +598,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textPrimary,
   },
+  searchInputSearching: {
+    paddingRight: 44,
+  },
   searchInputFocused: {
     borderColor: colors.brand400,
+  },
+  spinnerSlot: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 14,
+    justifyContent: 'center',
+  },
+  spinner: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderTopColor: colors.brand700,
   },
   searchGlyph: {
     position: 'absolute',

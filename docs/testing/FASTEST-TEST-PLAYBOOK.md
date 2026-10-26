@@ -44,6 +44,8 @@ Everything under `src/`, the e2e YAML, and `extra` values (API URL) is JS-only. 
 
 ## 3a. Test credentials: never left in Maestro output (rule since 23 Oct)
 
+- **iOS sign-in (T-29):** use `e2e/scripts/ios-safe-sign-in.sh <udid> <ACCOUNT>`. It types in stages (email + one probe character, erase, password, submit), checks the form between stages with `e2e/scripts/ios-login-check.py` (PASS/FAIL only), passes credentials as `MAESTRO_LOGIN_*` env vars (never `-e`), purges Maestro's output after every stage and byte-sweeps at the end. A failed check cancels the login sheet. Never screenshot the filled form or the Profile screen (it shows the account email); diagnose from the hierarchy instead.
+
 Maestro writes every `-e` value, passwords included, into its own `maestro.log` and `commands.json`, under `--test-output-dir` and `~/.maestro/tests`. On 23 Oct a sweep found 355 such files going back to 21 Oct, and a failure screenshot that showed a password typed into the wrong field.
 
 - **Don't pass a password with `-e` unless the run deletes those files straight away.** A local runner script (not in the repo) runs `find <output> ~/.maestro/tests \( -name maestro.log -o -name commands.json \) -delete` after every flow.
@@ -61,7 +63,8 @@ Maestro writes every `-e` value, passwords included, into its own `maestro.log` 
 - **iOS:**
   - `hideKeyboard` fails on the number pad (it has no return key). Tap a visible button instead.
   - With the simulator's hardware keyboard connected, iOS draws no soft keyboard. Turn it off for keyboard shots.
-  - The grey gear is the dev client's Tools button (dev-only). Turn it off in the dev menu by hand.
+  - The grey gear is the dev client's Tools button (dev-only). On a fresh simulator the dev menu also opens its intro sheet at launch, which blocks `launch-dev-client`.
+    - Fix both once per simulator (and again after the app is reinstalled): `e2e/scripts/ios-skip-dev-menu-intro.sh <udid>...` (T-39). The dev menu still opens with ⌃⌘Z.
 - **Slow API shots (skeletons):**
   - Use a local delay proxy (a ~10-line Node script, not in the repo: forward :8090 → :8080 and hold each response ~4 s) and set `API_BASE_URL` to `:8090` temporarily in the gitignored localtest env. ALWAYS restore it afterwards.
   - The emulator's GPRS throttle doesn't slow 10.0.2.2.

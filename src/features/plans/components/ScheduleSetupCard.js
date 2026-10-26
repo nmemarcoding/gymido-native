@@ -65,7 +65,6 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
         selected={selected}
         onToggle={(id) => setSelected((current) => toggleWeekday(current, id, required))}
         testIDPrefix="schedule-setup-weekday"
-        touchHeight
         fullNames
       />
       <Pressable

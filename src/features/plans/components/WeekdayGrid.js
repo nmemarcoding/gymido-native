@@ -4,10 +4,10 @@ import { colors, radii } from '../../../shared/theme/tokens';
 import { WEEKDAYS, selectedWeekdaysLabel } from '../libraryFormat';
 
 // The weekday picker of RN-SPEC-plans §4.6, shared with S3 (§5): seven
-// chips Mon…Sun and the "Selected: …" line. `touchHeight` adds A3's 44 pt
-// minimum where a spec asks for it (S3); `fullNames` spells the Selected line
-// out in full (S3).
-export default function WeekdayGrid({ selected, onToggle, testIDPrefix, touchHeight = false, fullNames = false }) {
+// chips Mon…Sun and the "Selected: …" line. Every chip is at least 44 pt
+// tall (batch 2 #29; was S3 only); `fullNames` spells the Selected line out
+// in full (S3).
+export default function WeekdayGrid({ selected, onToggle, testIDPrefix, fullNames = false }) {
   return (
     <>
       <View style={styles.grid}>
@@ -22,7 +22,6 @@ export default function WeekdayGrid({ selected, onToggle, testIDPrefix, touchHei
               onPress={() => onToggle(weekday.id)}
               style={({ pressed }) => [
                 styles.chip,
-                touchHeight && styles.touch,
                 isSelected ? styles.selected : pressed ? styles.pressed : styles.idle,
               ]}
             >
@@ -55,8 +54,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: radii.xl,
     paddingVertical: 12,
-  },
-  touch: {
     minHeight: 44,
   },
   selected: {
