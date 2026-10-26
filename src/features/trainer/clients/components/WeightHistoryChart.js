@@ -5,7 +5,7 @@ import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop, Text as SvgText } 
 import EmptyState from '../../../../shared/components/EmptyState';
 import { colors, radii, shadows } from '../../../../shared/theme/tokens';
 import { formatWeight } from '../clientFormat';
-import { buildWeightSeries, fixedDomainTicks, monotoneXPath, thinLabels } from '../weightChartData';
+import { buildWeightSeries, fixedDomainTicks, monotoneXPath, thinLabels, tickLabel } from '../weightChartData';
 
 const TEAL = '#009ca6';
 const GRID = '#e2e8f0';
@@ -110,7 +110,7 @@ export default function WeightHistoryChart({ logs, profile, unit }) {
                 fill={AXIS_COLOR}
                 textAnchor="end"
               >
-                {String(tick)}
+                {tickLabel(tick)}
               </SvgText>
             ))}
             {labels.map((label, index) =>

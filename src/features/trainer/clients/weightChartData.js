@@ -81,6 +81,13 @@ export function fixedDomainTicks(min, max, tickCount = 5) {
   return ticks;
 }
 
+// A y tick's label: at most one decimal. Converted kg/lb logs make the
+// domain ends raw floats ("76.1107029"), which were printed in full and
+// clipped on the left (T-38 QA, 25 Oct 2026). The tick positions stay exact.
+export function tickLabel(value) {
+  return String(Math.round(value * 10) / 10);
+}
+
 // Recharts' getFormatStep: round the rough step up to 0.1 (one-digit steps)
 // or 0.05 (otherwise) of its power of ten.
 function formatStep(roughStep) {

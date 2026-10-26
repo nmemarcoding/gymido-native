@@ -1,4 +1,4 @@
-import { buildWeightSeries, chartUnit, fixedDomainTicks, logsSince, monotoneXPath, thinLabels } from './weightChartData';
+import { buildWeightSeries, chartUnit, fixedDomainTicks, logsSince, monotoneXPath, thinLabels, tickLabel } from './weightChartData';
 
 describe('buildWeightSeries (§C5.3)', () => {
   it('plots oldest first in one unit with a ±1 domain (T-38, retires ⚠C-9)', () => {
@@ -108,5 +108,14 @@ describe('monotoneXPath (d3 curveMonotoneX)', () => {
 
   it('skips coincident points', () => {
     expect(monotoneXPath([[0, 1], [0, 1], [1, 3]])).toBe('M0,1L1,3');
+  });
+});
+
+describe('tickLabel (T-38 QA)', () => {
+  it('prints at most one decimal, so converted domain ends are not raw floats', () => {
+    expect(tickLabel(76.1107029)).toBe('76.1');
+    expect(tickLabel(79.5)).toBe('79.5');
+    expect(tickLabel(80)).toBe('80');
+    expect(tickLabel(169.96)).toBe('170');
   });
 });
