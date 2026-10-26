@@ -25,13 +25,28 @@ export function weightUnits(profile, weightLogs) {
 
 const KG_PER_LB = 0.45359237;
 
-// 1 lb = 0.45359237 kg exactly; same or unknown units pass through.
+// 1 lb = 0.45359237 kg exactly. Only lb → kg and kg → lb convert; any other
+// pair (same, unknown or missing units) passes through unchanged.
 export function convertWeight(value, from, to) {
   const number = Number(value);
-  if (from === to || !from || !to) {
-    return number;
+  if (from === 'lb' && to === 'kg') {
+    return number * KG_PER_LB;
   }
-  return from === 'lb' ? number * KG_PER_LB : number / KG_PER_LB;
+  if (from === 'kg' && to === 'lb') {
+    return number / KG_PER_LB;
+  }
+  return number;
+}
+
+// T-34 F1 (RN-SPEC-progress, 25 Oct 2026): a weight log saved on Progress
+// becomes the profile's current weight + unit, with no refetch. null (leave
+// the store alone) without a profile or without both saved fields.
+export function profileAfterWeightLog(profile, saved) {
+  const log = saved?.weight_log;
+  if (!profile || log?.weight_value == null || !log?.weight_unit) {
+    return null;
+  }
+  return { ...profile, current_weight_value: log.weight_value, current_weight_unit: log.weight_unit };
 }
 
 // ⚠PR-3: only losing weight counts; the gap is floored at 1; missing goal or

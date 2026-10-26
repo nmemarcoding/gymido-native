@@ -9,6 +9,7 @@ import {
   gridRows,
   logCountLabel,
   maxFrequency,
+  profileAfterWeightLog,
   progressUnit,
   recentLogRows,
   weightStats,
@@ -52,12 +53,32 @@ describe('weightStats (T-34)', () => {
   });
 });
 
+describe('profileAfterWeightLog (T-34 F1)', () => {
+  it('patches the current weight + unit from the saved log, so Current keeps its unit', () => {
+    const profile = { current_weight_value: 80, current_weight_unit: 'kg', goal_weight_unit: 'kg', first_name: 'QA' };
+    const patched = profileAfterWeightLog(profile, { weight_log: { id: 9, weight_value: 170, weight_unit: 'lb' } });
+    expect(patched).toEqual({ ...profile, current_weight_value: 170, current_weight_unit: 'lb' });
+    const units = weightUnits(patched, [{ weight_unit: 'lb' }]);
+    const stats = weightStats({ current_weight: 170, goal_weight: 75, difference_to_goal: -2.1 }, units);
+    expect(stats.map((s) => s.value)).toEqual(['170 lb', '75 kg', '-2.1 kg']);
+  });
+
+  it('leaves the store alone without a profile or without both saved fields', () => {
+    expect(profileAfterWeightLog(null, { weight_log: { weight_value: 170, weight_unit: 'lb' } })).toBeNull();
+    expect(profileAfterWeightLog({ current_weight_unit: 'kg' }, { weight_log: { weight_value: 170 } })).toBeNull();
+    expect(profileAfterWeightLog({ current_weight_unit: 'kg' }, { weight_log: { weight_unit: 'lb' } })).toBeNull();
+    expect(profileAfterWeightLog({ current_weight_unit: 'kg' }, undefined)).toBeNull();
+  });
+});
+
 describe('convertWeight', () => {
   it('converts between lb and kg and leaves same or unknown units alone', () => {
     expect(convertWeight(100, 'lb', 'kg')).toBeCloseTo(45.359237);
     expect(convertWeight(45.359237, 'kg', 'lb')).toBeCloseTo(100);
     expect(convertWeight('80', 'kg', 'kg')).toBe(80);
     expect(convertWeight(80, undefined, 'kg')).toBe(80);
+    expect(convertWeight(80, 'st', 'kg')).toBe(80);
+    expect(convertWeight(80, 'lb', 'st')).toBe(80);
   });
 });
 

@@ -46,8 +46,10 @@ export default function WeightLogModal({ isOpen, onClose, onSuccess, defaultUnit
     }
     setSubmitting(true);
     try {
-      await logWeight(weightLogBody(value, unit));
-      onSuccess?.();
+      // The 201 body ({ weight_log }) goes to the caller (Progress patches the
+      // profile store from it, T-34 F1).
+      const saved = await logWeight(weightLogBody(value, unit));
+      onSuccess?.(saved);
       onClose();
     } catch (error) {
       setErrorMessage(getServerMessage(error));

@@ -11,7 +11,7 @@ import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
 import { formatNumber } from '../../shared/format/numbers';
 import { breakpoints, colors, radii, shadows } from '../../shared/theme/tokens';
 import WeightLogModal from '../home/WeightLogModal';
-import { useProfileStore } from '../profile/profileStore';
+import { setStoredProfile, useProfileStore } from '../profile/profileStore';
 import ShellPage from '../shell/ShellPage';
 import WeightHistoryChart from '../trainer/clients/components/WeightHistoryChart';
 import { loadProgress } from './api/progressApi';
@@ -23,6 +23,7 @@ import {
   gridRows,
   logCountLabel,
   maxFrequency,
+  profileAfterWeightLog,
   progressUnit,
   recentLogRows,
   weightStats,
@@ -135,7 +136,12 @@ function Progress() {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         defaultUnit={unit}
-        onSuccess={() => {
+        onSuccess={(saved) => {
+          // T-34 F1: patch the store before the reload, so Current keeps its unit.
+          const patched = profileAfterWeightLog(useProfileStore.getState().profile, saved);
+          if (patched) {
+            setStoredProfile(patched);
+          }
           setModalOpen(false);
           setSuccessMessage('Weight log added.');
           setReloadCount((value) => value + 1);
