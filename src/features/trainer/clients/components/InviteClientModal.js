@@ -251,6 +251,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '700',
-    color: '#22c55e',
+    color: colors.success700,
   },
 });

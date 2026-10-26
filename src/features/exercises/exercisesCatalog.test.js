@@ -9,6 +9,7 @@ import {
   gridRows,
   groupKey,
   loadExerciseCatalog,
+  loadRestPages,
   pageCount,
   pageItems,
   popSearch,
@@ -31,7 +32,7 @@ describe('catalog load (§E1.2, F1)', () => {
   it('fetches one page when there is only one, without a first-page callback', async () => {
     const fetchPage = jest.fn().mockResolvedValue(page([ex(1)], 1));
     const onFirstPage = jest.fn();
-    await expect(loadExerciseCatalog({ fetchPage, search: 'row', onFirstPage })).resolves.toEqual([ex(1)]);
+    await expect(loadExerciseCatalog({ fetchPage, search: 'row', onFirstPage })).resolves.toEqual({ items: [ex(1)], partial: null });
     expect(fetchPage.mock.calls).toEqual([[1, 'row']]);
     expect(onFirstPage).not.toHaveBeenCalled();
   });
@@ -55,14 +56,32 @@ describe('catalog load (§E1.2, F1)', () => {
     expect(order).toEqual([1, 2, 3]);
     resolvers[3](page([ex(3)], 3));
     resolvers[2](page([ex(2)], 3));
-    await expect(result).resolves.toEqual([ex(1), ex(2), ex(3)]);
+    await expect(result).resolves.toEqual({ items: [ex(1), ex(2), ex(3)], partial: null });
     expect(fetchPage.mock.calls.map((call) => call[1])).toEqual(['', '', '']);
   });
 
-  it('fails the whole load when any page fails', async () => {
+  it('fails the whole load when page 1 fails', async () => {
+    const failure = new Error('Request failed with status code 500');
+    const fetchPage = jest.fn().mockRejectedValue(failure);
+    await expect(loadExerciseCatalog({ fetchPage })).rejects.toBe(failure);
+  });
+
+  it('keeps page 1 when a later page fails (step 4, T-16)', async () => {
     const failure = new Error('Request failed with status code 500');
     const fetchPage = jest.fn((n) => (n === 2 ? Promise.reject(failure) : Promise.resolve(page([ex(n)], 3))));
-    await expect(loadExerciseCatalog({ fetchPage })).rejects.toBe(failure);
+    await expect(loadExerciseCatalog({ fetchPage, search: 'row' })).resolves.toEqual({
+      items: [ex(1)],
+      partial: { firstItems: [ex(1)], totalPages: 3, error: failure, search: 'row' },
+    });
+  });
+
+  it('re-requests pages 2…N only, in parallel and in page order', async () => {
+    const fetchPage = jest.fn((n) => Promise.resolve(page([ex(n)], 3)));
+    await expect(loadRestPages({ fetchPage, search: 'row', totalPages: 3 })).resolves.toEqual([ex(2), ex(3)]);
+    expect(fetchPage.mock.calls).toEqual([
+      [2, 'row'],
+      [3, 'row'],
+    ]);
   });
 
   it('uses the transport error text, else "Please try again."', () => {

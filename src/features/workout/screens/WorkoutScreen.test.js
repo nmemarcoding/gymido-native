@@ -163,6 +163,22 @@ describe('WorkoutScreen', () => {
     jest.restoreAllMocks();
   });
 
+  it('after an ended-elsewhere 409 the reload lands on the hub with the message (T-37)', async () => {
+    loadWorkoutPage.mockResolvedValue(withSession);
+    const tree = await render();
+    expect(find(tree, 'runtime')).toHaveLength(1);
+    loadWorkoutPage.mockResolvedValue(noSession);
+    const message = 'This workout was already ended on another device. Start a new one when you’re ready.';
+    await act(async () => {
+      mockRuntime.setActionError(message);
+      await mockRuntime.reloadWithLoader();
+    });
+    expect(find(tree, 'runtime')).toHaveLength(0);
+    const toast = tree.root.findAll((node) => node.props.testID === 'workout-action-error')[0];
+    expect(toast.props.message).toBe(message);
+    expect(find(tree, 'completion-popup')).toHaveLength(0);
+  });
+
   it('never intercepts without a session', async () => {
     loadWorkoutPage.mockResolvedValue(noSession);
     const tree = await render();

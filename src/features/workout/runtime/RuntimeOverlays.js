@@ -782,6 +782,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   discardLinkPressed: {
-    color: colors.danger,
+    color: colors.danger700,
   },
 });

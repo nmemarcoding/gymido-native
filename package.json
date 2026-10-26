@@ -59,5 +59,9 @@
     "dotenv": "^17.4.2",
     "jest": "~29.7.0",
     "jest-expo": "~57.0.6"
+  },
+  "overrides": {
+    "follow-redirects": "^1.16.1",
+    "shell-quote": "^1.12.0"
   }
 }

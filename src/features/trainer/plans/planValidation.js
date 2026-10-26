@@ -1,3 +1,5 @@
+import { parseDecimal } from '../../../shared/format/numbers';
+
 // Client validation and payloads of the trainer plans spec, exact copy.
 
 const SLUG_PATTERN = /^[a-z0-9_-]+$/;
@@ -58,10 +60,14 @@ const isBadPositive = (value) => {
   return Number.isNaN(number) || number <= 0;
 };
 
+// §A8 (T-16, 25 Oct 2026): the weight is read with parseDecimal ("82,5" →
+// 82.5), and a spaces-only weight counts as no weight.
+const hasWeight = (weight) => String(weight ?? '').trim() !== '';
+
 // §A8. Later checks overwrite earlier ones for the same field.
 export function validateAddSet({ repsMin, repsMax, weight, unit, rest }) {
   const errors = {};
-  if (!repsMin && !repsMax && !weight) {
+  if (!repsMin && !repsMax && !hasWeight(weight)) {
     errors.target_reps_min = 'At least reps or weight must be specified.';
   }
   if (repsMin && isBadPositive(repsMin)) {
@@ -73,10 +79,10 @@ export function validateAddSet({ repsMin, repsMax, weight, unit, rest }) {
   if (repsMin && repsMax && Number(repsMin) > Number(repsMax)) {
     errors.target_reps_min = 'Minimum reps cannot be greater than maximum reps.';
   }
-  if (weight && isBadPositive(weight)) {
+  if (hasWeight(weight) && !(parseDecimal(weight) > 0)) {
     errors.target_weight_value = 'Weight must be a positive number.';
   }
-  if (weight && !unit.trim()) {
+  if (hasWeight(weight) && !unit.trim()) {
     errors.target_weight_unit = 'Weight unit is required when a weight is entered.';
   }
   if (rest && isBadPositive(rest)) {
@@ -96,8 +102,8 @@ export function buildAddSetPayload({ setNumber, repsMin, repsMax, weight, unit, 
   if (rest) {
     payload.rest_seconds = Number(rest);
   }
-  if (weight) {
-    payload.target_weight_value = Number(weight);
+  if (hasWeight(weight)) {
+    payload.target_weight_value = parseDecimal(weight);
     payload.target_weight_unit = unit.trim() || 'lb';
   }
   return payload;

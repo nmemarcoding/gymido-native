@@ -28,3 +28,16 @@ export function formatSignedNumber(value, unit) {
   const sign = Number(value) > 0 ? '+' : '';
   return `${sign}${formatNumber(value)} ${unit ?? ''}`.trim();
 }
+
+const DECIMAL_TEXT = /^(?:\d+(?:[.,]\d*)?|[.,]\d+)$/;
+
+// Typed weights (dated change 25 Oct 2026, T-16): a comma decimal reads as a
+// dot ("83,5" → 83.5, "83," → 83, ",5" → 0.5); blank → null; anything else,
+// "1e2" and "-2" included, → NaN.
+export function parseDecimal(value) {
+  const text = String(value ?? '').trim();
+  if (text === '') {
+    return null;
+  }
+  return DECIMAL_TEXT.test(text) ? Number(text.replace(',', '.')) : NaN;
+}

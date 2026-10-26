@@ -3,6 +3,7 @@ jest.mock('../TrainerOnly', () => ({ children }) => children);
 jest.mock('../../../shared/hooks/useFocusRemountKey', () => ({ useFocusRemountKey: () => 0 }));
 jest.mock('../../../shared/api/client', () => ({ apiClient: { put: jest.fn() } }));
 jest.mock('./api/trainerProfileApi', () => ({ updateTrainerProfile: jest.fn() }));
+jest.mock('../../auth/authService', () => ({ logout: jest.fn() }));
 jest.mock('../../../shared/components/toastStore', () => ({
   ToastTone: { success: 'success', error: 'error' },
   addToast: jest.fn(),
@@ -11,6 +12,7 @@ jest.mock('../../../shared/components/toastStore', () => ({
 import { act, create } from 'react-test-renderer';
 
 import { apiClient } from '../../../shared/api/client';
+import { logout } from '../../auth/authService';
 import { addToast } from '../../../shared/components/toastStore';
 import { updateTrainerProfile } from './api/trainerProfileApi';
 import TrainerProfileScreen from './screens/TrainerProfileScreen';
@@ -171,5 +173,24 @@ describe('TrainerProfileScreen', () => {
     await act(async () => saveButton(tree.root).props.onPress());
     expect(texts(tree.root)).not.toContain('Could not save');
     expect(texts(tree.root)).toContain('Saved.');
+  });
+
+  it('ends with the P1 #4 Logout after Save profile; it logs out with no confirmation, even while saving (T-44)', async () => {
+    const pending = deferred();
+    updateTrainerProfile.mockReturnValue(pending.promise);
+    const tree = render();
+    const shown = texts(tree.root);
+    expect(shown.indexOf('Logout')).toBeGreaterThan(shown.indexOf('Save profile'));
+    const logoutButton = () => tree.root.find((node) => node.props.testID === 'trainer-profile-sign-out' && node.props.onPress);
+    expect(logoutButton().props.accessibilityRole).toBe('button');
+    expect(logoutButton().props.accessibilityLabel).toBe('Logout');
+    act(() => {
+      saveButton(tree.root).props.onPress();
+    });
+    expect(logoutButton().props.disabled).toBeFalsy();
+    act(() => logoutButton().props.onPress());
+    expect(logout).toHaveBeenCalledTimes(1);
+    expect(texts(tree.root)).not.toContain('Are you sure?');
+    await act(async () => pending.resolve({}));
   });
 });

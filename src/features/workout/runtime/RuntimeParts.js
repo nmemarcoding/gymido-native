@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   exitPressed: {
-    color: colors.danger,
+    color: colors.danger700,
   },
   allText: {
     fontSize: 14,

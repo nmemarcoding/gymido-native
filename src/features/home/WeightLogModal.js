@@ -86,8 +86,8 @@ export default function WeightLogModal({ isOpen, onClose, onSuccess, defaultUnit
           <View style={wide ? styles.valueCell : null}>
             <FormField
               testID="weight-log-value"
+              // No placeholder (RN-SPEC-home H2, dated 25 Oct 2026, T-16).
               label="Today's weight"
-              placeholder="83.5"
               keyboardType="decimal-pad"
               autoFocus
               value={value}

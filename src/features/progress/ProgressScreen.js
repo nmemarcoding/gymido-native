@@ -125,7 +125,7 @@ function Progress() {
       </View>
 
       {tab === 'body' ? (
-        <BodyTab weightProgress={weightProgress} weightLogs={weightLogs} unit={unit} onAddWeight={() => setModalOpen(true)} />
+        <BodyTab weightProgress={weightProgress} weightLogs={weightLogs} onAddWeight={() => setModalOpen(true)} />
       ) : (
         <ActivityTab overview={overview} history={history} frequency={frequency} />
       )}
@@ -148,7 +148,7 @@ function Progress() {
 }
 
 // PR1.4
-function BodyTab({ weightProgress, weightLogs, unit, onAddWeight }) {
+function BodyTab({ weightProgress, weightLogs, onAddWeight }) {
   // T-34: the profile store, already loaded by the profile gate (no request).
   const profile = useProfileStore((state) => state.profile);
   const units = weightUnits(profile, weightLogs);
@@ -169,7 +169,7 @@ function BodyTab({ weightProgress, weightLogs, unit, onAddWeight }) {
       <View testID="progress-goal" style={[styles.bigCard, styles.cardShadow]}>
         <View style={styles.goalRow}>
           <View style={styles.textColumn}>
-            <Text style={styles.sectionTitle}>Goal progress</Text>
+            <Text textBreakStrategy="simple" style={styles.sectionTitle}>Goal progress</Text>
             <Text numberOfLines={1} textBreakStrategy="simple" testID="progress-goal-value" style={styles.goalValue}>{`${formatNumber(completion, 0)}%`}</Text>
           </View>
           <Pressable
@@ -189,13 +189,13 @@ function BodyTab({ weightProgress, weightLogs, unit, onAddWeight }) {
 
       <View testID="progress-history" style={[styles.bigCard, styles.cardShadow]}>
         <View style={styles.historyHeader}>
-          <Text style={styles.sectionTitle}>Weight history</Text>
+          <Text textBreakStrategy="simple" style={styles.sectionTitle}>Weight history</Text>
           <View style={styles.countPill}>
             <Text style={styles.countPillText}>{logCountLabel(weightLogs.length)}</Text>
           </View>
         </View>
         {weightLogs.length > 0 ? (
-          <WeightHistoryChart logs={chartLogs(weightLogs)} unit={unit} />
+          <WeightHistoryChart logs={chartLogs(weightLogs)} unit={units.current} />
         ) : (
           <EmptyState title="No weight logs yet" message="Add your first weight entry to unlock the chart." />
         )}
@@ -282,7 +282,7 @@ function ActivityTab({ overview, history, frequency }) {
 
       <View testID="progress-consistency" style={[styles.bigCard, styles.cardShadow]}>
         <View style={styles.historyHeader}>
-          <Text style={styles.sectionTitle}>12-week consistency</Text>
+          <Text textBreakStrategy="simple" style={styles.sectionTitle}>12-week consistency</Text>
           <Text style={styles.perWeek}>per week</Text>
         </View>
         {frequency.length === 0 ? (
@@ -372,11 +372,12 @@ const styles = StyleSheet.create({
     borderLeftWidth: 1,
     borderLeftColor: colors.border,
   },
+  // Batch 2 #24/#28: the 11px minimum (tracking 0.12em).
   statLabel: {
-    fontSize: 9.92,
-    lineHeight: 14.88,
+    fontSize: 11,
+    lineHeight: 16.5,
     fontWeight: '700',
-    letterSpacing: 1.19,
+    letterSpacing: 1.32,
     textTransform: 'uppercase',
     color: colors.textMuted,
     textAlign: 'center',
@@ -408,6 +409,9 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  // The titles use textBreakStrategy "simple": Android's default highQuality
+  // break measured them narrower than drawn, so "WEIGHT HISTORY" wrapped to
+  // "WEIGHT" in its one-line box (QA, 26 Oct 2026).
   sectionTitle: {
     fontSize: 14,
     lineHeight: 20,
@@ -432,7 +436,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand400,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    boxShadow: shadows.glow,
+    // Batch 2 #23: soft, not the glow.
+    boxShadow: shadows.soft,
   },
   addWeightPressed: {
     backgroundColor: colors.brand500,

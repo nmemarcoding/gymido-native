@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import ErrorAlert from '../../../../shared/components/ErrorAlert';
 import FormField from '../../../../shared/components/FormField';
@@ -7,6 +7,7 @@ import PillButton from '../../../../shared/components/PillButton';
 import { ToastTone, addToast } from '../../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../../shared/hooks/useFocusRemountKey';
 import { breakpoints, colors, radii, shadows } from '../../../../shared/theme/tokens';
+import { logout } from '../../../auth/authService';
 import ShellPage from '../../../shell/ShellPage';
 import TrainerOnly from '../../TrainerOnly';
 import { CoachingHeader } from '../../clients/components/ClientsUi';
@@ -120,6 +121,18 @@ function TrainerProfileForm() {
           ) : null}
         </View>
       </View>
+
+      {/* T-44: personal Profile's P1 #4 Logout, so trainer mode can sign out.
+          No confirmation (⚠P-4); it stays enabled while saving. */}
+      <Pressable
+        testID="trainer-profile-sign-out"
+        accessibilityRole="button"
+        accessibilityLabel="Logout"
+        onPress={() => logout()}
+        style={({ pressed }) => [styles.logout, pressed && styles.logoutPressed]}
+      >
+        <Text style={styles.logoutText}>Logout</Text>
+      </Pressable>
     </View>
   );
 }
@@ -165,6 +178,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '600',
-    color: colors.success,
+    color: colors.success700,
+  },
+  // P1 #4's button. The column gap is 20, so mt 4 makes the 24 above it.
+  logout: {
+    marginTop: 4,
+    borderRadius: radii.xxl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  logoutPressed: {
+    backgroundColor: colors.errorFill,
+  },
+  logoutText: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '700',
+    color: colors.danger700,
   },
 });

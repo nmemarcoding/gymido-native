@@ -4,6 +4,8 @@ import { navigationRef } from '../../navigation/navigationRef';
 import { routes } from '../../navigation/routes';
 import { SCREEN_FOR_PATH, ShellTab, TAB_ROOTS, getScreenTab } from './shellNavigation';
 
+let entryCount = 0;
+
 // Opens a shell screen by its web path. A tab root pops that tab's stack back
 // to it, so a tab press always lands on a fresh root (app-shell spec §6.3).
 // A pushed screen (Workout, the trainer hub) switches to its own tab and sits
@@ -21,7 +23,10 @@ export function openShellPath(path, params) {
   }
   const tab = getScreenTab(screen);
   const root = TAB_ROOTS[tab];
-  const nested = screen === root ? { screen: root, params } : { screen, params, initial: false };
+  // A new `entry` on every tab press or link to a tab root, so the root can
+  // tell a fresh entry from a pop back to it (exercises §E1.1a, T-12 F3).
+  entryCount += 1;
+  const nested = screen === root ? { screen: root, params: { ...params, entry: entryCount } } : { screen, params, initial: false };
   navigationRef.navigate(routes.AppShell, { screen: tab, params: nested });
 }
 

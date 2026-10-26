@@ -229,3 +229,17 @@ describe('optional goal weight (P2.4 dated change, 23 Oct 2026)', () => {
     });
   });
 });
+
+describe('comma decimal weights (T-16)', () => {
+  it('validates and sends "82,5" as 82.5 and rejects junk', () => {
+    const base = editFormFromProfile(PROFILE);
+    expect(validateEditProfile({ ...base, current_weight_value: '82,5', goal_weight_value: '78,0' })).toEqual({});
+    expect(validateEditProfile({ ...base, current_weight_value: '8,5,1', goal_weight_value: '-2' })).toEqual({
+      current_weight_value: 'Current weight must be greater than zero',
+      goal_weight_value: 'Goal weight must be greater than zero',
+    });
+    const payload = buildEditProfilePayload({ ...base, current_weight_value: '82,5', goal_weight_value: '78,0' });
+    expect(payload.current_weight_value).toBe(82.5);
+    expect(payload.goal_weight_value).toBe(78);
+  });
+});

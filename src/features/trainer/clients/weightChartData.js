@@ -1,21 +1,33 @@
+import { formatNumber } from '../../../shared/format/numbers';
+import { convertWeight } from '../../../shared/format/weight';
 import { formatDateWithOffset } from '../../../shared/time/format';
 
 // Data for the weight chart (trainer clients spec §C5.3), kept apart from the
 // drawing so it can be tested.
 
-// One point per log, oldest → newest; y is the raw number whatever its unit
-// (⚠C-9). Unit for the tooltip: first log's, else the profile's, else "kg".
-export function buildWeightSeries(logs, profile) {
+// One point per log, oldest → newest; y is in the chart's one unit (T-38).
+// T-38 (25 Oct 2026, retires ⚠C-9): one unit for the whole chart, each point
+// converted into it. Logs come oldest first, so the newest is the last.
+export function chartUnit(logs, profile) {
+  const hasCurrent = profile?.current_weight_value != null && Boolean(profile?.current_weight_unit);
+  if (hasCurrent) {
+    return profile.current_weight_unit;
+  }
+  return logs[logs.length - 1]?.weight_unit || profile?.current_weight_unit || 'kg';
+}
+
+// `unitOverride`: Progress passes its currentUnit (RN-SPEC-progress PR1.2).
+export function buildWeightSeries(logs, profile, unitOverride) {
+  const unit = unitOverride || chartUnit(logs, profile);
   const points = logs.map((log) => ({
-    value: Number(log.weight_value),
+    value: convertWeight(log.weight_value, log.weight_unit, unit),
     label: formatDateWithOffset(log.recorded_on, 1),
   }));
-  const unit = logs[0]?.weight_unit || profile?.current_weight_unit || 'kg';
   if (points.length === 0) {
-    return { points, unit, min: 0, max: 0 };
+    return { points, unit, min: 0, max: 0, ticks: [] };
   }
   const values = points.map((point) => point.value);
-  return { points, unit, min: Math.min(...values) - 1, max: Math.max(...values) + 1 };
+  return { points, unit, ...weightAxis(Math.min(...values), Math.max(...values)) };
 }
 
 // Resolved mechanism (owner-accepted): the web hides x labels closer than
@@ -50,40 +62,30 @@ export function logsSince(logs, days, now = Date.now()) {
   return logs.filter((log) => new Date(log.recorded_on).getTime() >= cutoff);
 }
 
-// Recharts' y ticks for a fixed numeric domain (tickCount 5): a "nice" step
-// from (max − min) / (count − 1), ticks from min below max, then max itself.
-// For [78, 83] that is 78, 80, 82, 83.
-export function fixedDomainTicks(min, max, tickCount = 5) {
-  if (min === max) {
-    return [min];
-  }
-  const step = formatStep((max - min) / (Math.max(tickCount, 2) - 1));
+// §C5.3 y axis (T-38 QA fix, 25 Oct 2026): whole-number ticks on a nice
+// step, with at least 1 unit of room. lo/hi are min − 1 and max + 1; the
+// step is the first that fits lo…hi in at most 4 intervals; the domain is
+// lo/hi floored/ceiled to the step, with a tick on every step.
+// 77.11 + 78 → 76 · 77 · 78 · 79; 61.3 + 140.7 → 50 · 75 · 100 · 125 · 150.
+const AXIS_STEPS = [1, 2, 5, 10, 20, 25, 50, 100, 200, 500];
+
+export function weightAxis(minValue, maxValue) {
+  const lo = minValue - 1;
+  const hi = maxValue + 1;
+  const step = AXIS_STEPS.find((candidate) => (hi - lo) / candidate <= 4) ?? AXIS_STEPS[AXIS_STEPS.length - 1];
+  const min = Math.floor(lo / step) * step;
+  const max = Math.ceil(hi / step) * step;
   const ticks = [];
-  for (let i = 0; i < 100; i += 1) {
-    const value = roundTick(min + i * step);
-    if (value >= max) {
-      break;
-    }
+  for (let value = min; value <= max; value += step) {
     ticks.push(value);
   }
-  ticks.push(max);
-  return ticks;
+  return { min, max, ticks };
 }
 
-// Recharts' getFormatStep: round the rough step up to 0.1 (one-digit steps)
-// or 0.05 (otherwise) of its power of ten.
-function formatStep(roughStep) {
-  if (roughStep <= 0) {
-    return 0;
-  }
-  const digitCount = Math.floor(Math.log10(Math.abs(roughStep))) + 1;
-  const digitValue = 10 ** digitCount;
-  const scale = digitCount !== 1 ? 0.05 : 0.1;
-  return roundTick(Math.ceil(roundTick(roughStep / digitValue / scale)) * scale * digitValue);
-}
-
-function roundTick(value) {
-  return Math.round(value * 1e10) / 1e10;
+// A y tick's label: en-US, at most one decimal. A guard only: ticks are
+// whole numbers now (the raw-float labels "76.1107029" were the bug).
+export function tickLabel(value) {
+  return formatNumber(value, 1);
 }
 
 // d3's curveMonotoneX (Steffen's method) as an SVG path through [x, y]
