@@ -69,7 +69,9 @@ export default function ChangePasswordModal({ visible, onClose, email }) {
     if (sending) {
       return;
     }
+    // A re-send goes back to the idle layout while it runs (FE e7effd0a).
     setError(null);
+    setSent(false);
     setSending(true);
     try {
       await sendPasswordResetEmail();
@@ -96,7 +98,8 @@ export default function ChangePasswordModal({ visible, onClose, email }) {
       testID="change-password-modal"
       isOpen={visible}
       onClose={handleClose}
-      size="md"
+      // Web's Modal default max-w-lg (FE e7effd0a).
+      size="lg"
       title="Change password"
       footer={
         // ⚠P-5: the buttons sit inline, left aligned and touching.
@@ -108,10 +111,9 @@ export default function ChangePasswordModal({ visible, onClose, email }) {
                 title={seconds > 0 ? `Send again in ${seconds}s` : 'Send again'}
                 variant="secondary"
                 disabled={seconds > 0}
-                loading={sending}
                 onPress={handleSend}
               />
-              <PillButton ref={doneRef} testID="change-password-done" title="Done" disabled={sending} onPress={handleClose} />
+              <PillButton ref={doneRef} testID="change-password-done" title="Done" onPress={handleClose} />
             </>
           ) : (
             <>

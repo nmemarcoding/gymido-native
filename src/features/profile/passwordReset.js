@@ -21,9 +21,10 @@ export function resetCooldownLeftMs(now = Date.now()) {
   return Math.max(0, lastSentAt + RESET_COOLDOWN_MS - now);
 }
 
-// The "Send again in {n}s" number: 59 down to 1, then 0 = the cooldown is over.
+// The "Send again in {n}s" number: 59 down to 1 (never 0) for the full 60 s,
+// then 0 = the cooldown is over (FE e7effd0a).
 export function resetCooldownSeconds(leftMs) {
-  return Math.max(0, Math.ceil(leftMs / 1000) - 1);
+  return leftMs <= 0 ? 0 : Math.max(1, Math.ceil(leftMs / 1000) - 1);
 }
 
 export function clearResetCooldown() {

@@ -257,15 +257,27 @@ describe('P1a Change password: reset email (T-32 H1)', () => {
     expect(modalOpen(tree.root)).toBe(false);
   });
 
-  it('cooldown over: "Send again" enabled; it re-sends and restarts 60 s', async () => {
+  it('cooldown over at 60 s: "Send again" enabled; a re-send shows the idle layout, then restarts 60 s (FE e7effd0a)', async () => {
     sendPasswordResetEmail.mockResolvedValue({});
     const tree = openModal();
     await press(tree, 'change-password-submit');
     elapse(59);
+    expect(button(tree.root, 'change-password-resend').props.title).toBe('Send again in 1s');
+    expect(button(tree.root, 'change-password-resend').props.disabled).toBe(true);
+    elapse(1);
     expect(texts(tree.root)).toContain('Email sent');
     expect(button(tree.root, 'change-password-resend').props.title).toBe('Send again');
     expect(button(tree.root, 'change-password-resend').props.disabled).toBe(false);
-    await press(tree, 'change-password-resend');
+    let finish;
+    sendPasswordResetEmail.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+    act(() => {
+      button(tree.root, 'change-password-resend').props.onPress();
+    });
+    expect(bodyLine(tree.root)).toBe(BODY);
+    expect(button(tree.root, 'change-password-cancel').props.disabled).toBe(true);
+    expect(button(tree.root, 'change-password-submit').props.loading).toBe(true);
+    expect(tree.root.findAll((node) => node.props.testID === 'change-password-done')).toHaveLength(0);
+    await act(async () => finish({}));
     expect(sendPasswordResetEmail).toHaveBeenCalledTimes(2);
     expect(button(tree.root, 'change-password-resend').props.title).toBe('Send again in 59s');
   });
