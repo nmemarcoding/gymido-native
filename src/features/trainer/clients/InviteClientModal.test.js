@@ -176,7 +176,9 @@ describe('C1a exact-email invite (§C3.3 T-32 M1)', () => {
     await act(async () => pending.resolve([MEMBER]));
     expect(tree.root.findAllByType(Spinner)).toHaveLength(0);
     expect(StyleSheet.flatten(field(tree).props.style).paddingRight).toBeUndefined();
-    expect(hiddenStatus(tree)).toHaveLength(0);
+    // The live region stays mounted (Android reads the change); only its text empties.
+    expect(hiddenStatus(tree)).toHaveLength(1);
+    expect(texts(tree)).not.toContain('Searching…');
   });
 
   it('in-field spinner: 1 turn/s, and under reduced motion 3 s/turn without stopping', () => {

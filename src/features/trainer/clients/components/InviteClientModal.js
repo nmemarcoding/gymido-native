@@ -146,11 +146,10 @@ export default function InviteClientModal({ isOpen, onClose, onInvited }) {
             ) : null
           }
         />
-        {loading ? (
-          <View testID="invite-searching-status" accessibilityLiveRegion="polite" style={styles.hiddenStatus}>
-            <Text style={styles.hiddenText}>{SEARCHING_STATUS}</Text>
-          </View>
-        ) : null}
+        {/* Always mounted, so Android's live region reads the text change. */}
+        <View testID="invite-searching-status" accessibilityLiveRegion="polite" style={styles.hiddenStatus}>
+          <Text style={styles.hiddenText}>{loading ? SEARCHING_STATUS : ''}</Text>
+        </View>
         {renderResults()}
       </View>
     </AppModal>
