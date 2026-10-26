@@ -11,7 +11,6 @@ import ErrorAlert from '../../../shared/components/ErrorAlert';
 import { InlineError } from '../../../shared/components/FeedbackBox';
 import Loader from '../../../shared/components/Loader';
 import RemoteImage from '../../../shared/components/RemoteImage';
-import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
 import { breakpoints, colors, radii, shadows } from '../../../shared/theme/tokens';
 import { useAuthStore } from '../../auth/authStore';
 import AppHeader from '../../shell/AppHeader';
@@ -21,6 +20,7 @@ import { getScreenPath } from '../../shell/shellNavigation';
 import { resolveMode, showsMobileModeSwitch } from '../../shell/shellRules';
 import { listExercisesPage } from '../api/exercisesApi';
 import MuscleGroupSheet from '../components/MuscleGroupSheet';
+import { getCachedList, setCachedList } from '../exerciseListCache';
 import {
   INITIAL_SEARCH,
   cardMuscleLabel,
@@ -36,15 +36,18 @@ import {
   submitSearch,
 } from '../exercisesCatalog';
 
-// RN-SPEC-exercises §E1 (Exercises tab root, `/exercises`). Every focus is
-// a fresh mount (plans §8.1): search, filter and list reset and reload.
+// RN-SPEC-exercises §E1 (Exercises tab root, `/exercises`). §E1.1a (T-12
+// F3): a tab press or link (a new `entry` from openShellPath) is a fresh
+// mount, so search, filter and scroll reset. A pop back from an exercise
+// keeps this mounted screen as it was (filter, search, scroll) and reloads
+// the list quietly.
 //
 // Unlike ShellPage, the shell chrome (app-shell §4) is drawn inside one
 // virtualised FlatList so the search/filter bar can stick to the top while
 // 700+ cards scroll under it. Same header, mode switch, sidebar and paddings.
 export default function ExercisesScreen() {
-  const remountKey = useFocusRemountKey();
-  return <ExercisesCatalog key={remountKey} />;
+  const route = useRoute();
+  return <ExercisesCatalog key={route.params?.entry ?? 0} />;
 }
 
 function ExercisesCatalog() {
@@ -75,35 +78,73 @@ function ExercisesCatalog() {
   // Bumped by every new load and on unmount; an older load's or retry's
   // answer is dropped.
   const loadId = useRef(0);
+  // §E1.1a: coming back to this screen (a pop from an exercise) loads again.
+  const [returns, setReturns] = useState(0);
+  useEffect(() => {
+    let blurred = false;
+    const offBlur = navigation.addListener('blur', () => {
+      blurred = true;
+    });
+    const offFocus = navigation.addListener('focus', () => {
+      if (blurred) {
+        blurred = false;
+        setReturns((value) => value + 1);
+      }
+    });
+    return () => {
+      offBlur();
+      offFocus();
+    };
+  }, [navigation]);
 
-  // §E1.2 (F1): runs on mount and whenever the applied search changes.
+  // §E1.2 (F1): runs on mount, whenever the applied search changes, and on
+  // a return. §E1.1a: a cached complete list shows at once and is reloaded
+  // quietly; nothing changes until the whole new list is in, and a failure
+  // keeps the cached list with no error.
   useEffect(() => {
     const id = ++loadId.current;
     const alive = () => loadId.current === id;
-    setLoad({ status: 'loading', items: [], error: null, partial: null });
-    loadExerciseCatalog({
-      fetchPage: listExercisesPage,
-      search: search.applied,
-      onFirstPage: (items) => {
-        if (alive()) {
-          setLoad({ status: 'loaded', items, error: null, partial: null });
-        }
-      },
-    })
-      .then(({ items, partial }) => {
-        if (alive()) {
-          setLoad({ status: 'loaded', items, error: null, partial });
-        }
+    const applied = search.applied;
+    const cached = getCachedList(applied);
+    if (cached) {
+      setLoad((current) => (current.items === cached ? current : { status: 'loaded', items: cached, error: null, partial: null }));
+      loadExerciseCatalog({ fetchPage: listExercisesPage, search: applied })
+        .then(({ items, partial }) => {
+          if (alive() && !partial) {
+            setCachedList(applied, items);
+            setLoad({ status: 'loaded', items, error: null, partial: null });
+          }
+        })
+        .catch(() => {});
+    } else {
+      setLoad({ status: 'loading', items: [], error: null, partial: null });
+      loadExerciseCatalog({
+        fetchPage: listExercisesPage,
+        search: applied,
+        onFirstPage: (items) => {
+          if (alive()) {
+            setLoad({ status: 'loaded', items, error: null, partial: null });
+          }
+        },
       })
-      .catch((error) => {
-        if (alive()) {
-          setLoad({ status: 'error', items: [], error, partial: null });
-        }
-      });
+        .then(({ items, partial }) => {
+          if (!partial) {
+            setCachedList(applied, items);
+          }
+          if (alive()) {
+            setLoad({ status: 'loaded', items, error: null, partial });
+          }
+        })
+        .catch((error) => {
+          if (alive()) {
+            setLoad({ status: 'error', items: [], error, partial: null });
+          }
+        });
+    }
     return () => {
       loadId.current += 1;
     };
-  }, [search.applied]);
+  }, [search.applied, returns]);
 
   // §E1.2 step 4: Retry re-requests pages 2…N only, with the same search.
   const retryRestPages = () => {
@@ -116,8 +157,10 @@ function ExercisesCatalog() {
     setLoad((current) => ({ ...current, partial: { ...partial, error: null } }));
     loadRestPages({ fetchPage: listExercisesPage, search: applied, totalPages: partial.totalPages })
       .then((rest) => {
+        const items = partial.firstItems.concat(rest);
+        setCachedList(applied, items);
         if (loadId.current === id) {
-          setLoad({ status: 'loaded', items: partial.firstItems.concat(rest), error: null, partial: null });
+          setLoad({ status: 'loaded', items, error: null, partial: null });
         }
       })
       .catch((error) => {
