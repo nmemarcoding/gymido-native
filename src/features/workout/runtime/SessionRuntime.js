@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getServerMessage } from '../../../shared/api/apiError';
+import { getServerMessage, getStatus } from '../../../shared/api/apiError';
 import { formatNumber, formatWeight } from '../../../shared/format/numbers';
 import { formatDuration } from '../../../shared/time/format';
 import { InlineToast } from '../../../shared/components/ToastHost';
@@ -51,12 +51,17 @@ const COLUMN_MAX_WIDTH = 430;
 // The session runtime (RN-SPEC-workout Part B). `session` is already the
 // O12-overlaid view; every derived value reads it. The chrome and the bottom
 // nav sit outside the scroll (§19.0).
+// RN-SPEC-workout O9 dated change (25 Oct 2026, T-37): a 409 from the set
+// toggle or Complete means the session was already ended on another device.
+export const ENDED_ELSEWHERE = 'This workout was already ended on another device. Start a new one when you’re ready.';
+
 export default function SessionRuntime({
   session,
   planName,
   exerciseStatsMap,
   header,
   reload,
+  reloadWithLoader,
   writeOverlay,
   actionError,
   setActionError,
@@ -212,10 +217,25 @@ export default function SessionRuntime({
       finish();
       reload();
     } catch (error) {
+      finish();
+      if (getStatus(error) === 409) {
+        endedElsewhere();
+        return;
+      }
       // [O9]: the server's message.
       setActionError(getServerMessage(error));
-      finish();
     }
+  }
+
+  // T-37: clear the rest and the highlight, show the message, go to the top
+  // and reload with the loader. No session any more → the hub, whose
+  // "Workout error" toast shows the same message. No completion summary.
+  function endedElsewhere() {
+    rest.clear();
+    setHighlightedSetKey('');
+    setActionError(ENDED_ELSEWHERE);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    return reloadWithLoader();
   }
 
   async function handleComplete() {
@@ -234,7 +254,11 @@ export default function SessionRuntime({
       onCompleted(snapshot);
       await reload();
     } catch (error) {
-      setActionError(getServerMessage(error));
+      if (getStatus(error) === 409) {
+        await endedElsewhere();
+      } else {
+        setActionError(getServerMessage(error));
+      }
     } finally {
       completingRef.current = false;
       setIsCompleting(false);

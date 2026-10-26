@@ -1,8 +1,8 @@
 import { Keyboard, PanResponder, StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
-import { abandonWorkout } from '../api/workoutApi';
-import SessionRuntime from './SessionRuntime';
+import { abandonWorkout, completeWorkout, updateSessionSet } from '../api/workoutApi';
+import SessionRuntime, { ENDED_ELSEWHERE } from './SessionRuntime';
 
 jest.mock('@react-navigation/native', () => ({ useIsFocused: () => true }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 12, right: 8 }) }));
@@ -46,6 +46,7 @@ function render(props = {}) {
         planName="Plan"
         exerciseStatsMap={{}}
         reload={jest.fn(() => Promise.resolve())}
+        reloadWithLoader={jest.fn(() => Promise.resolve())}
         writeOverlay={jest.fn()}
         actionError=""
         setActionError={setActionError}
@@ -99,6 +100,55 @@ describe('SessionRuntime', () => {
     await act(async () => byId(tree, 'discard-confirm').props.onPress());
     expect(setActionError).toHaveBeenCalledWith('');
     expect(setActionError.mock.invocationCallOrder[0]).toBeLessThan(abandonWorkout.mock.invocationCallOrder[0]);
+  });
+
+  describe('a 409 after a server-side end (T-37, RN-SPEC-workout O9 25 Oct 2026)', () => {
+    const conflict = { response: { status: 409, data: { message: 'Session is not active' } } };
+    // Set 12 with a target weight, so "Did it" passes the weight check.
+    const WEIGHTED = { ...SESSION, exercises: [{ ...SESSION.exercises[0], sets: [set(11, true), { ...set(12), target_weight_value: 50, target_weight_unit: 'kg' }] }, SESSION.exercises[1]] };
+
+    it('"Did it": shows the ended-elsewhere message and reloads with the loader', async () => {
+      updateSessionSet.mockRejectedValueOnce(conflict);
+      const reload = jest.fn(() => Promise.resolve());
+      const reloadWithLoader = jest.fn(() => Promise.resolve());
+      const { tree, setActionError } = render({ session: WEIGHTED, reload, reloadWithLoader });
+      await act(async () => byId(tree, 'set-action-12').props.onPress());
+      expect(setActionError).toHaveBeenLastCalledWith(ENDED_ELSEWHERE);
+      expect(reloadWithLoader).toHaveBeenCalledTimes(1);
+      expect(reload).not.toHaveBeenCalled();
+      // The set's pending state ended as usual.
+      expect(byId(tree, 'set-action-12').props.disabled).toBe(false);
+    });
+
+    it('Complete: no summary popup, the same message and reload', async () => {
+      completeWorkout.mockRejectedValueOnce(conflict);
+      const onCompleted = jest.fn();
+      const reloadWithLoader = jest.fn(() => Promise.resolve());
+      const { tree, setActionError } = render({ onCompleted, reloadWithLoader });
+      await act(async () => byId(tree, 'complete-workout').props.onPress());
+      expect(onCompleted).not.toHaveBeenCalled();
+      expect(setActionError).toHaveBeenLastCalledWith(ENDED_ELSEWHERE);
+      expect(reloadWithLoader).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps Discard's 409 unchanged (the server message, no reload)", async () => {
+      abandonWorkout.mockRejectedValueOnce(conflict);
+      const reloadWithLoader = jest.fn(() => Promise.resolve());
+      const { tree, setActionError } = render({ reloadWithLoader });
+      act(() => byId(tree, 'discard-workout').props.onPress());
+      await act(async () => byId(tree, 'discard-confirm').props.onPress());
+      expect(setActionError).toHaveBeenLastCalledWith('Session is not active');
+      expect(reloadWithLoader).not.toHaveBeenCalled();
+    });
+
+    it('keeps other errors on the runtime toast', async () => {
+      updateSessionSet.mockRejectedValueOnce({ response: { status: 500, data: { message: 'Server error' } } });
+      const reloadWithLoader = jest.fn(() => Promise.resolve());
+      const { tree, setActionError } = render({ session: WEIGHTED, reloadWithLoader });
+      await act(async () => byId(tree, 'set-action-12').props.onPress());
+      expect(setActionError).toHaveBeenLastCalledWith('Server error');
+      expect(reloadWithLoader).not.toHaveBeenCalled();
+    });
   });
 
   it('shows "Last exercise — finish strong" only while viewing the active exercise (#29)', () => {
