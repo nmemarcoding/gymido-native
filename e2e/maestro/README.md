@@ -43,7 +43,7 @@ Never commit credentials. Pass them with `-e`, from your shell or `.env.e2e.loca
 | `02-login-opens-universal-login` | Log in opens hosted Universal Login; cancelling returns to Welcome |
 | `03-decline-limiter` | 2 cancels recover silently, the 3rd within 60s shows Sign-in failed |
 | `04-login-lands-signed-in` | Login succeeds and lands on the screen the landing rules choose |
-| `05-change-password-validation` | Length and mismatch errors, on submit only |
+| `05-change-password-validation` | Opens the reset-email modal and cancels (never sends) |
 | `06-sign-out` | Sign out returns to Welcome |
 | `07-trainer-role-landing` | A trainer's RBAC role reaches the app; profile gate decides the landing |
 | `08-admin-role-landing` | An admin's role reaches the app and mobile gives them no admin surface |
