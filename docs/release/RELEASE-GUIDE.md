@@ -69,7 +69,7 @@ If a **dev build** of Gymido is on the phone, the signatures differ and the inst
 
 - Signer: `~/Library/Android/sdk/build-tools/36.0.0/apksigner verify --print-certs ~/gymido-release/builds/<file>.apk`. Internal builds show `CN=Android Debug`; with your upload key it shows your name.
 - Install by hand: `adb install -r ~/gymido-release/builds/<file>.apk`
-- **Version check (1.0.1):** `~/Library/Android/sdk/build-tools/36.0.0/aapt2 dump badging ~/gymido-release/builds/<file>.apk | grep versionCode` must show `versionCode='2'` and `versionName='1.0.1'`. On the phone after installing: `adb shell dumpsys package com.gymido.app | grep -E 'versionCode|versionName'`.
+- **Version check (1.0.1):** `~/Library/Android/sdk/build-tools/36.0.0/aapt2 dump badging ~/gymido-release/builds/<file>.apk | grep versionCode` must show `versionCode='2'` and `versionName='1.0.1'`. Use your installed build-tools version in the path (list them with `ls ~/Library/Android/sdk/build-tools`). On the phone after installing: `adb shell dumpsys package com.gymido.app | grep -E 'versionCode|versionName'`.
 
 ## 3. iOS: install on your iPhone (free Apple ID team)
 
