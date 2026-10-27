@@ -150,6 +150,8 @@ module.exports = {
       './plugins/withSceneLifecycle',
       // Release builds drop the dev client's local-network keys (plugins/withReleaseHardening.js).
       ['./plugins/withReleaseHardening', { enabled: RELEASE_ENV }],
+      // Release builds against the local http test API (QA's test stack) only.
+      ['./plugins/withLocalTestCleartext', { enabled: APP_ENV.startsWith('localtest') }],
       // Android release builds use the owner's upload key, never the template debug key.
       './plugins/withReleaseSigning',
       // Opt-in (paid team only): the rest-end alert's Time Sensitive entitlement.
