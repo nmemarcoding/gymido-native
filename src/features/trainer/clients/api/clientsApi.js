@@ -41,6 +41,16 @@ export async function getClientProfile(clientUserId) {
   return data(await apiClient.get(`/trainer/clients/${clientUserId}/profile`)).profile ?? null;
 }
 
+// RN-SPEC-v2-phase6 §2 Email (approved 27 Oct): the same request as
+// getClientProfile, keeping `client_email` (sent only for an ACTIVE client).
+// T-52: folded in from clientDetailApi.js.
+export async function getClientProfileAndEmail(clientUserId) {
+  const response = await apiClient.get(`/trainer/clients/${clientUserId}/profile`);
+  const body = response.data?.data ?? {};
+  const email = typeof body.client_email === 'string' ? body.client_email.trim() : '';
+  return { profile: body.profile ?? null, clientEmail: email || null };
+}
+
 export async function getClientProgress(clientUserId) {
   const body = data(await apiClient.get(`/trainer/clients/${clientUserId}/progress`));
   return { summary: body.summary ?? null, stats: body.stats ?? null };

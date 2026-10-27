@@ -48,6 +48,7 @@ jest.mock('../shell/shellLinks', () => ({ openShellPath: jest.fn() }));
 jest.mock('./TrainerOnly', () => ({ children }) => children);
 jest.mock('./clients/clientLinks', () => ({ openClientDetail: jest.fn(), openAssignPlan: jest.fn() }));
 jest.mock('./clients/api/clientsApi', () => ({
+  getClientProfileAndEmail: jest.fn(async (id) => ({ profile: await require('./clients/api/clientsApi').getClientProfile(id), clientEmail: null })),
   listActiveClients: jest.fn(),
   listPendingRequests: jest.fn(),
   acceptRequest: jest.fn(),
@@ -65,10 +66,7 @@ jest.mock('./clients/api/clientsApi', () => ({
   assignPlan: jest.fn(),
 }));
 // v2 phase 6 (p6n): Client detail reads the profile (+ client_email) through
-// clientDetailApi; it follows the mocked getClientProfile here.
-jest.mock('./clients/clientDetailApi', () => ({
-  getClientProfileAndEmail: jest.fn(async (id) => ({ profile: await require('./clients/api/clientsApi').getClientProfile(id), clientEmail: null })),
-}));
+// clientsApi.getClientProfileAndEmail (T-52); it follows the mocked getClientProfile here.
 jest.mock('./plans/api/plansApi', () => ({ listTrainerPlans: jest.fn() }));
 jest.mock('../../shared/components/toastStore', () => ({ ...jest.requireActual('../../shared/components/toastStore'),
   ToastTone: { success: 'success', error: 'error' },

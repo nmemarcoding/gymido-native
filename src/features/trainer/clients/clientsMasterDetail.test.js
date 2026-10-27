@@ -37,11 +37,9 @@ jest.mock('../../shell/ShellPage', () => {
   return ({ children }) => <View>{children}</View>;
 });
 jest.mock('../TrainerOnly', () => ({ children }) => children);
-jest.mock('./clientDetailApi', () => ({
-  getClientProfileAndEmail: jest.fn(async (id) => ({ profile: await require('./api/clientsApi').getClientProfile(id), clientEmail: null })),
-}));
 jest.mock('./clientLinks', () => ({ openClientDetail: jest.fn(), openAssignPlan: jest.fn() }));
 jest.mock('./api/clientsApi', () => ({
+  getClientProfileAndEmail: jest.fn(async (id) => ({ profile: await require('./api/clientsApi').getClientProfile(id), clientEmail: null })),
   listActiveClients: jest.fn(),
   listPendingRequests: jest.fn(),
   searchMembers: jest.fn(),

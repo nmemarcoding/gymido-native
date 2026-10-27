@@ -10,11 +10,11 @@ import EndCoachingDialog from '../../../trainers/components/EndCoachingDialog';
 import {
   endCoaching,
   getClientPlan,
+  getClientProfileAndEmail,
   getClientProgress,
   getClientWorkoutHistory,
   listClientAssignments,
 } from '../api/clientsApi';
-import { getClientProfileAndEmail } from '../clientDetailApi';
 import { openAssignPlan } from '../clientLinks';
 import ClientAvatar from '../components/ClientAvatar';
 import { StatTile, StatusLine } from '../components/ClientsUi';
@@ -39,8 +39,8 @@ jest.mock('../clientLinks', () => ({ openClientDetail: jest.fn(), openAssignPlan
 jest.mock('../components/WorkoutDetailModal', () => jest.fn(() => null));
 jest.mock('../components/WeightHistoryModal', () => jest.fn(() => null));
 jest.mock('../../../trainers/components/EndCoachingDialog', () => jest.fn(() => null));
-jest.mock('../clientDetailApi', () => ({ getClientProfileAndEmail: jest.fn() }));
 jest.mock('../api/clientsApi', () => ({
+  getClientProfileAndEmail: jest.fn(),
   endCoaching: jest.fn(),
   getClientPlan: jest.fn(),
   getClientProgress: jest.fn(),

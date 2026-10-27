@@ -10,6 +10,7 @@ import {
   endCoaching,
   getClientPlan,
   getClientProfile,
+  getClientProfileAndEmail,
   getClientProgress,
   getClientWorkout,
   getClientWorkoutHistory,
@@ -19,7 +20,6 @@ import {
 import WeightHistoryChart from './components/WeightHistoryChart';
 import WeightHistoryModal from './components/WeightHistoryModal';
 import WorkoutDetailModal from './components/WorkoutDetailModal';
-import { getClientProfileAndEmail } from './clientDetailApi';
 import ClientDetailContent from './screens/ClientDetailContent';
 import ClientDetailScreen from './screens/ClientDetailScreen';
 import { buildWeightSeries, goalInUnit } from './weightChartData';
@@ -48,6 +48,7 @@ jest.mock('../../shell/ShellPage', () => {
 jest.mock('../TrainerOnly', () => ({ children }) => children);
 jest.mock('./clientLinks', () => ({ openClientDetail: jest.fn(), openAssignPlan: jest.fn() }));
 jest.mock('./api/clientsApi', () => ({
+  getClientProfileAndEmail: jest.fn(),
   endCoaching: jest.fn(),
   getClientPlan: jest.fn(),
   getClientProfile: jest.fn(),
@@ -57,7 +58,6 @@ jest.mock('./api/clientsApi', () => ({
   getClientWorkout: jest.fn(),
   listClientWeightLogs: jest.fn(),
 }));
-jest.mock('./clientDetailApi', () => ({ getClientProfileAndEmail: jest.fn() }));
 jest.mock('../../../shared/components/toastStore', () => ({ ...jest.requireActual('../../../shared/components/toastStore'), ToastTone: { success: 'success', error: 'error' }, addToast: jest.fn() }));
 
 const flat = (node) => StyleSheet.flatten(node.props.style) ?? {};

@@ -20,12 +20,12 @@ import EndCoachingDialog from '../../../trainers/components/EndCoachingDialog';
 import {
   endCoaching,
   getClientPlan,
+  getClientProfileAndEmail,
   getClientProgress,
   getClientWorkoutHistory,
   listClientAssignments,
 } from '../api/clientsApi';
 import { activityOf, clientUnit, initialsOf, isOnTrack, trainingDays, volumeInUnit, weekdayLabel } from '../clientActivity';
-import { getClientProfileAndEmail } from '../clientDetailApi';
 import {
   clientDisplayName,
   formatHeight,
