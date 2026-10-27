@@ -541,10 +541,6 @@ describe('3c hand-off (lead, 27 Oct)', () => {
     expect(tree.root.findByType(RestTimerWidget).props.next).toEqual({ label: 'Next: set 2' });
   });
 
-  it('the stub returns null', () => {
-    expect(restPresentation.restNextPreview(SESSION, '1:12', {})).toBeNull();
-  });
-
   it('the completion snapshot carries personalRecords, volumeUnit and exerciseImages', async () => {
     const records = [{ exercise_id: 3, previous_value: 100 }];
     completeWorkout.mockResolvedValueOnce({ new_personal_records: records });

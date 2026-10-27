@@ -3,7 +3,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { getServerMessage } from '../../../shared/api/apiError';
-import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { InlineToast } from '../../../shared/components/ToastHost';
 import { ToastTone } from '../../../shared/components/toastStore';
 import { CAP_BODY, DISPLAY_TITLE_TEXT, TITLE_TEXT } from '../../../shared/components/largeText';
@@ -24,6 +23,7 @@ import { loadWorkoutPage } from '../loadWorkoutPage';
 import { CompletionPopup } from '../runtime/RuntimeOverlays';
 import restAlertPlatform from '../runtime/restAlertPlatform';
 import { requestPermissionAtWorkoutStart } from '../runtime/restAlerts';
+import { LeaveWorkoutDialog } from '../runtime/SessionDialogs';
 import SessionRuntime from '../runtime/SessionRuntime';
 import { applyOverlay, reconcileOverlay } from '../runtime/sessionMath';
 import {
@@ -267,21 +267,7 @@ function WorkoutPage() {
     <>
       {branch}
       <CompletionPopup popup={popup} onClose={() => setPopup(null)} />
-      <ConfirmDialog
-        testID="leave-workout-dialog"
-        entrance="pop"
-        compact
-        cancelTestID="leave-workout-stay"
-        confirmTestID="leave-workout-leave"
-        isOpen={leaveGuard.open}
-        onClose={leaveGuard.stay}
-        onConfirm={leaveGuard.leave}
-        title="Leave workout?"
-        description="Your workout stays saved. You can pick it up from Today."
-        confirmLabel="Leave"
-        cancelLabel="Stay"
-        tone="primary"
-      />
+      <LeaveWorkoutDialog open={leaveGuard.open} onStay={leaveGuard.stay} onLeave={leaveGuard.leave} />
     </>
   );
 }

@@ -36,7 +36,7 @@ jest.mock('../../shell/shellLinks', () => ({ openShellPath: jest.fn() }));
 jest.mock('../../shell/AppHeader', () => () => null);
 jest.mock('../runtime/SessionRuntime', () => () => null);
 jest.mock('../runtime/RuntimeOverlays', () => ({ CompletionPopup: () => null }));
-jest.mock('../../../shared/components/ConfirmDialog', () => () => null);
+jest.mock('../runtime/SessionDialogs', () => ({ LeaveWorkoutDialog: () => null }));
 jest.mock('../api/workoutApi', () => ({ startWorkout: jest.fn() }));
 jest.mock('../runtime/restAlertPlatform', () => ({ getPermission: jest.fn(), requestPermission: jest.fn() }));
 

@@ -51,9 +51,11 @@ jest.mock('../runtime/RuntimeOverlays', () => {
     },
   };
 });
-jest.mock('../../../shared/components/ConfirmDialog', () => {
+// 3b's LeaveWorkoutDialog; its copy, order and testIDs are pinned in
+// runtime/SessionDialogs.test.js. Here only the wiring is checked.
+jest.mock('../runtime/SessionDialogs', () => {
   const { View } = require('react-native');
-  return (props) => (props.isOpen ? <View testID={props.testID} dialog={props} /> : null);
+  return { LeaveWorkoutDialog: (props) => (props.open ? <View testID="leave-workout-dialog" dialog={props} /> : null) };
 });
 
 // T-50: the Start tap is the one notification-permission moment.
@@ -133,23 +135,12 @@ describe('WorkoutScreen', () => {
     const pop = { type: 'POP' };
     act(() => mockPreventRemove.callback({ data: { action: pop } }));
     const dialog = () => find(tree, 'leave-workout-dialog')[0]?.props.dialog;
-    expect(dialog()).toMatchObject({
-      title: 'Leave workout?',
-      description: 'Your workout stays saved. You can pick it up from Today.',
-      confirmLabel: 'Leave',
-      cancelLabel: 'Stay',
-      tone: 'primary',
-      cancelTestID: 'leave-workout-stay',
-      confirmTestID: 'leave-workout-leave',
-      // Design system v1: pops in (P10), body 14/24 like web's workout dialogs.
-      entrance: 'pop',
-      compact: true,
-    });
-    act(() => dialog().onClose());
+    expect(dialog()).toMatchObject({ open: true, onStay: expect.any(Function), onLeave: expect.any(Function) });
+    act(() => dialog().onStay());
     expect(dialog()).toBeUndefined();
     expect(mockNavigation.dispatch).not.toHaveBeenCalled();
     act(() => mockPreventRemove.callback({ data: { action: pop } }));
-    act(() => dialog().onConfirm());
+    act(() => dialog().onLeave());
     expect(mockNavigation.dispatch).toHaveBeenCalledWith(pop);
     act(() => tree.unmount());
   });
@@ -170,7 +161,7 @@ describe('WorkoutScreen', () => {
       handled = listeners.at(-1)();
     });
     expect(handled).toBe(true);
-    act(() => find(tree, 'leave-workout-dialog')[0].props.dialog.onConfirm());
+    act(() => find(tree, 'leave-workout-dialog')[0].props.dialog.onLeave());
     expect(mockNavigation.dispatch).toHaveBeenCalledWith({ type: 'NAVIGATE', payload: { name: 'Home' } });
     act(() => tree.unmount());
     jest.restoreAllMocks();
