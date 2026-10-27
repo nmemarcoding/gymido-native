@@ -128,6 +128,22 @@ const V2_COLORS = {
   // Skeleton blocks and their shimmer highlight.
   skeleton: '#262932',
   skeletonShine: '#2B2F39',
+  // UX §8.6 (FE's web sweep, applies to native).
+  // Raised chips/pills on raised surfaces (same value as the skeleton shine).
+  surfaceHigh: '#2B2F39',
+  dangerHover: '#E0393F',
+  // Secondary TEXT on gold fills.
+  onGoldMuted: 'rgba(10, 11, 15, 0.72)',
+  // Sticky bars on the ground (blur.groundBar).
+  groundBar: 'rgba(10, 11, 15, 0.88)',
+  // The ink ladder (dark on gold): 0.08 / 0.10 tint (inkTint) / 0.30 / 0.60.
+  inkFaint: 'rgba(10, 11, 15, 0.08)',
+  inkLine: 'rgba(10, 11, 15, 0.30)',
+  inkStrong: 'rgba(10, 11, 15, 0.60)',
+  // §8.6 STATE RULE: hover/pressed = the rest colour + a 4 % overlay (white
+  // on dark surfaces, ink on gold); never a new alpha step.
+  pressOverlay: 'rgba(255, 255, 255, 0.04)',
+  pressOverlayInk: 'rgba(10, 11, 15, 0.04)',
 };
 
 // v1 names kept as ALIASES of v2 values while screens move to the v2 names
@@ -254,6 +270,12 @@ export const gradients = Object.freeze({
   // §4.8 the exercise hero image's 90 px bottom fade under the name
   // (color-ground at 0 → 0.9).
   imageFade: Object.freeze({ angle: 180, colors: Object.freeze(['rgba(10, 11, 15, 0)', 'rgba(10, 11, 15, 0.9)']) }),
+  // UX §8.6: every photo/hero fade is this one (gradient-photo-fade); inside
+  // cards the same fade on the card surface (gradient-surface-fade).
+  photoFade: Object.freeze({ angle: 180, colors: Object.freeze(['rgba(10, 11, 15, 0)', 'rgba(10, 11, 15, 0.9)']) }),
+  surfaceFade: Object.freeze({ angle: 180, colors: Object.freeze(['rgba(21, 23, 29, 0)', 'rgba(21, 23, 29, 0.9)']) }),
+  // UX §8.6: the gold-tinted dark day card (PlanDayCard "Today").
+  goldCard: Object.freeze({ angle: 160, colors: Object.freeze(['#2A2512', '#16150F']) }),
   // v2 kit: auth screens (Phase 2 A; UX A boards' own radial geometry; the
   // §8.5 ladder colours: welcome/card corner/hero = gold orb, account = gold
   // ambient, sign-in failed = danger ambient, Today error = danger orb).
@@ -364,7 +386,7 @@ export function muscleGlow(hex) {
 }
 
 // Blur radii (px): §3 blur-glass, and UX §8.4 glass-strong / on-photo.
-export const blur = Object.freeze({ glass: 24, glassStrong: 24, onPhoto: 12 });
+export const blur = Object.freeze({ glass: 24, glassStrong: 24, onPhoto: 12, groundBar: 24 });
 
 // The API's muscle groups onto the six colours (UX, 26 Oct 2026); anything
 // else is neutral. v1's per-group thumbnail hues map through this until
