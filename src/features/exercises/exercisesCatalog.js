@@ -84,13 +84,17 @@ export function deriveCatalog(items, categoryFilter = '') {
   return { categories, categoryCounts, filtered, groups };
 }
 
-// Count pill / sheet counts: `categoryCounts[cat] || 0`.
+// `categoryCounts[cat] || 0` (the retired §E2 sheet's counts).
 export function countFor(categoryCounts, category) {
   return (Object.prototype.hasOwnProperty.call(categoryCounts ?? {}, category) && categoryCounts[category]) || 0;
 }
 
 // §E1.4 grid: 2 columns on phones, 3 at ≥ 640, 4 at ≥ 1024 (window width).
-export function gridColumns(width) {
+// T-62: beside the ≥ 1024 filter panel, 2 at 1024–1279 and 3 at ≥ 1280.
+export function gridColumns(width, { panel = false } = {}) {
+  if (panel) {
+    return width >= 1280 ? 3 : 2;
+  }
   if (width >= 1024) {
     return 4;
   }
@@ -124,12 +128,6 @@ export function flatGridRows(groups, columns) {
     rows.push({ type: 'row', key: `row:${start}`, cards: cards.slice(start, start + columns), firstInGroup: start === 0 });
   }
   return rows;
-}
-
-// ND-2 chip row: "All" + the RAW muscle groups from the data (v1's filter
-// values, sorted as the sheet), single select.
-export function filterChips(categories) {
-  return [{ value: '', label: 'All' }].concat((categories ?? []).map((category) => ({ value: category, label: category })));
 }
 
 // §E1.4 search submit (⚠E-5) and ⚠E-10's per-focus stack of applied

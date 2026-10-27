@@ -441,6 +441,48 @@ describe('AppModal phone pinned header (FINAL-AUDIT batch 1)', () => {
   });
 });
 
+// T-62 (27 Oct 2026): `pinnedHeader` (optional) renders right after the
+// title (row) and outside the ScrollView: a find field stays put while the
+// content scrolls. Without it, nothing changes (tests above).
+describe('AppModal pinnedHeader (T-62)', () => {
+  const inScroll = (tree, pred) => tree.root.findByType(ReactNative.ScrollView).findAll(pred).length > 0;
+  const pinned = <Text testID="find">Find</Text>;
+
+  it('phone: inside the fixed header, after the title row; the children still scroll', () => {
+    atWidth(PHONE);
+    const tree = render(modal({ pinnedHeader: pinned, children: <Text>Body</Text> }));
+    const header = host(tree, 'app-modal-header');
+    const ids = header.findAll((n) => typeof n.type === 'string' && ['app-modal-title-row', 'app-modal-pinned-header'].includes(n.props.testID)).map((n) => n.props.testID);
+    expect(ids).toEqual(['app-modal-title-row', 'app-modal-pinned-header']);
+    expect(inScroll(tree, (n) => n.props.testID === 'find')).toBe(false);
+    expect(inScroll(tree, (n) => n.type === Text && n.props.children === 'Body')).toBe(true);
+  });
+
+  it('tablet: the title and the pinned header sit in a fixed header above the scroll; the description scrolls', () => {
+    atWidth(TABLET);
+    const tree = render(modal({ pinnedHeader: pinned, children: <Text>Body</Text> }));
+    const header = host(tree, 'app-modal-header');
+    expect(header).toBeTruthy();
+    expect(inScroll(tree, (n) => n.props.testID === 'find')).toBe(false);
+    expect(inScroll(tree, (n) => n.type === Text && n.props.children === 'Discard this workout?')).toBe(false);
+    expect(flat(textNode(tree, 'Discard this workout?'))).toMatchObject({ fontSize: 34, lineHeight: 38 });
+    expect(inScroll(tree, (n) => n.type === Text && n.props.children === 'Logged sets will be lost.')).toBe(true);
+    expect(inScroll(tree, (n) => n.type === Text && n.props.children === 'Body')).toBe(true);
+    // The tablet Close stays pinned in the corner.
+    expect(hasHost(tree, 'app-modal-close')).toBe(true);
+  });
+
+  it('accessibility order: title, ×, pinned header, then the content', () => {
+    atWidth(PHONE);
+    const tree = render(modal({ pinnedHeader: pinned, children: <Text>Body</Text> }));
+    const order = tree.root
+      .findAll((n) => typeof n.type === 'string' && (n.type === 'Text' || n.props.testID === 'app-modal-close'))
+      .map((n) => (n.props.testID === 'app-modal-close' ? 'close' : [].concat(n.props.children).join('')))
+      .filter((item) => ['Discard this workout?', 'close', 'Find', 'Body'].includes(item));
+    expect(order).toEqual(['Discard this workout?', 'close', 'Find', 'Body']);
+  });
+});
+
 // FINAL-AUDIT batch 1 (5) guard: every AppModal caller whose footer has a
 // dismiss (Cancel / Close / Done, or a cancelLabel) passes footerDismiss; a
 // caller without one (PlanOverflowSheet: a titled menu) does not.

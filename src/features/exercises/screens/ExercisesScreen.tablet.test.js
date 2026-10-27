@@ -19,7 +19,7 @@ jest.mock('@react-navigation/native', () => {
 });
 jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn(() => Promise.resolve()) }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 24, bottom: 20, left: 0, right: 0 }) }));
-jest.mock('../api/exercisesApi', () => ({ listExercisesPage: jest.fn() }));
+jest.mock('../api/exercisesApi', () => ({ listExercisesPage: jest.fn(), listEquipmentTypes: jest.fn(() => Promise.resolve([])) }));
 jest.mock('../../shell/AppHeader', () => () => null);
 jest.mock('../../shell/ModeSwitch', () => () => null);
 jest.mock('../../shell/TabletRail', () => {
@@ -30,7 +30,6 @@ jest.mock('../../shell/TabletRail', () => {
 });
 jest.mock('../../../shared/components/BlurLayer', () => () => null);
 jest.mock('../../../shared/components/RemoteImage', () => () => null);
-jest.mock('../components/MuscleGroupSheet', () => () => null);
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({ __esModule: true, default: jest.fn() }));
 
 const mounted = [];

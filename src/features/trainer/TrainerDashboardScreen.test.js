@@ -73,13 +73,30 @@ function setWindow(width, fontScale = 1) {
   useWindowDimensions.mockReturnValue({ width, height: 900, scale: 2, fontScale });
 }
 
+const mounted = [];
+
 async function render() {
   let tree;
   await act(async () => {
     tree = create(<TrainerDashboardScreen />);
   });
+  mounted.push(tree);
   return tree;
 }
+
+// Gate flake (27 Oct): a tree left mounted kept useSheetFocus's 300 ms timer
+// alive past the suite ("findNodeHandle is not a function" after teardown).
+afterEach(() => {
+  act(() =>
+    mounted.splice(0).forEach((tree) => {
+      try {
+        tree.unmount();
+      } catch {
+        // Already unmounted by the test itself.
+      }
+    })
+  );
+});
 
 beforeEach(() => {
   jest.clearAllMocks();

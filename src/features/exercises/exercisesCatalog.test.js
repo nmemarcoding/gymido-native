@@ -183,3 +183,14 @@ describe('card thumbnails (F4)', () => {
     expect(cardThumbnailSources(null)).toEqual([]);
   });
 });
+
+describe('grid beside the T-62 filter panel (≥ 1024)', () => {
+  it('2 columns at 1024–1279, 3 at ≥ 1280; no panel keeps 2 / 3 / 4', () => {
+    const { gridColumns: columnsFor } = require('./exercisesCatalog');
+    expect(columnsFor(1194, { panel: true })).toBe(2);
+    expect(columnsFor(1279, { panel: true })).toBe(2);
+    expect(columnsFor(1280, { panel: true })).toBe(3);
+    expect(columnsFor(1366, { panel: true })).toBe(3);
+    expect(columnsFor(1194)).toBe(4);
+  });
+});

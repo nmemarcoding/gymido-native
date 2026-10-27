@@ -21,3 +21,9 @@ export async function listExercisesPage(page, search) {
   }
   return data(await apiClient.get('/exercises', { params }));
 }
+
+// T-62 (27 Oct 2026): the equipment names (`items[]{id, name}`), fetched ONCE
+// per screen load to name each list item's `equipment_type_id`.
+export async function listEquipmentTypes() {
+  return data(await apiClient.get('/equipment-types')).items ?? [];
+}

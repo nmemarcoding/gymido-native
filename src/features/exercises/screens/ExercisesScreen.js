@@ -8,7 +8,6 @@ import {
   FlatList,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -20,13 +19,11 @@ import Svg, { Path } from 'react-native-svg';
 
 import { routes } from '../../../navigation/routes';
 import BlurLayer from '../../../shared/components/BlurLayer';
-import Chip from '../../../shared/components/Chip';
-import EmptyState from '../../../shared/components/EmptyState';
 import ErrorAlert from '../../../shared/components/ErrorAlert';
-import { InlineError } from '../../../shared/components/FeedbackBox';
 import Loader from '../../../shared/components/Loader';
 import ExerciseImage, { muscleTextColor } from '../../../shared/components/ExerciseImage';
 import { CAP_BODY, CAP_PILL, TITLE_TEXT } from '../../../shared/components/largeText';
+import { focusNode } from '../../../shared/hooks/useSheetFocus';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { blur, breakpoints, colors, font, layout, radii, spacing, textInputColors, textScale } from '../../../shared/theme/tokens';
 import { useAuthStore } from '../../auth/authStore';
@@ -35,16 +32,28 @@ import TabletFrame from '../../shell/TabletFrame';
 import ModeSwitch from '../../shell/ModeSwitch';
 import { getScreenPath } from '../../shell/shellNavigation';
 import { resolveMode, showsMobileModeSwitch } from '../../shell/shellRules';
-import { listExercisesPage } from '../api/exercisesApi';
-import MuscleGroupSheet from '../components/MuscleGroupSheet';
+import { listEquipmentTypes, listExercisesPage } from '../api/exercisesApi';
+import { ActiveFilterLine, FilterButton, NoMatchState } from '../components/ExerciseFilterBar';
+import ExerciseFilterPanel from '../components/ExerciseFilterPanel';
+import ExerciseFilterSheet from '../components/ExerciseFilterSheet';
 import { getCachedList, setCachedList } from '../exerciseListCache';
+import {
+  NO_FILTERS,
+  activeFilterValues,
+  appliedFilters,
+  clearAllShown,
+  equipmentNameMap,
+  filterExercises,
+  filterFacets,
+  noMatchMessage,
+  resultCountText,
+} from '../exerciseFilters';
 import {
   INITIAL_SEARCH,
   cardMuscleLabel,
   cardThumbnailSources,
   catalogErrorMessage,
   deriveCatalog,
-  filterChips,
   flatGridRows,
   gridColumns,
   loadExerciseCatalog,
@@ -71,12 +80,16 @@ function ExercisesCatalog() {
   const navigation = useNavigation();
   const route = useRoute();
   const path = getScreenPath(route.name, route.params);
-  const { width, fontScale } = useWindowDimensions();
+  const { width, height, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const storedPreference = useAuthStore((state) => state.workspace);
   const mode = resolveMode({ user, path, storedPreference });
   const tablet = width >= breakpoints.md;
+  // T-62 ≥ 1024 (tablet landscape): the always-visible filter panel replaces
+  // the Filter button + dialog, except at large text (font scale ≥ 1.5),
+  // where the 256–280 column can't hold the text.
+  const panelShown = width >= breakpoints.lg && fontScale < 1.5;
   const sm = width >= breakpoints.sm;
   // The page cancels the shell's horizontal padding (web -mx-4 / ≥ 640 -mx-5)
   // and pads its own blocks with the same amount.
@@ -87,8 +100,31 @@ function ExercisesCatalog() {
 
   const [searchValue, setSearchValue] = useState('');
   const [search, setSearch] = useState(INITIAL_SEARCH);
-  const [categoryFilter, setCategoryFilter] = useState('');
+  // T-62 (27 Oct 2026): one muscle (group key) and one equipment id, each
+  // single select; both survive a new search (as ⚠E-6's filter did).
+  const [filters, setFilters] = useState(NO_FILTERS);
   const [isFilterOpen, setFilterOpen] = useState(false);
+  // T-62 Data: ONE GET /equipment-types per screen load names the items'
+  // `equipment_type_id`. Null while pending or after a failure (fail-soft:
+  // Muscle only, variant A).
+  const [equipmentNames, setEquipmentNames] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    Promise.resolve()
+      .then(() => listEquipmentTypes())
+      .then((types) => {
+        const names = equipmentNameMap(types);
+        if (alive && names.size > 0) {
+          setEquipmentNames(names);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  // T-62 States: the page-1 error's Retry re-runs the load.
+  const [attempt, setAttempt] = useState(0);
   // `partial`: pages 2…N failed (§E1.2 step 4); its `error` is null while a
   // Retry is in flight, which hides the alert. `complete`: every page is in.
   const [load, setLoad] = useState({ status: 'loading', items: [], error: null, partial: null, complete: false });
@@ -214,7 +250,7 @@ function ExercisesCatalog() {
     return () => {
       loadId.current += 1;
     };
-  }, [search.applied, returns]);
+  }, [search.applied, returns, attempt]);
 
   // §E1.2 step 4: Retry re-requests pages 2…N only, with the same search.
   const retryRestPages = () => {
@@ -258,28 +294,101 @@ function ExercisesCatalog() {
     }, [])
   );
 
-  const catalog = useMemo(() => deriveCatalog(load.items, categoryFilter), [load.items, categoryFilter]);
-  const columns = gridColumns(width);
+  // T-62: an equipment filter applies once its name is known; the grid is
+  // the loaded list (= the search) narrowed by both facets, then grouped as
+  // before (§E1.3 order, ND-3 flat rows).
+  const applied = useMemo(() => appliedFilters(filters, equipmentNames), [filters, equipmentNames]);
+  const filtered = useMemo(() => filterExercises(load.items, applied), [load.items, applied]);
+  const catalog = useMemo(() => deriveCatalog(filtered, ''), [filtered]);
+  // "While the first load runs" (until the whole list or the step-4 partial
+  // is in): the count says "Loading…" and the rows' counts "—".
+  const settled = useRef(false);
+  if (load.complete || load.partial) {
+    settled.current = true;
+  }
+  const firstLoad = !settled.current && load.status !== 'error';
+  const facets = useMemo(
+    () => filterFacets(load.items, applied, equipmentNames, { loading: firstLoad }),
+    [load.items, applied, equipmentNames, firstLoad]
+  );
+  const values = activeFilterValues(applied, equipmentNames);
+  const anySet = values.length > 0 || Boolean(search.applied);
+  // The page-1 error state has no count (the alert speaks for the results).
+  const countText = load.status === 'error' ? '' : resultCountText({ loading: firstLoad, count: filtered.length });
+  const columns = gridColumns(width, { panel: panelShown });
   const openExercise = useCallback(
     (id) => navigation.push(routes.ExerciseDetail, { exerciseId: String(id) }),
     [navigation]
   );
 
-  const loaded = load.status === 'loaded';
+  // T-62 (UX 27 Oct 2026): the results count is announced once per change:
+  // a search applies on submit, so once per submit (when its list is whole),
+  // never while typing; a filter tap is a change too. The first settled
+  // count (the page opening) is not announced.
+  const announced = useRef(null);
+  const announceReady = load.status === 'loaded' && !searching && (load.complete || Boolean(load.partial));
+  useEffect(() => {
+    if (!announceReady || !countText) {
+      return;
+    }
+    if (announced.current !== null && announced.current !== countText) {
+      AccessibilityInfo.announceForAccessibility(countText.replace(/\u00a0/g, ' '));
+    }
+    announced.current = countText;
+  }, [announceReady, countText]);
+
+  // Focus moves (accessibility focus: a touch user's keyboard stays shut).
+  const searchFieldRef = useRef(null);
+  const filterButtonRef = useRef(null);
+  const chipRefs = useRef({});
+  const [focusTarget, setFocusTarget] = useState(null);
+  useEffect(() => {
+    if (!focusTarget) {
+      return undefined;
+    }
+    // After the commit that removed the chip / cleared the filters.
+    const timer = setTimeout(() => {
+      focusNode({ current: focusTarget === 'search' ? searchFieldRef.current : chipRefs.current[focusTarget] });
+      setFocusTarget(null);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [focusTarget]);
+
+  const selectFilter = (facet, value) => setFilters((current) => ({ ...current, [facet]: value }));
+  // After removing a chip, focus the next chip, else the search field.
+  const removeFilter = (facet) => {
+    setFilters((current) => ({ ...current, [facet]: '' }));
+    setFocusTarget(facet === 'muscle' && applied.equipment ? 'equipment' : 'search');
+  };
+  const clearSearch = () => {
+    setSearchValue('');
+    setSearch((current) => submitSearch(current, ''));
+  };
+  // "Clear all" (line) and "Clear filters" (no match): filters + search.
+  const clearAll = () => {
+    setFilters(NO_FILTERS);
+    clearSearch();
+    setFocusTarget('search');
+  };
+
   const data = useMemo(() => {
-    const rows = [{ type: 'header', key: 'header' }];
+    // T-62 States: the toolbar and the active line stay in every state; the
+    // Loader and the error sit in the results area.
+    const rows = [
+      { type: 'header', key: 'header' },
+      { type: 'bar', key: 'bar' },
+      { type: 'line', key: 'line' },
+    ];
     if (load.status === 'loading') {
       rows.push({ type: 'loader', key: 'loader' });
     } else if (load.status === 'error') {
       rows.push({ type: 'error', key: 'error' });
     } else {
-      rows.push({ type: 'bar', key: 'bar' });
       if (load.partial?.error) {
         rows.push({ type: 'partialError', key: 'partialError' });
       }
-      // ⚠E-6 (web audit batch 1): a muscle filter whose group has no match
-      // in the results shows the same empty state, never a blank grid.
-      if (load.items.length === 0 || catalog.groups.length === 0) {
+      // T-62 No match (⚠E-6's blank space stays retired).
+      if (catalog.groups.length === 0) {
         rows.push({ type: 'empty', key: 'empty' });
       } else {
         // ND-3: flat grid, v1 order.
@@ -287,7 +396,7 @@ function ExercisesCatalog() {
       }
     }
     return rows;
-  }, [load.status, load.items, load.partial, catalog.groups, columns]);
+  }, [load.status, load.partial, catalog.groups, columns]);
 
   const renderItem = ({ item }) => {
     switch (item.type) {
@@ -310,34 +419,64 @@ function ExercisesCatalog() {
           </View>
         );
       case 'loader':
-        // ⚠E-3: the loader replaces the whole page, search bar included.
+        // T-62 States (narrows ⚠E-3): the first load keeps the toolbar; the
+        // Loader fills the results area.
         return (
-          <View style={padding}>
+          <View style={[padding, styles.contentTop]}>
             <Loader label="Loading exercises" />
           </View>
         );
       case 'error':
-        // ⚠E-4 (narrowed 25 Oct to a page-1 failure): no retry, no search box.
+        // T-62 States (replaces ⚠E-4's "InlineError, no retry, no search
+        // box"): the shared ErrorAlert + the transport text + Retry.
         return (
-          <View style={padding}>
-            <InlineError testID="exercises-error" title="Exercises unavailable" message={catalogErrorMessage(load.error)} />
+          <View style={[padding, styles.contentTop]}>
+            <ErrorAlert
+              testID="exercises-error"
+              retryTestID="exercises-error-retry"
+              title="Exercises unavailable"
+              description={catalogErrorMessage(load.error)}
+              onRetry={() => setAttempt((value) => value + 1)}
+            />
           </View>
         );
       case 'bar':
         return (
           <StickyBar
             padding={padding}
+            searchFieldRef={searchFieldRef}
             searchValue={searchValue}
             onChangeSearch={setSearchValue}
             onSubmitSearch={() => setSearch((current) => submitSearch(current, searchValue))}
             searching={searching}
-            showFilter={catalog.categories.length > 0}
-            categories={catalog.categories}
-            categoryFilter={categoryFilter}
-            onSelectFilter={setCategoryFilter}
-            onOpenFilter={() => setFilterOpen(true)}
+            filterButton={
+              panelShown ? null : (
+                <FilterButton
+                  ref={filterButtonRef}
+                  values={values.map((entry) => entry.value)}
+                  open={isFilterOpen}
+                  onPress={() => setFilterOpen(true)}
+                  tablet={tablet}
+                  tall={tablet && width < 1280}
+                  hideLabel={fontScale > textScale.reflowAbove}
+                />
+              )
+            }
             tablet={tablet}
-            reflow={fontScale > textScale.reflowAbove}
+            tall={tablet && width < 1280}
+          />
+        );
+      case 'line':
+        return (
+          <ActiveFilterLine
+            style={[padding, styles.lineRow]}
+            countText={countText}
+            emphasized={anySet}
+            chips={values}
+            chipRefs={chipRefs}
+            onRemove={removeFilter}
+            showClearAll={clearAllShown({ muscle: applied.muscle, equipment: applied.equipment, search: search.applied })}
+            onClearAll={clearAll}
           />
         );
       case 'partialError':
@@ -357,7 +496,16 @@ function ExercisesCatalog() {
       case 'empty':
         return (
           <View style={[padding, styles.contentTop]}>
-            <EmptyState title="No exercises found" message="Try a different search term." />
+            <NoMatchState
+              message={noMatchMessage(values.map((entry) => entry.value), search.applied)}
+              showClear={anySet}
+              showSearchAll={values.length > 0 && Boolean(search.applied)}
+              onClearFilters={clearAll}
+              onSearchAll={() => {
+                setFilters(NO_FILTERS);
+                setFocusTarget('search');
+              }}
+            />
           </View>
         );
       case 'row':
@@ -386,7 +534,7 @@ function ExercisesCatalog() {
       data={data}
       renderItem={renderItem}
       keyExtractor={(item) => item.key}
-      stickyHeaderIndices={loaded ? [1] : undefined}
+      stickyHeaderIndices={[1]}
       // Android Fabric crashes (addViewAt IndexOutOfBounds) when clipped
       // subviews meet a sticky header that appears after load.
       removeClippedSubviews={false}
@@ -404,123 +552,83 @@ function ExercisesCatalog() {
         // T-55/T-56: room for the overlay's rail (TabletFrame takes the top/left insets).
         <TabletFrame>
           <View style={[styles.tabletRow, { paddingRight: 4 + insets.right }]}>
-            <View style={styles.tabletContent}>{list}</View>
+            <View style={[styles.tabletContent, panelShown && styles.tabletContentPanel]}>
+              {panelShown ? (
+                <ExerciseFilterPanel
+                  facets={facets}
+                  filters={applied}
+                  onSelect={selectFilter}
+                  loadingNames={firstLoad && load.items.length === 0}
+                  width={width}
+                  maxHeight={height - 48 - insets.top - insets.bottom}
+                  style={styles.panel}
+                />
+              ) : null}
+              <View style={styles.listColumn}>{list}</View>
+            </View>
           </View>
         </TabletFrame>
       ) : (
         <View style={styles.phoneColumn}>{list}</View>
       )}
-      <MuscleGroupSheet
-        open={isFilterOpen}
-        categories={catalog.categories}
-        categoryCounts={catalog.categoryCounts}
-        total={load.items.length}
-        value={categoryFilter}
-        onSelect={(value) => {
-          setCategoryFilter(value);
-          setFilterOpen(false);
-        }}
+      <ExerciseFilterSheet
+        // A rotation into the panel layout closes it.
+        open={isFilterOpen && !panelShown}
+        facets={facets}
+        filters={applied}
+        resultCount={filtered.length}
+        loadingNames={firstLoad && load.items.length === 0}
+        onSelect={selectFilter}
         onClose={() => setFilterOpen(false)}
+        returnRef={filterButtonRef}
       />
     </View>
   );
 }
 
-// §E1.4 sticky bar, v2 (UX G "Exercises", ND-2): the pill search field
-// and the chip row AS DRAWN: "All" + the raw muscle groups, single select,
-// horizontally scrolling (§9: wraps past 1.3, never hides chips), then the
-// native trailing "All muscle groups ▾" chip that opens the full-list sheet.
-function StickyBar({ padding, searchValue, onChangeSearch, onSubmitSearch, searching, showFilter, categories, categoryFilter, onSelectFilter, onOpenFilter, tablet, reflow }) {
+// §E1.4 sticky bar, v2 (UX G "Exercises"), as changed by T-62 (UX T62 §2):
+// ONE toolbar row, the pill search field (flex 1; 52, 56 at 768–1279) and
+// the Filter button at the same height (row gap 8, 10 from 768). The
+// sideways muscle chip row and its "All muscle groups ▾" chip are gone.
+function StickyBar({ padding, searchFieldRef, searchValue, onChangeSearch, onSubmitSearch, searching, filterButton, tablet, tall }) {
   const [focused, setFocused] = useState(false);
-  const chips = filterChips(categories).map((chip) => (
-    <Chip
-      key={chip.value || '__all__'}
-      testID={`exercises-chip-${chip.value || 'all'}`}
-      label={chip.label}
-      selected={chip.value === categoryFilter}
-      onPress={() => onSelectFilter(chip.value)}
-      style={tablet ? styles.chipTablet : null}
-    />
-  ));
-  const sheetChip = (
-    <Pressable
-      key="__sheet__"
-      testID="exercises-filter"
-      accessibilityRole="button"
-      // Batch 3 (f), web parity: named by its visible text; no selected count.
-      accessibilityLabel="All muscle groups"
-      onPress={onOpenFilter}
-      hitSlop={{ top: 3, bottom: 3 }}
-      style={[styles.sheetChip, tablet && styles.chipTablet]}
-    >
-      {({ pressed }) => (
-        <>
-          {pressed ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.pressOverlay]} /> : null}
-          <Text {...CAP_BODY} style={styles.sheetChipText}>
-            All muscle groups
-          </Text>
-          <Svg width={14} height={14} viewBox="0 0 20 20" fill="none">
-            <Path d="M6 8l4 4 4-4" stroke={colors.textStrong2} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
-          </Svg>
-        </>
-      )}
-    </Pressable>
-  );
   return (
     <View testID="exercises-bar" style={[styles.bar, padding]}>
       <BlurLayer blurPx={blur.groundBar} />
       <View style={[StyleSheet.absoluteFill, styles.barFill]} />
-      <View testID="exercises-search-box" style={[styles.searchBox, tablet && styles.searchBoxTablet]}>
-        <TextInput
-          {...textInputColors}
-          testID="exercises-search"
-          value={searchValue}
-          onChangeText={onChangeSearch}
-          onSubmitEditing={onSubmitSearch}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          placeholder="Search exercises"
-          placeholderTextColor={colors.textFaint}
-          accessibilityLabel="Search exercises"
-          returnKeyType="search"
-          enterKeyHint="search"
-          maxFontSizeMultiplier={textScale.body}
-          // iOS's clear "×" would sit on the spinner, so it hides while a
-          // search loads (T-12 F2, PM/UX decision 26 Oct 2026).
-          clearButtonMode={!searching && Platform.OS === 'ios' ? 'while-editing' : 'never'}
-          autoCorrect={false}
-          autoCapitalize="none"
-          style={[styles.searchInput, searching && styles.searchInputSearching, focused && styles.searchInputFocused]}
-        />
-        <View testID="exercises-search-icon" pointerEvents="none" style={styles.searchGlyph} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-            <Path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14ZM20 20l-4-4" stroke={colors.textMuted} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-          </Svg>
-        </View>
-        {searching ? <SearchSpinner /> : null}
-      </View>
-      {showFilter ? (
-        reflow ? (
-          <View testID="exercises-chips" accessibilityRole="radiogroup" accessibilityLabel="Muscle group" style={styles.chipsWrap}>
-            {chips}
-            {sheetChip}
+      <View testID="exercises-toolbar" style={[styles.toolbar, tablet && styles.toolbarTablet]}>
+        <View testID="exercises-search-box" style={styles.searchBox}>
+          <TextInput
+            {...textInputColors}
+            ref={searchFieldRef}
+            testID="exercises-search"
+            value={searchValue}
+            onChangeText={onChangeSearch}
+            onSubmitEditing={onSubmitSearch}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            placeholder="Search exercises"
+            placeholderTextColor={colors.textFaint}
+            accessibilityLabel="Search exercises"
+            returnKeyType="search"
+            enterKeyHint="search"
+            maxFontSizeMultiplier={textScale.body}
+            // iOS's clear "×" would sit on the spinner, so it hides while a
+            // search loads (T-12 F2, PM/UX decision 26 Oct 2026).
+            clearButtonMode={!searching && Platform.OS === 'ios' ? 'while-editing' : 'never'}
+            autoCorrect={false}
+            autoCapitalize="none"
+            style={[styles.searchInput, tall && styles.searchInputTall, searching && styles.searchInputSearching, focused && styles.searchInputFocused]}
+          />
+          <View testID="exercises-search-icon" pointerEvents="none" style={styles.searchGlyph} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+              <Path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14ZM20 20l-4-4" stroke={colors.textMuted} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
           </View>
-        ) : (
-          <ScrollView
-            testID="exercises-chips"
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            accessibilityRole="radiogroup"
-            accessibilityLabel="Muscle group"
-            keyboardShouldPersistTaps="handled"
-            style={styles.chipsScroll}
-            contentContainerStyle={styles.chipsRow}
-          >
-            {chips}
-            {sheetChip}
-          </ScrollView>
-        )
-      ) : null}
+          {searching ? <SearchSpinner /> : null}
+        </View>
+        {filterButton}
+      </View>
     </View>
   );
 }
@@ -616,6 +724,19 @@ const styles = StyleSheet.create({
     maxWidth: layout.contentMax + 40,
     alignSelf: 'center',
   },
+  // T-62 panel row: the panel 20 in (the rows' own padding) and 4 + the
+  // rows' 20 padding = the 24 gap to the results.
+  tabletContentPanel: {
+    flexDirection: 'row',
+  },
+  panel: {
+    marginLeft: 20,
+    marginRight: 4,
+  },
+  listColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
   mobileSwitch: {
     marginBottom: 20,
   },
@@ -638,19 +759,28 @@ const styles = StyleSheet.create({
   },
   bar: {
     overflow: 'hidden',
-    gap: 14,
     paddingTop: 12,
     paddingBottom: 12,
+  },
+  // T-62 toolbar: search (flex 1) + Filter, gap 8 (10 from 768), centred.
+  toolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  toolbarTablet: {
+    gap: spacing['2_5'],
+  },
+  lineRow: {
+    paddingTop: 4,
   },
   barFill: {
     backgroundColor: colors.groundBar,
   },
   searchBox: {
+    flex: 1,
+    minWidth: 0,
     justifyContent: 'center',
-  },
-  searchBoxTablet: {
-    width: 320,
-    maxWidth: '100%',
   },
   // UX G: 52 tall pill, surface, the 0.08 edge → hairline-strong (ladder).
   searchInput: {
@@ -666,6 +796,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 20,
     color: colors.textPrimary,
+  },
+  searchInputTall: {
+    minHeight: 56,
   },
   searchInputSearching: {
     paddingRight: 44,
@@ -695,45 +828,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 18,
     justifyContent: 'center',
-  },
-  chipsScroll: {
-    marginHorizontal: -16,
-  },
-  chipsRow: {
-    gap: spacing[2],
-    paddingHorizontal: 16,
-    paddingVertical: 3,
-  },
-  chipsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing[2],
-  },
-  chipTablet: {
-    minHeight: 40,
-    paddingHorizontal: 18,
-  },
-  // Off-chip look (kit Chip off) with a trailing chevron.
-  sheetChip: {
-    minHeight: 38,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing['1_5'],
-    overflow: 'hidden',
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.hairlineStrong,
-    backgroundColor: colors.fillWell,
-    paddingHorizontal: spacing[4],
-  },
-  sheetChipText: {
-    ...font(500),
-    fontSize: 14,
-    lineHeight: 18,
-    color: colors.textStrong2,
-  },
-  pressOverlay: {
-    backgroundColor: colors.pressOverlay,
   },
   contentTop: {
     paddingTop: 20,

@@ -26,13 +26,12 @@ jest.mock('@react-navigation/native', () => {
 });
 jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn(() => Promise.resolve()) }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
-jest.mock('../api/exercisesApi', () => ({ listExercisesPage: jest.fn() }));
+jest.mock('../api/exercisesApi', () => ({ listExercisesPage: jest.fn(), listEquipmentTypes: jest.fn(() => Promise.resolve([])) }));
 jest.mock('../../shell/AppHeader', () => () => null);
 jest.mock('../../shell/TabletFrame', () => ({ children }) => children);
 jest.mock('../../shell/ModeSwitch', () => () => null);
 jest.mock('../../../shared/components/BlurLayer', () => () => null);
 jest.mock('../../../shared/components/RemoteImage', () => () => null);
-jest.mock('../components/MuscleGroupSheet', () => () => null);
 
 const ex = (id) => ({ id, name: `Ex ${id}`, primary_muscle_group: { name: 'Chest' } });
 const page = (items, totalPages) => ({ items, pagination: { total_pages: totalPages } });
@@ -126,11 +125,21 @@ describe('§E1.2 step 4: a later page fails (T-16)', () => {
     expect(input.props).toMatchObject({ selectionColor: colors.gold, cursorColor: colors.gold });
   });
 
-  it('still replaces the screen when page 1 fails (⚠E-4)', async () => {
+  // DECLARED (T-62 States, 27 Oct 2026): was "still replaces the screen when
+  // page 1 fails (⚠E-4)" with no Retry; now the toolbar stays and the shared
+  // ErrorAlert in the results area has a Retry that re-runs the load.
+  it('a page-1 failure: the toolbar stays, ErrorAlert "Exercises unavailable" + the transport text + Retry', async () => {
     listExercisesPage.mockRejectedValue(failure);
     const tree = await render();
     expect(texts(tree.root)).toEqual(expect.arrayContaining(['Exercises unavailable', 'Request failed with status code 500']));
-    expect(tree.root.findAll((node) => node.props.title === 'Retry')).toHaveLength(0);
+    expect(tree.root.findAll((node) => node.props.placeholder === 'Search exercises')).not.toHaveLength(0);
+    listExercisesPage.mockClear();
+    listExercisesPage.mockResolvedValue(page([ex(1)], 1));
+    await act(async () => {
+      retryButton(tree.root).props.onPress();
+    });
+    expect(listExercisesPage).toHaveBeenCalledWith(1, '');
+    expect(texts(tree.root)).toContain('Ex 1');
   });
 });
 
@@ -344,7 +353,7 @@ describe('§E1.2 step 1: a search reload keeps the list (T-12 F2)', () => {
     expect(spinners(tree)).toHaveLength(0);
   });
 
-  it('shows the full error screen when page 1 of the search fails', async () => {
+  it('shows the error state when page 1 of the search fails (T-62: the toolbar stays)', async () => {
     listExercisesPage.mockImplementation(() => Promise.resolve(page([ex(1)], 1)));
     const tree = await render();
     listExercisesPage.mockRejectedValue(failure);
@@ -365,7 +374,7 @@ describe('§E1.2 step 1: a search reload keeps the list (T-12 F2)', () => {
     expect(spinners(tree)).toHaveLength(0);
   });
 
-  it('keeps the full-screen Loader for the first load', async () => {
+  it('keeps the Loader for the first load (T-62: in the results area)', async () => {
     listExercisesPage.mockImplementation(() => new Promise(() => {}));
     const tree = await render();
     expect(texts(tree.root)).toContain('Loading exercises');
@@ -373,17 +382,20 @@ describe('§E1.2 step 1: a search reload keeps the list (T-12 F2)', () => {
   });
 });
 
-// ⚠E-6 (web audit batch 1; RN-SPEC-exercises ⚠E-6 being updated): was a blank grid under the bar.
+// ⚠E-6 (web audit batch 1): was a blank grid under the bar.
+// DECLARED (T-62): the muscle is now picked in the filter sheet (was the
+// `exercises-chip-Chest` chip), and the no-match body names the filter
+// (was "Try a different search term." for a kept muscle filter).
 describe('⚠E-6: a muscle filter + a search with no match in that group', () => {
   const input = (tree) => tree.root.find((node) => node.props.placeholder === 'Search exercises' && node.props.onChangeText);
   const back = (id) => ({ id, name: `Row ${id}`, primary_muscle_group: { name: 'Back' } });
-  const pressChip = (tree, value) =>
-    act(() => tree.root.find((node) => node.props.testID === `exercises-chip-${value}` && typeof node.props.onPress === 'function').props.onPress());
+  const pressID = (tree, id) => act(() => tree.root.find((node) => node.props.testID === id && typeof node.props.onPress === 'function').props.onPress());
 
-  it('shows "No exercises found" / "Try a different search term." instead of a blank grid', async () => {
+  it('shows "No exercises found" / "Nothing matches Chest and "row"." instead of a blank grid', async () => {
     listExercisesPage.mockImplementation(() => Promise.resolve(page([ex(1), back(2)], 1)));
     const tree = await render();
-    pressChip(tree, 'Chest');
+    pressID(tree, 'exercises-filter');
+    pressID(tree, 'exercise-filter-muscle-Chest');
     expect(texts(tree.root)).toContain('Ex 1');
     expect(texts(tree.root)).not.toContain('No exercises found');
 
@@ -393,7 +405,7 @@ describe('⚠E-6: a muscle filter + a search with no match in that group', () =>
       input(tree).props.onSubmitEditing();
     });
     const shown = texts(tree.root);
-    expect(shown).toEqual(expect.arrayContaining(['No exercises found', 'Try a different search term.']));
+    expect(shown).toEqual(expect.arrayContaining(['No exercises found', 'Nothing matches Chest and "row".']));
     expect(shown).not.toContain('Row 3');
     expect(shown).not.toContain('Ex 1');
   });

@@ -64,7 +64,11 @@ export function isTabletWidth(width) {
 // the title. A string is the gold eyebrow line (12/600, 6 above the title),
 // e.g. the client's name on the tablet client modals; a node is rendered as
 // given (the caller styles and hides it from AT as needed).
-export default function AppModal({ isOpen, onClose, title, description, size = 'lg', footer, children, testID, entrance = 'slide', compact = false, hideClose = false, footerDismiss = false, role, eyebrow, sheetTopGap = SHEET_TOP_GAP }) {
+// `pinnedHeader` (optional, default none; T-62 27 Oct 2026): a node rendered
+// right after the title (row) and OUTSIDE the ScrollView, e.g. a find field
+// that stays put while the list scrolls. On a tablet it also pins the
+// eyebrow and title above the scroll (the description still scrolls).
+export default function AppModal({ isOpen, onClose, title, description, size = 'lg', footer, children, testID, entrance = 'slide', compact = false, hideClose = false, footerDismiss = false, role, eyebrow, pinnedHeader, sheetTopGap = SHEET_TOP_GAP }) {
   const { width, height, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const tablet = isTabletWidth(width);
@@ -152,6 +156,17 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
   } else if (eyebrow && typeof eyebrow !== 'string') {
     eyebrowView = <View testID="app-modal-eyebrow">{eyebrow}</View>;
   }
+  const pinnedView = pinnedHeader ? (
+    <View testID="app-modal-pinned-header" style={tablet ? styles.pinnedTablet : styles.pinned}>
+      {pinnedHeader}
+    </View>
+  ) : null;
+  const tabletHeader = tablet && Boolean(pinnedHeader);
+  const tabletTitle = (
+    <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.titleTablet}>
+      {title}
+    </Text>
+  );
   const footerView = footer ? <View style={tablet ? styles.footerTablet : styles.footer}>{footer}</View> : null;
 
   return (
@@ -202,8 +217,16 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
                     {title}
                   </Text>
                 )}
+                {pinnedView}
               </View>
             )}
+            {tabletHeader ? (
+              <View testID="app-modal-header" style={styles.header}>
+                {eyebrowView}
+                {tabletTitle}
+                {pinnedView}
+              </View>
+            ) : null}
             <ScrollView
               style={styles.scroll}
               overScrollMode="never"
@@ -213,18 +236,14 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
               {/* UX §9 title rule: the phone title is title-sheet (1.6× cap), the
                   tablet one is 34 px, a page-size title (1.3× cap); both wrap by
                   word, max 3 lines, and a long word shrinks. */}
-              {tablet ? eyebrowView : null}
-              {tablet ? (
-                <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.titleTablet}>
-                  {title}
-                </Text>
-              ) : null}
+              {tablet && !tabletHeader ? eyebrowView : null}
+              {tablet && !tabletHeader ? tabletTitle : null}
               {description ? (
                 <Text {...CAP_BODY} style={[styles.description, tablet && !compact && styles.descriptionTablet, tablet && styles.descriptionTabletGap]}>
                   {description}
                 </Text>
               ) : null}
-              {hasChildren ? <View style={tablet ? styles.childrenTablet : styles.children}>{children}</View> : null}
+              {hasChildren ? <View style={[tablet ? styles.childrenTablet : styles.children, pinnedHeader && !description && styles.childrenUnderPinned]}>{children}</View> : null}
               {footerInScroll ? footerView : null}
             </ScrollView>
             {footerInScroll ? null : footerView}
@@ -404,6 +423,16 @@ const styles = StyleSheet.create({
   childrenTablet: {
     gap: spacing[4],
     marginTop: spacing[6],
+  },
+  // T-62 pinned sub-header: under the title; the scroll starts right below.
+  pinned: {
+    paddingTop: spacing[4],
+  },
+  pinnedTablet: {
+    paddingTop: spacing[5],
+  },
+  childrenUnderPinned: {
+    marginTop: spacing[3],
   },
   footer: {
     flexShrink: 0,
