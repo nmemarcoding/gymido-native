@@ -105,3 +105,40 @@ export function validateWeightLog(value, unit) {
 export function weightLogBody(value, unit, now = new Date()) {
   return { weight_value: parseDecimal(value), weight_unit: unit, recorded_on: formatLocalDateForInput(now), note: null };
 }
+
+// v2 Phase 2 B3: the Today header (main Today board): "Today · Thursday, Oct 29".
+export function todayDateLabel(now = new Date()) {
+  const date = now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+  return `Today · ${date}`;
+}
+
+// The header avatar (decorative): first + last initial, else the first
+// letter of the greeting name ("there" → none).
+export function avatarInitials(profile, email) {
+  const first = typeof profile?.first_name === 'string' ? profile.first_name.trim() : '';
+  const last = typeof profile?.last_name === 'string' ? profile.last_name.trim() : '';
+  if (first) {
+    return `${first[0]}${last ? last[0] : ''}`.toUpperCase();
+  }
+  const local = typeof email === 'string' ? email.trim().split('@')[0].trim() : '';
+  return local ? local[0].toUpperCase() : '';
+}
+
+// Today-empty stat tiles (UX B §Today, empty; ND4 ring on tablet): the H1.4
+// numbers, regrouped ("This week" n / planned, "Done total").
+export function todayEmptyStats(dashboard) {
+  const stats = dashboard?.quick_stats ?? {};
+  const thisWeek = Number(stats.completed_workouts_this_week ?? 0) || 0;
+  const planned = Number(stats.planned_workouts_this_week ?? 0) || 0;
+  const doneTotal = Number(stats.completed_workouts_total ?? 0) || 0;
+  return {
+    thisWeek,
+    planned,
+    doneTotal,
+    thisWeekText: formatNumber(thisWeek, 0),
+    plannedText: `/${formatNumber(planned, 0)}`,
+    doneTotalText: formatNumber(doneTotal, 0),
+    ringLabel: `${formatNumber(thisWeek, 0)} of ${formatNumber(planned, 0)} workouts this week`,
+    lastWorkout: stats.last_workout_at ? `Last workout ${formatDate(stats.last_workout_at)}` : null,
+  };
+}

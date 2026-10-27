@@ -1,20 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import EmptyState from '../../shared/components/EmptyState';
-import { InlineError } from '../../shared/components/FeedbackBox';
-import Loader from '../../shared/components/Loader';
 import { InlineToast } from '../../shared/components/ToastHost';
 import { ToastTone } from '../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
-import { colors, radii, shadows } from '../../shared/theme/tokens';
+import { breakpoints, colors, radii, shadows } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
 import { getCurrentPlan, listPlanDays } from '../plans/api/libraryApi';
 import { applySavedWeightLog, useProfileStore } from '../profile/profileStore';
 import ShellPage from '../shell/ShellPage';
 import { openPlanDetailAlone, openShellPath } from '../shell/shellLinks';
 import { getDashboard } from './api/homeApi';
-import { defaultWeightUnit, greetingName, quickStats, recentWorkoutMeta, todayCard, weightCard } from './homeFormat';
+import {
+  avatarInitials,
+  defaultWeightUnit,
+  greetingName,
+  quickStats,
+  recentWorkoutMeta,
+  todayCard,
+  todayDateLabel,
+  todayEmptyStats,
+  weightCard,
+} from './homeFormat';
+import { TodayEmpty, TodayError, TodayHeader, TodayLoading } from './TodayStates';
 import WeightLogModal from './WeightLogModal';
 
 const SAVED_TOAST_MS = 3500;
@@ -28,11 +37,13 @@ const PILL_TONES = {
 };
 
 // Home (RN-SPEC-home), the Today tab root. Every focus is a fresh mount
-// (plans §8.1).
+// (plans §8.1). v2 Phase 2 B3: the Today header in every state, and the
+// empty / error / loading states (TodayStates.js); the ambient gold glow
+// from the first render.
 export default function HomeScreen() {
   const remountKey = useFocusRemountKey();
   return (
-    <ShellPage>
+    <ShellPage glow>
       <Home key={remountKey} />
     </ShellPage>
   );
@@ -56,6 +67,10 @@ async function loadSetupDayCount() {
 
 function Home() {
   const email = useAuthStore((state) => state.user?.email);
+  const { width } = useWindowDimensions();
+  // Fixed per mount (every Today focus remounts): the states draw gradients,
+  // which are never swapped on a later change (Android render rule).
+  const [tablet] = useState(() => width >= breakpoints.md);
   const [load, setLoad] = useState({ status: 'loading', dashboard: null, error: null });
   // T-24 (25 Oct 2026): the ProfileGate already loaded the profile; Home reads the store.
   const profile = useProfileStore((state) => state.profile);
@@ -104,12 +119,31 @@ function Home() {
     return () => clearTimeout(timer);
   }, [successMessage]);
 
+  const header = (
+    <TodayHeader
+      tablet={tablet}
+      initials={avatarInitials(profile, email)}
+      dateLabel={todayDateLabel()}
+      greeting={`Welcome back, ${greetingName(profile, email)}`}
+    />
+  );
+
   if (load.status === 'loading') {
-    return <Loader label="Loading dashboard" />;
+    return (
+      <View style={styles.page}>
+        {header}
+        <TodayLoading tablet={tablet} />
+      </View>
+    );
   }
   if (load.status === 'error') {
     // ⚠H-1: the transport text, no retry.
-    return <InlineError testID="home-error" title="Dashboard unavailable" message={load.error?.message || 'Please try again.'} />;
+    return (
+      <View style={styles.page}>
+        {header}
+        <TodayError tablet={tablet} message={load.error?.message} />
+      </View>
+    );
   }
 
   const { dashboard } = load;
@@ -117,25 +151,87 @@ function Home() {
   const stats = quickStats(dashboard);
   const weight = weightCard(dashboard, profile);
   const recent = dashboard?.recent_workouts ?? [];
+  const toast = successMessage ? (
+    <InlineToast testID="home-saved-toast" tone={ToastTone.success} title="Saved" message={successMessage} />
+  ) : null;
+  const weightValues = (
+    <View style={styles.weightValues}>
+      {[
+        ['Current', weight.current],
+        ['Goal', weight.goal],
+        ['To goal', weight.toGoal],
+      ].map(([label, value], index) => (
+        <View key={label} style={[styles.weightItem, index > 0 && styles.divider]}>
+          <Text numberOfLines={1} textBreakStrategy="simple" style={styles.weightValue}>{value}</Text>
+          <Text style={styles.stripLabel}>{label}</Text>
+        </View>
+      ))}
+    </View>
+  );
+  const recentList = (
+    <View>
+      <Text accessibilityRole="header" style={[styles.sectionTitle, styles.recentHeading]}>
+        Recent workouts
+      </Text>
+      <View style={styles.recentList}>
+        {recent.map((workout, index) => (
+          <View key={workout.id ?? index} testID={`home-recent-${workout.id ?? index}`} style={[styles.card, styles.recentRow]}>
+            <View style={styles.textColumn}>
+              <Text numberOfLines={1} style={styles.recentTitle}>
+                {workout.workout_plan_day?.title || 'Workout session'}
+              </Text>
+              <Text numberOfLines={1} style={styles.recentMeta}>
+                {recentWorkoutMeta(workout)}
+              </Text>
+            </View>
+            {/* ⚠H-7: always the success tone, with the raw status text. */}
+            <StatusPill tone="success" label={workout.status} />
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+  const weightModal = (
+    <WeightLogModal
+      isOpen={modalOpen}
+      onClose={() => setModalOpen(false)}
+      defaultUnit={defaultWeightUnit(profile)}
+      onSuccess={(saved) => {
+        applySavedWeightLog(saved);
+        setSuccessMessage('Weight logged successfully.');
+        quietRefresh();
+      }}
+    />
+  );
+
+  if (!plan) {
+    return (
+      <View style={styles.page}>
+        {toast}
+        {header}
+        <TodayEmpty
+          tablet={tablet}
+          stats={todayEmptyStats(dashboard)}
+          weight={weight}
+          weightValues={weightValues}
+          recentEmpty={recent.length === 0}
+          recentList={recentList}
+          onChoosePlan={() => openShellPath('/plans')}
+          onBuildPlan={() => openShellPath('/plans/generate')}
+          onSeeProgress={() => openShellPath('/progress')}
+          onAddWeight={() => setModalOpen(true)}
+        />
+        {weightModal}
+      </View>
+    );
+  }
 
   return (
     <View style={styles.page}>
-      {successMessage ? (
-        <InlineToast testID="home-saved-toast" tone={ToastTone.success} title="Saved" message={successMessage} />
-      ) : null}
-      <Text testID="home-greeting" style={styles.greeting}>{`Welcome back, ${greetingName(profile, email)}`}</Text>
+      {toast}
+      {header}
 
-      {plan ? (
-        <TodayCard plan={plan} card={todayCard(dashboard, setupDayCount)} />
-      ) : (
-        <EmptyState
-          title="No active plan yet"
-          message="Pick a workout plan to unlock your weekly schedule and guided workouts."
-          actionLabel="Choose a plan"
-          actionTestID="home-choose-plan"
-          onAction={() => openShellPath('/plans')}
-        />
-      )}
+      <TodayCard plan={plan} card={todayCard(dashboard, setupDayCount)} />
 
       <View>
         <View testID="home-stats" style={[styles.strip, styles.card]}>
@@ -158,18 +254,7 @@ function Home() {
         </View>
         {weight.hasData ? (
           <>
-            <View style={styles.weightValues}>
-              {[
-                ['Current', weight.current],
-                ['Goal', weight.goal],
-                ['To goal', weight.toGoal],
-              ].map(([label, value], index) => (
-                <View key={label} style={[styles.weightItem, index > 0 && styles.divider]}>
-                  <Text numberOfLines={1} textBreakStrategy="simple" style={styles.weightValue}>{value}</Text>
-                  <Text style={styles.stripLabel}>{label}</Text>
-                </View>
-              ))}
-            </View>
+            {weightValues}
             <Pressable
               testID="home-add-weight"
               accessibilityRole="button"
@@ -194,42 +279,18 @@ function Home() {
         )}
       </View>
 
-      <View>
-        <Text accessibilityRole="header" style={[styles.sectionTitle, styles.recentHeading]}>
-          Recent workouts
-        </Text>
-        {recent.length === 0 ? (
+      {recent.length === 0 ? (
+        <View>
+          <Text accessibilityRole="header" style={[styles.sectionTitle, styles.recentHeading]}>
+            Recent workouts
+          </Text>
           <EmptyState title="No completed workouts yet" message="Once you finish a workout, it will show up here." />
-        ) : (
-          <View style={styles.recentList}>
-            {recent.map((workout, index) => (
-              <View key={workout.id ?? index} testID={`home-recent-${workout.id ?? index}`} style={[styles.card, styles.recentRow]}>
-                <View style={styles.textColumn}>
-                  <Text numberOfLines={1} style={styles.recentTitle}>
-                    {workout.workout_plan_day?.title || 'Workout session'}
-                  </Text>
-                  <Text numberOfLines={1} style={styles.recentMeta}>
-                    {recentWorkoutMeta(workout)}
-                  </Text>
-                </View>
-                {/* ⚠H-7: always the success tone, with the raw status text. */}
-                <StatusPill tone="success" label={workout.status} />
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
+        </View>
+      ) : (
+        recentList
+      )}
 
-      <WeightLogModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        defaultUnit={defaultWeightUnit(profile)}
-        onSuccess={(saved) => {
-          applySavedWeightLog(saved);
-          setSuccessMessage('Weight logged successfully.');
-          quietRefresh();
-        }}
-      />
+      {weightModal}
     </View>
   );
 }
@@ -288,13 +349,6 @@ const styles = StyleSheet.create({
   page: {
     gap: 20,
     paddingBottom: 24,
-  },
-  greeting: {
-    marginBottom: 4,
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '600',
-    color: colors.textSecondary,
   },
   card: {
     borderRadius: radii.xxl,

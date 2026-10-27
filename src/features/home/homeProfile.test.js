@@ -3,6 +3,7 @@ jest.mock('../shell/shellLinks', () => ({ openShellPath: jest.fn(), openPlanDeta
 jest.mock('./api/homeApi', () => ({ getDashboard: jest.fn(), logWeight: jest.fn() }));
 jest.mock('../plans/api/libraryApi', () => ({ getCurrentPlan: jest.fn(() => Promise.resolve(null)), listPlanDays: jest.fn() }));
 jest.mock('../profile/api/profileApi', () => ({ getProfile: jest.fn() }));
+jest.mock('../planGenerator/api/generatorApi', () => ({ getGeneratorProfile: jest.fn(() => Promise.resolve({ available: false })) }));
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ addListener: () => () => {} }) }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../../shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));

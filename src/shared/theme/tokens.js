@@ -195,6 +195,26 @@ export const gradients = Object.freeze({
   // §4.8 the exercise hero image's 90 px bottom fade under the name
   // (color-ground at 0 → 0.9).
   imageFade: Object.freeze({ angle: 180, colors: Object.freeze(['rgba(10, 11, 15, 0)', 'rgba(10, 11, 15, 0.9)']) }),
+  // v2 kit: Phase 2 Group B (Create profile, Today states)
+  // Create profile phone CTA bar: transparent → ground at 35 % (UX B ND2).
+  ctaBarFade: Object.freeze({
+    angle: 180,
+    colors: Object.freeze(['rgba(10, 11, 15, 0)', '#0A0B0F']),
+    stops: Object.freeze([0, 0.35]),
+  }),
+  // Today-empty hero glow: a 260 circle of gold at 0.28 → 0 (UX B §Today, empty).
+  heroGlow: Object.freeze({
+    radial: Object.freeze({ cx: 0.5, cy: 0.5, rx: 0.5, ry: 0.5 }),
+    colors: Object.freeze(['rgba(255, 194, 26, 0.28)', 'rgba(255, 194, 26, 0)']),
+    stops: Object.freeze([0, 1]),
+  }),
+  // Today error: the danger-tinted card gradient (160deg) and its red glow.
+  dangerCard: Object.freeze({ angle: 160, colors: Object.freeze(['#2A1A1C', '#16121A']) }),
+  dangerGlow: Object.freeze({
+    radial: Object.freeze({ cx: 0.5, cy: 0.5, rx: 0.5, ry: 0.5 }),
+    colors: Object.freeze(['rgba(255, 90, 78, 0.28)', 'rgba(255, 90, 78, 0)']),
+    stops: Object.freeze([0, 1]),
+  }),
 });
 
 // §1.5 Muscle colours, always shown with a text label. Tiles: the colour at
