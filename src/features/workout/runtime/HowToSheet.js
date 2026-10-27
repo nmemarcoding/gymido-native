@@ -203,6 +203,8 @@ export default function HowToSheet({ open, sessionExercise, entry, onRetry, onCl
       onClose={onClose}
       title={name}
       size="2xl"
+      // FINAL-AUDIT batch 1 (5): the footer has the dismiss, so no phone ×.
+      footerDismiss
       footer={
         <ModalActions>
           <PillButton testID="how-to-close" title="Close" variant="secondary" fullWidth onPress={onClose} />

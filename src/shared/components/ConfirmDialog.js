@@ -39,6 +39,8 @@ export default function ConfirmDialog({
       size="md"
       entrance={entrance}
       compact={compact}
+      // FINAL-AUDIT batch 1 (5): the footer has the dismiss, so no phone ×.
+      footerDismiss
       footer={
         <ModalActions>
           <PillButton testID={cancelTestID ?? (testID ? `${testID}-cancel` : undefined)} title={cancelLabel} variant="secondary" onPress={close} />

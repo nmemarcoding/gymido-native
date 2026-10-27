@@ -90,7 +90,7 @@ export default function DateInput({ label, value, onChange, error, testID, label
                 <Text {...CAP_BODY} style={styles.done}>Done</Text>
               </Pressable>
             </View>
-            <DateTimePicker value={pickerDate} mode="date" display="inline" themeVariant="dark" accentColor={colors.gold} onChange={onPicked} />
+            <DateTimePicker value={pickerDate} mode="date" display="inline" themeVariant="dark" textColor={colors.textPrimary} accentColor={colors.gold} onChange={onPicked} />
           </View>
         </Modal>
       ) : null}

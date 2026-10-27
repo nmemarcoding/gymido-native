@@ -67,6 +67,11 @@ describe('DateInput (v2 look)', () => {
     const [inline] = picker(tree);
     expect(inline.props.display).toBe('inline');
     expect(inline.props.themeVariant).toBe('dark');
+    // FINAL-AUDIT batch 1 (4): the native wheel stays dark inside the dark sheet, never a white panel.
+    expect(inline.props.textColor).toBe(colors.textPrimary);
+    const sheet = tree.root.findAll((node) => typeof node.type === 'string' && StyleSheet.flatten(node.props.style)?.backgroundColor === colors.pickerSheet);
+    expect(sheet.length).toBeGreaterThan(0);
+    expect(colors.pickerSheet).toBe(colors.surfaceRaised);
     const done = tree.root.findAll((node) => node.props.testID === 'dob-done' && typeof node.props.onPress === 'function')[0];
     act(() => done.props.onPress());
     expect(box(tree).outlineWidth).toBeUndefined();

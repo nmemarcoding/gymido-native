@@ -125,6 +125,8 @@ export default function DeleteAccountDialog({ isOpen, onClose, onDeleted, profil
       // UX K Tablet: Delete account draws no Close: Cancel is the exit
       // (blocked while sending, as before). Phones never had one.
       hideClose
+      // FINAL-AUDIT batch 1 (5): the footer has the dismiss, so no phone ×.
+      footerDismiss
       footer={
         deleted ? null : (
           <ModalActions fill>

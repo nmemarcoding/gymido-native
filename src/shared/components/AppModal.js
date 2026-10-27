@@ -51,6 +51,12 @@ export function isTabletWidth(width) {
 // bottom sheet (grab handle, top radius 28, safe-area bottom padding; there
 // is no other phone variant); a TITLED sheet shows a 36 glass × (44 hit) on
 // its title row; the phone title is 26/30 700, the tablet dialog's 34/38.
+// The phone title row is a FIXED header under the handle (the × is always
+// reachable; the description, content and keyboard-time footer scroll under
+// it). Order (and screen-reader order): handle, eyebrow, title, ×, content,
+// footer. `footerDismiss` (default false): the footer already has a Cancel /
+// Close / Done, so the phone × is dropped (one way out); the tablet header
+// Close is unchanged.
 // `hideClose` hides the Close (phone title-row × and tablet header Close)
 // while the dialog is busy (sending, done), as on web; the scrim/Back rules
 // stay the caller's.
@@ -58,7 +64,7 @@ export function isTabletWidth(width) {
 // the title. A string is the gold eyebrow line (12/600, 6 above the title),
 // e.g. the client's name on the tablet client modals; a node is rendered as
 // given (the caller styles and hides it from AT as needed).
-export default function AppModal({ isOpen, onClose, title, description, size = 'lg', footer, children, testID, entrance = 'slide', compact = false, hideClose = false, role, eyebrow, sheetTopGap = SHEET_TOP_GAP }) {
+export default function AppModal({ isOpen, onClose, title, description, size = 'lg', footer, children, testID, entrance = 'slide', compact = false, hideClose = false, footerDismiss = false, role, eyebrow, sheetTopGap = SHEET_TOP_GAP }) {
   const { width, height, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const tablet = isTabletWidth(width);
@@ -131,11 +137,21 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
       };
 
   const hasChildren = Children.toArray(children).length > 0;
-  const phoneClose = !tablet && !hideClose && Boolean(title);
+  const phoneClose = !tablet && !hideClose && !footerDismiss && Boolean(title);
   // UX Phase 1 review: with the keyboard open a phone sheet has little height,
   // and a fixed footer clipped the last field (the Unit select). The footer
   // then scrolls with the content, so the fields keep their full height.
   const footerInScroll = !tablet && keyboardOpen;
+  let eyebrowView = null;
+  if (typeof eyebrow === 'string' && eyebrow) {
+    eyebrowView = (
+      <Text {...CAP_BODY} testID="app-modal-eyebrow" style={[styles.eyebrow, tablet && styles.eyebrowTablet]}>
+        {eyebrow}
+      </Text>
+    );
+  } else if (eyebrow && typeof eyebrow !== 'string') {
+    eyebrowView = <View testID="app-modal-eyebrow">{eyebrow}</View>;
+  }
   const footerView = footer ? <View style={tablet ? styles.footerTablet : styles.footer}>{footer}</View> : null;
 
   return (
@@ -171,33 +187,38 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
                 importantForAccessibility="no-hide-descendants"
               />
             )}
+            {tablet ? null : (
+              <View testID="app-modal-header" style={styles.header}>
+                {eyebrowView}
+                {phoneClose ? (
+                  <View testID="app-modal-title-row" style={styles.titleRow}>
+                    <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.title, styles.titleInRow]}>
+                      {title}
+                    </Text>
+                    <CloseButton onPress={onClose} inRow />
+                  </View>
+                ) : (
+                  <Text {...TITLE_TEXT} accessibilityRole="header" style={styles.title}>
+                    {title}
+                  </Text>
+                )}
+              </View>
+            )}
             <ScrollView
               style={styles.scroll}
               overScrollMode="never"
               bounces={false}
               keyboardShouldPersistTaps="handled"
             >
-              {typeof eyebrow === 'string' && eyebrow ? (
-                <Text {...CAP_BODY} testID="app-modal-eyebrow" style={[styles.eyebrow, tablet && styles.eyebrowTablet]}>
-                  {eyebrow}
-                </Text>
-              ) : null}
-              {eyebrow && typeof eyebrow !== 'string' ? <View testID="app-modal-eyebrow">{eyebrow}</View> : null}
-              {/* UX §9 title rule: the phone title is title-sm (1.6× cap), the
+              {/* UX §9 title rule: the phone title is title-sheet (1.6× cap), the
                   tablet one is 34 px, a page-size title (1.3× cap); both wrap by
                   word, max 3 lines, and a long word shrinks. */}
-              {phoneClose ? (
-                <View testID="app-modal-title-row" style={styles.titleRow}>
-                  <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.title, styles.titleInRow]}>
-                    {title}
-                  </Text>
-                  <CloseButton onPress={onClose} inRow />
-                </View>
-              ) : (
-                <Text {...(tablet ? DISPLAY_TITLE_TEXT : TITLE_TEXT)} accessibilityRole="header" style={tablet ? styles.titleTablet : styles.title}>
+              {tablet ? eyebrowView : null}
+              {tablet ? (
+                <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.titleTablet}>
                   {title}
                 </Text>
-              )}
+              ) : null}
               {description ? (
                 <Text {...CAP_BODY} style={[styles.description, tablet && !compact && styles.descriptionTablet, tablet && styles.descriptionTabletGap]}>
                   {description}
@@ -317,6 +338,10 @@ const styles = StyleSheet.create({
   title: {
     ...typography.titleSheet,
     color: colors.textPrimary,
+  },
+  // The fixed phone header: never shrinks; the ScrollView takes the rest.
+  header: {
+    flexShrink: 0,
   },
   titleRow: {
     flexDirection: 'row',

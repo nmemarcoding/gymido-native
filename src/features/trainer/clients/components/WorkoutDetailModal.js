@@ -102,6 +102,8 @@ export default function WorkoutDetailModal({ clientUserId, workoutId, onClose, c
       title="Workout detail"
       description={workout?.started_at ? formatTrainerDateTime(workout.started_at) : 'What your client did in this session.'}
       size="2xl"
+      // FINAL-AUDIT batch 1 (5): the footer has the dismiss, so no phone ×.
+      footerDismiss
       footer={
         // Phone: full width; tablet: the board's Close at the right.
         <ModalActions>

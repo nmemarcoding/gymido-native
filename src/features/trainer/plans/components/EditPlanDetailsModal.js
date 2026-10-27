@@ -112,6 +112,8 @@ export default function EditPlanDetailsModal({
       title="Edit plan details"
       description={description}
       size="lg"
+      // FINAL-AUDIT batch 1 (5): the footer has the dismiss, so no phone ×.
+      footerDismiss
       footer={
         <ModalActions fill>
           <PillButton testID="edit-plan-cancel" title="Cancel" variant="secondary" size={tablet ? 'cta' : 'default'} onPress={onClose} />

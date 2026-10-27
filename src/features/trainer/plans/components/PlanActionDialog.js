@@ -45,6 +45,8 @@ export default function PlanActionDialog({ action, text, affectedCount, onClose,
       title={copy.title}
       description={copy.description}
       size="md"
+      // FINAL-AUDIT batch 1 (5): the footer has the dismiss, so no phone ×.
+      footerDismiss
       footer={
         <ModalActions fill>
           <PillButton

@@ -136,6 +136,8 @@ export default function AddSetModal({ isOpen, onClose, nextSetNumber, set, affec
           : 'The next set number is assigned automatically.'
       }
       size="lg"
+      // FINAL-AUDIT batch 1 (5): the footer has the dismiss, so no phone ×.
+      footerDismiss
       footer={
         <ModalActions fill>
           <PillButton testID="set-modal-cancel" title="Cancel" variant="secondary" size={tablet ? 'cta' : 'default'} onPress={onClose} />

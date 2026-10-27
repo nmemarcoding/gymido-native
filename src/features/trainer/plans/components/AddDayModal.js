@@ -73,6 +73,8 @@ export default function AddDayModal({ isOpen, onClose, context, day, affectedCou
       title={editing ? 'Edit day' : 'Add day'}
       size="lg"
       description={modalDescription}
+      // FINAL-AUDIT batch 1 (5): the footer has the dismiss, so no phone ×.
+      footerDismiss
       footer={
         <ModalActions fill>
           <PillButton testID="day-modal-cancel" title="Cancel" variant="secondary" size={tablet ? 'cta' : 'default'} onPress={onClose} />

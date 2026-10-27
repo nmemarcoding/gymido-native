@@ -112,6 +112,8 @@ export default function EndCoachingDialog({
       // UX M: the trainer's confirm has Cancel and no ✕; UX L keeps the tablet
       // Close (36 glass, 44 hit) on the member's.
       hideClose={kind === 'client'}
+      // FINAL-AUDIT batch 1 (5): the footer has the dismiss, so no phone ×.
+      footerDismiss
       footer={
         <View testID={testID ? `${testID}-actions` : undefined} style={row ? styles.actionsRow : styles.actionsStacked}>
           {row ? <View style={styles.cancelCell}>{cancelButton}</View> : cancelButton}

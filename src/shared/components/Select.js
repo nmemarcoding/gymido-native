@@ -165,7 +165,8 @@ export default function Select({
                 <Text {...CAP_BODY} style={styles.done}>Done</Text>
               </Pressable>
             </View>
-            <Picker selectedValue={value} onValueChange={(next) => onChange(next)} itemStyle={styles.wheelItem}>
+            {/* FINAL-AUDIT batch 1 (4): the native wheel in the dark appearance. */}
+            <Picker selectedValue={value} onValueChange={(next) => onChange(next)} itemStyle={styles.wheelItem} themeVariant="dark">
               {items}
             </Picker>
           </View>

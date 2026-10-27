@@ -83,6 +83,8 @@ export default function WeightHistoryModal({ isOpen, clientUserId, profile, onCl
       title="Weight history"
       description="Every weigh-in this client has logged, oldest first."
       size="2xl"
+      // FINAL-AUDIT batch 1 (5): the footer has the dismiss, so no phone ×.
+      footerDismiss
       footer={
         // Phone: full width; tablet: the board's Close at the right.
         <ModalActions>

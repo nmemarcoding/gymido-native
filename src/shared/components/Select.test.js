@@ -65,6 +65,21 @@ describe('Select (v2 look)', () => {
     expect(flat(value.props.style).fontFamily).toBe(font(400).fontFamily);
   });
 
+  // FINAL-AUDIT batch 1 (4): the iOS wheel stays native but in the DARK
+  // appearance inside the dark sheet (never a white panel).
+  it('iOS: the native wheel is dark (themeVariant dark, primary item text) on the dark sheet', () => {
+    Platform.OS = 'ios';
+    const { Picker } = jest.requireMock('@react-native-picker/picker');
+    const tree = render();
+    act(() => opener(tree).props.onPress());
+    const wheel = tree.root.findByType(Picker);
+    expect(wheel.props.themeVariant).toBe('dark');
+    expect(StyleSheet.flatten(wheel.props.itemStyle).color).toBe(colors.textPrimary);
+    const sheet = tree.root.findAll((node) => typeof node.type === 'string' && StyleSheet.flatten(node.props.style)?.backgroundColor === colors.pickerSheet);
+    expect(sheet.length).toBeGreaterThan(0);
+    expect(colors.pickerSheet).toBe(colors.surfaceRaised);
+  });
+
   it('open = focus ring (gold border + 4 px ring); Done closes it', () => {
     Platform.OS = 'ios';
     const tree = render();

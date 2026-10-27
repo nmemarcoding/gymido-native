@@ -349,6 +349,135 @@ describe('AppModal phone title-row Close (FINAL-AUDIT batch 1)', () => {
   it('keeps the grab handle above the title row', () => {
     expect(hasHost(render(modal()), 'app-modal-grab-handle')).toBe(true);
   });
+
+  // FINAL-AUDIT batch 1 (5): one way out. A sheet whose footer already has a
+  // Cancel / Close / Done passes `footerDismiss` and shows no phone ×.
+  it('footerDismiss drops the phone × (the footer is the one way out); default false keeps it', () => {
+    expect(closeButton(render(modal({ footerDismiss: true, footer: <Text>Cancel</Text> })))).toBeUndefined();
+    expect(closeButton(render(modal({ footer: <Text>Save</Text> })))).toBeTruthy();
+  });
+
+  it('footerDismiss leaves the tablet header Close as it is', () => {
+    atWidth(TABLET);
+    expect(closeButton(render(modal({ footerDismiss: true, footer: <Text>Cancel</Text> })))).toBeTruthy();
+  });
+});
+
+// FINAL-AUDIT batch 1 (3): the phone title row is a FIXED header (the × is
+// always reachable); the content scrolls under it. Order: handle, title, ×,
+// the scrolling content, then the footer.
+describe('AppModal phone pinned header (FINAL-AUDIT batch 1)', () => {
+  beforeEach(() => atWidth(PHONE));
+  const inScroll = (tree, pred) => tree.root.findByType(ReactNative.ScrollView).findAll(pred).length > 0;
+
+  // Host nodes a screen reader stops on, in tree order: texts and buttons
+  // (a button's own texts are part of it); hidden subtrees are skipped.
+  function accessibleOrder(tree) {
+    const out = [];
+    const walk = (node) => {
+      if (typeof node !== 'object' || node === null) {
+        return;
+      }
+      if (typeof node.type === 'string') {
+        if (node.props.accessibilityElementsHidden) {
+          return;
+        }
+        if (node.props.accessibilityRole === 'button') {
+          out.push(`button:${node.props.accessibilityLabel}`);
+          return;
+        }
+        if (node.type === 'Text') {
+          out.push(`text:${[].concat(node.props.children).join('')}`);
+          return;
+        }
+      }
+      node.children.forEach(walk);
+    };
+    walk(host(tree, 'dlg'));
+    return out;
+  }
+
+  it('the title row (title + ×) sits outside the ScrollView; the description and children scroll', () => {
+    const tree = render(modal({ children: <Text>Body</Text> }));
+    expect(host(tree, 'app-modal-header')).toBeTruthy();
+    expect(host(tree, 'app-modal-header').findAll((n) => n.props.testID === 'app-modal-title-row' && typeof n.type === 'string')).toHaveLength(1);
+    expect(inScroll(tree, (n) => n.props.testID === 'app-modal-title-row')).toBe(false);
+    expect(inScroll(tree, (n) => n.props.testID === 'app-modal-close')).toBe(false);
+    expect(inScroll(tree, (n) => n.type === Text && n.props.children === 'Discard this workout?')).toBe(false);
+    expect(inScroll(tree, (n) => n.type === Text && n.props.children === 'Logged sets will be lost.')).toBe(true);
+    expect(inScroll(tree, (n) => n.type === Text && n.props.children === 'Body')).toBe(true);
+  });
+
+  it('the eyebrow stays above the title in the fixed header', () => {
+    const tree = render(modal({ eyebrow: 'Clients' }));
+    expect(host(tree, 'app-modal-header').findAll((n) => n.props.testID === 'app-modal-eyebrow' && typeof n.type === 'string')).toHaveLength(1);
+  });
+
+  it('a sheet without the × still pins its title (footerDismiss / hideClose)', () => {
+    const tree = render(modal({ footerDismiss: true, footer: <Text>Cancel</Text> }));
+    expect(inScroll(tree, (n) => n.type === Text && n.props.children === 'Discard this workout?')).toBe(false);
+  });
+
+  it('accessibility order: handle (hidden), title, then the × right after it, then the content, then the footer', () => {
+    const tree = render(modal({ children: <Text>Body</Text>, footer: <Text>Save</Text> }));
+    const order = accessibleOrder(tree);
+    const at = (item) => order.indexOf(item);
+    expect(at('text:Discard this workout?')).toBeGreaterThanOrEqual(0);
+    expect(at('button:Close')).toBe(at('text:Discard this workout?') + 1);
+    expect(at('text:Logged sets will be lost.')).toBeGreaterThan(at('button:Close'));
+    expect(at('text:Body')).toBeGreaterThan(at('text:Logged sets will be lost.'));
+    expect(at('text:Save')).toBe(order.length - 1);
+    // The handle comes first in the tree (hidden from AT).
+    const card = host(tree, 'dlg');
+    const ids = card.findAll((n) => typeof n.type === 'string' && ['app-modal-grab-handle', 'app-modal-header'].includes(n.props.testID)).map((n) => n.props.testID);
+    expect(ids).toEqual(['app-modal-grab-handle', 'app-modal-header']);
+  });
+
+  it('tablet unchanged: no fixed header, the title scrolls with the content', () => {
+    atWidth(TABLET);
+    const tree = render(modal());
+    expect(host(tree, 'app-modal-header')).toBeUndefined();
+    expect(inScroll(tree, (n) => n.type === Text && n.props.children === 'Discard this workout?')).toBe(true);
+  });
+});
+
+// FINAL-AUDIT batch 1 (5) guard: every AppModal caller whose footer has a
+// dismiss (Cancel / Close / Done, or a cancelLabel) passes footerDismiss; a
+// caller without one (PlanOverflowSheet: a titled menu) does not.
+describe('Guard: footer dismiss ⇒ footerDismiss (FINAL-AUDIT batch 1)', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const src = path.resolve(__dirname, '../..');
+  const walk = (dir) =>
+    fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        return walk(full);
+      }
+      return entry.name.endsWith('.js') && !entry.name.endsWith('.test.js') ? [full] : [];
+    });
+  const callers = walk(src)
+    .filter((file) => !file.endsWith(`${path.sep}AppModal.js`))
+    .map((file) => ({ file: path.relative(src, file).split(path.sep).join('/'), text: fs.readFileSync(file, 'utf8') }))
+    .filter(({ text }) => /<AppModal\b/.test(text));
+  const DISMISS = /title=(["'`])(Cancel|Close|Done)\1|title=\{cancelLabel\}/;
+
+  it('finds the callers', () => {
+    expect(callers.length).toBeGreaterThanOrEqual(14);
+  });
+
+  it('every caller with a footer dismiss passes footerDismiss; callers without one do not', () => {
+    const wrong = callers
+      .filter(({ text }) => DISMISS.test(text) !== /\bfooterDismiss\b/.test(text))
+      .map(({ file }) => file);
+    expect(wrong).toEqual([]);
+  });
+
+  it('PlanOverflowSheet (no footer) keeps the ×', () => {
+    const overflow = callers.find(({ file }) => file.endsWith('PlanOverflowSheet.js'));
+    expect(overflow).toBeTruthy();
+    expect(/footerDismiss/.test(overflow.text)).toBe(false);
+  });
 });
 
 // FINAL-AUDIT batch 1: phone = ONE attached bottom sheet, no floating variant.

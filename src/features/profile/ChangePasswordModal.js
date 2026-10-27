@@ -107,6 +107,8 @@ export default function ChangePasswordModal({ visible, onClose, email }) {
       // exits (and the scrim / Back, still refused while sending).
       hideClose
       title="Change password"
+      // FINAL-AUDIT batch 1 (5): the footer has the dismiss, so no phone ×.
+      footerDismiss
       footer={
         // The kit dialog footer (§6): phone stacked with the verb on top; the
         // tablet row shares the width (the board's flex:1 pair) and stacks
