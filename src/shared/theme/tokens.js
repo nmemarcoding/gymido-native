@@ -170,6 +170,10 @@ export const gradients = Object.freeze({
     colors: Object.freeze(['rgba(255, 194, 26, 0.20)', 'rgba(255, 194, 26, 0)']),
     stops: Object.freeze([0, 0.68]),
   }),
+  // v2 kit: card
+  // §4.8 the exercise hero image's 90 px bottom fade under the name
+  // (color-ground at 0 → 0.9).
+  imageFade: Object.freeze({ angle: 180, colors: Object.freeze(['rgba(10, 11, 15, 0)', 'rgba(10, 11, 15, 0.9)']) }),
 });
 
 // §1.5 Muscle colours, always shown with a text label. Tiles: the colour at

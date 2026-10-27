@@ -1,32 +1,13 @@
-import { StyleSheet, View } from 'react-native';
+import { CardSurface } from '../../../shared/components/Card';
 
-import GradientFill from '../../../shared/components/GradientFill';
-import { colors, radii, shadows } from '../../../shared/theme/tokens';
-
-// `card-3d` (RN-SPEC-workout §2.1): shadow-lift-2, a 1px inset ring and a
-// 1px top highlight across the top edge inside the radius.
-export default function Card3D({ style, children, testID }) {
+// v1's `card-3d` (lift shadow, inset ring, top sheen) is retired in v2
+// (RN-SPEC-v2-foundation §3, §4.8). Card3D keeps its props and call sites and
+// now renders the v2 card surface: color-surface, 1 px hairline, radius 24,
+// no shadow. `hero` (optional, set at mount) draws gradient-card at radius 28.
+export default function Card3D({ style, children, testID, hero = false }) {
   return (
-    <View testID={testID} style={[styles.card, style]}>
+    <CardSurface testID={testID} hero={hero} style={style}>
       {children}
-      <View pointerEvents="none" style={styles.highlight}>
-        <GradientFill angle={90} colors={[colors.sheenClear, colors.sheenCard, colors.sheenClear]} />
-      </View>
-    </View>
+    </CardSurface>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    borderRadius: radii.xxl,
-    backgroundColor: colors.surface,
-    boxShadow: `${shadows.lift2}, ${shadows.ringInk}`,
-  },
-  highlight: {
-    position: 'absolute',
-    top: 0,
-    left: radii.xxl,
-    right: radii.xxl,
-    height: 1,
-  },
-});

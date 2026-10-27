@@ -2,12 +2,37 @@ import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import { breakpoints, colors, motion, radii, shadows } from '../theme/tokens';
+import { breakpoints, colors, font, gradients, motion, radii, spacing } from '../theme/tokens';
+import GradientFill from './GradientFill';
 
 // CSS `ease-out`, matching the web card entrance.
 const EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
 
-export default function Card({ children, style, title, subtitle }) {
+// v2 §4.8: the one card. `color-surface`, 1 px `color-hairline`, radius 24;
+// the hero card is `gradient-card` at radius 28. The gradient is drawn by
+// GradientFill (SVG) as the first child, so it exists from the first render
+// (Android crash rule: never add a gradient on a state change; pick `hero`
+// when the card mounts).
+export function cardFrameStyle(hero) {
+  return hero ? [styles.frame, styles.hero] : styles.frame;
+}
+
+export function CardHeroFill() {
+  return <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />;
+}
+
+// The bare v2 card surface: no padding, no entrance motion. Card3D renders
+// this so its call sites keep their own padding and layout.
+export function CardSurface({ hero = false, style, testID, children }) {
+  return (
+    <View testID={testID} style={[cardFrameStyle(hero), style]}>
+      {hero ? <CardHeroFill /> : null}
+      {children}
+    </View>
+  );
+}
+
+export default function Card({ children, style, title, subtitle, hero = false }) {
   const reducedMotion = useReducedMotion();
   const wide = useWindowDimensions().width >= breakpoints.sm;
   const progress = useRef(new Animated.Value(0)).current;
@@ -33,14 +58,21 @@ export default function Card({ children, style, title, subtitle }) {
   });
 
   const motionStyle = { opacity: progress, transform: [{ translateY }] };
+  const fill = hero ? <CardHeroFill /> : null;
 
   if (!title) {
-    return <Animated.View style={[styles.card, styles.body, wide && styles.bodyWide, motionStyle, style]}>{children}</Animated.View>;
+    return (
+      <Animated.View style={[cardFrameStyle(hero), styles.body, wide && styles.bodyWide, motionStyle, style]}>
+        {fill}
+        {children}
+      </Animated.View>
+    );
   }
 
-  // The web Card's optional header: title + subtitle over a border/70 divider.
+  // The optional header: title + subtitle over a hairline divider.
   return (
-    <Animated.View style={[styles.card, styles.titled, motionStyle, style]}>
+    <Animated.View style={[cardFrameStyle(hero), styles.titled, motionStyle, style]}>
+      {fill}
       <View style={[styles.header, wide && styles.headerWide]}>
         <Text accessibilityRole="header" style={styles.title}>
           {title}
@@ -53,43 +85,47 @@ export default function Card({ children, style, title, subtitle }) {
 }
 
 const styles = StyleSheet.create({
-  // Design system v1 P8: the web surface card. The 1px border stays but is
-  // transparent, so the box measures the same as web's.
-  card: {
+  frame: {
     backgroundColor: colors.surface,
-    borderColor: 'transparent',
+    borderColor: colors.hairline,
     borderWidth: 1,
     borderRadius: radii.xl,
-    boxShadow: shadows.soft,
+  },
+  // The gradient paints the fill; overflow clips it to the 28 radius.
+  hero: {
+    borderRadius: radii.xxl,
+    overflow: 'hidden',
   },
   titled: {
     overflow: 'hidden',
   },
+  // Kit card padding 18 (§3); from 640 the sides widen to 24 as in v1.
   body: {
-    padding: 20,
-    gap: 12,
+    padding: spacing['4_5'],
+    gap: spacing[3],
   },
   bodyWide: {
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing[6],
   },
   header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: spacing['4_5'],
+    paddingVertical: spacing[4],
     borderBottomWidth: 1,
-    borderBottomColor: colors.dividerSoft,
+    borderBottomColor: colors.hairline,
   },
   headerWide: {
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing[6],
   },
   title: {
+    ...font(700),
     fontSize: 20,
     lineHeight: 28,
-    fontWeight: '700',
     letterSpacing: -0.5,
     color: colors.textPrimary,
   },
   subtitle: {
-    marginTop: 4,
+    ...font(400),
+    marginTop: spacing[1],
     fontSize: 14,
     lineHeight: 20,
     color: colors.textSecondary,
