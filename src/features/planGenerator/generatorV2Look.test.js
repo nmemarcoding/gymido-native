@@ -557,17 +557,17 @@ describe('Preview, phone (GeneratorPreview board)', () => {
   // DECLARED change (UX verdict M2-1, 8b3f143): the phone bar was a row of two
   // 60 CTAs (was: [['generator-bar-change', 'cta'], ['generator-start', 'cta']]),
   // and "Start this / plan" wrapped. Web stacks below 432: Start (gold) over
-  // Change (glass), both full width, 52, gap 8, on an opaque bar.
-  it('sticky bar (phone < 432): Start this plan over Change my answers, full width, 52, gap 8, opaque; locked → no Start, the warning callout', async () => {
+  // Change (glass), both full width, 52, gap 10 (UX ruling: web's value), the
+  // kit fade above an opaque band behind the buttons.
+  it('sticky bar (phone < 432): Start this plan over Change my answers, full width, 52, gap 10, opaque behind the buttons; locked → no Start, the warning callout', async () => {
     const tree = await openPreview();
     const buttons = host(tree, 'generator-sticky-row').findAll((node) => node.type === PillButton);
     expect(buttons.map((node) => [node.props.testID, node.props.size, node.props.fullWidth])).toEqual([
       ['generator-start', 'default', true],
       ['generator-bar-change', 'default', true],
     ]);
-    expect(flat(host(tree, 'generator-sticky-row'))).toMatchObject({ flexDirection: 'column', alignItems: 'stretch', gap: 8 });
-    expect(flat(host(tree, 'generator-sticky-bar'))).toMatchObject({ position: 'absolute', bottom: 86, backgroundColor: colors.ground });
-    expect(host(tree, 'generator-sticky-bar').findAllByType(GradientFill)).toHaveLength(0);
+    expect(flat(host(tree, 'generator-sticky-row'))).toMatchObject({ flexDirection: 'column', alignItems: 'stretch', gap: 10, backgroundColor: colors.ground });
+    expect(flat(host(tree, 'generator-sticky-bar'))).toMatchObject({ position: 'absolute', bottom: 86 });
     const locked = await openPreview({ ...FEASIBLE, active_enrollment: { plan_name: 'Coach plan', trainer_locked: true } });
     expect(has(locked, 'generator-start')).toBe(false);
     expect(has(locked, 'generator-locked')).toBe(true);
