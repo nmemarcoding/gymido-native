@@ -1,0 +1,106 @@
+# v2 Phase 3 §3 Workout (UX F1), team 3b.
+# Account: QA_MEMBER with an ACTIVE plan. Start: signed in on a tab root.
+# Uses the v2 subflows (start-workout / discard-workout); the session this
+# flow starts is always discarded, so nothing is recorded. No set is logged
+# ("Did it" would write a real set); its PATCH path is Jest-covered.
+#
+# Checks: one chrome (Exit · plan + sets done · timer · All); the single set
+# editor with weight/reps steppers; − at one step clears the weight; How to
+# opens over the workout and closes back; All (n) → another exercise shows
+# the browsing bar + stats + exercise nav and Resume returns; Exit → Discard
+# dialog, Keep going keeps the session; the discard-workout subflow ends it.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase3
+  - member
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/member-workspace.yaml
+- runFlow: ../subflows/start-workout.yaml
+
+# One chrome.
+- assertVisible:
+    id: "session-exit"
+- assertVisible:
+    id: "session-plan"
+- assertVisible:
+    id: "session-timer"
+- assertVisible:
+    id: "session-all"
+- assertVisible:
+    id: "set-editor"
+
+# Steppers on the live set (weight optional: + then − back down; − at one
+# step clears). Values are not saved until "Did it".
+- tapOn:
+    id: "set-weight-plus-.*"
+- tapOn:
+    id: "set-reps-plus-.*"
+- tapOn:
+    id: "set-reps-minus-.*"
+
+# How to (only when the library has content for this exercise).
+- runFlow:
+    when:
+      visible:
+        id: "how-to-open"
+    commands:
+      - tapOn:
+          id: "how-to-open"
+      - extendedWaitUntil:
+          visible:
+            id: "how-to-close"
+          timeout: 15000
+      - tapOn:
+          id: "how-to-close"
+      - extendedWaitUntil:
+          notVisible:
+            id: "how-to-close"
+          timeout: 5000
+      - assertVisible:
+          id: "set-editor"
+
+# Browsing: Up next (when there is a later exercise) → bar, stats, nav; Resume.
+- runFlow:
+    when:
+      visible:
+        id: "up-next"
+    commands:
+      - tapOn:
+          id: "up-next"
+      - extendedWaitUntil:
+          visible:
+            id: "browsing-bar"
+          timeout: 5000
+      - assertVisible:
+          id: "session-stats"
+      - assertVisible:
+          id: "exercise-nav"
+      - tapOn:
+          id: "browsing-resume"
+      - extendedWaitUntil:
+          notVisible:
+            id: "browsing-bar"
+          timeout: 5000
+
+# Exit → Discard dialog; Keep going keeps the session.
+- tapOn:
+    id: "session-exit"
+- extendedWaitUntil:
+    visible:
+      id: "discard-dialog"
+    timeout: 10000
+- assertVisible:
+    id: "discard-confirm"
+- tapOn:
+    id: "discard-keep"
+- extendedWaitUntil:
+    notVisible:
+      id: "discard-dialog"
+    timeout: 5000
+- assertVisible:
+    id: "session-chrome"
+
+# Cleanup: discard the session this flow started.
+- runFlow: ../subflows/discard-workout.yaml

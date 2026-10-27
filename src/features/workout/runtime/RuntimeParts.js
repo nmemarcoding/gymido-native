@@ -1,32 +1,45 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import { Animated, Easing, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import BlurLayer from '../../../shared/components/BlurLayer';
+import ExerciseImage, { TILE_ALPHA, muscleColor, muscleTextColor } from '../../../shared/components/ExerciseImage';
+import GlassSurface from '../../../shared/components/GlassSurface';
 import GradientFill from '../../../shared/components/GradientFill';
-import RemoteImage from '../../../shared/components/RemoteImage';
+import PillButton from '../../../shared/components/PillButton';
 import Select from '../../../shared/components/Select';
+import { CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT, TITLE_TEXT, useLargeTextReflow } from '../../../shared/components/largeText';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
-import { breakpoints, colors, radii, shadows, textInputColors } from '../../../shared/theme/tokens';
-import BrandButton from '../components/BrandButton';
-import Card3D from '../components/Card3D';
+import { colors, font, gradients, layout, radii, shadows, spacing, textInputColors, textScale, typography } from '../../../shared/theme/tokens';
 import ProgressRing from '../components/ProgressRing';
-import { exerciseName, exerciseNotes, setMetaLabel, setRepsLabel, setsWord } from './sessionMath';
+import { CheckIcon, PlayIcon } from './SessionIcons';
+import {
+  doneSetLabel,
+  elapsedSpokenLabel,
+  exerciseDone,
+  exerciseName,
+  exerciseNotes,
+  formatClock,
+  repsFieldLabel,
+  setOfLabel,
+  setsWord,
+  stageEyebrow,
+  tabletEyebrow,
+} from './sessionMath';
 
-const GOLD = [colors.brand300, colors.brand500];
-const GOLD_BUTTON = [colors.brand300, colors.brand400];
 const POP = Easing.bezier(0.34, 1.56, 0.64, 1);
-const EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
-
-function CheckIcon({ size, color }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
-      <Path d="M20 6 9 17l-5-5" />
-    </Svg>
-  );
+const CLEAR = gradients.photoFade.colors[0];
+// UX F1 drawn sizes (phone / tablet). Heights hold text, so they are minimums.
+export const PHONE_STAGE_HEIGHT = 330;
+export const PHONE_BROWSE_STAGE_HEIGHT = 318;
+export const TABLET_BROWSE_STAGE_HEIGHT = 520;
+export const DID_IT_HEIGHT = 64;
+const DISPLAY_CAP = { maxFontSizeMultiplier: textScale.display };
+const TIMER_CAP = { maxFontSizeMultiplier: textScale.timer };
+// F1 §0.6: drawn controls below 44 keep their size and get a 44 hit area.
+export function hitFor(height) {
+  return Math.max(0, Math.ceil((layout.touchMin - height) / 2));
 }
 
-// §19 StatTile: the value re-mounts on every change and pops in.
+// §19 StatTile (v1 look). Kept for the completion popup (RuntimeOverlays).
 export function StatTile({ label, value, tone }) {
   return (
     <View style={styles.statTile}>
@@ -43,8 +56,7 @@ function PopIn({ children }) {
   const progress = useRef(new Animated.Value(reducedMotion ? 1 : 0)).current;
   useEffect(() => {
     // The setting resolves after mount, possibly mid-animation: snap to the
-    // end state or the value stays invisible (the Time tile remounts every
-    // second, so it hit this every time).
+    // end state or the value stays invisible.
     if (reducedMotion) {
       progress.setValue(1);
       return undefined;
@@ -57,65 +69,280 @@ function PopIn({ children }) {
   return <Animated.View style={{ opacity: progress, transform: [{ scale }] }}>{children}</Animated.View>;
 }
 
-// §19.1, pinned to the top (§19.0). The rail fill is a full-width view
-// scaled by scaleX, never a width (§19.10).
-export function SessionChrome({ planName, completedSets, totalSets, exerciseCount, onExit, onAll, allRef }) {
-  const { width } = useWindowDimensions();
-  const reducedMotion = useReducedMotion();
-  const ratio = totalSets > 0 ? completedSets / totalSets : 0;
-  const scale = useRef(new Animated.Value(ratio)).current;
-  // The measured width anchors the scaleX at the left edge.
-  const [railWidth, setRailWidth] = useState(0);
+// §8.6 STATE RULE: pressed = the rest colour + a 4 % overlay.
+function PressOverlay({ ink = false }) {
+  return <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.overlayRound, { backgroundColor: ink ? colors.pressOverlayInk : colors.pressOverlay }]} />;
+}
 
-  useEffect(() => {
-    if (reducedMotion) {
-      scale.setValue(ratio);
-      return undefined;
-    }
-    const animation = Animated.timing(scale, { toValue: ratio, duration: 300, easing: EASE_OUT, useNativeDriver: true });
-    animation.start();
-    return () => animation.stop();
-  }, [ratio, reducedMotion, scale]);
-
+// A glass pill over the photo (UX §8.4 color-on-photo + blur 12).
+function GlassButton({ testID, label, onPress, height, tablet, buttonRef, accessibilityLabel, icon }) {
   return (
-    <View testID="session-chrome" style={[styles.chrome, width >= breakpoints.md && styles.chromeWide]}>
-      <BlurLayer blurPx={24} />
-      <View style={[StyleSheet.absoluteFill, styles.glassFill]} />
-      <View style={[styles.chromeRow, { paddingHorizontal: width >= breakpoints.sm ? 20 : 16 }]}>
-        <Pressable testID="session-exit" accessibilityRole="button" onPress={onExit} style={styles.chromeButton}>
-          {({ pressed }) => <Text style={[styles.exitText, pressed && styles.exitPressed]}>Exit</Text>}
-        </Pressable>
-        <View style={styles.chromeCentre}>
-          <Text textBreakStrategy="simple" numberOfLines={1} ellipsizeMode="tail" style={styles.chromeTitle}>
-            {planName}
-          </Text>
-          <Text style={styles.chromeSub}>{`${completedSets}/${totalSets} ${setsWord(totalSets)} done`}</Text>
-        </View>
-        <Pressable ref={allRef} testID="session-all" accessibilityRole="button" onPress={onAll} style={styles.chromeButton}>
-          {({ pressed }) => <Text style={[styles.allText, pressed && styles.allPressed]}>{`All (${exerciseCount})`}</Text>}
-        </Pressable>
-      </View>
-      <View style={styles.rail} onLayout={(event) => setRailWidth(event.nativeEvent.layout.width)} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <Animated.View
-          style={[
-            StyleSheet.absoluteFill,
-            styles.railFill,
-            { transform: [{ translateX: scale.interpolate({ inputRange: [0, 1], outputRange: [-railWidth / 2, 0] }) }, { scaleX: scale }] },
-          ]}
+    <Pressable
+      ref={buttonRef}
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      onPress={onPress}
+      hitSlop={hitFor(height)}
+      style={styles.noShrink}
+    >
+      {({ pressed }) => (
+        <GlassSurface
+          tone="onPhoto"
+          radius={radii.full}
+          shadow={false}
+          style={[styles.glassButton, { minHeight: height, paddingLeft: icon ? (tablet ? 12 : 10) : tablet ? 20 : 16, paddingRight: tablet ? 20 : icon ? 14 : 16 }]}
         >
-          <GradientFill angle={90} colors={GOLD} />
-        </Animated.View>
+          {pressed ? <PressOverlay /> : null}
+          {icon}
+          <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.glassLabel, tablet && styles.glassLabelTablet, icon && styles.glassLabelSmall]}>
+            {label}
+          </Text>
+        </GlassSurface>
+      )}
+    </Pressable>
+  );
+}
+
+// F1 ND3: ONE session header in every state: Exit · plan name + "n/m sets
+// done" · timer pill m:ss · All (n). Exit always opens the Discard dialog.
+// UX §9 (QA Phase 1 recheck, AX5): past the reflow point the header takes two
+// rows (Exit · timer · All, then the plan pill full width), so the plan name
+// never gets squeezed into one character per line; it wraps by word and a
+// single long word shrinks.
+export function SessionChrome({ planName, completedSets, totalSets, exerciseCount, elapsed = 0, onExit, onAll, allRef, tablet = false, onLayout, style }) {
+  const stacked = useLargeTextReflow();
+  const buttonHeight = tablet ? 48 : 40;
+  const exit = <GlassButton testID="session-exit" label="Exit" onPress={onExit} height={buttonHeight} tablet={tablet} />;
+  const all = <GlassButton testID="session-all" buttonRef={allRef} label={`All (${exerciseCount})`} onPress={onAll} height={buttonHeight} tablet={tablet} />;
+  const timer = (
+    <GlassSurface
+      testID="session-timer"
+      tone="onPhoto"
+      radius={radii.full}
+      shadow={false}
+      accessible
+      accessibilityRole="timer"
+      accessibilityLabel={elapsedSpokenLabel(elapsed)}
+      style={[styles.timerPill, { minHeight: tablet ? 40 : 36 }]}
+    >
+      <View style={styles.timerDot} />
+      <Text {...TIMER_CAP} style={[styles.timerText, tablet && styles.timerTextTablet]}>
+        {formatClock(elapsed)}
+      </Text>
+    </GlassSurface>
+  );
+  const plan = (
+    <GlassSurface testID="session-plan" tone="onPhoto" radius={radii.full} shadow={false} style={[styles.planPill, tablet && styles.planPillTablet, stacked && styles.planPillStacked]}>
+      <Text {...TITLE_TEXT} numberOfLines={2} style={[styles.planName, tablet && styles.planNameTablet]}>
+        {planName}
+      </Text>
+      <Text {...CAP_PILL} style={[styles.planSub, tablet && styles.planSubTablet]}>{`${completedSets}/${totalSets} ${setsWord(totalSets)} done`}</Text>
+    </GlassSurface>
+  );
+  return (
+    <View testID="session-chrome" onLayout={onLayout} style={[styles.chrome, tablet && styles.chromeTablet, style]}>
+      {stacked ? (
+        <>
+          <View style={styles.chromeRow}>
+            {exit}
+            <View style={styles.flex} />
+            {timer}
+            {all}
+          </View>
+          <View style={styles.chromePlanRow}>{plan}</View>
+        </>
+      ) : (
+        <View style={styles.chromeRow}>
+          {exit}
+          <View style={styles.chromeCentre}>{plan}</View>
+          {timer}
+          {all}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function MuscleChip({ exercise, tablet }) {
+  const name = exercise.exercise?.primary_muscle_group?.name;
+  if (!name) {
+    return null;
+  }
+  const code = exercise.exercise?.primary_muscle_group?.code;
+  const hue = muscleColor(code);
+  return (
+    <View testID="stage-muscle-chip" style={[styles.muscleChip, tablet && styles.muscleChipTablet, !hue && styles.muscleChipNeutral]}>
+      {hue ? <View style={[StyleSheet.absoluteFill, styles.overlayRound, { backgroundColor: hue, opacity: TILE_ALPHA }]} /> : null}
+      <Text {...CAP_PILL} style={[styles.muscleText, tablet && styles.muscleTextTablet, { color: muscleTextColor(code) ?? colors.textSecondary }]}>
+        {name}
+      </Text>
+    </View>
+  );
+}
+
+function StageRing({ exercise, tablet }) {
+  const { done, total } = exerciseDone(exercise);
+  const size = tablet ? 104 : 64;
+  return (
+    <GlassSurface tone="onPhoto" radius={radii.full} shadow={false} style={[styles.ringGlass, { width: size, height: size }]}>
+      <ProgressRing value={done} total={total} size={size - 2} thickness={11} label={`${done} of ${total} ${setsWord(total)} done`}>
+        <Text {...TIMER_CAP} numberOfLines={1} textBreakStrategy="simple" style={[styles.ringText, tablet && styles.ringTextTablet]}>{`${done}/${total}`}</Text>
+      </ProgressRing>
+    </GlassSurface>
+  );
+}
+
+// The exercise photo (cover, full bleed) or, with no photo, the §8.1 hero
+// tile; the fades keep the caption readable (the bottom fade ends at the
+// ground, F1 a11y).
+function StagePhoto({ exercise, variant }) {
+  const url = exercise.exercise?.thumbnail?.url;
+  return (
+    <>
+      <ExerciseImage
+        testID="stage-image"
+        url={url ?? null}
+        name={exerciseName(exercise)}
+        muscleCode={exercise.exercise?.primary_muscle_group?.code}
+        size={56}
+        accessibilityLabel={exerciseName(exercise)}
+        style={styles.stagePhoto}
+      />
+      {variant === 'browse' ? (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <GradientFill angle={180} colors={[colors.onPhoto, CLEAR, colors.inkLine, colors.ground]} stops={[0, 0.3, 0.55, 1]} />
+        </View>
+      ) : variant === 'split' ? (
+        <View pointerEvents="none" style={[styles.fadeBottom, styles.fadeSplit]}>
+          <GradientFill angle={180} colors={[CLEAR, colors.ground]} stops={[0, 0.7]} />
+        </View>
+      ) : (
+        <>
+          <View pointerEvents="none" style={styles.fadeTop}>
+            <GradientFill angle={180} colors={[colors.onPhoto, CLEAR]} />
+          </View>
+          <View pointerEvents="none" style={styles.fadeBottom}>
+            <GradientFill angle={180} colors={[CLEAR, colors.ground]} />
+          </View>
+        </>
+      )}
+    </>
+  );
+}
+
+// F1 Workout / Workout browsing / Tablet stage. `variant`: 'live' (phone),
+// 'browse' (phone or tablet browsing), 'split' (the tablet live stage
+// column). `top` is the room the overlaid chrome takes; `chrome` an in-flow
+// chrome (large text). Notes (v1 §19.2) stay under the name.
+export function ExerciseStage({
+  exercise,
+  index,
+  count,
+  isActive,
+  variant = 'live',
+  tablet = false,
+  top = 0,
+  chrome = null,
+  completedSets = 0,
+  totalSets = 0,
+  howTo = null,
+  segments = null,
+}) {
+  const notes = exerciseNotes(exercise);
+  const name = exerciseName(exercise);
+  const muscle = exercise.exercise?.primary_muscle_group?.name;
+  const browse = variant === 'browse';
+  const split = variant === 'split';
+  const minHeight = split ? undefined : browse ? (tablet ? TABLET_BROWSE_STAGE_HEIGHT : PHONE_BROWSE_STAGE_HEIGHT) : PHONE_STAGE_HEIGHT;
+  const eyebrow = browse
+    ? isActive
+      ? 'Current exercise'
+      : `Exercise ${index + 1} of ${count}`
+    : split
+      ? tabletEyebrow({ isActive, index, count, exercise })
+      : stageEyebrow({ isActive, index, count, muscle, completedSets, totalSets });
+  return (
+    <View testID="exercise-stage" style={[styles.stage, split && styles.stageSplit, { minHeight, paddingTop: top }]}>
+      <StagePhoto exercise={exercise} variant={variant} />
+      {chrome}
+      <View style={styles.flex} />
+      {howTo ? <View style={[styles.howToRow, split && styles.howToRowSplit]}>{howTo}</View> : null}
+      <View style={[styles.caption, browse && styles.captionBrowse, tablet && browse && styles.captionBrowseTablet, split && styles.captionSplit]}>
+        <View style={styles.captionText}>
+          <Text {...CAP_BODY} style={[styles.eyebrow, browse && styles.eyebrowBrowse, tablet && browse && styles.eyebrowBrowseTablet, split && styles.eyebrowSplit]}>
+            {eyebrow}
+          </Text>
+          <Text
+            {...DISPLAY_TITLE_TEXT}
+            accessibilityRole="header"
+            style={[styles.stageName, browse && styles.stageNameBrowse, tablet && browse && styles.stageNameBrowseTablet, split && styles.stageNameSplit]}
+          >
+            {name}
+          </Text>
+          {browse ? <MuscleChip exercise={exercise} tablet={tablet} /> : null}
+          {notes ? <Text {...CAP_BODY} style={styles.stageNotes}>{notes}</Text> : null}
+          {segments}
+        </View>
+        {browse ? <StageRing exercise={exercise} tablet={tablet} /> : null}
       </View>
     </View>
   );
 }
 
-// [O8]
+export function HowToButton({ onPress, tablet }) {
+  return (
+    <GlassButton
+      testID="how-to-open"
+      label="How to"
+      onPress={onPress}
+      height={tablet ? 40 : 36}
+      tablet={tablet}
+      icon={<PlayIcon size={14} color={colors.textPrimary} />}
+    />
+  );
+}
+
+// The live stage's per-exercise progress (done gold, partial gold up to its
+// share, empty white 0.12). Decorative progress: jumping is All (n) / Up next.
+export function ExerciseSegments({ exercises, viewingIndex, tablet = false }) {
+  return (
+    <View
+      testID="exercise-segments"
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={`Exercise ${viewingIndex + 1} of ${exercises.length}`}
+      style={[styles.segments, tablet && styles.segmentsTablet]}
+    >
+      {exercises.map((exercise) => {
+        const { done, total } = exerciseDone(exercise);
+        const ratio = total > 0 ? done / total : 0;
+        return (
+          <View key={exercise.id} style={[styles.segment, tablet && styles.segmentTablet]}>
+            <View style={[styles.segmentFill, { width: `${Math.round(ratio * 100)}%` }]} />
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+// ND3 the gold session rail (browsing): sets done / all sets. aria-hidden.
+export function SessionRail({ completedSets, totalSets }) {
+  const ratio = totalSets > 0 ? completedSets / totalSets : 0;
+  return (
+    <View testID="session-rail" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.rail}>
+      <View style={[styles.railFill, { width: `${Math.round(ratio * 100)}%` }]} />
+    </View>
+  );
+}
+
+// [O8]: an info/warning card, copy unchanged.
 export function StaleSessionBanner({ title }) {
   return (
     <View testID="stale-session-banner" accessibilityRole="text" accessibilityLiveRegion="polite" style={styles.staleBanner}>
-      <Text style={styles.bannerTitle}>{title}</Text>
-      <Text style={styles.bannerBody}>
+      <Text {...CAP_BODY} style={styles.bannerTitle}>{title}</Text>
+      <Text {...CAP_BODY} style={styles.bannerBody}>
         This workout is still open from an earlier day. Finish or end it, and today's workout will be ready when you come back.
       </Text>
     </View>
@@ -126,200 +353,398 @@ export function StaleSessionBanner({ title }) {
 export function ReloadErrorBar({ retrying, onRetry }) {
   return (
     <View testID="reload-error-bar" style={styles.reloadBar}>
-      <Text style={styles.reloadTitle}>Couldn't refresh your workout</Text>
-      <Text style={styles.reloadBody}>Your last set was saved. Some details may be out of date.</Text>
-      <Pressable
-        testID="reload-error-retry"
-        accessibilityRole="button"
-        disabled={retrying}
-        onPress={onRetry}
-        style={({ pressed }) => [styles.retry, pressed && !retrying ? styles.pressedSink : styles.retryResting, retrying && styles.dim]}
-      >
-        <Text style={styles.retryText}>{retrying ? 'Retrying…' : 'Retry'}</Text>
-      </Pressable>
+      <Text {...CAP_BODY} style={styles.reloadTitle}>Couldn't refresh your workout</Text>
+      <Text {...CAP_BODY} style={styles.reloadBody}>Your last set was saved. Some details may be out of date.</Text>
+      <View style={styles.retryRow}>
+        <PillButton testID="reload-error-retry" title={retrying ? 'Retrying…' : 'Retry'} variant="secondary" size="compact" disabled={retrying} onPress={onRetry} />
+      </View>
     </View>
   );
 }
 
-// §19.4
-export function BrowsingBar({ onResume }) {
+// §19.4 (copy identical), F1 browsing bar: role status, the one gold action.
+export function BrowsingBar({ onResume, tablet = false }) {
+  const stacked = useLargeTextReflow();
   return (
-    <View testID="browsing-bar" style={styles.browsingBar}>
-      <Text style={styles.browsingText}>You're browsing — active set is waiting</Text>
-      <BrandButton testID="browsing-resume" label="Resume" onPress={onResume} style={styles.resume} labelStyle={styles.resumeLabel} />
+    <View
+      testID="browsing-bar"
+      accessibilityLiveRegion="polite"
+      style={[styles.browsingBar, tablet && styles.browsingBarTablet, stacked && styles.browsingBarStacked]}
+    >
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.browsingClip, tablet && styles.browsingClipTablet]}>
+        <GradientFill angle={tablet ? 140 : 90} colors={[colors.goldTint, colors.goldFaint]} />
+      </View>
+      {tablet ? <View style={styles.browsingDot} /> : null}
+      <Text {...CAP_BODY} style={[styles.browsingText, tablet && styles.browsingTextTablet, stacked && styles.browsingTextStacked]}>
+        You're browsing — active set is waiting
+      </Text>
+      <PillButton testID="browsing-resume" title="Resume" size={tablet ? 'default' : 'compact'} fullWidth={stacked} onPress={onResume} />
     </View>
   );
 }
 
-// §19.5 with [O11]: the name takes 2 lines.
-export function UpNextCard({ exercise, setsLeft, onPress }) {
-  const muscle = exercise.exercise?.primary_muscle_group?.name;
-  const url = exercise.exercise?.thumbnail?.url;
-  return (
-    <Pressable testID="up-next" accessibilityRole="button" onPress={onPress}>
-      {({ pressed }) => (
-        <Card3D style={[styles.upNext, pressed && styles.cardPressed]}>
-          <View style={styles.upNextThumb}>{url ? <RemoteImage url={url} style={styles.upNextImage} resizeMode="contain" /> : null}</View>
-          <View style={styles.upNextText}>
-            <Text numberOfLines={1} style={styles.upNextEyebrow}>
-              Up next
-            </Text>
-            <Text numberOfLines={2} ellipsizeMode="tail" style={styles.upNextName}>
-              {exerciseName(exercise)}
-            </Text>
-            <Text numberOfLines={1} style={styles.upNextSub}>
-              {`${setsLeft} ${setsWord(setsLeft)} left${muscle ? ` · ${muscle}` : ''}`}
+// F1 browsing stats: Time (formatDuration) / Volume (member unit) / Reps.
+// UX §9 rule 4: past 1.3× the 3 columns become label → value rows.
+export function SessionStats({ time, volume, volumeUnit, reps, tablet = false }) {
+  const stacked = useLargeTextReflow();
+  const items = [
+    { key: 'time', label: 'Time', value: time },
+    { key: 'volume', label: 'Volume', value: volume, unit: volume === '—' ? null : volumeUnit },
+    { key: 'reps', label: 'Reps', value: reps },
+  ];
+  if (tablet && !stacked) {
+    return (
+      <View testID="session-stats" style={styles.statsTablet}>
+        {items.map((item) => (
+          <View key={item.key} testID={`session-stat-${item.key}`} style={styles.statTileTablet}>
+            <Text {...CAP_BODY} style={styles.statsLabelTablet}>{item.label}</Text>
+            <Text {...DISPLAY_CAP} style={styles.statsValueTablet}>
+              {item.value}
+              {item.unit ? <Text style={styles.statsUnitTablet}>{` ${item.unit}`}</Text> : null}
             </Text>
           </View>
-          <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={colors.textMuted} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={styles.noShrink}>
-            <Path d="m9 18 6-6-6-6" />
-          </Svg>
-        </Card3D>
+        ))}
+      </View>
+    );
+  }
+  return (
+    <View testID="session-stats" style={[styles.stats, stacked && styles.statsStacked]}>
+      {items.map((item, index) => (
+        <View
+          key={item.key}
+          testID={`session-stat-${item.key}`}
+          style={[styles.statsCell, stacked && styles.statsCellStacked, index > 0 && (stacked ? styles.statsDividerTop : styles.statsDividerLeft)]}
+        >
+          <Text {...CAP_BODY} style={styles.statsLabel}>{item.label}</Text>
+          <Text {...CAP_BODY} style={[styles.statsValue, stacked && styles.statsValueStacked]}>
+            {item.unit ? `${item.value} ${item.unit}` : item.value}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function Stepper({ testID, label, glyph, onPress, tablet }) {
+  const height = tablet ? 44 : 36;
+  return (
+    <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={label} onPress={onPress} hitSlop={hitFor(height)} style={styles.noShrink}>
+      {({ pressed }) => (
+        <View style={[styles.stepper, { height }]}>
+          {pressed ? <PressOverlay /> : null}
+          <Text allowFontScaling={false} style={[styles.stepperGlyph, tablet && styles.stepperGlyphTablet]}>
+            {glyph}
+          </Text>
+        </View>
       )}
     </Pressable>
   );
 }
 
-// §19.2
-export function ExerciseStage({ exercise, index, count, isActive, children }) {
-  const { width } = useWindowDimensions();
-  const sets = exercise.sets ?? [];
-  const done = sets.filter((set) => set.is_completed).length;
-  const notes = exerciseNotes(exercise);
-  const muscle = exercise.exercise?.primary_muscle_group?.name;
-  const url = exercise.exercise?.thumbnail?.url;
-  const nameSize = width >= 1280 ? styles.stageName30 : width >= breakpoints.sm ? styles.stageName24 : null;
+// One editor cell (Weight or Reps). Focus: gold edge + focus ring; error:
+// the danger look. Never clips (its border changes at runtime, Android).
+function EditorCell({ tablet, stacked, focused, error, label, value, steppers }) {
+  const row = tablet && !stacked;
   return (
-    <Card3D testID="exercise-stage" style={[styles.stage, { padding: width >= breakpoints.sm ? 24 : 20 }]}>
-      <View style={styles.stageTop}>
-        <View style={styles.stageText}>
-          <Text style={styles.eyebrow}>{isActive ? 'Current exercise' : `Exercise ${index + 1} of ${count}`}</Text>
-          <Text textBreakStrategy="simple" style={[styles.stageName, nameSize]}>{exerciseName(exercise)}</Text>
-          {notes ? <Text style={styles.stageNotes}>{notes}</Text> : null}
-          {muscle ? (
-            <View style={styles.muscleChip}>
-              <Text style={styles.muscleText}>{muscle}</Text>
-            </View>
-          ) : null}
-        </View>
-        <ProgressRing value={done} total={sets.length} size={56} thickness={8} label={`${done} of ${sets.length} ${setsWord(sets.length)} done`}>
-          <Text numberOfLines={1} textBreakStrategy="simple" style={styles.stageRingText}>{`${done}/${sets.length}`}</Text>
-        </ProgressRing>
+    <View style={[styles.cell, row && styles.cellRow, !tablet && !stacked && styles.cellHalf, focused && styles.cellFocused, error && styles.cellError]}>
+      <View style={row ? styles.cellLeft : styles.cellColumn}>
+        {label}
+        {value}
       </View>
-      {url ? (
-        <View style={[styles.mediaWell, { minHeight: width >= breakpoints.sm ? 224 : 176 }]}>
-          <GradientFill colors={[colors.surfaceMuted, colors.surface]} />
-          {/* §19.2 + the RemoteImage port note (§19.7): Drive fallbacks, no
-              referrer; keyed by URL so another exercise starts a fresh chain.
-              Like the web, an exhausted chain leaves the well empty. */}
-          <RemoteImage key={url} url={url} resizeMode="contain" style={{ width: '100%', height: width >= breakpoints.sm ? 208 : 160 }} />
-        </View>
-      ) : null}
-      <View style={styles.setList}>{children}</View>
-    </Card3D>
-  );
-}
-
-// §19.3. Both gradient layers (next badge, "Did it") are always mounted and
-// only revealed by opacity, so no state change creates a gradient (§19.10).
-export function SetRow({
-  set,
-  draft,
-  isNext,
-  isLocked,
-  lockReason,
-  isPending,
-  highlighted,
-  validationError,
-  onWeightChange,
-  onUnitChange,
-  onToggle,
-  onLayout,
-}) {
-  const completed = Boolean(set.is_completed);
-  const actionable = !completed && !isLocked;
-  const label = isPending ? 'Saving…' : completed ? 'Undo' : 'Did it';
-  const disabled = isPending || isLocked;
-  return (
-    <View
-      testID={`set-row-${set.id}`}
-      onLayout={onLayout}
-      style={[styles.setRow, completed ? styles.setCompleted : isNext ? styles.setNext : styles.setOther, highlighted && styles.setHighlighted]}
-    >
-      <View style={styles.setHeader}>
-        <View style={styles.setHeaderLeft}>
-          <View style={[styles.badge, completed ? styles.badgeCompleted : isNext ? styles.badgeNext : styles.badgeOther]}>
-            <View style={[StyleSheet.absoluteFill, styles.badgeClip, { opacity: isNext && !completed ? 1 : 0 }]}>
-              <GradientFill angle={135} colors={GOLD} />
-            </View>
-            {completed ? (
-              <CheckIcon size={16} color={colors.brand700} />
-            ) : (
-              <Text numberOfLines={1} textBreakStrategy="simple" style={[styles.badgeText, { color: isNext ? colors.navy : colors.textSecondary }]}>{set.set_number}</Text>
-            )}
-          </View>
-          <View style={styles.setText}>
-            <Text style={styles.repsLabel}>{setRepsLabel(set)}</Text>
-            <Text style={styles.setMeta}>{setMetaLabel(set, isNext)}</Text>
-          </View>
-        </View>
-        {completed ? <Text style={styles.doneText}>Done</Text> : null}
-      </View>
-      <View style={styles.controls}>
-        <TextInput
-          {...textInputColors}
-          testID={`set-weight-${set.id}`}
-          accessibilityLabel={`Weight for set ${set.set_number}`}
-          keyboardType="decimal-pad"
-          value={draft?.actualWeightValue === undefined || draft?.actualWeightValue === null ? '' : String(draft.actualWeightValue)}
-          placeholder={set.target_weight_value != null ? String(set.target_weight_value) : '0'}
-          placeholderTextColor={colors.textMuted}
-          onChangeText={onWeightChange}
-          style={[styles.weightInput, validationError && styles.weightError]}
-        />
-        <Select
-          testID={`set-unit-${set.id}`}
-          accessibilityLabel={`Weight unit for set ${set.set_number}`}
-          value={draft?.actualWeightUnit || 'lb'}
-          options={[
-            { value: 'lb', label: 'lb' },
-            { value: 'kg', label: 'kg' },
-          ]}
-          onChange={onUnitChange}
-          boxStyle={styles.unitBox}
-          textStyle={styles.unitText}
-        />
-        <Pressable
-          testID={`set-action-${set.id}`}
-          accessibilityRole="button"
-          accessibilityLabel={label}
-          accessibilityHint={isLocked ? lockReason : undefined}
-          accessibilityState={{ disabled }}
-          disabled={disabled}
-          onPress={onToggle}
-          style={({ pressed }) => [
-            styles.action,
-            completed ? styles.actionUndo : isLocked ? styles.actionLocked : styles.actionGold,
-            pressed && !disabled && styles.pressedSink,
-            disabled && styles.dim,
-          ]}
-        >
-          <View style={[StyleSheet.absoluteFill, styles.actionClip, { opacity: actionable ? 1 : 0 }]}>
-            <GradientFill colors={GOLD_BUTTON} />
-          </View>
-          <Text numberOfLines={1} textBreakStrategy="simple" style={[styles.actionText, { color: completed ? colors.textSecondary : isLocked ? colors.textMuted : colors.navy }]}>{label}</Text>
-        </Pressable>
-      </View>
-      {validationError ? (
-        <Text testID={`weight-error-${set.id}`} style={styles.validation}>
-          {validationError}
-        </Text>
-      ) : null}
+      <View style={styles.steppers}>{steppers}</View>
     </View>
   );
 }
 
+// The set card (F1 "Set row as built in its single-editor form"): ONE live
+// editor for the next set of the viewed exercise, then the strip (done chips
+// with Undo, the "now" chip, locked chips). `set` is null when every set of
+// the exercise is done (the strip only).
+export function SetEditor({
+  exercise,
+  set,
+  draft,
+  reps,
+  lastTime,
+  tablet = false,
+  highlighted = false,
+  validationError,
+  pendingSetIds,
+  onWeightChange,
+  onUnitChange,
+  onRepsChange,
+  onStep,
+  onToggleSet,
+  action = null,
+  cardRef,
+}) {
+  const stacked = useLargeTextReflow();
+  const [focus, setFocus] = useState('');
+  const sets = exercise.sets ?? [];
+  const unit = draft?.actualWeightUnit || 'lb';
+  const weightValue = draft?.actualWeightValue === undefined || draft?.actualWeightValue === null ? '' : String(draft.actualWeightValue);
+  const setNumber = set?.set_number;
+  const valueStyle = [styles.cellValue, tablet && styles.cellValueTablet];
+  return (
+    <View ref={cardRef} collapsable={false} testID="set-editor" style={[styles.card, tablet && styles.cardTablet, highlighted && styles.cardHighlighted]}>
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.cardClip]}>
+        <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
+      </View>
+      {set ? (
+        <>
+          <View testID={`set-row-${set.id}`} style={[styles.cardHeader, stacked && styles.cardHeaderStacked]}>
+            <Text {...CAP_BODY} style={[styles.setTitle, tablet && styles.setTitleTablet]}>
+              {`Set ${setNumber} `}
+              <Text style={styles.setOf}>{setOfLabel(set, sets.length)}</Text>
+            </Text>
+            {lastTime ? (
+              <Text {...CAP_BODY} testID={`set-last-time-${set.id}`} style={styles.lastTime}>
+                {lastTime}
+              </Text>
+            ) : null}
+          </View>
+          <View style={[styles.cells, (tablet || stacked) && styles.cellsColumn]}>
+            <EditorCell
+              tablet={tablet}
+              stacked={stacked}
+              focused={focus === 'weight'}
+              error={Boolean(validationError)}
+              label={
+                <View style={styles.cellLabelRow}>
+                  <Text {...CAP_BODY} style={styles.cellLabel}>Weight</Text>
+                  <Select
+                    testID={`set-unit-${set.id}`}
+                    accessibilityLabel={`Weight unit for set ${setNumber}`}
+                    value={unit}
+                    options={[
+                      { value: 'lb', label: 'lb' },
+                      { value: 'kg', label: 'kg' },
+                    ]}
+                    onChange={onUnitChange}
+                    boxStyle={styles.unitBox}
+                    textStyle={styles.unitText}
+                  />
+                </View>
+              }
+              value={
+                <TextInput
+                  {...textInputColors}
+                  {...DISPLAY_CAP}
+                  testID={`set-weight-${set.id}`}
+                  accessibilityLabel={`Weight for set ${setNumber}`}
+                  accessibilityHint={validationError || undefined}
+                  keyboardType="decimal-pad"
+                  value={weightValue}
+                  placeholder={set.target_weight_value != null ? String(set.target_weight_value) : '0'}
+                  placeholderTextColor={colors.textFaint}
+                  onChangeText={onWeightChange}
+                  onFocus={() => setFocus('weight')}
+                  onBlur={() => setFocus('')}
+                  style={[valueStyle, validationError && styles.cellValueError]}
+                />
+              }
+              steppers={
+                <>
+                  <Stepper testID={`set-weight-minus-${set.id}`} label="Decrease weight" glyph="−" tablet={tablet} onPress={() => onStep('weight', -1)} />
+                  <Stepper testID={`set-weight-plus-${set.id}`} label="Increase weight" glyph="+" tablet={tablet} onPress={() => onStep('weight', 1)} />
+                </>
+              }
+            />
+            <EditorCell
+              tablet={tablet}
+              stacked={stacked}
+              focused={focus === 'reps'}
+              label={
+                <Text {...CAP_BODY} style={[styles.cellLabel, styles.cellLabelReps]}>
+                  {repsFieldLabel(set)}
+                </Text>
+              }
+              value={
+                <TextInput
+                  {...textInputColors}
+                  {...DISPLAY_CAP}
+                  testID={`set-reps-${set.id}`}
+                  accessibilityLabel={`Reps for set ${setNumber}`}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  value={reps ?? ''}
+                  placeholder="—"
+                  placeholderTextColor={colors.textFaint}
+                  onChangeText={onRepsChange}
+                  onFocus={() => setFocus('reps')}
+                  onBlur={() => setFocus('')}
+                  style={valueStyle}
+                />
+              }
+              steppers={
+                <>
+                  <Stepper testID={`set-reps-minus-${set.id}`} label="Decrease reps" glyph="−" tablet={tablet} onPress={() => onStep('reps', -1)} />
+                  <Stepper testID={`set-reps-plus-${set.id}`} label="Increase reps" glyph="+" tablet={tablet} onPress={() => onStep('reps', 1)} />
+                </>
+              }
+            />
+          </View>
+          {validationError ? (
+            <Text {...CAP_BODY} testID={`weight-error-${set.id}`} accessibilityLiveRegion="assertive" accessibilityRole="alert" style={styles.validation}>
+              {validationError}
+            </Text>
+          ) : null}
+        </>
+      ) : null}
+      <View testID="set-strip" style={[styles.strip, !set && styles.stripOnly]}>
+        {sets.map((item) => (
+          <SetChip key={item.id} set={item} isNow={item.id === set?.id} tablet={tablet} pending={pendingSetIds?.has(item.id)} onPress={() => onToggleSet(item)} />
+        ))}
+      </View>
+      {action ? <View style={styles.cardAction}>{action}</View> : null}
+    </View>
+  );
+}
+
+// Strip chips. A done chip is the Undo button (accessible name "Undo", the
+// set in the description); locked chips keep v1's disabled action and hint.
+function SetChip({ set, isNow, tablet, pending, onPress }) {
+  const height = tablet ? 38 : 36;
+  const chip = [styles.chip, { minHeight: height }];
+  if (set.is_completed) {
+    const text = doneSetLabel(set);
+    return (
+      <Pressable
+        testID={`set-action-${set.id}`}
+        accessibilityRole="button"
+        accessibilityLabel={pending ? 'Saving…' : 'Undo'}
+        accessibilityHint={`Set ${set.set_number} done, ${text}`}
+        accessibilityState={{ disabled: Boolean(pending) }}
+        disabled={Boolean(pending)}
+        onPress={onPress}
+        hitSlop={hitFor(height)}
+        style={({ pressed }) => [chip, styles.chipDone, pressed && !pending && styles.chipPressed, pending && styles.dim]}
+      >
+        <CheckIcon size={14} color={colors.gold} />
+        <Text {...CAP_PILL} textBreakStrategy="simple" style={[styles.chipText, styles.chipTextDone]}>
+          {pending ? 'Saving…' : `${text} · Undo`}
+        </Text>
+      </Pressable>
+    );
+  }
+  if (isNow) {
+    return (
+      <View testID={`set-chip-now-${set.id}`} style={[chip, styles.chipNow]}>
+        <Text {...CAP_PILL} textBreakStrategy="simple" style={styles.chipText}>
+          {tablet ? `Set ${set.set_number}` : `Set ${set.set_number} · now`}
+        </Text>
+      </View>
+    );
+  }
+  return (
+    <Pressable
+      testID={`set-action-${set.id}`}
+      accessibilityRole="button"
+      accessibilityLabel={`Set ${set.set_number}`}
+      accessibilityHint="Finish the previous set first"
+      accessibilityState={{ disabled: true }}
+      disabled
+      style={[chip, styles.chipLocked]}
+    >
+      <Text {...CAP_PILL} textBreakStrategy="simple" style={[styles.chipText, styles.chipTextLocked]}>
+        {`Set ${set.set_number}`}
+      </Text>
+    </Pressable>
+  );
+}
+
+// The one gold action (F1 dock): "Did it" / "Saving…" (names pinned).
+// Disabled (0.5) while the PATCH runs or the rest locks it.
+export function DidItButton({ set, isPending, isLocked, lockReason, onPress }) {
+  const disabled = isPending || isLocked;
+  const label = isPending ? 'Saving…' : 'Did it';
+  return (
+    <Pressable
+      testID={`set-action-${set.id}`}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={isLocked ? lockReason : undefined}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={[styles.didIt, disabled && styles.didItDisabled]}
+    >
+      {({ pressed }) => (
+        <>
+          {pressed && !disabled ? <PressOverlay ink /> : null}
+          <CheckIcon size={20} color={colors.onGold} />
+          <Text {...CAP_BODY} textBreakStrategy="simple" style={styles.didItText}>
+            {label}
+          </Text>
+        </>
+      )}
+    </Pressable>
+  );
+}
+
+// F1 dock "Up next: {name}" link (22 thumb), 44 hit area.
+export function UpNextLink({ exercise, onPress }) {
+  const name = exerciseName(exercise);
+  return (
+    <Pressable testID="up-next" accessibilityRole="button" accessibilityLabel={`Up next: ${name}`} onPress={onPress} hitSlop={hitFor(22)} style={styles.upNext}>
+      {({ pressed }) => (
+        <>
+          <ExerciseImage
+            testID="up-next-thumb"
+            url={exercise.exercise?.thumbnail?.url ?? null}
+            name={name}
+            muscleCode={exercise.exercise?.primary_muscle_group?.code}
+            size={22}
+          />
+          <Text {...CAP_BODY} style={[styles.upNextText, pressed && styles.upNextPressed]}>{`Up next: ${name}`}</Text>
+        </>
+      )}
+    </Pressable>
+  );
+}
+
+// "Last exercise — finish strong" (code copy, undrawn).
+export function LastExerciseNote() {
+  return (
+    <View testID="last-exercise-note" style={styles.lastNote}>
+      <Text {...CAP_BODY} style={styles.lastNoteText}>Last exercise — finish strong</Text>
+    </View>
+  );
+}
+
+// ND4: "Discard workout" = ghost with the danger text; pressed = danger
+// faint (§8.6a 5, a transparent danger text button). In flight: "Exiting…".
+export function DiscardWorkoutAction({ abandoning, onPress }) {
+  return (
+    <Pressable
+      testID="discard-workout"
+      accessibilityRole="button"
+      accessibilityState={{ disabled: abandoning, busy: abandoning }}
+      disabled={abandoning}
+      onPress={onPress}
+      style={({ pressed }) => [styles.discard, pressed && !abandoning && styles.discardPressed, abandoning && styles.dim]}
+    >
+      <Text {...CAP_BODY} textBreakStrategy="simple" style={styles.discardText}>
+        {abandoning ? 'Exiting…' : 'Discard workout'}
+      </Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
+  noShrink: {
+    flexShrink: 0,
+  },
+  overlayRound: {
+    borderRadius: radii.full,
+  },
+  dim: {
+    opacity: 0.5,
+  },
+  // v1 StatTile (popup).
   statTile: {
     flex: 1,
     alignItems: 'center',
@@ -327,7 +752,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     paddingHorizontal: 10,
     paddingVertical: 12,
-    boxShadow: `${shadows.emboss}, ${shadows.ringInk}`,
   },
   statLabel: {
     fontSize: 11,
@@ -346,478 +770,778 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   statValueBrand: {
-    color: colors.brand700,
+    color: colors.gold,
   },
+  // Chrome.
   chrome: {
-    overflow: 'hidden',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.glassEdge,
+    gap: spacing[2],
+    paddingHorizontal: spacing[4],
   },
-  chromeWide: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-  },
-  glassFill: {
-    backgroundColor: colors.glassFill,
+  chromeTablet: {
+    paddingHorizontal: spacing[6],
   },
   chromeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    paddingVertical: 14,
-  },
-  chromeButton: {
-    height: 44,
-    justifyContent: 'center',
-    borderRadius: radii.full,
-    paddingHorizontal: 12,
-  },
-  exitText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  exitPressed: {
-    color: colors.danger700,
-  },
-  allText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
-    color: colors.brand700,
-  },
-  allPressed: {
-    color: colors.brand700,
-    opacity: 0.8,
+    gap: spacing[2],
   },
   chromeCentre: {
     flex: 1,
     minWidth: 0,
     alignItems: 'center',
   },
-  chromeTitle: {
-    fontSize: 16,
+  chromePlanRow: {
+    alignItems: 'stretch',
+  },
+  glassButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing['1_5'],
+    borderColor: colors.hairlineButton,
+  },
+  glassLabel: {
+    ...font(600),
+    fontSize: 14,
     lineHeight: 20,
-    fontWeight: '900',
     color: colors.textPrimary,
   },
-  chromeSub: {
+  glassLabelTablet: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  glassLabelSmall: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  timerPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    paddingHorizontal: spacing['3_5'],
+    borderColor: colors.hairlineButton,
+    flexShrink: 0,
+  },
+  timerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: radii.full,
+    backgroundColor: colors.dangerDot,
+  },
+  timerText: {
+    ...font(600),
+    fontSize: 15,
+    lineHeight: 20,
+    fontVariant: ['tabular-nums'],
+    color: colors.textPrimary,
+  },
+  timerTextTablet: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  planPill: {
+    maxWidth: '100%',
+    alignItems: 'center',
+    paddingHorizontal: spacing['3_5'],
+    paddingVertical: 5,
+    borderColor: colors.hairlineButton,
+  },
+  planPillTablet: {
+    paddingHorizontal: spacing[5],
+    paddingVertical: spacing[2],
+  },
+  planPillStacked: {
+    borderRadius: radii.xl,
+  },
+  planName: {
+    ...font(700),
+    fontSize: 13,
+    lineHeight: 17,
+    textAlign: 'center',
+    color: colors.textPrimary,
+  },
+  planNameTablet: {
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  planSub: {
+    ...font(400),
+    fontSize: 11,
+    lineHeight: 14,
+    textAlign: 'center',
+    fontVariant: ['tabular-nums'],
+    color: colors.textStrong2,
+  },
+  planSubTablet: {
     marginTop: 2,
+    fontSize: 13,
+    lineHeight: 17,
+  },
+  // Stage.
+  stage: {
+    width: '100%',
+    backgroundColor: colors.surface,
+  },
+  stageSplit: {
+    flex: 1,
+  },
+  stagePhoto: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    borderRadius: 0,
+  },
+  fadeTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 120,
+  },
+  fadeBottom: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 150,
+  },
+  fadeSplit: {
+    height: 420,
+  },
+  howToRow: {
+    alignItems: 'flex-end',
+    paddingHorizontal: spacing[4],
+    marginBottom: spacing[3],
+  },
+  howToRowSplit: {
+    alignItems: 'flex-start',
+    paddingHorizontal: spacing[7],
+    marginBottom: spacing[6],
+  },
+  caption: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: spacing[3],
+    paddingHorizontal: spacing[5],
+    paddingBottom: spacing['2_5'],
+  },
+  captionBrowse: {
+    paddingBottom: spacing[3],
+  },
+  captionBrowseTablet: {
+    gap: spacing[5],
+    paddingHorizontal: spacing[8],
+    paddingBottom: spacing[7],
+  },
+  captionSplit: {
+    paddingHorizontal: spacing[7],
+    paddingBottom: 48,
+  },
+  captionText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  eyebrow: {
+    ...font(400),
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textStrong2,
+  },
+  eyebrowBrowse: {
+    ...font(600),
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  eyebrowBrowseTablet: {
+    fontSize: 15,
+    lineHeight: 20,
+    color: colors.textSecondary,
+  },
+  eyebrowSplit: {
+    fontSize: 16,
+    lineHeight: 22,
+    color: colors.textSecondary,
+  },
+  stageName: {
+    ...typography.titleXl,
+    lineHeight: 38,
+    marginTop: spacing[1],
+    color: colors.textPrimary,
+  },
+  stageNameBrowse: {
+    lineHeight: 36,
+    letterSpacing: -1.8,
+  },
+  stageNameBrowseTablet: {
+    fontSize: 64,
+    lineHeight: 64,
+    letterSpacing: -3.2,
+  },
+  stageNameSplit: {
+    ...typography.displayXl,
+    marginTop: spacing[2],
+  },
+  stageNotes: {
+    ...typography.bodySm,
+    marginTop: spacing[2],
+    color: colors.textSecondary,
+  },
+  muscleChip: {
+    alignSelf: 'flex-start',
+    minHeight: 24,
+    justifyContent: 'center',
+    marginTop: spacing['2_5'],
+    paddingHorizontal: spacing['2_5'],
+    borderRadius: radii.full,
+  },
+  muscleChipTablet: {
+    minHeight: 30,
+    paddingHorizontal: spacing['3_5'],
+  },
+  muscleChipNeutral: {
+    backgroundColor: colors.fillChip,
+  },
+  muscleText: {
+    ...font(600),
     fontSize: 12,
     lineHeight: 16,
-    fontWeight: '600',
+  },
+  muscleTextTablet: {
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  ringGlass: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    borderWidth: 0,
+  },
+  ringText: {
+    ...font(700),
+    fontSize: 15,
+    lineHeight: 18,
     fontVariant: ['tabular-nums'],
-    color: colors.textSecondary,
+    color: colors.textPrimary,
+  },
+  ringTextTablet: {
+    fontSize: 24,
+    lineHeight: 28,
+  },
+  segments: {
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing['3_5'],
+  },
+  segmentsTablet: {
+    gap: spacing['1_5'],
+    paddingHorizontal: 0,
+    paddingTop: spacing[6],
+  },
+  segment: {
+    flex: 1,
+    height: 4,
+    borderRadius: radii.full,
+    overflow: 'hidden',
+    backgroundColor: colors.hairlineButton,
+  },
+  segmentTablet: {
+    height: 5,
+  },
+  segmentFill: {
+    height: '100%',
+    backgroundColor: colors.gold,
   },
   rail: {
     height: 4,
-    overflow: 'hidden',
-    backgroundColor: colors.surfaceMuted,
+    marginTop: spacing['1_5'],
+    marginHorizontal: spacing[5],
+    borderRadius: radii.full,
+    backgroundColor: colors.track,
   },
   railFill: {
+    height: '100%',
     borderRadius: radii.full,
-    overflow: 'hidden',
+    backgroundColor: colors.gold,
+    boxShadow: `0px 0px 12px ${colors.goldStrong}`,
   },
+  // Messages.
   staleBanner: {
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.trainerLockBorder,
-    backgroundColor: colors.brand50,
-    padding: 16,
+    borderColor: colors.warningLine,
+    backgroundColor: colors.warningFaint,
+    padding: spacing[4],
   },
   bannerTitle: {
+    ...font(600),
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '700',
     color: colors.textPrimary,
   },
   bannerBody: {
-    marginTop: 4,
-    fontSize: 14,
-    lineHeight: 24,
+    ...typography.bodySm,
+    marginTop: spacing[1],
     color: colors.textSecondary,
   },
   reloadBar: {
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.dangerBorder,
-    backgroundColor: colors.errorFill,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    borderColor: colors.dangerLine,
+    backgroundColor: colors.dangerFaint,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
   },
   reloadTitle: {
+    ...font(600),
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '600',
-    color: colors.errorText,
+    color: colors.dangerText,
   },
   reloadBody: {
-    fontSize: 14,
-    lineHeight: 24,
-    color: colors.errorText,
+    ...typography.bodySm,
+    color: colors.dangerTextSoft,
   },
-  retry: {
-    alignSelf: 'flex-start',
-    height: 44,
-    justifyContent: 'center',
-    marginTop: 12,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 20,
+  retryRow: {
+    alignItems: 'flex-start',
+    marginTop: spacing[3],
   },
-  retryResting: {
-    boxShadow: shadows.lift1,
-  },
-  retryText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  pressedSink: {
-    transform: [{ translateY: 1 }],
-    boxShadow: shadows.press,
-  },
-  dim: {
-    opacity: 0.6,
-  },
+  // Browsing bar.
   browsingBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    borderRadius: 24,
+    gap: spacing[3],
+    borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: colors.brandEdge,
-    backgroundColor: colors.brand50,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    boxShadow: shadows.emboss,
+    borderColor: colors.goldStrong,
+    paddingVertical: spacing[2],
+    paddingRight: spacing[2],
+    paddingLeft: spacing[4],
+  },
+  browsingBarTablet: {
+    gap: spacing[4],
+    borderRadius: radii.xl,
+    borderColor: colors.goldLine,
+    paddingVertical: spacing['4_5'],
+    paddingHorizontal: spacing['5_5'],
+  },
+  browsingBarStacked: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    borderRadius: radii.xl,
+    padding: spacing[4],
+  },
+  browsingClip: {
+    borderRadius: radii.full,
+    overflow: 'hidden',
+  },
+  browsingClipTablet: {
+    borderRadius: radii.xl,
+  },
+  browsingDot: {
+    width: 12,
+    height: 12,
+    borderRadius: radii.full,
+    backgroundColor: colors.gold,
+    boxShadow: `0px 0px 0px 6px ${colors.goldTint}`,
   },
   browsingText: {
+    ...font(600),
     flex: 1,
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '600',
-    color: colors.brand700,
+    color: colors.gold,
   },
-  resume: {
-    height: 44,
-    borderRadius: radii.full,
-    paddingHorizontal: 16,
+  browsingTextTablet: {
+    fontSize: 17,
+    lineHeight: 24,
+    color: colors.textPrimary,
   },
-  resumeLabel: {
+  browsingTextStacked: {
+    flex: 0,
+  },
+  // Stats.
+  stats: {
+    flexDirection: 'row',
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: colors.surface,
+  },
+  statsStacked: {
+    flexDirection: 'column',
+  },
+  statsCell: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 9,
+    paddingHorizontal: spacing[2],
+  },
+  statsCellStacked: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing[2],
+    paddingHorizontal: spacing[4],
+  },
+  statsDividerLeft: {
+    borderLeftWidth: 1,
+    borderLeftColor: colors.hairline,
+  },
+  statsDividerTop: {
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+  },
+  statsLabel: {
+    ...typography.micro,
+    color: colors.textMuted,
+  },
+  statsValue: {
+    ...font(700),
+    marginTop: 1,
+    fontSize: 20,
+    lineHeight: 26,
+    letterSpacing: -0.4,
+    fontVariant: ['tabular-nums'],
+    color: colors.textPrimary,
+  },
+  statsValueStacked: {
+    marginTop: 0,
+  },
+  statsTablet: {
+    flexDirection: 'row',
+    gap: spacing[3],
+  },
+  statTileTablet: {
+    flex: 1,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: colors.surface,
+    paddingVertical: spacing['4_5'],
+    paddingHorizontal: spacing[5],
+  },
+  statsLabelTablet: {
+    ...typography.bodySm,
+    color: colors.textMuted,
+  },
+  statsValueTablet: {
+    ...font(700),
+    fontSize: 40,
+    lineHeight: 42,
+    letterSpacing: -1.6,
+    fontVariant: ['tabular-nums'],
+    color: colors.textPrimary,
+  },
+  statsUnitTablet: {
+    ...font(400),
+    fontSize: 18,
+    letterSpacing: 0,
+    color: colors.textMuted,
+  },
+  // Set card.
+  card: {
+    borderRadius: radii.xxl,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    padding: spacing['4_5'],
+  },
+  cardTablet: {
+    padding: spacing['5_5'],
+  },
+  cardHighlighted: {
+    outlineWidth: 2,
+    outlineColor: colors.goldStrong,
+    outlineStyle: 'solid',
+  },
+  cardClip: {
+    borderRadius: radii.xxl,
+    overflow: 'hidden',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: spacing[2],
+  },
+  cardHeaderStacked: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+  setTitle: {
+    ...font(600),
+    flexShrink: 1,
+    fontSize: 15,
+    lineHeight: 20,
+    color: colors.textPrimary,
+  },
+  setTitleTablet: {
+    fontSize: 17,
+    lineHeight: 22,
+  },
+  setOf: {
+    ...font(500),
+    color: colors.textFaint,
+  },
+  lastTime: {
+    ...font(400),
+    fontSize: 13,
+    lineHeight: 18,
+    fontVariant: ['tabular-nums'],
+    color: colors.textMuted,
+  },
+  cells: {
+    flexDirection: 'row',
+    gap: spacing['2_5'],
+    marginTop: spacing['3_5'],
+  },
+  cellsColumn: {
+    flexDirection: 'column',
+    marginTop: spacing[4],
+  },
+  cell: {
+    alignItems: 'center',
+    gap: spacing[2],
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.fillWell,
+    backgroundColor: colors.fillWell,
+    padding: spacing[3],
+  },
+  cellHalf: {
+    flex: 1,
+    minWidth: 0,
+  },
+  cellRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: spacing['3_5'],
+    paddingHorizontal: spacing[4],
+  },
+  cellFocused: {
+    borderColor: colors.gold,
+    boxShadow: `0px 0px 0px 4px ${colors.goldFocus}`,
+  },
+  cellError: {
+    borderColor: colors.dangerText,
+    backgroundColor: colors.dangerTextTint,
+    boxShadow: `0px 0px 0px 4px ${colors.dangerFocus}`,
+  },
+  cellColumn: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  cellLeft: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'flex-start',
+    gap: spacing['0_5'],
+  },
+  cellLabelRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing['1_5'],
+  },
+  cellLabel: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  cellLabelReps: {
+    lineHeight: 24,
+    textAlign: 'center',
+  },
+  cellValue: {
+    ...typography.displayMd,
+    letterSpacing: -1.76,
+    minWidth: 72,
+    alignSelf: 'stretch',
+    padding: 0,
+    textAlign: 'center',
+    fontVariant: ['tabular-nums'],
+    color: colors.textPrimary,
+  },
+  cellValueTablet: {
+    fontSize: 48,
+    lineHeight: 50,
+    letterSpacing: -1.92,
+    alignSelf: 'flex-start',
+    textAlign: 'left',
+  },
+  cellValueError: {
+    color: colors.dangerText,
+  },
+  unitBox: {
+    minHeight: 24,
+    borderRadius: radii.sm,
+    borderWidth: 0,
+    backgroundColor: colors.fillButton,
+    paddingHorizontal: spacing[2],
+    paddingVertical: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unitText: {
+    ...font(600),
     fontSize: 12,
     lineHeight: 16,
-    fontWeight: '700',
+    textAlign: 'center',
+    color: colors.textPrimary,
+  },
+  steppers: {
+    flexDirection: 'row',
+    gap: spacing[2],
+  },
+  stepper: {
+    width: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.full,
+    backgroundColor: colors.fillButton,
+  },
+  stepperGlyph: {
+    ...font(600),
+    fontSize: 20,
+    lineHeight: 24,
+    color: colors.textPrimary,
+  },
+  stepperGlyphTablet: {
+    fontSize: 22,
+    lineHeight: 26,
+  },
+  validation: {
+    ...font(600),
+    marginTop: spacing[2],
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.dangerText,
+  },
+  strip: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[2],
+    marginTop: spacing[3],
+  },
+  stripOnly: {
+    marginTop: 0,
+  },
+  chip: {
+    flexGrow: 1,
+    flexBasis: '30%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing['1_5'],
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[1],
+  },
+  chipDone: {
+    backgroundColor: colors.goldTint,
+  },
+  chipPressed: {
+    opacity: 0.7,
+  },
+  chipNow: {
+    borderWidth: 1.5,
+    borderColor: colors.gold,
+  },
+  chipLocked: {
+    backgroundColor: colors.fillWell,
+  },
+  chipText: {
+    ...font(600),
+    flexShrink: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
+    fontVariant: ['tabular-nums'],
+    color: colors.textPrimary,
+  },
+  chipTextDone: {
+    color: colors.gold,
+  },
+  chipTextLocked: {
+    color: colors.textFaint,
+  },
+  cardAction: {
+    marginTop: spacing['3_5'],
+  },
+  // Did it.
+  didIt: {
+    minHeight: DID_IT_HEIGHT,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing['2_5'],
+    borderRadius: radii.full,
+    backgroundColor: colors.gold,
+    paddingHorizontal: spacing[6],
+    boxShadow: shadows.goldGlowLarge,
+  },
+  didItDisabled: {
+    opacity: 0.5,
+  },
+  didItText: {
+    ...font(700),
+    flexShrink: 1,
+    fontSize: 18,
+    lineHeight: 24,
+    letterSpacing: -0.18,
+    textAlign: 'center',
+    color: colors.onGold,
   },
   upNext: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    padding: 16,
-  },
-  cardPressed: {
-    transform: [{ translateY: -2 }],
-    boxShadow: shadows.lift3,
-  },
-  upNextThumb: {
-    width: 96,
-    height: 96,
-    flexShrink: 0,
-    alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
-    borderRadius: 24,
-    backgroundColor: colors.surfaceMuted,
-    boxShadow: shadows.press,
-  },
-  upNextImage: {
-    width: 96,
-    height: 80,
+    gap: spacing[2],
+    marginTop: spacing['2_5'],
+    minHeight: 22,
   },
   upNextText: {
-    flex: 1,
-    minWidth: 0,
+    ...typography.caption,
     flexShrink: 1,
-  },
-  upNextEyebrow: {
-    fontSize: 11.2,
-    lineHeight: 16.8,
-    fontWeight: '700',
-    letterSpacing: 2.016,
-    textTransform: 'uppercase',
     color: colors.textMuted,
   },
-  upNextName: {
-    marginTop: 4,
-    fontSize: 18,
-    lineHeight: 28,
-    fontWeight: '700',
-    color: colors.textPrimary,
+  upNextPressed: {
+    color: colors.textSecondary,
   },
-  upNextSub: {
+  lastNote: {
+    alignItems: 'center',
+    borderRadius: radii.xl,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+  },
+  lastNoteText: {
+    ...font(700),
     fontSize: 14,
     lineHeight: 20,
-    color: colors.textSecondary,
+    textAlign: 'center',
+    color: colors.gold,
   },
-  noShrink: {
-    flexShrink: 0,
-  },
-  stage: {},
-  stageTop: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 20,
-  },
-  stageText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  eyebrow: {
-    fontSize: 11.2,
-    lineHeight: 16.8,
-    fontWeight: '700',
-    letterSpacing: 2.016,
-    textTransform: 'uppercase',
-    color: colors.brand700,
-  },
-  stageName: {
-    marginTop: 8,
-    fontSize: 20,
-    lineHeight: 25,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  stageName24: {
-    fontSize: 24,
-    lineHeight: 30,
-  },
-  stageName30: {
-    fontSize: 30,
-    lineHeight: 37.5,
-  },
-  stageNotes: {
-    marginTop: 8,
-    fontSize: 14,
-    lineHeight: 24,
-    color: colors.textSecondary,
-  },
-  muscleChip: {
-    alignSelf: 'flex-start',
-    marginTop: 12,
+  discard: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: radii.full,
-    backgroundColor: colors.surfaceMuted,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    boxShadow: shadows.emboss,
+    paddingHorizontal: spacing[6],
   },
-  muscleText: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-    color: colors.textSecondary,
+  discardPressed: {
+    backgroundColor: colors.dangerFaint,
   },
-  stageRingText: {
-    fontSize: 12,
-    lineHeight: 12,
-    fontWeight: '900',
-    fontVariant: ['tabular-nums'],
-    color: colors.textPrimary,
-  },
-  mediaWell: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    marginTop: 24,
-    borderRadius: 24,
-    padding: 16,
-    boxShadow: `${shadows.press}, ${shadows.ringInk}`,
-  },
-  setList: {
-    gap: 12,
-    marginTop: 24,
-  },
-  setRow: {
-    borderRadius: 24,
-    borderWidth: 1,
-    padding: 12,
-  },
-  setCompleted: {
-    borderColor: colors.border,
-    backgroundColor: colors.rowPressed,
-    boxShadow: shadows.emboss,
-  },
-  setNext: {
-    borderColor: colors.setNextBorder,
-    backgroundColor: colors.surface,
-    boxShadow: shadows.lift2,
-  },
-  setOther: {
-    borderColor: colors.border,
-    backgroundColor: colors.rowPressedStrong,
-    boxShadow: shadows.press,
-  },
-  setHighlighted: {
-    outlineWidth: 2,
-    outlineColor: colors.setHighlightOutline,
-    outlineStyle: 'solid',
-  },
-  setHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  setHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-    minWidth: 0,
-  },
-  badge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeClip: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  badgeNext: {
-    boxShadow: shadows.lift1,
-  },
-  badgeCompleted: {
-    backgroundColor: colors.brandTintStrong,
-    boxShadow: shadows.emboss,
-  },
-  badgeOther: {
-    backgroundColor: colors.surfaceMuted,
-    boxShadow: shadows.press,
-  },
-  badgeText: {
-    fontSize: 14,
+  discardText: {
+    ...font(600),
+    fontSize: 15,
     lineHeight: 20,
-    fontWeight: '900',
-  },
-  setText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  repsLabel: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  setMeta: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.textMuted,
-  },
-  doneText: {
-    fontSize: 11,
-    lineHeight: 15.6,
-    fontWeight: '700',
-    letterSpacing: 0.26,
-    textTransform: 'uppercase',
-    color: colors.textMuted,
-  },
-  controls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 12,
-  },
-  weightInput: {
-    flex: 1,
-    minWidth: 96,
-    height: 48,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    paddingHorizontal: 12,
     textAlign: 'center',
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    boxShadow: shadows.press,
-  },
-  weightError: {
-    borderColor: colors.dangerText,
-    backgroundColor: colors.errorFill,
-    color: colors.danger700,
-    outlineWidth: 2,
-    outlineColor: colors.dangerBorderSoft,
-    outlineStyle: 'solid',
-  },
-  unitBox: {
-    width: 40,
-    height: 48,
-    borderRadius: radii.md,
-    backgroundColor: colors.background,
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: shadows.press,
-  },
-  unitText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  action: {
-    width: 112,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.md,
-  },
-  // The gold layer clips itself. Android stops drawing a view's children when
-  // its border/background change at runtime while it has overflow hidden and
-  // a radius (the locked → "Did it" switch left the button blank), so the
-  // pressable itself never clips.
-  actionClip: {
-    borderRadius: radii.md,
-    overflow: 'hidden',
-  },
-  actionGold: {
-    boxShadow: shadows.brand,
-  },
-  actionUndo: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    boxShadow: shadows.lift1,
-  },
-  actionLocked: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceMuted,
-  },
-  actionText: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '900',
-  },
-  validation: {
-    marginTop: 8,
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '600',
-    color: colors.danger700,
+    color: colors.dangerText,
   },
 });
