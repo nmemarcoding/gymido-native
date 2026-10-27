@@ -2,54 +2,63 @@
 # the copy's builder with Edit details open once; then the copy is deleted
 # again (overflow / inline "Delete plan" → confirm) so the QA account stays
 # clean. Writes: one copy, then its delete.
+# Account: a member WITHOUT a trainer who OWNS a plan (with a day that has an
+# exercise), e.g. THROWAWAY4 right after CP12. With a trainer, My plans shows
+# "Your plans are on hold" (my-plans-on-hold): the flow then skips SILENTLY.
 appId: com.gymido.app
 ---
 - runFlow: subflows/open-first-my-plan.yaml
+# Skipped silently when the member's own plans are on hold (has a trainer).
 - runFlow:
     when:
-      visible:
-        id: "plan-overflow"
+      notVisible:
+        id: "my-plans-on-hold"
     commands:
+      - runFlow:
+          when:
+            visible:
+              id: "plan-overflow"
+          commands:
+            - tapOn:
+                id: "plan-overflow"
+            - tapOn:
+                id: "plan-overflow-make-copy"
+      - runFlow:
+          when:
+            visible:
+              id: "plan-make-copy"
+          commands:
+            - tapOn:
+                id: "plan-make-copy"
+      - extendedWaitUntil:
+          visible:
+            id: "edit-plan-modal"
+          timeout: 30000
       - tapOn:
-          id: "plan-overflow"
+          id: "edit-plan-cancel"
+      - runFlow:
+          when:
+            visible:
+              id: "plan-overflow"
+          commands:
+            - tapOn:
+                id: "plan-overflow"
+            - tapOn:
+                id: "plan-overflow-delete"
+      - runFlow:
+          when:
+            visible:
+              id: "plan-delete"
+          commands:
+            - tapOn:
+                id: "plan-delete"
+      - extendedWaitUntil:
+          visible:
+            id: "plan-action-dialog"
+          timeout: 10000
       - tapOn:
-          id: "plan-overflow-make-copy"
-- runFlow:
-    when:
-      visible:
-        id: "plan-make-copy"
-    commands:
-      - tapOn:
-          id: "plan-make-copy"
-- extendedWaitUntil:
-    visible:
-      id: "edit-plan-modal"
-    timeout: 30000
-- tapOn:
-    id: "edit-plan-cancel"
-- runFlow:
-    when:
-      visible:
-        id: "plan-overflow"
-    commands:
-      - tapOn:
-          id: "plan-overflow"
-      - tapOn:
-          id: "plan-overflow-delete"
-- runFlow:
-    when:
-      visible:
-        id: "plan-delete"
-    commands:
-      - tapOn:
-          id: "plan-delete"
-- extendedWaitUntil:
-    visible:
-      id: "plan-action-dialog"
-    timeout: 10000
-- tapOn:
-    id: "plan-action-dialog-confirm"
-- extendedWaitUntil:
-    visible:
-      id: "my-plans-screen"
-    timeout: 30000
+          id: "plan-action-dialog-confirm"
+      - extendedWaitUntil:
+          visible:
+            id: "my-plans-screen"
+          timeout: 30000

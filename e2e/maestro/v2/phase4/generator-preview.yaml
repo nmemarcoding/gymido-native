@@ -2,6 +2,9 @@
 # check the sticky row, open an exercise, come back. NEVER taps "Start this
 # plan" (that would replace the QA member's plan). Saves the generator
 # profile only (PUT /plan-generator/profile). Starts signed in on a tab root.
+# QA s5-p4: before every Next (and See plan) the flow scrolls the button to the
+# middle of the screen (centerElement) so it is never under the floating tab
+# bar; the review opens at its TOP (G1.3), so generator-review-1 shows at once.
 appId: com.gymido.app
 ---
 - tapOn:
@@ -27,6 +30,7 @@ appId: com.gymido.app
           element:
             id: "generator-next"
           direction: DOWN
+          centerElement: true
           timeout: 15000
       - tapOn:
           id: "generator-next"
@@ -38,6 +42,7 @@ appId: com.gymido.app
     element:
       id: "generator-see-plan"
     direction: DOWN
+    centerElement: true
     timeout: 15000
 - tapOn:
     id: "generator-see-plan"
@@ -61,9 +66,11 @@ appId: com.gymido.app
       # Back to the answers with the phone back icon button.
       - tapOn:
           id: "generator-preview-back"
-      - extendedWaitUntil:
-          visible:
+      # Back on the review (it may keep the See plan scroll): scroll UP to card 1.
+      - scrollUntilVisible:
+          element:
             id: "generator-review-1"
+          direction: UP
           timeout: 15000
 - runFlow:
     when:

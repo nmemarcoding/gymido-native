@@ -1,18 +1,27 @@
 # Phase 4 §2 (4i): a builder confirm opens with Cancel and the danger
 # action; Cancel closes it. Nothing is deleted.
+# Account: a member WITHOUT a trainer who OWNS a plan (with a day that has an
+# exercise), e.g. THROWAWAY4 right after CP12. With a trainer, My plans shows
+# "Your plans are on hold" (my-plans-on-hold): the flow then skips SILENTLY.
 appId: com.gymido.app
 ---
 - runFlow: subflows/open-first-my-plan.yaml
-- tapOn:
-    id: "plan-day-delete-.*"
-    index: 0
-- extendedWaitUntil:
-    visible:
-      id: "plan-action-dialog"
-    timeout: 10000
-- assertVisible:
-    id: "plan-action-dialog-confirm"
-- tapOn:
-    id: "plan-action-dialog-cancel"
-- assertNotVisible:
-    id: "plan-action-dialog"
+# Skipped silently when the member's own plans are on hold (has a trainer).
+- runFlow:
+    when:
+      notVisible:
+        id: "my-plans-on-hold"
+    commands:
+      - tapOn:
+          id: "plan-day-delete-.*"
+          index: 0
+      - extendedWaitUntil:
+          visible:
+            id: "plan-action-dialog"
+          timeout: 10000
+      - assertVisible:
+          id: "plan-action-dialog-confirm"
+      - tapOn:
+          id: "plan-action-dialog-cancel"
+      - assertNotVisible:
+          id: "plan-action-dialog"

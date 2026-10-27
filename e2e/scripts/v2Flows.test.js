@@ -72,3 +72,59 @@ describe('login-form anchors work on small screens', () => {
     },
   );
 });
+
+describe('phase4 flow fixes (QA s5-p4)', () => {
+  const P4 = path.join(V2, 'phase4');
+  const read = (name) => fs.readFileSync(path.join(P4, name), 'utf8');
+  const steps = (src) => src.split('\n').filter((line) => !line.trim().startsWith('#')).join('\n');
+
+  it('06 switches to the trainer workspace, opens the trainer Plans tab (phone + tablet) and restores', () => {
+    const flow = steps(read('06-trainer-builder-sets-toggle.yaml'));
+    expect(flow).toContain('runFlow: ../subflows/trainer-workspace.yaml');
+    expect(flow).toMatch(/id: "tab-TPlans"/);
+    expect(flow).toMatch(/id: "rail-TPlans"/);
+    expect(flow).not.toMatch(/id: "tab-Plans"/);
+    expect(flow.indexOf('trainer-workspace.yaml')).toBeLessThan(flow.indexOf('"tab-TPlans"'));
+    expect(flow.trim().endsWith('runFlow: ../subflows/restore-workspace.yaml')).toBe(true);
+  });
+
+  it.each(['generator-questionnaire.yaml', 'generator-preview.yaml'])(
+    '%s scrolls generator-next to the centre right before every tap on it',
+    (name) => {
+      const lines = steps(read(name)).split('\n');
+      const taps = lines.map((line, i) => [line, i]).filter(([line, i]) => /^\s*- tapOn:\s*$/.test(line) && /id: "generator-next"/.test(lines[i + 1]));
+      expect(taps.length).toBeGreaterThan(0);
+      taps.forEach(([, i]) => {
+        const before = lines.slice(Math.max(0, i - 6), i).join('\n');
+        expect(before).toMatch(/scrollUntilVisible:\s*\n\s*element:\s*\n\s*id: "generator-next"\s*\n\s*direction: DOWN\s*\n\s*centerElement: true/);
+      });
+    },
+  );
+
+  it('open-first-my-plan stops (without failing) on the on-hold state', () => {
+    const flow = steps(read('subflows/open-first-my-plan.yaml'));
+    expect(flow).toContain('id: "my-plan-card-open-.*|my-plans-on-hold"');
+    expect(flow).toMatch(/notVisible:\s*\n\s*id: "my-plans-on-hold"[\s\S]*id: "my-plan-card-open-\.\*"/);
+  });
+
+  it.each(['01-member-builder-layout.yaml', '02-member-overflow-edit-details.yaml', '03-member-set-editor-validation.yaml', '04-member-delete-day-cancel.yaml', '05-member-make-a-copy.yaml'])(
+    '%s skips silently when My plans is on hold, and says which account it needs',
+    (name) => {
+      const src = read(name);
+      expect(src).toMatch(/member WITHOUT a trainer who OWNS a plan/);
+      const body = steps(src).split('---\n')[1].trim().split('\n');
+      expect(body[0]).toBe('- runFlow: subflows/open-first-my-plan.yaml');
+      expect(body.slice(1, 6).join('\n')).toBe('- runFlow:\n    when:\n      notVisible:\n        id: "my-plans-on-hold"\n    commands:');
+      // Every remaining step sits inside that conditional block.
+      body.slice(6).forEach((line) => expect(line === '' || line.startsWith('      ')).toBe(true));
+    },
+  );
+});
+
+describe('open-first-my-plan works on phone AND tablet', () => {
+  const flow = fs.readFileSync(path.join(V2, 'phase4', 'subflows', 'open-first-my-plan.yaml'), 'utf8');
+  it('opens Plans from the bottom tab or the rail', () => {
+    expect(flow).toMatch(/id: "tab-Plans\|rail-Plans"/);
+    expect(flow).toMatch(/id: "rail-Plans"/);
+  });
+});
