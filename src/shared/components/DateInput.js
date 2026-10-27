@@ -3,8 +3,20 @@ import { useState } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors } from '../theme/tokens';
-import { FieldFrame, fieldBoxStyle } from './FormField';
+import Svg, { Path, Rect } from 'react-native-svg';
+
+import { colors, font, spacing, typography } from '../theme/tokens';
+import { FIELD_HEIGHT, FieldFrame, fieldBoxStyle } from './FormField';
+
+// §4.5 DateInput: the input style + an 18 px calendar icon at right.
+function CalendarIcon() {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Rect x={3} y={5} width={18} height={16} rx={3} stroke={colors.textMuted} strokeWidth={2} />
+      <Path d="M3 10h18M8 3v4M16 3v4" stroke={colors.textMuted} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
 
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -57,11 +69,15 @@ export default function DateInput({ label, value, onChange, error, testID, label
         ) : (
           <Text style={styles.placeholder}>{Platform.OS === 'android' ? 'mm/dd/yyyy' : ''}</Text>
         )}
-        {value ? (
-          <Pressable testID={testID ? `${testID}-clear` : undefined} accessibilityRole="button" onPress={() => onChange('')} hitSlop={8}>
-            <Text style={styles.clear}>Clear</Text>
-          </Pressable>
-        ) : null}
+        <View style={styles.trailing}>
+          {value ? (
+            // hitSlop 12 around the 20 px line: a 44 target.
+            <Pressable testID={testID ? `${testID}-clear` : undefined} accessibilityRole="button" onPress={() => onChange('')} hitSlop={12}>
+              <Text style={styles.clear}>Clear</Text>
+            </Pressable>
+          ) : null}
+          <CalendarIcon />
+        </View>
       </Pressable>
       {open && Platform.OS === 'android' ? <DateTimePicker value={pickerDate} mode="date" onChange={onPicked} /> : null}
       {Platform.OS === 'ios' ? (
@@ -73,7 +89,7 @@ export default function DateInput({ label, value, onChange, error, testID, label
                 <Text style={styles.done}>Done</Text>
               </Pressable>
             </View>
-            <DateTimePicker value={pickerDate} mode="date" display="inline" onChange={onPicked} />
+            <DateTimePicker value={pickerDate} mode="date" display="inline" themeVariant="dark" accentColor={colors.gold} onChange={onPicked} />
           </View>
         </Modal>
       ) : null}
@@ -86,29 +102,41 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 46,
+    gap: spacing[2],
+    minHeight: FIELD_HEIGHT,
+    paddingRight: 14,
   },
+  // The input's 16/400 text; the placeholder in text-faint.
   value: {
-    fontSize: 14,
+    ...font(400),
+    flexShrink: 1,
+    fontSize: typography.bodyLg.fontSize,
     lineHeight: 20,
     color: colors.textPrimary,
   },
   placeholder: {
-    fontSize: 14,
+    ...font(400),
+    flexShrink: 1,
+    fontSize: typography.bodyLg.fontSize,
     lineHeight: 20,
-    color: colors.textMuted,
+    color: colors.textFaint,
+  },
+  trailing: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
   },
   clear: {
+    ...font(600),
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '600',
-    color: colors.brand700,
+    color: colors.gold,
   },
   scrim: {
     flex: 1,
   },
   sheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.pickerSheet,
   },
   toolbar: {
     flexDirection: 'row',
@@ -120,9 +148,9 @@ const styles = StyleSheet.create({
     borderTopColor: colors.pickerToolbarBorder,
   },
   done: {
+    ...font(600),
     fontSize: 16,
     lineHeight: 22,
-    fontWeight: '600',
     color: colors.pickerDone,
   },
 });

@@ -76,6 +76,10 @@ const V2_COLORS = {
   // §5 Skeleton shimmer band: clear → faint white → clear over fillSkeleton.
   skeletonShimmer: 'rgba(255, 255, 255, 0.08)',
   skeletonShimmerEdge: 'rgba(255, 255, 255, 0)',
+  // v2 kit: input (§4.6): the checkbox's off border and the card radio's
+  // off border.
+  checkboxBorder: 'rgba(255, 255, 255, 0.28)',
+  choiceBorder: 'rgba(255, 255, 255, 0.08)',
 };
 
 // v1 names kept as ALIASES of v2 values while screens move to the v2 names
