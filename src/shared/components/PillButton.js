@@ -55,6 +55,21 @@ const VARIANTS = {
     text: colors.gold,
     spinnerTrack: colors.goldLine,
   },
+  // ON a gold card (RN-SPEC-my-trainer MT1.6, 27 Oct 2026): `ink` = the solid
+  // ink pill with gold text (the white overlay, a dark fill); `inkTint` = ink
+  // at 12 % with ink text (the ink overlay, it shows the gold).
+  ink: {
+    rest: { backgroundColor: colors.onGold },
+    overlay: colors.pressOverlay,
+    text: colors.gold,
+    spinnerTrack: colors.goldLine,
+  },
+  inkTint: {
+    rest: { backgroundColor: colors.inkChip },
+    overlay: colors.pressOverlayInk,
+    text: colors.onGold,
+    spinnerTrack: colors.onGoldSpinnerTrack,
+  },
 };
 
 // Older / alternative names map onto the v2 variants so call sites keep

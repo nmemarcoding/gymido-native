@@ -17,7 +17,7 @@ import {
 } from '../api/clientsApi';
 import { openAssignPlan } from '../clientLinks';
 import ClientAvatar from '../components/ClientAvatar';
-import { StatTile, StatusLine } from '../components/ClientsUi';
+import { StatTile, StatusLine, WeekRing } from '../components/ClientsUi';
 import WeightHistoryModal from '../components/WeightHistoryModal';
 import WorkoutDetailModal from '../components/WorkoutDetailModal';
 import ClientDetailContent from './ClientDetailContent';
@@ -177,6 +177,23 @@ describe('Client detail, phone', () => {
     expect(texts(tree)).not.toContain((99999).toLocaleString());
   });
 
+  // Dated 27 Oct 2026 (§C4.4 audit b2): the phone "This week" shows a 32 gold week ring (done / planned this
+  // week) before its number; the phone "Client details" heading sits inside its card.
+  it('phone This week: the 32 week ring before the number, from the row activity, else stats + plan days', async () => {
+    mockParams = { clientUserId: 12, clientActivity: { current_plan: { name: 'X' }, week: { planned: 3, done: 1, missed: 0, days: [] } } };
+    let tree = await render();
+    const week = () => tree.root.findAllByType(StatTile).find((tile) => tile.props.label === 'This week');
+    let ring = week().findAllByType(WeekRing);
+    expect(ring.map((node) => [node.props.size, node.props.done, node.props.planned])).toEqual([[32, 1, 3]]);
+    mockParams = { clientUserId: 12 };
+    tree = await render();
+    ring = week().findAllByType(WeekRing);
+    expect(ring.map((node) => [node.props.size, node.props.done, node.props.planned])).toEqual([[32, 2, 4]]);
+    const others = tree.root.findAllByType(StatTile).filter((tile) => tile.props.label !== 'This week');
+    others.forEach((tile) => expect(tile.findAllByType(WeekRing)).toHaveLength(0));
+    expect(host(tree, 'client-details').findAll((node) => node.type === 'Text' && node.props.children === 'Client details')).toHaveLength(1);
+  });
+
   it('volume in lb for an lb client; the tile hides when the _kg field is absent', async () => {
     load({ profile: { ...PROFILE, current_weight_unit: 'lb' } });
     let tree = await render();
@@ -333,12 +350,15 @@ describe('Client detail, tablet page', () => {
     expect(hero.findAll((node) => node.type === GradientFill)[0].props.colors).toEqual(gradients.card.colors);
     expect(tree.root.findAllByType(ClientAvatar)[0].props.size).toBe(80);
     const tiles = tree.root.findAllByType(StatTile).map((tile) => [tile.props.label, tile.props.valueColor]);
+    // DECLARED (27 Oct 2026, §C4.4 audit b2): was Workouts · Volume · This week · Streak. Tablet keeps the web
+    // order Workouts · This week · Streak · Volume (gold / green / amber numbers).
     expect(tiles).toEqual([
       ['Workouts', colors.gold],
-      ['Volume', colors.textPrimary],
       ['This week', colors.success],
       ['Streak', colors.warning],
+      ['Volume', colors.textPrimary],
     ]);
+    expect(tree.root.findAllByType(WeekRing)).toHaveLength(0);
     const plan = tree.root.findAll((node) => node.props.testID === 'client-assign-plan' && typeof node.type !== 'string');
     expect(plan.every((node) => node.type !== PillButton)).toBe(true);
     expect(host(tree, 'client-plan-card').findAll((node) => node.props.testID === 'client-assign-plan').length).toBeGreaterThan(0);

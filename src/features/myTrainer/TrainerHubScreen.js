@@ -1,13 +1,13 @@
 import { useNavigation } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 import { routes } from '../../navigation/routes';
 import { getServerMessage, getStatus } from '../../shared/api/apiError';
 import EmptyState from '../../shared/components/EmptyState';
 import ErrorAlert from '../../shared/components/ErrorAlert';
 import GradientFill from '../../shared/components/GradientFill';
-import { NAME_TITLE_TEXT } from '../../shared/components/largeText';
 import Loader from '../../shared/components/Loader';
 import PillButton from '../../shared/components/PillButton';
 import StatusPill from '../../shared/components/StatusPill';
@@ -47,6 +47,9 @@ const TITLE_TEXT = Object.freeze({
 const DISPLAY_TEXT = Object.freeze({ ...TITLE_TEXT, maxFontSizeMultiplier: textScale.display });
 const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
 const PILL_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.pill });
+// MT1.6: the gold card's trainer name wraps by word with no line cap, no
+// ellipsis and no shrink (title-capped).
+const INVITE_NAME_TEXT = Object.freeze({ textBreakStrategy: 'simple', maxFontSizeMultiplier: textScale.title });
 
 // UX §8.3 decorative teal orb on the teal-accent cards (gradients.tealOrb):
 // phone 200 at right/top −60 ("Find a trainer"); tablet "Your trainer" 340 at
@@ -69,8 +72,10 @@ export const initialsOf = personInitials;
 export { statusPill };
 
 // One gold action per state: an invitation's Accept wins; then Contact (an
-// active trainer with an email); then "Switch to Trainer Mode"; else
-// "Browse trainers". Every other action is the glass secondary.
+// active trainer with an email); else "Browse trainers". Every other action
+// is the glass secondary. Dated 27 Oct 2026 (audit b2b, MT1a never gold): a
+// trainer-role member gets no Browse card, so with neither of the first two
+// that state has NO gold action (null).
 export function goldAction({ hub, trainer, isTrainer }) {
   if (hub.invitations.length > 0) {
     return 'accept';
@@ -79,7 +84,7 @@ export function goldAction({ hub, trainer, isTrainer }) {
     return 'contact';
   }
   if (isTrainer) {
-    return 'switch';
+    return null;
   }
   return 'browse';
 }
@@ -238,9 +243,11 @@ function TrainerHub() {
 
   const blocks = {
     invitations: (
-      <View key="invitations" testID="trainer-hub-invitations" style={[styles.heroCard, tablet && styles.heroCardTablet]}>
-        <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
-        <View style={styles.headingPill}>
+      // Dated 27 Oct 2026 (audit b3, MT1.6): phone + tablet = ONE solid gold
+      // card (150°, the gold stops), ink text, no border; the page's one gold.
+      <View key="invitations" testID="trainer-hub-invitations" style={styles.goldCard}>
+        <GradientFill angle={150} colors={gradients.gold.colors} stops={gradients.gold.stops} />
+        <View testID="trainer-hub-invitations-chip" style={styles.headingPill}>
           <Text
             {...PILL_TEXT}
             accessibilityRole="header"
@@ -257,9 +264,10 @@ function TrainerHub() {
           return (
             <View key={request.id} testID={`trainer-hub-invitation-${request.id}`} style={styles.invitation}>
               <View style={styles.invitationTop}>
-                <Avatar name={name} userId={request.trainer?.user_id ?? request.trainer_user_id} size={60} />
+                <InviteTile testID={`trainer-hub-invite-avatar-${request.id}`} name={name} />
                 <View style={styles.textColumn}>
-                  <Text {...NAME_TITLE_TEXT} style={styles.invitationName}>
+                  {/* MT1.6 (27 Oct 2026, wins over X7 here): the name wraps, no truncation. */}
+                  <Text {...INVITE_NAME_TEXT} style={styles.invitationName}>
                     {name}
                   </Text>
                   <Text {...BODY_TEXT} style={styles.invitationSub}>
@@ -273,10 +281,12 @@ function TrainerHub() {
               >
                 {(stacked ? ['accept', 'decline'] : ['decline', 'accept']).map((action) => (
                   <View key={action} style={stacked ? null : styles.flex}>
+                    {/* On the gold card: Accept = solid ink (gold text), Decline = ink 0.12. */}
                     <PillButton
                       testID={`trainer-hub-${action}-${request.id}`}
                       title={action === 'accept' ? 'Accept' : 'Decline'}
-                      variant={action === 'accept' ? variantFor('accept') : 'secondary'}
+                      variant={action === 'accept' ? 'ink' : 'inkTint'}
+                      style={styles.invitationButton}
                       fullWidth
                       accessibilityLabel={`${action === 'accept' ? 'Accept' : 'Decline'} ${name}`}
                       disabled={busy}
@@ -290,27 +300,51 @@ function TrainerHub() {
         })}
       </View>
     ),
+    // Dated 27 Oct 2026 (audit b2b, MT1a): never gold at any width. A surface
+    // link card; the whole card is the one tap target (same action and name).
+    // ⚠MT-9: the path forces Trainer mode; the preference is not stored.
     trainerMode: (
-      <View key="trainerMode" testID="trainer-hub-trainer-mode" style={[styles.card, tablet && styles.cardTablet]}>
-        <Text {...BODY_TEXT} style={styles.eyebrow}>
-          Trainer mode
-        </Text>
-        <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.cardTitle, styles.mt6]}>
-          You are already a trainer
-        </Text>
-        <Text {...BODY_TEXT} style={styles.cardBody}>
-          Switch to Trainer Mode to manage your clients, their plans and your trainer profile.
-        </Text>
-        <View style={styles.mt16}>
-          {/* ⚠MT-9: the path forces Trainer mode; the preference is not stored. */}
-          <PillButton
-            testID="trainer-hub-switch"
-            title="Switch to Trainer Mode"
-            variant={variantFor('switch')}
-            onPress={() => openShellPath('/trainer')}
-          />
-        </View>
-      </View>
+      <Pressable
+        key="trainerMode"
+        testID="trainer-hub-switch"
+        accessibilityRole="button"
+        accessibilityLabel="Switch to Trainer Mode"
+        onPress={() => openShellPath('/trainer')}
+        style={({ pressed }) => [styles.switchCard, tablet && styles.switchCardTablet, pressed && styles.linkCardPressed]}
+      >
+        {({ pressed }) => (
+          <>
+            {pressed ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.pressOverlay]} /> : null}
+            <View
+              testID="trainer-hub-switch-icon"
+              style={styles.switchIcon}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            >
+              <GymIcon name="trainer" size={22} color={colors.teal} />
+            </View>
+            <View style={styles.textColumn}>
+              <Text {...BODY_TEXT} style={styles.eyebrow}>
+                Trainer mode
+              </Text>
+              <Text {...TITLE_TEXT} style={[styles.switchTitle, styles.mt6]}>
+                You are already a trainer
+              </Text>
+              <Text {...BODY_TEXT} style={styles.cardBody}>
+                Switch to Trainer Mode to manage your clients, their plans and your trainer profile.
+              </Text>
+              <Text {...BODY_TEXT} style={styles.switchAction}>
+                Switch to Trainer Mode
+              </Text>
+            </View>
+            <View testID="trainer-hub-switch-chevron" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                <Path d="M9 5l7 7-7 7" stroke={colors.textMuted} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </View>
+          </>
+        )}
+      </Pressable>
     ),
     activeTrainer: (
       <ActiveTrainerCard
@@ -441,6 +475,18 @@ function Avatar({ name, userId, size, ring = false }) {
       ring={ring ? { gap: AVATAR_GAP, gapColor: colors.surfaceCard2, alpha: 0.6 } : null}
       style={ring ? styles.avatarRing : undefined}
     />
+  );
+}
+
+// MT1.6 (27 Oct 2026): the invitation's 60 r20 ink tile with the trainer's
+// initials in gold, on the gold card. Decorative: the name beside it labels.
+function InviteTile({ testID, name }) {
+  return (
+    <View testID={testID} style={styles.inviteTile} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Text allowFontScaling={false} maxFontSizeMultiplier={1} style={styles.inviteTileText}>
+        {initialsOf(name)}
+      </Text>
+    </View>
   );
 }
 
@@ -634,26 +680,50 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  // MT1.6 gold card: radius 28, padding 20 at every width below 1280.
+  goldCard: {
+    overflow: 'hidden',
+    borderRadius: radii.xxl,
+    padding: spacing[5],
+  },
   headingPill: {
     alignSelf: 'flex-start',
     minHeight: 26,
     justifyContent: 'center',
     paddingHorizontal: 10,
     borderRadius: radii.full,
-    backgroundColor: colors.goldTint,
+    backgroundColor: colors.inkChip,
   },
   headingPillText: {
     ...typography.caption,
     ...font(700),
-    color: colors.gold,
+    fontSize: 12,
+    color: colors.onGold,
   },
   hint: {
     ...typography.bodySm,
     marginTop: spacing[2],
-    color: colors.textSecondary,
+    color: colors.onGoldMuted,
   },
   invitation: {
-    marginTop: spacing[4],
+    marginTop: spacing[5],
+  },
+  inviteTile: {
+    width: 60,
+    height: 60,
+    borderRadius: radii.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.onGold,
+  },
+  inviteTileText: {
+    ...font(700),
+    fontSize: 20,
+    lineHeight: 24,
+    color: colors.gold,
+  },
+  invitationButton: {
+    minHeight: 50,
   },
   invitationTop: {
     flexDirection: 'row',
@@ -665,17 +735,17 @@ const styles = StyleSheet.create({
     fontSize: 26,
     lineHeight: 28,
     letterSpacing: -1.04,
-    color: colors.textPrimary,
+    color: colors.onGold,
   },
   invitationSub: {
     ...typography.bodySm,
     marginTop: 3,
-    color: colors.textSecondary,
+    color: colors.onGoldMuted,
   },
   invitationButtons: {
-    marginTop: spacing['4_5'],
+    marginTop: spacing[4],
     flexDirection: 'row',
-    gap: spacing[2],
+    gap: spacing['2_5'],
   },
   // The ring (5 px gap + 1 px line) sits outside the disc, as the board
   // draws it with shadows: the negative margin keeps the drawn layout.
@@ -684,6 +754,41 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     ...typography.eyebrow,
+  },
+  // MT1a (27 Oct 2026): the surface link card, radius 24, padding 20 / 24.
+  switchCard: {
+    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: colors.surface,
+    padding: spacing[5],
+  },
+  switchCardTablet: {
+    padding: spacing[6],
+  },
+  switchIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.tealTint,
+  },
+  switchTitle: {
+    ...font(600),
+    fontSize: 16,
+    lineHeight: 22,
+    color: colors.textPrimary,
+  },
+  switchAction: {
+    ...typography.bodySm,
+    ...font(600),
+    marginTop: spacing[2],
+    color: colors.teal,
   },
   cardTitle: {
     ...typography.titleXs,

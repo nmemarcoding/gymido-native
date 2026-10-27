@@ -27,3 +27,9 @@ export async function listExercisesPage(page, search) {
 export async function listEquipmentTypes() {
   return data(await apiClient.get('/equipment-types')).items ?? [];
 }
+
+// Dated 27 Oct 2026 (audit b3): the muscle names (`items[]{id, name}`),
+// fetched ONCE per screen load to seed the filter's muscle rows.
+export async function listMuscleGroups() {
+  return data(await apiClient.get('/muscle-groups')).items ?? [];
+}

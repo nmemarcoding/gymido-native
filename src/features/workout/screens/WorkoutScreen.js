@@ -7,12 +7,9 @@ import { InlineToast } from '../../../shared/components/ToastHost';
 import { ToastTone } from '../../../shared/components/toastStore';
 import { CAP_BODY, DISPLAY_TITLE_TEXT, TITLE_TEXT } from '../../../shared/components/largeText';
 import { breakpoints, colors, font, spacing, textScale, typography } from '../../../shared/theme/tokens';
-import { useAuthStore } from '../../auth/authStore';
 import ScheduleSetupCard from '../../plans/components/ScheduleSetupCard';
-import AppHeader from '../../shell/AppHeader';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
-import { resolveMode } from '../../shell/shellRules';
 import { useShellUiStore } from '../../shell/shellUiStore';
 import { startWorkout } from '../api/workoutApi';
 import PlanDayCard from '../components/PlanDayCard';
@@ -61,8 +58,6 @@ function WorkoutPage() {
   const isFocused = useIsFocused();
   const { width, fontScale } = useWindowDimensions();
   const setSessionActive = useShellUiStore((state) => state.setSessionActive);
-  const user = useAuthStore((state) => state.user);
-  const storedPreference = useAuthStore((state) => state.workspace);
   const [status, setStatus] = useState('loading');
   const [loadError, setLoadError] = useState(null);
   const [page, setPage] = useState(EMPTY);
@@ -208,18 +203,17 @@ function WorkoutPage() {
 
   // §1.2, in order. [O10] the skeleton never covers a live session.
   const branch = (() => {
-    // Owner directive (23 Oct 2026, web matched): below md an active session
-    // shows no header row and no bell, so SessionChrome sits right under the
-    // top inset; from md the compact row (ModeSwitch + bell) stays.
+    // Owner directive (23 Oct 2026, web matched): an active session shows no
+    // header row and no bell, so SessionChrome sits right under the top
+    // inset. Dated 27 Oct 2026 (RN-SPEC-workout §1.1, audit b2): the tablet
+    // too (it kept the compact row before), so at every width.
     if (page.session?.id && status !== 'error') {
-      const mode = resolveMode({ user, path: '/workout', storedPreference });
-      const header = width >= breakpoints.md ? <AppHeader path="/workout" query="active=1" mode={mode} /> : null;
       return (
         <SessionRuntime
           session={applyOverlay(page.session, overlay)}
           planName={page.currentPlan?.enrollment?.plan?.name}
           exerciseStatsMap={page.exerciseStatsMap}
-          header={header}
+          header={null}
           reload={() => load({ silent: true })}
           reloadWithLoader={() => load()}
           writeOverlay={writeOverlay}

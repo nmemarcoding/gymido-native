@@ -378,3 +378,20 @@ describe('C1a exact-email invite (§C3.3 T-32 M1)', () => {
     expect(shown).not.toContain('Search for a member');
   });
 });
+
+// 27 Oct 2026 (RN-SPEC-TRAINER-CLIENTS C1a, audit b2, UX R2-3): no × at ANY width; Done is the dismiss.
+describe('Invite a client: no × at any width', () => {
+  const RN = require('react-native');
+  it.each([390, 834, 1024])('%ipx: no Close; Done closes', (width) => {
+    const spy = jest.spyOn(RN, 'useWindowDimensions', 'get').mockReturnValue(() => ({ width, height: 900, scale: 2, fontScale: 1 }));
+    try {
+      const onClose = jest.fn();
+      const tree = render({ onClose });
+      expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'app-modal-close')).toHaveLength(0);
+      act(() => byTestId(tree, 'invite-done')[0].props.onPress());
+      expect(onClose).toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});

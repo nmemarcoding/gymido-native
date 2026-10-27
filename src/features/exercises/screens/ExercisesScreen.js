@@ -32,7 +32,7 @@ import TabletFrame from '../../shell/TabletFrame';
 import ModeSwitch from '../../shell/ModeSwitch';
 import { getScreenPath } from '../../shell/shellNavigation';
 import { resolveMode, showsMobileModeSwitch } from '../../shell/shellRules';
-import { listEquipmentTypes, listExercisesPage } from '../api/exercisesApi';
+import { listEquipmentTypes, listExercisesPage, listMuscleGroups } from '../api/exercisesApi';
 import { ActiveFilterLine, FilterButton, NoMatchState } from '../components/ExerciseFilterBar';
 import ExerciseFilterPanel from '../components/ExerciseFilterPanel';
 import ExerciseFilterSheet from '../components/ExerciseFilterSheet';
@@ -45,6 +45,8 @@ import {
   equipmentNameMap,
   filterExercises,
   filterFacets,
+  rememberSeen,
+  seedMuscles,
   noMatchMessage,
   resultCountText,
 } from '../exerciseFilters';
@@ -116,6 +118,24 @@ function ExercisesCatalog() {
         const names = equipmentNameMap(types);
         if (alive && names.size > 0) {
           setEquipmentNames(names);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  // Dated 27 Oct 2026 (audit b3): ONE GET /muscle-groups per screen load
+  // seeds the muscle rows; fail-soft like /equipment-types (rows = seen).
+  const [muscleSeed, setMuscleSeed] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    Promise.resolve()
+      .then(() => listMuscleGroups())
+      .then((groups) => {
+        const names = seedMuscles(groups);
+        if (alive && names.size > 0) {
+          setMuscleSeed(names);
         }
       })
       .catch(() => {});
@@ -307,9 +327,16 @@ function ExercisesCatalog() {
     settled.current = true;
   }
   const firstLoad = !settled.current && load.status !== 'error';
+  // Audit b3: the rows = every muscle / equipment seen in any list loaded
+  // this session (+ the seed); only the counts follow the current list.
+  const seenRef = useRef(null);
+  const seen = useMemo(() => {
+    seenRef.current = rememberSeen(seenRef.current, load.items);
+    return muscleSeed ? { ...seenRef.current, muscles: new Set([...muscleSeed, ...seenRef.current.muscles]) } : seenRef.current;
+  }, [load.items, muscleSeed]);
   const facets = useMemo(
-    () => filterFacets(load.items, applied, equipmentNames, { loading: firstLoad }),
-    [load.items, applied, equipmentNames, firstLoad]
+    () => filterFacets(load.items, applied, equipmentNames, { loading: firstLoad, seen }),
+    [load.items, applied, equipmentNames, firstLoad, seen]
   );
   const values = activeFilterValues(applied, equipmentNames);
   const anySet = values.length > 0 || Boolean(search.applied);
@@ -590,7 +617,8 @@ function ExercisesCatalog() {
         open={isFilterOpen && !panelShown}
         facets={facets}
         filters={applied}
-        resultCount={filtered.length}
+        // PM line (pending FE merge): null while loading → "Loading…".
+        resultCount={firstLoad ? null : filtered.length}
         loadingNames={firstLoad && load.items.length === 0}
         onSelect={selectFilter}
         onClose={() => setFilterOpen(false)}

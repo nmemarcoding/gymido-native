@@ -140,8 +140,10 @@ export default function InviteClientModal({ isOpen, onClose, onInvited }) {
       title="Invite a client"
       description="Enter your client's full email address to invite them."
       size="lg"
-      // FINAL-AUDIT batch 1 (5): the footer has the dismiss, so no phone ×.
+      // FINAL-AUDIT batch 1 (5): the footer has the dismiss, so no phone ×;
+      // dated 27 Oct 2026 (audit b2, UX R2-3): no tablet × either.
       footerDismiss
+      hideClose
       footer={
         // Full width on phone and tablet (the board's block Done).
         <ModalActions fill>

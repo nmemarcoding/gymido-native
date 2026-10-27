@@ -347,8 +347,9 @@ describe('End coaching dialog look (M6, UX L End coaching / M End coaching clien
     expect(button(tree, 'ecd-cancel').props.size).toBe('cta');
     expect(button(tree, 'ecd-confirm').props.size).toBe('cta');
     expect(cancelCell.findAll((node) => node.type === PillButton)[0].props.testID).toBe('ecd-cancel');
-    // UX L keeps the tablet Close on the member's dialog; UX M: no ✕ on the client's.
-    expect(hostAll(tree, 'app-modal-close')).toHaveLength(variant === 'member' ? 1 : 0);
+    // DECLARED (27 Oct 2026, RN-SPEC-my-trainer MT2 audit b2, UX R2-5): was 1 Close for the member. Now no ✕ on
+    // either End coaching dialog at any width (the footer Cancel is the dismiss).
+    expect(hostAll(tree, 'app-modal-close')).toHaveLength(0);
   });
 
   it('tablet at large text (> 1.3): the actions stack like the phone', async () => {

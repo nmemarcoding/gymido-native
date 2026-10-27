@@ -146,6 +146,8 @@ export function StatTile({
   hero = false,
   large = false,
   row = false,
+  // Optional node before the number (27 Oct 2026: the phone "This week" ring).
+  leading = null,
   onPress,
   testID,
   accessibilityLabel,
@@ -153,6 +155,18 @@ export function StatTile({
 }) {
   const labelStyle = [styles.statLabel, large && styles.statLabelLarge, gold && styles.onGoldMuted];
   const valueStyle = [styles.statValue, large && styles.statValueLarge, row && styles.statValueRow, { color: gold ? colors.onGold : valueColor }];
+  const valueText = (
+    <Text
+      testID={testID ? `${testID}-value` : undefined}
+      maxFontSizeMultiplier={textScale.display}
+      numberOfLines={1}
+      adjustsFontSizeToFit
+      minimumFontScale={0.75}
+      style={[valueStyle, leading && styles.flexShrink]}
+    >
+      {value}
+    </Text>
+  );
   const body = (
     <>
       {gold ? <GradientFill angle={gradients.gold.angle} colors={gradients.gold.colors} stops={gradients.gold.stops} /> : null}
@@ -162,16 +176,14 @@ export function StatTile({
           {label}
         </Text>
       ) : null}
-      <Text
-        testID={testID ? `${testID}-value` : undefined}
-        maxFontSizeMultiplier={textScale.display}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.75}
-        style={valueStyle}
-      >
-        {value}
-      </Text>
+      {leading ? (
+        <View testID={testID ? `${testID}-value-row` : undefined} style={styles.statValueLead}>
+          {leading}
+          {valueText}
+        </View>
+      ) : (
+        valueText
+      )}
       <View style={row ? styles.statRowText : null}>
         {large ? null : (
           <Text {...CAP_BODY} style={labelStyle}>
@@ -222,6 +234,9 @@ export function StatusLine({ tone, text, testID }) {
 
 // The small weekly ring beside "3/4" (decorative; the text carries it).
 export const WEEK_RING = 20;
+// Dated 27 Oct 2026 (TRAINER-CLIENTS audit b2): the phone list row and the
+// phone "This week" stat draw it at 32.
+export const PHONE_WEEK_RING = 32;
 export function WeekRing({ done, planned, size = WEEK_RING }) {
   const stroke = 3;
   const r = (size - stroke) / 2;
@@ -408,6 +423,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing[3],
+  },
+  statValueLead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  flexShrink: {
+    flexShrink: 1,
   },
   statRowText: {
     flex: 1,

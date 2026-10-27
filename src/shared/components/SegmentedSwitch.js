@@ -13,6 +13,8 @@ import { CAP_BODY } from './largeText';
 // MINIMUM width (the mode switch draws 120): at the largest Dynamic Type the
 // segment grows and its label may wrap, but is never cut off (review). Segment roles stay with the
 // caller (`segmentRole`, default "button" + selected).
+// `selectedTone` "gold" (27 Oct 2026, the tablet set editor's unit): the
+// selected segment is the flat gold + on-gold 600 instead of the light fill.
 export default function SegmentedSwitch({
   segments,
   value,
@@ -21,11 +23,13 @@ export default function SegmentedSwitch({
   segmentWidth,
   accessibilityLabel,
   segmentRole = 'button',
+  selectedTone = 'light',
   testID,
   style,
 }) {
   const height = compact ? 34 : 40;
   const slop = Math.max(0, (layout.touchMin - height) / 2);
+  const gold = selectedTone === 'gold';
   return (
     <View testID={testID} accessibilityLabel={accessibilityLabel} style={[styles.track, style]}>
       {segments.map((segment) => {
@@ -42,10 +46,10 @@ export default function SegmentedSwitch({
               styles.segment,
               { minHeight: height },
               segmentWidth ? { minWidth: segmentWidth } : styles.segmentFlex,
-              active ? styles.segmentOn : pressed && styles.segmentPressed,
+              active ? (gold ? styles.segmentOnGold : styles.segmentOn) : pressed && styles.segmentPressed,
             ]}
           >
-            <Text {...CAP_BODY} style={[compact ? styles.labelCompact : styles.label, styles.labelCentered, active ? styles.labelOn : styles.labelOff]}>
+            <Text {...CAP_BODY} style={[compact ? styles.labelCompact : styles.label, styles.labelCentered, active ? (gold ? styles.labelOnGold : styles.labelOn) : styles.labelOff]}>
               {segment.label}
             </Text>
           </Pressable>
@@ -82,6 +86,9 @@ const styles = StyleSheet.create({
   segmentOn: {
     backgroundColor: colors.textPrimary,
   },
+  segmentOnGold: {
+    backgroundColor: colors.gold,
+  },
   segmentPressed: {
     backgroundColor: colors.fillButton,
   },
@@ -96,6 +103,10 @@ const styles = StyleSheet.create({
   labelOn: {
     ...font(600),
     color: colors.onLight,
+  },
+  labelOnGold: {
+    ...font(600),
+    color: colors.onGold,
   },
   labelOff: {
     ...font(500),

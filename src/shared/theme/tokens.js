@@ -143,6 +143,8 @@ const V2_COLORS = {
   groundBar: 'rgba(10, 11, 15, 0.88)',
   // The ink ladder (dark on gold): 0.08 / 0.10 tint (inkTint) / 0.30 / 0.60.
   inkFaint: 'rgba(10, 11, 15, 0.08)',
+  // MT1.6 (27 Oct 2026): the ink 0.12 chip / Decline fill on the gold card.
+  inkChip: 'rgba(10, 11, 15, 0.12)',
   inkLine: 'rgba(10, 11, 15, 0.30)',
   inkStrong: 'rgba(10, 11, 15, 0.60)',
   // §8.6 STATE RULE: hover/pressed = the rest colour + a 4 % overlay (white

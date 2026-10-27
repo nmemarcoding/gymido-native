@@ -510,10 +510,14 @@ describe('Guard: footer dismiss ⇒ footerDismiss (FINAL-AUDIT batch 1)', () => 
 
   // UX refinement (28 Oct, web + native): a sheet shows the × when its BOARD
   // draws one, so these keep BOTH the pinned × and their footer Close/Cancel.
+  // 27 Oct 2026 (MEMBER-PLANS + TRAINER-PLANS audit b2, UX R2-3): the set editor and Edit plan details show
+  // the × at every width for both actors (phone: title row + footer Cancel).
   const BOARD_DRAWS_CLOSE = [
     'features/home/WeightLogModal.js',
     'features/trainer/clients/components/WeightHistoryModal.js',
     'features/trainer/clients/components/WorkoutDetailModal.js',
+    'features/trainer/plans/components/AddSetModal.js',
+    'features/trainer/plans/components/EditPlanDetailsModal.js',
   ];
 
   it('every caller with a footer dismiss passes footerDismiss (except where the board draws a ×); callers without one do not', () => {
@@ -531,6 +535,38 @@ describe('Guard: footer dismiss ⇒ footerDismiss (FINAL-AUDIT batch 1)', () => 
       expect(DISMISS.test(caller.text)).toBe(true);
       expect(/\bfooterDismiss\b/.test(caller.text)).toBe(false);
     });
+  });
+
+  // 27 Oct 2026 (audit b2): Add / Edit day's phone × depends on the actor: the member board draws it, the
+  // trainer's does not (footer Cancel only). Rendered per width in builderDialogs.test.js.
+  it('AddDayModal: footerDismiss only for the trainer look', () => {
+    const day = callers.find(({ file }) => file.endsWith('AddDayModal.js'));
+    expect(day).toBeTruthy();
+    expect(DISMISS.test(day.text)).toBe(true);
+    expect(day.text).toMatch(/footerDismiss=\{look === 'trainer'\}/);
+  });
+
+  // 27 Oct 2026 (UX R2-3 / R2-5): the dialogs whose boards draw NO × at any width hide the tablet header Close
+  // too (hideClose), not just the phone one: Invite a client, member End coaching (and the trainer's), the
+  // generator confirm. Busy-only hideClose (Change password, Delete account) is a different rule.
+  const NO_CLOSE_ANY_WIDTH = {
+    'features/trainer/clients/components/InviteClientModal.js': /\bhideClose\b(?!=)/,
+    'features/trainers/components/EndCoachingDialog.js': /\bhideClose\b(?!=)/,
+  };
+  it('the dialogs with no × at any width pass a plain hideClose', () => {
+    Object.entries(NO_CLOSE_ANY_WIDTH).forEach(([file, pattern]) => {
+      const caller = callers.find((entry) => entry.file === file);
+      expect(caller).toBeTruthy();
+      expect(caller.text).toMatch(pattern);
+    });
+  });
+  const CONFIRM_NO_CLOSE = ['features/planGenerator/screens/PlanGeneratorPreviewScreen.js'];
+  it('only the ConfirmDialogs whose boards draw no × at any width pass hideClose', () => {
+    const withHide = walk(src)
+      .map((file) => ({ file: path.relative(src, file).split(path.sep).join('/'), text: fs.readFileSync(file, 'utf8') }))
+      .filter(({ text }) => (text.match(/<ConfirmDialog\b[\s\S]*?\/>/g) ?? []).some((block) => /\bhideClose\b/.test(block)))
+      .map(({ file }) => file);
+    expect(withHide).toEqual(CONFIRM_NO_CLOSE);
   });
 
   // UX R2-4 (web round 2): "More plan actions" is a Menu, footer Cancel, no ×.

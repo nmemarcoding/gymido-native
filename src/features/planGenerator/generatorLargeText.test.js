@@ -302,14 +302,18 @@ describe('Preview (GeneratorPreview board)', () => {
   // UX ruling on M2-1: web's fade stays; the fade sits in a band ABOVE the
   // buttons and the area directly behind them is opaque ground (every phone
   // width), so no card shows through.
-  it.each([390, 431, 700])('sticky bar (phone %spx): the kit fade in a band above, opaque ground behind the buttons, no blur veil', async (width) => {
+  // DECLARED (27 Oct 2026, PLAN-GENERATOR audit b2): was phone only (390 / 431 / 700) with a 24 band; the fade is
+  // now the same at EVERY width: a 32 strip, ground 0 → 1, over a solid bar (tablet included).
+  it.each([390, 431, 700, 834, 1194])('sticky bar (%spx): a 32 fade strip (ground 0 → 1) above, opaque ground behind the buttons, no blur veil', async (width) => {
     mockWindow = { width, height: 844, scale: 2, fontScale: 1 };
     const tree = await openPreview();
     const bar = host(tree, 'generator-sticky-bar');
     const band = host(tree, 'generator-bar-fade');
     const fade = band.findAllByType(GradientFill)[0];
     expect(fade.props.colors).toEqual(gradients.ctaBarFade.colors);
-    expect(flat(band).height).toBeGreaterThan(0);
+    expect(fade.props.stops).toEqual([0, 1]);
+    expect(flat(band).height).toBe(32);
+    expect(bar.findAllByType(GradientFill)).toHaveLength(1);
     expect(flat(bar).backgroundColor).toBeUndefined();
     expect(flat(host(tree, 'generator-sticky-row')).backgroundColor).toBe(colors.ground);
     expect(byTestId(tree, 'blur-layer')).toHaveLength(0);

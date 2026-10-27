@@ -45,6 +45,9 @@ const sameValues = (a, b) => Object.keys(EMPTY).every((key) => a[key] === b[key]
 // with the white-selected lb / kg switch (a radio group "Unit"), rest.
 // Tablet: a 2×2 grid. Field order = the board's (reps, weight, rest). Each
 // error shows under its own field; submit moves focus to the first one.
+// Dated 27 Oct 2026 (MEMBER-PLANS + TRAINER-PLANS, audit b2, UX R2-3): the
+// set editor shows the × at every width for both actors (phone: on the title
+// row AND the footer Cancel); the tablet's selected unit is gold.
 export default function AddSetModal({ isOpen, onClose, nextSetNumber, set, affectedCount, onSubmit }) {
   const editing = Boolean(set);
   const { tablet, reflow } = useBuilderLayout();
@@ -115,6 +118,7 @@ export default function AddSetModal({ isOpen, onClose, nextSetNumber, set, affec
           segmentRole="radio"
           segments={UNIT_SEGMENTS}
           segmentWidth={56}
+          selectedTone={tablet ? 'gold' : 'light'}
           value={values.unit}
           onChange={(value) => update('unit', value)}
           style={styles.unit}
@@ -136,8 +140,7 @@ export default function AddSetModal({ isOpen, onClose, nextSetNumber, set, affec
           : 'The next set number is assigned automatically.'
       }
       size="lg"
-      // FINAL-AUDIT batch 1 (5): the footer has the dismiss, so no phone ×.
-      footerDismiss
+      // The boards draw the × beside the footer Cancel (both close, no save).
       footer={
         <ModalActions fill>
           <PillButton testID="set-modal-cancel" title="Cancel" variant="secondary" size={tablet ? 'cta' : 'default'} onPress={onClose} />

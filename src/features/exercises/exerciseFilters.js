@@ -58,11 +58,47 @@ export function filterExercises(items, { muscle, equipment }) {
 
 const byLabel = (a, b) => a.label.localeCompare(b.label);
 
+// Dated 27 Oct 2026 (audit b3, UX R3 MUST 5 + 6): the filter ROWS are every
+// muscle (group key) and equipment id seen in ANY list loaded on the screen
+// this session; only the counts follow the current list. `rememberSeen`
+// merges a loaded list into the session sets (the same object back when
+// nothing is new, so a memo keeps).
+export function rememberSeen(seen, items) {
+  const muscles = new Set(seen?.muscles ?? []);
+  const equipment = new Set(seen?.equipment ?? []);
+  (Array.isArray(items) ? items : []).forEach((exercise) => {
+    muscles.add(groupKey(exercise));
+    const id = equipmentIdOf(exercise);
+    if (id) {
+      equipment.add(id);
+    }
+  });
+  if (seen && muscles.size === seen.muscles.size && equipment.size === seen.equipment.size) {
+    return seen;
+  }
+  return { muscles, equipment };
+}
+
+// The muscle rows seeded ONCE from GET /muscle-groups (`items[]{id, name}`),
+// so a cold no-match still lists every muscle at 0. Equipment is never
+// seeded from the whole /equipment-types list (a type with no exercise).
+export function seedMuscles(groups) {
+  const names = new Set();
+  (Array.isArray(groups) ? groups : []).forEach((group) => {
+    const name = typeof group?.name === 'string' ? group.name.trim() : '';
+    if (name) {
+      names.add(name);
+    }
+  });
+  return names;
+}
+
 // The rows of both sections. Each row counts the loaded list (= the current
 // search) narrowed by the OTHER facet; "All …" likewise. A selected value the
-// list lacks still shows (at 0). `loading`: counts are null ("—").
-// `names` null → no Equipment section (variant A).
-export function filterFacets(items, filters, names, { loading = false } = {}) {
+// list lacks still shows (at 0), and so does every `seen` row (muted, 0).
+// `loading`: counts are null ("—"). `names` null → no Equipment section
+// (variant A); a seen equipment id shows only once the lookup names it.
+export function filterFacets(items, filters, names, { loading = false, seen = null } = {}) {
   const list = Array.isArray(items) ? items : [];
   const { muscle, equipment } = filters;
   const byEquipment = filterExercises(list, { muscle: '', equipment });
@@ -70,6 +106,7 @@ export function filterFacets(items, filters, names, { loading = false } = {}) {
   const count = (value) => (loading ? null : value);
 
   const muscleCounts = new Map();
+  (seen?.muscles ?? []).forEach((key) => muscleCounts.set(key, 0));
   list.forEach((exercise) => muscleCounts.set(groupKey(exercise), 0));
   if (muscle) {
     muscleCounts.set(muscle, 0);
@@ -89,6 +126,11 @@ export function filterFacets(items, filters, names, { loading = false } = {}) {
   let equipmentRows = null;
   if (names) {
     const equipmentCounts = new Map();
+    (seen?.equipment ?? []).forEach((id) => {
+      if (names.has(id)) {
+        equipmentCounts.set(id, 0);
+      }
+    });
     list.forEach((exercise) => {
       const id = equipmentIdOf(exercise);
       if (names.has(id)) {
@@ -155,7 +197,12 @@ export function resultCountText({ loading, count }) {
   return loading ? 'Loading…' : formatCount(count, 'exercise', 'exercises');
 }
 
+// PM line (pending FE merge, 27 Oct 2026): a null count = the list is still
+// loading → "Loading…", never "Show 0 exercises".
 export function showLabel(count) {
+  if (count === null || count === undefined) {
+    return 'Loading…';
+  }
   return `Show ${formatCount(count, 'exercise', 'exercises')}`;
 }
 

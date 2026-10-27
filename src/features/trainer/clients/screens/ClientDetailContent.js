@@ -39,7 +39,7 @@ import {
 } from '../clientFormat';
 import { openAssignPlan } from '../clientLinks';
 import ClientAvatar from '../components/ClientAvatar';
-import { ListCard, ListRow, SectionHeading, StatTile, StatusLine, clientStyles } from '../components/ClientsUi';
+import { ListCard, ListRow, PHONE_WEEK_RING, SectionHeading, StatTile, StatusLine, WeekRing, clientStyles } from '../components/ClientsUi';
 import { ChevronGlyph } from '../components/clientIcons';
 import WeightHistoryModal from '../components/WeightHistoryModal';
 import WorkoutDetailModal from '../components/WorkoutDetailModal';
@@ -242,7 +242,7 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
       return (
         <>
           {renderHero(statusLine, emailButton)}
-          {renderStats(progress?.stats, unit, 4)}
+          {renderStats(progress?.stats, unit, 4, plan)}
           {renderPlan(plan, planLabel, true)}
           <View style={[styles.twoColumns, reflow && styles.stack]}>
             <View style={styles.columnHalf}>{renderWorkouts(history, unit)}</View>
@@ -270,7 +270,7 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
           {reflow ? renderPlanButton(planLabel) : emailButton}
           {reflow ? emailButton : renderPlanButton(planLabel)}
         </View>
-        {renderStats(progress?.stats, unit, 2)}
+        {renderStats(progress?.stats, unit, 2, plan)}
         {renderDetails()}
         {renderPlan(plan, planLabel, false)}
         {renderWorkouts(history, unit)}
@@ -327,21 +327,36 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
     );
   }
 
-  function renderStats(stats, unit, columns) {
+  function renderStats(stats, unit, columns, plan) {
     if (!stats) {
       return null;
     }
     // Volume: only total_volume_last_30_days_kg in the client's unit; absent
     // → the tile is hidden (never total_volume_last_30_days).
     const volume = volumeInUnit(stats.total_volume_last_30_days_kg, unit);
-    const tiles = [
-      { key: 'workouts', label: 'Workouts', value: stats.total_workouts_completed ?? 0, sub: 'completed', color: tablet ? colors.gold : colors.textPrimary },
-      volume !== null
-        ? { key: 'volume', label: 'Volume', value: formatVolume(volume), sub: `${unit} · last 30 days`, color: colors.textPrimary }
-        : null,
-      { key: 'week', label: 'This week', value: stats.workouts_this_week ?? 0, sub: 'workouts', color: tablet ? colors.success : colors.textPrimary },
-      { key: 'streak', label: 'Streak', value: stats.current_streak ?? 0, sub: 'days', color: tablet ? colors.warning : colors.teal },
-    ].filter(Boolean);
+    const thisWeek = stats.workouts_this_week ?? 0;
+    const byKey = {
+      workouts: { key: 'workouts', label: 'Workouts', value: stats.total_workouts_completed ?? 0, sub: 'completed', color: tablet ? colors.gold : colors.textPrimary },
+      volume:
+        volume !== null
+          ? { key: 'volume', label: 'Volume', value: formatVolume(volume), sub: `${unit} · last 30 days`, color: colors.textPrimary }
+          : null,
+      week: { key: 'week', label: 'This week', value: thisWeek, sub: 'workouts', color: tablet ? colors.success : colors.textPrimary },
+      streak: { key: 'streak', label: 'Streak', value: stats.current_streak ?? 0, sub: 'days', color: tablet ? colors.warning : colors.teal },
+    };
+    // Dated 27 Oct 2026 (§C4.4, audit b2): phone Workouts · Volume · This
+    // week · Streak, with the 32 gold week ring (done / planned this week:
+    // the row's BE activity, else this week's count over the plan's days)
+    // before "This week"; tablet Workouts · This week · Streak · Volume.
+    const order = tablet ? ['workouts', 'week', 'streak', 'volume'] : ['workouts', 'volume', 'week', 'streak'];
+    const tiles = order.map((key) => byKey[key]).filter(Boolean);
+    const weekRing = tablet ? null : (
+      <WeekRing
+        done={activity ? activity.done : thisWeek}
+        planned={activity ? activity.planned : plan?.enrollment?.plan?.days_per_week ?? 0}
+        size={PHONE_WEEK_RING}
+      />
+    );
     const perRow = reflow ? 1 : Math.min(columns, tiles.length);
     return (
       <View testID="client-stats" style={styles.stats}>
@@ -353,6 +368,7 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
             value={tile.value}
             sub={tile.sub}
             valueColor={tile.color}
+            leading={tile.key === 'week' ? weekRing : null}
             row={reflow}
             accessibilityLabel={`${tile.label}, ${tile.value}, ${tile.sub}`}
             style={{ width: perRow === 1 ? '100%' : `${100 / perRow - 2}%`, flexGrow: 1 }}

@@ -270,6 +270,8 @@ function PlanGeneratorPreview() {
         tone="brand"
         loading={accepting}
         dismissible={!accepting}
+        // Dated 27 Oct 2026 (audit b2, UX R2-3): no × at any width.
+        hideClose
       />
     </View>
   );
@@ -672,9 +674,9 @@ function GoEasyRefusalActions({ equipmentFix, wide, onOpenStep }) {
 // §G2.2 item 7 + the dated fix. Phone (UX M2-1, web parity): below 432 the
 // pair stacks, "Start this plan" (gold) over "Change my answers" (glass), both
 // full width at 52, gap 10, pinned above the tab bar. From 432 to tablet: a
-// row of the 60 CTA (Start takes the rest). UX ruling: on every phone width
-// the kit fade sits in a band above the buttons and the area behind them is
-// opaque ground, so no card shows through.
+// row of the 60 CTA (Start takes the rest). UX ruling (tablet too since the
+// 27 Oct 2026 dated line): the kit fade sits in a band above the buttons and
+// the area behind them is opaque ground, so no card shows through.
 // Tablet: a right-aligned row of 52 buttons, sticky at the bottom. §9: past
 // 1.3× the pair stacks (primary on top) and scrolls with the page (§9 addendum).
 function StickyBar({ showStart, starting, onChange, onStart, onHeight, tablet, reflow, narrow, pinned }) {
@@ -697,7 +699,7 @@ function StickyBar({ showStart, starting, onChange, onStart, onHeight, tablet, r
     />
   ) : null;
   const row = (
-    <View testID="generator-sticky-row" style={[styles.barRow, tablet ? styles.barRowTablet : [styles.barRowPhone, pinned && styles.barOpaque], stacked && styles.barStack, stacked && !reflow && styles.barStackPhone]}>
+    <View testID="generator-sticky-row" style={[styles.barRow, tablet ? styles.barRowTablet : styles.barRowPhone, pinned && styles.barOpaque, stacked && styles.barStack, stacked && !reflow && styles.barStackPhone]}>
       {stacked ? [start, change] : [change, start]}
     </View>
   );
@@ -710,15 +712,11 @@ function StickyBar({ showStart, starting, onChange, onStart, onHeight, tablet, r
   }
   return (
     <View testID="generator-sticky-bar" style={[styles.bar, { bottom }]} onLayout={(event) => onHeight?.(event.nativeEvent.layout.height)}>
-      {/* The kit CTA fade (clear → ground at 35 %), mounted with the bar. On
-          phones it fills only a band above the opaque row. */}
-      {tablet ? (
-        <GradientFill angle={gradients.ctaBarFade.angle} colors={gradients.ctaBarFade.colors} stops={gradients.ctaBarFade.stops} />
-      ) : (
-        <View testID="generator-bar-fade" style={styles.barFade}>
-          <GradientFill angle={gradients.ctaBarFade.angle} colors={gradients.ctaBarFade.colors} stops={FADE_BAND_STOPS} />
-        </View>
-      )}
+      {/* Dated 27 Oct 2026 (audit b2): at EVERY width the kit fade is a 32
+          strip (ground 0 → 1) above the opaque row, mounted with the bar. */}
+      <View testID="generator-bar-fade" style={styles.barFade}>
+        <GradientFill angle={gradients.ctaBarFade.angle} colors={gradients.ctaBarFade.colors} stops={FADE_BAND_STOPS} />
+      </View>
       {row}
     </View>
   );
@@ -1109,7 +1107,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ground,
   },
   barFade: {
-    height: spacing[6],
+    height: spacing[8],
   },
   barInFlow: {
     marginTop: spacing[2],

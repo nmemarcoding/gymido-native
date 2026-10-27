@@ -746,6 +746,7 @@ function PlanBuilder({ planId, adapter }) {
         context={addDayContext}
         day={dayModal.day}
         affectedCount={affectedCount}
+        look={look}
         onSubmit={saveDay}
       />
       <ExercisePickerSheet

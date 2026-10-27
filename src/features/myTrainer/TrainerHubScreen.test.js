@@ -1,4 +1,4 @@
-import { Linking, Text, useWindowDimensions } from 'react-native';
+import { Linking, StyleSheet, Text, useWindowDimensions } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import EmptyState from '../../shared/components/EmptyState';
@@ -100,7 +100,11 @@ describe('helpers', () => {
     const hub = (invitations, hasActiveTrainer) => ({ invitations, hasActiveTrainer });
     expect(goldAction({ hub: hub([1], true), trainer: { email: 'x' }, isTrainer: true })).toBe('accept');
     expect(goldAction({ hub: hub([], true), trainer: { email: 'x' }, isTrainer: true })).toBe('contact');
-    expect(goldAction({ hub: hub([], true), trainer: {}, isTrainer: true })).toBe('switch');
+    // DECLARED (27 Oct 2026, audit b2b MT1a "never gold"): was 'switch'. A trainer-role member without a
+    // gold-able action has NO gold action at any width.
+    expect(goldAction({ hub: hub([], true), trainer: {}, isTrainer: true })).toBeNull();
+    expect(goldAction({ hub: hub([], false), trainer: null, isTrainer: true })).toBeNull();
+    expect(goldAction({ hub: hub([1], false), trainer: null, isTrainer: true })).toBe('accept');
     expect(goldAction({ hub: hub([], false), trainer: null, isTrainer: false })).toBe('browse');
   });
 });
@@ -141,8 +145,10 @@ describe('My trainer v2 look (C5), phone', () => {
       ]),
     );
     expect(shown.indexOf('Invitations (1)')).toBeLessThan(shown.indexOf('Find a trainer'));
-    expect(comp(tree.root, 'trainer-hub-accept-5').props.variant).toBe('primary');
-    expect(comp(tree.root, 'trainer-hub-decline-5').props.variant).toBe('secondary');
+    // DECLARED (27 Oct 2026, audit b3 MT1.6): was 'primary' / 'secondary'. Inside the solid gold card Accept is
+    // the solid ink pill (gold text) and Decline the ink 0.12 pill; the card is the one gold.
+    expect(comp(tree.root, 'trainer-hub-accept-5').props.variant).toBe('ink');
+    expect(comp(tree.root, 'trainer-hub-decline-5').props.variant).toBe('inkTint');
     expect(comp(tree.root, 'trainer-hub-browse').props.variant).toBe('secondary');
     expect(comp(tree.root, 'trainer-hub-become').props.variant).toBe('secondary');
     expect(comp(tree.root, 'trainer-hub-accept-5').props.accessibilityLabel).toBe('Accept Alex Kim');
@@ -239,7 +245,8 @@ describe('My trainer v2 look (C5), phone', () => {
     listPendingTrainerRequests.mockResolvedValue([invitation]);
     const tree = await render();
     expect(texts(tree.root)).toContain('You already have a trainer. End your current coaching before accepting one of these.');
-    expect(comp(tree.root, 'trainer-hub-accept-5').props).toMatchObject({ variant: 'primary', disabled: false });
+    // DECLARED (MT1.6): was variant 'primary'; the Accept inside the gold card is 'ink'.
+    expect(comp(tree.root, 'trainer-hub-accept-5').props).toMatchObject({ variant: 'ink', disabled: false });
     expect(comp(tree.root, 'trainer-hub-contact').props.variant).toBe('secondary');
   });
 
@@ -262,16 +269,22 @@ describe('My trainer v2 look (C5), phone', () => {
     expect(getMyTrainer).toHaveBeenCalledTimes(2);
   });
 
-  it('trainer role: Trainer mode card first with the gold Switch; no Find / Become cards', async () => {
+  // DECLARED (27 Oct 2026, audit b2b MT1a): was "the gold Switch" (a primary PillButton). The card is now a
+  // never-gold surface link card; the whole card is the one tap target.
+  it('trainer role: Trainer mode card first, a surface link card (no gold action); no Find / Become cards', async () => {
     mockIsTrainer = true;
     listPendingTrainerRequests.mockResolvedValue([]);
     const tree = await render();
     const shown = texts(tree.root);
-    expect(shown).toEqual(expect.arrayContaining(['Trainer mode', 'You are already a trainer', 'View plans', 'View progress']));
+    expect(shown).toEqual(
+      expect.arrayContaining(['Trainer mode', 'You are already a trainer', 'Switch to Trainer Mode', 'View plans', 'View progress']),
+    );
     expect(shown).not.toContain('Find a trainer');
     expect(shown).not.toContain('Want to coach others?');
-    expect(comp(tree.root, 'trainer-hub-switch').props.variant).toBe('primary');
-    act(() => comp(tree.root, 'trainer-hub-switch').props.onPress());
+    expect(tree.root.findAll((node) => node.type === PillButton && node.props.variant === 'primary')).toHaveLength(0);
+    const card = pressable(tree.root, 'trainer-hub-switch');
+    expect(card.props).toMatchObject({ accessibilityRole: 'button', accessibilityLabel: 'Switch to Trainer Mode' });
+    act(() => card.props.onPress());
     expect(openShellPath).toHaveBeenCalledWith('/trainer');
   });
 
@@ -388,13 +401,17 @@ describe('My trainer tokens (Phase 2 exact match)', () => {
     expect(styleOfHost(tree.root, 'trainer-hub-avatar-ring-line')).toMatchObject({ borderWidth: 1, borderColor: '#9DB0CF', opacity: 0.6 });
   });
 
-  it('the invitation avatar: the rounded-square tile in the colour rule, no ring', async () => {
+  // DECLARED (27 Oct 2026, audit b3 MT1.6): was the person-colour rounded tile (#C79BFF for id 4). On the gold
+  // card the invitation tile is the 60 r20 ink tile with gold initials (decorative), no person colour.
+  it('the invitation avatar: the 60 r20 ink tile with gold initials, hidden from AT, no ring', async () => {
     listPendingTrainerRequests.mockResolvedValue([{ ...invitation, trainer: { ...invitation.trainer, user_id: 4 } }]);
     const tree = await render();
-    const disc = host(tree.root, 'trainer-hub-avatar')[0];
-    expect(flatStyle(disc.props.style)).toMatchObject({ width: 60, borderRadius: 20 });
-    expect(styleOfHost(tree.root, 'trainer-hub-avatar-fill')).toMatchObject({ backgroundColor: '#C79BFF' });
-    expect(host(tree.root, 'trainer-hub-avatar-ring')).toHaveLength(0);
+    const tile = host(tree.root, 'trainer-hub-invite-avatar-5')[0];
+    expect(flatStyle(tile.props.style)).toMatchObject({ width: 60, height: 60, borderRadius: 20, backgroundColor: colors.onGold });
+    expect(tile.props).toMatchObject({ accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' });
+    const initials = tile.findAll((node) => node.type === Text)[0];
+    expect([initials.props.children, flatStyle(initials.props.style).color]).toEqual(['AK', colors.gold]);
+    expect(host(tree.root, 'trainer-hub-avatar')).toHaveLength(0);
   });
 
   it('link cards: 150° tint → faint wash with the line edge; pressed = the 4 % overlay (no opacity)', async () => {
@@ -442,13 +459,12 @@ describe('My trainer large text (UX §9)', () => {
           expect(node.props.numberOfLines === undefined || node.props.numberOfLines >= 2).toBe(true);
         });
         const inviteName = ownTexts(tree.root).find((node) => node.props.children === 'Alex Kim');
-        // DECLARED change (UX X7 ruling, 27 Oct 2026): was { numberOfLines: 3, adjustsFontSizeToFit: true,
-        // minimumFontScale: 0.7 }. The invitation name is a row name: 2 lines + a tail ellipsis, no shrink.
-        expect(inviteName.props).toMatchObject({
-          maxFontSizeMultiplier: textScale.title,
-          numberOfLines: 2,
-          ellipsizeMode: 'tail',
-        });
+        // DECLARED change (27 Oct 2026, RN-SPEC-my-trainer MT1.6 audit b3, lead ruling: the dated line wins over
+        // X7 for this card): was { numberOfLines: 2, ellipsizeMode: 'tail' } (X7). On the solid gold Invitations
+        // card the name WRAPS with no truncation: no line cap, no ellipsis, no shrink; still role-capped.
+        expect(inviteName.props.maxFontSizeMultiplier).toBe(textScale.title);
+        expect(inviteName.props.numberOfLines).toBeUndefined();
+        expect(inviteName.props.ellipsizeMode).toBeUndefined();
         expect(inviteName.props.adjustsFontSizeToFit).toBeUndefined();
       }
     },
@@ -512,16 +528,91 @@ describe('My trainer large text (UX §9)', () => {
 
 // UX final audit X7 ruling (27 Oct 2026, §1.1): every name in a row, card or
 // list is at most 2 lines then a tail ellipsis, no font shrink.
+// DECLARED change (27 Oct 2026, RN-SPEC-my-trainer MT1.6 audit b3, lead ruling): was "2 lines + ellipsis" (X7)
+// for the inviting trainer. The dated MT1.6 line wins on the solid gold Invitations card: the name is 26/28 700
+// ink and wraps with NO truncation. X7 is unchanged everywhere else.
 describe.each([390, 834])('X7 My trainer invitations (%i)', (width) => {
   const expectName = (node) => {
-    expect(node.props).toMatchObject({ numberOfLines: 2, ellipsizeMode: 'tail' });
+    expect(node.props.numberOfLines).toBeUndefined();
+    expect(node.props.ellipsizeMode).toBeUndefined();
     expect(node.props.adjustsFontSizeToFit).toBeUndefined();
+    expect(StyleSheet.flatten(node.props.style)).toMatchObject({ fontSize: 26, lineHeight: 28, fontFamily: 'Geist-Bold', color: colors.onGold });
   };
-  it('the inviting trainer name: 2 lines + ellipsis', async () => {
+  it('the inviting trainer name on the gold card: wraps, no line cap, no ellipsis (MT1.6)', async () => {
     setWidth(width, 3.1);
     const tree = await render();
     const nodes = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Alex Kim');
     expect(nodes.length).toBeGreaterThan(0);
     nodes.forEach(expectName);
+  });
+});
+
+// 27 Oct 2026 dated lines (RN-SPEC-my-trainer MT1.6 audit b3, MT1a audit b2b).
+describe.each([390, 834])('My trainer audit b2b/b3 (%i)', (width) => {
+  beforeEach(() => setWidth(width));
+
+  it('MT1.6: the Invitations block is the solid gold card (150°, r28, p20, no border, ink text)', async () => {
+    getMyTrainer.mockResolvedValue(activeMine);
+    listPendingTrainerRequests.mockResolvedValue([invitation]);
+    const tree = await render();
+    const card = host(tree.root, 'trainer-hub-invitations')[0];
+    expect(flatStyle(card.props.style)).toMatchObject({ borderRadius: 28, padding: 20, overflow: 'hidden' });
+    expect(flatStyle(card.props.style).borderWidth ?? 0).toBe(0);
+    expect(card.findByType(GradientFill).props).toMatchObject({ angle: 150, colors: gradients.gold.colors, stops: gradients.gold.stops });
+    // The ink 0.12 chip "Invitations (n)" is the section heading (26 tall, 12/700).
+    expect(styleOfHost(tree.root, 'trainer-hub-invitations-chip')).toMatchObject({ minHeight: 26, backgroundColor: colors.inkChip });
+    const heading = host(tree.root, 'trainer-hub-invitations-chip')[0].findAll((node) => node.type === Text)[0];
+    expect(heading.props.accessibilityRole).toBe('header');
+    expect(flatStyle(heading.props.style)).toMatchObject({ fontSize: 12, fontFamily: 'Geist-Bold', color: colors.onGold });
+    const textNode = (value) => tree.root.findAll((node) => node.type === Text && node.props.children === value)[0];
+    expect(flatStyle(textNode('You already have a trainer. End your current coaching before accepting one of these.').props.style)).toMatchObject({
+      fontSize: 14,
+      color: colors.onGoldMuted,
+    });
+    expect(flatStyle(textNode('Alex Kim').props.style)).toMatchObject({ fontSize: 26, lineHeight: 28, color: colors.onGold });
+    expect(flatStyle(textNode('wants to coach you').props.style)).toMatchObject({ fontSize: 14, color: colors.onGoldMuted });
+    expect(styleOfHost(tree.root, 'trainer-hub-invitation-5')).toMatchObject({ marginTop: 20 });
+    expect(styleOfHost(tree.root, 'trainer-hub-invitation-buttons-5')).toMatchObject({ marginTop: 16, gap: 10, flexDirection: 'row' });
+    for (const id of ['trainer-hub-accept-5', 'trainer-hub-decline-5']) {
+      expect(flatStyle(comp(tree.root, id).props.style)).toMatchObject({ minHeight: 50 });
+      expect(comp(tree.root, id).props.fullWidth).toBe(true);
+    }
+    // The card is the page's only gold: Contact is the glass secondary.
+    expect(comp(tree.root, 'trainer-hub-contact').props.variant).toBe('secondary');
+    expect(tree.root.findAll((node) => node.type === PillButton && node.props.variant === 'primary')).toHaveLength(0);
+  });
+
+  it('MT1a: the Switch card is a surface link card, never gold, with or without invitations', async () => {
+    mockIsTrainer = true;
+    for (const requests of [[], [invitation]]) {
+      listPendingTrainerRequests.mockResolvedValue(requests);
+      const tree = await render();
+      const card = pressable(tree.root, 'trainer-hub-switch');
+      const style = flatStyle(typeof card.props.style === 'function' ? card.props.style({ pressed: false }) : card.props.style);
+      expect(style).toMatchObject({
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.hairline,
+        borderRadius: 24,
+        padding: width >= 768 ? 24 : 20,
+      });
+      expect(styleOfHost(tree.root, 'trainer-hub-switch-icon')).toMatchObject({ width: 48, height: 48, borderRadius: 16, backgroundColor: colors.tealTint });
+      const textNode = (value) => tree.root.findAll((node) => node.type === Text && node.props.children === value)[0];
+      expect(flatStyle(textNode('You are already a trainer').props.style)).toMatchObject({ fontSize: 16, fontFamily: 'Geist-SemiBold' });
+      expect(flatStyle(textNode('Switch to Trainer Mode').props.style).color).toBe(colors.teal);
+      const chevron = host(tree.root, 'trainer-hub-switch-chevron')[0];
+      expect(chevron.props).toMatchObject({ accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' });
+      // No gold fill anywhere but the invitation card; no PillButton for the switch.
+      expect(tree.root.findAll((node) => node.type === PillButton && node.props.testID === 'trainer-hub-switch')).toHaveLength(0);
+      expect(tree.root.findAll((node) => node.type === PillButton && node.props.variant === 'primary')).toHaveLength(0);
+    }
+  });
+
+  it('MT1a: a trainer without a coach sees no Find a trainer / Browse trainers card', async () => {
+    mockIsTrainer = true;
+    listPendingTrainerRequests.mockResolvedValue([]);
+    const tree = await render();
+    expect(host(tree.root, 'trainer-hub-find')).toHaveLength(0);
+    expect(texts(tree.root)).not.toContain('Browse trainers');
   });
 });

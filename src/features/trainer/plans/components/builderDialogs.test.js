@@ -417,3 +417,68 @@ describe('days and sets', () => {
     expect(hosts(readOnly, 'plan-set-edit-9')).toHaveLength(0);
   });
 });
+
+// Dated 27 Oct 2026 (RN-SPEC-MEMBER-PLANS + RN-SPEC-TRAINER-PLANS, audit b2, UX R2-3 / R2-4): the builder
+// dialogs' Close (×) follows each actor's board per width.
+describe('builder dialogs: the × per actor and width (audit b2)', () => {
+  const closes = (tree) => hosts(tree, 'app-modal-close');
+  const dayContext = { nextDayNumber: 4, dayLimit: 5, canAddDay: true };
+  const planProps = { isOpen: true, onClose: jest.fn(), plan: { name: 'Plan', category_id: 2, days_per_week: 4, description: '' }, dayCount: 3, categories: [], levels: [], description: '', onSubmit: jest.fn() };
+
+  it.each([
+    [390, 'member'],
+    [390, 'trainer'],
+    [834, 'member'],
+    [834, 'trainer'],
+  ])('at %ipx (%s): Add / Edit set and Edit plan details show the × AND keep the footer Cancel', async (width, look) => {
+    mockWidth = width;
+    const set = await render(<AddSetModal isOpen onClose={jest.fn()} nextSetNumber={3} set={null} look={look} onSubmit={jest.fn()} />);
+    expect(closes(set)).toHaveLength(1);
+    expect(pill(set, 'set-modal-cancel')).toBeTruthy();
+    const edit = await render(<AddSetModal isOpen onClose={jest.fn()} nextSetNumber={3} set={{ id: 1, set_number: 1 }} look={look} onSubmit={jest.fn()} />);
+    expect(closes(edit)).toHaveLength(1);
+    const details = await render(<EditPlanDetailsModal {...planProps} look={look} />);
+    expect(closes(details)).toHaveLength(1);
+    expect(pill(details, 'edit-plan-cancel')).toBeTruthy();
+  });
+
+  it.each([
+    [390, 'member', 1],
+    [390, 'trainer', 0],
+    [834, 'member', 1],
+    [834, 'trainer', 1],
+  ])('Add / Edit day at %ipx (%s): %i ×; the footer Cancel always', async (width, look, count) => {
+    mockWidth = width;
+    const add = await render(<AddDayModal isOpen onClose={jest.fn()} context={dayContext} day={null} look={look} onSubmit={jest.fn()} />);
+    expect(closes(add)).toHaveLength(count);
+    expect(pill(add, 'day-modal-cancel')).toBeTruthy();
+    const edit = await render(<AddDayModal isOpen onClose={jest.fn()} context={dayContext} day={{ id: 2, title: 'Push', description: '' }} look={look} onSubmit={jest.fn()} />);
+    expect(closes(edit)).toHaveLength(count);
+  });
+
+  it('the × closes the dialog without saving', async () => {
+    const onClose = jest.fn();
+    const onSubmit = jest.fn();
+    const tree = await render(<AddSetModal isOpen onClose={onClose} nextSetNumber={3} set={null} look="trainer" onSubmit={onSubmit} />);
+    await act(async () => pressable(tree, 'app-modal-close').props.onPress());
+    expect(onClose).toHaveBeenCalled();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('tablet: the set editor selected unit (lb / kg) is gold; the phone keeps the light switch', async () => {
+    mockWidth = 834;
+    let tree = await render(<AddSetModal isOpen onClose={jest.fn()} nextSetNumber={3} set={null} onSubmit={jest.fn()} />);
+    expect(tree.root.findByType(SegmentedSwitch).props.selectedTone).toBe('gold');
+    expect(flat(tap(tree, 'set-unit-lb'))).toMatchObject({ backgroundColor: colors.gold });
+    mockWidth = 390;
+    tree = await render(<AddSetModal isOpen onClose={jest.fn()} nextSetNumber={3} set={null} onSubmit={jest.fn()} />);
+    expect(tree.root.findByType(SegmentedSwitch).props.selectedTone ?? 'light').toBe('light');
+  });
+
+  it('tablet: "Days per week" = the 7 day buttons, 56 tall, gap 8', async () => {
+    mockWidth = 834;
+    const tree = await render(<EditPlanDetailsModal {...planProps} />);
+    expect(flat(host(tree, 'edit-plan-days')).gap).toBe(8);
+    expect(flat(tap(tree, 'edit-plan-days-7')).minHeight).toBe(56);
+  });
+});

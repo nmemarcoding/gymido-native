@@ -109,9 +109,9 @@ export default function EndCoachingDialog({
       description={description}
       size="md"
       eyebrow={icon}
-      // UX M: the trainer's confirm has Cancel and no ✕; UX L keeps the tablet
-      // Close (36 glass, 44 hit) on the member's.
-      hideClose={kind === 'client'}
+      // UX M / dated 27 Oct 2026 (MT2, UX R2-5): no ✕ at any width on either
+      // confirm; the footer Cancel is the dismiss.
+      hideClose
       // FINAL-AUDIT batch 1 (5): the footer has the dismiss, so no phone ×.
       footerDismiss
       footer={

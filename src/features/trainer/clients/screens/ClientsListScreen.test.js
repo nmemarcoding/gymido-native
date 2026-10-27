@@ -274,3 +274,44 @@ describe.each([
     expect(pick(plan, LINE_TEXT)).toEqual(LINE_TEXT);
   });
 });
+
+// Dated 27 Oct 2026 (RN-SPEC-TRAINER-CLIENTS §C3.2, audit b2): below 1280 the filter chips are ONE row that never
+// wraps; it scrolls sideways with no scrollbar and each chip keeps its width. The phone row's ring is 32 (was 20).
+describe('Clients audit b2: one chip row, the 32 phone ring', () => {
+  const withData = () =>
+    listActiveClients.mockResolvedValue([
+      { ...alex, client_activity: activity() },
+      { ...sara, client_activity: activity({ week: { planned: 4, done: 0, missed: 2, days: [] } }) },
+    ]);
+
+  it.each([
+    [390, 1],
+    [390, 3.1],
+    [834, 1],
+    [1194, 2],
+  ])('%ipx at %s×: the chips sit in a horizontal, scrollbar-free scroll row that never wraps', async (width, fontScale) => {
+    setWindow(width, fontScale);
+    withData();
+    const tree = await render();
+    const row = byTestID(tree, 'clients-filter-row');
+    expect(row.props).toMatchObject({ horizontal: true, showsHorizontalScrollIndicator: false });
+    const content = StyleSheet.flatten(row.props.contentContainerStyle);
+    expect(content.flexDirection ?? 'row').toBe('row');
+    expect(content.flexWrap).toBeUndefined();
+    expect(content.gap).toBe(8);
+    expect(host(tree, 'clients-filter-group').props).toMatchObject({ accessibilityRole: 'radiogroup', accessibilityLabel: 'Filter clients' });
+    tree.root.findAllByType(Chip).forEach((chip) => expect(StyleSheet.flatten(chip.props.style)?.flexShrink ?? 0).toBe(0));
+  });
+
+  it.each([
+    [390, 32],
+    [834, 20],
+  ])('%ipx: the row week ring is %i with the 3px gold arc', async (width, size) => {
+    setWindow(width);
+    withData();
+    const tree = await render();
+    const rings = tree.root.findAllByType(WeekRing);
+    expect(rings.length).toBeGreaterThan(0);
+    rings.forEach((ring) => expect(ring.props.size ?? 20).toBe(size));
+  });
+});

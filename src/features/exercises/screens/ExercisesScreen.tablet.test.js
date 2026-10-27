@@ -19,7 +19,7 @@ jest.mock('@react-navigation/native', () => {
 });
 jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn(() => Promise.resolve()) }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 24, bottom: 20, left: 0, right: 0 }) }));
-jest.mock('../api/exercisesApi', () => ({ listExercisesPage: jest.fn(), listEquipmentTypes: jest.fn(() => Promise.resolve([])) }));
+jest.mock('../api/exercisesApi', () => ({ listExercisesPage: jest.fn(), listEquipmentTypes: jest.fn(() => Promise.resolve([])), listMuscleGroups: jest.fn(() => Promise.resolve([])) }));
 jest.mock('../../shell/AppHeader', () => () => null);
 jest.mock('../../shell/ModeSwitch', () => () => null);
 jest.mock('../../shell/TabletRail', () => {

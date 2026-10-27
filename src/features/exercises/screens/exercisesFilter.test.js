@@ -3,7 +3,7 @@ import { act, create } from 'react-test-renderer';
 
 import AppModal from '../../../shared/components/AppModal';
 import { colors, font } from '../../../shared/theme/tokens';
-import { listEquipmentTypes, listExercisesPage } from '../api/exercisesApi';
+import { listEquipmentTypes, listExercisesPage, listMuscleGroups } from '../api/exercisesApi';
 import { focusNode } from '../../../shared/hooks/useSheetFocus';
 import ExerciseFilterSheet from '../components/ExerciseFilterSheet';
 import { clearExerciseListCache } from '../exerciseListCache';
@@ -28,7 +28,7 @@ jest.mock('@react-navigation/native', () => {
 });
 jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn(() => Promise.resolve()) }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
-jest.mock('../api/exercisesApi', () => ({ listExercisesPage: jest.fn(), listEquipmentTypes: jest.fn() }));
+jest.mock('../api/exercisesApi', () => ({ listExercisesPage: jest.fn(), listEquipmentTypes: jest.fn(), listMuscleGroups: jest.fn() }));
 jest.mock('../../shell/AppHeader', () => () => null);
 jest.mock('../../shell/TabletFrame', () => ({ children }) => children);
 jest.mock('../../shell/ModeSwitch', () => () => null);
@@ -77,6 +77,7 @@ beforeEach(() => {
   mockFontScale = 1;
   listExercisesPage.mockResolvedValue({ items: ITEMS, pagination: { total_pages: 1 } });
   listEquipmentTypes.mockResolvedValue(TYPES);
+  listMuscleGroups.mockResolvedValue([]);
   announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {});
 });
 afterEach(() => {
@@ -211,7 +212,10 @@ describe('T-62 phone: the shared bottom sheet (variant B)', () => {
     expect(modal.props).toMatchObject({ isOpen: true, title: 'Filters' });
     expect(modal.props.footerDismiss).toBeFalsy();
     expect(hosts(tree.root, 'app-modal-close')).toHaveLength(1);
-    expect(host(tree.root, 'exercise-filter-find').props.placeholder).toBe('Find a muscle or equipment');
+    // DECLARED (27 Oct 2026, audit b3): was the TextInput's own `placeholder`. The placeholder is now our one-line
+    // Text (tail ellipsis) over the field, so a long copy ends in "…"; the field keeps it as its label.
+    expect(host(tree.root, 'exercise-filter-find').props.accessibilityLabel).toBe('Find a muscle or equipment');
+    expect(textOf(host(tree.root, 'exercise-filter-find-placeholder'))).toBe('Find a muscle or equipment');
     expect(host(tree.root, 'exercises-filter').props.accessibilityState).toMatchObject({ expanded: true });
   });
 
@@ -289,7 +293,8 @@ describe('T-62 fail-soft: GET /equipment-types fails → variant A (Muscle only)
     await press(tree.root, 'exercises-filter');
     expect(sheet(tree.root).props).toMatchObject({ title: 'Muscle group', footer: null });
     expect(hosts(tree.root, 'exercise-filter-section-equipment')).toHaveLength(0);
-    expect(host(tree.root, 'exercise-filter-find').props.placeholder).toBe('Find a muscle');
+    // DECLARED (audit b3): was `placeholder`; see above.
+    expect(textOf(host(tree.root, 'exercise-filter-find-placeholder'))).toBe('Find a muscle');
     expect(texts(host(tree.root, 'exercise-filter-section-muscle'))[0]).toBe('All muscle groups');
     await press(tree.root, 'exercise-filter-muscle-Chest');
     expect(sheet(tree.root).props.isOpen).toBe(false);
@@ -551,5 +556,83 @@ describe('T-62 sheet / dialog: the find field is pinned; footer heights', () => 
     show = tablet.root.findAllByProps({ testID: 'exercise-filter-show' }).find((node) => typeof node.type !== 'string' && node.props.title);
     expect(show.props.size).toBe('default');
     expect(StyleSheet.flatten(show.props.style)).toMatchObject({ minHeight: 56 });
+  });
+});
+
+// Dated 27 Oct 2026 (RN-SPEC-exercises audit b3; UX R3 MUST 5 + 6, T-62 §4).
+describe('T-62 audit b3: the rows survive a no-match search; muscles seeded from /muscle-groups', () => {
+  const allMuscleRows = (root) =>
+    root.findAll((node) => typeof node.type === 'string' && /^exercise-filter-muscle-[^-]+$/.test(node.props.testID ?? '') && node.props.testID !== 'exercise-filter-muscle-all').map((node) => node.props.testID.replace('exercise-filter-muscle-', ''));
+
+  it('ONE GET /muscle-groups per screen load; a fresh no-match keeps every muscle row (muted, 0) and the Equipment section', async () => {
+    listMuscleGroups.mockResolvedValue([{ id: 1, name: 'Chest' }, { id: 2, name: 'Calves' }]);
+    const tree = await render();
+    expect(listMuscleGroups).toHaveBeenCalledTimes(1);
+    listExercisesPage.mockResolvedValue({ items: [], pagination: { total_pages: 1 } });
+    await searchFor(tree, 'zzz');
+    expect(listMuscleGroups).toHaveBeenCalledTimes(1);
+    await press(tree.root, 'exercises-filter');
+    expect(allMuscleRows(tree.root).sort()).toEqual(['Calves', 'Chest', 'Legs', 'Other']);
+    expect(host(tree.root, 'exercise-filter-muscle-Calves').props.accessibilityLabel).toBe('Calves, no exercises');
+    expect(textOf(host(tree.root, 'exercise-filter-muscle-Chest-count'))).toBe('0');
+    expect(host(tree.root, 'exercise-filter-section-equipment')).toBeTruthy();
+    expect(host(tree.root, 'exercise-filter-equipment-1')).toBeTruthy();
+    expect(textOf(host(tree.root, 'exercise-filter-find-placeholder'))).toBe('Find a muscle or equipment');
+  });
+
+  it('a failed /muscle-groups is fail-soft: the rows are the ones seen', async () => {
+    listMuscleGroups.mockRejectedValue(new Error('down'));
+    const tree = await render();
+    await press(tree.root, 'exercises-filter');
+    expect(allMuscleRows(tree.root).sort()).toEqual(['Chest', 'Legs', 'Other']);
+  });
+
+  it('the find placeholder is one line and ends in an ellipsis (copy unchanged)', async () => {
+    const tree = await render();
+    await press(tree.root, 'exercises-filter');
+    const placeholder = host(tree.root, 'exercise-filter-find-placeholder');
+    expect(placeholder.props).toMatchObject({ numberOfLines: 1, ellipsizeMode: 'tail' });
+    expect(placeholder.props.importantForAccessibility).toBe('no');
+    expect(flat(placeholder).color).toBe(colors.textFaint);
+    await act(async () => host(tree.root, 'exercise-filter-find').props.onChangeText('ch'));
+    expect(hosts(tree.root, 'exercise-filter-find-placeholder')).toHaveLength(0);
+  });
+});
+
+// PM line (pending FE merge into RN-SPEC-exercises, PM-confirmed 27 Oct 2026): while the Exercises list is LOADING
+// the sheet / dialog footer says "Loading…" (never "Show 0 exercises") and every row count is "—" (never 0).
+describe.each([390, 834])('T-62 loading footer and counts (%ipx)', (width) => {
+  beforeEach(() => {
+    mockWidth = width;
+  });
+  const showTitle = (root) => root.findAll((node) => node.props.testID === 'exercise-filter-show' && typeof node.type !== 'string' && node.props.title)[0]?.props.title;
+  const counts = (root) =>
+    root.findAll((node) => typeof node.type === 'string' && /^exercise-filter-(muscle|equipment)-.+-count$/.test(node.props.testID ?? '')).map(textOf);
+
+  it('first load (nothing in yet): the footer says "Loading…"', async () => {
+    listExercisesPage.mockImplementation(() => new Promise(() => {}));
+    const tree = await render();
+    await press(tree.root, 'exercises-filter');
+    expect(showTitle(tree.root)).toBe('Loading…');
+  });
+
+  it('page 1 in, the rest still loading: "Loading…" and every count "—"; then the real count', async () => {
+    let finish;
+    listExercisesPage.mockImplementation((page) =>
+      page === 1
+        ? Promise.resolve({ items: ITEMS.slice(0, 2), pagination: { total_pages: 2 } })
+        : new Promise((resolve) => {
+            finish = () => resolve({ items: ITEMS.slice(2), pagination: { total_pages: 2 } });
+          }),
+    );
+    const tree = await render();
+    await press(tree.root, 'exercises-filter');
+    expect(showTitle(tree.root)).toBe('Loading…');
+    const shown = counts(tree.root);
+    expect(shown.length).toBeGreaterThan(0);
+    shown.forEach((text) => expect(text).toBe('—'));
+    await act(async () => finish());
+    expect(showTitle(tree.root)).toMatch(/^Show 4.exercises$/);
+    expect(counts(tree.root)).not.toContain('—');
   });
 });

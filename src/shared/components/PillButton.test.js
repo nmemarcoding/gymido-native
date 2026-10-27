@@ -31,8 +31,9 @@ const labelStyle = (tree) => StyleSheet.flatten(tree.root.findByType(Text).props
 const button = (props) => render(<PillButton testID="btn" title="Save" onPress={() => {}} {...props} />);
 
 describe('variants (§4.1 table)', () => {
-  it('has exactly the six v2 variants (goldTint added for UX O ruling 4) and three sizes', () => {
-    expect(BUTTON_VARIANTS).toEqual(['primary', 'secondary', 'ghost', 'danger', 'light', 'goldTint']);
+  // DECLARED (27 Oct 2026, RN-SPEC-my-trainer MT1.6): was six variants; ink + inkTint added for the gold card.
+  it('has exactly the eight v2 variants (goldTint for UX O ruling 4; ink / inkTint on a gold card) and three sizes', () => {
+    expect(BUTTON_VARIANTS).toEqual(['primary', 'secondary', 'ghost', 'danger', 'light', 'goldTint', 'ink', 'inkTint']);
     expect(BUTTON_SIZES).toEqual(['default', 'compact', 'cta']);
   });
 
@@ -106,6 +107,18 @@ describe('variants (§4.1 table)', () => {
     expect(pressedStyle(tree)).toMatchObject({ backgroundColor: colors.goldTint, borderColor: colors.goldLine });
     expect(overlayOf(tree).backgroundColor).toBe(colors.pressOverlay);
     expect(overlayOf(tree, false)).toBeNull();
+  });
+
+  it.each([
+    ['ink', colors.onGold, colors.gold, colors.pressOverlay],
+    ['inkTint', colors.inkChip, colors.onGold, colors.pressOverlayInk],
+  ])('%s (MT1.6, on a gold card): fill, text and the 4 %% overlay; no glow', (variant, fill, text, overlay) => {
+    const tree = button({ variant });
+    expect(restStyle(tree)).toMatchObject({ backgroundColor: fill, borderRadius: radii.full });
+    expect(restStyle(tree).boxShadow).toBeUndefined();
+    expect(labelStyle(tree).color).toBe(text);
+    expect(overlayOf(tree).backgroundColor).toBe(overlay);
+    expect(colors.inkChip).toBe('rgba(10, 11, 15, 0.12)');
   });
 
   it('goldTint loading: the spinner takes the gold ink on the goldLine track; disabled dims it', () => {

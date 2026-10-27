@@ -12,7 +12,9 @@ import {
   muscleSection,
   noMatchMessage,
   resultCountText,
+  rememberSeen,
   rowA11yLabel,
+  seedMuscles,
   showLabel,
 } from './exerciseFilters';
 
@@ -176,6 +178,10 @@ describe('labels', () => {
     expect(resultCountText({ loading: true, count: 0 })).toBe('Loading…');
     expect(showLabel(1)).toBe('Show 1 exercise');
     expect(showLabel(12)).toBe('Show 12 exercises');
+    // PM line (pending FE merge, 27 Oct 2026): while the list loads the footer says "Loading…", never "Show 0".
+    expect(showLabel(null)).toBe('Loading…');
+    expect(showLabel(undefined)).toBe('Loading…');
+    expect(showLabel(0)).toMatch(/^Show 0.exercises$/);
   });
 
   it('row a11y: "{name}, {n} exercises" / "{name}, no exercises"; the name alone while loading', () => {
@@ -197,5 +203,54 @@ describe('labels', () => {
     expect(noMatchMessage([], '')).toBe('Try a different search term.');
     expect(noMatchMessage(['Chest'], '')).toBe('Nothing matches Chest.');
     expect(noMatchMessage(['Chest', 'Dumbbell'], 'curl')).toBe('Nothing matches Chest · Dumbbell and "curl".');
+  });
+});
+
+// Dated 27 Oct 2026 (RN-SPEC-exercises audit b3, UX R3 MUST 5 + 6): the ROWS are every muscle / named equipment
+// seen in any list loaded this session (+ the muscles from ONE GET /muscle-groups); only the COUNTS follow the
+// current list.
+describe('filter rows seen this session (audit b3)', () => {
+  const ALL = [ex(1, 'Chest', 1), ex(2, 'Legs', 2), ex(3, null, 9)];
+
+  it('rememberSeen: merges each loaded list into the session sets (named or not), never drops a row', () => {
+    let seen = rememberSeen(undefined, ALL);
+    expect([...seen.muscles].sort()).toEqual(['Chest', 'Legs', 'Other']);
+    expect([...seen.equipment].sort()).toEqual(['1', '2', '9']);
+    const before = seen;
+    seen = rememberSeen(seen, [ex(4, 'Abs', 3)]);
+    expect([...seen.muscles].sort()).toEqual(['Abs', 'Chest', 'Legs', 'Other']);
+    expect([...seen.equipment].sort()).toEqual(['1', '2', '3', '9']);
+    expect(rememberSeen(seen, [])).toBe(seen);
+    expect([...before.muscles]).toHaveLength(3);
+  });
+
+  it('seedMuscles: the /muscle-groups names (trimmed, deduped); junk ignored', () => {
+    expect([...seedMuscles([{ id: 1, name: 'Chest' }, { id: 2, name: ' Calves ' }, { id: 3 }, null, { id: 4, name: 'Chest' }])]).toEqual(['Chest', 'Calves']);
+    expect([...seedMuscles(undefined)]).toEqual([]);
+  });
+
+  it('a fresh no-match keeps every seen muscle row at 0 and the seen named equipment; counts follow the list', () => {
+    const seen = rememberSeen(rememberSeen(undefined, ALL), []);
+    const facets = filterFacets([], NO_FILTERS, NAMES, { seen });
+    const rows = facets.muscleGroups.flatMap((group) => group.rows).map((row) => [row.value, row.count]);
+    expect(rows).toEqual([
+      ['Chest', 0],
+      ['Legs', 0],
+      ['Other', 0],
+    ]);
+    expect(facets.muscleTotal).toBe(0);
+    // Equipment: the seen ids the lookup names (9 is unnamed → not offered); Cable was never seen → not offered.
+    expect(facets.equipment.map((row) => [row.value, row.count])).toEqual([
+      ['2', 0],
+      ['1', 0],
+    ]);
+  });
+
+  it('seeded muscles add rows (count 0) without a list; equipment is NOT seeded from the whole lookup', () => {
+    const seen = { muscles: seedMuscles([{ name: 'Calves' }, { name: 'Chest' }]), equipment: new Set() };
+    const facets = filterFacets([ex(1, 'Chest', 1)], NO_FILTERS, NAMES, { seen });
+    const rows = Object.fromEntries(facets.muscleGroups.flatMap((group) => group.rows).map((row) => [row.value, row.count]));
+    expect(rows).toEqual({ Chest: 1, Calves: 0 });
+    expect(facets.equipment.map((row) => row.label)).toEqual(['Dumbbell']);
   });
 });

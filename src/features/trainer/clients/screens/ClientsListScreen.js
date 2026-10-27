@@ -1,6 +1,6 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, StyleSheet, Text, TextInput, View, findNodeHandle, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, ScrollView, StyleSheet, Text, TextInput, View, findNodeHandle, useWindowDimensions } from 'react-native';
 
 import Chip from '../../../../shared/components/Chip';
 import EmptyState from '../../../../shared/components/EmptyState';
@@ -31,7 +31,7 @@ import {
 import { clientRowLabel } from '../clientFormat';
 import { openClientDetail } from '../clientLinks';
 import ClientAvatar from '../components/ClientAvatar';
-import { ListCard, ListRow, PageIntro, StatusLine, WeekRing, clientStyles } from '../components/ClientsUi';
+import { ListCard, ListRow, PageIntro, PHONE_WEEK_RING, StatusLine, WEEK_RING, WeekRing, clientStyles } from '../components/ClientsUi';
 import { PlusGlyph, SearchGlyph } from '../components/clientIcons';
 import InviteClientModal from '../components/InviteClientModal';
 import { useTrainerOverview } from '../useTrainerOverview';
@@ -244,19 +244,30 @@ function ClientsList() {
       { key: ClientFilter.active, label: 'Active', count: counts.active },
       hasData ? { key: ClientFilter.missed, label: 'Missed', count: counts.missed } : null,
     ].filter(Boolean);
+    // Dated 27 Oct 2026 (§C3.2, audit b2): ONE row that never wraps; it
+    // scrolls sideways (no scrollbar) and each chip keeps its width.
     return (
-      <View accessibilityRole="radiogroup" accessibilityLabel="Filter clients" style={styles.chips}>
-        {chips.map((chip) => (
-          <Chip
-            key={chip.key}
-            testID={`clients-filter-${chip.key}`}
-            label={hasData ? `${chip.label} · ${chip.count}` : chip.label}
-            accessibilityLabel={hasData ? `${chip.label}, ${chip.count} clients` : chip.label}
-            selected={activeFilter === chip.key}
-            onPress={() => setFilter(chip.key)}
-          />
-        ))}
-      </View>
+      <ScrollView
+        testID="clients-filter-row"
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        style={styles.chipScroll}
+        contentContainerStyle={styles.chips}
+      >
+        <View testID="clients-filter-group" accessibilityRole="radiogroup" accessibilityLabel="Filter clients" style={styles.chips}>
+          {chips.map((chip) => (
+            <Chip
+              key={chip.key}
+              testID={`clients-filter-${chip.key}`}
+              label={hasData ? `${chip.label} · ${chip.count}` : chip.label}
+              accessibilityLabel={hasData ? `${chip.label}, ${chip.count} clients` : chip.label}
+              selected={activeFilter === chip.key}
+              onPress={() => setFilter(chip.key)}
+            />
+          ))}
+        </View>
+      </ScrollView>
     );
   }
 
@@ -322,7 +333,8 @@ function ClientsList() {
         </View>
         {ratio ? (
           <View style={styles.trailing}>
-            <WeekRing done={ratio.done} planned={ratio.planned} />
+            {/* Dated 27 Oct 2026 (audit b2): the phone ring is 32 (tablet 20). */}
+            <WeekRing done={ratio.done} planned={ratio.planned} size={tablet ? WEEK_RING : PHONE_WEEK_RING} />
             <Text {...CAP_BODY} style={styles.ratio}>
               {ratio.text}
             </Text>
@@ -444,8 +456,10 @@ const styles = StyleSheet.create({
   },
   chips: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing[2],
+  },
+  chipScroll: {
+    flexGrow: 0,
   },
   tabletList: {
     // Tablet rows are separate rounded rows on the ground (as drawn).

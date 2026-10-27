@@ -107,6 +107,10 @@ function SectionHeading({ title }) {
 // §4 "Find a muscle": 48 pill on surface (panel: 44 on surface-well),
 // hairline, 16 icon. iOS has its clear button; Android draws our own × (44
 // hit). `pinned`: no gap under it (the pinning container spaces it).
+// Dated 27 Oct 2026 (audit b3): the field is one line and a placeholder too
+// long for it ends in an ellipsis (copy unchanged): our own 1-line Text over
+// the empty field (a TextInput placeholder can't ellipsize on Android); the
+// copy stays the field's accessibility label.
 export function FilterFindField({ value, onChangeText, variantB, panel = false, pinned = false }) {
   const placeholder = variantB ? 'Find a muscle or equipment' : 'Find a muscle';
   const androidClear = Platform.OS !== 'ios' && value.length > 0;
@@ -117,8 +121,6 @@ export function FilterFindField({ value, onChangeText, variantB, panel = false, 
         testID="exercise-filter-find"
         value={value}
         onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={colors.textFaint}
         accessibilityLabel={placeholder}
         returnKeyType="search"
         clearButtonMode="while-editing"
@@ -127,6 +129,21 @@ export function FilterFindField({ value, onChangeText, variantB, panel = false, 
         maxFontSizeMultiplier={textScale.body}
         style={[styles.findInput, panel && styles.findInputPanel, androidClear && styles.findInputClear]}
       />
+      {value.length === 0 ? (
+        <View pointerEvents="none" style={styles.findPlaceholderBox}>
+          <Text
+            testID="exercise-filter-find-placeholder"
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            maxFontSizeMultiplier={textScale.body}
+            accessibilityElementsHidden
+            importantForAccessibility="no"
+            style={styles.findPlaceholder}
+          >
+            {placeholder}
+          </Text>
+        </View>
+      ) : null}
       <View pointerEvents="none" style={styles.findGlyph} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
           <Path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14ZM20 20l-4-4" stroke={colors.textMuted} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
@@ -203,6 +220,21 @@ const styles = StyleSheet.create({
   },
   findInputClear: {
     paddingRight: 44,
+  },
+  // Over the input's text box: left 42 (past the glyph), right 16.
+  findPlaceholderBox: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 42,
+    right: 16,
+    justifyContent: 'center',
+  },
+  findPlaceholder: {
+    ...font(400),
+    fontSize: 15,
+    lineHeight: 20,
+    color: colors.textFaint,
   },
   findGlyph: {
     position: 'absolute',

@@ -17,7 +17,10 @@ import { useBuilderLayout } from './builderParts';
 // v2 look (UX phase4 I §4-5): the day-number card (phone: flat gold with the
 // big numeral; tablet: the gold-tint card with a gold 72 tile), the well
 // fields, the approved Description placeholder "What this day focuses on".
-export default function AddDayModal({ isOpen, onClose, context, day, affectedCount, onSubmit }) {
+// Dated 27 Oct 2026 (audit b2, UX R2-3): the × follows the actor's board.
+// `look` "member" (default): the × on every width (phone: the title row AND
+// the footer Cancel); "trainer": no phone × (footer Cancel), the × from 768.
+export default function AddDayModal({ isOpen, onClose, context, day, affectedCount, onSubmit, look = 'member' }) {
   const editing = Boolean(day);
   const { tablet } = useBuilderLayout();
   const { nextDayNumber, dayLimit, canAddDay } = context;
@@ -73,8 +76,7 @@ export default function AddDayModal({ isOpen, onClose, context, day, affectedCou
       title={editing ? 'Edit day' : 'Add day'}
       size="lg"
       description={modalDescription}
-      // FINAL-AUDIT batch 1 (5): the footer has the dismiss, so no phone ×.
-      footerDismiss
+      footerDismiss={look === 'trainer'}
       footer={
         <ModalActions fill>
           <PillButton testID="day-modal-cancel" title="Cancel" variant="secondary" size={tablet ? 'cta' : 'default'} onPress={onClose} />

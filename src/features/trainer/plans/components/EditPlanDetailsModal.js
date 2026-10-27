@@ -112,8 +112,8 @@ export default function EditPlanDetailsModal({
       title="Edit plan details"
       description={description}
       size="lg"
-      // FINAL-AUDIT batch 1 (5): the footer has the dismiss, so no phone ×.
-      footerDismiss
+      // Dated 27 Oct 2026 (audit b2, UX R2-3): both actors' boards draw the ×
+      // at every width (phone: the title row AND the footer Cancel).
       footer={
         <ModalActions fill>
           <PillButton testID="edit-plan-cancel" title="Cancel" variant="secondary" size={tablet ? 'cta' : 'default'} onPress={onClose} />
@@ -168,7 +168,7 @@ export default function EditPlanDetailsModal({
             At least {dayCount} — the plan already has that many days.
           </Text>
         ) : null}
-        <View testID="edit-plan-days" accessibilityRole="radiogroup" accessibilityLabel="Days per week" style={styles.chips}>
+        <View testID="edit-plan-days" accessibilityRole="radiogroup" accessibilityLabel="Days per week" style={[styles.chips, tablet && styles.chipsTablet]}>
           {DAY_CHOICES.map((value) => (
             <DayChip
               key={value}
@@ -243,6 +243,10 @@ const styles = StyleSheet.create({
   chips: {
     flexDirection: 'row',
     gap: spacing['1_5'],
+  },
+  // Dated 27 Oct 2026: the tablet day buttons are 56 tall, gap 8.
+  chipsTablet: {
+    gap: spacing[2],
   },
   chip: {
     flex: 1,

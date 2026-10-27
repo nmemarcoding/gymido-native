@@ -98,13 +98,16 @@ describe('WorkoutScreen', () => {
     act(() => tree.unmount());
   });
 
-  it('keeps the compact header row from md (tablets)', async () => {
+  // DECLARED (27 Oct 2026, RN-SPEC-workout §1.1 audit b2): was "keeps the compact header row from md". The
+  // tablet now matches the phone: no header row (no bell) during a session; the session bar is the first row.
+  it.each([834, 1024, 1366])('shows no header row (no bell) in a %ipx active session too (audit b2)', async (width) => {
     const dimensions = require('react-native/Libraries/Utilities/useWindowDimensions');
-    const spy = jest.spyOn(dimensions, 'default').mockReturnValue({ width: 1024, height: 768, scale: 2, fontScale: 1 });
+    const spy = jest.spyOn(dimensions, 'default').mockReturnValue({ width, height: 768, scale: 2, fontScale: 1 });
     try {
       loadWorkoutPage.mockResolvedValue(withSession);
       const tree = await render();
-      expect(mockRuntime.header).not.toBeNull();
+      expect(find(tree, 'runtime')).toHaveLength(1);
+      expect(mockRuntime.header).toBeNull();
       act(() => tree.unmount());
     } finally {
       spy.mockRestore();

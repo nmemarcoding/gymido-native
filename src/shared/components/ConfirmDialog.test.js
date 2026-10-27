@@ -77,6 +77,21 @@ describe('ConfirmDialog (v2 §6)', () => {
     expect(flat(button(tree, 'confirm-cancel').parent)).toMatchObject({ flexDirection: 'row', justifyContent: 'flex-end' });
   });
 
+  // 27 Oct 2026 (PLAN-GENERATOR audit b2, UX R2-3): `hideClose` = a confirm whose boards draw no × at any width.
+  it.each([390, 1024])('hideClose at %ipx: no Close anywhere; Cancel still closes', (width) => {
+    atWidth(width);
+    const onClose = jest.fn();
+    const tree = render(dialog({ hideClose: true, onClose }));
+    expect(host(tree, 'app-modal-close')).toBeUndefined();
+    act(() => button(tree, 'confirm-cancel').props.onPress());
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('default: the tablet keeps its header Close (unchanged)', () => {
+    atWidth(1024);
+    expect(host(render(dialog()), 'app-modal-close')).toBeDefined();
+  });
+
   it('primary tone uses the primary variant', () => {
     const tree = render(dialog({ tone: 'primary' }));
     expect(button(tree, 'confirm-confirm').props.variant).toBe('primary');

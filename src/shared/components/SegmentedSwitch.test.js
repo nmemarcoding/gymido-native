@@ -49,6 +49,15 @@ describe('SegmentedSwitch', () => {
     expect(segment(tree, 'unit-cm').props.accessibilityRole).toBe('button');
   });
 
+  // 27 Oct 2026 (RN-SPEC-MEMBER-PLANS / TRAINER-PLANS audit b2): the tablet set editor's selected unit is gold.
+  it('selectedTone="gold": the selected segment is the gold fill + on-gold 600; the rest unchanged', () => {
+    const tree = render({ selectedTone: 'gold' });
+    expect(segStyle(tree, 'unit-cm').backgroundColor).toBe(colors.gold);
+    expect(textStyle(tree, 'cm')).toMatchObject({ color: colors.onGold, fontFamily: font(600).fontFamily });
+    expect(segStyle(tree, 'unit-ft_in').backgroundColor).toBeUndefined();
+    expect(textStyle(tree, 'ft/in').color).toBe(colors.textSecondary);
+  });
+
   it('pressed (unselected): a faint glass fill', () => {
     expect(segStyle(render(), 'unit-ft_in', true).backgroundColor).toBe(colors.fillButton);
   });
