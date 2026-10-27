@@ -1,5 +1,13 @@
-import { useState } from 'react';
-import { Platform, useWindowDimensions } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Keyboard, Platform, TextInput, useWindowDimensions } from 'react-native';
+
+// QA T59-CRASH (ad2ba83): the new fontScale reaches JS before RN re-applies
+// the font multiplier to the surface (its next layout pass). Remounting at
+// once built the new tree at the OLD multiplier (a title stayed cut, T59-N1)
+// and could tear down a focused input mid-update (Fabric: "Unable to find
+// viewState for tag"). So: blur + dismiss the keyboard first, then remount
+// once that layout pass has run.
+export const REMOUNT_DELAY_MS = 250;
 
 // T-59 (QA BUG-N3): with fontScale in MainActivity's configChanges
 // (plugins/withFontScaleConfigChange.js) Android keeps the activity on a
@@ -12,11 +20,20 @@ export function useFontScaleRemount(navigationRef, os = Platform.OS) {
   const { fontScale } = useWindowDimensions();
   const [mounted, setMounted] = useState({ fontScale, initialState: undefined });
 
-  // Read during render, before the old tree re-renders at the new scale.
-  if (os === 'android' && fontScale !== mounted.fontScale) {
-    const initialState = navigationRef.isReady() ? seedState(navigationRef.getRootState()) : undefined;
-    setMounted({ fontScale, initialState });
-  }
+  useEffect(() => {
+    if (os !== 'android' || fontScale === mounted.fontScale) {
+      return undefined;
+    }
+    TextInput.State.currentlyFocusedInput?.()?.blur?.();
+    Keyboard.dismiss();
+    // The route is read when the remount runs, so a change undone within the
+    // delay never remounts (this effect re-runs and clears the timer).
+    const timer = setTimeout(() => {
+      const initialState = navigationRef.isReady() ? seedState(navigationRef.getRootState()) : undefined;
+      setMounted({ fontScale, initialState });
+    }, REMOUNT_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [fontScale, mounted.fontScale, navigationRef, os]);
 
   return { key: `font-scale-${mounted.fontScale}`, initialState: mounted.initialState };
 }
