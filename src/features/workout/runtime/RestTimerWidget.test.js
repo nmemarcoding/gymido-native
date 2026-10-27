@@ -1,4 +1,7 @@
+import { StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
+
+import { colors, typography } from '../../../shared/theme/tokens';
 
 import { RestTimerWidget } from './RuntimeOverlays';
 
@@ -9,8 +12,47 @@ jest.mock('react-native-svg', () => {
 });
 jest.mock('../../../shared/components/GradientFill', () => () => null);
 jest.mock('../../../shared/components/BlurLayer', () => () => null);
+jest.mock('../../../shared/components/RemoteImage', () => {
+  const { View } = require('react-native');
+  return (props) => <View testID="remote-image" {...props} />;
+});
+let mockWidth = 390;
+let mockFontScale = 1;
+jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
+  __esModule: true,
+  default: () => ({ width: mockWidth, height: mockWidth > 700 ? 1194 : 844, scale: 2, fontScale: mockFontScale }),
+}));
 let mockReducedMotion = false;
 jest.mock('../../../shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => mockReducedMotion }));
+
+const mounted = [];
+afterEach(() => {
+  act(() => mounted.splice(0).forEach((tree) => tree.unmount()));
+  mockWidth = 390;
+  mockFontScale = 1;
+});
+const host = (tree, id) => tree.root.findAll((node) => node.props.testID === id && typeof node.type === 'string')[0];
+const all = (tree, id) => tree.root.findAll((node) => node.props.testID === id && typeof node.type === 'string');
+
+function renderTree(props) {
+  let tree;
+  act(() => {
+    tree = create(
+      <RestTimerWidget
+        timer={{ setId: 1, secondsLeft: 60, totalSeconds: 90, nextSetKey: '1:2' }}
+        onMinimize={() => {}}
+        onExpand={() => {}}
+        onAdjust={() => {}}
+        onSkip={() => {}}
+        position={null}
+        onPosition={() => {}}
+        {...props}
+      />
+    );
+  });
+  mounted.push(tree);
+  return tree;
+}
 
 function render(props) {
   let tree;
@@ -27,6 +69,7 @@ function render(props) {
       />
     );
   });
+  mounted.push(tree);
   return tree.root.findAll((node) => node.props.testID === 'rest-timer' && typeof node.type === 'string')[0];
 }
 
@@ -77,17 +120,192 @@ describe('last-10-seconds pulse and hit areas (design system v1 #8, #10, #12)', 
     expect(loop).not.toHaveBeenCalled();
   });
 
-  it('gives the controls 44 pt targets without overlapping Skip and ±5', () => {
-    let tree;
-    act(() => {
-      tree = create(
-        <RestTimerWidget timer={{ setId: 1, secondsLeft: 60, totalSeconds: 90 }} minimized={false} onMinimize={() => {}} onAdjust={() => {}} onSkip={() => {}} position={null} onPosition={() => {}} />
-      );
-    });
-    const byId = (id) => tree.root.find((node) => node.props.testID === id && node.props.onPress);
-    expect(byId('rest-timer-minus').props.hitSlop).toEqual({ top: 4, bottom: 4 });
-    expect(byId('rest-timer-plus').props.hitSlop).toEqual({ top: 4, bottom: 4 });
-    expect(byId('rest-timer-minimize').props.hitSlop).toBe(6);
-    expect(byId('rest-timer-skip').props.hitSlop).toEqual({ top: 9, bottom: 9 });
+  it('gives every control a ≥ 44 target (v2: 52 / 60 / 44 sizes, no hitSlop needed)', () => {
+    const tree = renderTree({ minimized: false });
+    const flat = (id) => StyleSheet.flatten(host(tree, id).props.style);
+    expect(flat('rest-timer-minus').minHeight).toBe(52);
+    expect(flat('rest-timer-plus').minHeight).toBe(52);
+    expect(flat('rest-timer-minus').minWidth).toBe(96);
+    expect(flat('rest-timer-skip').minHeight).toBe(60);
+    expect(flat('rest-timer-minimize').width).toBe(44);
+    expect(flat('rest-timer-minimize').height).toBe(44);
   });
+});
+
+const NEXT = { exerciseName: 'Barbell Bench Press', exercise: { name: 'Barbell Bench Press', thumbnail: { url: 'https://example.com/b.jpg' } }, line: 'Set 3 · 8–10 reps · 135 lb' };
+const text = (node) => {
+  const children = [].concat(node.props.children);
+  return children.map((child) => (typeof child === 'string' || typeof child === 'number' ? String(child) : child?.props ? text(child) : '')).join('');
+};
+const texts = (tree) => tree.root.findAll((node) => node.type === 'Text').map(text);
+
+describe('Rest, phone (UX F2 Rest board)', () => {
+  it('is the full-screen dialog "Rest timer" with "Resting", the digits and "of m:ss"', () => {
+    const tree = renderTree({ minimized: false, next: NEXT });
+    const root = host(tree, 'rest-timer');
+    expect(root.props.role).toBe('dialog');
+    expect(root.props.accessibilityLabel).toBe('Rest timer');
+    expect(root.props.accessibilityViewIsModal).toBe(true);
+    const style = StyleSheet.flatten(root.props.style);
+    expect(style).toEqual(expect.objectContaining({ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.ground }));
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Resting', '1:00', 'of 1:30']));
+    const digits = host(tree, 'rest-countdown');
+    expect(digits.props.accessibilityRole).toBe('timer');
+    expect(StyleSheet.flatten(digits.props.style)).toEqual(expect.objectContaining({ fontSize: 92, lineHeight: 92, fontFamily: typography.displayTimer.fontFamily, color: colors.textPrimary }));
+    expect(StyleSheet.flatten(digits.props.style).fontVariant).toEqual(['tabular-nums']);
+  });
+
+  it('draws the 300 ring: r136, stroke 14, the arc = time remaining', () => {
+    const tree = renderTree({ minimized: false });
+    const box = host(tree, 'rest-ring-box');
+    expect(StyleSheet.flatten(box.props.style)).toEqual(expect.objectContaining({ width: 300, height: 300 }));
+    const arc = tree.root.findAll((node) => node.props.testID === 'rest-ring-arc')[0];
+    expect(arc.props.r).toBe(136);
+    expect(arc.props.strokeWidth).toBe(14);
+    expect(arc.props.stroke).toBe(colors.gold);
+    const circumference = 2 * Math.PI * 136;
+    // 1:00 of 1:30 → one third used.
+    const offset = arc.props.strokeDashoffset;
+    const value = typeof offset === 'number' ? offset : offset.__getValue();
+    expect(value).toBeCloseTo(circumference / 3, 3);
+  });
+
+  it('shows the Next card (photo + "Next · {exercise}" + the set line)', () => {
+    const tree = renderTree({ minimized: false, next: NEXT });
+    const card = host(tree, 'rest-next');
+    expect(card.props.accessibilityLabel).toBe('Next, Barbell Bench Press, Set 3 · 8–10 reps · 135 lb');
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Next · Barbell Bench Press', 'Set 3 · 8–10 reps · 135 lb']));
+    expect(all(tree, 'rest-next-image')).toHaveLength(1);
+  });
+
+  it('hides the Next card when there is no next set; Skip rest stays', () => {
+    const tree = renderTree({ minimized: false, next: null });
+    expect(all(tree, 'rest-next')).toHaveLength(0);
+    expect(host(tree, 'rest-timer-skip')).toBeDefined();
+  });
+
+  it('wires minimise, −5 / +5 and Skip rest (labels kept)', () => {
+    const onMinimize = jest.fn();
+    const onAdjust = jest.fn();
+    const onSkip = jest.fn();
+    const tree = renderTree({ minimized: false, onMinimize, onAdjust, onSkip });
+    const press = (id) => act(() => tree.root.findAll((n) => n.props.testID === id && n.props.onPress)[0].props.onPress());
+    press('rest-timer-minimize');
+    press('rest-timer-minus');
+    press('rest-timer-plus');
+    press('rest-timer-skip');
+    expect(onMinimize).toHaveBeenCalledTimes(1);
+    expect(onAdjust.mock.calls).toEqual([[-5], [5]]);
+    expect(onSkip).toHaveBeenCalledTimes(1);
+    expect(host(tree, 'rest-timer-minimize').props.accessibilityLabel).toBe('Minimize rest timer');
+    expect(host(tree, 'rest-timer-minus').props.accessibilityLabel).toBe('Decrease rest timer by 5 seconds');
+    expect(host(tree, 'rest-timer-plus').props.accessibilityLabel).toBe('Increase rest timer by 5 seconds');
+    expect(host(tree, 'rest-timer-skip').props.accessibilityLabel).toBe('Skip rest');
+  });
+
+  it('last 10 s: the digits turn danger text; above 10 s they do not; "of m:ss" unchanged', () => {
+    const calm = renderTree({ minimized: false, timer: { setId: 1, secondsLeft: 11, totalSeconds: 90 } });
+    expect(StyleSheet.flatten(host(calm, 'rest-countdown').props.style).color).toBe(colors.textPrimary);
+    const final = renderTree({ minimized: false, timer: { setId: 1, secondsLeft: 10, totalSeconds: 90 } });
+    expect(StyleSheet.flatten(host(final, 'rest-countdown').props.style).color).toBe(colors.dangerText);
+    expect(text(host(final, 'rest-total'))).toBe('of 1:30');
+  });
+
+  it('under reduced motion the colour still changes in the last 10 s', () => {
+    mockReducedMotion = true;
+    const tree = renderTree({ minimized: false, timer: { setId: 1, secondsLeft: 5, totalSeconds: 90 } });
+    expect(StyleSheet.flatten(host(tree, 'rest-countdown').props.style).color).toBe(colors.dangerText);
+    mockReducedMotion = false;
+  });
+
+  it('a total that grew with +5 s keeps the ring within one turn', () => {
+    const tree = renderTree({ minimized: false, timer: { setId: 1, secondsLeft: 95, totalSeconds: 95 } });
+    const arc = tree.root.findAll((node) => node.props.testID === 'rest-ring-arc')[0];
+    const offset = arc.props.strokeDashoffset;
+    expect(typeof offset === 'number' ? offset : offset.__getValue()).toBeCloseTo(0, 5);
+    expect(text(host(tree, 'rest-total'))).toBe('of 1:35');
+  });
+
+  it('renders nothing without a rest', () => {
+    const tree = renderTree({ timer: null, minimized: false });
+    expect(tree.toJSON()).toBeNull();
+  });
+});
+
+describe('Rest, tablet (UX F2 Tablet: Rest)', () => {
+  it('is a centred 600 card "Rest timer" over scrim-strong, ring 320, digits 100, the tablet Next card', () => {
+    mockWidth = 834;
+    const tree = renderTree({ minimized: false, next: NEXT });
+    const card = host(tree, 'rest-card');
+    expect(card.props.role).toBe('dialog');
+    expect(card.props.accessibilityLabel).toBe('Rest timer');
+    expect(StyleSheet.flatten(card.props.style).width).toBe(600);
+    expect(StyleSheet.flatten(host(tree, 'rest-ring-box').props.style).width).toBe(320);
+    expect(StyleSheet.flatten(host(tree, 'rest-countdown').props.style).fontSize).toBe(100);
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Next', 'Set 3 · 8–10 reps · 135 lb', 'Barbell Bench Press']));
+    expect(StyleSheet.flatten(host(tree, 'rest-timer-minus').props.style).minHeight).toBe(56);
+    expect(StyleSheet.flatten(host(tree, 'rest-timer-skip').props.style).minHeight).toBe(62);
+  });
+});
+
+describe('Rest minimised (UX F2 Rest minimised)', () => {
+  it('phone: a 92 dark disc at right 20 / top 112 with the r40 ring and 24 digits', () => {
+    const tree = renderTree({ minimized: true });
+    const disc = host(tree, 'rest-timer');
+    const style = StyleSheet.flatten(disc.props.style);
+    expect(style).toEqual(expect.objectContaining({ width: 92, height: 92, borderRadius: 46, left: 390 - 20 - 92, top: 112, borderColor: colors.hairlineBright }));
+    const arc = tree.root.findAll((node) => node.props.testID === 'rest-mini-ring-arc')[0];
+    expect(arc.props.r).toBe(40);
+    expect(arc.props.strokeWidth).toBe(6);
+    expect(StyleSheet.flatten(host(tree, 'rest-countdown').props.style).fontSize).toBe(24);
+  });
+
+  it('tablet: a 132 disc at right 40 / bottom 60, r58 stroke 7, 32 digits', () => {
+    mockWidth = 834;
+    const tree = renderTree({ minimized: true });
+    const style = StyleSheet.flatten(host(tree, 'rest-timer').props.style);
+    expect(style).toEqual(expect.objectContaining({ width: 132, height: 132, left: 834 - 40 - 132, top: 1194 - 60 - 132 }));
+    const arc = tree.root.findAll((node) => node.props.testID === 'rest-mini-ring-arc')[0];
+    expect(arc.props.r).toBe(58);
+    expect(arc.props.strokeWidth).toBe(7);
+    expect(StyleSheet.flatten(host(tree, 'rest-countdown').props.style).fontSize).toBe(32);
+  });
+
+  it('pressed scales to 0.96; a tap expands, a drag past 4 pt moves it (clamped 8 from the edge)', () => {
+    const onExpand = jest.fn();
+    const onPosition = jest.fn();
+    const tree = renderTree({ minimized: true, onExpand, onPosition });
+    const disc = () => host(tree, 'rest-timer');
+    act(() => disc().props.onResponderGrant({ nativeEvent: { pageX: 300, pageY: 150, touches: [], changedTouches: [] }, touchHistory: { touchBank: [] } }));
+    expect(StyleSheet.flatten(disc().props.style).transform).toEqual([{ scale: 0.96 }]);
+    act(() => disc().props.onResponderRelease({ nativeEvent: { pageX: 300, pageY: 150, touches: [], changedTouches: [] }, touchHistory: { touchBank: [] } }));
+    expect(onExpand).toHaveBeenCalledTimes(1);
+    expect(StyleSheet.flatten(disc().props.style).transform).toBeUndefined();
+  });
+
+  it('the digits go danger in the last 10 s on the disc too', () => {
+    const tree = renderTree({ minimized: true, timer: { setId: 1, secondsLeft: 9, totalSeconds: 90 } });
+    expect(StyleSheet.flatten(host(tree, 'rest-countdown').props.style).color).toBe(colors.dangerText);
+  });
+});
+
+describe('Rest large text (UX §9)', () => {
+  for (const scale of [1, 2, 3.1]) {
+    it(`fontScale ${scale}: digits capped at 1.2, labels at 2.0, nothing truncated, minHeight not height`, () => {
+      mockFontScale = scale;
+      const tree = renderTree({ minimized: false, next: NEXT });
+      expect(host(tree, 'rest-countdown').props.maxFontSizeMultiplier).toBe(1.2);
+      expect(host(tree, 'rest-countdown').props.adjustsFontSizeToFit).toBe(true);
+      expect(host(tree, 'rest-total').props.maxFontSizeMultiplier).toBe(2);
+      for (const id of ['rest-timer-minus', 'rest-timer-plus', 'rest-timer-skip']) {
+        const style = StyleSheet.flatten(host(tree, id).props.style);
+        expect(style.height).toBeUndefined();
+      }
+      // Button labels never carry a line cap.
+      const labels = tree.root.findAll((n) => n.type === 'Text' && ['Skip rest', '−5s', '+5s'].includes(text(n)));
+      labels.forEach((label) => expect(label.props.numberOfLines).toBeUndefined());
+      // The whole screen scrolls when it needs the room.
+      expect(tree.root.findAll((n) => n.type === 'RCTScrollView').length).toBeGreaterThan(0);
+    });
+  }
 });
