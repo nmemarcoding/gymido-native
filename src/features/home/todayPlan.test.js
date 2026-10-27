@@ -24,8 +24,9 @@ import { resetProfileStore, setStoredProfile } from '../profile/profileStore';
 import { openPlanDetailAlone, openShellPath } from '../shell/shellLinks';
 import ProgressRing from '../workout/components/ProgressRing';
 import { getCurrentWeek, getDashboard } from './api/homeApi';
+import { getCurrentPlan, listPlanDays } from '../plans/api/libraryApi';
 import HomeScreen from './HomeScreen';
-import { exerciseCountText, heroDayTitle, heroImageUrl, memberVolume, weekRing, weekStrip, workoutInitials } from './homeFormat';
+import { exerciseCountText, heroDayTitle, todayExerciseCount, heroImageUrl, memberVolume, weekRing, weekStrip, workoutInitials } from './homeFormat';
 import { TodayHero } from './TodayPlanView';
 
 function textOf(node) {
@@ -284,6 +285,94 @@ describe('ND4 hero sub-line "{plan name} · {n} exercises" (UX E 27 Oct)', () =>
     const tree = await render();
     expect(queryHost(tree.root, 'home-today-sub-count')).toHaveLength(0);
     expect(textOf(host(tree.root, 'home-today-sub'))).toBe('Upper / Lower');
+  });
+});
+
+// ND4 data (pm-web-facts "ND4"): n = exercises_count of today's day in GET /plans/{planId}/days (planId from
+// /my-plans/current), matched by today_status.plan_day.id; training state only; any failure → the plan name alone.
+describe('ND4 count wiring: exercises_count of today\'s plan day', () => {
+  const TRAINING = { ...DASH, today_status: { is_workout_day: true, plan_day: { id: 12, title: 'Upper A' } } };
+  const CURRENT = { enrollment: { plan: { id: 4 } }, schedule: [{ weekday_id: 1 }] };
+  function days(count) {
+    return [
+      { id: 11, title: 'Lower A', exercises_count: 9 },
+      { id: 12, title: 'Upper A', exercises_count: count },
+    ];
+  }
+  beforeEach(() => {
+    getCurrentPlan.mockResolvedValue(CURRENT);
+  });
+  afterEach(() => {
+    getCurrentPlan.mockReset().mockImplementation(() => Promise.resolve(null));
+    listPlanDays.mockReset();
+  });
+  const sub = (root) => textOf(host(root, 'home-today-sub'));
+
+  it('todayExerciseCount: the matching day\'s finite exercises_count, else null', () => {
+    expect(todayExerciseCount(days(5), TRAINING)).toBe(5);
+    expect(todayExerciseCount(days('5'), TRAINING)).toBeNull();
+    expect(todayExerciseCount(days(undefined), TRAINING)).toBeNull();
+    expect(todayExerciseCount(days(Number.NaN), TRAINING)).toBeNull();
+    expect(todayExerciseCount(days(5), DASH)).toBeNull();
+    expect(todayExerciseCount(null, TRAINING)).toBeNull();
+  });
+
+  it('training + matching day with 5 → "{plan} · 5 exercises" (the plan id from /my-plans/current)', async () => {
+    listPlanDays.mockResolvedValue(days(5));
+    const tree = await render(TRAINING);
+    expect(listPlanDays).toHaveBeenCalledWith(4);
+    expect(textOf(host(tree.root, 'home-today-sub-count'))).toBe(' · 5 exercises');
+    expect(host(tree.root, 'home-today-sub').props.accessibilityLabel).toBe('Upper / Lower · 5 exercises');
+  });
+
+  it('1 → "1 exercise"', async () => {
+    listPlanDays.mockResolvedValue(days(1));
+    const tree = await render(TRAINING);
+    expect(textOf(host(tree.root, 'home-today-sub-count'))).toBe(' · 1 exercise');
+  });
+
+  it.each([[undefined], [null], ['5'], ['lots']])('count %p → the plan name alone', async (count) => {
+    listPlanDays.mockResolvedValue(days(count));
+    const tree = await render(TRAINING);
+    expect(queryHost(tree.root, 'home-today-sub-count')).toHaveLength(0);
+    expect(sub(tree.root)).toBe('Upper / Lower');
+  });
+
+  it('not training (rest day): no extra days call (only the setup check\'s one) and the plan name alone', async () => {
+    listPlanDays.mockResolvedValue(days(5));
+    const tree = await render({ ...TRAINING, today_status: { is_workout_day: false, plan_day: { id: 12 } } });
+    expect(listPlanDays).toHaveBeenCalledTimes(1);
+    expect(queryHost(tree.root, 'home-today-sub-count')).toHaveLength(0);
+    expect(sub(tree.root)).toBe('Upper / Lower');
+  });
+
+  it('completed today: no count', async () => {
+    listPlanDays.mockResolvedValue(days(5));
+    const tree = await render({ ...TRAINING, today_status: { ...TRAINING.today_status, already_completed: true } });
+    expect(queryHost(tree.root, 'home-today-sub-count')).toHaveLength(0);
+  });
+
+  it('the days call fails → the plan name alone, the screen renders, no error UI', async () => {
+    listPlanDays.mockRejectedValue(new Error('boom'));
+    const tree = await render(TRAINING);
+    expect(queryHost(tree.root, 'home-today-sub-count')).toHaveLength(0);
+    expect(sub(tree.root)).toBe('Upper / Lower');
+    expect(texts(tree.root)).not.toContain('boom');
+    expect(textOf(host(tree.root, 'home-today-headline'))).toBe('Upper A');
+  });
+
+  it('/my-plans/current fails → no days call, the plan name alone', async () => {
+    getCurrentPlan.mockRejectedValue(new Error('nope'));
+    const tree = await render(TRAINING);
+    expect(listPlanDays).not.toHaveBeenCalled();
+    expect(sub(tree.root)).toBe('Upper / Lower');
+  });
+
+  it('no day matches today_status.plan_day.id → the plan name alone', async () => {
+    listPlanDays.mockResolvedValue([{ id: 99, exercises_count: 5 }]);
+    const tree = await render(TRAINING);
+    expect(queryHost(tree.root, 'home-today-sub-count')).toHaveLength(0);
+    expect(sub(tree.root)).toBe('Upper / Lower');
   });
 });
 

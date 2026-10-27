@@ -131,6 +131,18 @@ export function exerciseCountText(count) {
   return ` · ${n} ${n === 1 ? 'exercise' : 'exercises'}`;
 }
 
+// ND4 data (pm-web-facts "ND4"): `exercises_count` of today's plan day in
+// GET /plans/{planId}/days, matched by today_status.plan_day.id; a finite
+// number only, else null (the plan name alone).
+export function todayExerciseCount(days, dashboard) {
+  const dayId = dashboard?.today_status?.plan_day?.id;
+  if (!Array.isArray(days) || dayId === null || dayId === undefined) {
+    return null;
+  }
+  const count = days.find((day) => day?.id === dayId)?.exercises_count;
+  return typeof count === 'number' && Number.isFinite(count) ? count : null;
+}
+
 // Today hero photo (RN-SPEC-v2-phase3 §1 data facts): today_status.image.url,
 // omitted when none.
 export function heroImageUrl(dashboard) {

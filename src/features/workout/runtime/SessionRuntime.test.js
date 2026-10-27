@@ -298,9 +298,17 @@ const sheet = (tree) => tree.root.findByType(ExerciseSheet);
 
 describe('v2 F1 live and browsing states (ND3)', () => {
   it('live: one chrome (Exit · plan + n/m · timer m:ss · All), segments, the set card and the dock; no nav, bar or stats', () => {
-    // Started at render time: SESSION.started_at is set at module load, so
-    // a slow run could already read 0:01 (flake seen 1 in 5 runs).
-    const { tree } = render({ session: { ...SESSION, started_at: new Date().toISOString() } });
+    // Clock pinned (this test only): started_at and "now" are the same
+    // instant, so the timer reads 0:00 deterministically (was a 0:01 flake).
+    const NOW = new Date('2026-10-27T09:00:00.000Z');
+    jest.useFakeTimers({ now: NOW, doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] });
+    try {
+      liveChromeChecks(render({ session: { ...SESSION, started_at: NOW.toISOString() } }).tree);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+  function liveChromeChecks(tree) {
     expect(host(tree, 'session-chrome')).toBeDefined();
     expect(text(tree, 'Exit')).toHaveLength(1);
     expect(text(tree, 'Plan')).toHaveLength(1);
@@ -319,7 +327,7 @@ describe('v2 F1 live and browsing states (ND3)', () => {
     expect(byId(tree, 'set-weight-12')).toBeDefined();
     expect(byId(tree, 'set-weight-11')).toBeUndefined();
     expect(byId(tree, 'set-reps-12')).toBeDefined();
-  });
+  }
 
   it('Exit always opens the Discard dialog (code wins)', () => {
     const { tree } = render();

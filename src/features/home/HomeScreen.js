@@ -21,6 +21,7 @@ import {
   todayCard,
   todayDateLabel,
   todayEmptyStats,
+  todayExerciseCount,
   weekRing,
   weekStrip,
   weightCard,
@@ -47,18 +48,20 @@ export default function HomeScreen() {
 }
 
 // Batch B #3: days > 0 and no schedule → the day count, else null. Any
-// failure simply means no setup card.
-async function loadSetupDayCount() {
+// failure simply means no setup card. ND4: the same days request also
+// gives today's exercises_count (no second call); failure → no days.
+async function loadPlanDays() {
   try {
     const current = await getCurrentPlan();
     const planId = current?.enrollment?.plan?.id;
     if (!planId) {
-      return null;
+      return { setupDayCount: null, days: null };
     }
     const days = await listPlanDays(planId);
-    return days.length > 0 && (current.schedule || []).length === 0 ? days.length : null;
+    const setupDayCount = days.length > 0 && (current.schedule || []).length === 0 ? days.length : null;
+    return { setupDayCount, days };
   } catch {
-    return null;
+    return { setupDayCount: null, days: null };
   }
 }
 
@@ -75,6 +78,8 @@ function Home() {
   // T-24 (25 Oct 2026): the ProfileGate already loaded the profile; Home reads the store.
   const profile = useProfileStore((state) => state.profile);
   const [setupDayCount, setSetupDayCount] = useState(null);
+  // ND4: the plan's days (GET /plans/{id}/days), for today's exercise count.
+  const [planDays, setPlanDays] = useState(null);
   // U1: the week strip; null (hidden) until loaded or on any failure.
   const [week, setWeek] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -90,7 +95,12 @@ function Home() {
 
   // H1.1 (T-24, 25 Oct 2026): only GET /dashboard; no profile request.
   useEffect(() => {
-    const setupLoad = loadSetupDayCount().then((count) => mounted.current && setSetupDayCount(count));
+    const setupLoad = loadPlanDays().then((result) => {
+      if (mounted.current) {
+        setSetupDayCount(result.setupDayCount);
+        setPlanDays(result.days);
+      }
+    });
     // U1: optional, never blocks or fails the page.
     getCurrentWeek().then((days) => mounted.current && setWeek(days));
     Promise.allSettled([getDashboard(), setupLoad]).then(([dashboard]) => {
@@ -209,6 +219,7 @@ function Home() {
         imageUrl={heroImageUrl(dashboard)}
         dayTitle={heroDayTitle(dashboard, card)}
         dayOfWeek={strip?.dayOfWeek}
+        exerciseCount={card.state === 'training' ? todayExerciseCount(planDays, dashboard) : null}
         onPrimary={() => openShellPath('/workout')}
         onViewPlan={() => openPlanDetailAlone(plan.id)}
       />
