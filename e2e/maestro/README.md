@@ -49,6 +49,23 @@ Never commit credentials. Pass them with `-e`, from your shell or `.env.e2e.loca
 | `08-admin-role-landing` | An admin's role reaches the app and mobile gives them no admin surface |
 | `09-deactivated-account` | A backend-deactivated user gets Account unavailable, not Home |
 
+### v2 Phase 3 (`v2/phase3/`)
+
+These start SIGNED IN on a tab root (the lead's safe runner signs in first; no credentials in the flows) and use the v2 subflows in `v2/subflows/` (`signed-in-start`, `start-workout`, `dismiss-session-dialogs`, `discard-workout`). Every flow that starts a session discards it at the end. Fixture: the member QA account with an ACTIVE plan and no running session.
+
+| Flow | Checks |
+|---|---|
+| `01-today` | Today header, date, greeting and today card (read-only) |
+| `02-workout-hub` | Workout hub from Today; never taps Start (read-only) |
+| `03-exercises` | Exercises tab (read-only) |
+| `03b-workout-session` | One chrome, set editor steppers, How to open/close, browsing + Resume, Exit → Keep going |
+| `04-progress` | Progress tab; never saves a weight log |
+| `c1-rest-screen` | Logs set 1; full-screen Rest (ring, total, ±5 s), minimise → disc → expand, Skip rest |
+| `c2-discard-sheet` | Exit → "Discard this workout?", Keep going keeps the session |
+| `c3-browsing-lock` | A browsed exercise's pending rows are locked (no "Did it", no inputs); Resume restores the live editor; a browsed exercise's done row still undoes. Logs every set of exercise 1 (2+ exercises, ≤ 10 sets in the first) |
+| `c4-howto-video` | How-to sheet shows the inline video OR the image fallback, plus "Watch video" when the video is a page link (never tapped); Close removes the player |
+| `c5-android-back-rest` | **Android only.** Back on the expanded Rest minimises it to the disc (still counting, no "Leave workout?"); Back again opens "Leave workout?"; Stay keeps the session and disc. Needs a first-set rest ≥ 20 s |
+
 `subflows/` holds shared steps: `launch-dev-client`, `ensure-signed-out`, `ensure-signed-in`, `sign-in-as`, `dismiss-browser-interstitials`, and `cancel-universal-login`, which differs per platform.
 
 `fill-login-form` takes **`LOGIN_EMAIL` / `LOGIN_PASSWORD`**, not `MEMBER_*`, so any account can drive it; callers map their own fixture in via `runFlow: {file, env}`. `sign-in-as` wraps the whole cold-start-to-signed-in sequence the same way and leaves the app on whatever the landing rules chose, because that is what flows 07-09 assert.
