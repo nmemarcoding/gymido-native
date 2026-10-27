@@ -2,7 +2,7 @@ import { AccessibilityInfo, Animated, Platform, StyleSheet, Text } from 'react-n
 import Svg, { Circle, Path } from 'react-native-svg';
 import { act, create } from 'react-test-renderer';
 
-import { colors, motion, radii } from '../theme/tokens';
+import { colors, gradients, motion, radii } from '../theme/tokens';
 import Banner, { BannerText } from './Banner';
 import EmptyState, { EMPTY_STATE_DEFAULTS } from './EmptyState';
 import ErrorAlert, { RETRY_HEIGHT, RETRY_SLOP, RetryButton } from './ErrorAlert';
@@ -116,12 +116,24 @@ describe('Loader', () => {
     expect(texts(tree)).toEqual(['Loading']);
   });
 
-  it('shows the screen’s label beside an 18 px spinner, 14 secondary', () => {
+  // FINAL-AUDIT "Rulings for FE batch 1": ONE Loader look app-wide (no
+  // skeleton drawn): card r20, surface + 1 px hairline, a 22 spinner (gold
+  // 2.5 arc on a white 0.08 track) beside the label 14 secondary.
+  it('the one Loader card: r20, surface + 1 px hairline, a 22 gold 2.5 arc on a 0.08 track, label 14 secondary', () => {
     const tree = render(<Loader label="Loading dashboard" />);
     expect(texts(tree)).toEqual(['Loading dashboard']);
-    expect(tree.root.findByType(Spinner).props).toMatchObject({ size: 18, thickness: 2, track: colors.hairlineButton });
+    expect(flat(host(tree, 'loader-card'))).toMatchObject({ borderRadius: 20, borderWidth: 1, borderColor: colors.hairline, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center' });
+    expect(tree.root.findByType(Spinner).props).toMatchObject({ size: 22, thickness: 2.5, color: colors.gold, track: colors.fillGlass });
+    expect(colors.fillGlass).toBe('rgba(255, 255, 255, 0.08)');
     expect(flat(tree.root.findByType(Text))).toMatchObject({ fontSize: 14, color: colors.textSecondary, fontFamily: 'Geist-Regular' });
     expect(flat(tree.root.findByType(Text)).fontWeight).toBeUndefined();
+  });
+
+  it('a caller `style` places the card (outside it), never restyles the card', () => {
+    const tree = render(<Loader label="Loading" style={{ paddingVertical: 48 }} />);
+    const region = tree.root.find((node) => node.props.accessibilityRole === 'progressbar' && typeof node.type === 'string');
+    expect(flat(region).paddingVertical).toBe(48);
+    expect(flat(host(tree, 'loader-card')).paddingVertical).not.toBe(48);
   });
 });
 
@@ -300,14 +312,17 @@ describe('FeedbackBox: InlineError / SuccessState / ErrorBox (§5)', () => {
   });
 });
 
-describe('ErrorAlert (§5)', () => {
-  it('a radius-24 danger card with the 36 px icon tile, title and server text; announced', () => {
+describe('ErrorAlert (§5 + FINAL-AUDIT batch-1 ruling: ONE look app-wide)', () => {
+  it('r24 gradient-card (160°, gradients.card), 1 px danger-line 0.30, padding 20, the icon tile, title + message 14/20 secondary; announced', () => {
     const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {});
     const tree = render(<ErrorAlert testID="ea" title="Some exercises didn't load" description="Please try again." />);
     const box = host(tree, 'ea');
     expect(box.props).toMatchObject({ accessibilityRole: 'alert', accessibilityLiveRegion: 'assertive' });
-    // D's kit folds (State boards): fill glassStrong, edge dangerLine.
-    expect(flat(box)).toMatchObject({ borderRadius: 24, padding: 18, backgroundColor: colors.glassStrong, borderColor: colors.dangerLine });
+    expect(flat(box)).toMatchObject({ borderRadius: 24, borderWidth: 1, padding: 20, borderColor: colors.dangerLine, overflow: 'hidden' });
+    expect(colors.dangerLine).toBe('rgba(255, 90, 78, 0.30)');
+    // Mounted from the first render (never added on a state change).
+    expect(tree.root.findByType(GradientFill).props).toMatchObject({ angle: 160, colors: gradients.card.colors });
+    expect(gradients.card.angle).toBe(160);
     const [title, description] = tree.root.findAllByType(Text);
     expect(flat(title)).toMatchObject({ fontSize: 15, fontFamily: 'Geist-SemiBold', color: colors.textPrimary });
     expect(flat(description)).toMatchObject({ fontSize: 14, lineHeight: 20, color: colors.textSecondary });
@@ -316,12 +331,14 @@ describe('ErrorAlert (§5)', () => {
     expect(announce).toHaveBeenCalledWith("Some exercises didn't load. Please try again.");
   });
 
-  it('shows the ruling-2 Retry that calls onRetry', () => {
+  it('shows the glass Retry UNDER the text (in the text column, after the message) and it calls onRetry', () => {
     const onRetry = jest.fn();
-    const tree = render(<ErrorAlert title="t" description="d" onRetry={onRetry} retryTestID="r" />);
+    const tree = render(<ErrorAlert testID="ea" title="t" description="d" onRetry={onRetry} retryTestID="r" />);
     const retry = tree.root.findByType(RetryButton);
     expect(retry.props).toMatchObject({ title: 'Retry', testID: 'r', loading: false });
     expect(tree.root.findAllByType(PillButton)).toHaveLength(0);
+    const column = host(tree, 'error-alert-text');
+    expect(column.children[column.children.length - 1].type).toBe(RetryButton);
     act(() => retry.props.onPress());
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
@@ -337,28 +354,13 @@ describe('ErrorAlert (§5)', () => {
     expect(texts(tree)).toContain('Retry');
   });
 
-  it('compact variant (Exercises board): surface fill, danger-text edge, 40 tile, centred row, 15/600 + 13/18', () => {
-    const tree = render(<ErrorAlert testID="ea" variant="compact" title="Some exercises didn't load" description="Please try again." onRetry={jest.fn()} />);
-    expect(flat(host(tree, 'ea'))).toMatchObject({ padding: 16, borderRadius: 24, alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.dangerTextBorder });
-    expect(flat(host(tree, 'error-alert-icon'))).toMatchObject({ width: 40, height: 40, borderRadius: radii.sm });
-    const [title, description] = tree.root.findAllByType(Text);
-    expect(flat(title)).toMatchObject({ fontSize: 15, lineHeight: 20, fontFamily: 'Geist-SemiBold' });
-    expect(flat(description)).toMatchObject({ fontSize: 13, lineHeight: 18, color: colors.textSecondary });
-    expect(tree.root.findAllByType(GradientFill)).toHaveLength(0);
-  });
-
-  it('generator variant: the danger-tint gradient from the first render, 48 tile, overflow hidden', () => {
-    const tree = render(<ErrorAlert testID="ea" variant="generator" title="Could not load the plan generator" description="Down" />);
-    expect(flat(host(tree, 'ea'))).toMatchObject({ padding: 18, alignItems: 'center', overflow: 'hidden', backgroundColor: colors.surface });
-    expect(tree.root.findByType(GradientFill).props).toMatchObject({ angle: 160, colors: [colors.dangerTint, colors.dangerFaint] });
-    expect(flat(host(tree, 'ea')).borderColor).toBe(colors.dangerLine);
-    expect(flat(host(tree, 'error-alert-icon')).backgroundColor).toBe(colors.dangerTint);
-    expect(flat(host(tree, 'error-alert-icon'))).toMatchObject({ width: 48, height: 48, borderRadius: radii.md });
-  });
-
-  it('an unknown variant falls back to the kit card', () => {
-    const tree = render(<ErrorAlert testID="ea" variant="nope" title="t" />);
-    expect(flat(host(tree, 'ea'))).toMatchObject({ backgroundColor: colors.glassStrong, padding: 18 });
+  it.each(['compact', 'generator', 'nope'])('the retired `%s` variant renders the one look (no variant styles remain)', (variant) => {
+    const one = render(<ErrorAlert testID="ea" title="t" description="d" onRetry={jest.fn()} />);
+    const other = render(<ErrorAlert testID="ea" variant={variant} title="t" description="d" onRetry={jest.fn()} />);
+    expect(flat(host(other, 'ea'))).toEqual(flat(host(one, 'ea')));
+    expect(flat(host(other, 'error-alert-icon'))).toEqual(flat(host(one, 'error-alert-icon')));
+    expect(other.root.findAllByType(GradientFill).map((node) => node.props.colors)).toEqual([gradients.card.colors]);
+    expect(other.root.findByType(FeedbackIcon).props.size).toBe(one.root.findByType(FeedbackIcon).props.size);
   });
 });
 
@@ -367,13 +369,14 @@ describe('RetryButton (§D1 ruling 2: one Retry everywhere)', () => {
   const pressable = (tree) => tree.root.find((node) => node.props.testID === 'rb' && typeof node.props.style === 'function');
   const styleOf = (tree, pressed = false) => StyleSheet.flatten(pressable(tree).props.style({ pressed }));
 
-  it('glass secondary, 40 visual with a 44 hit area, 14/600 primary text', () => {
+  // FINAL-AUDIT batch-1 ruling: the glass Retry is 38 tall (44 hit).
+  it('glass secondary, 38 visual with a 44 hit area, 14/600 primary text', () => {
     const tree = render(<RetryButton testID="rb" onPress={jest.fn()} />);
-    expect(RETRY_HEIGHT).toBe(40);
+    expect(RETRY_HEIGHT).toBe(38);
     const look = styleOf(tree);
-    expect(look).toMatchObject({ minHeight: 40, borderRadius: radii.full, borderWidth: 1, borderColor: colors.hairlineButton, backgroundColor: colors.fillButton, paddingHorizontal: 16 });
+    expect(look).toMatchObject({ minHeight: 38, borderRadius: radii.full, borderWidth: 1, borderColor: colors.hairlineButton, backgroundColor: colors.fillButton, paddingHorizontal: 16 });
     expect(look.minHeight + RETRY_SLOP * 2).toBe(44);
-    expect(pressable(tree).props.hitSlop).toMatchObject({ top: 2, bottom: 2 });
+    expect(pressable(tree).props.hitSlop).toMatchObject({ top: 3, bottom: 3 });
     expect(flat(tree.root.findByType(Text))).toMatchObject({ fontSize: 14, lineHeight: 20, fontFamily: 'Geist-SemiBold', color: colors.textPrimary });
     expect(flat(tree.root.findByType(Text)).fontWeight).toBeUndefined();
     expect(texts(tree)).toEqual(['Retry']);

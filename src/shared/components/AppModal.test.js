@@ -99,11 +99,13 @@ describe('AppModal on a phone: bottom sheet (§6)', () => {
     expect(handle.props.importantForAccessibility).toBe('no-hide-descendants');
   });
 
-  it('uses title-sm for the title (a header) and body 15/22 secondary for the description', () => {
+  // FINAL-AUDIT batch-1 ruling: phone sheet titles are 26/30 700.
+  it('uses the 26/30 700 sheet title (a header) and body 15/22 secondary for the description', () => {
     const tree = render(modal());
     const title = textNode(tree, 'Discard this workout?');
     expect(title.props.accessibilityRole).toBe('header');
-    expect(flat(title)).toMatchObject({ ...typography.titleSm, color: colors.textPrimary });
+    expect(flat(title)).toMatchObject({ ...typography.titleSheet, color: colors.textPrimary });
+    expect(flat(title)).toMatchObject({ fontSize: 26, lineHeight: 30, fontFamily: 'Geist-Bold' });
     expect(flat(textNode(tree, 'Logged sets will be lost.'))).toMatchObject({ ...typography.body, color: colors.textSecondary });
   });
 
@@ -308,9 +310,104 @@ describe('AppModal tablet header Close (UX, 26 Oct)', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('has no Close button on phones (the sheet has its grab handle)', () => {
-    atWidth(PHONE);
-    expect(closeButton(render(modal()))).toBeUndefined();
+});
+
+// FINAL-AUDIT "Rulings for FE batch 1": every TITLED phone sheet shows a 36
+// glass × (44 hit) on the title row, beside the title (not floating).
+describe('AppModal phone title-row Close (FINAL-AUDIT batch 1)', () => {
+  beforeEach(() => atWidth(PHONE));
+  const closeButton = (tree) => host(tree, 'app-modal-close');
+
+  it('a titled sheet shows the 36 glass × (44 hit) in a row with the title', () => {
+    const tree = render(modal());
+    const close = closeButton(tree);
+    expect(close.props).toMatchObject({ accessibilityRole: 'button', accessibilityLabel: 'Close', hitSlop: 4 });
+    expect(flat(close)).toMatchObject({ width: 36, height: 36, borderRadius: 999, borderWidth: 1, backgroundColor: colors.fillSkeleton, borderColor: colors.hairlineStrong });
+    expect(flat(close).position).toBeUndefined();
+    expect(36 + 2 * close.props.hitSlop).toBe(44);
+    const row = host(tree, 'app-modal-title-row');
+    expect(flat(row)).toMatchObject({ flexDirection: 'row' });
+    expect(row.findAll((n) => n.type === Text && n.props.children === 'Discard this workout?')).toHaveLength(1);
+    expect(row.findAll((n) => n.props.testID === 'app-modal-close' && typeof n.type === 'string')).toHaveLength(1);
+    // The title gives the × its room in the row (no 48 pad as on tablet).
+    expect(flat(textNode(tree, 'Discard this workout?')).paddingRight).toBeUndefined();
+  });
+
+  it('pressing the × closes the sheet; the scrim still does too', () => {
+    const onClose = jest.fn();
+    const tree = render(modal({ onClose }));
+    act(() => tree.root.findAll((n) => n.props.testID === 'app-modal-close' && typeof n.props.onPress === 'function')[0].props.onPress());
+    act(() => scrimPressable(tree).props.onPress());
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('hideClose hides it on phones too; an untitled sheet has none', () => {
+    expect(closeButton(render(modal({ hideClose: true })))).toBeUndefined();
+    expect(closeButton(render(modal({ title: undefined })))).toBeUndefined();
+  });
+
+  it('keeps the grab handle above the title row', () => {
+    expect(hasHost(render(modal()), 'app-modal-grab-handle')).toBe(true);
+  });
+});
+
+// FINAL-AUDIT batch 1: phone = ONE attached bottom sheet, no floating variant.
+describe('Guard: no floating sheet variant (FINAL-AUDIT batch 1)', () => {
+  beforeEach(() => atWidth(PHONE));
+  const sheetStyle = (props) => flat(host(render(modal(props)), 'dlg'));
+
+  it('the phone sheet is attached: full width, square bottom corners, no side/bottom gap, scrim padding 0 at the bottom', () => {
+    const tree = render(modal());
+    const sheet = flat(host(tree, 'dlg'));
+    expect(sheet).toMatchObject({ width: '100%', borderTopLeftRadius: 28, borderTopRightRadius: 28 });
+    ['margin', 'marginHorizontal', 'marginBottom', 'left', 'right', 'bottom', 'borderRadius', 'borderBottomLeftRadius', 'borderBottomRightRadius', 'maxWidth'].forEach((key) =>
+      expect(sheet[key]).toBeUndefined(),
+    );
+    const scrim = flat(scrimView(tree));
+    expect(scrim).toMatchObject({ justifyContent: 'flex-end', paddingBottom: 0 });
+    expect(scrim.paddingHorizontal).toBeUndefined();
+  });
+
+  it('a floating / variant prop changes nothing (no such variant exists)', () => {
+    const base = sheetStyle();
+    expect(sheetStyle({ variant: 'floating' })).toEqual(base);
+    expect(sheetStyle({ floating: true })).toEqual(base);
+    expect(sheetStyle({ entrance: 'pop' })).toEqual(expect.objectContaining({ borderTopLeftRadius: 28, width: '100%' }));
+  });
+
+  it('no file in the shared kit draws a floating sheet', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const dir = __dirname;
+    const offenders = fs
+      .readdirSync(dir)
+      .filter((name) => name.endsWith('.js') && !name.endsWith('.test.js'))
+      .filter((name) => /floating\s+(bottom\s+)?sheet|variant\s*=\s*["']floating|floating\s*[:=]\s*(true|\{)/i.test(fs.readFileSync(path.join(dir, name), 'utf8')));
+    expect(offenders).toEqual([]);
+  });
+
+  // App-wide: the only floating phone sheets left are the two workout
+  // prompt shells below (screen-owned, outside the kit batch; flagged to the
+  // PM). The list must match exactly, so a new one fails here and a fixed one
+  // must be removed from it.
+  const KNOWN_FLOATING_PENDING = ['features/workout/runtime/AlertSheet.js', 'features/workout/runtime/SessionDialogs.js'];
+  it('no other file in src draws a floating sheet (known pending list is exact)', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const src = path.resolve(__dirname, '../..');
+    const walk = (dir) =>
+      fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          return entry.name === 'node_modules' ? [] : walk(full);
+        }
+        return entry.name.endsWith('.js') && !entry.name.endsWith('.test.js') ? [full] : [];
+      });
+    const offenders = walk(src)
+      .filter((file) => /floating\s+(bottom\s+)?sheet|variant\s*=\s*["']floating|floating\s*[:=]\s*(true|\{)/i.test(fs.readFileSync(file, 'utf8')))
+      .map((file) => path.relative(src, file).split(path.sep).join('/'))
+      .sort();
+    expect(offenders).toEqual(KNOWN_FLOATING_PENDING);
   });
 });
 
