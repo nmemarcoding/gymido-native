@@ -128,8 +128,7 @@ function PlanGenerator() {
   useEffect(() => {
     let alive = true;
     setLoad({ status: 'loading' });
-    // { screen: true }: only the DEV-only stub reads it (devMock.js).
-    getGeneratorProfile({ screen: true })
+    getGeneratorProfile()
       .then((result) => {
         if (!alive) {
           return;
