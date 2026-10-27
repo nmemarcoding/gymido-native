@@ -1,28 +1,65 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import GradientFill from '../../../../shared/components/GradientFill';
+import { CAP_BODY, TITLE_TEXT } from '../../../../shared/components/largeText';
 import PillButton from '../../../../shared/components/PillButton';
-import { colors, radii, shadows } from '../../../../shared/theme/tokens';
+import { colors, font, gradients, radii, spacing, typography } from '../../../../shared/theme/tokens';
+import { planCategoryLabel } from '../planCategoryColor';
 import { formatDaysPerWeek } from '../planFormat';
+import { CategoryChip } from './TrainerChips';
 
-// Spec §A4.3. The card itself isn't pressable; only its buttons are. In
-// assign mode (`onAssign` set) a primary "Assign" follows "View".
-export default function PlanCard({ plan, onView, onAssign, assignLoading = false, style }) {
+// Spec §A4.3 + v2 Phase 6 O (TrainerPlans / TabletTrainerPlans). UX ruling 1:
+// every card is the same dark gradient-card (no featured gold card). The
+// card itself isn't pressable; only its buttons are. In assign mode
+// (`onAssign` set) "Assign" follows "View" as the gold-TINT secondary
+// (ruling 4). `tablet`: the 2-col tablet card (radius 28, padding 22, min 200,
+// name 28/30); otherwise the phone grid card (radius 24, padding 16, name
+// 16/21). `stacked` (text > 1.3×, UX §9): View + Assign stack full width.
+export default function PlanCard({ plan, onView, onAssign, assignLoading = false, tablet = false, stacked = false, style }) {
+  const name = plan.name;
+  const buttonStyle = stacked ? styles.buttonStacked : null;
   return (
-    <View testID={`plan-card-${plan.id}`} style={[styles.card, style]}>
-      <Text style={styles.eyebrow}>{plan.category?.name || 'Plan'}</Text>
-      <Text textBreakStrategy="simple" numberOfLines={1} ellipsizeMode="tail" style={styles.title}>
-        {plan.name}
+    <View testID={`plan-card-${plan.id}`} style={[styles.card, tablet ? styles.cardTablet : styles.cardPhone, style]}>
+      <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
+      <CategoryChip testID={`plan-card-category-${plan.id}`} label={planCategoryLabel(plan)} size={tablet ? 'tablet' : 'phone'} />
+      {/* The plan name is each card's heading (UX a11y: h2 per card). */}
+      <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.name, tablet ? styles.nameTablet : styles.namePhone]}>
+        {name}
       </Text>
-      <Text style={styles.meta}>{formatDaysPerWeek(plan)}</Text>
+      <Text {...CAP_BODY} style={[styles.meta, tablet && styles.metaTablet]}>
+        {formatDaysPerWeek(plan)}
+      </Text>
       {plan.description ? (
-        <Text numberOfLines={2} ellipsizeMode="tail" style={styles.description}>
+        // Code-kept (UX O): the description, at most 2 lines.
+        <Text {...CAP_BODY} numberOfLines={2} ellipsizeMode="tail" style={[styles.description, tablet && styles.descriptionTablet]}>
           {plan.description}
         </Text>
       ) : null}
-      <View style={styles.actions}>
-        <PillButton testID={`plan-card-view-${plan.id}`} title="View" variant="secondary" onPress={onView} />
+      <View style={styles.spacer} />
+      <View testID={`plan-card-actions-${plan.id}`} style={[styles.actions, stacked && styles.actionsStacked]}>
+        <PillButton
+          testID={`plan-card-view-${plan.id}`}
+          title="View"
+          accessibilityLabel={`View ${name}`}
+          variant="secondary"
+          size="compact"
+          onPress={onView}
+          style={buttonStyle}
+        />
         {onAssign ? (
-          <PillButton testID={`plan-card-assign-${plan.id}`} title="Assign" loading={assignLoading} onPress={onAssign} />
+          <PillButton
+            testID={`plan-card-assign-${plan.id}`}
+            title="Assign"
+            accessibilityLabel={`Assign ${name}`}
+            variant="secondary"
+            size="compact"
+            loading={assignLoading}
+            onPress={onAssign}
+            // KIT NEED (report): a gold-tint PillButton variant (gold text on
+            // gold 14 %). Until it exists the glass pill takes the gold-tint
+            // fill and gold edge; the label keeps the glass ink.
+            style={[styles.assign, buttonStyle]}
+          />
         ) : null}
       </View>
     </View>
@@ -30,46 +67,77 @@ export default function PlanCard({ plan, onView, onAssign, assignLoading = false
 }
 
 const styles = StyleSheet.create({
+  // The radius never changes, so clipping the gradient is safe here.
   card: {
-    borderRadius: radii.xxl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    padding: 20,
-    boxShadow: shadows.soft,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.choiceBorder,
   },
-  eyebrow: {
-    fontSize: 11.2,
-    lineHeight: 16.8,
-    fontWeight: '700',
-    letterSpacing: 2.016,
-    textTransform: 'uppercase',
-    color: colors.brand700,
+  cardPhone: {
+    borderRadius: radii.xl,
+    padding: spacing[4],
   },
-  title: {
-    marginTop: 6,
-    fontSize: 20,
-    lineHeight: 25,
-    fontWeight: '900',
+  cardTablet: {
+    borderRadius: radii.xxl,
+    padding: spacing['5_5'],
+    minHeight: 200,
+  },
+  name: {
     color: colors.textPrimary,
   },
+  // 16/21/600 −0.02em (TrainerPlans compact card).
+  namePhone: {
+    ...font(600),
+    marginTop: spacing[3],
+    fontSize: 16,
+    lineHeight: 21,
+    letterSpacing: -0.32,
+  },
+  // 28/30/700 −0.04em (TabletTrainerPlans).
+  nameTablet: {
+    ...font(700),
+    marginTop: spacing[4],
+    fontSize: 28,
+    lineHeight: 30,
+    letterSpacing: -1.12,
+  },
   meta: {
-    marginTop: 4,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.textSecondary,
+    ...typography.label,
+    ...font(400),
+    marginTop: spacing[1],
+    color: colors.textMuted,
+  },
+  metaTablet: {
+    ...typography.bodySm,
+    marginTop: spacing['1_5'],
   },
   description: {
-    marginTop: 8,
-    fontSize: 14,
-    lineHeight: 24,
+    ...typography.bodySm,
+    marginTop: spacing[2],
     color: colors.textSecondary,
   },
+  descriptionTablet: {
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  // Buttons sit at the bottom of a card stretched by its row (mt auto).
+  spacer: {
+    flexGrow: 1,
+  },
   actions: {
-    marginTop: 16,
+    marginTop: spacing[4],
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing['2_5'],
+  },
+  actionsStacked: {
+    flexDirection: 'column',
+  },
+  buttonStacked: {
+    alignSelf: 'stretch',
+  },
+  assign: {
+    backgroundColor: colors.goldTint,
+    borderColor: colors.goldLine,
   },
 });
