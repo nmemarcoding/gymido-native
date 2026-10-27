@@ -1,0 +1,30 @@
+# Phase 4 §2 (4i): the member builder's v2 layout. Read-only.
+# Phone: back link, overflow, day tabs, selected-day strip; tablet: the
+# days card and inline actions. Starts signed in on the tab root (QA member).
+appId: com.gymido.app
+---
+- runFlow: subflows/open-first-my-plan.yaml
+- assertVisible:
+    id: "plan-day-[0-9]+"
+    index: 0
+- runFlow:
+    when:
+      visible:
+        id: "plan-day-tabs"
+    commands:
+      - tapOn:
+          id: "plan-day-[0-9]+"
+          index: 0
+      - assertVisible:
+          id: "plan-overflow"
+- runFlow:
+    when:
+      visible:
+        id: "plan-days-card"
+    commands:
+      - assertVisible:
+          id: "plan-edit-details"
+      - assertVisible:
+          id: "plan-make-copy"
+- assertVisible:
+    id: "plan-add-exercise"

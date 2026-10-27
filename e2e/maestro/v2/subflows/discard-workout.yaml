@@ -1,0 +1,34 @@
+# Discards the running session (the cleanup half of start-workout.yaml):
+# Exit opens "Discard this workout?", Discard abandons the session server-side,
+# so nothing is recorded. Ends back on the shell with the tab bar.
+appId: com.gymido.app
+---
+- runFlow: dismiss-session-dialogs.yaml
+# A sheet left open by a failed step would cover the chrome.
+- runFlow:
+    when:
+      visible:
+        id: "exercise-sheet"
+    commands:
+      - tapOn:
+          id: "exercise-sheet-close"
+      - extendedWaitUntil:
+          notVisible:
+            id: "exercise-sheet"
+          timeout: 5000
+- tapOn:
+    id: "session-exit"
+- extendedWaitUntil:
+    visible:
+      id: "discard-dialog"
+    timeout: 10000
+- tapOn:
+    id: "discard-confirm"
+- extendedWaitUntil:
+    notVisible:
+      id: "session-chrome"
+    timeout: 30000
+- extendedWaitUntil:
+    visible:
+      id: "bottom-nav"
+    timeout: 30000

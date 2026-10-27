@@ -1,0 +1,30 @@
+# Phase 4 §2 (4i): the set editor's per-field validation. Submits an empty
+# set (refused on the client), checks the error, cancels. Nothing is saved.
+appId: com.gymido.app
+---
+- runFlow: subflows/open-first-my-plan.yaml
+- scrollUntilVisible:
+    element:
+      id: "plan-exercise-add-set-.*"
+      index: 0
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "plan-exercise-add-set-.*"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: "add-set-modal"
+    timeout: 10000
+- assertVisible:
+    id: "set-number-box"
+- tapOn:
+    id: "set-unit-kg"
+- tapOn:
+    id: "set-modal-submit"
+- assertVisible:
+    text: "At least reps or weight must be specified."
+- tapOn:
+    id: "set-modal-cancel"
+- assertNotVisible:
+    id: "add-set-modal"

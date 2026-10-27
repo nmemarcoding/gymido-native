@@ -1,0 +1,48 @@
+# Phase 4 §1 (H): the active plan card → View plan → Plan detail as the
+# current plan ("Current plan" pill; "This week" when the BE sends statuses).
+# Skips cleanly when the QA member has no active plan. READ-ONLY: never taps
+# Go to workout, the Today Start, Update schedule or Copy. IDs only.
+appId: com.gymido.app
+---
+- tapOn:
+    id: "tab-Plans"
+- extendedWaitUntil:
+    visible:
+      id: "plans-entry-tiles"
+    timeout: 30000
+- runFlow:
+    when:
+      visible:
+        id: "plans-active-card"
+    commands:
+      - assertVisible:
+          id: "plans-go-to-workout"
+      - tapOn:
+          id: "plans-view-active"
+      - extendedWaitUntil:
+          visible:
+            id: "plan-detail-current"
+          timeout: 30000
+      - runFlow:
+          when:
+            visible:
+              id: "plan-this-week"
+          commands:
+            - assertVisible:
+                id: "plan-this-week"
+      - scrollUntilVisible:
+          element:
+            id: "plan-schedule-card"
+          direction: DOWN
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "plan-detail-back"
+          direction: UP
+          timeout: 20000
+      - tapOn:
+          id: "plan-detail-back"
+      - extendedWaitUntil:
+          visible:
+            id: "plans-entry-tiles"
+          timeout: 30000

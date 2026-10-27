@@ -1,0 +1,68 @@
+# Starts a workout from Today and leaves the app in the running session
+# (session-chrome visible). ALWAYS pair with discard-workout.yaml.
+#
+# Fixture: the account needs an ACTIVE plan (Today shows its today card).
+# Refuses to touch a session that already exists (it would be someone's real
+# workout): Workout must open on its hub, not on a running session.
+appId: com.gymido.app
+---
+- tapOn:
+    id: "tab-Today"
+- extendedWaitUntil:
+    visible:
+      id: "home-today-primary|home-empty-hero|home-error"
+    timeout: 30000
+- runFlow:
+    when:
+      notVisible:
+        id: "home-today-primary"
+    commands:
+      - assertTrue:
+          condition: ${false}
+          label: "Fixture missing: this account has no active plan, so no workout can start (Today shows the empty or error state)."
+- tapOn:
+    id: "home-today-primary"
+- extendedWaitUntil:
+    visible:
+      id: "workout-hero-start|workout-day-start-.*|session-chrome|workout-error|workout-empty|schedule-setup"
+    timeout: 30000
+- runFlow:
+    when:
+      visible:
+        id: "session-chrome"
+    commands:
+      - assertTrue:
+          condition: ${false}
+          label: "A workout session already existed before this flow; not discarding it. Run v2/cleanup/discard-active-session.yaml if it is a leftover test session."
+- evalScript: ${output.v2WorkoutTapped = false}
+- runFlow:
+    when:
+      visible:
+        id: "workout-hero-start"
+    commands:
+      - tapOn:
+          id: "workout-hero-start"
+      - evalScript: ${output.v2WorkoutTapped = true}
+# Not a training day today: start the plan's first listed day instead.
+- runFlow:
+    when:
+      true: ${output.v2WorkoutTapped !== true}
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "workout-day-start-.*"
+          direction: DOWN
+          centerElement: true
+          timeout: 20000
+      - tapOn:
+          id: "workout-day-start-.*"
+          index: 0
+- extendedWaitUntil:
+    visible:
+      id: "session-chrome"
+    timeout: 30000
+- runFlow: dismiss-session-dialogs.yaml
+- assertVisible:
+    id: "session-exit"
+- assertNotVisible:
+    id: "bottom-nav"

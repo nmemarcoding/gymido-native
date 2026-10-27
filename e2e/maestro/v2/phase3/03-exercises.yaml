@@ -1,0 +1,35 @@
+# v2 Phase 3 §5 Exercises (team 3a). Read-only. Starts signed in on a tab root.
+appId: com.gymido.app
+---
+- tapOn:
+    id: "tab-Exercises"
+- extendedWaitUntil:
+    visible:
+      id: "exercises-bar"
+    timeout: 60000
+- assertVisible:
+    id: "exercises-search"
+- assertVisible:
+    id: "exercises-chips"
+- assertVisible:
+    id: "exercises-chip-all"
+# The trailing "All muscle groups" chip opens the sheet; Close dismisses it.
+- scrollUntilVisible:
+    element:
+      id: "exercises-filter"
+    direction: RIGHT
+    centerElement: false
+- tapOn:
+    id: "exercises-filter"
+- extendedWaitUntil:
+    visible:
+      id: "muscle-sheet"
+    timeout: 10000
+- assertVisible:
+    id: "muscle-sheet-option-all"
+- tapOn:
+    id: "muscle-sheet-close"
+- assertNotVisible:
+    id: "muscle-sheet"
+- assertVisible:
+    id: "exercises-list"

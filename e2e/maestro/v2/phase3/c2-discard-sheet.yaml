@@ -1,0 +1,30 @@
+# Phase 3 (UX F1 Discard, built by team 3c in RuntimeOverlays): Exit opens the
+# "Discard this workout?" sheet; "Keep going" closes it and the session stays;
+# then the shared cleanup discards it. Signed-in start; fixture: an ACTIVE
+# plan. IDs only; not run by team 3c (no devices).
+appId: com.gymido.app
+tags:
+  - member
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/start-workout.yaml
+- runFlow: ../subflows/dismiss-session-dialogs.yaml
+- tapOn:
+    id: "session-exit"
+- extendedWaitUntil:
+    visible:
+      id: "discard-dialog"
+    timeout: 10000
+- assertVisible:
+    id: "discard-confirm"
+- assertVisible:
+    id: "discard-keep"
+- tapOn:
+    id: "discard-keep"
+- extendedWaitUntil:
+    notVisible:
+      id: "discard-dialog"
+    timeout: 5000
+- assertVisible:
+    id: "session-chrome"
+- runFlow: ../subflows/discard-workout.yaml

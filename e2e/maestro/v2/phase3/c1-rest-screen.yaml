@@ -1,0 +1,67 @@
+# Phase 3 §4 (UX F2) Rest: logs the first set of a fresh session, then checks
+# the v2 Rest screen (ring, "of m:ss", ±5 s, Next card when there is a next
+# set), minimise → the disc, tap → expanded again, Skip rest closes it. Ends
+# by DISCARDING the session (nothing is recorded server-side except the one
+# set PATCH of the discarded session).
+#
+# Signed-in start (the lead's safe runner). Fixture: an ACTIVE plan whose
+# first set has a planned rest > 0 s. IDs only. Uses the v2 subflows from the
+# h2 backfill (e2e/maestro/v2/subflows); not run by team 3c (no devices).
+appId: com.gymido.app
+tags:
+  - member
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/start-workout.yaml
+- runFlow: ../subflows/dismiss-session-dialogs.yaml
+# A weighted set needs weight > 0 ("Weight must be greater than 0"); bodyweight sets have no field.
+- tapOn:
+    id: "set-weight-plus-.*"
+    optional: true
+- tapOn:
+    id: "set-action-.*"
+    enabled: true
+- runFlow: ../subflows/dismiss-session-dialogs.yaml
+- extendedWaitUntil:
+    visible:
+      id: "rest-ring-box"
+    timeout: 15000
+- assertVisible:
+    id: "rest-total"
+- assertVisible:
+    id: "rest-countdown"
+- assertVisible:
+    id: "rest-timer-skip"
+# +5 s grows the total ("of m:ss" follows); the screen stays open.
+- tapOn:
+    id: "rest-timer-plus"
+- assertVisible:
+    id: "rest-ring-box"
+# Minimise → the disc over the live workout.
+- tapOn:
+    id: "rest-timer-minimize"
+- extendedWaitUntil:
+    notVisible:
+      id: "rest-ring-box"
+    timeout: 5000
+- assertVisible:
+    id: "rest-timer"
+- assertVisible:
+    id: "session-chrome"
+# Tap the disc → the full Rest again.
+- tapOn:
+    id: "rest-timer"
+- extendedWaitUntil:
+    visible:
+      id: "rest-ring-box"
+    timeout: 5000
+# Skip rest clears it.
+- tapOn:
+    id: "rest-timer-skip"
+- extendedWaitUntil:
+    notVisible:
+      id: "rest-timer"
+    timeout: 5000
+- assertVisible:
+    id: "session-chrome"
+- runFlow: ../subflows/discard-workout.yaml
