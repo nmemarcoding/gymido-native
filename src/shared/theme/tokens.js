@@ -182,6 +182,12 @@ export const gradients = Object.freeze({
     colors: Object.freeze(['rgba(255, 194, 26, 0.20)', 'rgba(255, 194, 26, 0)']),
     stops: Object.freeze([0, 0.68]),
   }),
+  // The Session loading board's own glow (radial 80 % 45 % at 50 % 45 %).
+  sessionGlow: Object.freeze({
+    radial: Object.freeze({ cx: 0.5, cy: 0.45, rx: 0.8, ry: 0.45 }),
+    colors: Object.freeze(['rgba(255, 194, 26, 0.18)', 'rgba(255, 194, 26, 0)']),
+    stops: Object.freeze([0, 0.65]),
+  }),
   // v2 kit: card
   // §4.8 the exercise hero image's 90 px bottom fade under the name
   // (color-ground at 0 → 0.9).
