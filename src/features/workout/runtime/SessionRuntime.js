@@ -32,7 +32,7 @@ import {
   StaleSessionBanner,
   UpNextLink,
 } from './RuntimeParts';
-import { CompleteWorkoutButton, DiscardDialog, ExactAlarmDialog, RestTimerWidget, SpeakIntroDialog } from './RuntimeOverlays';
+import { CompleteWorkoutButton, DISC_SIZE, DiscardDialog, ExactAlarmDialog, RestTimerWidget, SpeakIntroDialog } from './RuntimeOverlays';
 import { restNextPreview } from './restPresentation';
 import restAlertPlatform from './restAlertPlatform';
 import {
@@ -547,6 +547,10 @@ export default function SessionRuntime({
   // height already holds the safe area, so the room is that height + a gap.
   const dockHeight = measuredDock ?? DID_IT_HEIGHT + 32 + spacing[3] + (tablet ? TABLET_DOCK_BOTTOM : spacing[7]) + insets.bottom;
   const bottomRoom = browsing ? navHeight + spacing[5] + insets.bottom : showDock ? dockHeight + spacing[4] : spacing[6] + insets.bottom;
+  // I2 follow-up (a): on tablets the minimised disc docks just above
+  // `bottomRoom`; while it shows, the scroll also keeps the disc's height so
+  // the last control (Complete workout) scrolls fully clear of it.
+  const discRoom = tablet && rest.timer && rest.minimized ? DISC_SIZE : 0;
 
   // M6: the expanded Rest is modal for TalkBack too (accessibilityViewIsModal
   // is iOS-only): hide what is behind it while it is open.
@@ -564,10 +568,12 @@ export default function SessionRuntime({
     body = (
       <View style={styles.splitRow}>
         <View style={styles.splitStage}>{stage}</View>
-        <View style={[styles.logger, { width: loggerWidth }]}>
+        {/* I2 follow-up (b): with the overlay header the column starts below
+            it and clips, so a scrolled card never draws under the header. */}
+        <View testID="session-logger" style={[styles.logger, { width: loggerWidth }, chromeOverlay && { marginTop: chromeTop + chromeHeight }]}>
           <ScrollView
             {...scrollProps}
-            contentContainerStyle={{ paddingTop: chromeOverlay ? stageTop : spacing[4], paddingBottom: bottomRoom + androidKeyboard, paddingHorizontal: spacing[6] }}
+            contentContainerStyle={{ paddingTop: chromeOverlay ? spacing[3] : spacing[4], paddingBottom: bottomRoom + discRoom + androidKeyboard, paddingHorizontal: spacing[6] }}
           >
             <View ref={contentRef} collapsable={false} style={styles.loggerContent}>
               {messages}
@@ -592,7 +598,7 @@ export default function SessionRuntime({
     );
   } else {
     body = (
-      <ScrollView {...scrollProps} contentContainerStyle={{ paddingBottom: bottomRoom + androidKeyboard }}>
+      <ScrollView {...scrollProps} contentContainerStyle={{ paddingBottom: bottomRoom + discRoom + androidKeyboard }}>
         <View ref={contentRef} collapsable={false}>
           {stage}
           {showSegments ? <ExerciseSegments exercises={exercises} viewingIndex={viewing} /> : null}
@@ -757,6 +763,7 @@ const styles = StyleSheet.create({
   },
   logger: {
     flexShrink: 0,
+    overflow: 'hidden',
   },
   loggerContent: {
     gap: spacing[4],
