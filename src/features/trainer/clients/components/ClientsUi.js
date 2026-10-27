@@ -61,7 +61,8 @@ export function ListCard({ children, style }) {
 }
 
 // A pressable list row (D1/C1 client rows, C2 sessions): pressed bg surfaceMuted.
-export function ListRow({ onPress, children, testID, style }) {
+// `selected` (T-55 tablet master/detail): the row whose client fills the pane.
+export function ListRow({ onPress, children, testID, style, selected }) {
   if (!onPress) {
     return <View style={[styles.row, style]}>{children}</View>;
   }
@@ -69,8 +70,9 @@ export function ListRow({ onPress, children, testID, style }) {
     <Pressable
       testID={testID}
       accessibilityRole="button"
+      accessibilityState={selected === undefined ? undefined : { selected }}
       onPress={onPress}
-      style={({ pressed }) => [styles.row, style, pressed && styles.rowPressed]}
+      style={({ pressed }) => [styles.row, style, selected && styles.rowSelected, pressed && !selected && styles.rowPressed]}
     >
       {children}
     </Pressable>
@@ -194,6 +196,14 @@ const styles = StyleSheet.create({
   },
   rowPressed: {
     backgroundColor: colors.surfaceMuted,
+  },
+  // TabletClients board: gold 0.10 fill + a 1.5 gold 0.55 ring; no exact
+  // tokens, nearest placed (goldTint 0.14, goldBorder 0.35; reported in T-55).
+  rowSelected: {
+    backgroundColor: colors.goldTint,
+    borderWidth: 1.5,
+    borderColor: colors.goldBorder,
+    borderRadius: radii.lg,
   },
   sectionHeading: {
     fontSize: 14,

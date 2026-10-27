@@ -1,0 +1,53 @@
+# T-55: trainer Clients master/detail on tablets (TabletClients board): the
+# 320 list beside the client pane; the selection is KEPT across
+# "Change plan" → Back and across a rotation (route param `selected`).
+# Starts signed in as the QA trainer in Trainer mode with at least two active
+# clients. IDs only; no credentials.
+appId: com.gymido.app
+---
+- extendedWaitUntil:
+    visible:
+      id: "rail-TClients"
+    timeout: 30000
+- tapOn:
+    id: "rail-TClients"
+- extendedWaitUntil:
+    visible:
+      id: "clients-master-detail"
+    timeout: 20000
+- assertVisible:
+    id: "clients-detail-pane"
+- assertNotVisible:
+    id: "bottom-nav"
+# Select the second client in the list.
+- tapOn:
+    id: "clients-row-.*"
+    index: 1
+- extendedWaitUntil:
+    visible:
+      id: "client-assign-plan"
+    timeout: 20000
+# Change plan → the Plans tab in assign mode → Back to the client.
+- tapOn:
+    id: "client-assign-plan"
+- extendedWaitUntil:
+    visible:
+      id: "plans-back-to-client"
+    timeout: 20000
+- tapOn:
+    id: "plans-back-to-client"
+- extendedWaitUntil:
+    visible:
+      id: "clients-detail-pane"
+    timeout: 20000
+- assertVisible:
+    id: "client-assign-plan"
+# Rotation keeps the selection (the shell re-renders; params survive).
+- setOrientation: LANDSCAPE_LEFT
+- extendedWaitUntil:
+    visible:
+      id: "clients-detail-pane"
+    timeout: 10000
+- setOrientation: PORTRAIT
+- assertVisible:
+    id: "clients-master-detail"

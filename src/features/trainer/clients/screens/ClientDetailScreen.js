@@ -49,9 +49,27 @@ export default function ClientDetailScreen() {
   );
 }
 
-function ClientDetail({ clientUserId }) {
+// T-55 tablet Clients master/detail: the same C2 content rendered in the pane
+// beside the list (no ShellPage, no "← All clients": the list is beside it).
+// Its grids follow the pane's width, not the window's. Every load, action and
+// dialog is the same as on the full page.
+export function ClientDetailContent({ clientUserId, embedded = false }) {
+  return <ClientDetail clientUserId={clientUserId} embedded={embedded} />;
+}
+
+function EmbeddedPane({ children, onWidth }) {
+  return (
+    <View testID="client-detail-pane-content" onLayout={(event) => onWidth(event.nativeEvent.layout.width)}>
+      {children}
+    </View>
+  );
+}
+
+function ClientDetail({ clientUserId, embedded = false }) {
   const navigation = useNavigation();
-  const { width } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
+  const [paneWidth, setPaneWidth] = useState(0);
+  const width = embedded ? paneWidth : windowWidth;
   const mounted = useRef(true);
   const [state, setState] = useState({ status: 'loading', data: null, error: '' });
   const [hadProfile, setHadProfile] = useState(null);
@@ -122,12 +140,17 @@ function ClientDetail({ clientUserId }) {
   const columns = width >= breakpoints.lg ? 3 : width >= breakpoints.sm ? 2 : 1;
   const statColumns = width >= breakpoints.lg ? 4 : width >= breakpoints.sm ? 2 : 1;
 
+  const Page = embedded ? EmbeddedPane : ShellPage;
+  const pageProps = embedded ? { onWidth: setPaneWidth } : {};
+
   return (
-    <ShellPage>
+    <Page {...pageProps}>
       <View style={styles.column}>
         <View>
           {/* ⚠C-5: pushes C1 rather than going back. */}
-          <BrandLink testID="client-all-clients" label="← All clients" onPress={() => navigation.push(routes.TrainerClients)} />
+          {embedded ? null : (
+            <BrandLink testID="client-all-clients" label="← All clients" onPress={() => navigation.push(routes.TrainerClients)} />
+          )}
           <Text textBreakStrategy="simple" accessibilityRole="header" style={styles.title}>
             {heading}
           </Text>
@@ -152,7 +175,7 @@ function ClientDetail({ clientUserId }) {
         tone="danger"
         loading={ending}
       />
-    </ShellPage>
+    </Page>
   );
 
   function renderBody() {

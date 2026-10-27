@@ -36,7 +36,7 @@ describe('ShellOverlay tab bar visibility (v1 rules kept)', () => {
     expect(hasTabBar(767)).toBe(true);
   });
 
-  it('hides it on tablets (≥ 768: the sidebar navigates)', () => {
+  it('hides it on tablets (≥ 768: the rail navigates)', () => {
     expect(hasTabBar(768)).toBe(false);
     expect(hasTabBar(1024)).toBe(false);
   });
