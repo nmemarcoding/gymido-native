@@ -13,7 +13,7 @@ import PillButton from '../../shared/components/PillButton';
 import StatusPill from '../../shared/components/StatusPill';
 import { ToastTone, addToast } from '../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
-import { breakpoints, colors, font, gradients, radii, spacing, typography } from '../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, radii, spacing, textScale, typography } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
 import GymIcon from '../shell/GymIcon';
 import ShellPage from '../shell/ShellPage';
@@ -32,6 +32,38 @@ import { acceptErrorMessage, deriveHub, trainerDisplayName } from './myTrainerFo
 // RN-SPEC-my-trainer MT1.4–MT1.5 (Contact, End coaching + confirm, View
 // plans, View progress, Accept / Decline), invitations on top (Batch B).
 // One gold action per state (UX ruling), see `goldAction`.
+
+// Large text (UX §9): role caps; titles wrap by word (max 3 lines) and a
+// single long word shrinks the title instead of breaking inside it.
+const TITLE_TEXT = Object.freeze({
+  textBreakStrategy: 'simple',
+  maxFontSizeMultiplier: textScale.title,
+  numberOfLines: 3,
+  adjustsFontSizeToFit: true,
+  minimumFontScale: 0.7,
+});
+const DISPLAY_TEXT = Object.freeze({ ...TITLE_TEXT, maxFontSizeMultiplier: textScale.display });
+const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
+const PILL_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.pill });
+// Initials sit in a fixed circle (fixed-geometry chrome).
+const BADGE_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.badge });
+
+// UX §8.3 decorative teal orb on the teal-accent cards (gradients.tealOrb):
+// phone 200 at right/top −60 ("Find a trainer"); tablet "Your trainer" 340 at
+// −90. Cards the boards don't draw at that size reuse the other size's orb.
+export const ORB_PHONE = Object.freeze({ size: 200, offset: -60 });
+export const ORB_TABLET = Object.freeze({ size: 340, offset: -90 });
+// The tablet link cards' 150° tint wash: 0.16 → 0.04 on the ladder = tint →
+// faint, the 0.28 edge = line (UX §8.5).
+export const LINK_FILL = Object.freeze({
+  gold: Object.freeze([colors.goldTint, colors.goldFaint]),
+  teal: Object.freeze([colors.tealTint, colors.tealFaint]),
+});
+// The teal avatar: 140° teal → teal-strong (the drawn deep teal folds into it,
+// UX §8.4), a 5 px card-coloured gap and a 1 px teal-strong ring, and the
+// teal-strong glow under it.
+const AVATAR_FILL = Object.freeze([colors.teal, colors.tealStrong]);
+const AVATAR_GAP = 5;
 
 // Two letters for an avatar: the first letters of the first two words.
 export function initialsOf(name) {
@@ -75,7 +107,7 @@ export function goldAction({ hub, trainer, isTrainer }) {
 export default function TrainerHubScreen() {
   const remountKey = useFocusRemountKey();
   return (
-    <ShellPage testID="trainer-hub-screen">
+    <ShellPage testID="trainer-hub-screen" glow={gradients.tealAmbient}>
       <View style={styles.column}>
         <TrainerHub key={remountKey} />
       </View>
@@ -85,8 +117,11 @@ export default function TrainerHubScreen() {
 
 function TrainerHub() {
   const navigation = useNavigation();
-  const { width } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
   const tablet = width >= breakpoints.md;
+  // UX §9 reflow past 1.3×: button pairs stack (primary on top), side-by-side
+  // cards become one column and trailing actions drop below the text.
+  const stacked = fontScale > textScale.reflowAbove;
   // MT1.2: read live from the current token user on every render.
   const isTrainer = isTrainerUser(useAuthStore((state) => state.user));
   const [state, setState] = useState({ loading: true, error: null, relationship: null, trainer: null, requests: [] });
@@ -174,18 +209,27 @@ function TrainerHub() {
   const variantFor = (action) => (gold === action ? 'primary' : 'secondary');
   // The phone board pairs "You don’t have a trainer" with "Your requests".
   const pairEmpty = !tablet && hub.blocks.includes('empty') && hub.blocks.includes('outgoing');
+  const halfStyle = stacked ? null : styles.half;
 
   const outgoingCard = (compact) => (
-    <View key="outgoing" testID="trainer-hub-outgoing" style={[styles.card, compact && styles.half, tablet && styles.cardTablet]}>
-      <Text accessibilityRole="header" style={[styles.smallHeading, tablet && styles.smallHeadingTablet]}>
+    <View key="outgoing" testID="trainer-hub-outgoing" style={[styles.card, compact && halfStyle, tablet && styles.cardTablet]}>
+      <Text {...BODY_TEXT} accessibilityRole="header" style={[styles.smallHeading, tablet && styles.smallHeadingTablet]}>
         Your requests
       </Text>
       <View style={styles.requestRows}>
         {hub.outgoing.map((request) => {
           const pill = statusPill(request.status);
           return (
-            <View key={request.id} testID={`trainer-hub-request-${request.id}`} style={compact ? styles.requestStack : styles.requestRow}>
-              <Text numberOfLines={compact ? 2 : 1} style={[compact ? styles.requestNameCompact : styles.requestName, styles.flexShrink]}>
+            <View
+              key={request.id}
+              testID={`trainer-hub-request-${request.id}`}
+              style={compact || stacked ? styles.requestStack : styles.requestRow}
+            >
+              <Text
+                {...(compact ? TITLE_TEXT : BODY_TEXT)}
+                numberOfLines={compact ? 3 : 2}
+                style={[compact ? styles.requestNameCompact : styles.requestName, styles.flexShrink]}
+              >
                 {trainerDisplayName(request.trainer)}
               </Text>
               <StatusPill testID={`trainer-hub-request-status-${request.id}`} label={pill.label} tone={pill.tone} compact />
@@ -197,12 +241,16 @@ function TrainerHub() {
   );
 
   const emptyCompact = (
-    <View key="empty" testID="trainer-hub-empty" style={[styles.card, styles.half]}>
+    <View key="empty" testID="trainer-hub-empty" style={[styles.card, halfStyle]}>
       <View style={styles.iconTile} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <GymIcon name="trainer" size={20} color={colors.textMuted} />
       </View>
-      <Text style={styles.emptyTitle}>You don’t have a trainer</Text>
-      <Text style={styles.emptyMessage}>Find a trainer to get plans built for you and your progress followed.</Text>
+      <Text {...BODY_TEXT} style={styles.emptyTitle}>
+        You don’t have a trainer
+      </Text>
+      <Text {...BODY_TEXT} style={styles.emptyMessage}>
+        Find a trainer to get plans built for you and your progress followed.
+      </Text>
     </View>
   );
 
@@ -211,10 +259,16 @@ function TrainerHub() {
       <View key="invitations" testID="trainer-hub-invitations" style={[styles.heroCard, tablet && styles.heroCardTablet]}>
         <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
         <View style={styles.headingPill}>
-          <Text accessibilityRole="header" style={styles.headingPillText}>{`Invitations (${hub.invitations.length})`}</Text>
+          <Text
+            {...PILL_TEXT}
+            accessibilityRole="header"
+            style={styles.headingPillText}
+          >{`Invitations (${hub.invitations.length})`}</Text>
         </View>
         {hub.hasActiveTrainer ? (
-          <Text style={styles.hint}>You already have a trainer. End your current coaching before accepting one of these.</Text>
+          <Text {...BODY_TEXT} style={styles.hint}>
+            You already have a trainer. End your current coaching before accepting one of these.
+          </Text>
         ) : null}
         {hub.invitations.map((request) => {
           const name = trainerDisplayName(request.trainer);
@@ -223,35 +277,31 @@ function TrainerHub() {
               <View style={styles.invitationTop}>
                 <Avatar name={name} size={60} />
                 <View style={styles.textColumn}>
-                  <Text numberOfLines={2} style={styles.invitationName}>
+                  <Text {...TITLE_TEXT} style={styles.invitationName}>
                     {name}
                   </Text>
-                  <Text style={styles.invitationSub}>wants to coach you</Text>
+                  <Text {...BODY_TEXT} style={styles.invitationSub}>
+                    wants to coach you
+                  </Text>
                 </View>
               </View>
-              <View style={styles.invitationButtons}>
-                <View style={styles.flex}>
-                  <PillButton
-                    testID={`trainer-hub-decline-${request.id}`}
-                    title="Decline"
-                    variant="secondary"
-                    fullWidth
-                    accessibilityLabel={`Decline ${name}`}
-                    disabled={busy}
-                    onPress={() => respond(request, false)}
-                  />
-                </View>
-                <View style={styles.flex}>
-                  <PillButton
-                    testID={`trainer-hub-accept-${request.id}`}
-                    title="Accept"
-                    variant={variantFor('accept')}
-                    fullWidth
-                    accessibilityLabel={`Accept ${name}`}
-                    disabled={busy}
-                    onPress={() => respond(request, true)}
-                  />
-                </View>
+              <View
+                testID={`trainer-hub-invitation-buttons-${request.id}`}
+                style={[styles.invitationButtons, stacked && styles.column]}
+              >
+                {(stacked ? ['accept', 'decline'] : ['decline', 'accept']).map((action) => (
+                  <View key={action} style={stacked ? null : styles.flex}>
+                    <PillButton
+                      testID={`trainer-hub-${action}-${request.id}`}
+                      title={action === 'accept' ? 'Accept' : 'Decline'}
+                      variant={action === 'accept' ? variantFor('accept') : 'secondary'}
+                      fullWidth
+                      accessibilityLabel={`${action === 'accept' ? 'Accept' : 'Decline'} ${name}`}
+                      disabled={busy}
+                      onPress={() => respond(request, action === 'accept')}
+                    />
+                  </View>
+                ))}
               </View>
             </View>
           );
@@ -260,9 +310,15 @@ function TrainerHub() {
     ),
     trainerMode: (
       <View key="trainerMode" testID="trainer-hub-trainer-mode" style={[styles.card, tablet && styles.cardTablet]}>
-        <Text style={styles.eyebrow}>Trainer mode</Text>
-        <Text style={[styles.cardTitle, styles.mt6]}>You are already a trainer</Text>
-        <Text style={styles.cardBody}>Switch to Trainer Mode to manage your clients, their plans and your trainer profile.</Text>
+        <Text {...BODY_TEXT} style={styles.eyebrow}>
+          Trainer mode
+        </Text>
+        <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.cardTitle, styles.mt6]}>
+          You are already a trainer
+        </Text>
+        <Text {...BODY_TEXT} style={styles.cardBody}>
+          Switch to Trainer Mode to manage your clients, their plans and your trainer profile.
+        </Text>
         <View style={styles.mt16}>
           {/* ⚠MT-9: the path forces Trainer mode; the preference is not stored. */}
           <PillButton
@@ -278,6 +334,7 @@ function TrainerHub() {
       <ActiveTrainerCard
         key="activeTrainer"
         tablet={tablet}
+        stacked={stacked}
         name={hub.trainerName}
         trainer={state.trainer}
         status={state.relationship?.status}
@@ -293,7 +350,7 @@ function TrainerHub() {
       />
     ),
     links: (
-      <View key="links" style={tablet ? styles.linksRow : styles.linksColumn}>
+      <View key="links" testID="trainer-hub-links" style={tablet && !stacked ? styles.linksRow : styles.linksColumn}>
         <LinkCard
           testID="trainer-hub-view-plans"
           title="View plans"
@@ -313,7 +370,7 @@ function TrainerHub() {
       </View>
     ),
     outgoing: pairEmpty ? (
-      <View key="outgoing" style={styles.pair}>
+      <View key="outgoing" testID="trainer-hub-pair" style={[styles.pair, stacked && styles.column]}>
         {emptyCompact}
         {outgoingCard(true)}
       </View>
@@ -323,8 +380,11 @@ function TrainerHub() {
     findTrainer: (
       <View key="findTrainer" testID="trainer-hub-find" style={[styles.heroCard, tablet && styles.heroCardTablet]}>
         <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
-        <Text style={styles.findTitle}>Find a trainer</Text>
-        <Text style={[styles.cardBody, styles.mt8]}>
+        <TealOrb testID="trainer-hub-find-orb" orb={ORB_PHONE} />
+        <Text {...TITLE_TEXT} accessibilityRole="header" style={styles.findTitle}>
+          Find a trainer
+        </Text>
+        <Text {...BODY_TEXT} style={[styles.cardBody, styles.mt8]}>
           Browse and search the trainers on Gymido, then send a request to the one you want. They build your plans and follow your
           progress.
         </Text>
@@ -340,10 +400,16 @@ function TrainerHub() {
       </View>
     ),
     becomeTrainer: (
-      <View key="becomeTrainer" testID="trainer-hub-become-card" style={[styles.card, styles.becomeCard, tablet && styles.becomeCardTablet]}>
-        <View style={styles.textColumn}>
-          <Text style={[styles.becomeTitle, tablet && styles.becomeTitleTablet]}>Want to coach others?</Text>
-          <Text style={[styles.becomeBody, tablet && styles.becomeBodyTablet]}>
+      <View
+        key="becomeTrainer"
+        testID="trainer-hub-become-card"
+        style={[styles.card, styles.becomeCard, tablet && styles.becomeCardTablet, stacked && styles.becomeCardStacked]}
+      >
+        <View style={stacked ? null : styles.textColumn}>
+          <Text {...BODY_TEXT} style={[styles.becomeTitle, tablet && styles.becomeTitleTablet]}>
+            Want to coach others?
+          </Text>
+          <Text {...BODY_TEXT} style={[styles.becomeBody, tablet && styles.becomeBodyTablet]}>
             Apply to become a trainer and get your own clients, plans and coaching dashboard.
           </Text>
         </View>
@@ -377,21 +443,50 @@ function TrainerHub() {
 }
 
 // Initials avatar: the ground disc with gold initials (phone board).
+// The teal one (the active trainer) is the teal gradient disc with ink
+// initials inside a card-coloured gap and a teal-strong ring (tablet board).
 function Avatar({ name, size, teal = false }) {
-  return (
+  const disc = (
     <View
       testID="trainer-hub-avatar"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[
-        styles.avatar,
-        { width: size, height: size, borderRadius: teal ? size / 2 : radii.lg },
-        teal && styles.avatarTeal,
-      ]}
+      style={[styles.avatar, { width: size, height: size, borderRadius: teal ? size / 2 : radii.lg }, teal && styles.avatarTeal]}
     >
-      <Text style={[styles.avatarText, { fontSize: Math.round(size / 3), lineHeight: Math.round(size / 3) + 4 }, teal && styles.avatarTextTeal]}>
+      {teal ? <GradientFill angle={140} colors={AVATAR_FILL} /> : null}
+      <Text
+        {...BADGE_TEXT}
+        style={[
+          styles.avatarText,
+          { fontSize: Math.round(size / 3), lineHeight: Math.round(size / 3) + 4 },
+          teal && styles.avatarTextTeal,
+        ]}
+      >
         {initialsOf(name)}
       </Text>
+    </View>
+  );
+  if (!teal) {
+    return disc;
+  }
+  return (
+    <View testID="trainer-hub-avatar-ring" style={styles.avatarRing}>
+      {disc}
+    </View>
+  );
+}
+
+// Decorative, no motion, hidden from accessibility (UX §8.3).
+function TealOrb({ testID, orb }) {
+  return (
+    <View
+      testID={testID}
+      pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={[styles.orb, { width: orb.size, height: orb.size, right: orb.offset, top: orb.offset }]}
+    >
+      <GradientFill radial={gradients.tealOrb.radial} colors={gradients.tealOrb.colors} stops={gradients.tealOrb.stops} />
     </View>
   );
 }
@@ -413,31 +508,52 @@ function LinkCard({ testID, title, icon, tone, tablet, onPress }) {
         pressed && styles.linkCardPressed,
       ]}
     >
-      <View style={[styles.linkIcon, tablet && styles.linkIconTablet, gold ? styles.linkIconGold : styles.linkIconTeal]}>
-        <GymIcon name={icon} size={tablet ? 24 : 20} color={gold ? colors.gold : colors.teal} />
-      </View>
-      <Text style={[styles.linkLabel, tablet && styles.linkLabelTablet]}>{title}</Text>
-      <Text style={styles.linkArrow} accessibilityElementsHidden importantForAccessibility="no">
-        →
-      </Text>
+      {({ pressed }) => (
+        <>
+          <GradientFill angle={150} colors={gold ? LINK_FILL.gold : LINK_FILL.teal} />
+          {pressed ? (
+            <View testID={`${testID}-pressed`} pointerEvents="none" style={[StyleSheet.absoluteFill, styles.pressOverlay]} />
+          ) : null}
+          <View style={[styles.linkIcon, tablet && styles.linkIconTablet, gold ? styles.linkIconGold : styles.linkIconTeal]}>
+            <GymIcon name={icon} size={tablet ? 24 : 20} color={gold ? colors.gold : colors.teal} />
+          </View>
+          <Text {...TITLE_TEXT} style={[styles.linkLabel, tablet && styles.linkLabelTablet]}>
+            {title}
+          </Text>
+          <Text {...TITLE_TEXT} style={styles.linkArrow} accessibilityElementsHidden importantForAccessibility="no">
+            →
+          </Text>
+        </>
+      )}
     </Pressable>
   );
 }
 
 // MT1.4
-function ActiveTrainerCard({ tablet, name, trainer, status, contactVariant, onEnd }) {
+function ActiveTrainerCard({ tablet, stacked = false, name, trainer, status, contactVariant, onEnd }) {
   const pill = statusPill(status);
   return (
     <View testID="trainer-hub-active" style={[styles.heroCard, styles.activeCard, tablet && styles.activeCardTablet]}>
       <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
+      <TealOrb testID="trainer-hub-active-orb" orb={tablet ? ORB_TABLET : ORB_PHONE} />
       <View style={[styles.activeTop, tablet && styles.activeTopTablet]}>
         <Avatar name={name} size={tablet ? 104 : 64} teal />
         <View style={styles.textColumn}>
-          <Text style={styles.yourTrainer}>Your trainer</Text>
-          <Text textBreakStrategy="simple" numberOfLines={2} style={tablet ? styles.trainerNameTablet : styles.trainerName}>
+          <Text {...BODY_TEXT} style={styles.yourTrainer}>
+            Your trainer
+          </Text>
+          <Text
+            {...(tablet ? DISPLAY_TEXT : TITLE_TEXT)}
+            accessibilityRole="header"
+            style={tablet ? styles.trainerNameTablet : styles.trainerName}
+          >
             {name}
           </Text>
-          {trainer?.email ? <Text style={styles.email}>{trainer.email}</Text> : null}
+          {trainer?.email ? (
+            <Text {...BODY_TEXT} style={styles.email}>
+              {trainer.email}
+            </Text>
+          ) : null}
           {pill.label ? (
             <View style={styles.mt8}>
               <StatusPill testID="trainer-hub-active-status" label={pill.label} tone={pill.tone} compact />
@@ -445,18 +561,26 @@ function ActiveTrainerCard({ tablet, name, trainer, status, contactVariant, onEn
           ) : null}
         </View>
       </View>
-      {trainer?.bio ? <Text style={[styles.bio, tablet && styles.bioTablet]}>{trainer.bio}</Text> : null}
-      <View style={[styles.activeButtons, tablet && styles.activeButtonsTablet]}>
+      {trainer?.bio ? (
+        <Text {...BODY_TEXT} style={[styles.bio, tablet && styles.bioTablet]}>
+          {trainer.bio}
+        </Text>
+      ) : null}
+      <View
+        testID="trainer-hub-active-buttons"
+        style={[styles.activeButtons, tablet && styles.activeButtonsTablet, stacked && styles.column]}
+      >
         {trainer?.email ? (
           <PillButton
             testID="trainer-hub-contact"
             title="Contact"
             variant={contactVariant}
+            fullWidth={stacked}
             icon={({ color }) => <GymIcon name="mail" size={18} color={color} />}
             onPress={() => Linking.openURL(`mailto:${trainer.email}`).catch(() => {})}
           />
         ) : null}
-        <PillButton testID="trainer-hub-end" title="End coaching" variant="secondary" onPress={onEnd} />
+        <PillButton testID="trainer-hub-end" title="End coaching" variant="secondary" fullWidth={stacked} onPress={onEnd} />
       </View>
     </View>
   );
@@ -485,6 +609,16 @@ const styles = StyleSheet.create({
   },
   flexShrink: {
     flexShrink: 1,
+  },
+  column: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
+  orb: {
+    position: 'absolute',
+  },
+  pressOverlay: {
+    backgroundColor: colors.pressOverlay,
   },
   textColumn: {
     flex: 1,
@@ -534,7 +668,7 @@ const styles = StyleSheet.create({
   },
   headingPill: {
     alignSelf: 'flex-start',
-    height: 26,
+    minHeight: 26,
     justifyContent: 'center',
     paddingHorizontal: 10,
     borderRadius: radii.full,
@@ -580,18 +714,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.ground,
     borderWidth: 1,
-    borderColor: colors.goldBorder,
+    borderColor: colors.goldLine,
   },
   avatarTeal: {
-    backgroundColor: colors.tealTint,
-    borderColor: colors.teal,
+    overflow: 'hidden',
+    borderWidth: 0,
+    backgroundColor: colors.teal,
+  },
+  // The 5 px gap ring (as drawn: surface-card-2), the 1 px
+  // teal-strong ring and the glow; the negative margin keeps the drawn layout
+  // (the board draws the rings as shadows outside the disc).
+  avatarRing: {
+    margin: -(AVATAR_GAP + 1),
+    padding: AVATAR_GAP,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.tealStrong,
+    backgroundColor: colors.surfaceCard2,
+    boxShadow: `0px 24px 60px -18px ${colors.tealStrong}`,
   },
   avatarText: {
     ...font(700),
     color: colors.gold,
   },
   avatarTextTeal: {
-    color: colors.teal,
+    color: colors.onGold,
   },
   eyebrow: {
     ...typography.eyebrow,
@@ -671,6 +818,10 @@ const styles = StyleSheet.create({
     gap: spacing[3],
     paddingHorizontal: spacing['4_5'],
   },
+  becomeCardStacked: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
   becomeCardTablet: {
     borderRadius: radii.xxl,
     backgroundColor: colors.glass,
@@ -707,6 +858,7 @@ const styles = StyleSheet.create({
   },
   linkCard: {
     flex: 1,
+    overflow: 'hidden',
     minHeight: 72,
     flexDirection: 'row',
     alignItems: 'center',
@@ -719,16 +871,13 @@ const styles = StyleSheet.create({
     padding: spacing[6],
   },
   linkCardGold: {
-    backgroundColor: colors.goldTint,
-    borderColor: colors.goldBorder,
+    borderColor: colors.goldLine,
   },
   linkCardTeal: {
-    backgroundColor: colors.tealTint,
-    borderColor: colors.hairlineStrong,
+    borderColor: colors.tealLine,
   },
   linkCardPressed: {
     transform: [{ scale: 0.99 }],
-    opacity: 0.9,
   },
   linkIcon: {
     width: 44,

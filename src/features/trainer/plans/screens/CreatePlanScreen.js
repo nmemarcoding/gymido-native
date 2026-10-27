@@ -11,7 +11,17 @@ import PillButton from '../../../../shared/components/PillButton';
 import Select from '../../../../shared/components/Select';
 import { ToastTone, addToast } from '../../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../../shared/hooks/useFocusRemountKey';
-import { breakpoints, colors, font, gradients, radii, shadows, spacing, typography } from '../../../../shared/theme/tokens';
+import {
+  breakpoints,
+  colors,
+  font,
+  gradients,
+  radii,
+  shadows,
+  spacing,
+  textScale,
+  typography,
+} from '../../../../shared/theme/tokens';
 import ShellPage from '../../../shell/ShellPage';
 import TrainerOnly from '../../TrainerOnly';
 import { createTrainerPlan, listDifficultyLevels, listPlanCategories } from '../api/plansApi';
@@ -46,7 +56,7 @@ export default function CreatePlanScreen() {
 // Shared with the member's M2 form, which passes its own variant.
 export function CreatePlanForm({ variant }) {
   const navigation = useNavigation();
-  const { width } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
   const wide = width >= breakpoints.sm;
   const mounted = useRef(true);
   const [categories, setCategories] = useState([]);
@@ -213,6 +223,7 @@ export function CreatePlanForm({ variant }) {
     return (
       <CreatePlanV2
         tablet={width >= breakpoints.md}
+        stacked={fontScale > textScale.reflowAbove}
         variant={variant}
         saving={saving}
         onSubmit={submit}
@@ -255,68 +266,105 @@ export function CreatePlanForm({ variant }) {
 // Cancel before the gold "Create and add days". Fields keep the kit 1 inputs
 // (UX ruling: only search fields take the pill variant). Behaviour: the same
 // form state, validation and messages as above.
-const CREATE_GLOW = Object.freeze({
+// The glow keeps each board's geometry; its colour is the §8.5 glow-gold-
+// ambient (0.18, the shared ladder constant).
+export const CREATE_GLOW = Object.freeze({
   radial: Object.freeze({ cx: 0.85, cy: -0.06, rx: 1.1, ry: 0.4 }),
-  colors: gradients.sessionGlow.colors,
+  colors: gradients.accountGlow.colors,
   stops: Object.freeze([0, 0.6]),
 });
-const TABLET_CREATE_GLOW = Object.freeze({ ...CREATE_GLOW, radial: Object.freeze({ cx: 0.9, cy: -0.06, rx: 0.7, ry: 0.4 }) });
+export const TABLET_CREATE_GLOW = Object.freeze({
+  ...CREATE_GLOW,
+  radial: Object.freeze({ cx: 0.9, cy: -0.06, rx: 0.7, ry: 0.4 }),
+});
+// The tablet form card's drawn 160° gradient folds onto surface-input →
+// surface-sunk (UX §8.4); phones keep gradient-card.
+export const TABLET_CARD_FILL = Object.freeze({ angle: 160, colors: Object.freeze([colors.surfaceInput, colors.surfaceSunk]) });
 
-function CreatePlanV2({ tablet, variant, saving, onSubmit, onBack, formErrorAlert, fields }) {
+// Large text (UX §9): the page title is capped at 1.3×, wraps by word (max 3
+// lines) and shrinks a single long word; body text is capped at 2×.
+const TITLE_TEXT = Object.freeze({
+  textBreakStrategy: 'simple',
+  maxFontSizeMultiplier: textScale.display,
+  numberOfLines: 3,
+  adjustsFontSizeToFit: true,
+  minimumFontScale: 0.7,
+});
+const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
+
+// `stacked` (font scale > 1.3, UX §9 reflow): the paired fields become one
+// column and the button pair stacks with the primary on top, full width.
+function CreatePlanV2({ tablet, stacked = false, variant, saving, onSubmit, onBack, formErrorAlert, fields }) {
   const { nameField, categoryField, daysField, difficultyField, descriptionField } = fields;
+  const pairStyle = [v2.pair, tablet && v2.pairTablet, stacked && v2.pairStacked];
+  const cellStyle = stacked ? null : v2.pairCell;
+  const cancel = (
+    <PillButton
+      key="cancel"
+      testID="create-plan-cancel"
+      title="Cancel"
+      variant="secondary"
+      onPress={onBack}
+      style={stacked ? v2.buttonStacked : tablet ? null : v2.buttonPhone}
+    />
+  );
+  const submit = (
+    <PillButton
+      key="submit"
+      testID="create-plan-submit"
+      title="Create and add days"
+      loading={saving}
+      onPress={onSubmit}
+      style={stacked ? v2.buttonStacked : tablet ? null : [v2.buttonPhone, v2.submitPhone]}
+    />
+  );
   return (
     <ShellPage testID="create-plan-screen" glow={tablet ? TABLET_CREATE_GLOW : CREATE_GLOW}>
       <View testID="create-plan-column" style={[v2.column, tablet && v2.columnTablet]}>
         <View>
           <Pressable testID="create-plan-all-plans" accessibilityRole="link" onPress={onBack} style={v2.back}>
             {({ pressed }) => (
-              <Text style={[v2.backText, tablet && v2.backTextTablet, pressed && v2.backTextPressed]}>{variant.backLabel}</Text>
+              <Text {...BODY_TEXT} style={[v2.backText, tablet && v2.backTextTablet, pressed && v2.backTextPressed]}>
+                {variant.backLabel}
+              </Text>
             )}
           </Pressable>
-          <Text textBreakStrategy="simple" accessibilityRole="header" style={tablet ? v2.titleTablet : v2.title}>
+          <Text {...TITLE_TEXT} accessibilityRole="header" style={tablet ? v2.titleTablet : v2.title}>
             Create a plan
           </Text>
-          <Text style={[v2.subtitle, tablet && v2.subtitleTablet]}>{variant.subtitle}</Text>
+          <Text {...BODY_TEXT} style={[v2.subtitle, tablet && v2.subtitleTablet]}>
+            {variant.subtitle}
+          </Text>
         </View>
         <View testID="create-plan-card" style={[v2.card, tablet && v2.cardTablet]}>
-          <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
+          <GradientFill
+            angle={tablet ? TABLET_CARD_FILL.angle : gradients.card.angle}
+            colors={tablet ? TABLET_CARD_FILL.colors : gradients.card.colors}
+          />
           {formErrorAlert}
           <View style={[v2.fields, tablet && v2.fieldsTablet]}>
             {nameField}
             {tablet ? (
               <>
                 {categoryField}
-                <View testID="create-plan-pair" style={[v2.pair, v2.pairTablet]}>
-                  <View style={v2.pairCell}>{daysField}</View>
-                  <View style={v2.pairCell}>{difficultyField}</View>
+                <View testID="create-plan-pair" style={pairStyle}>
+                  <View style={cellStyle}>{daysField}</View>
+                  <View style={cellStyle}>{difficultyField}</View>
                 </View>
               </>
             ) : (
               <>
-                <View testID="create-plan-pair" style={v2.pair}>
-                  <View style={v2.pairCell}>{categoryField}</View>
-                  <View style={v2.pairCell}>{daysField}</View>
+                <View testID="create-plan-pair" style={pairStyle}>
+                  <View style={cellStyle}>{categoryField}</View>
+                  <View style={cellStyle}>{daysField}</View>
                 </View>
                 {difficultyField}
               </>
             )}
             {descriptionField(tablet ? 4 : 2)}
           </View>
-          <View testID="create-plan-buttons" style={[v2.buttons, tablet && v2.buttonsTablet]}>
-            <PillButton
-              testID="create-plan-cancel"
-              title="Cancel"
-              variant="secondary"
-              onPress={onBack}
-              style={tablet ? null : v2.buttonPhone}
-            />
-            <PillButton
-              testID="create-plan-submit"
-              title="Create and add days"
-              loading={saving}
-              onPress={onSubmit}
-              style={tablet ? null : [v2.buttonPhone, v2.submitPhone]}
-            />
+          <View testID="create-plan-buttons" style={[v2.buttons, tablet && v2.buttonsTablet, stacked && v2.buttonsStacked]}>
+            {stacked ? [submit, cancel] : [cancel, submit]}
           </View>
         </View>
       </View>
@@ -425,6 +473,9 @@ const v2 = StyleSheet.create({
   pairTablet: {
     gap: spacing[4],
   },
+  pairStacked: {
+    flexDirection: 'column',
+  },
   pairCell: {
     flex: 1,
     minWidth: 0,
@@ -438,6 +489,14 @@ const v2 = StyleSheet.create({
     marginTop: spacing[5],
     justifyContent: 'flex-end',
     gap: spacing[3],
+  },
+  buttonsStacked: {
+    flexDirection: 'column',
+    justifyContent: 'flex-start',
+  },
+  buttonStacked: {
+    width: '100%',
+    minHeight: 56,
   },
   buttonPhone: {
     minHeight: 56,

@@ -17,12 +17,26 @@ import BlurLayer from '../../../../shared/components/BlurLayer';
 import ErrorAlert from '../../../../shared/components/ErrorAlert';
 import ExerciseImage, { muscleColor, TILE_ALPHA } from '../../../../shared/components/ExerciseImage';
 import FeedbackIcon from '../../../../shared/components/FeedbackIcon';
+import GradientFill from '../../../../shared/components/GradientFill';
 import IconButton from '../../../../shared/components/IconButton';
 import Select from '../../../../shared/components/Select';
 import { useKeyboardHeight } from '../../../../shared/hooks/useKeyboardHeight';
 import { useReducedMotion } from '../../../../shared/hooks/useReducedMotion';
 import { useSheetFocus } from '../../../../shared/hooks/useSheetFocus';
-import { breakpoints, colors, font, motion, radii, shadows, spacing, textInputColors, typography } from '../../../../shared/theme/tokens';
+import {
+  breakpoints,
+  colors,
+  font,
+  motion,
+  muscle as muscleHues,
+  muscleText,
+  radii,
+  shadows,
+  spacing,
+  textInputColors,
+  textScale,
+  typography,
+} from '../../../../shared/theme/tokens';
 import { ALL_EQUIPMENT, ALL_MUSCLE_GROUPS, countLabel, filterCatalog } from '../planFormat';
 import { CheckIcon, ChevronIcon, SearchIcon } from './pickerIcons';
 
@@ -39,6 +53,28 @@ const ROW_RADIUS = 22;
 const ROW_IMAGE = Object.freeze({ width: 76, height: 64 });
 const CARD_PHOTO = 150;
 const TABLET_DIALOG = Object.freeze({ width: 620, height: 1040 });
+// The tablet dialog's drawn 165° fill folds onto surface-raised (UX §8.4)
+// → surface, as drawn.
+export const TABLET_DIALOG_FILL = Object.freeze({ angle: 165, colors: Object.freeze([colors.surfaceRaised, colors.surface]) });
+
+// Large text (UX §9): role caps; the title wraps by word (max 3 lines) and a
+// single long word shrinks it instead of breaking inside it.
+const TITLE_TEXT = Object.freeze({
+  textBreakStrategy: 'simple',
+  maxFontSizeMultiplier: textScale.display,
+  numberOfLines: 3,
+  adjustsFontSizeToFit: true,
+  minimumFontScale: 0.7,
+});
+const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
+const PILL_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.pill });
+const BADGE_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.badge });
+
+// Text on a 16 % muscle tint: the muscle's lighter text colour (UX §8.4).
+function muscleTextOf(hex) {
+  const name = hex ? Object.keys(muscleHues).find((key) => muscleHues[key] === hex) : null;
+  return name ? muscleText[name] : null;
+}
 
 // T5 (spec §A7.2–§A7.3). `onAddSelected(exercises)` runs the add loop; the
 // sheet closes when it settles. No in-flight guard (⚠T5-2).
@@ -59,8 +95,12 @@ export default function ExercisePickerSheet({
   onAddSelected,
   returnFocusRef,
 }) {
-  const { width, height } = useWindowDimensions();
+  const { width, height, fontScale } = useWindowDimensions();
   const tablet = width >= breakpoints.md;
+  // UX §9 reflow past 1.3×: one column of filters and cards, the button pair
+  // stacks (Add on top), row trailing marks drop below the text, and the
+  // header scrolls with the list so nothing is lost at the largest sizes.
+  const stacked = fontScale > textScale.reflowAbove;
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
   const keyboardHeight = useKeyboardHeight();
@@ -161,12 +201,17 @@ export default function ExercisePickerSheet({
 
   const filterLabel = [styles.filterLabel, tablet && styles.filterLabelTablet];
   const selectBox = (active) => [styles.filterSelect, tablet && styles.fieldTablet, active && styles.filterSelectActive];
+  const columns = tablet && !stacked ? 2 : 1;
   const countText = countLabel(visible.length, 'exercise', 'exercises');
 
   // §D4 lifecycle: loading wins; then the alert; then the real empty case.
   let listHeader = null;
   if (loading) {
-    listHeader = <Text style={styles.loading}>Loading exercises...</Text>;
+    listHeader = (
+      <Text {...BODY_TEXT} style={styles.loading}>
+        Loading exercises...
+      </Text>
+    );
   } else if (catalogError) {
     listHeader = (
       <ErrorAlert
@@ -180,19 +225,187 @@ export default function ExercisePickerSheet({
   } else if (visible.length === 0) {
     listHeader = (
       <View style={[styles.noMatchBox, tablet && styles.alertTablet]}>
-        <Text style={styles.noMatch}>No exercises match the current filters.</Text>
+        <Text {...BODY_TEXT} style={styles.noMatch}>
+          No exercises match the current filters.
+        </Text>
       </View>
     );
   }
 
+  const header = (
+    <View style={[styles.header, tablet && styles.headerTablet]}>
+      <View style={styles.headerText}>
+        <Text
+          {...TITLE_TEXT}
+          ref={titleRef}
+          testID="exercise-picker-title"
+          accessibilityRole="header"
+          style={tablet ? styles.titleTablet : styles.title}
+        >
+          Add exercise
+        </Text>
+        <Text {...BODY_TEXT} style={[styles.subtitle, tablet && styles.subtitleTablet]}>
+          Search and select exercises to add to this day.
+        </Text>
+      </View>
+      {tablet ? (
+        <IconButton testID="exercise-picker-close" accessibilityLabel="Close" onPress={onClose}>
+          {({ color }) => <FeedbackIcon name="close" size={18} color={color} />}
+        </IconButton>
+      ) : null}
+    </View>
+  );
+
+  const filters = (
+    <View testID="exercise-picker-filters" style={[styles.filters, tablet && !stacked && styles.filtersTablet]}>
+      <View style={tablet && !stacked ? styles.searchCellTablet : styles.fullCell}>
+        <Text {...BODY_TEXT} style={filterLabel}>
+          Search
+        </Text>
+        {/* Search field variant (UX ruling): pill, well fill, search icon.
+            The border lives on the row, so the icon and its inset stay
+            put on Android once text is entered. A typed search is an active
+            filter: the gold-strong edge (drawn 0.55, UX §8.5). */}
+        <View
+          testID="exercise-picker-search-field"
+          style={[
+            styles.searchField,
+            tablet && styles.fieldTablet,
+            search.length > 0 && styles.searchActive,
+            searchFocused && styles.searchFocused,
+          ]}
+        >
+          <View style={styles.searchIcon}>
+            <SearchIcon />
+          </View>
+          <TextInput
+            {...textInputColors}
+            {...BODY_TEXT}
+            testID="exercise-picker-search"
+            accessibilityLabel="Search"
+            placeholder="Search exercises"
+            placeholderTextColor={colors.textMuted}
+            value={search}
+            onChangeText={setSearch}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+            style={styles.searchInput}
+          />
+        </View>
+      </View>
+      <View style={tablet && !stacked ? styles.selectCellTablet : stacked ? styles.fullCell : styles.halfCell}>
+        <Select
+          testID="exercise-picker-muscle"
+          label="Muscle group"
+          value={muscle}
+          options={muscleOptions}
+          onChange={setMuscle}
+          boxStyle={selectBox(muscle !== ALL_MUSCLE_GROUPS)}
+          textStyle={[styles.filterSelectText, tablet && styles.filterSelectTextTablet]}
+          trailing={<ChevronIcon />}
+          labelStyle={filterLabel}
+        />
+      </View>
+      <View style={tablet && !stacked ? styles.selectCellTablet : stacked ? styles.fullCell : styles.halfCell}>
+        <Select
+          testID="exercise-picker-equipment"
+          label="Equipment"
+          value={equipment}
+          options={equipmentOptions}
+          onChange={setEquipment}
+          boxStyle={selectBox(equipment !== ALL_EQUIPMENT)}
+          textStyle={[styles.filterSelectText, tablet && styles.filterSelectTextTablet]}
+          trailing={<ChevronIcon />}
+          labelStyle={filterLabel}
+        />
+      </View>
+    </View>
+  );
+
+  // The count is a polite live region so a new selection is announced.
+  const meta = tablet ? (
+    <Text {...BODY_TEXT} testID="exercise-picker-meta" accessibilityLiveRegion="polite" style={styles.metaTablet}>
+      {selectedCount > 0 ? `${countText} · ` : countText}
+      {selectedCount > 0 ? <Text {...BODY_TEXT} style={styles.metaTabletSelected}>{`${selectedCount} selected`}</Text> : null}
+    </Text>
+  ) : (
+    <View testID="exercise-picker-meta" accessibilityLiveRegion="polite" style={[styles.meta, stacked && styles.metaStacked]}>
+      <Text {...BODY_TEXT} textBreakStrategy="simple" style={styles.metaCount}>
+        {countText}
+      </Text>
+      {selectedCount > 0 ? (
+        <View testID="exercise-picker-selected-pill" style={styles.selectedPill}>
+          <Text {...PILL_TEXT} textBreakStrategy="simple" style={styles.selectedPillText}>{`${selectedCount} selected`}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+
+  const cancelButton = (
+    <Pressable
+      key="cancel"
+      testID="exercise-picker-cancel"
+      accessibilityRole="button"
+      onPress={onClose}
+      style={({ pressed }) => [
+        styles.cancel,
+        tablet && styles.footerButtonTablet,
+        stacked && styles.footerButtonStacked,
+        pressed && styles.buttonPressed,
+      ]}
+    >
+      {({ pressed }) => (
+        <>
+          {pressed ? <PressOverlay radius={radii.full} testID="exercise-picker-cancel-pressed" /> : null}
+          <Text {...BODY_TEXT} style={[styles.cancelLabel, tablet && styles.footerLabelTablet]}>
+            Cancel
+          </Text>
+        </>
+      )}
+    </Pressable>
+  );
+  const addButton = (
+    <Pressable
+      key="add"
+      testID="exercise-picker-add"
+      accessibilityRole="button"
+      accessibilityState={{ disabled: selectedCount === 0 }}
+      disabled={selectedCount === 0}
+      onPress={addSelected}
+      style={({ pressed }) => [
+        styles.add,
+        tablet && styles.addTablet,
+        tablet && styles.footerButtonTablet,
+        stacked && styles.footerButtonStacked,
+        selectedCount === 0 ? styles.addDisabled : tablet ? styles.addGlowTablet : styles.addGlow,
+        pressed && styles.buttonPressed,
+      ]}
+    >
+      {({ pressed }) => (
+        <>
+          {pressed ? <PressOverlay ink radius={radii.full} testID="exercise-picker-add-pressed" /> : null}
+          <Text {...BODY_TEXT} style={[styles.addLabel, tablet && styles.footerLabelTablet, tablet && styles.addLabelTablet]}>
+            Add Selected
+          </Text>
+          {selectedCount > 0 ? (
+            <View testID="exercise-picker-add-count" style={[styles.bubble, tablet && styles.bubbleTablet]}>
+              <Text {...BADGE_TEXT} textBreakStrategy="simple" style={[styles.bubbleText, tablet && styles.bubbleTextTablet]}>
+                {selectedCount}
+              </Text>
+            </View>
+          ) : null}
+        </>
+      )}
+    </Pressable>
+  );
+
   return (
     <Modal transparent visible={isOpen} animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <Animated.View
-        style={[
-          styles.scrim,
-          tablet ? styles.scrimTablet : styles.scrimPhone,
-          { opacity: scrim, paddingBottom: keyboardHeight },
-        ]}
+        style={[styles.scrim, tablet ? styles.scrimTablet : styles.scrimPhone, { opacity: scrim, paddingBottom: keyboardHeight }]}
       >
         <BlurLayer blurPx={tablet ? 6 : 4} overApp />
         <Pressable style={[StyleSheet.absoluteFill, styles.scrimColor]} onPress={onClose} accessibilityLabel="Close" />
@@ -205,127 +418,51 @@ export default function ExercisePickerSheet({
             { height: sheetHeight, opacity: sheet, transform: [{ translateY: sheetTranslate }] },
           ]}
         >
+          {tablet ? <GradientFill angle={TABLET_DIALOG_FILL.angle} colors={TABLET_DIALOG_FILL.colors} /> : null}
           <View
             testID="exercise-picker-handle"
             style={[styles.grabber, tablet && styles.grabberTablet]}
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
           />
-          <View style={[styles.header, tablet && styles.headerTablet]}>
-            <View style={styles.headerText}>
-              <Text
-                ref={titleRef}
-                testID="exercise-picker-title"
-                textBreakStrategy="simple"
-                accessibilityRole="header"
-                style={tablet ? styles.titleTablet : styles.title}
-              >
-                Add exercise
-              </Text>
-              <Text style={[styles.subtitle, tablet && styles.subtitleTablet]}>Search and select exercises to add to this day.</Text>
-            </View>
-            {tablet ? (
-              <IconButton testID="exercise-picker-close" accessibilityLabel="Close" onPress={onClose}>
-                {({ color }) => <FeedbackIcon name="close" size={18} color={color} />}
-              </IconButton>
-            ) : null}
-          </View>
-
-          <View style={[styles.filters, tablet && styles.filtersTablet]}>
-            <View style={tablet ? styles.searchCellTablet : styles.fullCell}>
-              <Text style={filterLabel}>Search</Text>
-              {/* Search field variant (UX ruling): pill, sunk fill, search icon.
-                  The border lives on the row, so the icon and its inset stay
-                  put on Android once text is entered. */}
-              <View
-                testID="exercise-picker-search-field"
-                style={[styles.searchField, tablet && styles.fieldTablet, searchFocused && styles.searchFocused]}
-              >
-                <View style={styles.searchIcon}>
-                  <SearchIcon />
-                </View>
-                <TextInput
-                  {...textInputColors}
-                  testID="exercise-picker-search"
-                  accessibilityLabel="Search"
-                  placeholder="Search exercises"
-                  placeholderTextColor={colors.textMuted}
-                  value={search}
-                  onChangeText={setSearch}
-                  onFocus={() => setSearchFocused(true)}
-                  onBlur={() => setSearchFocused(false)}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="search"
-                  style={styles.searchInput}
-                />
-              </View>
-            </View>
-            <View style={tablet ? styles.selectCellTablet : styles.halfCell}>
-              <Select
-                testID="exercise-picker-muscle"
-                label="Muscle group"
-                value={muscle}
-                options={muscleOptions}
-                onChange={setMuscle}
-                boxStyle={selectBox(muscle !== ALL_MUSCLE_GROUPS)}
-                textStyle={[styles.filterSelectText, tablet && styles.filterSelectTextTablet]}
-                trailing={<ChevronIcon />}
-                labelStyle={filterLabel}
-              />
-            </View>
-            <View style={tablet ? styles.selectCellTablet : styles.halfCell}>
-              <Select
-                testID="exercise-picker-equipment"
-                label="Equipment"
-                value={equipment}
-                options={equipmentOptions}
-                onChange={setEquipment}
-                boxStyle={selectBox(equipment !== ALL_EQUIPMENT)}
-                textStyle={[styles.filterSelectText, tablet && styles.filterSelectTextTablet]}
-                trailing={<ChevronIcon />}
-                labelStyle={filterLabel}
-              />
-            </View>
-          </View>
-
-          {/* The count is a polite live region so a new selection is announced. */}
-          {tablet ? (
-            <Text testID="exercise-picker-meta" accessibilityLiveRegion="polite" numberOfLines={1} style={styles.metaTablet}>
-              {selectedCount > 0 ? `${countText} · ` : countText}
-              {selectedCount > 0 ? <Text style={styles.metaTabletSelected}>{`${selectedCount} selected`}</Text> : null}
-            </Text>
-          ) : (
-            <View testID="exercise-picker-meta" accessibilityLiveRegion="polite" style={styles.meta}>
-              <Text numberOfLines={1} textBreakStrategy="simple" style={styles.metaCount}>
-                {countText}
-              </Text>
-              {selectedCount > 0 ? (
-                <View testID="exercise-picker-selected-pill" style={styles.selectedPill}>
-                  <Text numberOfLines={1} textBreakStrategy="simple" style={styles.selectedPillText}>{`${selectedCount} selected`}</Text>
-                </View>
-              ) : null}
-            </View>
+          {stacked ? null : (
+            <>
+              {header}
+              {filters}
+              {meta}
+            </>
           )}
 
           {/* Virtualized: the catalog runs to hundreds of rows. */}
           <FlatList
-            key={tablet ? 'grid' : 'list'}
+            key={columns === 2 ? 'grid' : 'list'}
             testID="exercise-picker-list"
             style={styles.list}
             contentContainerStyle={[styles.listContent, tablet && styles.listContentTablet]}
-            columnWrapperStyle={tablet ? styles.gridRow : undefined}
-            numColumns={tablet ? 2 : 1}
+            columnWrapperStyle={columns === 2 ? styles.gridRow : undefined}
+            numColumns={columns}
             keyboardShouldPersistTaps="handled"
             data={visible}
             keyExtractor={(exercise) => String(exercise.id)}
             extraData={{ selectedIds, addedIds }}
             initialNumToRender={8}
-            ListHeaderComponent={listHeader}
+            ListHeaderComponent={
+              stacked ? (
+                <View style={styles.scrollingTop}>
+                  {header}
+                  {filters}
+                  {meta}
+                  {listHeader}
+                </View>
+              ) : (
+                listHeader
+              )
+            }
             renderItem={({ item: exercise }) => {
               const Item = tablet ? PickerCard : PickerRow;
               return (
                 <Item
+                  stacked={stacked}
                   exercise={exercise}
                   isAdded={addedIds.has(exercise.id)}
                   isSelected={selectedIds.has(exercise.id)}
@@ -336,43 +473,15 @@ export default function ExercisePickerSheet({
           />
 
           <View
+            testID="exercise-picker-footer"
             style={[
               styles.footer,
               tablet && styles.footerTablet,
+              stacked && styles.footerStacked,
               { paddingBottom: tablet ? spacing[7] : Math.max(spacing[7], insets.bottom + spacing[3]) },
             ]}
           >
-            <Pressable
-              testID="exercise-picker-cancel"
-              accessibilityRole="button"
-              onPress={onClose}
-              style={({ pressed }) => [styles.cancel, tablet && styles.footerButtonTablet, pressed && styles.cancelPressed]}
-            >
-              <Text style={[styles.cancelLabel, tablet && styles.footerLabelTablet]}>Cancel</Text>
-            </Pressable>
-            <Pressable
-              testID="exercise-picker-add"
-              accessibilityRole="button"
-              accessibilityState={{ disabled: selectedCount === 0 }}
-              disabled={selectedCount === 0}
-              onPress={addSelected}
-              style={({ pressed }) => [
-                styles.add,
-                tablet && styles.addTablet,
-                tablet && styles.footerButtonTablet,
-                selectedCount === 0 ? styles.addDisabled : styles.addGlow,
-                pressed && styles.addPressed,
-              ]}
-            >
-              <Text style={[styles.addLabel, tablet && styles.footerLabelTablet, tablet && styles.addLabelTablet]}>Add Selected</Text>
-              {selectedCount > 0 ? (
-                <View testID="exercise-picker-add-count" style={[styles.bubble, tablet && styles.bubbleTablet]}>
-                  <Text numberOfLines={1} textBreakStrategy="simple" style={[styles.bubbleText, tablet && styles.bubbleTextTablet]}>
-                    {selectedCount}
-                  </Text>
-                </View>
-              ) : null}
-            </Pressable>
+            {stacked ? [addButton, cancelButton] : [cancelButton, addButton]}
           </View>
         </Animated.View>
       </Animated.View>
@@ -386,7 +495,21 @@ function equipmentNameOf(exercise) {
 
 // Phone row: 76×64 photo, name, muscle + equipment chips; the check bubble
 // when selected, "Added" when already in the day. The slug is not drawn (UX).
-function PickerRow({ exercise, isAdded, isSelected, onToggle }) {
+function PickerRow({ exercise, isAdded, isSelected, onToggle, stacked }) {
+  const trailing = (
+    <View testID={`exercise-picker-trailing-${exercise.id}`} style={stacked ? styles.rowTrailingBelow : styles.rowTrailing}>
+      {isAdded ? (
+        <Text {...BODY_TEXT} style={styles.added}>
+          Added
+        </Text>
+      ) : null}
+      {!isAdded && isSelected ? (
+        <View testID={`exercise-picker-check-${exercise.id}`} style={styles.check}>
+          <CheckIcon color={colors.onGold} size={13} />
+        </View>
+      ) : null}
+    </View>
+  );
   return (
     <Pressable
       testID={`exercise-picker-row-${exercise.id}`}
@@ -400,22 +523,33 @@ function PickerRow({ exercise, isAdded, isSelected, onToggle }) {
         !isSelected && !isAdded && pressed && styles.rowPressed,
       ]}
     >
-      <ExerciseImage exercise={exercise} size={ROW_IMAGE.height} style={styles.rowImage} />
-      <View style={styles.rowMiddle}>
-        <Text style={styles.rowName}>{exercise.name}</Text>
-        <View style={styles.chips}>
-          <Text numberOfLines={1} textBreakStrategy="simple" style={styles.chip}>{exercise.primary_muscle_group?.name || 'Any'}</Text>
-          <Text numberOfLines={1} textBreakStrategy="simple" style={styles.chip}>{equipmentNameOf(exercise)}</Text>
-        </View>
-      </View>
-      <View style={styles.rowTrailing}>
-        {isAdded ? <Text style={styles.added}>Added</Text> : null}
-        {!isAdded && isSelected ? (
-          <View testID={`exercise-picker-check-${exercise.id}`} style={styles.check}>
-            <CheckIcon color={colors.onGold} size={13} />
+      {({ pressed }) => (
+        <>
+          {!isSelected && !isAdded && pressed ? (
+            <PressOverlay radius={ROW_RADIUS} testID={`exercise-picker-row-${exercise.id}-pressed`} />
+          ) : null}
+          <ExerciseImage exercise={exercise} size={ROW_IMAGE.height} style={styles.rowImage} />
+          <View style={styles.rowMiddle}>
+            <Text {...BODY_TEXT} style={styles.rowName}>
+              {exercise.name}
+            </Text>
+            <View style={styles.chips}>
+              <View style={styles.chip}>
+                <Text {...PILL_TEXT} textBreakStrategy="simple" style={styles.chipText}>
+                  {exercise.primary_muscle_group?.name || 'Any'}
+                </Text>
+              </View>
+              <View style={styles.chip}>
+                <Text {...PILL_TEXT} textBreakStrategy="simple" style={styles.chipText}>
+                  {equipmentNameOf(exercise)}
+                </Text>
+              </View>
+            </View>
+            {stacked ? trailing : null}
           </View>
-        ) : null}
-      </View>
+          {stacked ? null : trailing}
+        </>
+      )}
     </Pressable>
   );
 }
@@ -424,7 +558,9 @@ function PickerRow({ exercise, isAdded, isSelected, onToggle }) {
 // bubble (selected) or an empty ring (not selected, so selection is not
 // colour only); added cards dim their photo and carry an "Added" pill.
 function PickerCard({ exercise, isAdded, isSelected, onToggle }) {
-  const hue = muscleColor(exercise.primary_muscle_group?.code);
+  // Added cards draw both chips neutral (the drawn 0.06 fill folds to 0.08).
+  const hue = isAdded ? null : muscleColor(exercise.primary_muscle_group?.code);
+  const hueText = muscleTextOf(hue);
   return (
     <Pressable
       testID={`exercise-picker-row-${exercise.id}`}
@@ -438,43 +574,82 @@ function PickerCard({ exercise, isAdded, isSelected, onToggle }) {
         !isAdded && pressed && styles.cardPressed,
       ]}
     >
-      <View style={[styles.cardPhoto, isAdded && styles.cardPhotoAdded]}>
-        <ExerciseImage exercise={exercise} size={CARD_PHOTO} style={styles.cardImage} />
-      </View>
-      {isAdded ? (
-        <View style={styles.addedPill}>
-          <Text style={styles.addedPillText}>Added</Text>
-        </View>
-      ) : isSelected ? (
-        <View testID={`exercise-picker-check-${exercise.id}`} style={[styles.cardMark, styles.cardMarkOn]}>
-          <CheckIcon color={colors.onGold} size={15} />
-        </View>
-      ) : (
-        <View testID={`exercise-picker-ring-${exercise.id}`} style={[styles.cardMark, styles.cardMarkOff]} />
+      {({ pressed }) => (
+        <>
+          <View style={[styles.cardPhoto, isAdded && styles.cardPhotoAdded]}>
+            <ExerciseImage exercise={exercise} size={CARD_PHOTO} style={styles.cardImage} />
+          </View>
+          {isAdded ? (
+            <View testID={`exercise-picker-added-${exercise.id}`} style={styles.addedPill}>
+              <Text {...PILL_TEXT} style={styles.addedPillText}>
+                Added
+              </Text>
+            </View>
+          ) : isSelected ? (
+            <View testID={`exercise-picker-check-${exercise.id}`} style={[styles.cardMark, styles.cardMarkOn]}>
+              <CheckIcon color={colors.onGold} size={15} />
+            </View>
+          ) : (
+            <View testID={`exercise-picker-ring-${exercise.id}`} style={[styles.cardMark, styles.cardMarkOff]} />
+          )}
+          <View style={styles.cardBody}>
+            <Text {...BODY_TEXT} numberOfLines={2} style={[styles.cardName, isAdded && styles.cardNameAdded]}>
+              {exercise.name}
+            </Text>
+            <View style={styles.cardChips}>
+              <View
+                testID={`exercise-picker-muscle-chip-${exercise.id}`}
+                style={[styles.cardChip, !hue && styles.cardChipNeutral]}
+              >
+                {hue ? <View style={[StyleSheet.absoluteFill, styles.cardChipTint, { backgroundColor: hue }]} /> : null}
+                <Text
+                  {...PILL_TEXT}
+                  style={[
+                    styles.cardChipText,
+                    hue && styles.cardChipTextHue,
+                    isAdded && styles.cardChipTextAdded,
+                    hueText && { color: hueText },
+                  ]}
+                >
+                  {exercise.primary_muscle_group?.name || 'Any'}
+                </Text>
+              </View>
+              <View style={[styles.cardChip, styles.cardChipNeutral]}>
+                <Text {...PILL_TEXT} style={[styles.cardChipText, styles.cardChipTextPlain, isAdded && styles.cardChipTextAdded]}>
+                  {equipmentNameOf(exercise)}
+                </Text>
+              </View>
+            </View>
+          </View>
+          {!isAdded && pressed ? <PressOverlay testID={`exercise-picker-row-${exercise.id}-pressed`} /> : null}
+        </>
       )}
-      <View style={styles.cardBody}>
-        <Text numberOfLines={2} style={[styles.cardName, isAdded && styles.cardNameAdded]}>
-          {exercise.name}
-        </Text>
-        <View style={styles.cardChips}>
-          <View style={styles.cardChip}>
-            {hue ? <View style={[StyleSheet.absoluteFill, styles.cardChipTint, { backgroundColor: hue }]} /> : null}
-            <Text numberOfLines={1} style={[styles.cardChipText, { color: hue ?? colors.textStrong2 }]}>
-              {exercise.primary_muscle_group?.name || 'Any'}
-            </Text>
-          </View>
-          <View style={[styles.cardChip, styles.cardChipNeutral]}>
-            <Text numberOfLines={1} style={styles.cardChipText}>
-              {equipmentNameOf(exercise)}
-            </Text>
-          </View>
-        </View>
-      </View>
     </Pressable>
   );
 }
 
+// The v2 state rule: pressed = the rest look + a 4 % overlay (white on dark
+// surfaces, ink on gold); never a new alpha.
+function PressOverlay({ ink = false, radius = 0, testID }) {
+  return (
+    <View
+      testID={testID}
+      pointerEvents="none"
+      style={[StyleSheet.absoluteFill, { borderRadius: radius }, ink ? styles.pressOverlayInk : styles.pressOverlayWhite]}
+    />
+  );
+}
+
 const styles = StyleSheet.create({
+  pressOverlayWhite: {
+    backgroundColor: colors.pressOverlay,
+  },
+  pressOverlayInk: {
+    backgroundColor: colors.pressOverlayInk,
+  },
+  scrollingTop: {
+    paddingBottom: spacing[2],
+  },
   scrim: {
     flex: 1,
   },
@@ -490,9 +665,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing[6],
   },
+  // The drawn sheet fill is surface-card-2 (UX §8.3); the tablet dialog draws its gradient.
   sheet: {
     width: '100%',
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: colors.surfaceCard2,
     borderWidth: 1,
     borderColor: colors.hairlineStrong,
     boxShadow: shadows.float,
@@ -516,11 +692,10 @@ const styles = StyleSheet.create({
     width: 36,
     height: 5,
     borderRadius: radii.full,
-    backgroundColor: colors.grabHandle,
+    backgroundColor: colors.hairlineBright,
   },
   grabberTablet: {
     width: 44,
-    height: 6,
   },
   header: {
     marginTop: spacing[3],
@@ -603,26 +778,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   searchField: {
-    height: 48,
+    minHeight: 48,
     borderRadius: radii.full,
     borderWidth: 1,
     borderColor: colors.hairlineStrong,
-    backgroundColor: colors.surfaceSunk,
+    backgroundColor: colors.surfaceWell,
     paddingLeft: 38,
     paddingRight: 14,
     justifyContent: 'center',
   },
   fieldTablet: {
-    height: 52,
     minHeight: 52,
     borderColor: colors.hairlineButton,
   },
   searchInput: {
-    height: '100%',
-    padding: 0,
+    paddingVertical: spacing[2],
+    paddingHorizontal: 0,
     ...typography.labelLg,
     ...font(400),
     color: colors.textPrimary,
+  },
+  searchActive: {
+    borderColor: colors.goldStrong,
   },
   // Focused: gold border + the gold focus ring.
   searchFocused: {
@@ -632,20 +809,19 @@ const styles = StyleSheet.create({
     outlineStyle: 'solid',
   },
   filterSelect: {
-    height: 48,
     minHeight: 48,
     borderRadius: radii.full,
     borderWidth: 1,
     borderColor: colors.hairlineStrong,
-    backgroundColor: colors.surfaceSunk,
+    backgroundColor: colors.surfaceWell,
     paddingVertical: 0,
     paddingLeft: spacing[3],
     paddingRight: spacing[3],
     boxShadow: undefined,
   },
   filterSelectActive: {
-    borderColor: colors.goldBorder,
-    backgroundColor: colors.goldTintWeak,
+    borderColor: colors.goldLine,
+    backgroundColor: colors.goldFaint,
   },
   filterSelectText: {
     ...typography.bodySm,
@@ -667,6 +843,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing[2],
   },
+  metaStacked: {
+    flexWrap: 'wrap',
+  },
   metaCount: {
     ...typography.caption,
     ...font(600),
@@ -674,7 +853,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   selectedPill: {
-    height: 26,
+    minHeight: 26,
     justifyContent: 'center',
     paddingHorizontal: 10,
     borderRadius: radii.full,
@@ -746,7 +925,7 @@ const styles = StyleSheet.create({
   },
   rowSelected: {
     borderColor: colors.gold,
-    backgroundColor: colors.goldTintWeak,
+    backgroundColor: colors.goldFaint,
   },
   rowAdded: {
     borderColor: colors.hairline,
@@ -754,8 +933,6 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   rowPressed: {
-    borderColor: colors.goldBorder,
-    backgroundColor: colors.fillWell,
     transform: [{ scale: 0.99 }],
   },
   rowImage: {
@@ -780,18 +957,24 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   chip: {
-    height: 22,
+    minHeight: 22,
+    justifyContent: 'center',
     borderRadius: radii.full,
     backgroundColor: colors.fillButton,
     paddingHorizontal: spacing[2],
-    overflow: 'hidden',
+    paddingVertical: 2,
+  },
+  chipText: {
     ...typography.micro,
     ...font(600),
-    lineHeight: 22,
     color: colors.textStrong2,
   },
   rowTrailing: {
     alignSelf: 'center',
+  },
+  rowTrailingBelow: {
+    marginTop: spacing[2],
+    alignSelf: 'flex-start',
   },
   added: {
     ...typography.caption,
@@ -815,12 +998,12 @@ const styles = StyleSheet.create({
   },
   cardIdle: {
     borderColor: colors.choiceBorder,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: colors.surfaceCard2,
   },
   cardSelected: {
     borderWidth: 1.5,
     borderColor: colors.gold,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: colors.surfaceCard2,
     boxShadow: shadows.goldGlow,
   },
   cardAdded: {
@@ -854,20 +1037,22 @@ const styles = StyleSheet.create({
   cardMarkOn: {
     backgroundColor: colors.gold,
   },
+  // The empty ring: white 0.7 → text-secondary, its 0.4 fill → on-photo (§8.6).
   cardMarkOff: {
     borderWidth: 2,
     borderColor: colors.textSecondary,
-    backgroundColor: colors.scrim,
+    backgroundColor: colors.onPhoto,
   },
+  // A solid badge on the photo: 0.75 → on-photo-strong (UX §8.4).
   addedPill: {
     position: 'absolute',
     top: 10,
     right: 10,
-    height: 28,
+    minHeight: 28,
     justifyContent: 'center',
     paddingHorizontal: 10,
     borderRadius: radii.full,
-    backgroundColor: colors.stickyHeaderFill,
+    backgroundColor: colors.onPhotoStrong,
   },
   addedPillText: {
     ...typography.caption,
@@ -886,7 +1071,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   cardNameAdded: {
-    color: colors.textMuted,
+    color: colors.textSecondary,
   },
   cardChips: {
     marginTop: spacing[2],
@@ -895,7 +1080,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   cardChip: {
-    height: 24,
+    minHeight: 24,
     justifyContent: 'center',
     paddingHorizontal: 9,
     borderRadius: radii.full,
@@ -912,15 +1097,29 @@ const styles = StyleSheet.create({
     ...font(600),
     color: colors.textStrong2,
   },
+  // The equipment chip is regular weight (as drawn); the muscle chip is 600.
+  cardChipTextPlain: {
+    ...font(400),
+  },
+  cardChipTextHue: {
+    ...font(600),
+  },
+  cardChipTextAdded: {
+    ...font(400),
+    color: colors.textSecondary,
+  },
   footer: {
     marginHorizontal: -spacing[4],
     paddingHorizontal: spacing[4],
     paddingTop: 14,
     borderTopWidth: 1,
     borderTopColor: colors.hairline,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: colors.surfaceCard2,
     flexDirection: 'row',
     gap: 10,
+  },
+  footerStacked: {
+    flexDirection: 'column',
   },
   footerTablet: {
     marginHorizontal: 0,
@@ -928,10 +1127,14 @@ const styles = StyleSheet.create({
     paddingTop: spacing[5],
     borderTopWidth: 0,
     gap: spacing[3],
+    backgroundColor: undefined,
   },
   cancel: {
     flex: 1,
-    height: 56,
+    minHeight: 56,
+    overflow: 'hidden',
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2],
     borderRadius: radii.full,
     borderWidth: 1,
     borderColor: colors.hairlineStrong,
@@ -939,17 +1142,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cancelPressed: {
-    backgroundColor: colors.hairlineButton,
+  buttonPressed: {
     transform: [{ scale: 0.97 }],
   },
   cancelLabel: {
+    textAlign: 'center',
     ...typography.body,
     ...font(600),
     color: colors.textPrimary,
   },
   footerButtonTablet: {
-    height: 60,
+    minHeight: 60,
+  },
+  footerButtonStacked: {
+    flex: 0,
+    width: '100%',
   },
   footerLabelTablet: {
     fontSize: 17,
@@ -957,7 +1164,10 @@ const styles = StyleSheet.create({
   },
   add: {
     flex: 1.4,
-    height: 56,
+    minHeight: 56,
+    overflow: 'hidden',
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2],
     borderRadius: radii.full,
     backgroundColor: colors.gold,
     flexDirection: 'row',
@@ -972,14 +1182,15 @@ const styles = StyleSheet.create({
   addGlow: {
     boxShadow: shadows.goldGlow,
   },
+  addGlowTablet: {
+    boxShadow: shadows.goldGlowLarge,
+  },
   addDisabled: {
     opacity: 0.5,
   },
-  addPressed: {
-    backgroundColor: colors.goldDeep,
-    transform: [{ scale: 0.97 }],
-  },
   addLabel: {
+    flexShrink: 1,
+    textAlign: 'center',
     ...typography.body,
     ...font(700),
     color: colors.onGold,
@@ -989,7 +1200,7 @@ const styles = StyleSheet.create({
   },
   bubble: {
     minWidth: 22,
-    height: 22,
+    minHeight: 22,
     paddingHorizontal: 6,
     borderRadius: radii.full,
     backgroundColor: colors.ground,
@@ -998,7 +1209,7 @@ const styles = StyleSheet.create({
   },
   bubbleTablet: {
     minWidth: 28,
-    height: 28,
+    minHeight: 28,
     paddingHorizontal: spacing[2],
   },
   bubbleText: {
