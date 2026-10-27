@@ -1,0 +1,30 @@
+# Puts a trainer account into the member (Personal) workspace; a no-op for a
+# member. Sets output.v2SwitchedToMember so restore-workspace.yaml can put the
+# stored workspace back afterwards (it is device state, not server data).
+appId: com.gymido.app
+---
+- evalScript: ${output.v2SwitchedToMember = false}
+- runFlow:
+    when:
+      visible:
+        id: "tab-TToday"
+    commands:
+      - tapOn:
+          id: "tab-TProfile"
+      - scrollUntilVisible:
+          element:
+            id: "mode-switch-member"
+          direction: DOWN
+          centerElement: true
+          timeout: 10000
+      - tapOn:
+          id: "mode-switch-member"
+      - extendedWaitUntil:
+          visible:
+            id: "tab-Today"
+          timeout: 20000
+      - evalScript: ${output.v2SwitchedToMember = true}
+- extendedWaitUntil:
+    visible:
+      id: "tab-Today"
+    timeout: 10000

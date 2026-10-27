@@ -1,0 +1,30 @@
+# Puts a TRAINER account into the trainer workspace (4 tabs). Fails for an
+# account without the trainer role (no Workspace switch on its Profile).
+# Sets output.v2SwitchedToTrainer for restore-workspace.yaml.
+appId: com.gymido.app
+---
+- evalScript: ${output.v2SwitchedToTrainer = false}
+- runFlow:
+    when:
+      visible:
+        id: "tab-Today"
+    commands:
+      - tapOn:
+          id: "tab-Profile"
+      - scrollUntilVisible:
+          element:
+            id: "mode-switch-trainer"
+          direction: DOWN
+          centerElement: true
+          timeout: 10000
+      - tapOn:
+          id: "mode-switch-trainer"
+      - extendedWaitUntil:
+          visible:
+            id: "tab-TToday"
+          timeout: 20000
+      - evalScript: ${output.v2SwitchedToTrainer = true}
+- extendedWaitUntil:
+    visible:
+      id: "tab-TToday"
+    timeout: 10000
