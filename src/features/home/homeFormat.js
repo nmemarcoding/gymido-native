@@ -128,6 +128,16 @@ export function heroImageUrl(dashboard) {
   return typeof url === 'string' && url.trim() ? url : null;
 }
 
+// Batch 2 item 4: the name of the tablet hero's initials tile = the plan day
+// TITLE (the latest miss's when missed; none in setup).
+export function heroDayTitle(dashboard, card) {
+  if (!card || card.state === 'setup') {
+    return null;
+  }
+  const title = card.state === 'missed' ? dashboard?.missed_this_week?.[0]?.plan_day?.title : dashboard?.today_status?.plan_day?.title;
+  return typeof title === 'string' && title.trim() ? title : null;
+}
+
 const WEEKDAY_LONG = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const CELL_LABELS = { done: 'Done', today: 'Today', upcoming: 'Workout day', missed: 'Missed', rest: 'Rest day' };
 

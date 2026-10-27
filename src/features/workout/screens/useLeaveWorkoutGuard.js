@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler } from 'react-native';
 
 import { routes } from '../../../navigation/routes';
+import { consumeRestBack } from '../runtime/restBackGate';
 
 // RN-SPEC-workout dated change (23 Oct 2026, owner ruling, native-only):
 // while a session is active, a system Back asks "Leave workout?" first.
@@ -26,6 +27,10 @@ export default function useLeaveWorkoutGuard({ isActive, isFocused, navigation }
       return undefined;
     }
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      // O14: an expanded Rest takes Back first (minimise, consumed, no dialog).
+      if (consumeRestBack()) {
+        return true;
+      }
       if (navigation.canGoBack()) {
         // The pop goes through beforeRemove above, which opens the dialog.
         return false;

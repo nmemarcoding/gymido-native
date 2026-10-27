@@ -15,6 +15,7 @@ import {
   avatarInitials,
   defaultWeightUnit,
   greetingLine,
+  heroDayTitle,
   heroImageUrl,
   recentWorkoutMeta,
   todayCard,
@@ -195,16 +196,18 @@ function Home() {
   }
 
   const strip = weekStrip(week);
+  const card = todayCard(dashboard, setupDayCount);
   return (
     <View style={[styles.page, tablet && styles.pageTablet]}>
       {toast}
       {header}
       <TodayHero
         plan={plan}
-        card={todayCard(dashboard, setupDayCount)}
+        card={card}
         tablet={tablet}
         reflow={reflow}
         imageUrl={heroImageUrl(dashboard)}
+        dayTitle={heroDayTitle(dashboard, card)}
         dayOfWeek={strip?.dayOfWeek}
         onPrimary={() => openShellPath('/workout')}
         onViewPlan={() => openPlanDetailAlone(plan.id)}

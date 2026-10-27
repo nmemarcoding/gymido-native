@@ -309,3 +309,64 @@ describe('Rest large text (UX §9)', () => {
     });
   }
 });
+
+// Review M6 + owner override O14 (RN-SPEC-time §7.2, gymido d04f7254): Android Back on the EXPANDED Rest minimises
+// it to the disc and consumes the press; the rest keeps running (no clear, skip, adjust or alert change). Minimised
+// (or no rest): not handled, so the leave-workout guard runs as before.
+describe('Android Back on the Rest (O14)', () => {
+  const { BackHandler } = require('react-native');
+  const { consumeRestBack } = require('./restBackGate');
+  let listeners;
+  beforeEach(() => {
+    listeners = [];
+    jest.spyOn(BackHandler, 'addEventListener').mockImplementation((_event, handler) => {
+      const entry = { handler, removed: false };
+      listeners.push(entry);
+      return { remove: () => (entry.removed = true) };
+    });
+  });
+  afterEach(() => jest.restoreAllMocks());
+  const live = () => listeners.filter((entry) => !entry.removed);
+
+  it.each([390, 834])('expanded (%s): Back → minimised, handled (true); the timer is untouched', (width) => {
+    mockWidth = width;
+    const onMinimize = jest.fn();
+    const onSkip = jest.fn();
+    const onAdjust = jest.fn();
+    const onExpand = jest.fn();
+    renderTree({ onMinimize, onSkip, onAdjust, onExpand, minimized: false });
+    expect(live()).toHaveLength(1);
+    let handled;
+    act(() => {
+      handled = live()[0].handler();
+    });
+    expect(handled).toBe(true);
+    expect(onMinimize).toHaveBeenCalledTimes(1);
+    expect(onSkip).not.toHaveBeenCalled();
+    expect(onAdjust).not.toHaveBeenCalled();
+    expect(onExpand).not.toHaveBeenCalled();
+  });
+
+  it('minimised or no rest: no Back listener and the gate does not consume', () => {
+    const onMinimize = jest.fn();
+    const tree = renderTree({ onMinimize, minimized: true });
+    expect(live()).toHaveLength(0);
+    expect(consumeRestBack()).toBe(false);
+    act(() => tree.update(<RestTimerWidget timer={null} onMinimize={onMinimize} onExpand={() => {}} onAdjust={() => {}} onSkip={() => {}} position={null} onPosition={() => {}} />));
+    expect(live()).toHaveLength(0);
+    expect(onMinimize).not.toHaveBeenCalled();
+  });
+
+  it('minimising (or the rest ending) removes the listener and closes the gate', () => {
+    const props = { onMinimize: jest.fn(), onExpand: () => {}, onAdjust: () => {}, onSkip: () => {}, position: null, onPosition: () => {} };
+    const tree = renderTree({ ...props, minimized: false });
+    expect(live()).toHaveLength(1);
+    act(() => tree.update(<RestTimerWidget timer={{ setId: 1, secondsLeft: 50, totalSeconds: 90 }} minimized {...props} />));
+    expect(live()).toHaveLength(0);
+    expect(consumeRestBack()).toBe(false);
+    act(() => tree.update(<RestTimerWidget timer={{ setId: 1, secondsLeft: 50, totalSeconds: 90 }} minimized={false} {...props} />));
+    expect(live()).toHaveLength(1);
+    act(() => tree.update(<RestTimerWidget timer={null} minimized={false} {...props} />));
+    expect(live()).toHaveLength(0);
+  });
+});

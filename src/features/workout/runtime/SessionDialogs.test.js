@@ -2,11 +2,22 @@ import { Modal, StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { colors } from '../../../shared/theme/tokens';
-import { DiscardWorkoutDialog, LeaveWorkoutDialog, SESSION_DIALOG_TABLET_WIDTH } from './SessionDialogs';
+import { AppState } from 'react-native';
+
+import PillButton from '../../../shared/components/PillButton';
+import { PROMPT_SCRIM_BLUR } from './AlertSheet';
+import { DiscardDialog } from './RuntimeOverlays';
+import * as SessionDialogs from './SessionDialogs';
+import { LeaveWorkoutDialog, SESSION_DIALOG_TABLET_WIDTH } from './SessionDialogs';
+
+// Review M4/M5 (DECLARED move): the Discard tests below ran on 3b's DiscardWorkoutDialog (SessionDialogs), which was
+// the one SessionRuntime rendered while 3c's AlertSheet DiscardDialog was the tested one; now ONE shell ships: the
+// AlertSheet DiscardDialog (RuntimeOverlays). Every assertion is kept and pointed at it; changed values are marked.
+const DiscardWorkoutDialog = DiscardDialog;
 
 jest.mock('react-native-svg', () => {
   const Mock = ({ children }) => children ?? null;
-  return { __esModule: true, default: Mock, Path: Mock, Rect: Mock };
+  return { __esModule: true, default: Mock, Path: Mock, Rect: Mock, Circle: Mock, Defs: Mock, LinearGradient: Mock, Stop: Mock, G: Mock };
 });
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 20, bottom: 34, left: 0, right: 0 }) }));
 jest.mock('../../../shared/components/GradientFill', () => () => null);
@@ -38,7 +49,8 @@ function render(element) {
 }
 const button = (tree, id) => tree.root.findAll((node) => node.props.testID === id && node.props.title !== undefined)[0];
 const host = (tree, id) => tree.root.findAll((node) => node.props.testID === id && typeof node.type === 'string')[0];
-const order = (tree) => tree.root.findAll((node) => node.props.title !== undefined && node.props.variant !== undefined && typeof node.type !== 'string').map((node) => node.props.title);
+// The action buttons in render order (PillButtons only: AlertSheet also takes `title` / `variant`).
+const order = (tree) => tree.root.findAllByType(PillButton).map((node) => node.props.title);
 const texts = (tree) => tree.root.findAll((node) => node.type === 'Text').map((node) => [].concat(node.props.children).join(''));
 
 describe('Discard workout? (F1, ND6)', () => {
@@ -69,7 +81,9 @@ describe('Discard workout? (F1, ND6)', () => {
     const card = StyleSheet.flatten(host(tree, 'discard-dialog').props.style);
     expect(card).toMatchObject({ borderRadius: 32, backgroundColor: colors.surfaceCard2 });
     expect(host(tree, 'discard-dialog-handle')).toBeDefined();
-    expect(tree.root.findAll((node) => node.props.testID === 'blur-layer')[0].props.blurPx).toBe(4);
+    // DECLARED: was 4 (blur.scrim); the one prompt blur is 8 (F1:337 "one blur across dialogs", F2).
+    expect(tree.root.findAll((node) => node.props.testID === 'blur-layer')[0].props.blurPx).toBe(PROMPT_SCRIM_BLUR);
+    expect(PROMPT_SCRIM_BLUR).toBe(8);
   });
 
   it('tablet: a 520 card, Keep going LEFT · Discard RIGHT, the danger edge and the tablet blur', () => {
@@ -80,7 +94,8 @@ describe('Discard workout? (F1, ND6)', () => {
     expect(SESSION_DIALOG_TABLET_WIDTH).toBe(520);
     expect(order(tree)).toEqual(['Keep going', 'Discard']);
     expect(host(tree, 'discard-dialog-handle')).toBeUndefined();
-    expect(tree.root.findAll((node) => node.props.testID === 'blur-layer')[0].props.blurPx).toBe(6);
+    // DECLARED: was 6 (blur.scrimTablet); the one prompt blur is 8.
+    expect(tree.root.findAll((node) => node.props.testID === 'blur-layer')[0].props.blurPx).toBe(PROMPT_SCRIM_BLUR);
   });
 
   it.each([1, 2, 3.1])('at %sx the tablet pair stacks past 1.3× (verb on top) and the title keeps the title rule', (scale) => {
@@ -95,6 +110,34 @@ describe('Discard workout? (F1, ND6)', () => {
   it('closed: nothing visible', () => {
     const tree = render(<DiscardWorkoutDialog open={false} onKeep={jest.fn()} onDiscard={jest.fn()} />);
     expect(tree.root.findByType(Modal).props.visible).toBe(false);
+  });
+
+  it('M4: the dead duplicate shell is gone (SessionDialogs exports no Discard dialog)', () => {
+    expect(SessionDialogs.DiscardWorkoutDialog).toBeUndefined();
+  });
+});
+
+// Review M5: the Leave sheet drops its backdrop blur while the app is away and starts a fresh one on return (the
+// A2 "solid backdrop after backgrounding" fix, useForegroundBlur), and uses the one prompt blur (8).
+describe('Leave workout? backdrop (M5)', () => {
+  it('the blur only in the foreground, a fresh one on return; 8 px on phone and tablet', () => {
+    let listener;
+    jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, handler) => {
+      listener = handler;
+      return { remove: jest.fn() };
+    });
+    [390, 834].forEach((width) => {
+      mockWidth = width;
+      const tree = render(<LeaveWorkoutDialog open onStay={jest.fn()} onLeave={jest.fn()} />);
+      const blurs = () => tree.root.findAll((node) => node.props.testID === 'blur-layer' && typeof node.type === 'string');
+      expect(blurs()).toHaveLength(1);
+      expect(blurs()[0].props.blurPx).toBe(PROMPT_SCRIM_BLUR);
+      act(() => listener('background'));
+      expect(blurs()).toHaveLength(0);
+      act(() => listener('active'));
+      expect(blurs()).toHaveLength(1);
+    });
+    jest.restoreAllMocks();
   });
 });
 

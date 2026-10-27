@@ -431,6 +431,10 @@ export function lastTimeLabel(previous, unit) {
   if (reps !== null) {
     return `Last time ${reps} reps`;
   }
+  // Review LOW (web): a weight-only previous set reads "Last time 135".
+  if (weight !== null) {
+    return `Last time ${formatPlain(weight)}`;
+  }
   return null;
 }
 

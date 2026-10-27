@@ -160,6 +160,8 @@ export function SessionChrome({ planName, completedSets, totalSets, exerciseCoun
           {all}
         </View>
       )}
+      {/* Batch 2 item 3 (web SessionChrome): the gold rail, always. */}
+      <SessionRail completedSets={completedSets} totalSets={totalSets} inChrome />
     </View>
   );
 }
@@ -327,11 +329,12 @@ export function ExerciseSegments({ exercises, viewingIndex, tablet = false }) {
   );
 }
 
-// ND3 the gold session rail (browsing): sets done / all sets. aria-hidden.
-export function SessionRail({ completedSets, totalSets }) {
+// ND3 the gold session rail: sets done / all sets. aria-hidden. Batch 2
+// item 3: drawn at the bottom of the session header in every state.
+export function SessionRail({ completedSets, totalSets, inChrome = false }) {
   const ratio = totalSets > 0 ? completedSets / totalSets : 0;
   return (
-    <View testID="session-rail" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.rail}>
+    <View testID="session-rail" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.rail, inChrome && styles.railInChrome]}>
       <View style={[styles.railFill, { width: `${Math.round(ratio * 100)}%` }]} />
     </View>
   );
@@ -1060,6 +1063,10 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing[5],
     borderRadius: radii.full,
     backgroundColor: colors.track,
+  },
+  railInChrome: {
+    marginTop: spacing[2],
+    marginHorizontal: 0,
   },
   railFill: {
     height: '100%',

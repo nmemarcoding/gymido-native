@@ -32,9 +32,8 @@ import {
   StaleSessionBanner,
   UpNextLink,
 } from './RuntimeParts';
-import { CompleteWorkoutButton, ExactAlarmDialog, RestTimerWidget, SpeakIntroDialog } from './RuntimeOverlays';
+import { CompleteWorkoutButton, DiscardDialog, ExactAlarmDialog, RestTimerWidget, SpeakIntroDialog } from './RuntimeOverlays';
 import { restNextPreview } from './restPresentation';
-import { DiscardWorkoutDialog } from './SessionDialogs';
 import restAlertPlatform from './restAlertPlatform';
 import {
   buildSetPatch,
@@ -388,11 +387,16 @@ export default function SessionRuntime({
   const { currentIndex: sheetCurrent, isActiveView, laterIncomplete, isLastIncomplete } = sessionViewState(exercises, viewing, activeIndex);
   const browsing = !isActiveView && activeIndex >= 0;
   const firstPendingKey = firstPendingSetKey(exercise);
-  const editorSet = exercise ? (exercise.sets ?? []).find((item) => setKey(exercise.id, item.id) === firstPendingKey) ?? null : null;
+  // Batch 2 item 2 (web parity): only the ACTIVE exercise has the live editor;
+  // a browsed exercise's pending rows are locked (its done rows keep Undo).
+  const editorSet = exercise && !browsing ? (exercise.sets ?? []).find((item) => setKey(exercise.id, item.id) === firstPendingKey) ?? null : null;
   const contentWidth = width - insets.left - insets.right;
   const tablet = contentWidth >= breakpoints.md;
   const liveSetLeft = progress.completedSets < progress.totalSets;
   const chromeOverlay = !stacked;
+  // Batch 2 item 3: the per-exercise segments only live, with 2+ exercises
+  // (the gold session rail is in SessionChrome, always).
+  const showSegments = !browsing && exercises.length > 1;
   const chromeTop = (header ? spacing[3] : insets.top + spacing['2_5']) + (tablet ? spacing[3] : 0);
   // §17 / web parity: a button press takes focus off the weight input.
   const dismiss = (handler) => (...args) => {
@@ -480,9 +484,6 @@ export default function SessionRuntime({
       onRepsChange={(value) => setRepsDrafts((current) => ({ ...current, [editorSet.id]: sanitizeReps(value) }))}
       onStep={(field, direction) => step(exercise, editorSet, field, direction)}
       onToggleSet={dismiss((item) => toggleSet(exercise, item))}
-      // Browsing (and the large-text in-flow layout) keeps "Did it" in the
-      // card: the bottom of the screen is the exercise nav there.
-      action={browsing ? didIt : null}
     />
   ) : null;
 
@@ -511,7 +512,7 @@ export default function SessionRuntime({
       completedSets={progress.completedSets}
       totalSets={progress.totalSets}
       howTo={howToButton}
-      segments={tablet && !browsing ? <ExerciseSegments exercises={exercises} viewingIndex={viewing} tablet /> : null}
+      segments={tablet && showSegments ? <ExerciseSegments exercises={exercises} viewingIndex={viewing} tablet /> : null}
     />
   ) : null;
 
@@ -530,6 +531,14 @@ export default function SessionRuntime({
   const upNext = !tablet && isActiveView && laterIncomplete !== -1 ? exercises[laterIncomplete] : null;
   const showDock = !browsing && (Boolean(didIt) || Boolean(upNext));
   const bottomRoom = browsing ? navHeight + spacing[5] + insets.bottom : showDock ? dockHeight + spacing[7] + insets.bottom : spacing[6] + insets.bottom;
+
+  // M6: the expanded Rest is modal for TalkBack too (accessibilityViewIsModal
+  // is iOS-only): hide what is behind it while it is open.
+  const restExpanded = Boolean(rest.timer) && !rest.minimized;
+  const behindRest = {
+    importantForAccessibility: restExpanded ? 'no-hide-descendants' : 'auto',
+    accessibilityElementsHidden: restExpanded,
+  };
 
   let body;
   if (tablet && !browsing) {
@@ -570,7 +579,7 @@ export default function SessionRuntime({
       <ScrollView {...scrollProps} contentContainerStyle={{ paddingBottom: bottomRoom + androidKeyboard }}>
         <View ref={contentRef} collapsable={false}>
           {stage}
-          {browsing ? <SessionRail completedSets={progress.completedSets} totalSets={progress.totalSets} /> : <ExerciseSegments exercises={exercises} viewingIndex={viewing} />}
+          {showSegments ? <ExerciseSegments exercises={exercises} viewingIndex={viewing} /> : null}
           <View style={[styles.main, tablet && styles.mainTablet, browsing && styles.mainBrowsing]}>
             {browsing ? <BrowsingBar tablet={tablet} onResume={dismiss(() => setViewingIndex(activeIndex))} /> : null}
             {browsing ? stats : null}
@@ -589,8 +598,12 @@ export default function SessionRuntime({
     // The frame remounts on a new text scale; the session state (sets, rest,
     // dialogs) lives in this component's hooks and is kept.
     <View key={`text-scale-${fontScale}`} style={[styles.frame, { paddingLeft: insets.left, paddingRight: insets.right }]}>
-      {header ? <View style={[styles.header, { paddingTop: insets.top }]}>{header}</View> : null}
-      <View testID="session-column" style={[styles.column, !tablet && styles.columnPhone]}>
+      {header ? (
+        <View testID="session-header" {...behindRest} style={[styles.header, { paddingTop: insets.top }]}>
+          {header}
+        </View>
+      ) : null}
+      <View testID="session-column" {...behindRest} style={[styles.column, !tablet && styles.columnPhone]}>
         {tablet && !browsing && !chromeOverlay ? chrome : null}
         {body}
         {chromeOverlay ? chrome : null}
@@ -649,7 +662,7 @@ export default function SessionRuntime({
           onClose={() => setShowHowTo(false)}
         />
       ) : null}
-      <DiscardWorkoutDialog open={showDiscard} onKeep={() => setShowDiscard(false)} onDiscard={handleAbandon} />
+      <DiscardDialog open={showDiscard} onKeep={() => setShowDiscard(false)} onDiscard={handleAbandon} />
       <ExactAlarmDialog open={restAlerts.offerOpen} onNotNow={restAlerts.closeOffer} onOpenSettings={restAlerts.openSettings} />
       <SpeakIntroDialog
         open={restAlerts.introOpen}

@@ -4,6 +4,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { CardSurface } from '../../shared/components/Card';
 import EmptyState from '../../shared/components/EmptyState';
+import ExerciseImage from '../../shared/components/ExerciseImage';
 import GradientFill from '../../shared/components/GradientFill';
 import RemoteImage from '../../shared/components/RemoteImage';
 import StatusPill from '../../shared/components/StatusPill';
@@ -88,10 +89,14 @@ export function GlassButton({ testID, label, onPress, height = 58, textStyle, st
 // The Today hero (all five card states). Phone: the faint photo layer on
 // the right (today_status.image.url) under a surface fade, else the glow
 // only. Tablet: no photo, the 76 headline and "Day n of N" (training only).
-export function TodayHero({ plan, card, tablet, reflow, imageUrl, dayOfWeek, onPrimary, onViewPlan }) {
+// Batch 2 item 4 (web ≥1024 parity): the tablet hero's right media half is
+// the photo, else (photo failed) the workout-icon tile, else the neutral
+// initials tile of the day title (`dayTitle`), else nothing (plain gradient).
+export function TodayHero({ plan, card, tablet, reflow, imageUrl, dayTitle, dayOfWeek, onPrimary, onViewPlan }) {
   // Fixed at mount: the fade gradient never appears on a later change
   // (Android render rule).
   const [photo] = useState(() => (tablet ? null : imageUrl));
+  const [media] = useState(() => (tablet && (imageUrl || dayTitle) ? { url: imageUrl || null, name: dayTitle || '' } : null));
   const [longMissed, setLongMissed] = useState(false);
   const missedLong = card.state === 'missed' && longMissed;
   return (
@@ -99,6 +104,12 @@ export function TodayHero({ plan, card, tablet, reflow, imageUrl, dayOfWeek, onP
       {photo ? (
         <View testID="home-today-photo" pointerEvents="none" style={styles.photo} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <RemoteImage url={photo} style={[StyleSheet.absoluteFill, styles.photoImage]} />
+          <GradientFill angle={90} colors={[gradients.surfaceFade.colors[1], gradients.surfaceFade.colors[0]]} stops={[0, 0.6]} />
+        </View>
+      ) : null}
+      {media ? (
+        <View testID="home-today-media" pointerEvents="none" style={styles.media} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <ExerciseImage testID="home-today-media-image" url={media.url} name={media.name} muscleCode={null} style={[StyleSheet.absoluteFill, styles.mediaImage]} />
           <GradientFill angle={90} colors={[gradients.surfaceFade.colors[1], gradients.surfaceFade.colors[0]]} stops={[0, 0.6]} />
         </View>
       ) : null}
@@ -401,6 +412,19 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     width: '58%',
+  },
+  media: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: '50%',
+  },
+  mediaImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 0,
+    opacity: 0.5,
   },
   photoImage: {
     opacity: 0.35,

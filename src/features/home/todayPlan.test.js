@@ -25,7 +25,7 @@ import { openPlanDetailAlone, openShellPath } from '../shell/shellLinks';
 import ProgressRing from '../workout/components/ProgressRing';
 import { getCurrentWeek, getDashboard } from './api/homeApi';
 import HomeScreen from './HomeScreen';
-import { heroImageUrl, memberVolume, weekRing, weekStrip, workoutInitials } from './homeFormat';
+import { heroDayTitle, heroImageUrl, memberVolume, weekRing, weekStrip, workoutInitials } from './homeFormat';
 
 function textOf(node) {
   return []
@@ -192,16 +192,72 @@ describe('Today hero (UX E, all five states)', () => {
     expect(queryHost(none.root, 'home-today-photo')).toHaveLength(0);
   });
 
-  it('tablet: no photo, radius 32, padding 32, 76 headline, "Day 3 of 4" on training only', async () => {
+  // DECLARED change (Batch 2 item 4, web HomePage.jsx:185-197): was "tablet: no photo" (queryHost home-today-photo
+  // length 0); the tablet hero now has the web ≥1024 right media half (photo / failed icon tile / initials tile).
+  it('tablet: the media half, radius 32, padding 32, 76 headline, "Day 3 of 4" on training only', async () => {
     mockWidth = 834;
     const tree = await render({ ...DASH, today_status: { ...DASH.today_status, image: { url: 'https://img/a.jpg' } } });
     expect(queryHost(tree.root, 'home-today-photo')).toHaveLength(0);
+    expect(queryHost(tree.root, 'home-today-media')).toHaveLength(1);
     expect(styleOf(host(tree.root, 'home-today-card'))).toMatchObject({ borderRadius: 32, padding: 32 });
     expect(styleOf(host(tree.root, 'home-today-headline')).fontSize).toBe(76);
     expect(texts(host(tree.root, 'home-day-of-week'))).toEqual(['Day 3 of 4']);
     expect(styleOf(host(tree.root, 'home-today-buttons')).maxWidth).toBe(480);
     const rest = await render({ ...DASH, today_status: {} });
     expect(queryHost(rest.root, 'home-day-of-week')).toHaveLength(0);
+  });
+});
+
+// Batch 2 item 4 (pm-web-facts): image = today_status.image.url only; tile name = the plan day title (the latest
+// miss's when missed; none in setup). Phone: no image → gradient + glow only. Tablet: photo, else the failed-photo
+// workout-icon tile, else the neutral initials tile of the title, else the plain gradient.
+describe('Today hero with no image (Batch 2 item 4)', () => {
+  afterEach(() => {
+    mockWidth = 390;
+  });
+  const media = (root) => queryHost(root, 'home-today-media');
+  const tile = (root, suffix) => queryHost(root, `home-today-media-image${suffix}`);
+
+  it('heroDayTitle: today\'s day title, the latest miss\'s when missed, none in setup', () => {
+    expect(heroDayTitle(DASH, { state: 'training' })).toBe('Upper A');
+    expect(heroDayTitle({ today_status: {}, missed_this_week: [{ plan_day: { title: 'Lower B' } }] }, { state: 'missed' })).toBe('Lower B');
+    expect(heroDayTitle(DASH, { state: 'setup' })).toBeNull();
+    expect(heroDayTitle({ today_status: { plan_day: { title: '  ' } } }, { state: 'rest' })).toBeNull();
+    expect(heroDayTitle(null, { state: 'training' })).toBeNull();
+  });
+
+  it('phone, no image: the gradient card and the gold glow only, no tile', async () => {
+    const tree = await render();
+    expect(media(tree.root)).toHaveLength(0);
+    expect(queryHost(tree.root, 'home-today-photo')).toHaveLength(0);
+    expect(queryHost(tree.root, 'exercise-image-initials')).toHaveLength(0);
+  });
+
+  it('tablet, no image: the neutral initials tile of the day title ("UA") on the right half, hidden from readers', async () => {
+    mockWidth = 834;
+    const tree = await render();
+    const [half] = media(tree.root);
+    expect(styleOf(half)).toMatchObject({ position: 'absolute', top: 0, right: 0, bottom: 0, width: '50%' });
+    expect(half.props).toMatchObject({ accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' });
+    expect(tile(tree.root, '-initials')).toHaveLength(1);
+    expect(texts(tile(tree.root, '-initials')[0])).toEqual(['UA']);
+    // Neutral: no muscle tint.
+    expect(tile(tree.root, '-tint')).toHaveLength(0);
+  });
+
+  it('tablet, photo: the photo in the media half; a failed photo → the workout-icon tile', async () => {
+    mockWidth = 834;
+    const tree = await render({ ...DASH, today_status: { ...DASH.today_status, image: { url: 'https://img/a.jpg' } } });
+    expect(tree.root.findByType(RemoteImage).props.url).toBe('https://img/a.jpg');
+    await act(async () => tree.root.findByType(RemoteImage).props.onExhausted());
+    expect(tile(tree.root, '-failed')).toHaveLength(1);
+    expect(tile(tree.root, '-initials')).toHaveLength(0);
+  });
+
+  it('tablet, no image and no day title: the plain gradient, no media half', async () => {
+    mockWidth = 834;
+    const tree = await render({ ...DASH, today_status: { is_workout_day: true } });
+    expect(media(tree.root)).toHaveLength(0);
   });
 });
 

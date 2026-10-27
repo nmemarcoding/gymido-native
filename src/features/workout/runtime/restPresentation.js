@@ -59,14 +59,15 @@ function findSet(session, key) {
 }
 
 // The weight the next set will log: its draft (what the member typed or the
-// seeded value), else nothing. Blank or junk → no weight part.
+// seeded value), else nothing. Blank, junk or ≤ 0 → no weight part.
 function nextWeight(set, draft) {
   const raw = draft?.actualWeightValue ?? '';
   const value = parseDecimal(String(raw));
-  if (value === null || Number.isNaN(value)) {
+  // M3 (web nextSetLabel): the weight part only when > 0.
+  if (value === null || Number.isNaN(value) || !(value > 0)) {
     return '';
   }
-  const unit = draft?.actualWeightUnit || set.target_weight_unit || 'lb';
+  const unit = draft?.actualWeightUnit || set.actual_weight_unit || set.target_weight_unit || 'lb';
   return formatWeight(value, unit);
 }
 

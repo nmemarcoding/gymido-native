@@ -153,14 +153,34 @@ describe('progressFormat (Phase 3)', () => {
       'kg',
       memberVolume
     );
+    // DECLARED change (review M2, web mergeRecentWorkouts progressData.js:158): was [Upper B, Lower A] (any completed
+    // row cut the older missed ones). Web cuts only when completed ≥ 5; with 1 completed row "Old" stays.
     expect(rows.map((row) => [row.kind, row.title])).toEqual([
       ['missed', 'Upper B'],
       ['done', 'Lower A'],
+      ['missed', 'Old'],
     ]);
     expect(rows[1].volume).toBe('1,000 kg');
     expect(rows[0].meta).toMatch(/ · —$/);
     const many = Array.from({ length: 10 }, (_, index) => ({ id: index, completed_at: `2026-10-${10 + index}T10:00:00Z` }));
     expect(recentWorkoutRows(many, [], 'kg', memberVolume)).toHaveLength(8);
+  });
+
+  it('recentWorkoutRows (M2): older Missed rows are cut only when there are ≥ 5 completed rows', () => {
+    const done = (count) => Array.from({ length: count }, (_, index) => ({ id: index, completed_at: `2026-10-${20 + index}T10:00:00Z` }));
+    const older = [1, 2, 3, 4].map((day) => ({ date: `2026-10-0${day}`, plan_day: { title: `Old ${day}` } }));
+    const two = recentWorkoutRows(done(2), older, 'kg', memberVolume);
+    expect(two).toHaveLength(6);
+    expect(two.filter((row) => row.kind === 'missed')).toHaveLength(4);
+    const four = recentWorkoutRows(done(4), older, 'kg', memberVolume);
+    expect(four.filter((row) => row.kind === 'missed')).toHaveLength(4);
+    const five = recentWorkoutRows(done(5), [...older, { date: '2026-10-22', plan_day: { title: 'Inside' } }], 'kg', memberVolume);
+    expect(five.filter((row) => row.kind === 'missed').map((row) => row.title)).toEqual(['Inside']);
+  });
+
+  it('recentWorkoutRows (LOW): a Missed row with no title reads "Workout session", else the day name', () => {
+    expect(recentWorkoutRows([], [{ date: '2026-10-21', plan_day: {} }], 'kg', memberVolume)[0].title).toBe('Workout session');
+    expect(recentWorkoutRows([], [{ date: '2026-10-21', plan_day: { name: 'Leg day' } }], 'kg', memberVolume)[0].title).toBe('Leg day');
   });
 
   it('chartGeometry: the axis widens to contain the goal; the goal y is inside the plot', () => {

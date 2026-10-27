@@ -108,6 +108,8 @@ describe('Exercises (UX G, phone)', () => {
     const chips = tree.root.findAllByType(Chip).map((chip) => [chip.props.label, chip.props.selected]);
     expect(chips).toEqual([['All', true], ['Back', false], ['Chest', false], ['Other', false]]);
     expect(host(tree.root, 'exercises-chips').type).toBe('RCTScrollView');
+    // Review LOW: the scrolling chip row is a radiogroup too (as the reflow wrap).
+    expect(host(tree.root, 'exercises-chips').props).toMatchObject({ accessibilityRole: 'radiogroup', accessibilityLabel: 'Muscle group' });
     expect(texts(host(tree.root, 'exercises-filter'))).toEqual(['All muscle groups']);
     press(tree.root, 'exercises-chip-Chest');
     expect(cardIds(tree.root)).toEqual(['exercise-card-1', 'exercise-card-3']);

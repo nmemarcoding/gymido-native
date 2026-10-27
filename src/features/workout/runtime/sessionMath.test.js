@@ -368,6 +368,8 @@ describe('v2 F1 "Last time" (U3)', () => {
     expect(lastTimeLabel(exercise.previous_sets[1], 'lb')).toBe('Last time 12 reps');
     expect(lastTimeLabel(null, 'lb')).toBeNull();
     expect(lastTimeLabel({ set_number: 1 }, 'lb')).toBeNull();
+    // Review LOW (web "Last time 135"): a weight-only previous set shows its weight.
+    expect(lastTimeLabel({ set_number: 1, weight_value: 135, weight_unit: 'lb' }, 'lb')).toBe('Last time 135');
   });
 
   it('gives the stepper start weight in the current unit', () => {

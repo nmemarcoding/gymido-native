@@ -248,7 +248,9 @@ function WorkoutPage() {
           isStartingDayId={isStartingDayId}
           onRetry={() => load()}
           onStart={handleStart}
-          onBackToToday={() => (navigation.canGoBack?.() ? navigation.goBack() : openShellPath('/'))}
+          // M1 (U5): always the Today root; goBack under backBehavior
+          // "history" could land on another tab.
+          onBackToToday={() => openShellPath('/')}
           onScheduleSaved={async () => {
             setSuccessMessage('Training days saved.');
             await load();

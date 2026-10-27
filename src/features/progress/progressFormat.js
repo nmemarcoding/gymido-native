@@ -248,8 +248,10 @@ export function completionCells(missed, week, now = new Date()) {
 }
 
 // U8 Recent workouts: /dashboard recent_workouts (completed) + the Missed
-// days of /my-plans/current/missed items, newest first, max 8; Missed days
-// older than the oldest completed row are dropped. Volume = VOLUME RULE.
+// days of /my-plans/current/missed items, newest first, max 8; with 5+
+// completed rows, Missed days older than the oldest one are dropped (web).
+// Volume = VOLUME RULE.
+export const RECENT_COMPLETED_LIMIT = 5;
 export function recentWorkoutRows(recent, missedItems, unit, memberVolume) {
   const done = (recent ?? []).map((workout, index) => ({
     key: `w${workout.id ?? index}`,
@@ -259,13 +261,16 @@ export function recentWorkoutRows(recent, missedItems, unit, memberVolume) {
     meta: `${formatDate(workout.completed_at || workout.started_at)} · ${formatDuration(workout.duration_seconds)}`,
     volume: memberVolume(workout.total_volume_kg, unit),
   }));
-  const oldest = done.reduce((min, row) => (row.sortKey && (!min || row.sortKey < min) ? row.sortKey : min), '');
+  // M2 (web mergeRecentWorkouts): the cut applies only once the completed
+  // list is full (≥ RECENT_COMPLETED_LIMIT rows); otherwise every Missed day stays.
+  const oldest =
+    done.length >= RECENT_COMPLETED_LIMIT ? done.reduce((min, row) => (row.sortKey && (!min || row.sortKey < min) ? row.sortKey : min), '') : '';
   const missed = (missedItems ?? [])
     .filter((item) => item?.date && (!oldest || String(item.date) >= oldest.slice(0, 10)))
     .map((item, index) => ({
       key: `m${item.date}-${index}`,
       kind: 'missed',
-      title: item.plan_day?.title || 'Workout',
+      title: item.plan_day?.title || item.plan_day?.name || 'Workout session',
       sortKey: String(item.date),
       meta: `${formatDate(`${item.date}T12:00:00`)} · —`,
       volume: null,

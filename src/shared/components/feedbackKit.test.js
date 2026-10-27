@@ -18,8 +18,6 @@ import Skeleton, { SHIMMER_MS, SKELETON_RADIUS } from './Skeleton';
 import Spinner from './Spinner';
 import ToastHost, { InlineToast, TAB_BAR_CLEARANCE, TOAST_GAP, TOAST_TONES, ToastCard, toastPlacement } from './ToastHost';
 import { useToastStore } from './toastStore';
-import Card3D from '../../features/workout/components/Card3D';
-import WorkoutSkeleton from '../../features/workout/components/WorkoutSkeleton';
 import OnHoldBox from '../../features/myPlans/components/OnHoldBox';
 import { ClientsBanner, InactiveBanner } from '../../features/trainer/plans/components/AffectedClients';
 
@@ -169,27 +167,8 @@ describe('Skeleton (§5)', () => {
   });
 });
 
-describe('WorkoutSkeleton', () => {
-  it('keeps its loading region and draws the hub shape from Skeleton blocks', () => {
-    const tree = render(<WorkoutSkeleton />);
-    const region = host(tree, 'workout-skeleton');
-    expect(region.props).toMatchObject({ accessibilityRole: 'progressbar', accessibilityLabel: 'Loading workout', accessibilityLiveRegion: 'polite' });
-    const blocks = tree.root.findAllByType(Skeleton);
-    expect(blocks.length).toBe(18);
-    expect(blocks.filter((block) => block.props.radius === radii.full)).toHaveLength(10);
-  });
-
-  it('lays the day cards in 1 column on phones and 2 on tablets', () => {
-    const cardWidths = (tree) =>
-      tree.root.findAllByType(Card3D).slice(1).map((node) => StyleSheet.flatten(node.props.style).width);
-    atWidth(390);
-    expect(cardWidths(render(<WorkoutSkeleton />))).toEqual(['100%', '100%', '100%']);
-    mounted.splice(0).forEach((tree) => act(() => tree.unmount()));
-    jest.restoreAllMocks();
-    atWidth(834);
-    expect(cardWidths(render(<WorkoutSkeleton />))).toEqual(['48%', '48%', '48%']);
-  });
-});
+// WorkoutSkeleton: its tests moved to src/features/workout/components/WorkoutSkeleton.test.js (P3 fix, 27 Oct;
+// every assertion carried there, the changed ones declared in p3fix-report.md).
 
 describe('EmptyState (§5)', () => {
   it('shows UX’s defaults in a centred card with the 44 px icon tile', () => {

@@ -116,7 +116,10 @@ describe('SessionChrome (ND3)', () => {
     const tree = render(<SessionChrome {...props} tablet={scale === 2} />);
     const name = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Upper / Lower Split')[0];
     expect(name.props).toMatchObject({ textBreakStrategy: 'simple', adjustsFontSizeToFit: true, minimumFontScale: 0.7, maxFontSizeMultiplier: 1.6 });
-    const rows = host(tree, 'session-chrome').props.children;
+    // DECLARED path change (Batch 2 item 3): children = [rows, the gold rail].
+    const [rows, rail] = host(tree, 'session-chrome').props.children;
+    expect(rail.type).toBe(SessionRail);
+    expect(rail.props).toMatchObject({ completedSets: props.completedSets, totalSets: props.totalSets, inChrome: true });
     if (scale > 1.3) {
       expect(rows.props.children).toHaveLength(2);
     } else {

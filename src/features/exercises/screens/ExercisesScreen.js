@@ -510,6 +510,7 @@ function StickyBar({ padding, searchValue, onChangeSearch, onSubmitSearch, searc
             testID="exercises-chips"
             horizontal
             showsHorizontalScrollIndicator={false}
+            accessibilityRole="radiogroup"
             accessibilityLabel="Muscle group"
             keyboardShouldPersistTaps="handled"
             style={styles.chipsScroll}

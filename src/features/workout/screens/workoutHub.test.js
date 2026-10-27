@@ -90,13 +90,18 @@ afterEach(() => act(() => mounted.splice(0).forEach((tree) => tree.unmount())));
 const HERO = { planName: 'Upper / Lower Split', dayCountLabel: '4 training days', state: 'training', detail: 'Upper A is ready to go.', ringValue: 2, ringTotal: 4, showStart: true, starting: false, onStart: jest.fn() };
 
 describe('Workout hub page (UX G)', () => {
-  it('"← Today" (U5, 44 hit) goes back to Today; H1 "Workout" 52 phone', async () => {
+  it('"← Today" (U5, 44 hit) always opens the Today root, never goBack (M1); H1 "Workout" 52 phone', async () => {
     const tree = await renderScreen();
     const back = tree.root.find((node) => node.props.testID === 'workout-back-today' && node.props.onPress);
     expect(back.props.accessibilityRole).toBe('link');
     expect(flat(host(tree.root, 'workout-back-today')).minHeight + 2 * back.props.hitSlop).toBeGreaterThanOrEqual(44);
+    // DECLARED bug-fix change (review M1, PM-approved): was expect(mockNavigation.goBack).toHaveBeenCalled(); goBack
+    // with backBehavior="history" could land on another tab. "← Today" ALWAYS opens the Today root.
+    require('../../shell/shellLinks').openShellPath.mockClear();
+    mockNavigation.goBack.mockClear();
     act(() => back.props.onPress());
-    expect(mockNavigation.goBack).toHaveBeenCalled();
+    expect(require('../../shell/shellLinks').openShellPath).toHaveBeenCalledWith('/');
+    expect(mockNavigation.goBack).not.toHaveBeenCalled();
     expect(flat(host(tree.root, 'workout-title'))).toMatchObject({ fontSize: 52, color: colors.textPrimary });
   });
 

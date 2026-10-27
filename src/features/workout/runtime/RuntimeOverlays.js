@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
   Animated,
+  BackHandler,
   Easing,
   Modal,
   PanResponder,
@@ -58,6 +59,7 @@ import {
   shareSummaryText,
   spokenRecordLine,
 } from './restPresentation';
+import { consumeRestBack, setRestBackConsumer } from './restBackGate';
 import { setsWord } from './sessionMath';
 
 const POP = Easing.bezier(...motion.easePop);
@@ -152,6 +154,23 @@ export function RestTimerWidget({ timer, minimized, onMinimize, onExpand, onAdju
       }),
     []
   );
+
+  // O14 / review M6: Android Back on the expanded Rest = Minimise (consumed,
+  // the rest keeps running). Subscribed only while expanded.
+  const expanded = Boolean(timer) && !minimized;
+  const minimiseRef = useRef(onMinimize);
+  minimiseRef.current = onMinimize;
+  useEffect(() => {
+    if (!expanded) {
+      return undefined;
+    }
+    const release = setRestBackConsumer(() => minimiseRef.current?.());
+    const subscription = BackHandler.addEventListener('hardwareBackPress', consumeRestBack);
+    return () => {
+      subscription.remove();
+      release();
+    };
+  }, [expanded]);
 
   if (!timer) {
     return null;

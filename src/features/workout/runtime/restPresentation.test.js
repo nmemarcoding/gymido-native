@@ -81,6 +81,19 @@ describe('restNextPreview (U4)', () => {
     expect(restNextPreview(session, '1:11', null)).toEqual({ exerciseName: 'Squat', exercise: null, line: 'Set 1 · 5 reps' });
   });
 
+  // Review M3 (web nextSetLabel setEditorUtils.js:101-109): the weight part only when > 0.
+  it('M3: a 0 (or negative) weight is not shown ("0 lb" never reads on a bodyweight set)', () => {
+    expect(restNextPreview(session, '2:21', { 21: { actualWeightValue: '0', actualWeightUnit: 'lb' } }).line).toBe('Set 1 · 8–10 reps');
+    expect(restNextPreview(session, '2:21', { 21: { actualWeightValue: 0 } }).line).toBe('Set 1 · 8–10 reps');
+    expect(restNextPreview(session, '2:21', { 21: { actualWeightValue: '-5' } }).line).toBe('Set 1 · 8–10 reps');
+    expect(restNextPreview(session, '2:21', { 21: { actualWeightValue: '0.5', actualWeightUnit: 'kg' } }).line).toBe('Set 1 · 8–10 reps · 0.5 kg');
+  });
+
+  it('LOW: with no draft unit the set\'s actual_weight_unit comes before the target unit', () => {
+    const withActual = { exercises: [{ id: 3, exercise_name_snapshot: 'Row', sets: [{ id: 31, set_number: 1, target_reps_min: 8, actual_weight_unit: 'kg', target_weight_unit: 'lb' }] }] };
+    expect(restNextPreview(withActual, '3:31', { 31: { actualWeightValue: '40' } }).line).toBe('Set 1 · 8 reps · 40 kg');
+  });
+
   it('no next set (the last set) or an unknown key → null', () => {
     expect(restNextPreview(session, '', {})).toBeNull();
     expect(restNextPreview(session, '9:99', {})).toBeNull();

@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { VideoView, useVideoPlayer } from 'expo-video';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { getServerMessage } from '../../../shared/api/apiError';
 import AppModal, { ModalActions } from '../../../shared/components/AppModal';
@@ -8,7 +9,7 @@ import ExerciseImage from '../../../shared/components/ExerciseImage';
 import Loader from '../../../shared/components/Loader';
 import PillButton from '../../../shared/components/PillButton';
 import { CAP_BODY, TITLE_TEXT } from '../../../shared/components/largeText';
-import { colors, font, spacing, typography } from '../../../shared/theme/tokens';
+import { colors, font, layout, radii, spacing, typography } from '../../../shared/theme/tokens';
 import { getExercise } from '../../exercises/api/exercisesApi';
 import { exerciseName } from './sessionMath';
 
@@ -65,19 +66,83 @@ export function useHowToLibrary({ load = getExercise } = {}) {
   return { entries, fetchEntry };
 }
 
+// Batch 2 (1), web HowToSheet parity: a video FILE plays inline; any other
+// video URL (a YouTube / Drive page) is a "Watch video" link out.
+const VIDEO_FILE = /\.(mp4|webm|mov|m4v)(?:[?#].*)?$/i;
+export function isVideoFile(url) {
+  if (typeof url !== 'string' || !url) {
+    return false;
+  }
+  return VIDEO_FILE.test(url.trim());
+}
+
+const isVideoType = (item) => String(item?.media_type ?? '').toLowerCase().includes('video');
+
+// Media by sort_order: the first video wins; the image is the first
+// non-video item, else the exercise thumbnail (library, then session).
+export function howToMedia(exercise, sessionExercise) {
+  const media = (Array.isArray(exercise?.media) ? exercise.media : [])
+    .filter((item) => item?.url)
+    .slice()
+    .sort((a, b) => Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0));
+  const video = media.find(isVideoType)?.url ?? null;
+  const image = media.find((item) => !isVideoType(item))?.url || exercise?.thumbnail?.url || sessionExercise?.exercise?.thumbnail?.url || null;
+  return { video: isVideoFile(video) ? video : null, link: video && !isVideoFile(video) ? video : null, image };
+}
+
+// Inline file video (web `<video controls playsInline preload="metadata">`):
+// native controls, contain, no autoplay, no loop, no PiP.
+function HowToVideo({ url, name }) {
+  const player = useVideoPlayer(url, (instance) => {
+    instance.loop = false;
+  });
+  return (
+    <View testID="how-to-video" style={styles.video}>
+      <VideoView
+        player={player}
+        nativeControls
+        contentFit="contain"
+        allowsPictureInPicture={false}
+        accessibilityLabel={`${name} video`}
+        style={StyleSheet.absoluteFill}
+      />
+    </View>
+  );
+}
+
+function WatchVideoLink({ url }) {
+  return (
+    <Pressable
+      testID="how-to-watch-video"
+      accessibilityRole="link"
+      accessibilityLabel="Watch video"
+      onPress={() => Linking.openURL(url).catch(() => {})}
+      style={styles.watch}
+    >
+      {({ pressed }) => (
+        <Text {...CAP_BODY} style={[styles.watchText, pressed && styles.watchPressed]}>
+          Watch video
+        </Text>
+      )}
+    </Pressable>
+  );
+}
+
 // Ready with nothing to show → no pill; loading or failed → the pill stays
 // (the sheet shows the loader / the error with Retry).
 export function showHowToPill(entry, sessionExercise) {
   if (!entry || entry.status !== 'ready') {
     return true;
   }
-  return hasHowTo(entry.exercise) || Boolean(entry.exercise?.thumbnail?.url || sessionExercise?.exercise?.thumbnail?.url);
+  const media = howToMedia(entry.exercise, sessionExercise);
+  return hasHowTo(entry.exercise) || Boolean(media.video || media.link || media.image);
 }
 
 export default function HowToSheet({ open, sessionExercise, entry, onRetry, onClose }) {
   const name = exerciseName(sessionExercise);
   const exercise = entry?.status === 'ready' ? entry.exercise : null;
-  const url = exercise?.thumbnail?.url || sessionExercise?.exercise?.thumbnail?.url || null;
+  const media = howToMedia(exercise, sessionExercise);
+  const url = media.video ? null : media.image;
   const steps = howToSteps(exercise?.instructions);
 
   let body;
@@ -88,6 +153,7 @@ export default function HowToSheet({ open, sessionExercise, entry, onRetry, onCl
   } else {
     body = (
       <View testID="how-to-content" style={styles.content}>
+        {media.video ? <HowToVideo url={media.video} name={name} /> : null}
         {url ? (
           <ExerciseImage
             testID="how-to-image"
@@ -99,6 +165,7 @@ export default function HowToSheet({ open, sessionExercise, entry, onRetry, onCl
             accessibilityLabel={name}
           />
         ) : null}
+        {media.link ? <WatchVideoLink url={media.link} /> : null}
         {hasHowTo(exercise) ? (
           <View style={styles.section}>
             <Text {...TITLE_TEXT} accessibilityRole="header" style={styles.sectionTitle}>
@@ -175,6 +242,26 @@ const styles = StyleSheet.create({
   stepNumber: {
     ...font(600),
     color: colors.textPrimary,
+  },
+  // aspect-video, object-contain (web).
+  video: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    overflow: 'hidden',
+    borderRadius: radii.md,
+    backgroundColor: colors.ground,
+  },
+  watch: {
+    alignSelf: 'flex-start',
+    minHeight: layout.touchMin,
+    justifyContent: 'center',
+  },
+  watchText: {
+    ...typography.labelLg,
+    color: colors.gold,
+  },
+  watchPressed: {
+    textDecorationLine: 'underline',
   },
   stepText: {
     flex: 1,

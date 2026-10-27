@@ -89,13 +89,61 @@ afterEach(() => {
 });
 
 describe('SessionRuntime', () => {
-  it('unlocks the first pending set of the VIEWED exercise, even a later one (#15)', () => {
+  // DECLARED change (Batch 2 item 2, web WorkoutPage.jsx:688-690 / :771-785): a browsed exercise's pending rows are
+  // LOCKED; only the ACTIVE exercise has the live editor. Was: "unlocks the first pending set of the VIEWED exercise,
+  // even a later one (#15)" with set-action-21 enabled.
+  it('only the ACTIVE exercise has a live set; a browsed exercise\'s pending rows are locked (#15, Batch 2)', () => {
     const { tree } = render();
     expect(byId(tree, 'set-action-12').props.disabled).toBe(false);
     // v2 F1 (ND3): the live state has no bottom nav; jump through All (n).
     act(() => tree.root.findByType(ExerciseSheet).props.onSelect(1));
-    expect(byId(tree, 'set-action-21').props.disabled).toBe(false);
+    expect(byId(tree, 'set-action-21').props.disabled).toBe(true);
+    expect(byId(tree, 'set-action-21').props.accessibilityLabel).toBe('Set 1');
     expect(byId(tree, 'set-action-22').props.disabled).toBe(true);
+    expect(byId(tree, 'set-weight-21')).toBeUndefined();
+    expect(byId(tree, 'set-reps-21')).toBeUndefined();
+    expect(text(tree, 'Did it')).toHaveLength(0);
+  });
+
+  // Review "untested": undo from a done chip through SessionRuntime, and a "Did it" double tap at runtime level.
+  it('live: the done chip is Undo and PATCHes is_completed false', async () => {
+    updateSessionSet.mockClear();
+    const { tree } = render();
+    const undo = byId(tree, 'set-action-11');
+    expect(undo.props.accessibilityLabel).toBe('Undo');
+    await act(async () => undo.props.onPress());
+    expect(updateSessionSet).toHaveBeenCalledTimes(1);
+    expect(updateSessionSet).toHaveBeenCalledWith(1, 1, 11, expect.objectContaining({ is_completed: false }));
+  });
+
+  it('"Did it" double tap sends ONE PATCH (the in-flight guard)', async () => {
+    updateSessionSet.mockClear();
+    let resolve;
+    updateSessionSet.mockImplementationOnce(() => new Promise((done) => (resolve = done)));
+    const { tree } = render();
+    const didIt = byId(tree, 'set-action-12');
+    await act(async () => {
+      didIt.props.onPress();
+      didIt.props.onPress();
+    });
+    expect(updateSessionSet).toHaveBeenCalledTimes(1);
+    await act(async () => resolve());
+  });
+
+  it('browsing: a done row of the browsed exercise can still be undone (Batch 2 item 2)', async () => {
+    const session = {
+      ...SESSION,
+      exercises: [SESSION.exercises[0], { id: 2, exercise_name_snapshot: 'Press', sets: [set(21, true), set(22)] }],
+    };
+    const { tree } = render({ session });
+    act(() => tree.root.findByType(ExerciseSheet).props.onSelect(1));
+    expect(host(tree, 'browsing-bar')).toBeDefined();
+    const undo = byId(tree, 'set-action-21');
+    expect(undo.props.accessibilityLabel).toBe('Undo');
+    expect(undo.props.disabled).toBe(false);
+    expect(byId(tree, 'set-action-22').props.disabled).toBe(true);
+    await act(async () => undo.props.onPress());
+    expect(updateSessionSet).toHaveBeenCalledWith(1, 2, 21, expect.objectContaining({ is_completed: false }));
   });
 
   it('closes the keyboard on "Did it" and on the runtime buttons (#17)', async () => {
@@ -278,7 +326,7 @@ describe('v2 F1 live and browsing states (ND3)', () => {
     expect(tree.root.findAll((node) => node.props.testID === 'discard-dialog')[0]).toBeDefined();
   });
 
-  it('browsing: the bar, the rail, Time/Volume/Reps and the bottom nav; Did it moves into the card; Resume returns', () => {
+  it('browsing: the bar, the rail, Time/Volume/Reps and the bottom nav; pending rows locked, no Did it; Resume returns', () => {
     const { tree } = render();
     act(() => sheet(tree).props.onSelect(1));
     expect(host(tree, 'browsing-bar')).toBeDefined();
@@ -287,11 +335,38 @@ describe('v2 F1 live and browsing states (ND3)', () => {
     expect(host(tree, 'exercise-nav')).toBeDefined();
     expect(byId(tree, 'up-next')).toBeUndefined();
     expect(text(tree, 'Exercise 2 of 2')).not.toHaveLength(0);
-    // The browsed exercise's first set stays actionable (v1 #15, code wins).
-    expect(byId(tree, 'set-action-21').props.accessibilityLabel).toBe('Did it');
+    // DECLARED change (Batch 2 item 2): was "The browsed exercise's first set stays actionable (v1 #15)" with
+    // accessibilityLabel 'Did it'; now the browsed exercise's pending rows are locked and "Did it" goes.
+    expect(byId(tree, 'set-action-21').props.accessibilityLabel).toBe('Set 1');
+    expect(byId(tree, 'set-action-21').props.disabled).toBe(true);
+    expect(text(tree, 'Did it')).toHaveLength(0);
+    // Batch 2 item 3: the gold rail stays (in the session header); the per-exercise segments go while browsing.
+    expect(host(tree, 'exercise-segments')).toBeUndefined();
     act(() => byId(tree, 'browsing-resume').props.onPress());
     expect(host(tree, 'browsing-bar')).toBeUndefined();
     expect(byId(tree, 'set-action-12')).toBeDefined();
+  });
+
+  // Batch 2 item 3 (web SessionChrome.jsx:27, :84-90; WorkoutPage.jsx:901-915).
+  it('the gold progress rail sits in the session header in every state and width; segments only live with 2+ exercises', () => {
+    const inChrome = (tree) => host(tree, 'session-chrome').findAll((node) => node.props.testID === 'session-rail' && typeof node.type === 'string');
+    [750, 1024].forEach((width) => {
+      mockWidth = width;
+      const { tree } = render();
+      expect(inChrome(tree)).toHaveLength(1);
+      expect(tree.root.findAll((node) => node.props.testID === 'session-rail' && typeof node.type === 'string')).toHaveLength(1);
+      expect(StyleSheet.flatten(host(tree, 'session-rail').findAll((node) => typeof node.type === 'string')[1].props.style).width).toBe('25%');
+      expect(host(tree, 'exercise-segments')).toBeDefined();
+      act(() => sheet(tree).props.onSelect(1));
+      expect(inChrome(tree)).toHaveLength(1);
+      expect(host(tree, 'exercise-segments')).toBeUndefined();
+      act(() => mounted.unmount());
+      mounted = null;
+    });
+    mockWidth = 750;
+    const { tree } = render({ session: { ...SESSION, exercises: [SESSION.exercises[0]] } });
+    expect(inChrome(tree)).toHaveLength(1);
+    expect(host(tree, 'exercise-segments')).toBeUndefined();
   });
 
   it('Up next views the next incomplete exercise', () => {
@@ -374,6 +449,30 @@ describe('v2 F1 steppers (ND1 / ND2) and the real reps (U3)', () => {
   });
 });
 
+// Review M6 (TalkBack half): the full-screen Rest is modal on Android too: while it is expanded, everything behind
+// it (header + the session column) is hidden from screen readers; the minimised disc hides nothing.
+describe('expanded Rest is modal for screen readers (M6)', () => {
+  const RESTING = { ...SESSION, exercises: [{ ...SESSION.exercises[0], sets: [set(11, true), { ...set(12), rest_seconds_planned: 60 }] }, SESSION.exercises[1]] };
+  const hiddenBehind = (tree) => {
+    const column = host(tree, 'session-column');
+    return { important: column.props.importantForAccessibility, hidden: column.props.accessibilityElementsHidden };
+  };
+
+  it.each([750, 1024])('at %s wide: hidden behind the expanded Rest, visible again when minimised', async (width) => {
+    mockWidth = width;
+    const { tree } = render({ session: RESTING, header: <></> });
+    expect(hiddenBehind(tree)).toEqual({ important: 'auto', hidden: false });
+    await act(async () => byId(tree, 'set-action-12').props.onPress());
+    expect(tree.root.findByType(RestTimerWidget).props.minimized).toBe(false);
+    expect(hiddenBehind(tree)).toEqual({ important: 'no-hide-descendants', hidden: true });
+    const header = tree.root.findAll((node) => node.props.testID === 'session-header' && typeof node.type === 'string')[0];
+    expect(header.props).toMatchObject({ importantForAccessibility: 'no-hide-descendants', accessibilityElementsHidden: true });
+    act(() => tree.root.findByType(RestTimerWidget).props.onMinimize());
+    expect(hiddenBehind(tree)).toEqual({ important: 'auto', hidden: false });
+    mockWidth = 750;
+  });
+});
+
 describe('v2 F1 "Last time" (U3, per set number, no fallback)', () => {
   const LAST = {
     ...SESSION,
@@ -396,8 +495,12 @@ describe('v2 F1 "Last time" (U3, per set number, no fallback)', () => {
   });
 
   it('a set number with no previous set has no line and no prefill from another set', () => {
-    const { tree } = render({ session: LAST });
+    // DECLARED fixture change (Batch 2 item 2): exercise 1 is all done so exercise 2 is the ACTIVE one (a browsed
+    // exercise has no editor any more). Assertions unchanged.
+    const session = { ...LAST, exercises: [{ ...LAST.exercises[0], sets: [set(11, true), set(12, true)] }, LAST.exercises[1]] };
+    const { tree } = render({ session });
     act(() => sheet(tree).props.onSelect(1));
+    expect(host(tree, 'browsing-bar')).toBeUndefined();
     // Set 21 is set number 1: exercise 2 only has a previous set number 2.
     expect(host(tree, 'set-last-time-21')).toBeUndefined();
     expect(byId(tree, 'set-reps-21').props.value).toBe('8');
@@ -518,7 +621,9 @@ describe('v2 F1 large text (UX §9; QA AX5 chrome)', () => {
     if (scale > 1.3) {
       expect(style.position).toBeUndefined();
       // Row 1 holds Exit, the timer and All; the plan pill has its own row.
-      expect(chrome.props.children.props.children).toHaveLength(2);
+      // DECLARED path change (Batch 2 item 3): the chrome's first child is the rows, the second the gold rail.
+      expect(chrome.props.children).toHaveLength(2);
+      expect(chrome.props.children[0].props.children).toHaveLength(2);
     } else {
       expect(style.position).toBe('absolute');
     }

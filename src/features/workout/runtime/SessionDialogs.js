@@ -8,10 +8,13 @@ import PillButton from '../../../shared/components/PillButton';
 import { CAP_BODY, DISPLAY_TITLE_TEXT, TITLE_TEXT, useLargeTextReflow } from '../../../shared/components/largeText';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { useSheetFocus } from '../../../shared/hooks/useSheetFocus';
-import { blur, breakpoints, colors, font, gradients, motion, radii, shadows, spacing, typography } from '../../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, motion, radii, shadows, spacing, typography } from '../../../shared/theme/tokens';
+import { PROMPT_SCRIM_BLUR } from './AlertSheet';
 import { LeaveIcon, TrashIcon } from './SessionIcons';
+import useForegroundBlur from './useForegroundBlur';
 
-// F1 "Leave workout?" / "Discard workout?" (phone sheets, tablet cards).
+// F1 "Leave workout?" (phone sheet, tablet card). Discard moved to the
+// AlertSheet DiscardDialog (RuntimeOverlays; review M4: one Discard shell).
 // Phone: a floating sheet 10 from the edges (+ safe area), radius 32, the
 // verb first (ND6). Tablet (≥ 768): a centred card 520 wide, radius 32, the
 // verb on the right (Stay · Leave, Keep going · Discard); past 1.3× text the
@@ -27,6 +30,7 @@ function SessionDialog({ open, onDismiss, dismissOnScrim, tone, title, body, ver
   const reducedMotion = useReducedMotion();
   const progress = useRef(new Animated.Value(0)).current;
   const keepRef = useRef(null);
+  const { showBlur, blurKey } = useForegroundBlur();
   // Initial focus on the non-destructive action (F1 states).
   useSheetFocus(open, { initialRef: keepRef });
 
@@ -75,7 +79,9 @@ function SessionDialog({ open, onDismiss, dismissOnScrim, tone, title, body, ver
     <Modal transparent visible={open} animationType="none" onRequestClose={onDismiss} statusBarTranslucent>
       <View style={[styles.host, tablet ? styles.hostTablet : styles.hostPhone, { paddingBottom: tablet ? spacing[6] : 10 + insets.bottom, paddingTop: insets.top + spacing[4] }]}>
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: progress }]}>
-          <BlurLayer blurPx={tablet ? blur.scrimTablet : blur.scrim} overApp />
+          {/* M5: the one prompt blur (8), drawn only in the foreground and
+              remounted on return (useForegroundBlur, the A2 Android fix). */}
+          {showBlur ? <BlurLayer key={blurKey} blurPx={PROMPT_SCRIM_BLUR} overApp /> : null}
           <View style={[StyleSheet.absoluteFill, styles.scrim]} />
         </Animated.View>
         <Pressable
@@ -125,23 +131,6 @@ function SessionDialog({ open, onDismiss, dismissOnScrim, tone, title, body, ver
         </Animated.View>
       </View>
     </Modal>
-  );
-}
-
-// §24 Discard: Android Back = Keep going; no scrim dismiss (code).
-export function DiscardWorkoutDialog({ open, onKeep, onDiscard }) {
-  return (
-    <SessionDialog
-      testID="discard-dialog"
-      open={open}
-      onDismiss={onKeep}
-      dismissOnScrim={false}
-      tone="danger"
-      title="Discard this workout?"
-      body="Your progress won't be saved and this session will be discarded."
-      verb={{ testID: 'discard-confirm', label: 'Discard', onPress: onDiscard }}
-      keep={{ testID: 'discard-keep', label: 'Keep going', onPress: onKeep }}
-    />
   );
 }
 

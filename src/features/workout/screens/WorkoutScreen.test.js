@@ -167,6 +167,83 @@ describe('WorkoutScreen', () => {
     jest.restoreAllMocks();
   });
 
+  // Owner override O14 (gymido d04f7254): the expanded Rest takes Back AHEAD of the leave guard. RN calls the
+  // newest hardwareBackPress listener first; both orders are tested, so one Back never opens the dialog too.
+  describe('Back with the expanded Rest (O14)', () => {
+    const { setRestBackConsumer } = require('../runtime/restBackGate');
+    const dispatchBack = (listeners) => {
+      for (const handler of [...listeners].reverse()) {
+        if (handler()) {
+          return true;
+        }
+      }
+      return false;
+    };
+    function capture() {
+      const listeners = [];
+      jest.spyOn(BackHandler, 'addEventListener').mockImplementation((_event, handler) => {
+        listeners.push(handler);
+        return { remove: () => listeners.splice(listeners.indexOf(handler), 1) };
+      });
+      return listeners;
+    }
+
+    it.each([
+      ['the rest listener registered after the guard', false],
+      ['the rest consumer registered before the guard (guard newest)', true],
+    ])('one Back while expanded → minimised, consumed, no dialog (%s)', async (_name, restFirst) => {
+      const listeners = capture();
+      mockNavigation.dispatch.mockClear();
+      const minimise = jest.fn();
+      let release = restFirst ? setRestBackConsumer(minimise) : null;
+      loadWorkoutPage.mockResolvedValue(withSession);
+      const tree = await render();
+      if (!restFirst) {
+        release = setRestBackConsumer(minimise);
+        listeners.push(() => require('../runtime/restBackGate').consumeRestBack());
+      }
+      [true, false].forEach((canGoBack) => {
+        minimise.mockClear();
+        mockNavigation.canGoBack.mockReturnValue(canGoBack);
+        let handled;
+        act(() => {
+          handled = dispatchBack(listeners);
+        });
+        expect(handled).toBe(true);
+        expect(minimise).toHaveBeenCalledTimes(1);
+        expect(find(tree, 'leave-workout-dialog')).toHaveLength(0);
+      });
+      expect(mockNavigation.dispatch).not.toHaveBeenCalled();
+      release();
+      mockNavigation.canGoBack.mockReturnValue(true);
+      act(() => tree.unmount());
+      jest.restoreAllMocks();
+    });
+
+    it('no expanded Rest (minimised disc or no rest): Back opens "Leave workout?"; Stay closes; Leave goes Home', async () => {
+      const listeners = capture();
+      loadWorkoutPage.mockResolvedValue(withSession);
+      const tree = await render();
+      mockNavigation.canGoBack.mockReturnValue(false);
+      let handled;
+      act(() => {
+        handled = dispatchBack(listeners);
+      });
+      expect(handled).toBe(true);
+      expect(find(tree, 'leave-workout-dialog')).toHaveLength(1);
+      act(() => find(tree, 'leave-workout-dialog')[0].props.dialog.onStay());
+      expect(find(tree, 'leave-workout-dialog')).toHaveLength(0);
+      act(() => {
+        dispatchBack(listeners);
+      });
+      act(() => find(tree, 'leave-workout-dialog')[0].props.dialog.onLeave());
+      expect(mockNavigation.dispatch).toHaveBeenCalledWith({ type: 'NAVIGATE', payload: { name: 'Home' } });
+      mockNavigation.canGoBack.mockReturnValue(true);
+      act(() => tree.unmount());
+      jest.restoreAllMocks();
+    });
+  });
+
   it('after an ended-elsewhere 409 the reload lands on the hub with the message (T-37)', async () => {
     loadWorkoutPage.mockResolvedValue(withSession);
     const tree = await render();
