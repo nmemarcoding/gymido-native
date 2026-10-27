@@ -24,7 +24,7 @@ import { TAB_BAR_CONTENT_PADDING } from './tabBarMetrics';
 export default function ShellPage({ children, nestable = false, glow = false, testID = 'app-root' }) {
   const route = useRoute();
   const path = getScreenPath(route.name, route.params);
-  const { width } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const storedPreference = useAuthStore((state) => state.workspace);
@@ -40,7 +40,10 @@ export default function ShellPage({ children, nestable = false, glow = false, te
 
   const content = (
     <View style={[styles.content, { paddingBottom: (tablet ? 40 : TAB_BAR_CONTENT_PADDING) + insets.bottom + keyboardPad }]}>
-      <AppHeader path={path} mode={mode} />
+      {/* Keyed by the text scale: a screen that was in the background when
+          the size changed (another tab) would keep its old header layout
+          until relaunch (QA F1); a fresh header measures at the new size. */}
+      <AppHeader key={`text-scale-${fontScale}`} path={path} mode={mode} />
       {!tablet && showsMobileModeSwitch({ user, path }) ? (
         <View style={styles.mobileSwitch}>
           <Text style={styles.mobileSwitchLabel}>Workspace</Text>

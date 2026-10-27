@@ -6,7 +6,16 @@ import ShellPage from './ShellPage';
 jest.mock('@react-navigation/native', () => ({ useRoute: () => ({ name: 'EditProfile', params: {} }) }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }) }));
 jest.mock('react-native-draggable-flatlist', () => ({ NestableScrollContainer: 'NestableScrollContainer' }));
-jest.mock('./AppHeader', () => () => null);
+const mockHeaderMounts = [];
+jest.mock('./AppHeader', () => {
+  const { useEffect } = require('react');
+  return function MockAppHeader() {
+    useEffect(() => {
+      mockHeaderMounts.push(1);
+    }, []);
+    return null;
+  };
+});
 jest.mock('./DesktopSidebar', () => () => null);
 jest.mock('./ModeSwitch', () => () => null);
 jest.mock('../auth/authStore', () => ({ useAuthStore: (select) => select({ user: null, workspace: null }) }));
@@ -85,5 +94,18 @@ describe('ShellPage v2 ground, tab-bar clearance and glow', () => {
     const tree = render({ glow: true });
     expect(tree.root.findAll((node) => node.props.testID === 'ambient-glow' && typeof node.type === 'string')).toHaveLength(1);
     expect(root(tree).props.children[0].props.glow).toBe(true);
+  });
+});
+
+describe('live text-size change (QA F1)', () => {
+  it('remounts the header when the text scale changes, so a background tab measures it again', () => {
+    mockHeaderMounts.length = 0;
+    const tree = render();
+    expect(mockHeaderMounts).toHaveLength(1);
+    act(() => tree.update(<ShellPage />));
+    expect(mockHeaderMounts).toHaveLength(1);
+    useWindowDimensions.mockReturnValue({ width: 390, height: 844, scale: 3, fontScale: 1.35 });
+    act(() => tree.update(<ShellPage />));
+    expect(mockHeaderMounts).toHaveLength(2);
   });
 });

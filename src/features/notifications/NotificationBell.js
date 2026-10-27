@@ -3,12 +3,18 @@ import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import IconButton from '../../shared/components/IconButton';
-import { colors, font, radii } from '../../shared/theme/tokens';
+import { colors, font, radii, textScale } from '../../shared/theme/tokens';
 import { useShellUiStore } from '../shell/shellUiStore';
 import { useNotificationStore } from './notificationStore';
 
 const BELL_PATH =
   'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9';
+
+// The bell's name carries the count, as the board's aria-label does
+// ("Notifications, 2 unread"; PM web parity).
+export function bellLabel(unreadCount) {
+  return unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications';
+}
 
 // App-shell spec §7.3 (behaviour) and v2 §7.6: a 44 icon button (§4.2).
 // Tap toggles the panel; the bell's window frame anchors the panel on tablets.
@@ -27,7 +33,7 @@ export default function NotificationBell() {
     <IconButton
       ref={ref}
       testID="notification-bell"
-      accessibilityLabel="Notifications"
+      accessibilityLabel={bellLabel(unreadCount)}
       accessibilityState={{ expanded: panelOpen }}
       onPress={toggle}
     >
@@ -38,7 +44,9 @@ export default function NotificationBell() {
           </Svg>
           {unreadCount > 0 ? (
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+              <Text maxFontSizeMultiplier={textScale.badge} style={styles.badgeText}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Text>
             </View>
           ) : null}
         </>
@@ -47,18 +55,20 @@ export default function NotificationBell() {
   );
 }
 
-// §7.6 count badge: min-width 18, height 18, padding 0 5, danger fill, white
-// 11/700, a 2 px ring in the ground colour (UX: the bell sits on the ground) (drawn as a border outside the
-// 18 px badge). The spec gives no position; it keeps v1's top/right 4.
+// §7.6 count badge: danger fill, white 11/700, a 2 px ring in the ground
+// colour (UX: the bell sits on the ground) drawn as a border outside the badge.
+// Large text (UX §9): anchored to the button's top-right corner, 4 outside it,
+// at least 20 × 20, the count scales at most 1.2× and the 44 button never
+// scales, so the badge never covers the bell. No fixed height (min only).
 const RING = 2;
 
 const styles = StyleSheet.create({
   badge: {
     position: 'absolute',
-    top: 4 - RING,
-    right: 4 - RING,
-    minWidth: 18 + RING * 2,
-    height: 18 + RING * 2,
+    top: -4,
+    right: -4,
+    minWidth: 20 + RING * 2,
+    minHeight: 20 + RING * 2,
     borderRadius: radii.full,
     paddingHorizontal: 5,
     backgroundColor: colors.danger,

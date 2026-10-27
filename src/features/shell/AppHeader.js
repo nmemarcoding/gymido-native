@@ -2,7 +2,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
-import { breakpoints, colors, font, typography } from '../../shared/theme/tokens';
+import { breakpoints, colors, font, textScale, typography } from '../../shared/theme/tokens';
 import { mountBell } from '../notifications/bellPolling';
 import NotificationBell from '../notifications/NotificationBell';
 import ModeSwitch from './ModeSwitch';
@@ -14,6 +14,17 @@ import { useShellUiStore } from './shellUiStore';
 // phones, display-md on tablets; gold back link; bell top-right). The bell lives in a different spot in the full and
 // compact variants, so changing variant remounts it (⚠S4): the focused
 // screen's header tells the bell controller which variant is showing.
+// Large text (UX §9): page titles scale at most 1.3×, wrap by word (max 3
+// lines), and a single word too long for the line shrinks the title (down to
+// 0.7×) instead of breaking inside it.
+const TITLE_TEXT = Object.freeze({
+  textBreakStrategy: 'simple',
+  maxFontSizeMultiplier: textScale.display,
+  numberOfLines: 3,
+  adjustsFontSizeToFit: true,
+  minimumFontScale: 0.7,
+});
+
 export default function AppHeader({ path, query = '', mode }) {
   const { width } = useWindowDimensions();
   const isFocused = useIsFocused();
@@ -47,7 +58,7 @@ export default function AppHeader({ path, query = '', mode }) {
     return (
       <View style={[box, styles.compact, exercisesTitle && styles.compactTitled]}>
         {exercisesTitle ? (
-          <Text textBreakStrategy="simple" accessibilityRole="header" style={[styles.title, tablet && styles.titleTablet]}>
+          <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.title, tablet && styles.titleTablet]}>
             Exercises
           </Text>
         ) : null}
@@ -62,7 +73,7 @@ export default function AppHeader({ path, query = '', mode }) {
         {title ? (
           <View style={styles.titleColumn}>
             {backLink ? <BackLink label={backLink.label} onPress={() => openShellPath(backLink.path)} /> : null}
-            <Text textBreakStrategy="simple" accessibilityRole="header" style={[styles.title, tablet && styles.titleTablet]}>
+            <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.title, tablet && styles.titleTablet]}>
               {title}
             </Text>
           </View>
