@@ -126,6 +126,18 @@ describe('AppHeader v2 look (§7.4)', () => {
     expect(backLink(render({ path: '/my-trainer' }))).toBeDefined();
   });
 
+  it.each([390, 834])('X1 one title per page (%i): a coaching page with its own hero title gets no shell title; its back link stays', (width) => {
+    const trainers = render({ path: '/trainers' }, width);
+    expect(title(trainers)).toBeUndefined();
+    expect(backLink(trainers)).toBeDefined();
+    expect(byTestId(trainers, 'notification-bell')).toHaveLength(1);
+    const clients = render({ path: '/trainer/clients' }, width);
+    expect(title(clients)).toBeUndefined();
+    expect(backLink(clients)).toBeUndefined();
+    // The Coaching hub has no page title of its own: the shell title stays.
+    expect(title(render({ path: '/my-trainer' }, width)).props.children).toBe('Coaching');
+  });
+
   it('running session on the workout route: no title and no back link (v1 rule)', () => {
     mockUi.isSessionActive = true;
     const tree = render({ path: '/workout' });

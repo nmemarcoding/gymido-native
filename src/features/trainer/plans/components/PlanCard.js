@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import GradientFill from '../../../../shared/components/GradientFill';
-import { CAP_BODY, TITLE_TEXT } from '../../../../shared/components/largeText';
+import { CAP_BODY, LINE_TEXT, NAME_TITLE_TEXT } from '../../../../shared/components/largeText';
 import PillButton from '../../../../shared/components/PillButton';
 import { colors, font, gradients, radii, spacing, typography } from '../../../../shared/theme/tokens';
 import { planCategoryLabel } from '../planCategoryColor';
@@ -23,10 +23,10 @@ export default function PlanCard({ plan, onView, onAssign, assignLoading = false
       <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
       <CategoryChip testID={`plan-card-category-${plan.id}`} label={planCategoryLabel(plan)} size={tablet ? 'tablet' : 'phone'} />
       {/* The plan name is each card's heading (UX a11y: h2 per card). */}
-      <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.name, tablet ? styles.nameTablet : styles.namePhone]}>
+      <Text {...NAME_TITLE_TEXT} accessibilityRole="header" style={[styles.name, tablet ? styles.nameTablet : styles.namePhone]}>
         {name}
       </Text>
-      <Text {...CAP_BODY} style={[styles.meta, tablet && styles.metaTablet]}>
+      <Text {...LINE_TEXT} style={[styles.meta, tablet && styles.metaTablet]}>
         {formatDaysPerWeek(plan)}
       </Text>
       {plan.description ? (

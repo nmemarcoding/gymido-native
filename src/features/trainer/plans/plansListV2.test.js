@@ -169,7 +169,9 @@ describe('PlanCard', () => {
     const name = tree.root.findAllByType(Text).find((node) => node.props.children === 'Upper / Lower Split');
     expect(name.props.accessibilityRole).toBe('header');
     // §9: titles wrap by word (no single-line ellipsis), capped at 1.6.
-    expect(name.props.numberOfLines).toBe(3);
+    // DECLARED change (UX final audit X7 §1.1, 27 Oct 2026): was toBe(3). A card name wraps to at most 2 lines
+    // then an ellipsis (NAME_TITLE_TEXT).
+    expect(name.props.numberOfLines).toBe(2);
     expect(name.props.adjustsFontSizeToFit).toBe(true);
     expect(name.props.maxFontSizeMultiplier).toBe(textScale.title);
     const view = comp(tree.root, 'plan-card-view-1');

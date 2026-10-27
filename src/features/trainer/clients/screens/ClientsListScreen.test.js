@@ -236,3 +236,28 @@ describe('Clients, large text (§9)', () => {
     expect(pane.width).toBe(fontScale > textScale.reflowAbove ? '100%' : LIST_PANE_WIDTH);
   });
 });
+
+// UX final audit X7 (§1.1 long text): the row name wraps by word to 2 lines
+// then an ellipsis (a long word shrinks to 0.75); the meta line is 1 line.
+describe.each([
+  ['phone', 390],
+  ['tablet', 834],
+])('Clients, long text (X7), %s', (_label, width) => {
+  const { LINE_TEXT, NAME_TEXT } = jest.requireActual('../../../../shared/components/largeText');
+  const LONG_LAST = 'Vanderbergenschmidt-Oyelaran';
+  const pick = (node, role) => Object.fromEntries(Object.keys(role).map((key) => [key, node.props[key]]));
+
+  it('row names: NAME_TEXT; the plan line: LINE_TEXT', async () => {
+    setWindow(width, 3.1);
+    const long = { ...alex, client: { first_name: 'Maximilianopolous', last_name: LONG_LAST }, client_activity: activity() };
+    listActiveClients.mockResolvedValue([long]);
+    const tree = await render();
+    const names = tree.root.findAll((node) => node.type === 'Text' && [].concat(node.props.children).join('').includes(LONG_LAST));
+    expect(names.length).toBeGreaterThanOrEqual(1);
+    names
+      .filter((node) => node.props.accessibilityRole !== 'header')
+      .forEach((node) => expect(pick(node, NAME_TEXT)).toEqual(NAME_TEXT));
+    const plan = tree.root.findAll((node) => node.type === 'Text' && node.props.children === PLAN.name)[0];
+    expect(pick(plan, LINE_TEXT)).toEqual(LINE_TEXT);
+  });
+});

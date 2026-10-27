@@ -275,11 +275,19 @@ describe('Select variants (kit 2: FormField FIELD_VARIANTS)', () => {
     expect(box(render({ variant, error: 'Pick one' })).borderColor).toBe(colors.dangerText);
   });
 
-  it('the value text has no line cap (wraps at large text) and the §9 body cap', () => {
+  // DECLARED change (UX final audit X2, 27 Oct 2026): was 'the value text has no line cap (wraps at large text)'
+  // with expect(value.props.numberOfLines).toBeUndefined(). The value is now ONE line + a tail ellipsis at every
+  // text size (same rule as T-57 L1), never cut silently; the full label stays the accessibilityValue.
+  it.each(['ios', 'android'])('X2 %s: the value is one line + a tail ellipsis (no font-scale branch), the §9 body cap, full text spoken', (os) => {
+    Platform.OS = os;
     const tree = render({ variant: 'pill', value: 'b' });
     const value = tree.root.findAll((node) => node.type === Text && node.props.children === OPTS[1].label)[0];
-    expect(value.props.numberOfLines).toBeUndefined();
+    expect(value.props.numberOfLines).toBe(1);
+    expect(value.props.ellipsizeMode).toBe('tail');
+    expect(value.props.adjustsFontSizeToFit).toBeUndefined();
     expect(value.props.maxFontSizeMultiplier).toBe(2);
+    const opener = tree.root.findAll((node) => node.props.testID === 's' && typeof node.props.onPress === 'function')[0];
+    expect(opener.props.accessibilityValue).toEqual({ text: OPTS[1].label });
   });
 
   it('Android: the variant box under the dialog picker', () => {

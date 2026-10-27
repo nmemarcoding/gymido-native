@@ -20,7 +20,7 @@ import ExerciseImage from './ExerciseImage';
 import { InlineError, SuccessState } from './FeedbackBox';
 import FormField from './FormField';
 import GlassSurface from './GlassSurface';
-import { CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT, TITLE_TEXT, useLargeTextReflow } from './largeText';
+import { CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT, LINE_TEXT, NAME_TEXT, NAME_TITLE_TEXT, TITLE_TEXT, useLargeTextReflow } from './largeText';
 import Loader from './Loader';
 import PillButton from './PillButton';
 import SegmentedSwitch from './SegmentedSwitch';
@@ -77,7 +77,8 @@ function textProps(node) {
 
 // Every visible Text carries a cap (or is decorative and doesn't scale), and
 // none is cut to one line.
-function expectAllCapped(tree) {
+// `oneLine`: texts that are one line + an ellipsis by rule (X2 Select value).
+function expectAllCapped(tree, oneLine = []) {
   const nodes = tree.root.findAllByType(Text);
   expect(nodes.length).toBeGreaterThan(0);
   nodes.forEach((node) => {
@@ -93,6 +94,10 @@ function expectAllCapped(tree) {
     }
     if (!insideText) {
       expect(node.props.maxFontSizeMultiplier).toBeGreaterThan(0);
+    }
+    if (oneLine.includes(node.props.children)) {
+      expect(node.props.ellipsizeMode).toBe('tail');
+      return;
     }
     expect(node.props.numberOfLines === undefined || node.props.numberOfLines >= 2).toBe(true);
   });
@@ -110,6 +115,13 @@ describe('largeText roles (UX §9)', () => {
       textBreakStrategy: 'simple',
     });
     expect(DISPLAY_TITLE_TEXT).toMatchObject({ maxFontSizeMultiplier: textScale.display, numberOfLines: 3, adjustsFontSizeToFit: true, minimumFontScale: 0.7 });
+  });
+
+  it('§1.1 long text (UX final audit X7): names 2 lines + ellipsis, shrink to 0.75, no mid-word break; lines 1 line', () => {
+    const NAME_RULE = { numberOfLines: 2, ellipsizeMode: 'tail', adjustsFontSizeToFit: true, minimumFontScale: 0.75, textBreakStrategy: 'simple' };
+    expect(NAME_TEXT).toEqual({ ...NAME_RULE, maxFontSizeMultiplier: textScale.body });
+    expect(NAME_TITLE_TEXT).toEqual({ ...NAME_RULE, maxFontSizeMultiplier: textScale.title });
+    expect(LINE_TEXT).toEqual({ maxFontSizeMultiplier: textScale.body, numberOfLines: 1, ellipsizeMode: 'tail' });
   });
 
   it.each([
@@ -165,13 +177,16 @@ describe.each(SCALES)('kit at fontScale %s', (scale) => {
     expectAllCapped(tree);
   });
 
-  it('Select and DateInput: value capped 2.0, wraps, the box grows from 52', () => {
+  // DECLARED change (UX final audit X2, 27 Oct 2026): the Select value was asserted to wrap
+  // ({ numberOfLines: undefined }); it is now one line + a tail ellipsis at every scale ({ numberOfLines: 1,
+  // ellipsizeMode: 'tail' }). DateInput is unchanged.
+  it('Select and DateInput: value capped 2.0, Select value one line + ellipsis (X2), the box grows from 52', () => {
     const select = render(<Select testID="s" label="Goal" value="a" options={[{ value: 'a', label: 'Build muscle and strength' }]} onChange={() => {}} />);
-    expect(textProps(textNode(select, 'Build muscle and strength'))).toMatchObject({ maxFontSizeMultiplier: 2, numberOfLines: undefined });
+    expect(textNode(select, 'Build muscle and strength').props).toMatchObject({ maxFontSizeMultiplier: 2, numberOfLines: 1, ellipsizeMode: 'tail' });
     const selectBox = select.root.find((node) => node.type === 'View' && node.props.pointerEvents === 'none');
     expect(flat(selectBox)).toMatchObject({ minHeight: 52 });
     expect(flat(selectBox).height).toBeUndefined();
-    expectAllCapped(select);
+    expectAllCapped(select, ['Build muscle and strength']);
 
     const date = render(<DateInput testID="dob" label="Date of birth" value="1990-04-02" onChange={() => {}} />);
     expect(flat(host(date, 'dob'))).toMatchObject({ minHeight: 52 });

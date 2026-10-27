@@ -26,9 +26,21 @@ describe('getHeaderTitle (§6.1)', () => {
     expect(getHeaderTitle('/plansX')).toBe('Plans');
     expect(getHeaderTitle('/profile/edit')).toBe('Profile');
     expect(getHeaderTitle('/my-trainer')).toBe('Coaching');
-    expect(getHeaderTitle('/trainers/9')).toBe('Coaching');
-    expect(getHeaderTitle('/trainer/plans/4')).toBe('Coaching');
+    // DECLARED change (UX final audit X1, 27 Oct 2026): was toBe('Coaching') for '/trainers/9' and
+    // '/trainer/plans/4'. Those pages draw their own hero title, so the shell header shows none (one title per page).
+    expect(getHeaderTitle('/trainers/9')).toBe('');
+    expect(getHeaderTitle('/trainer/plans/4')).toBe('');
     expect(getHeaderTitle('/somewhere')).toBe('Workout');
+  });
+
+  it('X1 one title per page: untitled on every coaching / trainer page that draws its own hero title', () => {
+    ['/trainers', '/trainers/9', '/trainer/apply', '/trainer', '/trainer/clients', '/trainer/clients/5', '/trainer/plans', '/trainer/plans/new', '/trainer/plans/4', '/trainer/profile'].forEach(
+      (path) => expect([path, getHeaderTitle(path)]).toEqual([path, ''])
+    );
+    // The Coaching hub draws no page title of its own: the shell keeps "Coaching".
+    expect(getHeaderTitle('/my-trainer')).toBe('Coaching');
+    // The back links stay as drawn.
+    expect(getHeaderBackLink('/trainers')).toEqual({ label: '← Coaching', path: '/my-trainer' });
   });
 
   it('drops the Workout title and back link during a session', () => {

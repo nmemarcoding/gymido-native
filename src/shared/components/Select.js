@@ -74,8 +74,10 @@ export default function Select({
       style={[fieldBoxStyle({ focused: open, error: Boolean(error), disabled, variant }), styles.box, !boxStyle && styles.boxHeight, trailingContent ? styles.boxWithTrailing : null, boxStyle]}
       pointerEvents="none"
     >
-      {/* UX §9: the chosen option wraps at large text, never truncated. */}
-      <Text {...CAP_BODY} style={[styles.value, textStyle]}>
+      {/* UX final audit X2 (T-57 L1 rule): the chosen option is one line + a
+          tail ellipsis at every text size, never cut silently (the full label
+          is the accessibilityValue). */}
+      <Text {...CAP_BODY} numberOfLines={1} ellipsizeMode="tail" style={[styles.value, textStyle]}>
         {selected?.label ?? ''}
       </Text>
       {trailingContent}
@@ -179,8 +181,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing[2],
-    // Shows only once the value wraps at large text (one line sits well
-    // inside the 52 box).
+    // Room for the one-line value at large text (it sits well inside the
+    // 52 box at 1×).
     paddingVertical: spacing[2],
   },
   boxHeight: {
