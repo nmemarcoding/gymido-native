@@ -74,7 +74,7 @@ export default function SessionRuntime({
   onCompleted,
 }) {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
   const isFocused = useIsFocused();
   const scrollRef = useRef(null);
   const contentRef = useRef(null);
@@ -319,7 +319,14 @@ export default function SessionRuntime({
     // column (min(window, 430), app-shell §"phone"), with the side insets for
     // landscape tablets (app-shell [O2]). The nav's inner is capped at 460
     // (§19.8). (ported from the 28 Sep build)
-    <View style={[styles.frame, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
+    // QA F1, iOS: a live text-size change leaves unchanged texts with their
+    // old measurements (see ShellPage), and the timer re-renders every second.
+    // The frame remounts on a new text scale; the session state (sets, rest,
+    // dialogs) lives in this component's hooks and is kept.
+    <View
+      key={`text-scale-${fontScale}`}
+      style={[styles.frame, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}
+    >
       <View testID="session-column" style={styles.column}>
         {header ? <View style={{ paddingHorizontal: gutter }}>{header}</View> : null}
         <SessionChrome

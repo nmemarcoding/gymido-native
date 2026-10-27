@@ -98,6 +98,24 @@ describe('ShellPage v2 ground, tab-bar clearance and glow', () => {
 });
 
 describe('live text-size change (QA F1)', () => {
+  it('remounts the page content on a new text scale; same scale keeps it mounted', () => {
+    const mounts = [];
+    function Probe() {
+      const { useEffect } = require('react');
+      useEffect(() => {
+        mounts.push(1);
+      }, []);
+      return null;
+    }
+    const tree = render({ children: <Probe /> });
+    act(() => tree.update(<ShellPage><Probe /></ShellPage>));
+    expect(mounts).toHaveLength(1);
+    useWindowDimensions.mockReturnValue({ width: 390, height: 844, scale: 3, fontScale: 2 });
+    act(() => tree.update(<ShellPage><Probe /></ShellPage>));
+    expect(mounts).toHaveLength(2);
+  });
+
+
   it('remounts the header when the text scale changes, so a background tab measures it again', () => {
     mockHeaderMounts.length = 0;
     const tree = render();

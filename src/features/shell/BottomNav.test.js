@@ -210,6 +210,16 @@ describe('BottomNav large text (UX §9, QA F1)', () => {
     expect(tab(render(), 'Plans').props.onLongPress).toBeUndefined();
   });
 
+  it('remounts the tabs on a new text scale (QA F1: no stale text layout on iOS)', () => {
+    const tree = render();
+    const before = tab(tree, 'Plans');
+    act(() => tree.update(<BottomNav mode="member" path="/" />));
+    expect(tab(tree, 'Plans')).toBe(before);
+    mockFontScale = 1.2;
+    act(() => tree.update(<BottomNav mode="member" path="/" />));
+    expect(tab(tree, 'Plans')).not.toBe(before);
+  });
+
   it('tipLeft centres the label over its tab and keeps it inside the bar', () => {
     // 358 wide bar: slot = (358 - 12 - 8) / 5 = 67.6; tab 2 centre = 6 + 2 × 69.6 + 33.8 = 179.
     expect(tipLeft(2, 5, 358, 100)).toBeCloseTo(129);

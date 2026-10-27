@@ -24,6 +24,12 @@ jest.mock('../api/workoutApi', () => ({
   updateSessionSet: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('./restAlertPlatform', () => ({ __esModule: true, default: require('./restAlerts').NO_PLATFORM }));
+// Jest's own window (750 wide), with a text scale the tests can change.
+let mockFontScale = 1;
+jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
+  __esModule: true,
+  default: () => ({ width: 750, height: 1334, scale: 2, fontScale: mockFontScale }),
+}));
 jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn(() => Promise.resolve()) }));
 
 const set = (id, done = false) => ({ id, set_number: id % 10, is_completed: done, target_reps_min: 8, rest_seconds_planned: 0 });
@@ -207,5 +213,23 @@ describe('All exercises sheet wiring (v2 Phase 2 C4)', () => {
     act(() => mounted.unmount());
     const untitled = render({ planName: '' }).tree;
     expect(untitled.root.findByType(ExerciseSheet).props.planName).toBe('Workout');
+  });
+});
+
+describe('live text-size change (QA F1)', () => {
+  it('rebuilds the session view on a new text scale and keeps the session state', () => {
+    const { tree } = render();
+    const props = tree.root.findByType(SessionRuntime).props;
+    act(() => tree.root.findByType(SessionChrome).props.onAll());
+    expect(tree.root.findByType(ExerciseSheet).props.open).toBe(true);
+    const column = host(tree, 'session-column');
+    act(() => tree.update(<SessionRuntime {...props} />));
+    expect(host(tree, 'session-column')).toBe(column);
+    mockFontScale = 2;
+    act(() => tree.update(<SessionRuntime {...props} />));
+    mockFontScale = 1;
+    expect(host(tree, 'session-column')).not.toBe(column);
+    // The open sheet is session state: still open after the rebuild.
+    expect(tree.root.findByType(ExerciseSheet).props.open).toBe(true);
   });
 });
