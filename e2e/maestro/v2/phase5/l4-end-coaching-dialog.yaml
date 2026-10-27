@@ -1,5 +1,6 @@
 # v2 Phase 5 L (p5l): My trainer → End coaching → the confirm dialog → Cancel.
-# Member QA account WITH an active trainer (skipped silently otherwise),
+# Member QA account WITH an active trainer (FAILS FAST with a precondition
+# message otherwise; never a silent skip),
 # starts signed in on the tab root. Never confirms (no DELETE /my-trainer).
 appId: com.gymido.app
 ---
@@ -19,6 +20,14 @@ appId: com.gymido.app
     visible:
       id: "trainer-hub-screen"
     timeout: 30000
+- runFlow:
+    when:
+      notVisible:
+        id: "trainer-hub-end"
+    commands:
+      - assertTrue:
+          condition: ${false}
+          label: "Precondition: needs a member WITH an active trainer (QA_MEMBER while linked to QA_TRAINER)"
 - runFlow:
     when:
       visible:

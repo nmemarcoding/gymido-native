@@ -128,3 +128,15 @@ describe('open-first-my-plan works on phone AND tablet', () => {
     expect(flow).toMatch(/id: "rail-Plans"/);
   });
 });
+
+// PM rule (28 Oct): a flow whose account doesn't meet its precondition FAILS
+// FAST with a clear message — a silent skip reports a false PASS.
+describe('preconditions fail fast, never a silent skip', () => {
+  const read = (rel) => fs.readFileSync(path.join(V2, rel), 'utf8');
+  it.each([
+    ['phase4/subflows/open-first-my-plan.yaml', /visible:\n\s+id: "my-plans-on-hold"\n\s+commands:\n\s+- assertTrue:\n\s+condition: \$\{false\}\n\s+label: "Precondition: needs a member WITHOUT a trainer who owns a plan/],
+    ['phase5/l4-end-coaching-dialog.yaml', /notVisible:\n\s+id: "trainer-hub-end"\n\s+commands:\n\s+- assertTrue:\n\s+condition: \$\{false\}\n\s+label: "Precondition: needs a member WITH an active trainer/],
+  ])('%s fails with its precondition message', (rel, pattern) => {
+    expect(read(rel)).toMatch(pattern);
+  });
+});

@@ -2,8 +2,8 @@
 # member's first own plan. IDs only. Needs a QA member WITHOUT a trainer
 # with at least one plan in My plans that has a day with an exercise.
 # QA s5-p4: a member WITH a trainer sees "Your plans are on hold"
-# (my-plans-on-hold); this subflow then stops there WITHOUT failing and the
-# calling flow (01-05) skips its steps (runFlow when notVisible on-hold).
+# (my-plans-on-hold); this subflow then FAILS FAST with a precondition
+# message (no silent skip: a skip would report a false PASS).
 appId: com.gymido.app
 ---
 # Phone bottom tabs or the tablet rail.
@@ -36,6 +36,14 @@ appId: com.gymido.app
       id: "my-plan-card-open-.*|my-plans-on-hold"
       index: 0
     timeout: 30000
+- runFlow:
+    when:
+      visible:
+        id: "my-plans-on-hold"
+    commands:
+      - assertTrue:
+          condition: ${false}
+          label: "Precondition: needs a member WITHOUT a trainer who owns a plan; sign in as THROWAWAY4 after CP12"
 - runFlow:
     when:
       notVisible:

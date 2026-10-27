@@ -2,11 +2,12 @@
 # set (refused on the client), checks the error, cancels. Nothing is saved.
 # Account: a member WITHOUT a trainer who OWNS a plan (with a day that has an
 # exercise), e.g. THROWAWAY4 right after CP12. With a trainer, My plans shows
-# "Your plans are on hold" (my-plans-on-hold): the flow then skips SILENTLY.
+# "Your plans are on hold" (my-plans-on-hold): the flow then FAILS FAST with a
+# precondition message (never a silent skip, which would be a false PASS).
 appId: com.gymido.app
 ---
 - runFlow: subflows/open-first-my-plan.yaml
-# Skipped silently when the member's own plans are on hold (has a trainer).
+# Precondition: a member WITHOUT a trainer who owns a plan (THROWAWAY4 after CP12).
 - runFlow:
     when:
       notVisible:
