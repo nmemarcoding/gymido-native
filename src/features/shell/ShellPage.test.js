@@ -144,4 +144,19 @@ describe('live text-size change (QA F1)', () => {
     act(() => tree.update(<ShellPage />));
     expect(mockHeaderMounts).toHaveLength(2);
   });
+
+  // T-58: the header and the content are siblings, so their remount keys
+  // must differ, or React warns about a duplicate key (a dev-build red box).
+  it('gives the header and the page content different keys (no duplicate-key warning)', () => {
+    const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const tree = render({ children: null });
+      useWindowDimensions.mockReturnValue({ width: 390, height: 844, scale: 3, fontScale: 1.35 });
+      act(() => tree.update(<ShellPage />));
+      const messages = errors.mock.calls.map((call) => call.map(String).join(' '));
+      expect(messages.filter((m) => /same key/i.test(m))).toEqual([]);
+    } finally {
+      errors.mockRestore();
+    }
+  });
 });

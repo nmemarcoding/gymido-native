@@ -32,7 +32,7 @@ Everything under `src/`, the e2e YAML, and `extra` values (API URL) is JS-only. 
   - That saves about 60 s on Android and about 90 s on iOS per flow.
   - Member accounts only. Trainer (asad) flows still sign in cold.
 - **Run Android and iOS in parallel** on the same Metro. Owner directive: parallel is allowed inside my slot.
-  - Start both `maestro --device <id> test …` with `&`, then `wait`.
+  - Start both `e2e/scripts/maestro-guarded.sh <id> …` with `&`, then `wait` (never plain `maestro test`).
   - Never run two write flows on the same account at the same time.
   - Write flows run once, on one device.
 - **Group shots by account.** Take all of an account's screenshots in one flow rather than one flow per check.

@@ -38,6 +38,7 @@ Android, for members and trainers. Admin is web-only.
 5. Credentials:
    - Test passwords live only in the gitignored `.env.e2e.local`, are read at runtime, and are never printed.
    - Delete `maestro.log` and `commands.json` after every run (Maestro logs `-e` values).
+   - Prod safety: plain `maestro test` against the app is FORBIDDEN. Only `e2e/scripts/maestro-guarded.sh` or `e2e/scripts/ios-safe-sign-in.sh` drive flows (both run `e2e/scripts/apiGuard.js`: local test API on :8080/:8091 only; dev clients checked against Metro). `maestro hierarchy` is fine.
    - Never put credentials or account emails in files, logs, screenshots, messages or commits.
    - A sign-in that needs the owner goes through gymido-pm (owner popup).
 6. Speed: split work across sub-agents in their own worktrees (code only). I integrate, test and commit.
