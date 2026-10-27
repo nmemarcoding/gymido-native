@@ -13,29 +13,47 @@ UI smoke tests for the Login & Sign Up flow, run against the dev client on an iO
 
 ## Running
 
-**Prod safety first.** Run flows through `e2e/scripts/maestro-guarded.sh <device> <maestro test args…>`.
-It refuses (exit 3) unless the installed app, and Metro when `GYMIDO_METRO_PORT` is set,
-uses a local test API: `localhost`, `127.0.0.1` or `10.0.2.2` on `:8080` (test stack) or
-`:8091` (owner preview), both on gymido_testdb. Check a device alone with
-`node e2e/scripts/apiGuard.js <device> [--metro <port>]`.
+**Prod safety first: plain `maestro test` / `maestro --device … test` against the app is FORBIDDEN.**
+Only `e2e/scripts/maestro-guarded.sh` and `e2e/scripts/ios-safe-sign-in.sh` drive flows
+(`maestro hierarchy` and other read-only commands are fine). Both run
+`e2e/scripts/apiGuard.js` first, which refuses (exit 3) unless the app's runtime API is
+`localhost`, `127.0.0.1` or `10.0.2.2` on `:8080` (test stack) or `:8091` (owner preview),
+both on gymido_testdb:
+
+- Release build (bundle embedded): the embedded app.config is checked.
+- Dev client (no embedded bundle, or unknown): the API comes from Metro, so Metro's manifest
+  is ALWAYS checked, on `:8081` by default (`GYMIDO_METRO_PORT=<port>` for another).
+  `GYMIDO_NO_METRO=1` is for Release builds only; the guard refuses it for a dev client.
+- Physical devices are refused (emulators and simulators only).
+
+```bash
+npm run e2e:android     # the one booted emulator (GYMIDO_DEVICE=emulator-5554 if several)
+npm run e2e:ios         # the one booted simulator (GYMIDO_DEVICE=<udid> if several)
+e2e/scripts/maestro-guarded.sh <device> e2e/maestro/02-login-opens-universal-login.yaml
+node e2e/scripts/apiGuard.js <device> [--metro <port> | --no-metro]   # check only
+```
+
+Residual risk the guard can't see: a dev client re-pointed at a different Metro after the
+check (dev menu, or a deep link to another port), or app code overriding the configured URL
+at runtime. Open Metro only on the port you checked.
 
 ```bash
 export PATH="$HOME/.maestro/bin:$PATH"
 
 # Whole suite, in order (flows run alphabetically and share session state)
-maestro test -p android e2e/maestro \
+e2e/scripts/maestro-guarded.sh android e2e/maestro \
   -e MEMBER_EMAIL=<email> -e MEMBER_PASSWORD=<password>
 
 # Single flow on a specific device
-maestro test --udid <simulator-udid> e2e/maestro/02-login-opens-universal-login.yaml
+e2e/scripts/maestro-guarded.sh <simulator-udid> e2e/maestro/02-login-opens-universal-login.yaml
 
 # Role-landing flows (07-09). Source the gitignored env file rather than typing secrets.
 set -a && . ./.env.e2e.local && set +a
-maestro test -p android e2e/maestro/07-trainer-role-landing.yaml \
+e2e/scripts/maestro-guarded.sh android e2e/maestro/07-trainer-role-landing.yaml \
   -e TRAINER_EMAIL="$TRAINER_EMAIL" -e TRAINER_PASSWORD="$TRAINER_PASSWORD"
-maestro test -p android e2e/maestro/08-admin-role-landing.yaml \
+e2e/scripts/maestro-guarded.sh android e2e/maestro/08-admin-role-landing.yaml \
   -e ADMIN_EMAIL="$ADMIN_EMAIL" -e ADMIN_PASSWORD="$ADMIN_PASSWORD"
-maestro test -p android e2e/maestro/09-deactivated-account.yaml \
+e2e/scripts/maestro-guarded.sh android e2e/maestro/09-deactivated-account.yaml \
   -e DEACTIVATED_EMAIL="$DEACTIVATED_EMAIL" -e DEACTIVATED_PASSWORD="$DEACTIVATED_PASSWORD"
 ```
 

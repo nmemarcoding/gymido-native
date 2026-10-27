@@ -181,22 +181,22 @@ npm run e2e:android -- -e MEMBER_EMAIL=<email> -e MEMBER_PASSWORD=<password>
 npm run e2e:ios     -- -e MEMBER_EMAIL=<email> -e MEMBER_PASSWORD=<password>
 ```
 
-Single flow, or a specific device:
+Single flow, or a specific device. Never plain `maestro test`: the guarded wrapper refuses unless the app's runtime API is a local test API (e2e/maestro/README.md):
 
 ```bash
-maestro test -p android e2e/maestro/01-welcome-no-auto-redirect.yaml
-maestro test --udid <simulator-udid> e2e/maestro/02-login-opens-universal-login.yaml
+e2e/scripts/maestro-guarded.sh android e2e/maestro/01-welcome-no-auto-redirect.yaml
+e2e/scripts/maestro-guarded.sh <simulator-udid> e2e/maestro/02-login-opens-universal-login.yaml
 ```
 
 Role-landing flows (07-09) each need their own account. Source the env file so secrets stay off the command line:
 
 ```bash
 set -a && . ./.env.e2e.local && set +a
-maestro test -p android e2e/maestro/07-trainer-role-landing.yaml \
+e2e/scripts/maestro-guarded.sh android e2e/maestro/07-trainer-role-landing.yaml \
   -e TRAINER_EMAIL="$TRAINER_EMAIL" -e TRAINER_PASSWORD="$TRAINER_PASSWORD"
-maestro test -p android e2e/maestro/08-admin-role-landing.yaml \
+e2e/scripts/maestro-guarded.sh android e2e/maestro/08-admin-role-landing.yaml \
   -e ADMIN_EMAIL="$ADMIN_EMAIL" -e ADMIN_PASSWORD="$ADMIN_PASSWORD"
-maestro test -p android e2e/maestro/09-deactivated-account.yaml \
+e2e/scripts/maestro-guarded.sh android e2e/maestro/09-deactivated-account.yaml \
   -e DEACTIVATED_EMAIL="$DEACTIVATED_EMAIL" -e DEACTIVATED_PASSWORD="$DEACTIVATED_PASSWORD"
 ```
 

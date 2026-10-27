@@ -12,8 +12,8 @@
     "android": "cross-env APP_ENV=development expo run:android",
     "native:clean": "cross-env APP_ENV=development expo prebuild --clean",
     "test": "jest",
-    "e2e:android": "maestro test -p android e2e/maestro",
-    "e2e:ios": "maestro test -p ios e2e/maestro",
+    "e2e:android": "e2e/scripts/maestro-guarded.sh android e2e/maestro",
+    "e2e:ios": "e2e/scripts/maestro-guarded.sh ios e2e/maestro",
     "doctor": "expo-doctor"
   },
   "jest": {
