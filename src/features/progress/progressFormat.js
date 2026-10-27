@@ -1,6 +1,6 @@
 import { formatNumber, formatSignedNumber, formatWeight } from '../../shared/format/numbers';
 import { convertWeight } from '../../shared/format/weight';
-import { formatDateWithOffset, formatDuration } from '../../shared/time/format';
+import { formatDate, formatDateWithOffset, formatDuration } from '../../shared/time/format';
 
 // Derived values of RN-SPEC-progress §PR1.2, kept apart from the screen so
 // they can be tested.
@@ -123,4 +123,155 @@ export function gridRows(items, size) {
     rows.push(row);
   }
   return rows;
+}
+
+// ---------------------------------------------------------------------------
+// v2 Phase 3 §5 Progress (UX G) + the approved §1 items (N1, U8, U9, #23).
+
+// N1: the phone's ranges, as drawn. 3M is drawn selected (the default).
+export const PHONE_RANGES = Object.freeze([
+  Object.freeze({ key: '7D', days: 7 }),
+  Object.freeze({ key: '1M', days: 30 }),
+  Object.freeze({ key: '3M', days: 90 }),
+  Object.freeze({ key: '1Y', days: 365 }),
+]);
+export const DEFAULT_RANGE = '3M';
+
+function isoDate(date) {
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+// The device-local start/end dates of a range (end = today, inclusive).
+export function rangeDates(key, now = new Date()) {
+  const range = PHONE_RANGES.find((item) => item.key === key) ?? PHONE_RANGES[2];
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - range.days);
+  return { start_date: isoDate(start), end_date: isoDate(now) };
+}
+
+// "↓ 2.4 kg in this range" / "↑ …" / null under 2 logs (logs oldest first),
+// in the chart's (current) unit.
+export function rangeDelta(logs, unit) {
+  if (!Array.isArray(logs) || logs.length < 2) {
+    return null;
+  }
+  const first = convertWeight(logs[0].weight_value, logs[0].weight_unit, unit);
+  const last = convertWeight(logs[logs.length - 1].weight_value, logs[logs.length - 1].weight_unit, unit);
+  const change = last - first;
+  const arrow = change < 0 ? '↓' : '↑';
+  return `${arrow} ${formatNumber(Math.abs(change))} ${unit} in this range`;
+}
+
+// "−4.1 kg to goal (78 kg)" with the code's sign and numbers (T-34: goal
+// unit); null without a goal.
+export function toGoalLine(weightProgress, units) {
+  if (weightProgress?.goal_weight == null || weightProgress?.difference_to_goal == null) {
+    return null;
+  }
+  return `${formatSignedNumber(weightProgress.difference_to_goal, units.goal)} to goal (${formatWeight(weightProgress.goal_weight, units.goal)})`;
+}
+
+// U9: the goal weight in the chart's unit (null without a goal).
+export function goalInUnit(weightProgress, units) {
+  const goal = weightProgress?.goal_weight;
+  if (goal === null || goal === undefined || goal === '' || !Number.isFinite(Number(goal))) {
+    return null;
+  }
+  return convertWeight(Number(goal), units.goal, units.current);
+}
+
+// The chart's data-based label (UX G a11y).
+export function chartLabel(logs, unit) {
+  if (!Array.isArray(logs) || logs.length < 2) {
+    return 'Weight history';
+  }
+  const a = convertWeight(logs[0].weight_value, logs[0].weight_unit, unit);
+  const b = convertWeight(logs[logs.length - 1].weight_value, logs[logs.length - 1].weight_unit, unit);
+  const trend = b < a ? 'down' : b > a ? 'up' : 'flat';
+  return `Weight history, ${trend} from ${formatNumber(a)} to ${formatNumber(b)} ${unit}`;
+}
+
+// #23 bars: the last 8 of /progress/frequency (oldest → newest); the last
+// one is the current week. `average` = their mean, 1 decimal.
+export function weeklyBars(frequency) {
+  const items = (frequency ?? []).slice(-8);
+  const counts = items.map((item) => Number(item.workout_count) || 0);
+  const max = Math.max(0, ...counts);
+  const total = counts.reduce((sum, value) => sum + value, 0);
+  return {
+    empty: total === 0,
+    average: counts.length ? formatNumber(total / counts.length, 1) : '0',
+    bars: counts.map((count, index) => ({
+      key: items[index].period_start ?? String(index),
+      count,
+      current: index === counts.length - 1,
+      ratio: max ? count / max : 0,
+    })),
+    label: `Workouts per week, last ${counts.length} weeks: ${counts.join(', ')}`,
+  };
+}
+
+// #23 "Consistency": (planned_count − count) / planned_count from
+// /my-plans/current/missed?weeks=12; missing (404) or planned 0 → null.
+export function consistencyPercent(missed) {
+  const planned = Number(missed?.planned_count);
+  if (!missed || !Number.isFinite(planned) || planned <= 0) {
+    return null;
+  }
+  const count = Number(missed.count) || 0;
+  return Math.max(0, Math.min(100, ((planned - count) / planned) * 100));
+}
+
+// ND-6 completion grid: one cell per scheduled training day of the last 4
+// weeks (BE days[]: done | missed; rest → no cell) + this week's training
+// days from /my-plans/current/week (done → done, missed → missed, others
+// not yet due). No days[] → null (the grid is hidden, never composed).
+export function completionCells(missed, week, now = new Date()) {
+  const days = missed?.days;
+  if (!Array.isArray(days)) {
+    return null;
+  }
+  const cutoff = isoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 28));
+  const past = days
+    .filter((day) => (day.status === 'done' || day.status === 'missed') && String(day.date) >= cutoff)
+    .map((day) => ({ key: day.date, status: day.status }));
+  const current = (Array.isArray(week) ? week : [])
+    .filter((day) => day?.is_workout_day && day?.status !== 'rest')
+    .map((day, index) => ({
+      key: day.date ?? `w${index}`,
+      status: day.status === 'done' ? 'done' : day.status === 'missed' ? 'missed' : 'due',
+    }));
+  const cells = past.concat(current);
+  const done = cells.filter((cell) => cell.status === 'done').length;
+  const planned = cells.filter((cell) => cell.status !== 'due').length;
+  return { cells, label: `${done} of ${planned} planned days done in the last 4 weeks` };
+}
+
+// U8 Recent workouts: /dashboard recent_workouts (completed) + the Missed
+// days of /my-plans/current/missed items, newest first, max 8; Missed days
+// older than the oldest completed row are dropped. Volume = VOLUME RULE.
+export function recentWorkoutRows(recent, missedItems, unit, memberVolume) {
+  const done = (recent ?? []).map((workout, index) => ({
+    key: `w${workout.id ?? index}`,
+    kind: 'done',
+    title: workout.workout_plan_day?.title || 'Workout session',
+    sortKey: String(workout.completed_at || workout.started_at || ''),
+    meta: `${formatDate(workout.completed_at || workout.started_at)} · ${formatDuration(workout.duration_seconds)}`,
+    volume: memberVolume(workout.total_volume_kg, unit),
+  }));
+  const oldest = done.reduce((min, row) => (row.sortKey && (!min || row.sortKey < min) ? row.sortKey : min), '');
+  const missed = (missedItems ?? [])
+    .filter((item) => item?.date && (!oldest || String(item.date) >= oldest.slice(0, 10)))
+    .map((item, index) => ({
+      key: `m${item.date}-${index}`,
+      kind: 'missed',
+      title: item.plan_day?.title || 'Workout',
+      sortKey: String(item.date),
+      meta: `${formatDate(`${item.date}T12:00:00`)} · —`,
+      volume: null,
+    }));
+  return done
+    .concat(missed)
+    .sort((a, b) => (a.sortKey < b.sortKey ? 1 : a.sortKey > b.sortKey ? -1 : 0))
+    .slice(0, 8);
 }

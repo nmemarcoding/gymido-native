@@ -1,0 +1,46 @@
+# v2 Phase 3 §2 Today (team 3a). Read-only. Starts signed in on a tab root
+# (the lead's safe runner signs in first). Member QA account with an active
+# plan. IDs only; no taps that write data.
+appId: com.gymido.app
+---
+- tapOn:
+    id: "tab-Today"
+- extendedWaitUntil:
+    visible:
+      id: "home-header"
+    timeout: 30000
+- assertVisible:
+    id: "home-date"
+- assertVisible:
+    id: "home-greeting"
+- assertVisible:
+    id: "home-today-card"
+- assertVisible:
+    id: "home-today-primary"
+- assertVisible:
+    id: "home-view-plan"
+- assertVisible:
+    id: "home-stats"
+- scrollUntilVisible:
+    element:
+      id: "home-weight"
+    direction: DOWN
+- assertVisible:
+    id: "home-see-progress"
+- assertVisible:
+    id: "home-add-weight"
+# The week strip shows when the server has a current week (U1).
+- runFlow:
+    when:
+      visible:
+        id: "home-week"
+    commands:
+      - assertVisible:
+          id: "home-week-strip"
+# "See progress" opens Progress.
+- tapOn:
+    id: "home-see-progress"
+- extendedWaitUntil:
+    visible:
+      id: "progress-tabs"
+    timeout: 30000

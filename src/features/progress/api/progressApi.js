@@ -26,16 +26,66 @@ export async function getProgressFrequency() {
   return data(await apiClient.get('/progress/frequency')).items ?? [];
 }
 
+// N1 (RN-SPEC-v2-phase3 §1): the range's logs, oldest first, paging while
+// page < total_pages (100 per page).
+export async function getWeightLogsInRange({ start_date, end_date }) {
+  const items = [];
+  let page = 1;
+  let totalPages = 1;
+  do {
+    const params = { start_date, end_date, sort: 'asc', per_page: 100, page };
+    const body = data(await apiClient.get('/weight-logs', { params }));
+    items.push(...(body.items ?? []));
+    totalPages = Number(body.pagination?.total_pages) || 1;
+    page += 1;
+  } while (page <= totalPages);
+  return items;
+}
+
+// #23 / U8: the past 12 weeks' missed days, planned_count and (BE) days[].
+// 404 (no active plan) or any failure → null (the items hide).
+export async function getMissedWeeks(weeks = 12) {
+  try {
+    return data(await apiClient.get('/my-plans/current/missed', { params: { weeks } }));
+  } catch {
+    return null;
+  }
+}
+
+// U8: the 5 latest completed workouts live on /dashboard.
+export async function getRecentWorkouts() {
+  try {
+    return data(await apiClient.get('/dashboard')).recent_workouts ?? [];
+  } catch {
+    return [];
+  }
+}
+
+// ND-6: this week's training days (date + status) for the completion grid.
+export async function getCurrentWeekDays() {
+  try {
+    const week = data(await apiClient.get('/my-plans/current/week')).week;
+    return Array.isArray(week) ? week : null;
+  } catch {
+    return null;
+  }
+}
+
 // PR1.1: five calls in parallel. The two weight calls are required (a
 // failure rejects with that error, ⚠PR-1); the activity ones fall back
 // silently to null / null / [].
+// v2: plus the optional Phase 3 calls (missed weeks, recent workouts, this
+// week), each falling back silently.
 export async function loadProgress() {
-  const [weightProgress, weightLogs, overview, history, frequency] = await Promise.allSettled([
+  const [weightProgress, weightLogs, overview, history, frequency, missed, recentWorkouts, week] = await Promise.allSettled([
     getWeightProgress(),
     getRecentWeightLogs(),
     getProgressOverview(),
     getWorkoutHistorySummary(),
     getProgressFrequency(),
+    getMissedWeeks(12),
+    getRecentWorkouts(),
+    getCurrentWeekDays(),
   ]);
   if (weightProgress.status === 'rejected') {
     throw weightProgress.reason;
@@ -49,5 +99,8 @@ export async function loadProgress() {
     overview: overview.status === 'fulfilled' ? overview.value : null,
     history: history.status === 'fulfilled' ? history.value : null,
     frequency: frequency.status === 'fulfilled' ? frequency.value : [],
+    missed: missed.status === 'fulfilled' ? missed.value : null,
+    recentWorkouts: recentWorkouts.status === 'fulfilled' ? recentWorkouts.value : [],
+    week: week.status === 'fulfilled' ? week.value : null,
   };
 }
