@@ -105,6 +105,10 @@ tags:
         text: "Exercise 1 of .*"
     times: 10
     commands:
+      # A weighted set needs weight > 0 ("Weight must be greater than 0"); bodyweight sets have no field.
+      - tapOn:
+          id: "set-weight-plus-.*"
+          optional: true
       - tapOn:
           id: "set-action-.*"
           text: "Did it"
