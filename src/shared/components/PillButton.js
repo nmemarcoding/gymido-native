@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, font, motion, radii, shadows, spacing, typography } from '../theme/tokens';
+import { CAP_BODY } from './largeText';
 import Spinner from './Spinner';
 
 // RN-SPEC-v2-foundation §4.1 Button (pill): five variants, flat fills. Only
@@ -96,6 +98,16 @@ export default function PillButton({
   const sizeName = resolveSize(size);
   const glow = look.glow ? (sizeName === 'cta' ? styles.glowLarge : styles.glow) : null;
   const iconNode = typeof icon === 'function' ? icon({ color: look.text }) : icon;
+  // UX §9 rule 2: a label never truncates; it wraps (2 lines at the 2.0 cap
+  // for any real label) and the pill grows from a 52 minimum, padding
+  // unchanged. A compact pill that wraps also takes the 52 minimum.
+  const [wrapped, setWrapped] = useState(false);
+  const onTextLayout = (event) => {
+    const next = (event?.nativeEvent?.lines?.length ?? 1) > 1;
+    if (next !== wrapped) {
+      setWrapped(next);
+    }
+  };
 
   return (
     <Pressable
@@ -109,6 +121,7 @@ export default function PillButton({
       style={({ pressed }) => [
         styles.base,
         styles[sizeName],
+        wrapped && sizeName === 'compact' && styles.wrapped,
         look.rest,
         glow,
         style,
@@ -131,7 +144,12 @@ export default function PillButton({
         )}
         {/* Android's high-quality line breaking can measure a bold label slightly
             short and clip its last word ("Add a day" → "Add a"). */}
-        <Text textBreakStrategy="simple" style={[styles[`${sizeName}Label`], { color: look.text }]}>
+        <Text
+          {...CAP_BODY}
+          textBreakStrategy="simple"
+          onTextLayout={onTextLayout}
+          style={[styles[`${sizeName}Label`], styles.label, { color: look.text }]}
+        >
           {title}
         </Text>
       </View>
@@ -159,6 +177,17 @@ const styles = StyleSheet.create({
     minHeight: 60,
     paddingHorizontal: spacing[6],
   },
+  // A wrapped compact label (large text) grows from 52, like the default
+  // size (default is already 52, cta stays 60).
+  wrapped: {
+    minHeight: 52,
+  },
+  // Wraps inside the row and centres each line (§9: labels wrap, never
+  // truncate). No numberOfLines: nothing is ever cut off.
+  label: {
+    flexShrink: 1,
+    textAlign: 'center',
+  },
   defaultLabel: typography.labelLg,
   compactLabel: {
     ...font(600),
@@ -179,10 +208,14 @@ const styles = StyleSheet.create({
   fullWidth: {
     alignSelf: 'stretch',
   },
+  // Vertical padding only shows once a label wraps at large text (one line
+  // at 1× sits well inside the minimum height).
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[2],
+    maxWidth: '100%',
+    paddingVertical: spacing[2],
   },
   // Android can measure a shrink-wrapped label short inside a stretched
   // button and cut its last word; full-width buttons lay it out full width.

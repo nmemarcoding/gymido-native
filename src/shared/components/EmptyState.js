@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, font, radii, spacing } from '../theme/tokens';
 import FeedbackIcon from './FeedbackIcon';
+import { CAP_BODY, TITLE_TEXT, useLargeTextReflow } from './largeText';
 import PillButton from './PillButton';
 
 // RN-SPEC-v2-foundation §5: a centred card: 44 px icon tile, title 15/600,
@@ -26,16 +27,20 @@ export default function EmptyState({
   style,
 }) {
   const error = icon === 'error';
+  // UX §9 rule 4: past 1.3× the action goes full width (primary on top).
+  const stacked = useLargeTextReflow();
   return (
     <View accessibilityLiveRegion={live ? 'polite' : undefined} style={[styles.card, style]}>
       <View testID={error ? 'empty-state-error-icon' : 'empty-state-icon'} style={[styles.tile, error && styles.errorDisc]}>
         <FeedbackIcon name={error ? 'error' : 'empty'} size={20} color={error ? colors.dangerText : colors.textSecondary} />
       </View>
-      <Text style={styles.title}>{title}</Text>
-      {message ? <Text style={styles.message}>{message}</Text> : null}
+      <Text {...TITLE_TEXT} style={styles.title}>
+        {title}
+      </Text>
+      {message ? <Text {...CAP_BODY} style={styles.message}>{message}</Text> : null}
       {actionLabel ? (
-        <View style={styles.action}>
-          <PillButton testID={actionTestID} title={actionLabel} variant="secondary" onPress={onAction} />
+        <View testID="empty-state-action" style={[styles.action, stacked && styles.actionStacked]}>
+          <PillButton testID={actionTestID} title={actionLabel} variant="secondary" onPress={onAction} fullWidth={stacked} />
         </View>
       ) : null}
     </View>
@@ -80,5 +85,8 @@ const styles = StyleSheet.create({
   },
   action: {
     marginTop: spacing[2],
+  },
+  actionStacked: {
+    alignSelf: 'stretch',
   },
 });

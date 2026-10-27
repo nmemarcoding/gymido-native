@@ -41,7 +41,8 @@ describe('FormField (v2 §4.5)', () => {
     expect(text.fontFamily).toBe(font(400).fontFamily);
     expect(text.fontWeight).toBeUndefined();
     expect(text.color).toBe(colors.textPrimary);
-    expect(text.height).toBe(50);
+    expect(text.minHeight).toBe(50);
+    expect(text.height).toBeUndefined();
     expect(text.paddingHorizontal).toBe(16);
     expect(input(tree).props.placeholderTextColor).toBe(colors.textFaint);
   });

@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, spacing, typography } from '../theme/tokens';
+import { CAP_BODY } from './largeText';
 import Spinner from './Spinner';
 
 // RN-SPEC-v2-foundation §5 (board "Loading"): an 18 px gold arc on a faint
@@ -14,7 +15,7 @@ export default function Loader({ label = 'Loading', style }) {
       style={[styles.row, style]}
     >
       <Spinner size={18} thickness={2} track={colors.hairlineButton} />
-      <Text style={styles.label}>{label}</Text>
+      <Text {...CAP_BODY} style={styles.label}>{label}</Text>
     </View>
   );
 }
@@ -28,6 +29,7 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.bodySm,
+    flexShrink: 1,
     color: colors.textSecondary,
   },
 });

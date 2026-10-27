@@ -209,7 +209,7 @@ describe('B1 phone layout (ND2, ND6)', () => {
       expect(style.fontWeight).toBeUndefined();
     });
     // Names keep the kit size.
-    expect(flat(textInput(tree.root, 'profile-first_name').props.style).height).toBe(50);
+    expect(flat(textInput(tree.root, 'profile-first_name').props.style).minHeight).toBe(50);
   });
 
   it('the height switch stretches across its card; weight unit is compact 64-wide segments', () => {
@@ -259,7 +259,7 @@ describe('B1 tablet layout (≥ 768)', () => {
     const tree = render();
     expect(flat(pressable(tree.root, 'profile-height-unit-cm').props.style).minWidth).toBe(96);
     expect(flat(pressable(tree.root, 'profile-weight-unit-kg').props.style)).toMatchObject({ minWidth: 72, minHeight: 40 });
-    expect(flat(textInput(tree.root, 'profile-height_feet').props.style).height).toBe(50);
+    expect(flat(textInput(tree.root, 'profile-height_feet').props.style).minHeight).toBe(50);
   });
 });
 

@@ -6,6 +6,7 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 import { breakpoints, colors, font, layout, motion, radii, spacing } from '../theme/tokens';
 import FeedbackIcon from './FeedbackIcon';
 import GlassSurface from './GlassSurface';
+import { CAP_BODY, useLargeTextReflow } from './largeText';
 import { ToastTone, useToastStore } from './toastStore';
 
 const EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
@@ -116,7 +117,12 @@ function announcePolitely(parts) {
 // Title + message: radius 20, title 14/600 over the message 13 muted.
 export function ToastCard({ tone, title, message, onClose, overApp = false, testID, style }) {
   const look = TOAST_TONES[tone] ?? TOAST_TONES[ToastTone.info];
-  const oneLine = !(title && message);
+  // UX §9 reflow: past 1.3× a one-line toast draws as the stacked card
+  // (radius lg, icon top-aligned) so its wrapped text isn't squeezed into a
+  // pill; the text takes the row and wraps.
+  const stacked = useLargeTextReflow();
+  const pill = !(title && message) && !stacked;
+  const single = !(title && message);
 
   useEffect(() => {
     announcePolitely([title, message]);
@@ -126,19 +132,19 @@ export function ToastCard({ tone, title, message, onClose, overApp = false, test
     <GlassSurface
       tone="toast"
       overApp={overApp}
-      radius={oneLine ? radii.full : radii.lg}
-      style={[styles.card, oneLine ? styles.cardPill : styles.cardStacked, style]}
+      radius={pill ? radii.full : radii.lg}
+      style={[styles.card, pill ? styles.cardPill : styles.cardStacked, style]}
     >
-      <View style={oneLine ? null : styles.iconStacked}>
+      <View style={pill ? null : styles.iconStacked}>
         <FeedbackIcon testID="toast-icon" name={look.icon} size={18} color={look.color} />
       </View>
-      <View testID={testID} accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.text}>
-        {oneLine ? (
-          <Text style={styles.line}>{title || message}</Text>
+      <View testID={testID} accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.text, stacked && styles.textStacked]}>
+        {single ? (
+          <Text {...CAP_BODY} style={styles.line}>{title || message}</Text>
         ) : (
           <>
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.message}>{message}</Text>
+            <Text {...CAP_BODY} style={styles.title}>{title}</Text>
+            <Text {...CAP_BODY} style={styles.message}>{message}</Text>
           </>
         )}
       </View>
@@ -209,6 +215,9 @@ const styles = StyleSheet.create({
   },
   text: {
     flexShrink: 1,
+  },
+  textStacked: {
+    flex: 1,
   },
   line: {
     ...font(500),

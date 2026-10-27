@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { colors, font, radii, spacing, textInputColors, typography } from '../theme/tokens';
+import { CAP_BODY } from './largeText';
 
 // RN-SPEC-v2-foundation §4.5: one member/trainer size (52, radius 20).
 export const FIELD_HEIGHT = 52;
@@ -12,13 +13,13 @@ const OPTIONAL = ' (optional)';
 function LabelText({ label, style }) {
   if (typeof label === 'string' && label.endsWith(OPTIONAL)) {
     return (
-      <Text style={style}>
+      <Text {...CAP_BODY} style={style}>
         {label.slice(0, -OPTIONAL.length)}
         <Text style={styles.optional}>{OPTIONAL}</Text>
       </Text>
     );
   }
-  return <Text style={style}>{label}</Text>;
+  return <Text {...CAP_BODY} style={style}>{label}</Text>;
 }
 
 // The label, field box, helper and error (§4.5). `kind` (input | select |
@@ -28,10 +29,10 @@ export function FieldFrame({ label, helperText, error, labelStyle: labelOverride
     <View>
       {label ? <LabelText label={label} style={[styles.label, labelOverride]} /> : null}
       {children}
-      {helperText ? <Text style={styles.helper}>{helperText}</Text> : null}
+      {helperText ? <Text {...CAP_BODY} style={styles.helper}>{helperText}</Text> : null}
       {error ? (
         // Announced: an alert on iOS, a polite live region on Android.
-        <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>
+        <Text {...CAP_BODY} accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>
           {error}
         </Text>
       ) : null}
@@ -78,6 +79,7 @@ export default function FormField({
       <View style={[fieldBoxStyle({ focused, error: Boolean(error), disabled: !editable }), styles.inputBox]}>
         <TextInput
           {...textInputColors}
+          {...CAP_BODY}
           testID={testID}
           accessibilityLabel={label}
           // Described by the error message (§4.5), read when the field is focused.
@@ -111,7 +113,7 @@ export default function FormField({
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
           >
-            <Text style={styles.unitText}>{unit}</Text>
+            <Text {...CAP_BODY} style={styles.unitText}>{unit}</Text>
           </View>
         ) : null}
         {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
@@ -165,8 +167,9 @@ const styles = StyleSheet.create({
   },
   // Single line: the box is 52 with a 1 px border, so the input is 50. No
   // lineHeight on a single-line input (iOS shifts the text down with one).
+  // minHeight, not height (UX §9 rule 3): at 2× text the field grows.
   input: {
-    height: FIELD_HEIGHT - 2,
+    minHeight: FIELD_HEIGHT - 2,
     paddingVertical: 0,
     paddingHorizontal: spacing[4],
   },
