@@ -182,12 +182,14 @@ function WorkoutPage() {
     }
     setActionError('');
     setIsStartingDayId(dayId);
+    // T-50 (RN-SPEC-time §7.2 step 3, dated 2026-10-27): the one
+    // notification-permission moment, sent before the start request and not
+    // awaited; a failed start has still asked.
+    requestPermissionAtWorkoutStart(restAlertPlatform).catch(() => {});
     try {
       const created = await startWorkout({ user_plan_enrollment_id: enrollmentId, workout_plan_day_id: dayId });
       setPage((current) => ({ ...current, session: created.session ?? current.session }));
       setSuccessMessage('Workout started.');
-      // T-50: the one notification-permission moment, before any rest.
-      requestPermissionAtWorkoutStart(restAlertPlatform).catch(() => {});
       await load({ silent: Boolean(created.session?.id) });
     } catch (error) {
       // [O7]

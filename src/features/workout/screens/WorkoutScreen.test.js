@@ -192,13 +192,39 @@ describe('WorkoutScreen', () => {
     expect(find(tree, 'completion-popup')).toHaveLength(0);
   });
 
-  it('the Start tap asks for notification permission once it starts; the hub alone never asks (T-50)', async () => {
+  // T-50 ask timing (RN-SPEC-time §7.2 step 3, dated 2026-10-27, gymido b0a8965e).
+  const startHub = { ok: true, data: { ...noSession.data, currentPlan: { enrollment: { id: 3, plan: { name: 'Plan' } } }, planDays: [{ id: 11 }] } };
+
+  it('the Start tap asks BEFORE the start request and does not wait for the answer; the hub alone never asks (T-50)', async () => {
     const platform = require('../runtime/restAlertPlatform');
-    const hub = { ok: true, data: { ...noSession.data, currentPlan: { enrollment: { id: 3, plan: { name: 'Plan' } } }, planDays: [{ id: 11 }] } };
-    loadWorkoutPage.mockResolvedValue(hub);
+    const { startWorkout } = require('../api/workoutApi');
+    platform.requestPermission.mockClear();
+    platform.getPermission.mockClear();
+    startWorkout.mockClear();
+    // The OS prompt is still open (never answers) while the request goes out.
+    platform.requestPermission.mockImplementationOnce(() => new Promise(() => {}));
+    loadWorkoutPage.mockResolvedValue(startHub);
     const tree = await render();
     expect(platform.requestPermission).not.toHaveBeenCalled();
     loadWorkoutPage.mockResolvedValue(withSession);
+    await act(async () => {
+      await mockHero.onStart();
+    });
+    expect(platform.requestPermission).toHaveBeenCalledTimes(1);
+    expect(startWorkout).toHaveBeenCalledTimes(1);
+    // The ask begins (the permission read) before the request is sent; the
+    // OS prompt follows that read without the start waiting on it.
+    expect(platform.getPermission.mock.invocationCallOrder.at(-1)).toBeLessThan(startWorkout.mock.invocationCallOrder[0]);
+    act(() => tree.unmount());
+  });
+
+  it('a failed start still asked (T-50)', async () => {
+    const platform = require('../runtime/restAlertPlatform');
+    const { startWorkout } = require('../api/workoutApi');
+    platform.requestPermission.mockClear();
+    startWorkout.mockRejectedValueOnce(new Error('offline'));
+    loadWorkoutPage.mockResolvedValue(startHub);
+    const tree = await render();
     await act(async () => {
       await mockHero.onStart();
     });
