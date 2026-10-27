@@ -2,10 +2,20 @@
 // Clients sent the app back to Trainer Today. Android RECREATES the activity
 // on a fontScale configuration change unless the activity handles it, so
 // the JS app restarted on its first tab. MainActivity now declares
-// fontScale in configChanges: the app stays on its screen, RN reports the
-// new fontScale, and ShellPage re-measures (only a half-typed form resets,
-// the accepted trade-off).
-const { addFontScaleConfigChange } = require('../withFontScaleConfigChange');
+// fontScale in configChanges: the app stays on its screen. T-59 device check:
+// RN only re-sends Dimensions to JS on resume, so a change while the app stays
+// in front (adb, Settings in split screen) never reached the remount; the
+// MainActivity override sends it at once.
+const { addFontScaleConfigChange, addDimensionsUpdate } = require('../withFontScaleConfigChange');
+
+const MAIN_ACTIVITY = `package com.gymido.app
+
+import com.facebook.react.ReactActivity
+
+class MainActivity : ReactActivity() {
+  override fun getMainComponentName(): String = "main"
+}
+`;
 
 const TEMPLATE_CHANGES = 'keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode|smallestScreenSize|assetsPaths';
 const manifest = (changes, name = '.MainActivity') => ({
@@ -43,5 +53,22 @@ describe('withFontScaleConfigChange', () => {
   it('app.config registers the plugin for every build', () => {
     const text = require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'app.config.js'), 'utf8');
     expect(text).toMatch(/'\.\/plugins\/withFontScaleConfigChange'/);
+  });
+
+  it('MainActivity sends the new Dimensions (fontScale) to JS on a configuration change, after super', () => {
+    const result = addDimensionsUpdate(MAIN_ACTIVITY, 'kt');
+    const body = result.slice(result.indexOf('override fun onConfigurationChanged'));
+    expect(body).toMatch(/^override fun onConfigurationChanged\(newConfig: android\.content\.res\.Configuration\) \{\s+super\.onConfigurationChanged\(newConfig\)/);
+    expect(body).toMatch(/\(application as com\.facebook\.react\.ReactApplication\)\.reactHost\?\.currentReactContext/);
+    expect(body).toMatch(/getNativeModule\(com\.facebook\.react\.modules\.deviceinfo\.DeviceInfoModule::class\.java\)\s*\?\.emitUpdateDimensionsEvent\(\)/);
+    // Still inside the class, the rest unchanged.
+    expect(result.trimEnd().endsWith('}')).toBe(true);
+    expect(result).toContain('override fun getMainComponentName(): String = "main"');
+  });
+
+  it('adds the override once (idempotent) and refuses a Java MainActivity', () => {
+    const once = addDimensionsUpdate(MAIN_ACTIVITY, 'kt');
+    expect(addDimensionsUpdate(once, 'kt')).toBe(once);
+    expect(() => addDimensionsUpdate('public class MainActivity {}', 'java')).toThrow(/Kotlin/);
   });
 });

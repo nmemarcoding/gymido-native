@@ -58,16 +58,26 @@ function PlansStack() {
   );
 }
 
-// The same wiring as App.js: the key and the seed state go on the container.
+function Shell() {
+  return (
+    <Tabs.Navigator screenOptions={{ headerShown: false }}>
+      <Tabs.Screen name="Today" component={Home} />
+      <Tabs.Screen name="PlansTab" component={PlansStack} />
+    </Tabs.Navigator>
+  );
+}
+
+// The same wiring as App.js: the key and the seed state go on the container,
+// and (as RootNavigator) the shell screen carries the landing link in its
+// initialParams, which React Navigation merges back in on rehydration.
 function App({ os }) {
   const navigation = useFontScaleRemount(navRef, os);
   return (
     <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets }}>
       <NavigationContainer key={navigation.key} ref={navRef} initialState={navigation.initialState}>
-        <Tabs.Navigator screenOptions={{ headerShown: false }}>
-          <Tabs.Screen name="Today" component={Home} />
-          <Tabs.Screen name="PlansTab" component={PlansStack} />
-        </Tabs.Navigator>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="AppShell" component={Shell} initialParams={{ screen: 'Today' }} />
+        </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
   );
@@ -170,8 +180,11 @@ describe('T-59 (QA BUG-N3): a live Android font-size change re-lays out every mo
       ],
     });
     const shell = seed.routes[0];
-    expect(shell.params).toBeUndefined();
-    expect(shell.state.routes[1].params).toBeUndefined();
+    // Set to undefined, not deleted, so a screen's initialParams can't refill them.
+    ['screen', 'params', 'initial'].forEach((key) => {
+      expect(shell.params).toHaveProperty(key, undefined);
+      expect(shell.state.routes[1].params).toHaveProperty(key, undefined);
+    });
     expect(shell.state.routes[1].state.routes[1].params).toEqual({ planId: 7 });
     expect(shell.state.routes[2].params).toEqual({ screen: 'ExerciseDetail', params: { exerciseId: 3 } });
   });

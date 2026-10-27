@@ -25,8 +25,13 @@ export function useFontScaleRemount(navigationRef, os = Platform.OS) {
 const NESTED_NAVIGATION_PARAMS = ['screen', 'params', 'initial', 'state', 'path', 'merge', 'pop'];
 
 // A navigator that already has its own state would replay the link that first
-// opened it (a landing, a cross-tab path) on remount and reset its stack, so
-// its route drops those params. Unopened tabs keep theirs for the first visit.
+// opened it (a landing, a cross-tab path) on remount and reset its stack: the
+// new container has not marked it consumed. So its route sets those params to
+// undefined; deleting them is not enough, because rehydration merges the
+// screen's initialParams (RootNavigator's landing) back in underneath.
+// Unopened tabs keep theirs for the first visit.
+const CLEARED_NESTED_PARAMS = Object.fromEntries(NESTED_NAVIGATION_PARAMS.map((key) => [key, undefined]));
+
 export function seedState(state) {
   return {
     ...state,
@@ -34,10 +39,9 @@ export function seedState(state) {
       if (!route.state) {
         return route;
       }
-      const params = Object.entries(route.params ?? {}).filter(([key]) => !NESTED_NAVIGATION_PARAMS.includes(key));
       return {
         ...route,
-        params: params.length ? Object.fromEntries(params) : undefined,
+        params: { ...route.params, ...CLEARED_NESTED_PARAMS },
         state: seedState(route.state),
       };
     }),
