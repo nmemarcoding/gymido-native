@@ -260,15 +260,42 @@ describe('Rest minimised (UX F2 Rest minimised)', () => {
     expect(StyleSheet.flatten(host(tree, 'rest-countdown').props.style).fontSize).toBe(24);
   });
 
-  it('tablet: a 132 disc at right 40 / bottom 60, r58 stroke 7, 32 digits', () => {
+  // DECLARED change (UX verdict I2, iPad 15e819a; P8 verdict "KEEP 92 at 24 (T §5); the 132 board disc is
+  // superseded"): was "tablet: a 132 disc at right 40 / bottom 60, r58 stroke 7, 32 digits" with
+  // toEqual(objectContaining({ width: 132, height: 132, left: 834 - 40 - 132, top: 1194 - 60 - 132 })), r 58,
+  // stroke 7, digits 32. The 132 disc at bottom 60 sat on top of "Complete workout" and the disabled Did it.
+  it('tablet (I2): the 92 disc (r40 ring, 24 digits) docks 24 from the right, ABOVE the dock room', () => {
     mockWidth = 834;
-    const tree = renderTree({ minimized: true });
+    const dockRoom = 136 + 16;
+    const tree = renderTree({ minimized: true, dockRoom });
     const style = StyleSheet.flatten(host(tree, 'rest-timer').props.style);
-    expect(style).toEqual(expect.objectContaining({ width: 132, height: 132, left: 834 - 40 - 132, top: 1194 - 60 - 132 }));
+    expect(style).toEqual(expect.objectContaining({ width: 92, height: 92, borderRadius: 46, left: 834 - 24 - 92, top: 1194 - dockRoom - 92 }));
     const arc = tree.root.findAll((node) => node.props.testID === 'rest-mini-ring-arc')[0];
-    expect(arc.props.r).toBe(58);
-    expect(arc.props.strokeWidth).toBe(7);
-    expect(StyleSheet.flatten(host(tree, 'rest-countdown').props.style).fontSize).toBe(32);
+    expect(arc.props.r).toBe(40);
+    expect(arc.props.strokeWidth).toBe(6);
+    expect(StyleSheet.flatten(host(tree, 'rest-countdown').props.style).fontSize).toBe(24);
+  });
+
+  it('tablet (I2): a drag never takes the disc down onto the dock (clamped above the dock room)', () => {
+    mockWidth = 834;
+    const dockRoom = 152;
+    const onPosition = jest.fn();
+    const tree = renderTree({ minimized: true, dockRoom, onPosition });
+    const disc = () => host(tree, 'rest-timer');
+    const touch = (pageX, pageY) => ({ nativeEvent: { pageX, pageY, touches: [], changedTouches: [] }, touchHistory: { touchBank: [] } });
+    act(() => disc().props.onResponderGrant(touch(700, 900)));
+    act(() => disc().props.onResponderMove(touch(700, 1190)));
+    expect(onPosition).toHaveBeenCalled();
+    expect(onPosition.mock.calls.at(-1)[0].y).toBe(1194 - dockRoom - 92);
+    // A stored position below the dock is pulled back up (the re-clamp on each tick).
+    const below = renderTree({ minimized: true, dockRoom, onPosition, position: { x: 600, y: 1100 } });
+    expect(StyleSheet.flatten(host(below, 'rest-timer').props.style).top).toBe(1194 - dockRoom - 92);
+  });
+
+  it('phone keeps its disc and clamp (the dock room is tablet only)', () => {
+    const onPosition = jest.fn();
+    const tree = renderTree({ minimized: true, dockRoom: 200, position: { x: 100, y: 700 }, onPosition });
+    expect(StyleSheet.flatten(host(tree, 'rest-timer').props.style).top).toBe(700);
   });
 
   it('pressed scales to 0.96; a tap expands, a drag past 4 pt moves it (clamped 8 from the edge)', () => {
