@@ -22,7 +22,9 @@ import { TAB_BAR_CONTENT_PADDING } from './tabBarMetrics';
 // (≥ 768, portrait AND landscape; RN-SPEC-v2-foundation §3 [O2], §7.2, T-55):
 // the fixed icon rail at the left, outside the scroll, and the content
 // beside it, capped at 1120 and centred (≥ 1280 keeps the rail; native has no
-// web sidebar). [O2] safe-area insets added.
+// web sidebar). [O2] safe-area insets added. T-56: ShellOverlay draws the one
+// rail above every tab stack (it stays still on a push); this page only
+// reserves its width (TabletFrame).
 // `nestable` hosts a draggable list (T3's sortable exercises).
 // v2 (RN-SPEC-v2-foundation §7): the ground colour; phones keep 104 px (+ the
 // safe area) under the content so nothing ends under the floating tab bar;
@@ -69,11 +71,11 @@ export default function ShellPage({ children, nestable = false, glow = false, te
   };
 
   if (tablet) {
-    // The rail takes the left inset (TabletFrame); the right gutter keeps the right one.
+    // The reserved rail space takes the left inset (TabletFrame); the right gutter keeps the right one.
     return (
       <View testID={testID} style={styles.screen}>
         <AmbientGlow glow={glow} />
-        <TabletFrame mode={mode} path={path}>
+        <TabletFrame>
           <Scroller
             {...scrollerProps}
             contentContainerStyle={{

@@ -7,10 +7,12 @@ import ShellPage from './ShellPage';
 // T-55 shell switch (RN-SPEC-v2-foundation §3 [O2]: "tablets use the rail in
 // portrait AND landscape"; tablet-strategy: ≥ 1280 keeps the rail, content
 // capped at 1120 and centred). ShellPage and the tab-bar overlay rendered together.
+// T-56: the overlay draws the one rail; ShellPage only reserves its width.
 const mockRoute = { name: 'Home', params: {} };
 const mockUser = { current: null };
 jest.mock('@react-navigation/native', () => ({ useRoute: () => mockRoute }));
-jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 24, bottom: 20, left: 0, right: 0 }) }));
+const mockInsets = { top: 24, bottom: 20, left: 0, right: 0 };
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => mockInsets }));
 jest.mock('react-native-draggable-flatlist', () => ({ NestableScrollContainer: 'NestableScrollContainer' }));
 jest.mock('./AppHeader', () => () => null);
 jest.mock('./ModeSwitch', () => () => null);
@@ -34,7 +36,7 @@ const { openShellPath } = require('./shellLinks');
 
 const homeState = { index: 0, routes: [{ name: 'TodayTab', state: { index: 0, routes: [{ name: 'Home', params: {} }] } }] };
 
-function render(width, height, fontScale = 1) {
+function render(width, height, fontScale = 1, navState = homeState) {
   useWindowDimensions.mockReturnValue({ width, height, scale: 2, fontScale });
   let tree;
   act(() => {
@@ -43,7 +45,7 @@ function render(width, height, fontScale = 1) {
         <ShellPage>
           <Text>Page</Text>
         </ShellPage>
-        <ShellOverlay state={homeState} />
+        <ShellOverlay state={navState} />
       </>
     );
   });
@@ -58,7 +60,9 @@ afterEach(() => {
   jest.clearAllMocks();
   mockUser.current = null;
   Object.assign(mockRoute, { name: 'Home', params: {} });
+  Object.assign(mockInsets, { left: 0, right: 0 });
 });
+const railsInPage = (tree) => hostAll(tree, 'app-root')[0].findAll((node) => node.props?.testID === 'tablet-rail');
 
 describe('tablets: the rail in portrait AND landscape, no tab bar', () => {
   it.each([
@@ -74,6 +78,9 @@ describe('tablets: the rail in portrait AND landscape, no tab bar', () => {
     const tree = render(width, height);
     expect(hostAll(tree, 'tablet-rail')).toHaveLength(1);
     expect(has(tree, 'bottom-nav')).toBe(false);
+    // T-56: drawn by the overlay, never inside the page; the page reserves 88.
+    expect(railsInPage(tree)).toHaveLength(0);
+    expect(StyleSheet.flatten(hostAll(tree, 'tablet-frame')[0].props.style).paddingLeft).toBe(88);
   });
 
   it('the rail sits outside the page scroll (fixed, full height)', () => {
@@ -120,6 +127,13 @@ describe('content column beside the rail', () => {
     expect(scroller.props.contentContainerStyle).toMatchObject({ paddingTop: 24, paddingLeft: 24, paddingRight: 24 });
     expect(StyleSheet.flatten(hostAll(tree, 'tablet-frame-column')[0].props.style).paddingTop).toBe(24);
   });
+
+  it('T-56: a left inset (landscape notch) widens the rail and the reserved space alike', () => {
+    Object.assign(mockInsets, { left: 44 });
+    const tree = render(1194, 834);
+    expect(StyleSheet.flatten(hostAll(tree, 'tablet-rail')[0].props.style).width).toBe(88 + 44);
+    expect(StyleSheet.flatten(hostAll(tree, 'tablet-frame')[0].props.style).paddingLeft).toBe(88 + 44);
+  });
 });
 
 describe('rail items follow the mode (shellRules.resolveMode)', () => {
@@ -138,7 +152,9 @@ describe('rail items follow the mode (shellRules.resolveMode)', () => {
   it('a trainer on a /trainer page gets the trainer items, Clients active', () => {
     mockUser.current = { roles: ['trainer'] };
     Object.assign(mockRoute, { name: 'TrainerClients', params: {} });
-    const tree = render(1194, 834);
+    // T-56: the overlay's rail reads the focused route from the tab state.
+    const clientsState = { index: 0, routes: [{ name: 'TClients', state: { index: 0, routes: [{ name: 'TrainerClients', params: {} }] } }] };
+    const tree = render(1194, 834, 1, clientsState);
     expect(labels(tree)).toEqual(['Today', 'Clients', 'Plans', 'Profile']);
     const clients = tree.root.find((node) => node.props?.testID === 'rail-TClients' && typeof node.props.style === 'function');
     expect(clients.props.accessibilityState.selected).toBe(true);

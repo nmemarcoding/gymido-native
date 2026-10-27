@@ -8,6 +8,7 @@ import ExercisesScreen from './ExercisesScreen';
 // T-55: Exercises draws its own shell (a virtualised list with a sticky bar),
 // so it uses the same TabletFrame as ShellPage: the rail at ≥ 768 in both
 // orientations (the v1 DesktopSidebar is gone), the tab bar's spot below.
+// T-56: the rail itself is drawn once by ShellOverlay; the frame reserves 88.
 jest.mock('@react-navigation/native', () => {
   const { useEffect } = require('react');
   return {
@@ -59,9 +60,10 @@ describe('Exercises in the tablet shell', () => {
     [834, 1194],
     [1194, 834],
     [1366, 1024],
-  ])('%i × %i: the rail, outside the list; the frame takes the top inset', async (width, height) => {
+  ])('%i × %i: room for the overlay rail, beside the list; the frame takes the top inset', async (width, height) => {
     const tree = await render(width, height);
-    expect(host(tree, 'tablet-rail')).toHaveLength(1);
+    expect(host(tree, 'tablet-rail')).toHaveLength(0);
+    expect(StyleSheet.flatten(host(tree, 'tablet-frame')[0].props.style).paddingLeft).toBe(88);
     expect(host(tree, 'desktop-sidebar')).toHaveLength(0);
     const list = tree.root.find((node) => node.props?.testID === 'exercises-list' && typeof node.type !== 'string');
     expect(list.findAll((node) => node.props?.testID === 'tablet-rail')).toHaveLength(0);

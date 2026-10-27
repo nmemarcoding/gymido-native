@@ -394,8 +394,8 @@ function ExercisesCatalog() {
   return (
     <View testID="exercises-screen" style={[styles.screen, { paddingTop: tablet ? 0 : insets.top }]}>
       {tablet ? (
-        // T-55: the tablet rail (TabletFrame takes the top/left insets).
-        <TabletFrame mode={mode} path={path}>
+        // T-55/T-56: room for the overlay's rail (TabletFrame takes the top/left insets).
+        <TabletFrame>
           <View style={[styles.tabletRow, { paddingRight: 4 + insets.right }]}>
             <View style={styles.tabletContent}>{list}</View>
           </View>
