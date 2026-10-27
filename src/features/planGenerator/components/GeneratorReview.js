@@ -5,7 +5,7 @@ import { InlineError } from '../../../shared/components/FeedbackBox';
 import GradientFill from '../../../shared/components/GradientFill';
 import PillButton from '../../../shared/components/PillButton';
 import { colors, font, gradients, muscle, radii, spacing } from '../../../shared/theme/tokens';
-import { COPY, STEP_COUNT, changeLabel } from '../generatorCopy';
+import { COPY, STEP_COUNT, changeLabel, daysAWeekUnit } from '../generatorCopy';
 import { BODY_TEXT, CHANGE_HIT_SLOP, CHANGE_PILL_HEIGHT, DISPLAY_TEXT, PAGE_TITLE_TEXT, PressOverlay } from '../generatorLayout';
 import { imageUrlOf, reviewDetails, reviewSummaries } from '../generatorLogic';
 // Review M4: the v2 image chain (w400 first).
@@ -85,7 +85,7 @@ export default function GeneratorReview({ answers, options, stepErrors, saveErro
       {/* Rows 3 and 4: two small cards side by side (stacked at large text). */}
       <View testID="generator-review-pair" style={[styles.pair, reflow && styles.pairStacked]}>
         {[
-          [3, details.days, COPY.daysAWeekUnit],
+          [3, details.days, daysAWeekUnit(details.days)],
           [4, details.minutes, COPY.minUnit],
         ].map(([step, value, unit]) => (
           <Card key={step} step={step} style={reflow ? null : styles.half}>

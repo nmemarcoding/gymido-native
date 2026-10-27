@@ -16,6 +16,7 @@ import {
 } from '../planValidation';
 import { AffectsNoticeBox } from './AffectedClients';
 import { useBuilderLayout } from './builderParts';
+import { formatCount } from '../../../../shared/format/counts';
 
 // Validation/server error key for each form field.
 const ERROR_KEYS = {
@@ -200,7 +201,7 @@ function DayChip({ value, selected, disabled, tablet, onPress }) {
     <Pressable
       testID={`edit-plan-days-${value}`}
       accessibilityRole="radio"
-      accessibilityLabel={`${value} days per week`}
+      accessibilityLabel={`${formatCount(value, 'day', 'days')} per week`}
       accessibilityState={{ checked: selected, disabled }}
       disabled={disabled}
       onPress={onPress}

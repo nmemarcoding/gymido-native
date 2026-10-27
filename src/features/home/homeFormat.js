@@ -1,6 +1,7 @@
 import { formatNumber, formatSignedNumber, formatWeight, parseDecimal } from '../../shared/format/numbers';
 import { convertWeight } from '../../shared/format/weight';
 import { formatDate, formatDuration, formatLocalDateForInput } from '../../shared/time/format';
+import { formatCount } from '../../shared/format/counts';
 
 // Rules and copy of RN-SPEC-home (dated changes of 23 Oct included). Pure.
 
@@ -34,7 +35,7 @@ export function todayCard(dashboard, setupDayCount = null) {
       tone: 'brand',
       pill: 'Set up',
       headline: 'Pick your training days',
-      sub: `Choose the ${setupDayCount} days you'll train each week.`,
+      sub: `Choose the ${formatCount(setupDayCount, 'day', 'days')} you'll train each week.`,
       primary: 'Choose days',
     };
   } else if (today?.already_completed) {

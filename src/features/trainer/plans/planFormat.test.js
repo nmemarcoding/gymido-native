@@ -55,8 +55,9 @@ describe('formatExerciseSummary', () => {
 });
 
 describe('copy quirks reproduced from the web', () => {
-  it('never singularises days per week (⚠T1-4)', () => {
-    expect(formatDaysPerWeek({ days_per_week: 1 })).toBe('1 days / week');
+  it('days per week: the singular for 1 (§7.1, 27 Oct 2026; supersedes ⚠T1-4)', () => {
+    expect(formatDaysPerWeek({ days_per_week: 1 })).toBe('1\u00a0day / week');
+    expect(formatDaysPerWeek({ days_per_week: 3 })).toBe('3\u00a0days / week');
     expect(formatDaysPerWeek({ days_per_week: 0 })).toBe('Training plan');
     expect(formatDaysPerWeek({})).toBe('Training plan');
   });

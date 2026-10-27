@@ -67,6 +67,7 @@ import {
 import useElapsedTimer from './useElapsedTimer';
 import useRestAlerts from './useRestAlerts';
 import useRestTimer from './useRestTimer';
+import { keepUnitsTogether } from '../../../shared/format/counts';
 
 // The phone column (app-shell §"phone", §19.6); tablets use the window.
 const COLUMN_MAX_WIDTH = 430;
@@ -572,7 +573,7 @@ export default function SessionRuntime({
               {messages}
               {setCard}
               <SessionExerciseList
-                title={planName || 'Workout'}
+                title={keepUnitsTogether(planName) || 'Workout'}
                 exercises={exercises}
                 currentIndex={sheetCurrent}
                 viewingIndex={viewing}

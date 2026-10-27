@@ -7,6 +7,7 @@ import { colors, font, gradients, radii, spacing, typography } from '../../../..
 import { planCategoryLabel } from '../planCategoryColor';
 import { formatDaysPerWeek } from '../planFormat';
 import { CategoryChip } from './TrainerChips';
+import { keepUnitsTogether } from '../../../../shared/format/counts';
 
 // Spec §A4.3 + v2 Phase 6 O (TrainerPlans / TabletTrainerPlans). UX ruling 1:
 // every card is the same dark gradient-card (no featured gold card). The
@@ -16,7 +17,7 @@ import { CategoryChip } from './TrainerChips';
 // name 28/30); otherwise the phone grid card (radius 24, padding 16, name
 // 16/21). `stacked` (text > 1.3×, UX §9): View + Assign stack full width.
 export default function PlanCard({ plan, onView, onAssign, assignLoading = false, tablet = false, stacked = false, style }) {
-  const name = plan.name;
+  const name = keepUnitsTogether(plan.name);
   const buttonStyle = stacked ? styles.buttonStacked : null;
   return (
     <View testID={`plan-card-${plan.id}`} style={[styles.card, tablet ? styles.cardTablet : styles.cardPhone, style]}>

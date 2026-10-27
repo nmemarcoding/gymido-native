@@ -7,6 +7,7 @@ import { colors, font, gradients, radii, spacing, textScale } from '../../../sha
 import { planPhotoUrl } from '../libraryFormat';
 import { getRemoteImageSources } from '../../../shared/images/remoteImageSources';
 import { useReflow } from './planUi';
+import { keepUnitsTogether } from '../../../shared/format/counts';
 
 const HIDDEN = { accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' };
 // glow-gold-ambient (0.18) as a 340 circle, top-right of the tablet hero.
@@ -22,7 +23,7 @@ export function PlanSummary({ plan, dayCount, totalExercises }) {
           {plan?.category?.name || 'Workout plan'}
         </Text>
         <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.name}>
-          {plan?.name}
+          {keepUnitsTogether(plan?.name)}
         </Text>
         {plan?.description ? (
           <Text {...CAP_BODY} numberOfLines={3} ellipsizeMode="tail" style={styles.description}>
@@ -132,7 +133,7 @@ export function PlanHero({ plan, dayCount, totalExercises }) {
             {plan?.category?.name || 'Workout plan'}
           </Text>
           <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.heroName}>
-            {plan?.name}
+            {keepUnitsTogether(plan?.name)}
           </Text>
           {plan?.description ? (
             <Text {...CAP_BODY} numberOfLines={3} ellipsizeMode="tail" style={styles.heroDescription}>

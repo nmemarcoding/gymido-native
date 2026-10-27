@@ -23,10 +23,10 @@ const item = (id, muscle, sets = { set_count: 3, target_reps_min: 8, target_reps
 
 describe('active card copy', () => {
   it('drops the category from the days line; the tablet subline leads with it', () => {
-    expect(activePlanDaysLabel({ days_per_week: 4, category: { name: 'Strength' } })).toBe('4 training days / week');
+    expect(activePlanDaysLabel({ days_per_week: 4, category: { name: 'Strength' } })).toBe('4\u00a0training days / week');
     expect(activePlanDaysLabel({})).toBe('Your active routine');
-    expect(activePlanSubline({ days_per_week: 4, category: { name: 'Strength' } })).toBe('Strength · 4 days / week');
-    expect(activePlanSubline({ days_per_week: 4 })).toBe('4 days / week');
+    expect(activePlanSubline({ days_per_week: 4, category: { name: 'Strength' } })).toBe('Strength · 4\u00a0days / week');
+    expect(activePlanSubline({ days_per_week: 4 })).toBe('4\u00a0days / week');
     expect(activePlanSubline({})).toBe('');
   });
 });

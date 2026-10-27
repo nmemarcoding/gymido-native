@@ -12,6 +12,7 @@ import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { useSheetFocus } from '../../../shared/hooks/useSheetFocus';
 import { blur, breakpoints, colors, font, gradients, radii, shadows, spacing, textScale, typography } from '../../../shared/theme/tokens';
 import { exerciseName, segmentLabel, setsWord } from './sessionMath';
+import { keepUnitsTogether } from '../../../shared/format/counts';
 
 const SHEET_EASE = Easing.bezier(0.22, 1, 0.36, 1);
 // The sheet's drawn sizes (UX C §All exercises sheet / §Tablet); radii 22,
@@ -265,7 +266,7 @@ export function sheetProgress(exercises) {
 export function sheetSubtitle(planName, exercises) {
   const { done, total } = sheetProgress(exercises);
   const count = `${done}/${total} ${setsWord(total)} done`;
-  return planName ? `${planName} · ${count}` : count;
+  return planName ? `${keepUnitsTogether(planName)} · ${count}` : count;
 }
 
 export function setsLabel(count) {

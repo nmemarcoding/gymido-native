@@ -34,7 +34,7 @@ describe('todayCard (H1.3 + Batch B)', () => {
       state: 'setup',
       pill: 'Set up',
       headline: 'Pick your training days',
-      sub: "Choose the 3 days you'll train each week.",
+      sub: "Choose the 3\u00a0days you'll train each week.",
       primary: 'Choose days',
     });
     expect(todayCard({ today_status: { already_completed: true, plan_day: day } })).toMatchObject({ state: 'completed', headline: 'Push' });

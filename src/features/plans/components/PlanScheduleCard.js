@@ -7,6 +7,7 @@ import { colors, font, radii, spacing } from '../../../shared/theme/tokens';
 import { openShellPath } from '../../shell/shellLinks';
 import { workoutDaysLabel } from '../libraryFormat';
 import WeekdayGrid from './WeekdayGrid';
+import { formatCount } from '../../../shared/format/counts';
 
 // §4.6 ScheduleCard, v2 look (UX H): radius 28, padding 22; eyebrow 13/600
 // gold, title 22/28/700, body 14/21 secondary, the 7 detail chips, then the
@@ -25,7 +26,7 @@ export default function PlanScheduleCard({ isCurrentPlan, requiredDays, selected
       </Text>
       <Text {...CAP_BODY} style={styles.body}>
         {isCurrentPlan
-          ? `These are the ${requiredDays} day${requiredDays === 1 ? '' : 's'} you train on. Adjust them and tap update to reschedule.`
+          ? `These are the ${formatCount(requiredDays, 'day', 'days')} you train on. Adjust them and tap update to reschedule.`
           : 'Choose the weekdays to train. Activating this plan replaces any current active plan.'}
       </Text>
       <WeekdayGrid selected={selected} onToggle={onToggle} testIDPrefix="plan-weekday" variant="detail" />

@@ -24,6 +24,7 @@ import {
   stageEyebrow,
   tabletEyebrow,
 } from './sessionMath';
+import { keepUnitsTogether } from '../../../shared/format/counts';
 
 const POP = Easing.bezier(0.34, 1.56, 0.64, 1);
 const CLEAR = gradients.photoFade.colors[0];
@@ -135,7 +136,7 @@ export function SessionChrome({ planName, completedSets, totalSets, exerciseCoun
   const plan = (
     <GlassSurface testID="session-plan" tone="onPhoto" radius={radii.full} shadow={false} style={[styles.planPill, tablet && styles.planPillTablet, stacked && styles.planPillStacked]}>
       <Text {...TITLE_TEXT} numberOfLines={2} style={[styles.planName, tablet && styles.planNameTablet]}>
-        {planName}
+        {keepUnitsTogether(planName)}
       </Text>
       <Text {...CAP_PILL} style={[styles.planSub, tablet && styles.planSubTablet]}>{`${completedSets}/${totalSets} ${setsWord(totalSets)} done`}</Text>
     </GlassSurface>

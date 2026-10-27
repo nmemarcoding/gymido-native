@@ -11,6 +11,7 @@ import { breakpoints, colors, font, gradients, radii, spacing, textScale, typogr
 import ProgressRing from '../../workout/components/ProgressRing';
 import { createSchedule, replaceSchedule } from '../api/libraryApi';
 import { WEEKDAYS, selectedWeekdaysLabel, toggleWeekday } from '../libraryFormat';
+import { formatCount, keepUnitsTogether, NBSP, pluralWord } from '../../../shared/format/counts';
 
 // Phone rows (UX B §Schedule setup): Mon–Thu, then Fri–Sun (+ an empty cell).
 const PHONE_ROWS = [WEEKDAYS.slice(0, 4), WEEKDAYS.slice(4)];
@@ -24,7 +25,7 @@ const BODY = { maxFontSizeMultiplier: textScale.body };
 const BADGE = { maxFontSizeMultiplier: textScale.badge };
 
 export function daysSelectedLabel(count, required) {
-  return `${count} of ${required} days selected`;
+  return `${count} of ${formatCount(required, 'day', 'days')} selected`;
 }
 
 // S3 (RN-SPEC-plans §5), shown on the Workout hub when a trainer-assigned
@@ -44,12 +45,12 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
   const [selected, setSelected] = useState(() => WEEKDAYS.slice(0, required).map((weekday) => weekday.id));
   const [saveError, setSaveError] = useState('');
   const [saving, setSaving] = useState(false);
-  const plural = required === 1 ? '' : 's';
+  const pick = `Pick ${formatCount(required, 'training day', 'training days')}`;
 
   async function save() {
     setSaveError('');
     if (selected.length !== required) {
-      setSaveError(`Pick ${required} training day${plural} to continue.`);
+      setSaveError(`${pick} to continue.`);
       return;
     }
     setSaving(true);
@@ -76,7 +77,7 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
     <DayChip key={weekday.id} weekday={weekday} on={selected.includes(weekday.id)} tablet={tablet} reflow={reflow} onPress={() => toggle(weekday.id)} />
   );
   const summary = selectedWeekdaysLabel(selected, true);
-  const body = `${planName || 'Your plan'} doesn’t have training days yet. Choose the weekdays you train and we’ll line up your sessions.`;
+  const body = `${keepUnitsTogether(planName) || 'Your plan'} doesn’t have training days yet. Choose the weekdays you train and we’ll line up your sessions.`;
   const error = saveError ? (
     <ErrorAlert testID="schedule-setup-error" title="Couldn’t save your days" description={saveError} style={tablet ? null : styles.mt12} />
   ) : null;
@@ -102,8 +103,8 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
           <View style={[styles.headerText, reflow && styles.headerTextStacked]}>
             <Eyebrow>Set up your week</Eyebrow>
             <Text accessibilityRole="header" {...TITLE} style={[styles.titleTablet, styles.mt8]}>
-              {`Pick ${required} `}
-              <Text style={styles.gold}>{`training day${plural}`}</Text>
+              {`Pick ${required}${NBSP}`}
+              <Text style={styles.gold}>{pluralWord(required, 'training day', 'training days')}</Text>
             </Text>
             <Text {...BODY} style={[styles.bodyTablet, styles.mt12]}>
               {body}
@@ -131,7 +132,7 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
     <CardSurface hero testID="schedule-setup" style={styles.cardPhone}>
       <Eyebrow>Set up your week</Eyebrow>
       <Text accessibilityRole="header" {...TITLE} style={[styles.titlePhone, styles.mt6]}>
-        {`Pick ${required} training day${plural}`}
+        {pick}
       </Text>
       <Text {...BODY} style={[styles.bodyPhone, styles.mt12]}>
         {body}

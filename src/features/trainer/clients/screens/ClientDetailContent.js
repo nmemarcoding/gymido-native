@@ -43,6 +43,7 @@ import { ListCard, ListRow, SectionHeading, StatTile, StatusLine, clientStyles }
 import { ChevronGlyph } from '../components/clientIcons';
 import WeightHistoryModal from '../components/WeightHistoryModal';
 import WorkoutDetailModal from '../components/WorkoutDetailModal';
+import { formatCount, keepUnitsTogether } from '../../../../shared/format/counts';
 
 // C2 content (trainer clients spec §C4; v2 phase 6 §2, UX N Client detail),
 // shared by the Client detail page and the tablet Clients pane.
@@ -415,7 +416,7 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
     const started = formatTrainerDate(plan.enrollment?.started_on);
     // ND-11: days/week + category from the existing plan data; weekday chips
     // only with BE's weekly data.
-    const meta = [planInfo?.days_per_week ? `${planInfo.days_per_week} days / week` : null, planInfo?.category?.name || null]
+    const meta = [planInfo?.days_per_week ? `${formatCount(planInfo.days_per_week, 'day', 'days')} / week` : null, planInfo?.category?.name || null]
       .filter(Boolean)
       .join(' · ');
     const days = row ? trainingDays(row).map(weekdayLabel).filter(Boolean) : [];
@@ -428,7 +429,7 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
               Assigned plan
             </Text>
             <Text {...TITLE_TEXT} style={[styles.planName, tablet && styles.planNameTablet]}>
-              {planInfo?.name || 'Current plan'}
+              {keepUnitsTogether(planInfo?.name) || 'Current plan'}
             </Text>
             <Text {...CAP_BODY} style={styles.planMeta}>
               {started ? `Started ${started}` : 'Active enrollment'}

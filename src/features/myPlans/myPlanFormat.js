@@ -1,6 +1,7 @@
 import { getServerMessage, getStatus } from '../../shared/api/apiError';
 import { formatLocalDateForInput } from '../../shared/time/format';
 import { slugify } from '../trainer/plans/planFormat';
+import { keepUnitsTogether } from '../../shared/format/counts';
 
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
 
@@ -85,7 +86,7 @@ export async function runStartPlan({ planId, planName, enrollment, api, today = 
   } catch (error) {
     return { ...startFailure(error), ...extra };
   }
-  return { type: 'success', message: `${planName} activated.`, ...extra };
+  return { type: 'success', message: `${keepUnitsTogether(planName)} activated.`, ...extra };
 }
 
 function startFailure(error) {

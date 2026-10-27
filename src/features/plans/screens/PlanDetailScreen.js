@@ -42,6 +42,7 @@ import {
   toggleWeekday,
   workoutDaysLabel,
 } from '../libraryFormat';
+import { keepUnitsTogether } from '../../../shared/format/counts';
 
 // The phone board's page glow: radial-gradient(110% 45% at 80% −8%,
 // glow-gold-ambient 0.18, transparent 60%). The tablet hero draws its own.
@@ -192,7 +193,7 @@ function PlanDetail() {
     activating.current = true;
     setIsActivating(true);
     const items = buildScheduleItems(days, selectedWeekdays, requiredDays);
-    const name = plan?.name || 'Plan';
+    const name = keepUnitsTogether(plan?.name) || 'Plan';
     try {
       if (isCurrentPlan && currentEnrollmentId) {
         await replaceSchedule(currentEnrollmentId, items);

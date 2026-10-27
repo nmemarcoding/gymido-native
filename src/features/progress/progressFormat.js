@@ -1,6 +1,7 @@
 import { formatNumber, formatSignedNumber, formatWeight } from '../../shared/format/numbers';
 import { convertWeight } from '../../shared/format/weight';
 import { formatDate, formatDateWithOffset, formatDuration } from '../../shared/time/format';
+import { formatCount } from '../../shared/format/counts';
 
 // Derived values of RN-SPEC-progress §PR1.2, kept apart from the screen so
 // they can be tested.
@@ -244,7 +245,7 @@ export function completionCells(missed, week, now = new Date()) {
   const cells = past.concat(current);
   const done = cells.filter((cell) => cell.status === 'done').length;
   const planned = cells.filter((cell) => cell.status !== 'due').length;
-  return { cells, label: `${done} of ${planned} planned days done in the last 4 weeks` };
+  return { cells, label: `${done} of ${formatCount(planned, 'planned day', 'planned days')} done in the last 4 weeks` };
 }
 
 // U8 Recent workouts: /dashboard recent_workouts (completed) + the Missed

@@ -22,6 +22,7 @@ import { openAssignPlan, openClientDetail } from './clients/clientLinks';
 import ClientAvatar from './clients/components/ClientAvatar';
 import { BrandLink, ListCard, ListRow, PageIntro, SectionHead, StatTile, StatusLine, clientStyles } from './clients/components/ClientsUi';
 import { useTrainerOverview } from './clients/useTrainerOverview';
+import { keepUnitsTogether } from '../../shared/format/counts';
 
 // D1 (trainer clients spec §C2; v2 phase 6 §2 Trainer today, UX N). Phone:
 // 3 compact tiles, Requests, Need attention, Your clients, Invitations.
@@ -359,7 +360,7 @@ function Dashboard() {
           <ListCard style={[styles.sectionBody, tablet && styles.flatList]}>
             {clients.map((client) => {
               const name = clientRowLabel(client);
-              const sub = tablet ? null : weekSentence(client) ?? planNameOf(client);
+              const sub = tablet ? null : weekSentence(client) ?? keepUnitsTogether(planNameOf(client));
               const onTrack = !tablet && isOnTrack(client);
               return (
                 <ListRow

@@ -165,7 +165,7 @@ describe('PlanCard', () => {
     expect(card).toEqual(expect.objectContaining({ borderRadius: radii.xl, padding: 16, borderColor: colors.choiceBorder }));
     const fill = tree.root.findAllByType(GradientFill)[0];
     expect(fill.props.colors).toBe(gradients.card.colors);
-    expect(texts(tree.root)).toEqual(['Strength', 'Upper / Lower Split', '4 days / week', 'Alternate upper and lower days.', 'View']);
+    expect(texts(tree.root)).toEqual(['Strength', 'Upper / Lower Split', '4\u00a0days / week', 'Alternate upper and lower days.', 'View']);
     const name = tree.root.findAllByType(Text).find((node) => node.props.children === 'Upper / Lower Split');
     expect(name.props.accessibilityRole).toBe('header');
     // §9: titles wrap by word (no single-line ellipsis), capped at 1.6.

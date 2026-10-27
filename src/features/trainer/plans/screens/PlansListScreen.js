@@ -22,6 +22,7 @@ import { openClientSelection } from '../../clients/clientLinks';
 import { listTrainerPlans } from '../api/plansApi';
 import PlanCard from '../components/PlanCard';
 import { CoachingChip, PlusIcon } from '../components/TrainerChips';
+import { keepUnitsTogether } from '../../../../shared/format/counts';
 
 export const BROWSE_SUBTITLE =
   'The public catalog plus your own private plans. You can edit the plans you created; to change any other plan, copy it first, then assign the copy.';
@@ -119,7 +120,7 @@ function PlansList({ assignTo }) {
     setAssigningId(plan.id);
     try {
       await assignPlan(assignTo, plan.id, replace);
-      addToast(ToastTone.success, replace ? 'Plan replaced' : 'Plan assigned', `${plan.name} is now their active plan.`);
+      addToast(ToastTone.success, replace ? 'Plan replaced' : 'Plan assigned', `${keepUnitsTogether(plan.name)} is now their active plan.`);
       setPendingAssign(null);
     } catch (error) {
       const status = getStatus(error);
@@ -188,7 +189,7 @@ function PlansList({ assignTo }) {
         onClose={() => setPendingAssign(null)}
         onConfirm={() => assign(pendingAssign.plan, true)}
         title="Replace their current plan?"
-        description={`This client already has an active plan. Assigning ${pendingAssign?.plan?.name || 'this plan'} will end the current one and start this instead. Their history is kept.`}
+        description={`This client already has an active plan. Assigning ${keepUnitsTogether(pendingAssign?.plan?.name) || 'this plan'} will end the current one and start this instead. Their history is kept.`}
         confirmLabel="Replace plan"
         tone="danger"
         loading={assigningId !== null}

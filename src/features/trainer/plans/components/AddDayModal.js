@@ -7,7 +7,7 @@ import { CAP_BODY } from '../../../../shared/components/largeText';
 import PillButton from '../../../../shared/components/PillButton';
 import { useSheetFocus } from '../../../../shared/hooks/useSheetFocus';
 import { colors, font, radii, spacing } from '../../../../shared/theme/tokens';
-import { buildAddDayPayload, buildEditDayPayload, isDayEdited, validateAddDay } from '../planValidation';
+import { buildAddDayPayload, buildEditDayPayload, fullPlanMessage, isDayEdited, validateAddDay } from '../planValidation';
 import { AffectsNoticeBox } from './AffectedClients';
 import { useBuilderLayout } from './builderParts';
 
@@ -62,7 +62,7 @@ export default function AddDayModal({ isOpen, onClose, context, day, affectedCou
   if (!editing) {
     modalDescription = canAddDay
       ? 'The next day number is assigned automatically.'
-      : `This plan already has all ${dayLimit || 'configured'} days.`;
+      : fullPlanMessage(dayLimit, 'configured');
   }
 
   return (

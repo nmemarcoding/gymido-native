@@ -1,4 +1,5 @@
 import { parseDecimal } from '../../../shared/format/numbers';
+import { formatCount } from '../../../shared/format/counts';
 
 // Client validation and payloads of the trainer plans spec, exact copy.
 
@@ -33,14 +34,23 @@ export function buildCreatePlanPayload({ name, slug, categoryId, daysPerWeek, di
   };
 }
 
+// The full-plan message (RN-SPEC-v2-foundation §7.1, 27 Oct 2026): "its 1 day"
+// for a 1-day plan, "all n days" otherwise; no limit → "all {fallback} days".
+export function fullPlanMessage(dayLimit, fallback = 'available') {
+  if (!dayLimit) {
+    return `This plan already has all ${fallback} days.`;
+  }
+  return Number(dayLimit) === 1
+    ? `This plan already has its ${formatCount(1, 'day', 'days')}.`
+    : `This plan already has all ${formatCount(dayLimit, 'day', 'days')}.`;
+}
+
 // §A6. The day_number errors have no field to show under (⚠ in the spec), so
 // only `title` is ever visible.
 export function validateAddDay({ title, nextDayNumber, dayLimit, canAddDay }) {
   const errors = {};
   if (!canAddDay) {
-    errors.day_number = dayLimit
-      ? `This plan already has all ${dayLimit} days.`
-      : 'This plan already has all available days.';
+    errors.day_number = fullPlanMessage(dayLimit);
   }
   if (nextDayNumber < 1 || nextDayNumber > (dayLimit || 7)) {
     errors.day_number = 'Day number must be between 1 and 7.';

@@ -44,6 +44,7 @@ import { getAddDayContext, getAddedExerciseIds, getNextSetNumber, getOrderIndexB
 import { createTrainerPlanAdapter } from '../trainerPlanAdapter';
 import { useExerciseCatalog } from '../useExerciseCatalog';
 import { canEditPlan } from '../trainerPlanBuilder';
+import { keepUnitsTogether } from '../../../../shared/format/counts';
 
 const EDIT_PLAN_FIELDS = ['name', 'category_id', 'days_per_week', 'difficulty_level_id', 'description'];
 
@@ -651,7 +652,7 @@ function PlanBuilder({ planId, adapter }) {
     ) : null;
   const title = (
     <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={[styles.title, titleStyle(trainer, tablet)]}>
-      {plan?.name || 'Plan'}
+      {keepUnitsTogether(plan?.name) || 'Plan'}
     </Text>
   );
   const descriptionText = description ? (

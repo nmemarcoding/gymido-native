@@ -11,6 +11,7 @@ import { CAP_BODY, DISPLAY_TITLE_TEXT } from '../../../shared/components/largeTe
 import { breakpoints, colors, font, gradients, radii, shadows, spacing, textScale, typography } from '../../../shared/theme/tokens';
 import { TODAY_BADGE_LABELS } from '../workoutFormat';
 import ProgressRing from './ProgressRing';
+import { formatCount, keepUnitsTogether } from '../../../shared/format/counts';
 
 const PILL_TONE = { completed: 'completed', training: 'gold', rest: 'neutral' };
 const NUMBER_TEXT = { maxFontSizeMultiplier: textScale.display };
@@ -92,7 +93,7 @@ export default function TodayHeroCard({ planName, dayCountLabel, state, detail, 
             </Text>
           ) : null}
           <Text testID="workout-hero-plan" accessibilityRole="header" {...DISPLAY_TITLE_TEXT} style={tablet ? styles.planNameTablet : styles.planName}>
-            {planName}
+            {keepUnitsTogether(planName)}
           </Text>
           <Text {...CAP_BODY} style={tablet ? styles.dayCountTablet : styles.dayCount}>
             {dayCountLabel}
@@ -105,7 +106,7 @@ export default function TodayHeroCard({ planName, dayCountLabel, state, detail, 
           total={ringTotal}
           size={ringSize}
           thickness={ringStroke}
-          label={`${ringValue} of ${ringTotal} training days completed this week`}
+          label={`${ringValue} of ${formatCount(ringTotal, 'training day', 'training days')} completed this week`}
         >
           <Text {...NUMBER_TEXT} numberOfLines={1} textBreakStrategy="simple" style={tablet ? styles.ringValueTablet : styles.ringValue}>
             {ringValue}

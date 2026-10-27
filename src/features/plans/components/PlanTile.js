@@ -4,6 +4,7 @@ import { CAP_BODY, CAP_PILL } from '../../../shared/components/largeText';
 import { colors, font, radii, spacing, typography } from '../../../shared/theme/tokens';
 import { planCardDaysLabel } from '../libraryFormat';
 import { PressOverlay } from './planUi';
+import { keepUnitsTogether } from '../../../shared/format/counts';
 
 // UX H Plans (phone) / Tablet: Plans: one catalog plan, the whole card one
 // link (§3.6) whose label is all of its text. Phone: radius 24, padding 16,
@@ -12,6 +13,7 @@ import { PressOverlay } from './planUi';
 // the category as a 14 muted subline and a 14 muted description.
 export default function PlanTile({ plan, onPress, tablet = false, style }) {
   const days = planCardDaysLabel(plan);
+  const name = keepUnitsTogether(plan.name);
   const category = plan.category?.name;
   const label = [plan.name, category, days, plan.description].filter(Boolean).join(', ');
   return (
@@ -33,7 +35,7 @@ export default function PlanTile({ plan, onPress, tablet = false, style }) {
           {tablet ? (
             <View>
               <Text numberOfLines={2} ellipsizeMode="tail" textBreakStrategy="simple" maxFontSizeMultiplier={1.6} style={styles.nameTablet}>
-                {plan.name}
+                {name}
               </Text>
               {category ? (
                 <Text {...CAP_BODY} style={styles.sublineTablet}>
@@ -54,7 +56,7 @@ export default function PlanTile({ plan, onPress, tablet = false, style }) {
                 </Text>
               ) : null}
               <Text numberOfLines={2} ellipsizeMode="tail" textBreakStrategy="simple" maxFontSizeMultiplier={1.6} style={styles.name}>
-                {plan.name}
+                {name}
               </Text>
               {plan.description ? (
                 <Text {...CAP_BODY} numberOfLines={2} ellipsizeMode="tail" style={styles.description}>

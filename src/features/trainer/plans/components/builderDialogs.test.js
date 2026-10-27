@@ -136,7 +136,7 @@ describe('AddDayModal (UX I §4-5)', () => {
   it('day limit: the flat card, the limit copy, Add day disabled', async () => {
     const tree = await render(<AddDayModal isOpen onClose={jest.fn()} context={{ nextDayNumber: 4, dayLimit: 3, canAddDay: false }} day={null} onSubmit={jest.fn()} />);
     expect(flat(host(tree, 'day-number-card')).backgroundColor).toBe(colors.fillWell);
-    expect(allText(tree)).toEqual(expect.arrayContaining(['This plan already has all 3 days.']));
+    expect(allText(tree)).toEqual(expect.arrayContaining(['This plan already has all 3\u00a0days.']));
     expect(pill(tree, 'day-modal-submit').props.disabled).toBe(true);
   });
 

@@ -46,8 +46,8 @@ describe('hero (§3.1–§3.3)', () => {
   });
 
   it('labels the day count', () => {
-    expect(trainingDaysLabel(1)).toBe('1 training day');
-    expect(trainingDaysLabel(3)).toBe('3 training days');
+    expect(trainingDaysLabel(1)).toBe('1\u00a0training day');
+    expect(trainingDaysLabel(3)).toBe('3\u00a0training days');
   });
 });
 
