@@ -8,16 +8,17 @@ import { appBlurTargetRef } from './blurTarget';
 // keeps its own solid-enough colour on top so the design reads without it.
 // CSS blur px map to intensity as the app-shell spec does for the tab bar
 // (8px → 20).
+// `tint` is 'dark' in v2 (dark only); the glass colour on top carries the look.
 // `overApp` is only for layers drawn in their own Modal window: on Android
 // they blur the app's BlurTargetView. A layer inside that view (the tab bar)
 // must not target it — it would draw itself recursively and overflow the
 // RenderThread stack.
-export default function BlurLayer({ blurPx = 8, overApp = false }) {
+export default function BlurLayer({ blurPx = 8, overApp = false, tint = 'dark' }) {
   const android = Platform.OS === 'android';
   return (
     <BlurView
       pointerEvents="none"
-      tint="light"
+      tint={tint}
       intensity={blurPx * 2.5}
       blurMethod={android ? 'dimezisBlurView' : undefined}
       blurTarget={android && overApp ? appBlurTargetRef : undefined}
