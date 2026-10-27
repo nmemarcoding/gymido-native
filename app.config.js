@@ -148,6 +148,8 @@ module.exports = {
       './plugins/withRestCountdownWidget',
       // iOS 27 scene life cycle (plugins/withSceneLifecycle.js).
       './plugins/withSceneLifecycle',
+      // QA FINDING-N2: a font-size change keeps the current screen (Android).
+      './plugins/withFontScaleConfigChange',
       // Release builds drop the dev client's local-network keys (plugins/withReleaseHardening.js).
       ['./plugins/withReleaseHardening', { enabled: RELEASE_ENV }],
       // Release builds against the local http test API (QA's test stack) only.
