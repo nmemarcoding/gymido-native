@@ -7,6 +7,7 @@ import EmptyState from '../../shared/components/EmptyState';
 import ErrorAlert from '../../shared/components/ErrorAlert';
 import Loader from '../../shared/components/Loader';
 import PillButton from '../../shared/components/PillButton';
+import StateSlot from '../../shared/components/StateSlot';
 import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
 import { breakpoints, colors } from '../../shared/theme/tokens';
 import { PageSubtitle, PageTitle, PlanPage, TextLink } from '../trainer/plans/components/PlanPage';
@@ -101,29 +102,39 @@ function MyPlansList() {
       return <OnHoldBox message={state.message} />;
     }
     if (state.status === 'error') {
-      return <ErrorAlert title="Could not load your plans" description={state.message} onRetry={retry} />;
+      return (
+        <StateSlot>
+          <ErrorAlert title="Could not load your plans" description={state.message} onRetry={retry} />
+        </StateSlot>
+      );
     }
     if (state.status === 'loading') {
-      return <Loader label="Loading your plans" style={styles.loader} />;
+      return (
+        <StateSlot>
+          <Loader label="Loading your plans" style={styles.loader} />
+        </StateSlot>
+      );
     }
     const { items, currentPage, totalPages, totalRecords } = state.result;
     if (items.length === 0) {
       return (
-        <View style={styles.empty}>
+        // §D1: compact 44 actions; the code's primary + secondary pair.
+        <StateSlot style={styles.empty}>
           <EmptyState
             title="No plans yet"
             message="Create a plan from scratch, or copy one from the catalog to make it yours."
           />
           <View style={styles.emptyButtons}>
-            <PillButton testID="my-plans-empty-create" title="Create a plan" onPress={openCreate} />
+            <PillButton testID="my-plans-empty-create" title="Create a plan" size="compact" onPress={openCreate} />
             <PillButton
               testID="my-plans-browse"
               title="Browse the catalog"
               variant="secondary"
+              size="compact"
               onPress={openCatalog}
             />
           </View>
-        </View>
+        </StateSlot>
       );
     }
     return (
@@ -203,7 +214,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 12,
+    gap: 8,
   },
   grid: {
     flexDirection: 'row',

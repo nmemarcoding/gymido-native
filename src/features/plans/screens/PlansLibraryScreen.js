@@ -7,6 +7,7 @@ import { getStatus } from '../../../shared/api/apiError';
 import EmptyState from '../../../shared/components/EmptyState';
 import { InlineError } from '../../../shared/components/FeedbackBox';
 import Loader from '../../../shared/components/Loader';
+import StateSlot from '../../../shared/components/StateSlot';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
 import { colors, radii, shadows } from '../../../shared/theme/tokens';
 import MyPlansEntryCard from '../../myPlans/components/MyPlansEntryCard';
@@ -57,11 +58,19 @@ function PlansLibrary() {
   }, []);
 
   if (load.status === 'loading') {
-    return <Loader label="Loading plans" />;
+    return (
+      <StateSlot loader>
+        <Loader label="Loading plans" />
+      </StateSlot>
+    );
   }
   if (load.status === 'error') {
-    // ⚠4: the transport message, no retry.
-    return <InlineError testID="plans-error" title="Plans unavailable" message={load.error?.message || 'Please try again.'} />;
+    // ⚠4: the transport message, no retry. §D1: the 640 column under the header.
+    return (
+      <StateSlot>
+        <InlineError testID="plans-error" title="Plans unavailable" message={load.error?.message || 'Please try again.'} />
+      </StateSlot>
+    );
   }
 
   const library = deriveLibrary(load.plans, load.currentPlan);

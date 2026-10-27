@@ -9,6 +9,7 @@ import EmptyState from '../../../../shared/components/EmptyState';
 import ErrorAlert from '../../../../shared/components/ErrorAlert';
 import Loader from '../../../../shared/components/Loader';
 import PillButton from '../../../../shared/components/PillButton';
+import StateSlot from '../../../../shared/components/StateSlot';
 import { ToastTone, addToast } from '../../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../../shared/hooks/useFocusRemountKey';
 import { breakpoints, colors, radii, shadows } from '../../../../shared/theme/tokens';
@@ -156,21 +157,31 @@ function ClientDetail({ clientUserId }) {
 
   function renderBody() {
     if (state.status === 'loading') {
-      return <Loader label="Loading client" style={styles.loader} />;
+      return (
+        <StateSlot>
+          <Loader label="Loading client" style={styles.loader} />
+        </StateSlot>
+      );
     }
     if (state.status === 'notFound') {
       return (
-        <EmptyState
-          title="Not your client"
-          message="This person isn’t one of your active clients. The relationship may have ended."
-          actionLabel="Back to clients"
-          actionTestID="client-back-to-clients"
-          onAction={() => navigation.push(routes.TrainerClients)}
-        />
+        <StateSlot>
+          <EmptyState
+            title="Not your client"
+            message="This person isn’t one of your active clients. The relationship may have ended."
+            actionLabel="Back to clients"
+            actionTestID="client-back-to-clients"
+            onAction={() => navigation.push(routes.TrainerClients)}
+          />
+        </StateSlot>
       );
     }
     if (state.status === 'error') {
-      return <ErrorAlert title="Could not load this client" description={state.error} onRetry={load} />;
+      return (
+        <StateSlot>
+          <ErrorAlert title="Could not load this client" description={state.error} onRetry={load} />
+        </StateSlot>
+      );
     }
     const { plan, progress, history, assignments } = state.data;
     const stats = progress?.stats;

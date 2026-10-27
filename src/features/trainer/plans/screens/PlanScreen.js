@@ -7,6 +7,7 @@ import EmptyState from '../../../../shared/components/EmptyState';
 import ErrorAlert from '../../../../shared/components/ErrorAlert';
 import Loader from '../../../../shared/components/Loader';
 import PillButton from '../../../../shared/components/PillButton';
+import StateSlot from '../../../../shared/components/StateSlot';
 import { ToastTone, addToast } from '../../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../../shared/hooks/useFocusRemountKey';
 import { breakpoints, colors, radii } from '../../../../shared/theme/tokens';
@@ -531,14 +532,18 @@ function PlanBuilder({ planId, adapter }) {
   if (status === 'loading') {
     return (
       <PlanPage testID="plan-screen">
-        <Loader label="Loading plan" style={styles.loader} />
+        <StateSlot>
+          <Loader label="Loading plan" style={styles.loader} />
+        </StateSlot>
       </PlanPage>
     );
   }
   if (status === 'notFound') {
     return (
       <PlanPage testID="plan-screen">
-        <EmptyState title="Plan not found" message={text.notFoundMessage} />
+        <StateSlot>
+          <EmptyState title="Plan not found" message={text.notFoundMessage} />
+        </StateSlot>
       </PlanPage>
     );
   }
@@ -548,7 +553,9 @@ function PlanBuilder({ planId, adapter }) {
   if (status === 'error') {
     return (
       <PlanPage testID="plan-screen">
-        <ErrorAlert title="Could not load this plan" description={loadError} onRetry={loadPlan} />
+        <StateSlot>
+          <ErrorAlert title="Could not load this plan" description={loadError} onRetry={loadPlan} />
+        </StateSlot>
       </PlanPage>
     );
   }

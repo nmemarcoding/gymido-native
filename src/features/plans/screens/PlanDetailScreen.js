@@ -4,9 +4,11 @@ import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimension
 
 import { routes } from '../../../navigation/routes';
 import { getServerMessage, getStatus } from '../../../shared/api/apiError';
+import { InlineError } from '../../../shared/components/FeedbackBox';
 import Loader from '../../../shared/components/Loader';
 import RemoteImage from '../../../shared/components/RemoteImage';
 import Spinner from '../../../shared/components/Spinner';
+import StateSlot from '../../../shared/components/StateSlot';
 import { InlineToast } from '../../../shared/components/ToastHost';
 import { ToastTone } from '../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
@@ -105,14 +107,32 @@ function PlanDetail() {
       setLoad({ status: 'loaded', plan, days, exercisesByDay, current, requiredDays, isPublic });
       setSelectedDayId(days[0]?.id ?? null);
       setSelectedWeekdays(initialWeekdays({ currentPlan: current, plan, requiredDays }));
-    })();
+    })().catch((error) => {
+      // §4.2 / ⚠8: the web's `error` state ("Plan unavailable"), practically
+      // unreachable (everything is allSettled) but never a stuck loader.
+      if (alive) {
+        setLoad({ status: 'error', error });
+      }
+    });
     return () => {
       alive = false;
     };
   }, [planId]);
 
   if (load.status === 'loading') {
-    return <Loader label="Loading plan" />;
+    return (
+      <StateSlot loader>
+        <Loader label="Loading plan" />
+      </StateSlot>
+    );
+  }
+  if (load.status === 'error') {
+    // UX D row 12: the transport text, else the fallback; no retry (§D1).
+    return (
+      <StateSlot>
+        <InlineError testID="plan-detail-error" title="Plan unavailable" message={load.error?.message || 'Please try again.'} />
+      </StateSlot>
+    );
   }
 
   const { plan, days, exercisesByDay, current, requiredDays, isPublic } = load;

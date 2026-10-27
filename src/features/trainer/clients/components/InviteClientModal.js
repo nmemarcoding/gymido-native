@@ -177,6 +177,7 @@ export default function InviteClientModal({ isOpen, onClose, onInvited }) {
       // The same for a typo, an unknown or an inactive account; never say which.
       return (
         <EmptyState
+          live
           title="No member found"
           message="Check the spelling. If they're new to Gymido, ask them to sign up first."
         />
