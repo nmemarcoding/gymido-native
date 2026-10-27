@@ -1,12 +1,13 @@
 jest.mock('../api/libraryApi', () => ({ createSchedule: jest.fn(), replaceSchedule: jest.fn() }));
 jest.mock('../../../shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 let mockWidth = 390;
+let mockFontScale = 1;
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   __esModule: true,
-  default: () => ({ width: mockWidth, height: 1194, scale: 2, fontScale: 1 }),
+  default: () => ({ width: mockWidth, height: 1194, scale: 2, fontScale: mockFontScale }),
 }));
 
-import { AccessibilityInfo, StyleSheet } from 'react-native';
+import { AccessibilityInfo, StyleSheet, View } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { colors } from '../../../shared/theme/tokens';
@@ -42,6 +43,7 @@ let onSaved;
 beforeEach(() => {
   jest.clearAllMocks();
   mockWidth = 390;
+  mockFontScale = 1;
   onSaved = jest.fn(() => Promise.resolve());
   jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {});
 });
@@ -104,8 +106,9 @@ describe('B2 phone (ND5 count badge)', () => {
     expect(on).toMatchObject({ minHeight: 64, borderRadius: 20, backgroundColor: colors.gold });
     const off = styleOf(chip(tree, 5));
     expect(off).toMatchObject({ minHeight: 64, backgroundColor: colors.surface, borderColor: colors.hairlineStrong });
-    expect(styleOf(chip(tree, 1), true).backgroundColor).toBe(colors.goldDeep);
-    expect(styleOf(chip(tree, 5), true).backgroundColor).toBe(colors.fillButton);
+    // STATE RULE (§8.6): pressed keeps the rest fill + a 4 % overlay.
+    expect(styleOf(chip(tree, 1), true).backgroundColor).toBe(colors.gold);
+    expect(styleOf(chip(tree, 5), true).backgroundColor).toBe(colors.surface);
     const label = chip(tree, 1).findAllByType('Text')[0];
     expect(StyleSheet.flatten(label.props.style).color).toBe(colors.onGold);
   });
@@ -143,7 +146,7 @@ describe('B2 tablet (ND5 ring)', () => {
 
   it('7 chips in one row at 84 tall; the 120 ring labelled "{n} of {R} days selected"', () => {
     const tree = render();
-    expect(styleOf(chip(tree, 7))).toMatchObject({ minHeight: 84, backgroundColor: colors.fillChip });
+    expect(styleOf(chip(tree, 7))).toMatchObject({ minHeight: 84, backgroundColor: colors.fillWell });
     const ring = tree.root.find((node) => node.props.accessibilityLabel === '4 of 4 days selected' && typeof node.type === 'string');
     expect(ring.props.accessibilityRole).toBe('image');
     expect(textOf(host(tree.root, 'schedule-setup-ring-count'))).toBe('4');
@@ -220,3 +223,111 @@ describe('B2 save (v1 behaviour)', () => {
     expect(host(tree.root, 'schedule-setup-save').props.accessibilityState).toEqual({ disabled: false, busy: false });
   });
 });
+
+// Phase 2 "exact match + large text" pass (UX §8.4–8.6 colours, §9).
+const flatOf = (node) => StyleSheet.flatten(node.props.style);
+// A Pressable's rendered children in a given press state.
+function pressedChildren(node, pressed) {
+  let inner;
+  act(() => {
+    inner = create(<View>{node.props.children({ pressed })}</View>);
+  });
+  mounted.push(inner);
+  return inner;
+}
+
+describe('Phase 2 tokens: exact colours', () => {
+  it('phone: the card edge is gold-line (the ladder, 0.35 → 0.30)', () => {
+    const tree = render();
+    expect(styleOf(host(tree.root, 'schedule-setup')).borderColor).toBe(colors.goldLine);
+  });
+
+  it('tablet: the card keeps the hero hairline, as drawn', () => {
+    mockWidth = 834;
+    const tree = render();
+    expect(styleOf(host(tree.root, 'schedule-setup')).borderColor).toBe(colors.hairline);
+  });
+
+  it('STATE RULE: pressed on = an ink 4 % overlay; pressed off = a white 4 % overlay; none at rest', () => {
+    const tree = render();
+    const onPressed = pressedChildren(chip(tree, 1), true);
+    expect(flatOf(host(onPressed.root, 'schedule-setup-weekday-1-pressed')).backgroundColor).toBe(colors.pressOverlayInk);
+    const offPressed = pressedChildren(chip(tree, 5), true);
+    expect(flatOf(host(offPressed.root, 'schedule-setup-weekday-5-pressed')).backgroundColor).toBe(colors.pressOverlay);
+    const rest = pressedChildren(chip(tree, 1), false);
+    expect(queryHost(rest.root, 'schedule-setup-weekday-1-pressed')).toHaveLength(0);
+    expect(queryHost(tree.root, 'schedule-setup-weekday-1-pressed')).toHaveLength(0);
+  });
+
+  it('phone on-chip: the 2 px ground inset + a 1 px gold ring', () => {
+    const tree = render();
+    expect(styleOf(chip(tree, 1)).boxShadow).toBe(`inset 0px 0px 0px 1px ${colors.ground}, 0px 0px 0px 1px ${colors.gold}`);
+  });
+
+  it('tablet on-chip: the ground inset + the gold-strong glow (no ring); off-chip fill-subtle + hairline-strong', () => {
+    mockWidth = 834;
+    const tree = render();
+    expect(styleOf(chip(tree, 1)).boxShadow).toBe(`inset 0px 0px 0px 1px ${colors.ground}, 0px 12px 30px -12px ${colors.goldStrong}`);
+    expect(styleOf(chip(tree, 7))).toMatchObject({ backgroundColor: colors.fillWell, borderColor: colors.hairlineStrong });
+  });
+});
+
+describe('§9 large text', () => {
+  const header = (tree) => tree.root.find((node) => node.type === 'Text' && node.props.accessibilityRole === 'header');
+
+  it.each([
+    ['phone', 390],
+    ['tablet', 834],
+  ])('%s caps: title 1.3 (wraps by word, 3 lines, shrinks a long word), body and chips 2.0, counts 1.2', (_, width) => {
+    mockWidth = width;
+    const tree = render();
+    expect(header(tree).props).toMatchObject({ maxFontSizeMultiplier: 1.3, numberOfLines: 3, adjustsFontSizeToFit: true, minimumFontScale: 0.7 });
+    const body = tree.root.find((node) => node.type === 'Text' && textOf(node).startsWith('Upper / Lower Split doesn'));
+    expect(body.props.maxFontSizeMultiplier).toBe(2);
+    expect(body.props.numberOfLines).toBeUndefined();
+    expect(host(tree.root, 'schedule-setup-selected').props.maxFontSizeMultiplier).toBe(2);
+    const label = chip(tree, 1).findAllByType('Text')[0];
+    expect(label.props.maxFontSizeMultiplier).toBe(2);
+    expect(label.props.numberOfLines).toBeUndefined();
+    const check = chip(tree, 1).findAllByType('Text')[1];
+    expect(check.props.maxFontSizeMultiplier).toBe(1.2);
+    const count = width > 500 ? host(tree.root, 'schedule-setup-ring-count') : host(tree.root, 'schedule-setup-count').findByType('Text');
+    expect(count.props.maxFontSizeMultiplier).toBe(1.2);
+  });
+
+  it('phone at fontScale 1: the 4 + 3 rows; at 2: one wrapping grid, 2 chips per row', () => {
+    const tree = render();
+    expect(styleOf(host(tree.root, 'schedule-setup-days')).flexWrap).toBeUndefined();
+    expect(styleOf(chip(tree, 1)).flexBasis).toBeUndefined();
+    mockFontScale = 2;
+    const large = render();
+    expect(styleOf(host(large.root, 'schedule-setup-days'))).toMatchObject({ flexDirection: 'row', flexWrap: 'wrap' });
+    expect(styleOf(chip(large, 1))).toMatchObject({ flexBasis: '40%', minHeight: 64 });
+    // All seven days stay; nothing hidden.
+    WEEKDAYS_IDS.forEach((id) => expect(chip(large, id)).toBeTruthy());
+  });
+
+  it('tablet at fontScale 1: one row of 7 beside the ring; at 3.1 the ring drops below and the chips wrap 4 per row', () => {
+    mockWidth = 834;
+    const tree = render();
+    expect(styleOf(host(tree.root, 'schedule-setup-header')).flexDirection).toBe('row');
+    expect(styleOf(host(tree.root, 'schedule-setup-days')).flexWrap).toBeUndefined();
+    mockFontScale = 3.1;
+    const large = render();
+    expect(styleOf(host(large.root, 'schedule-setup-header')).flexDirection).toBe('column');
+    expect(styleOf(host(large.root, 'schedule-setup-days')).flexWrap).toBe('wrap');
+    expect(styleOf(chip(large, 7))).toMatchObject({ flexBasis: '20%', minHeight: 84 });
+    // The save action keeps its label untruncated.
+    expect(texts(large.root)).toContain('Save training days');
+  });
+
+  it('re-lays out live when the font scale changes (no relaunch)', () => {
+    const tree = render();
+    expect(styleOf(host(tree.root, 'schedule-setup-days')).flexWrap).toBeUndefined();
+    mockFontScale = 2;
+    act(() => tree.update(<ScheduleSetupCard planName="Upper / Lower Split" planDays={DAYS} enrollmentId={7} onSaved={onSaved} />));
+    expect(styleOf(host(tree.root, 'schedule-setup-days')).flexWrap).toBe('wrap');
+  });
+});
+
+const WEEKDAYS_IDS = [1, 2, 3, 4, 5, 6, 7];

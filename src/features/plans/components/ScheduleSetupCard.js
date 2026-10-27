@@ -7,13 +7,21 @@ import ErrorAlert from '../../../shared/components/ErrorAlert';
 import GradientFill from '../../../shared/components/GradientFill';
 import PillButton from '../../../shared/components/PillButton';
 import { Eyebrow } from '../../../shared/components/Typography';
-import { breakpoints, colors, font, gradients, radii, spacing, typography } from '../../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, radii, spacing, textScale, typography } from '../../../shared/theme/tokens';
 import ProgressRing from '../../workout/components/ProgressRing';
 import { createSchedule, replaceSchedule } from '../api/libraryApi';
 import { WEEKDAYS, selectedWeekdaysLabel, toggleWeekday } from '../libraryFormat';
 
 // Phone rows (UX B §Schedule setup): Mon–Thu, then Fri–Sun (+ an empty cell).
 const PHONE_ROWS = [WEEKDAYS.slice(0, 4), WEEKDAYS.slice(4)];
+
+// UX §9 large text. The 36/44 titles are display-sized (cap 1.3), wrap by
+// word (max 3 lines) and shrink a single long word; body and chip labels
+// scale to 2.0; the counts in fixed geometry (the 36 badge, the 120 ring,
+// the ✓) cap at 1.2.
+const TITLE = { numberOfLines: 3, adjustsFontSizeToFit: true, minimumFontScale: 0.7, textBreakStrategy: 'simple', maxFontSizeMultiplier: textScale.display };
+const BODY = { maxFontSizeMultiplier: textScale.body };
+const BADGE = { maxFontSizeMultiplier: textScale.badge };
 
 export function daysSelectedLabel(count, required) {
   return `${count} of ${required} days selected`;
@@ -26,7 +34,10 @@ export function daysSelectedLabel(count, required) {
 // tablet (≥ 768) = 7 chips in one row (84 tall) + the 120 "n of R days
 // selected" ring (ND5). Behaviour, copy and the API are v1's.
 export default function ScheduleSetupCard({ planName, planDays, enrollmentId, onSaved }) {
-  const { width } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
+  // §9 reflow (live): the chips wrap 2 (phone) / 4 (tablet) per row and the
+  // tablet ring drops below the title.
+  const reflow = fontScale > textScale.reflowAbove;
   // Fixed at mount: the tablet glow is a gradient (Android render rule).
   const [tablet] = useState(() => width >= breakpoints.md);
   const required = planDays.length;
@@ -62,7 +73,7 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
 
   const toggle = (id) => setSelected((current) => toggleWeekday(current, id, required));
   const chip = (weekday) => (
-    <DayChip key={weekday.id} weekday={weekday} on={selected.includes(weekday.id)} tablet={tablet} onPress={() => toggle(weekday.id)} />
+    <DayChip key={weekday.id} weekday={weekday} on={selected.includes(weekday.id)} tablet={tablet} reflow={reflow} onPress={() => toggle(weekday.id)} />
   );
   const summary = selectedWeekdaysLabel(selected, true);
   const body = `${planName || 'Your plan'} doesn’t have training days yet. Choose the weekdays you train and we’ll line up your sessions.`;
@@ -83,29 +94,31 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
 
   if (tablet) {
     return (
-      <CardSurface hero testID="schedule-setup" style={[styles.card, styles.cardTablet]}>
+      <CardSurface hero testID="schedule-setup" style={styles.cardTablet}>
         <View testID="schedule-setup-glow" pointerEvents="none" style={styles.glow}>
           <GradientFill radial={gradients.heroGlow.radial} colors={gradients.heroGlow.colors} stops={gradients.heroGlow.stops} />
         </View>
-        <View style={styles.headerTablet}>
-          <View style={styles.headerText}>
+        <View testID="schedule-setup-header" style={[styles.headerTablet, reflow && styles.headerStacked]}>
+          <View style={[styles.headerText, reflow && styles.headerTextStacked]}>
             <Eyebrow>Set up your week</Eyebrow>
-            <Text textBreakStrategy="simple" accessibilityRole="header" style={[styles.titleTablet, styles.mt8]}>
+            <Text accessibilityRole="header" {...TITLE} style={[styles.titleTablet, styles.mt8]}>
               {`Pick ${required} `}
               <Text style={styles.gold}>{`training day${plural}`}</Text>
             </Text>
-            <Text style={[styles.bodyTablet, styles.mt12]}>{body}</Text>
+            <Text {...BODY} style={[styles.bodyTablet, styles.mt12]}>
+              {body}
+            </Text>
           </View>
           <ProgressRing value={selected.length} total={required} size={120} thickness={10} label={daysSelectedLabel(selected.length, required)}>
-            <Text testID="schedule-setup-ring-count" style={styles.ringCount}>
+            <Text testID="schedule-setup-ring-count" {...BADGE} style={styles.ringCount}>
               {selected.length}
             </Text>
           </ProgressRing>
         </View>
-        <View role="group" accessibilityLabel="Training days" style={styles.gridTablet}>
+        <View testID="schedule-setup-days" role="group" accessibilityLabel="Training days" style={[styles.gridTablet, reflow && styles.gridWrap]}>
           {WEEKDAYS.map(chip)}
         </View>
-        <Text testID="schedule-setup-selected" accessibilityLiveRegion="polite" style={styles.selectedTablet}>
+        <Text testID="schedule-setup-selected" accessibilityLiveRegion="polite" {...BODY} style={styles.selectedTablet}>
           {summary}
         </Text>
         {error}
@@ -115,25 +128,35 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
   }
 
   return (
-    <CardSurface hero testID="schedule-setup" style={[styles.card, styles.cardPhone]}>
+    <CardSurface hero testID="schedule-setup" style={styles.cardPhone}>
       <Eyebrow>Set up your week</Eyebrow>
-      <Text textBreakStrategy="simple" accessibilityRole="header" style={[styles.titlePhone, styles.mt6]}>
+      <Text accessibilityRole="header" {...TITLE} style={[styles.titlePhone, styles.mt6]}>
         {`Pick ${required} training day${plural}`}
       </Text>
-      <Text style={[styles.bodyPhone, styles.mt12]}>{body}</Text>
-      <View role="group" accessibilityLabel="Training days" style={styles.gridPhone}>
-        {PHONE_ROWS.map((row, index) => (
-          <View key={index} style={styles.rowPhone}>
-            {row.map(chip)}
-            {row.length < 4 ? <View style={styles.cellSpacer} /> : null}
-          </View>
-        ))}
-      </View>
+      <Text {...BODY} style={[styles.bodyPhone, styles.mt12]}>
+        {body}
+      </Text>
+      {reflow ? (
+        <View testID="schedule-setup-days" role="group" accessibilityLabel="Training days" style={[styles.gridPhone, styles.gridWrap]}>
+          {WEEKDAYS.map(chip)}
+        </View>
+      ) : (
+        <View testID="schedule-setup-days" role="group" accessibilityLabel="Training days" style={styles.gridPhone}>
+          {PHONE_ROWS.map((row, index) => (
+            <View key={index} style={styles.rowPhone}>
+              {row.map(chip)}
+              {row.length < 4 ? <View style={styles.cellSpacer} /> : null}
+            </View>
+          ))}
+        </View>
+      )}
       <View style={styles.selectedRow}>
         <View testID="schedule-setup-count" style={styles.badge} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <Text style={styles.badgeText}>{selected.length}</Text>
+          <Text {...BADGE} style={styles.badgeText}>
+            {selected.length}
+          </Text>
         </View>
-        <Text testID="schedule-setup-selected" accessibilityLiveRegion="polite" style={styles.selectedPhone}>
+        <Text testID="schedule-setup-selected" accessibilityLiveRegion="polite" {...BODY} style={styles.selectedPhone}>
           {summary}
         </Text>
       </View>
@@ -144,39 +167,56 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
 }
 
 // A weekday toggle: gold + ring-selected + ✓ when on (the ✓ is decorative;
-// the state is carried by `selected`), surface + hairline when off.
-function DayChip({ weekday, on, tablet, onPress }) {
+// the state is carried by `selected`), surface + hairline when off. Pressed
+// follows the STATE RULE (§8.6): the rest colour + a 4 % overlay (ink on
+// gold, white on dark), never a new fill.
+function DayChip({ weekday, on, tablet, reflow, onPress }) {
+  const testID = `schedule-setup-weekday-${weekday.id}`;
   return (
     <Pressable
-      testID={`schedule-setup-weekday-${weekday.id}`}
+      testID={testID}
       accessibilityRole="button"
       accessibilityLabel={weekday.name}
       accessibilityState={{ selected: on }}
       onPress={onPress}
-      style={({ pressed }) => [
+      style={[
         styles.chip,
         tablet ? styles.chipTablet : styles.chipPhone,
-        on ? [styles.chipOn, pressed && styles.chipOnPressed] : [styles.chipOff, tablet && styles.chipOffTablet, pressed && styles.chipOffPressed],
+        reflow && (tablet ? styles.chipWrapTablet : styles.chipWrapPhone),
+        on ? [styles.chipOn, tablet && styles.chipOnTablet] : [styles.chipOff, tablet && styles.chipOffTablet],
       ]}
     >
-      <Text style={[tablet ? styles.chipTextTablet : styles.chipTextPhone, on ? styles.chipTextOn : [styles.chipTextOff, tablet && styles.chipTextOffTablet]]}>
-        {weekday.label}
-      </Text>
-      {on ? (
-        <Text style={[styles.check, tablet && styles.checkTablet]} accessibilityElementsHidden importantForAccessibility="no">
-          ✓
-        </Text>
-      ) : null}
+      {({ pressed }) => (
+        <>
+          {pressed ? (
+            <View
+              testID={`${testID}-pressed`}
+              pointerEvents="none"
+              style={[StyleSheet.absoluteFill, styles.chipOverlay, on ? styles.chipOverlayInk : styles.chipOverlayWhite]}
+            />
+          ) : null}
+          <Text
+            {...BODY}
+            style={[tablet ? styles.chipTextTablet : styles.chipTextPhone, on ? styles.chipTextOn : [styles.chipTextOff, tablet && styles.chipTextOffTablet]]}
+          >
+            {weekday.label}
+          </Text>
+          {on ? (
+            <Text {...BADGE} style={[styles.check, tablet && styles.checkTablet]} accessibilityElementsHidden importantForAccessibility="no">
+              ✓
+            </Text>
+          ) : null}
+        </>
+      )}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  // Gold-tint edge (the code's brand border).
-  card: {
-    borderColor: colors.goldBorder,
-  },
+  // Phone: the code's gold edge on the ladder (gold-line 0.30; no phone
+  // card board, UX #43). Tablet: the hero card's own hairline, as drawn.
   cardPhone: {
+    borderColor: colors.goldLine,
     padding: spacing[5],
   },
   cardTablet: {
@@ -200,6 +240,14 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     maxWidth: 440,
+  },
+  headerStacked: {
+    flexDirection: 'column',
+  },
+  // flex:1 would collapse in a column.
+  headerTextStacked: {
+    flex: 0,
+    alignSelf: 'stretch',
   },
   titlePhone: {
     ...typography.titleXl,
@@ -242,6 +290,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing['2_5'],
   },
+  // §9: the chip row wraps (never scrolls or squeezes a label mid-word).
+  gridWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing['2_5'],
+  },
+  chipWrapPhone: {
+    flexBasis: '40%',
+  },
+  chipWrapTablet: {
+    flexBasis: '20%',
+  },
   chip: {
     flex: 1,
     alignItems: 'center',
@@ -256,24 +316,33 @@ const styles = StyleSheet.create({
   chipTablet: {
     minHeight: 84,
   },
-  // ring-selected: a 2 px ground inset + a 1 px gold outer ring.
+  // ring-selected: a 2 px ground inset + a 1 px gold outer ring (phone).
   chipOn: {
     backgroundColor: colors.gold,
     borderColor: colors.ground,
     boxShadow: `inset 0px 0px 0px 1px ${colors.ground}, 0px 0px 0px 1px ${colors.gold}`,
   },
-  chipOnPressed: {
-    backgroundColor: colors.goldDeep,
+  // Tablet board: the 2 px ground inset + a 0 12 30 −12 glow in gold-strong
+  // (ladder: 0.6), no outer ring.
+  chipOnTablet: {
+    boxShadow: `inset 0px 0px 0px 1px ${colors.ground}, 0px 12px 30px -12px ${colors.goldStrong}`,
   },
   chipOff: {
     backgroundColor: colors.surface,
     borderColor: colors.hairlineStrong,
   },
+  // Tablet board: white 0.05 → fill-subtle (fillWell 0.04, UX §8.5).
   chipOffTablet: {
-    backgroundColor: colors.fillChip,
+    backgroundColor: colors.fillWell,
   },
-  chipOffPressed: {
-    backgroundColor: colors.fillButton,
+  chipOverlay: {
+    borderRadius: radii.lg - 1,
+  },
+  chipOverlayInk: {
+    backgroundColor: colors.pressOverlayInk,
+  },
+  chipOverlayWhite: {
+    backgroundColor: colors.pressOverlay,
   },
   chipTextPhone: {
     fontSize: 15,

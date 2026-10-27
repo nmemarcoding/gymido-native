@@ -7,15 +7,17 @@ jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ addListen
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../../shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 let mockWidth = 390;
+let mockFontScale = 1;
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   __esModule: true,
-  default: () => ({ width: mockWidth, height: 1194, scale: 2, fontScale: 1 }),
+  default: () => ({ width: mockWidth, height: 1194, scale: 2, fontScale: mockFontScale }),
 }));
 
-import { AccessibilityInfo, StyleSheet } from 'react-native';
+import { AccessibilityInfo, StyleSheet, View } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import Spinner from '../../shared/components/Spinner';
+import TextLink from '../../shared/components/TextLink';
 import { colors } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
 import { getGeneratorProfile } from '../planGenerator/api/generatorApi';
@@ -53,6 +55,7 @@ let announce;
 beforeEach(() => {
   jest.clearAllMocks();
   mockWidth = 390;
+  mockFontScale = 1;
   resetProfileStore();
   setStoredProfile({ first_name: 'Nima', last_name: 'Memar' });
   useAuthStore.setState({ user: { email: 'nima@example.com', roles: [] } });
@@ -173,7 +176,7 @@ describe('B3 error (no Retry)', () => {
     expect(texts(card)).toEqual(['Dashboard unavailable', 'Request failed with status code 500']);
     expect(card.findAll((node) => typeof node.props.onPress === 'function')).toHaveLength(0);
     const title = card.findAll((node) => node.type === 'Text')[0];
-    expect(StyleSheet.flatten(title.props.style).color).toBe(colors.dangerText);
+    expect(StyleSheet.flatten(title.props.style).color).toBe(colors.dangerTextSoft);
     expect(texts(tree.root)).not.toContain('Retry');
   });
 
@@ -305,7 +308,246 @@ describe('B3 empty: tiles, weight and recent (v1 content)', () => {
     const tree = await render();
     expect(tree.root.findAll((node) => node.props.accessibilityLabel === '0 of 0 workouts this week' && typeof node.type === 'string')).toHaveLength(1);
     const add = host(tree.root, 'home-add-weight');
-    expect(styleOf(add)).toMatchObject({ minHeight: 52, backgroundColor: colors.goldTint, borderColor: colors.goldBorder });
+    expect(styleOf(add)).toMatchObject({ minHeight: 52, backgroundColor: colors.goldTint, borderColor: colors.goldLine });
     expect(texts(host(tree.root, 'home-recent-empty'))).toContain('No completed workouts yet');
+  });
+});
+
+// Phase 2 "exact match + large text" pass (UX §8.4–8.6 colours, §9).
+const PLAN = { ...EMPTY, current_plan: { enrollment: { plan: { id: 4, name: 'Upper / Lower' } } }, today_status: { is_workout_day: true } };
+const hosts = (root, predicate) => root.findAll((node) => typeof node.type === 'string' && predicate(node));
+const flatOf = (node) => StyleSheet.flatten(node.props.style) ?? {};
+function pressedChildren(node, pressed) {
+  let inner;
+  act(() => {
+    inner = create(<View>{node.props.children({ pressed })}</View>);
+  });
+  mounted.push(inner);
+  return inner;
+}
+// §9 rule 2: no Text in an action is cut to one line. The kit TextLink's
+// own one-line label is the kit's (listed in the Phase 2 report).
+const noTruncation = (root) => {
+  const kit = new Set(root.findAllByType(TextLink).flatMap((link) => link.findAll((node) => node.type === 'Text')));
+  root.findAll((node) => node.type === 'Text' && !kit.has(node)).forEach((node) => {
+    if (node.props.numberOfLines !== undefined) {
+      expect(node.props.numberOfLines).toBeGreaterThanOrEqual(2);
+    }
+  });
+};
+
+describe('Phase 2 tokens: exact colours', () => {
+  it('phone error: danger-line edge, danger-tint tile, danger-text-soft title and message', async () => {
+    const tree = await render(new Error('Network Error'));
+    const card = host(tree.root, 'home-error');
+    expect(styleOf(card).borderColor).toBe(colors.dangerLine);
+    const tile = hosts(card, (node) => flatOf(node).width === 64 && flatOf(node).height === 64)[0];
+    expect(flatOf(tile).backgroundColor).toBe(colors.dangerTint);
+    const [title, message] = card.findAll((node) => node.type === 'Text');
+    expect(flatOf(title).color).toBe(colors.dangerTextSoft);
+    expect(flatOf(message).color).toBe(colors.dangerTextSoft);
+  });
+
+  it('tablet error: the same edge and tile tokens; text-primary title, text-strong-2 message', async () => {
+    mockWidth = 834;
+    const tree = await render(new Error('Network Error'));
+    const card = host(tree.root, 'home-error');
+    expect(styleOf(card).borderColor).toBe(colors.dangerLine);
+    const tile = hosts(card, (node) => flatOf(node).width === 104)[0];
+    expect(flatOf(tile).backgroundColor).toBe(colors.dangerTint);
+    const [title, message] = card.findAll((node) => node.type === 'Text');
+    expect(flatOf(title).color).toBe(colors.textPrimary);
+    expect(flatOf(message).color).toBe(colors.textStrong2);
+  });
+
+  it('empty hero tile: phone gold-line ring + the gold-strong 0 0 40 −6 glow; tablet the tint only', async () => {
+    const phone = await render();
+    expect(styleOf(host(phone.root, 'home-empty-hero-tile'))).toMatchObject({
+      width: 76,
+      backgroundColor: colors.goldTint,
+      borderColor: colors.goldLine,
+      boxShadow: `0px 0px 40px -6px ${colors.goldStrong}`,
+    });
+    mockWidth = 834;
+    const tablet = await render();
+    const tile = styleOf(host(tablet.root, 'home-empty-hero-tile'));
+    expect(tile).toMatchObject({ width: 84, backgroundColor: colors.goldTint });
+    expect(tile.borderWidth).toBeUndefined();
+    expect(tile.boxShadow).toBeUndefined();
+  });
+
+  it('recent (empty, phone): fill-subtle with a dashed hairline-strong edge', async () => {
+    const tree = await render();
+    expect(styleOf(host(tree.root, 'home-recent-empty'))).toMatchObject({ backgroundColor: colors.fillWell, borderColor: colors.hairlineStrong, borderStyle: 'dashed' });
+  });
+
+  it('loading: the phone skeleton ring is color-skeleton; the tablet disc glows gold-strong', async () => {
+    const phone = await render(deferred().promise);
+    const ring = hosts(phone.root, (node) => flatOf(node).borderWidth === 8)[0];
+    expect(flatOf(ring).borderColor).toBe(colors.skeleton);
+    mockWidth = 834;
+    const tablet = await render(deferred().promise);
+    const disc = hosts(tablet.root, (node) => flatOf(node).width === 120 && flatOf(node).boxShadow !== undefined)[0];
+    expect(flatOf(disc).boxShadow).toBe(`0px 0px 80px -10px ${colors.goldStrong}`);
+  });
+
+  it('tablet "Add weight log": pressed = the tint + a white 4 % overlay (STATE RULE); none at rest', async () => {
+    mockWidth = 834;
+    const tree = await render();
+    const add = pressable(tree.root, 'home-add-weight');
+    expect(styleOf(host(tree.root, 'home-add-weight')).backgroundColor).toBe(colors.goldTint);
+    expect(queryHost(tree.root, 'home-add-weight-pressed')).toHaveLength(0);
+    const pressed = pressedChildren(add, true);
+    expect(flatOf(host(pressed.root, 'home-add-weight-pressed')).backgroundColor).toBe(colors.pressOverlay);
+    expect(queryHost(pressedChildren(add, false).root, 'home-add-weight-pressed')).toHaveLength(0);
+  });
+});
+
+describe('§9 large text: caps', () => {
+  it.each([1, 2])('header at fontScale %s: greeting = page title (1.3, 3 lines, shrinks a long word), date 2.0, avatar 1.2', async (scale) => {
+    mockFontScale = scale;
+    const tree = await render();
+    expect(host(tree.root, 'home-greeting').props).toMatchObject({ maxFontSizeMultiplier: 1.3, numberOfLines: 3, adjustsFontSizeToFit: true, minimumFontScale: 0.7 });
+    expect(host(tree.root, 'home-date').props.maxFontSizeMultiplier).toBe(2);
+    expect(host(tree.root, 'home-avatar').findByType('Text').props.maxFontSizeMultiplier).toBe(1.2);
+  });
+
+  it('error titles: phone title-lg 1.6, tablet display 1.3; the message 2.0', async () => {
+    const phone = await render(new Error('Network Error'));
+    const [title, message] = host(phone.root, 'home-error').findAll((node) => node.type === 'Text');
+    expect(title.props).toMatchObject({ maxFontSizeMultiplier: 1.6, numberOfLines: 3, adjustsFontSizeToFit: true });
+    expect(message.props.maxFontSizeMultiplier).toBe(2);
+    mockWidth = 834;
+    const tablet = await render(new Error('Network Error'));
+    expect(host(tablet.root, 'home-error').findAll((node) => node.type === 'Text')[0].props.maxFontSizeMultiplier).toBe(1.3);
+  });
+
+  it('empty: hero title 1.6 (phone) / 1.3 (tablet), body 2.0, the big numbers 1.3 (never shrunk)', async () => {
+    const phone = await render();
+    const heroTexts = host(phone.root, 'home-empty-hero').findAll((node) => node.type === 'Text');
+    expect(heroTexts.find((node) => textOf(node) === 'No active plan yet').props.maxFontSizeMultiplier).toBe(1.6);
+    expect(heroTexts.find((node) => textOf(node).startsWith('Pick a workout')).props.maxFontSizeMultiplier).toBe(2);
+    const number = host(phone.root, 'home-stat-done').findAll((node) => node.type === 'Text')[1];
+    expect(number.props.maxFontSizeMultiplier).toBe(1.3);
+    expect(number.props.adjustsFontSizeToFit).toBeUndefined();
+    mockWidth = 834;
+    const tablet = await render();
+    const title = host(tablet.root, 'home-empty-hero').findAll((node) => node.type === 'Text' && textOf(node) === 'No active plan yet')[0];
+    expect(title.props.maxFontSizeMultiplier).toBe(1.3);
+  });
+
+  it('tablet loading label scales to 2.0', async () => {
+    mockWidth = 834;
+    const tree = await render(deferred().promise);
+    const label = host(tree.root, 'home-loading-status').findAll((node) => node.type === 'Text' && textOf(node) === 'Loading dashboard')[0];
+    expect(label.props.maxFontSizeMultiplier).toBe(2);
+  });
+
+  it.each([1, 2])('no truncated action or label on the empty page at fontScale %s (phone + tablet)', async (scale) => {
+    mockFontScale = scale;
+    noTruncation((await render()).root.findByProps({ testID: 'home-empty-hero' }));
+    mockWidth = 834;
+    const tablet = await render();
+    noTruncation(host(tablet.root, 'home-empty-hero'));
+    noTruncation(host(tablet.root, 'home-weight'));
+  });
+});
+
+describe('§9 large text: reflow past 1.3', () => {
+  it('phone at 1: the tiles and the two cards sit side by side', async () => {
+    const tree = await render();
+    expect(styleOf(host(tree.root, 'home-stat-row')).flexDirection).toBe('row');
+    expect(styleOf(host(tree.root, 'home-weight-header')).flexDirection).toBe('row');
+    expect(styleOf(host(tree.root, 'home-stat-done')).flex).toBe(1);
+  });
+
+  it('phone at 2: tiles stack, the cards stack, "See progress" drops below "Weight"', async () => {
+    mockFontScale = 2;
+    const tree = await render();
+    expect(styleOf(host(tree.root, 'home-stat-row')).flexDirection).toBeUndefined();
+    expect(styleOf(host(tree.root, 'home-stat-done')).flex).toBe(0);
+    expect(styleOf(host(tree.root, 'home-weight')).flex).toBe(0);
+    expect(styleOf(host(tree.root, 'home-recent-empty')).flex).toBe(0);
+    expect(styleOf(host(tree.root, 'home-weight-header'))).toMatchObject({ flexDirection: 'column', alignItems: 'flex-start' });
+    expect(texts(tree.root)).toEqual(expect.arrayContaining(['See progress', 'Add weight log', 'Choose a plan']));
+  });
+
+  it('tablet at 1: a 2-column grid, the ring beside its text, the pair side by side', async () => {
+    mockWidth = 834;
+    const tree = await render();
+    expect(styleOf(host(tree.root, 'home-grid-cell')).width).toBe('50%');
+    expect(styleOf(host(tree.root, 'home-stat-this-week-row')).flexDirection).toBe('row');
+    expect(styleOf(host(tree.root, 'home-empty-actions')).flexDirection).toBe('row');
+  });
+
+  it('tablet at 3.1 (AX5): one column, the ring above its text, the pair stacked (primary on top, full width)', async () => {
+    mockWidth = 834;
+    mockFontScale = 3.1;
+    const tree = await render();
+    expect(styleOf(host(tree.root, 'home-grid-cell')).width).toBe('100%');
+    expect(styleOf(host(tree.root, 'home-stat-this-week-row')).flexDirection).toBe('column');
+    const actions = host(tree.root, 'home-empty-actions');
+    expect(styleOf(actions)).toMatchObject({ flexDirection: 'column', alignSelf: 'stretch' });
+    const shown = texts(actions);
+    expect(shown.indexOf('Choose a plan')).toBeLessThan(shown.indexOf('Build me a plan'));
+    expect(tree.root.find((node) => node.props.testID === 'home-choose-plan' && node.props.title).props.fullWidth).toBe(true);
+    expect(tree.root.find((node) => node.props.testID === 'home-build-plan' && node.props.title).props.fullWidth).toBe(true);
+    // Nothing lost: every function is still there.
+    ['home-choose-plan', 'home-build-plan', 'home-see-progress', 'home-add-weight'].forEach((id) => expect(queryHost(tree.root, id)).toHaveLength(1));
+  });
+
+  it('weight values: 3 columns at 1; label → value rows at 2', async () => {
+    setStoredProfile({ first_name: 'Nima', current_weight_unit: 'kg', goal_weight_unit: 'kg' });
+    const data = { ...EMPTY, current_weight: 80, goal_progress: { goal_weight: 75, difference_to_goal: 5 } };
+    const small = await render(data);
+    expect(styleOf(host(small.root, 'home-weight-values')).flexDirection).toBe('row');
+    expect(queryHost(small.root, 'home-stat-row-Current')).toHaveLength(0);
+    mockFontScale = 2;
+    const large = await render(data);
+    expect(styleOf(host(large.root, 'home-weight-values')).flexDirection).toBe('column');
+    const row = host(large.root, 'home-stat-row-Current');
+    expect(styleOf(row)).toMatchObject({ flexDirection: 'row', justifyContent: 'space-between' });
+    expect(texts(row)).toEqual(['Current', '80 kg']);
+    expect(row.findAll((node) => node.type === 'Text')[1].props.numberOfLines).toBeUndefined();
+    expect(styleOf(host(large.root, 'home-stat-row-Goal')).borderTopWidth).toBe(1);
+  });
+
+  it('recent list: the status pill (cap 1.6) sits beside the text at 1 and drops below at 2; names wrap to 2 lines', async () => {
+    const data = { ...EMPTY, recent_workouts: [{ id: 9, status: 'completed', completed_at: '2026-10-20T10:00:00Z', duration_seconds: 1800 }] };
+    const small = await render(data);
+    expect(styleOf(host(small.root, 'home-recent-9')).flexDirection).toBe('row');
+    mockFontScale = 2;
+    const large = await render(data);
+    const row = host(large.root, 'home-recent-9');
+    expect(styleOf(row)).toMatchObject({ flexDirection: 'column', alignItems: 'flex-start' });
+    const rowTexts = row.findAll((node) => node.type === 'Text');
+    expect(rowTexts[0].props.numberOfLines).toBe(2);
+    expect(rowTexts.find((node) => textOf(node) === 'completed').props.maxFontSizeMultiplier).toBe(1.6);
+  });
+
+  it('plan state: the Start · View plan pair stacks at 2 (primary on top, full width), labels never truncate; stats become rows', async () => {
+    const small = await render(PLAN);
+    expect(styleOf(host(small.root, 'home-today-buttons')).flexDirection).toBe('row');
+    expect(host(small.root, 'home-today-primary').findByType('Text').props.numberOfLines).toBeUndefined();
+    mockFontScale = 2;
+    const large = await render(PLAN);
+    const buttons = host(large.root, 'home-today-buttons');
+    expect(styleOf(buttons).flexDirection).toBe('column');
+    // Primary on top: first in the column.
+    const order = hosts(buttons, (node) => ['home-today-primary', 'home-view-plan'].includes(node.props.testID)).map((node) => node.props.testID);
+    expect(order).toEqual(['home-today-primary', 'home-view-plan']);
+    expect(styleOf(host(large.root, 'home-today-primary'))).toMatchObject({ flex: 0, alignSelf: 'stretch' });
+    expect(styleOf(host(large.root, 'home-view-plan'))).toMatchObject({ flex: 0, alignSelf: 'stretch' });
+    expect(styleOf(host(large.root, 'home-stats')).flexDirection).toBe('column');
+    expect(queryHost(large.root, 'home-stat-row-Done total')).toHaveLength(1);
+    noTruncation(host(large.root, 'home-today-buttons'));
+  });
+
+  it('re-lays out live when the font scale changes (no relaunch)', async () => {
+    const tree = await render();
+    expect(styleOf(host(tree.root, 'home-stat-row')).flexDirection).toBe('row');
+    mockFontScale = 2;
+    await act(async () => tree.update(<HomeScreen />));
+    expect(styleOf(host(tree.root, 'home-stat-row')).flexDirection).toBeUndefined();
   });
 });
