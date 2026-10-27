@@ -22,7 +22,7 @@ jest.mock('../../../shared/hooks/useFocusRemountKey', () => ({ useFocusRemountKe
 jest.mock('../../../shared/api/client', () => ({ apiClient: {} }));
 jest.mock('./api/trainerProfileApi', () => ({ updateTrainerProfile: jest.fn() }));
 jest.mock('../../auth/authService', () => ({ logout: jest.fn() }));
-jest.mock('../../../shared/components/toastStore', () => ({
+jest.mock('../../../shared/components/toastStore', () => ({ ...jest.requireActual('../../../shared/components/toastStore'),
   ToastTone: { success: 'success', error: 'error' },
   addToast: jest.fn(),
 }));

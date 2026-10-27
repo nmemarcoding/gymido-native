@@ -35,7 +35,7 @@ jest.mock('../shell/ShellPage', () => (props) => {
 jest.mock('../shell/shellLinks', () => ({ openShellPath: jest.fn() }));
 jest.mock('../shell/shellRules', () => ({ isTrainerUser: () => mockIsTrainer }));
 jest.mock('../auth/authStore', () => ({ useAuthStore: (select) => select({ user: {} }) }));
-jest.mock('../../shared/components/toastStore', () => ({ ToastTone: { success: 'success', error: 'error' }, addToast: jest.fn() }));
+jest.mock('../../shared/components/toastStore', () => ({ ...jest.requireActual('../../shared/components/toastStore'), ToastTone: { success: 'success', error: 'error' }, addToast: jest.fn() }));
 jest.mock('./api/trainersApi', () => ({
   TRAINERS_PER_PAGE: 20,
   listTrainers: jest.fn(),

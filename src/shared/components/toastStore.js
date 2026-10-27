@@ -32,3 +32,12 @@ export function removeToast(id) {
 export function showToast(title, message) {
   return addToast(ToastTone.success, title, message);
 }
+
+// QA BUG-N4: <Modal> draws in its own native window, above the app-level
+// ToastHost. Each open AppModal registers here; the TOPMOST one hosts the
+// toast stack inside its window and the app-level host steps aside.
+export const useToastHostStore = create((set) => ({
+  modalHosts: [],
+  pushModalHost: (id) => set((state) => ({ modalHosts: [...state.modalHosts.filter((host) => host !== id), id] })),
+  popModalHost: (id) => set((state) => ({ modalHosts: state.modalHosts.filter((host) => host !== id) })),
+}));

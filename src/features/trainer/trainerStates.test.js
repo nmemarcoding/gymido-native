@@ -70,7 +70,7 @@ jest.mock('./clients/clientDetailApi', () => ({
   getClientProfileAndEmail: jest.fn(async (id) => ({ profile: await require('./clients/api/clientsApi').getClientProfile(id), clientEmail: null })),
 }));
 jest.mock('./plans/api/plansApi', () => ({ listTrainerPlans: jest.fn() }));
-jest.mock('../../shared/components/toastStore', () => ({
+jest.mock('../../shared/components/toastStore', () => ({ ...jest.requireActual('../../shared/components/toastStore'),
   ToastTone: { success: 'success', error: 'error' },
   addToast: jest.fn(),
 }));

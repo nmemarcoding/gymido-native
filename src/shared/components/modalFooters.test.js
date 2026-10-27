@@ -24,7 +24,7 @@ jest.mock('../../features/trainer/clients/api/clientsApi', () => ({
   listClientWeightLogs: jest.fn(() => new Promise(() => {})),
   getClientWorkout: jest.fn(() => new Promise(() => {})),
 }));
-jest.mock('./toastStore', () => ({ addToast: jest.fn(), ToastTone: { success: 'success', error: 'error' } }));
+jest.mock('./toastStore', () => ({ ...jest.requireActual('./toastStore'), addToast: jest.fn(), ToastTone: { success: 'success', error: 'error' } }));
 
 const PHONE = 390;
 const TABLET = 1024;

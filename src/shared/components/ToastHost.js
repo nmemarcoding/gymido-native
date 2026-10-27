@@ -7,7 +7,7 @@ import { breakpoints, colors, font, layout, motion, radii, spacing } from '../th
 import FeedbackIcon from './FeedbackIcon';
 import GlassSurface from './GlassSurface';
 import { CAP_BODY, useLargeTextReflow } from './largeText';
-import { ToastTone, useToastStore } from './toastStore';
+import { ToastTone, useToastHostStore, useToastStore } from './toastStore';
 
 const EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
 
@@ -50,13 +50,16 @@ export function toastPlacement({ width, insets }) {
 }
 
 // App-shell spec §8: a stack above everything including the tab bar (⚠S6).
-export default function ToastHost() {
+// `hostId`: set by an open AppModal (its own window); unset = the app-level host.
+export default function ToastHost({ hostId } = {}) {
   const toasts = useToastStore((state) => state.toasts);
+  const topModalHost = useToastHostStore((state) => state.modalHosts[state.modalHosts.length - 1]);
   const removeToast = useToastStore((state) => state.removeToast);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
-  if (toasts.length === 0) {
+  // Only one host draws the stack: the topmost open modal, else the app.
+  if (toasts.length === 0 || (hostId ? topModalHost !== hostId : topModalHost !== undefined)) {
     return null;
   }
 

@@ -26,7 +26,7 @@ jest.mock('./api/myPlansApi', () => ({
   isGeneratorAvailable: jest.fn(),
   copyToMyPlans: jest.fn(),
 }));
-jest.mock('../../shared/components/toastStore', () => ({
+jest.mock('../../shared/components/toastStore', () => ({ ...jest.requireActual('../../shared/components/toastStore'),
   ToastTone: { success: 'success', error: 'error' },
   addToast: jest.fn(),
 }));
