@@ -151,3 +151,11 @@ describe('generator-preview reaches the Review and checks it opens at the top (G
     expect(afterLoop.slice(0, title)).not.toMatch(/direction: UP/);
   });
 });
+
+describe('h1-h3 open Plans on phone AND tablet (QA T-60 flow defect)', () => {
+  it.each(['h1-plans-to-plan-detail.yaml', 'h2-plans-to-my-plans.yaml', 'h3-active-plan-detail.yaml'])('%s taps the rail too', (name) => {
+    const flow = fs.readFileSync(path.join(V2, 'phase4', name), 'utf8');
+    expect(flow).toMatch(/id: "rail-Plans"/);
+    expect(flow).not.toMatch(/^- tapOn:\n {4}id: "tab-Plans"/m);
+  });
+});

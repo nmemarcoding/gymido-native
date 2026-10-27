@@ -797,7 +797,8 @@ describe('opaque dock + scroll room (P3-2)', () => {
     expect(tree.root.findByType(RestTimerWidget).props.dockRoom).toBe(dockHeight + spacing[4]);
     // DECLARED change (I2 follow-up, iPad re-shot): was expect(scrollPad(tree)).toBe(dockHeight + spacing[4]). With
     // the disc minimised the column also keeps the disc's 92 (see "I2 follow-up (a)" below).
-    expect(scrollPad(tree)).toBe(dockHeight + 92 + spacing[4]);
+    // DECLARED (UX I2-r ruling): room = disc 92 + its 24 gap + 16 (was + 92 + 16).
+    expect(scrollPad(tree)).toBe(dockHeight + 92 + 24 + spacing[4]);
     const disc = flat(host(tree, 'rest-timer'));
     expect(disc.width).toBe(92);
     expect(disc.left).toBe(1024 - 8 - 24 - 92);
@@ -813,7 +814,7 @@ describe('opaque dock + scroll room (P3-2)', () => {
     it.each([
       ['tablet', 1024, 64 + spacing[3] + 40 + 20],
       ['phone', 750, 64 + 44 + spacing[3] + spacing[7] + 20],
-    ])('%s: no disc → dock + 16; disc minimised → tablet dock + 92 + 16, phone unchanged; expanded → dock + 16', async (kind, width, dockHeight) => {
+    ])('%s: no disc → dock + 16; disc minimised → tablet dock + 92 + 24 + 16, phone unchanged; expanded → dock + 16', async (kind, width, dockHeight) => {
       mockWidth = width;
       mockInsetBottom = 20;
       const { tree } = render({ session: RESTING });
@@ -822,7 +823,7 @@ describe('opaque dock + scroll room (P3-2)', () => {
       await act(async () => byId(tree, 'set-action-12').props.onPress());
       expect(scrollPad(tree)).toBe(dockHeight + spacing[4]);
       act(() => tree.root.findByType(RestTimerWidget).props.onMinimize());
-      expect(scrollPad(tree)).toBe(kind === 'tablet' ? dockHeight + 92 + spacing[4] : dockHeight + spacing[4]);
+      expect(scrollPad(tree)).toBe(kind === 'tablet' ? dockHeight + 92 + 24 + spacing[4] : dockHeight + spacing[4]);
       // The disc itself still docks just above the dock (the room it is given is unchanged).
       expect(tree.root.findByType(RestTimerWidget).props.dockRoom).toBe(dockHeight + spacing[4]);
     });

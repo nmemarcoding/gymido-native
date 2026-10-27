@@ -210,10 +210,22 @@ describe('T-60 phone: active plan card', () => {
 
   it('meta "{category} · {n} days a week · {level}" (one line); the level comes from GET /exercise-difficulty-levels', async () => {
     const tree = await render();
+    // DECLARED change (QA T60-1 + UX): the meta is three parts in one row so
+    // the LEVEL truncates first and "{n} days a week" never cuts (was: one
+    // Text, numberOfLines 1, which cut the days at font 2.0).
     const meta = host(tree, 'plans-active-meta');
-    expect(textOf(meta)).toBe('Strength · 4 days a week · Intermediate');
-    expect(meta.props).toEqual(expect.objectContaining({ numberOfLines: 1, ellipsizeMode: 'tail' }));
-    expect(flat(meta)).toEqual(expect.objectContaining({ fontSize: 15, color: colors.textSecondary }));
+    expect(meta.props.accessibilityLabel).toBe('Strength · 4\u00a0days a week · Intermediate');
+    const part = (id) => host(tree, id);
+    expect(textOf(part('plans-active-meta-category'))).toBe('Strength · ');
+    expect(textOf(part('plans-active-meta-days'))).toBe('4\u00a0days a week');
+    expect(textOf(part('plans-active-meta-level'))).toBe(' · Intermediate');
+    ['plans-active-meta-category', 'plans-active-meta-days', 'plans-active-meta-level'].forEach((id) => {
+      expect(part(id).props).toEqual(expect.objectContaining({ numberOfLines: 1 }));
+      expect(flat(part(id))).toEqual(expect.objectContaining({ fontSize: 15, color: colors.textSecondary }));
+    });
+    expect(flat(part('plans-active-meta-days')).flexShrink).toBe(0);
+    expect(flat(part('plans-active-meta-level')).flexShrink).toBeGreaterThan(flat(part('plans-active-meta-category')).flexShrink);
+    expect(part('plans-active-meta-level').props.ellipsizeMode).toBe('tail');
     expect(listDifficultyLevels).toHaveBeenCalledTimes(1);
   });
 

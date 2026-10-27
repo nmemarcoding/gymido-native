@@ -27,7 +27,7 @@ import PlansSkeleton from '../components/PlansSkeleton';
 import PlanTile from '../components/PlanTile';
 import { useIsTablet, useReflow } from '../components/planUi';
 import {
-  activePlanMeta,
+  activePlanMetaParts,
   catalogMeta,
   catalogPlans,
   deriveLibrary,
@@ -276,7 +276,7 @@ function PhonePlans({ library, load, side, compact, openPlan }) {
       {library.hasActivePlan ? (
         <PhoneActivePlanCard
           plan={plan}
-          meta={activePlanMeta(plan, levelNameOf(plan, side.levels))}
+          meta={activePlanMetaParts(plan, levelNameOf(plan, side.levels))}
           circles={circles}
           next={next}
           compact={compact}

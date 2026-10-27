@@ -459,6 +459,14 @@ export function activePlanMeta(plan, level) {
   return [plan?.category?.name, daysAWeek(plan), level].filter(Boolean).join(' · ');
 }
 
+// The same meta as three parts (QA T60-1): the card lays them out in one row
+// so the LEVEL truncates first and "{n} days a week" never cuts.
+export function activePlanMetaParts(plan, level) {
+  const category = plan?.category?.name || '';
+  const days = daysAWeek(plan) || '';
+  return { category, days, level: level || '', label: activePlanMeta(plan, level) };
+}
+
 // Catalog card meta "{n} days a week · {level}".
 export function catalogMeta(plan, level) {
   return [daysAWeek(plan), level].filter(Boolean).join(' · ');
