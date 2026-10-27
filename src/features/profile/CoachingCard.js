@@ -3,22 +3,30 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { routes } from '../../navigation/routes';
+import GradientFill from '../../shared/components/GradientFill';
+import { CAP_BODY, useLargeTextReflow } from '../../shared/components/largeText';
 import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
-import { colors, radii, shadows } from '../../shared/theme/tokens';
+import { colors, font, gradients, radii, spacing, typography } from '../../shared/theme/tokens';
 import { getMyTrainer, listPendingTrainerRequests } from '../myTrainer/api/myTrainerApi';
 import { coachingStatus } from '../myTrainer/myTrainerFormat';
+import ProfileIcon from './ProfileIcon';
 
 // Profile P1.3 2a (5-tab nav, 23 Oct): the door into the trainer hub, pushed
 // in the Profile stack. Renders at once; the status fills in on each focus,
 // and any failure leaves it empty.
-export default function CoachingCard() {
+// v2 (UX K, Q1 teal accents as drawn):
+//   layout="pair"  phone: the left half of the Coaching · Add weight pair,
+//                  teal-line edge, teal title, the status under it.
+//   layout="row"   tablet: gradient card, teal icon tile, title, status, chevron.
+export default function CoachingCard({ layout = 'row' }) {
   const remountKey = useFocusRemountKey();
-  return <Card key={remountKey} />;
+  return <Card key={remountKey} layout={layout} />;
 }
 
-function Card() {
+function Card({ layout }) {
   const navigation = useNavigation();
   const [status, setStatus] = useState('');
+  const reflow = useLargeTextReflow();
 
   useEffect(() => {
     let alive = true;
@@ -34,78 +42,108 @@ function Card() {
     };
   }, []);
 
+  const pair = layout === 'pair';
+  // One line as drawn; past 1.3× text the status wraps instead (UX §9 rule 2).
+  const statusLines = reflow ? undefined : 1;
+
   return (
     <Pressable
       testID="profile-coaching-card"
-      accessibilityRole="button"
+      // UX K accessibility: one link named "Coaching" + the status.
+      accessibilityRole="link"
       accessibilityLabel={['Coaching', status].filter(Boolean).join(', ')}
       onPress={() => navigation.push(routes.MyTrainer)}
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      style={pair ? styles.pair : styles.row}
     >
-      <View style={styles.tile} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <Text style={styles.glyph}>◎</Text>
-      </View>
-      <View style={styles.text}>
-        <Text style={styles.title}>Coaching</Text>
-        <Text numberOfLines={1} style={styles.status}>
-          {status}
-        </Text>
-      </View>
-      <Text style={styles.chevron} accessibilityElementsHidden importantForAccessibility="no">
-        ›
-      </Text>
+      {({ pressed }) => (
+        <>
+          {pair ? null : (
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+              <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
+            </View>
+          )}
+          {pressed ? <View testID="profile-coaching-card-pressed" pointerEvents="none" style={[StyleSheet.absoluteFill, styles.pressed]} /> : null}
+          {pair ? null : (
+            <View style={styles.tile} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+              <ProfileIcon name="coaching" size={20} color={colors.teal} />
+            </View>
+          )}
+          <View style={styles.text}>
+            <Text {...CAP_BODY} style={[styles.title, pair && styles.titlePair]}>
+              Coaching
+            </Text>
+            <Text {...CAP_BODY} numberOfLines={statusLines} style={[styles.status, pair ? styles.statusPair : styles.statusRow]}>
+              {status}
+            </Text>
+          </View>
+          {pair ? null : <ProfileIcon name="chevron" size={16} color={colors.textDisabled} />}
+        </>
+      )}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
+  // Phone pair card: radius-lg 20, padding 14, surface, the 0.25 teal edge
+  // (ladder: teal-line 0.30).
+  pair: {
+    flex: 1,
+    minWidth: 0,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.tealLine,
+    backgroundColor: colors.surface,
+    padding: spacing['3_5'],
+    overflow: 'hidden',
+  },
+  // Tablet card: radius 24, padding 16 18, gradient-card (the drawn
+  // 1B1D24 → 13151A folds into it), hairline.
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    borderRadius: radii.xxl,
+    gap: spacing[3],
+    borderRadius: radii.xl,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    boxShadow: shadows.soft,
+    borderColor: colors.hairline,
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing['4_5'],
+    overflow: 'hidden',
   },
-  cardPressed: {
-    backgroundColor: colors.rowPressedStrong,
+  // UX §8.6 STATE RULE: the rest fill + a 4 % white overlay.
+  pressed: {
+    backgroundColor: colors.pressOverlay,
   },
   tile: {
     width: 40,
     height: 40,
-    borderRadius: radii.md,
+    borderRadius: radii.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceMuted,
-  },
-  glyph: {
-    fontSize: 18,
-    lineHeight: 22,
-    color: colors.brand700,
+    backgroundColor: colors.tealTint,
   },
   text: {
     flex: 1,
     minWidth: 0,
   },
   title: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
+    ...typography.body,
+    ...font(600),
     color: colors.textPrimary,
+  },
+  titlePair: {
+    color: colors.teal,
   },
   status: {
     minHeight: 16,
-    fontSize: 12,
-    lineHeight: 16,
     color: colors.textMuted,
   },
-  chevron: {
-    fontSize: 18,
-    lineHeight: 24,
-    color: colors.textMuted,
+  statusPair: {
+    ...typography.caption,
+    marginTop: 3,
+  },
+  statusRow: {
+    ...typography.label,
+    ...font(400),
+    marginTop: spacing['0_5'],
   },
 });

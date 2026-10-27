@@ -1,0 +1,28 @@
+# T-55: tablets keep the rail in portrait AND landscape (RN-SPEC-v2-foundation
+# §3 [O2]); ≥ 1280 (Pixel Tablet / iPad 13" landscape) keeps it too, content
+# capped at 1120. Starts signed in on the Today root. IDs only.
+appId: com.gymido.app
+---
+- setOrientation: PORTRAIT
+- extendedWaitUntil:
+    visible:
+      id: "tablet-rail"
+    timeout: 30000
+- assertNotVisible:
+    id: "bottom-nav"
+- setOrientation: LANDSCAPE_LEFT
+- extendedWaitUntil:
+    visible:
+      id: "tablet-rail"
+    timeout: 10000
+- assertNotVisible:
+    id: "bottom-nav"
+- tapOn:
+    id: "rail-Plans"
+- assertVisible:
+    id: "tablet-rail"
+- tapOn:
+    id: "rail-Today"
+- setOrientation: PORTRAIT
+- assertVisible:
+    id: "tablet-rail"

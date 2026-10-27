@@ -16,8 +16,10 @@ jest.mock('./AppHeader', () => {
     return null;
   };
 });
-jest.mock('./DesktopSidebar', () => () => null);
+const mockRail = jest.fn(() => null);
+jest.mock('./TabletRail', () => (props) => mockRail(props));
 jest.mock('./ModeSwitch', () => () => null);
+jest.mock('../workspace/workspacePreference', () => ({ setWorkspace: jest.fn(() => Promise.resolve()) }));
 jest.mock('../auth/authStore', () => ({ useAuthStore: (select) => select({ user: null, workspace: null }) }));
 jest.mock('./shellNavigation', () => ({ getScreenPath: () => '/profile/edit' }));
 jest.mock('./shellRules', () => ({ resolveMode: () => 'member', showsMobileModeSwitch: () => false }));
@@ -80,10 +82,26 @@ describe('ShellPage v2 ground, tab-bar clearance and glow', () => {
     Platform.OS = 'ios';
     useWindowDimensions.mockReturnValue({ width: 1024, height: 768, scale: 2, fontScale: 1 });
     const tree = render();
-    const row = tree.root.findByType(ScrollView).props.children;
-    const content = [].concat(row.props.children)[1];
+    const column = tree.root.findByType(ScrollView).props.children;
+    const content = column.props.children;
     const pad = [].concat(content.props.style).reduce((sum, part) => sum + (part?.paddingBottom ?? 0), 0);
     expect(pad).toBe(40 + 34);
+  });
+
+  it('T-56 tablet: ShellPage never draws the rail, it reserves its 88 (the overlay draws it)', () => {
+    mockRail.mockClear();
+    useWindowDimensions.mockReturnValue({ width: 834, height: 1194, scale: 2, fontScale: 1 });
+    const tree = render();
+    expect(mockRail).not.toHaveBeenCalled();
+    const frame = tree.root.findAll((node) => node.props.testID === 'tablet-frame' && typeof node.type === 'string')[0];
+    expect(StyleSheet.flatten(frame.props.style).paddingLeft).toBe(88);
+  });
+
+  it('T-56 phone: no rail and no reserved space', () => {
+    mockRail.mockClear();
+    const tree = render();
+    expect(mockRail).not.toHaveBeenCalled();
+    expect(tree.root.findAll((node) => node.props.testID === 'tablet-frame')).toHaveLength(0);
   });
 
   it('no ambient glow unless the screen asks for one', () => {

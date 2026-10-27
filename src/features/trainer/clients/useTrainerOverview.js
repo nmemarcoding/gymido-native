@@ -13,8 +13,14 @@ export function useTrainerOverview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const reload = useCallback(async () => {
-    setLoading(true);
+  // `{ quiet: true }` (RN-SPEC-TRAINER-CLIENTS 07c6d708, the tablet pane's End
+  // coaching / "Back to clients"): refresh without the loader; the lists stay
+  // until the answer. Any other argument (an onRetry / onInvited event) is a
+  // normal reload.
+  const reload = useCallback(async (options) => {
+    if (options?.quiet !== true) {
+      setLoading(true);
+    }
     setError('');
     try {
       const [clientItems, requestItems] = await Promise.all([listActiveClients(), listPendingRequests()]);

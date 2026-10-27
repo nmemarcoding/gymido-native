@@ -1,0 +1,71 @@
+# v2 Phase 6 N: Clients (/trainer/clients), NOTHING sent (the invite dialog
+# is opened and closed without searching).
+# Account: QA_TRAINER. Start: signed in, tab root.
+#
+# Checks: the "+" Invite opens the invite dialog and Done closes it; when the
+# trainer has clients/invites: a no-match search shows "No clients found",
+# clearing it brings the list back; the All / Active chips switch.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase6
+  - trainer
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/trainer-workspace.yaml
+- tapOn:
+    id: "tab-TClients"
+- extendedWaitUntil:
+    visible:
+      id: "clients-invite"
+    timeout: 30000
+- assertVisible:
+    id: "tab-TClients"
+    selected: true
+
+# Invite: open + close (Done), never search or send.
+- tapOn:
+    id: "clients-invite"
+- extendedWaitUntil:
+    visible:
+      id: "invite-client-modal"
+    timeout: 15000
+- tapOn:
+    id: "invite-done"
+- extendedWaitUntil:
+    notVisible:
+      id: "invite-client-modal"
+    timeout: 15000
+
+- extendedWaitUntil:
+    visible:
+      id: "clients-search|state-slot"
+    timeout: 30000
+- runFlow:
+    when:
+      visible:
+        id: "clients-search"
+    commands:
+      - tapOn:
+          id: "clients-search"
+      - inputText: "zzqx no such client"
+      - extendedWaitUntil:
+          visible: "No clients found"
+          timeout: 10000
+      - eraseText: 30
+      - hideKeyboard
+      - extendedWaitUntil:
+          visible:
+            id: "clients-list"
+          timeout: 10000
+      - tapOn:
+          id: "clients-filter-active"
+      - assertVisible:
+          id: "clients-filter-active"
+          selected: true
+      - tapOn:
+          id: "clients-filter-all"
+      - assertVisible:
+          id: "clients-filter-all"
+          selected: true
+- runFlow: ../subflows/restore-workspace.yaml

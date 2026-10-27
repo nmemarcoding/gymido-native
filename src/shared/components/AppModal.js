@@ -47,7 +47,11 @@ export function isTabletWidth(width) {
 // Android back and the scrim both call onClose.
 // `hideClose` hides the tablet header Close while the dialog is busy (sending,
 // done), as on web; the scrim/Back rules stay the caller's.
-export default function AppModal({ isOpen, onClose, title, description, size = 'lg', footer, children, testID, entrance = 'slide', compact = false, hideClose = false, role }) {
+// `eyebrow` (optional, default none; RN-SPEC-v2-phase5 §1 M 3): shown ABOVE
+// the title. A string is the gold eyebrow line (12/600, 6 above the title),
+// e.g. the client's name on the tablet client modals; a node is rendered as
+// given (the caller styles and hides it from AT as needed).
+export default function AppModal({ isOpen, onClose, title, description, size = 'lg', footer, children, testID, entrance = 'slide', compact = false, hideClose = false, role, eyebrow, sheetTopGap = SHEET_TOP_GAP }) {
   const { width, height, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const tablet = isTabletWidth(width);
@@ -102,10 +106,10 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
     : {
         // C10 + §6 [O2]: the sheet hugs the bottom edge and pads the safe
         // area itself; an open keyboard lifts the whole sheet instead.
-        scrim: { paddingTop: SHEET_TOP_GAP + insets.top, paddingBottom: keyboardOpen ? keyboardHeight : 0 },
+        scrim: { paddingTop: sheetTopGap + insets.top, paddingBottom: keyboardOpen ? keyboardHeight : 0 },
         card: {
           paddingBottom: spacing[6] + (keyboardOpen ? 0 : insets.bottom),
-          maxHeight: height - SHEET_TOP_GAP - insets.top - (keyboardOpen ? keyboardHeight : 0),
+          maxHeight: height - sheetTopGap - insets.top - (keyboardOpen ? keyboardHeight : 0),
         },
       };
 
@@ -166,6 +170,12 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
               bounces={false}
               keyboardShouldPersistTaps="handled"
             >
+              {typeof eyebrow === 'string' && eyebrow ? (
+                <Text {...CAP_BODY} testID="app-modal-eyebrow" style={[styles.eyebrow, tablet && styles.eyebrowTablet]}>
+                  {eyebrow}
+                </Text>
+              ) : null}
+              {eyebrow && typeof eyebrow !== 'string' ? <View testID="app-modal-eyebrow">{eyebrow}</View> : null}
               {/* UX §9 title rule: the phone title is title-sm (1.6× cap), the
                   tablet one is 34 px, a page-size title (1.3× cap); both wrap by
                   word, max 3 lines, and a long word shrinks. */}
@@ -260,6 +270,14 @@ const styles = StyleSheet.create({
   scroll: {
     flexGrow: 0,
     flexShrink: 1,
+  },
+  eyebrow: {
+    ...typography.eyebrow,
+    marginBottom: spacing['1_5'],
+  },
+  // Clear of the tablet Close, like the title.
+  eyebrowTablet: {
+    paddingRight: 48,
   },
   title: {
     ...typography.titleSm,

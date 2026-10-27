@@ -1,9 +1,12 @@
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 
-import { breakpoints, colors } from '../../shared/theme/tokens';
+import { usesRail } from '../../shared/hooks/useLayoutClass';
+import { colors } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
 import NotificationPanel from '../notifications/NotificationPanel';
 import BottomNav from './BottomNav';
+import { useShowsRail } from './TabletFrame';
+import TabletRail from './TabletRail';
 import { TAB_ROOTS, getScreenPath } from './shellNavigation';
 import { resolveMode } from './shellRules';
 import { closePanel, useShellUiStore } from './shellUiStore';
@@ -19,6 +22,11 @@ export function getTabsPath(state) {
 // The bottom-tabs `tabBar`: the chrome drawn over the screens, in the spec's
 // paint order (§11): panel scrim, tab bar, notification panel. Toasts sit
 // above all of it in the app root.
+// T-56: on tablets this one overlay (above every tab stack) also draws the
+// icon rail, first, so it stays below the scrim as it did inside the page.
+// One instance for the whole shell: a stack push/pop slides the page under
+// it and the rail never moves or remounts; the active item follows the
+// focused route (getTabsPath). Pages reserve its width (TabletFrame).
 export default function ShellOverlay({ state }) {
   const { width } = useWindowDimensions();
   const user = useAuthStore((s) => s.user);
@@ -27,10 +35,18 @@ export default function ShellOverlay({ state }) {
   const isSessionActive = useShellUiStore((s) => s.isSessionActive);
   const path = getTabsPath(state);
   const mode = resolveMode({ user, path, storedPreference });
-  const tablet = width >= breakpoints.md;
+  // T-55: < 768 the tab bar; ≥ 768 (both orientations) the rail.
+  const tablet = usesRail(width);
+  // T-56: the same rule pages use to reserve the space (no rail during a live workout).
+  const showsRail = useShowsRail();
 
   return (
     <View pointerEvents="box-none" style={styles.layer}>
+      {showsRail ? (
+        <View testID="shell-rail-layer" pointerEvents="box-none" style={styles.railLayer}>
+          <TabletRail mode={mode} path={path} />
+        </View>
+      ) : null}
       {panelOpen ? (
         // Phone: the dimmed scrim. Tablet: the same layer, transparent.
         <Pressable
@@ -53,6 +69,14 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
+  },
+  // Fixed at the left, full height; the rail stretches in the row.
+  railLayer: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    flexDirection: 'row',
   },
   scrim: {
     backgroundColor: colors.scrimLight,

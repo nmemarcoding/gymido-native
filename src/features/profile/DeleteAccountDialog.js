@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, StyleSheet, Text, View, findNodeHandle } from 'react-native';
+import { AccessibilityInfo, StyleSheet, Text, View, findNodeHandle, useWindowDimensions } from 'react-native';
 
 import { getStatus } from '../../shared/api/apiError';
-import AppModal, { ModalActions } from '../../shared/components/AppModal';
+import AppModal, { ModalActions, isTabletWidth } from '../../shared/components/AppModal';
 import ErrorAlert from '../../shared/components/ErrorAlert';
 import FormField from '../../shared/components/FormField';
 import PillButton from '../../shared/components/PillButton';
 import Spinner from '../../shared/components/Spinner';
-import { colors } from '../../shared/theme/tokens';
+import { CAP_BODY } from '../../shared/components/largeText';
+import { colors, font, radii, spacing, typography } from '../../shared/theme/tokens';
 import { deleteAccount } from './api/profileApi';
 
 export const DeletePhase = Object.freeze({ idle: 'idle', sending: 'sending', error: 'error', deleted: 'deleted' });
@@ -46,6 +47,7 @@ const TRAINER_BULLET = "Your clients will be disconnected from you. Plans they'r
 // RN-SPEC-profile P1b.3–P1b.6 (T-43): the type-DELETE dialog. `profileLess`
 // is the Create-profile variant (P1b.4). `onDeleted` runs right after a 200.
 export default function DeleteAccountDialog({ isOpen, onClose, onDeleted, profileLess = false, isTrainer = false, googleOnly = false }) {
+  const tablet = isTabletWidth(useWindowDimensions().width);
   const [text, setText] = useState('');
   const [phase, setPhase] = useState(DeletePhase.idle);
   const [errorMessage, setErrorMessage] = useState('');
@@ -109,6 +111,9 @@ export default function DeleteAccountDialog({ isOpen, onClose, onDeleted, profil
   }
 
   const undone = <Text style={styles.undone}>This can't be undone.</Text>;
+  // UX K Delete account: phone 14/20 copy and a well-backed bullet list;
+  // tablet 16/24 intro, a plain 15/24 list and 15/22 lines.
+  const secondary = [styles.secondary, tablet && styles.secondaryTablet];
 
   return (
     <AppModal
@@ -117,13 +122,16 @@ export default function DeleteAccountDialog({ isOpen, onClose, onDeleted, profil
       onClose={close}
       title="Delete your account?"
       size="lg"
-      hideClose={sending || deleted}
+      // UX K Tablet: Delete account draws no Close: Cancel is the exit
+      // (blocked while sending, as before). Phones never had one.
+      hideClose
       footer={
         deleted ? null : (
-          <ModalActions>
-            <PillButton testID="delete-account-cancel" title="Cancel" variant="secondary" disabled={sending} onPress={close} />
+          <ModalActions fill>
+            <PillButton testID="delete-account-cancel" title="Cancel" variant="secondary" size={tablet ? 'cta' : 'default'} disabled={sending} onPress={close} />
             <PillButton
               testID="delete-account-submit"
+              size="cta"
               title={sending ? 'Deleting…' : 'Delete account'}
               variant="danger"
               loading={sending}
@@ -137,34 +145,46 @@ export default function DeleteAccountDialog({ isOpen, onClose, onDeleted, profil
       {deleted ? (
         <View testID="delete-account-deleted" role="status" accessibilityLiveRegion="polite" style={styles.deletedRow}>
           <Spinner size={16} thickness={2} />
-          <Text style={styles.deletedText}>Account deleted. Signing you out…</Text>
+          <Text {...CAP_BODY} style={styles.deletedText}>
+            Account deleted. Signing you out…
+          </Text>
         </View>
       ) : (
         <View style={styles.body} accessibilityState={{ busy: sending }}>
           <View style={styles.textBlock}>
             {profileLess ? (
-              <Text style={styles.secondary}>
+              <Text {...CAP_BODY} style={secondary}>
                 {'This permanently deletes your Gymido account and your sign-in. '}
                 {undone}
               </Text>
             ) : (
               <>
-                <Text style={styles.secondary}>This permanently deletes your Gymido account and everything in it:</Text>
-                <View style={styles.list}>
+                <Text {...CAP_BODY} style={secondary}>
+                  This permanently deletes your Gymido account and everything in it:
+                </Text>
+                <View testID="delete-account-bullets" style={tablet ? styles.listTablet : styles.list}>
                   {(isTrainer ? [...BULLETS, TRAINER_BULLET] : BULLETS).map((item) => (
                     <View key={item} style={styles.bulletRow}>
-                      <Text style={styles.bullet} accessibilityElementsHidden importantForAccessibility="no">
-                        •
+                      <View
+                        style={[styles.dot, tablet && styles.dotTablet]}
+                        accessibilityElementsHidden
+                        importantForAccessibility="no-hide-descendants"
+                      />
+                      <Text {...CAP_BODY} style={[styles.bulletText, tablet && styles.bulletTextTablet]}>
+                        {item}
                       </Text>
-                      <Text style={styles.bulletText}>{item}</Text>
                     </View>
                   ))}
                 </View>
               </>
             )}
-            {googleOnly ? <Text style={styles.secondary}>Your Google account itself isn't affected.</Text> : null}
+            {googleOnly ? (
+              <Text {...CAP_BODY} style={[secondary, tablet && styles.lineTablet]}>
+                Your Google account itself isn't affected.
+              </Text>
+            ) : null}
             {profileLess ? null : (
-              <Text style={styles.secondary}>
+              <Text {...CAP_BODY} style={[secondary, tablet && styles.lineTablet]}>
                 {'Plans your trainer made stay with your trainer. '}
                 {undone}
               </Text>
@@ -173,6 +193,9 @@ export default function DeleteAccountDialog({ isOpen, onClose, onDeleted, profil
           <FormField
             testID="delete-account-confirm"
             label="Type DELETE to confirm"
+            labelStyle={[styles.fieldLabel, tablet && styles.fieldLabelTablet]}
+            variant="well"
+            style={tablet ? styles.confirmInputTablet : styles.confirmInput}
             value={text}
             onChangeText={setText}
             readOnly={sending}
@@ -197,49 +220,103 @@ export default function DeleteAccountDialog({ isOpen, onClose, onDeleted, profil
 
 const styles = StyleSheet.create({
   body: {
-    gap: 16,
+    gap: spacing[4],
   },
   textBlock: {
-    gap: 8,
+    gap: spacing[3],
   },
+  // Intro / lines 14/20 text-secondary (tablet intro 16/24).
   secondary: {
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.bodySm,
     color: colors.textSecondary,
   },
-  undone: {
-    fontWeight: '600',
-    color: colors.danger700,
+  secondaryTablet: {
+    ...typography.bodyLg,
   },
-  // Disc list, padding-left 20: the 12pt marker column sits inside it.
+  lineTablet: {
+    ...typography.body,
+  },
+  undone: {
+    ...font(600),
+    color: colors.dangerText,
+  },
+  // Phone: the bullets sit in a fill-subtle well (padding 14 16, radius 20,
+  // gap 8); tablet: a plain list.
   list: {
-    paddingLeft: 8,
-    gap: 4,
+    gap: spacing[2],
+    paddingVertical: spacing['3_5'],
+    paddingHorizontal: spacing[4],
+    borderRadius: radii.lg,
+    backgroundColor: colors.fillWell,
+  },
+  listTablet: {
+    gap: spacing[1],
+    paddingLeft: spacing[2],
   },
   bulletRow: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing['2_5'],
   },
-  bullet: {
-    width: 12,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.textPrimary,
+  // 6 × 6 text-muted dots (mt 7 centres them on the 20 line).
+  dot: {
+    width: 6,
+    height: 6,
+    marginTop: 7,
+    borderRadius: radii.full,
+    backgroundColor: colors.textMuted,
+  },
+  dotTablet: {
+    marginTop: 9,
   },
   bulletText: {
+    ...typography.bodySm,
     flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
+    color: colors.textPrimary,
+  },
+  bulletTextTablet: {
+    ...typography.body,
+    lineHeight: 24,
+    color: colors.textStrong2,
+  },
+  fieldLabel: {
+    ...typography.label,
+    ...font(600),
+    color: colors.textStrong2,
+  },
+  fieldLabelTablet: {
+    ...typography.bodySm,
+    ...font(600),
+  },
+  // Phone: 52 (inside the 1 px edge), 16/600, tracked 0.12em, on surface-well.
+  confirmInput: {
+    ...font(600),
+    minHeight: 50,
+    paddingVertical: 0,
+    paddingHorizontal: spacing[4],
+    fontSize: 16,
+    letterSpacing: 1.92,
+    color: colors.textPrimary,
+  },
+  // Tablet: 58 tall, 18/700, tracked 0.12em.
+  confirmInputTablet: {
+    ...font(700),
+    minHeight: 56,
+    paddingVertical: 0,
+    paddingHorizontal: spacing[4],
+    fontSize: 18,
+    letterSpacing: 2.16,
     color: colors.textPrimary,
   },
   deletedRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing[2],
   },
   deletedText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '600',
+    ...typography.bodySm,
+    ...font(600),
+    flexShrink: 1,
     color: colors.textPrimary,
   },
 });

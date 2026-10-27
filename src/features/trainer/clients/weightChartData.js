@@ -16,18 +16,32 @@ export function chartUnit(logs, profile) {
   return logs[logs.length - 1]?.weight_unit || profile?.current_weight_unit || 'kg';
 }
 
+// The profile's goal weight in the chart's unit; no goal → null.
+export function goalInUnit(profile, unit) {
+  const value = profile?.goal_weight_value;
+  if (value === null || value === undefined || value === '' || Number.isNaN(Number(value))) {
+    return null;
+  }
+  return convertWeight(value, profile?.goal_weight_unit, unit);
+}
+
 // `unitOverride`: Progress passes its currentUnit (RN-SPEC-progress PR1.2).
-export function buildWeightSeries(logs, profile, unitOverride) {
+// `withGoal` (the client weight modal, UX M ruling 1): `goal` = the client's
+// goal in the chart unit, and the axis widens to keep it inside (UX §9a:
+// whole-number ticks, ≤ 1 unit padding). Without it `goal` is null and the
+// axis is today's.
+export function buildWeightSeries(logs, profile, unitOverride, { withGoal = false } = {}) {
   const unit = unitOverride || chartUnit(logs, profile);
   const points = logs.map((log) => ({
     value: convertWeight(log.weight_value, log.weight_unit, unit),
     label: formatDateWithOffset(log.recorded_on, 1),
   }));
+  const goal = withGoal ? goalInUnit(profile, unit) : null;
   if (points.length === 0) {
-    return { points, unit, min: 0, max: 0, ticks: [] };
+    return { points, unit, goal, min: 0, max: 0, ticks: [] };
   }
-  const values = points.map((point) => point.value);
-  return { points, unit, ...weightAxis(Math.min(...values), Math.max(...values)) };
+  const values = points.map((point) => point.value).concat(goal === null ? [] : [goal]);
+  return { points, unit, goal, ...weightAxis(Math.min(...values), Math.max(...values)) };
 }
 
 // Resolved mechanism (owner-accepted): the web hides x labels closer than

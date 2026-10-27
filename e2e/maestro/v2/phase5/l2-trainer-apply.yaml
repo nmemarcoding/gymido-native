@@ -1,0 +1,40 @@
+# v2 Phase 5 L (p5l): Profile → Coaching → Become a trainer → "← Coaching".
+# Member QA account, starts signed in on the tab root. Read-only: nothing is
+# submitted. IDs only.
+appId: com.gymido.app
+---
+- extendedWaitUntil:
+    visible:
+      id: "tab-Profile"
+    timeout: 60000
+- tapOn:
+    id: "tab-Profile"
+- extendedWaitUntil:
+    visible:
+      id: "profile-coaching-card"
+    timeout: 30000
+- tapOn:
+    id: "profile-coaching-card"
+- extendedWaitUntil:
+    visible:
+      id: "trainer-hub-become"
+    timeout: 30000
+- tapOn:
+    id: "trainer-hub-become"
+- extendedWaitUntil:
+    visible:
+      id: "trainer-apply-screen"
+    timeout: 30000
+- assertVisible:
+    id: "trainer-apply-back"
+# One of the body states: the form, the status panel, or already-a-trainer.
+- extendedWaitUntil:
+    visible:
+      id: "trainer-apply-(form|status|already)"
+    timeout: 30000
+- tapOn:
+    id: "trainer-apply-back"
+- extendedWaitUntil:
+    visible:
+      id: "trainer-hub-screen"
+    timeout: 30000

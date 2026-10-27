@@ -28,10 +28,10 @@ import Loader from '../../../shared/components/Loader';
 import ExerciseImage, { muscleTextColor } from '../../../shared/components/ExerciseImage';
 import { CAP_BODY, CAP_PILL, TITLE_TEXT } from '../../../shared/components/largeText';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
-import { blur, breakpoints, colors, font, radii, spacing, textInputColors, textScale } from '../../../shared/theme/tokens';
+import { blur, breakpoints, colors, font, layout, radii, spacing, textInputColors, textScale } from '../../../shared/theme/tokens';
 import { useAuthStore } from '../../auth/authStore';
 import AppHeader from '../../shell/AppHeader';
-import DesktopSidebar from '../../shell/DesktopSidebar';
+import TabletFrame from '../../shell/TabletFrame';
 import ModeSwitch from '../../shell/ModeSwitch';
 import { getScreenPath } from '../../shell/shellNavigation';
 import { resolveMode, showsMobileModeSwitch } from '../../shell/shellRules';
@@ -398,14 +398,14 @@ function ExercisesCatalog() {
   );
 
   return (
-    <View testID="exercises-screen" style={[styles.screen, { paddingTop: insets.top }]}>
+    <View testID="exercises-screen" style={[styles.screen, { paddingTop: tablet ? 0 : insets.top }]}>
       {tablet ? (
-        <View style={[styles.tabletRow, { paddingLeft: 24 + insets.left, paddingRight: 24 + insets.right }]}>
-          <View style={styles.sidebarColumn}>
-            <DesktopSidebar mode={mode} path={path} />
+        // T-55/T-56: room for the overlay's rail (TabletFrame takes the top/left insets).
+        <TabletFrame>
+          <View style={[styles.tabletRow, { paddingRight: 4 + insets.right }]}>
+            <View style={styles.tabletContent}>{list}</View>
           </View>
-          <View style={styles.tabletContent}>{list}</View>
-        </View>
+        </TabletFrame>
       ) : (
         <View style={styles.phoneColumn}>{list}</View>
       )}
@@ -601,23 +601,19 @@ const styles = StyleSheet.create({
     maxWidth: 430,
     alignSelf: 'center',
   },
+  // T-55: beside the rail; content capped at 1120 (+ the rows' own 20
+  // padding each side) and centred at ≥ 1280.
+  // The page's -mx-5 at ≥ 640 reaches into the shell's 24 gutter: 4 + the rows' 20.
   tabletRow: {
     flex: 1,
-    width: '100%',
-    maxWidth: 1152,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    gap: 32,
+    paddingLeft: 4,
   },
-  // App-shell §4: on ≥ 768 the sidebar is sticky at top 24.
-  sidebarColumn: {
-    paddingTop: 24,
-  },
-  // The page's -mx-5 at ≥ 640 reaches into the shell padding.
   tabletContent: {
     flex: 1,
     minWidth: 0,
-    marginHorizontal: -20,
+    width: '100%',
+    maxWidth: layout.contentMax + 40,
+    alignSelf: 'center',
   },
   mobileSwitch: {
     marginBottom: 20,

@@ -1,0 +1,24 @@
+# UX K Profile pair: Coaching opens My trainer (pushed); Add weight log
+# manually goes to the Progress tab (⚠P-3, not the modal). Read-only.
+appId: com.gymido.app
+---
+- runFlow: k-subflows/open-profile.yaml
+- tapOn:
+    id: "profile-coaching-card"
+- extendedWaitUntil:
+    visible:
+      id: "trainer-hub-screen"
+    timeout: 30000
+# The shell's "← Profile" back link (works on both platforms; no `back`).
+- tapOn:
+    id: "header-back-link"
+- extendedWaitUntil:
+    visible:
+      id: "settings-row-weight"
+    timeout: 20000
+- tapOn:
+    id: "settings-row-weight"
+- extendedWaitUntil:
+    visible:
+      id: "progress-tabs"
+    timeout: 30000

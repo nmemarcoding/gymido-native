@@ -1,0 +1,49 @@
+# T-56 tablet shell, member: the rail is drawn once above the tab stacks, so a
+# stack push and pop slide the page, never the rail. Tablet emulator/sim only
+# (window ≥ 768). Starts signed in as the QA member on the Today root (the
+# lead's safe runner signs in first). IDs only; no credentials, no
+# coordinates, no Profile screenshots. Owed: the lead watches the push/pop on
+# both platforms (the rail must not slide), portrait and landscape.
+appId: com.gymido.app
+---
+- extendedWaitUntil:
+    visible:
+      id: "tablet-rail"
+    timeout: 30000
+- tapOn:
+    id: "rail-Plans"
+- extendedWaitUntil:
+    visible:
+      id: "my-plans-entry"
+    timeout: 20000
+# Push: Plans → My plans (same stack). One rail, Plans still active.
+- tapOn:
+    id: "my-plans-entry"
+- extendedWaitUntil:
+    visible:
+      id: "my-plans-screen"
+    timeout: 20000
+- assertVisible:
+    id: "tablet-rail"
+- assertVisible:
+    id: "rail-Plans"
+    selected: true
+- assertNotVisible:
+    id: "bottom-nav"
+# A second push: "← All plans" pushes the catalog (no hardware back on iOS; the lead checks the pop by hand).
+- tapOn:
+    id: "my-plans-all-plans"
+- extendedWaitUntil:
+    visible:
+      id: "plans-library-screen"
+    timeout: 20000
+- assertVisible:
+    id: "tablet-rail"
+- assertVisible:
+    id: "rail-Plans"
+    selected: true
+- tapOn:
+    id: "rail-Today"
+- assertVisible:
+    id: "rail-Today"
+    selected: true

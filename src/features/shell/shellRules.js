@@ -130,26 +130,8 @@ export function isNavItemActive(item, path) {
   return own || (item.extra ?? []).some((prefix) => matches(path, prefix));
 }
 
-// §6.4: the sidebar mirrors the tab bar, icons included. [O1] "Profile" for everyone.
-export const MEMBER_SIDEBAR = MEMBER_TABS;
-export const TRAINER_SIDEBAR = TRAINER_TABS;
-
-export const SIDEBAR_INTRO = Object.freeze({
-  [Workspace.member]: {
-    eyebrow: 'Workout App',
-    title: 'Stay on track',
-    body: 'Quick access to your daily workout tools.',
-  },
-  [Workspace.trainer]: {
-    eyebrow: 'Coaching',
-    title: 'Coach your clients',
-    body: 'Manage clients, plans, and your trainer profile.',
-  },
-});
-
-export function getSidebarItems(mode) {
-  return mode === Workspace.trainer ? TRAINER_SIDEBAR : MEMBER_SIDEBAR;
-}
+// §6.4 / RN-SPEC-v2-foundation §7.2 (T-55): tablets draw the icon rail with
+// the same items as the tab bar (getTabs); the v1 text sidebar is gone on native.
 
 // §6.5: phone-only workspace switch on the two profile pages.
 export function showsMobileModeSwitch({ user, path }) {

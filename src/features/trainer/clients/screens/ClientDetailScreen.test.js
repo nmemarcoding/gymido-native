@@ -1,0 +1,368 @@
+import { Linking, StyleSheet, useWindowDimensions } from 'react-native';
+import { act, create } from 'react-test-renderer';
+
+import GradientFill from '../../../../shared/components/GradientFill';
+import PillButton from '../../../../shared/components/PillButton';
+import StatusPill from '../../../../shared/components/StatusPill';
+import { addToast } from '../../../../shared/components/toastStore';
+import { colors, gradients, textScale } from '../../../../shared/theme/tokens';
+import EndCoachingDialog from '../../../trainers/components/EndCoachingDialog';
+import {
+  endCoaching,
+  getClientPlan,
+  getClientProgress,
+  getClientWorkoutHistory,
+  listClientAssignments,
+} from '../api/clientsApi';
+import { getClientProfileAndEmail } from '../clientDetailApi';
+import { openAssignPlan } from '../clientLinks';
+import ClientAvatar from '../components/ClientAvatar';
+import { StatTile, StatusLine } from '../components/ClientsUi';
+import WeightHistoryModal from '../components/WeightHistoryModal';
+import WorkoutDetailModal from '../components/WorkoutDetailModal';
+import ClientDetailContent from './ClientDetailContent';
+import ClientDetailScreen from './ClientDetailScreen';
+
+// RN-SPEC-v2-phase6 §2 Client detail (UX N): phone + tablet page + pane,
+// every state and action; Email (approved), VOLUME RULE, each action once.
+
+const mockNavigation = { push: jest.fn() };
+let mockParams = { clientUserId: 12 };
+jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({ __esModule: true, default: jest.fn() }));
+jest.mock('@react-navigation/native', () => ({ useNavigation: () => mockNavigation, useRoute: () => ({ params: mockParams }) }));
+jest.mock('../../../../shared/hooks/useFocusRemountKey', () => ({ useFocusRemountKey: () => 0 }));
+jest.mock('../../../../shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
+jest.mock('../../../shell/ShellPage', () => ({ children }) => children);
+jest.mock('../../TrainerOnly', () => ({ children }) => children);
+jest.mock('../clientLinks', () => ({ openClientDetail: jest.fn(), openAssignPlan: jest.fn() }));
+jest.mock('../components/WorkoutDetailModal', () => jest.fn(() => null));
+jest.mock('../components/WeightHistoryModal', () => jest.fn(() => null));
+jest.mock('../../../trainers/components/EndCoachingDialog', () => jest.fn(() => null));
+jest.mock('../clientDetailApi', () => ({ getClientProfileAndEmail: jest.fn() }));
+jest.mock('../api/clientsApi', () => ({
+  endCoaching: jest.fn(),
+  getClientPlan: jest.fn(),
+  getClientProgress: jest.fn(),
+  getClientWorkoutHistory: jest.fn(),
+  listClientAssignments: jest.fn(),
+}));
+jest.mock('../../../../shared/components/toastStore', () => ({
+  ToastTone: { success: 'success', error: 'error' },
+  addToast: jest.fn(),
+}));
+
+const PROFILE = {
+  first_name: 'Sara',
+  last_name: 'Lopez',
+  age: 29,
+  sex: 'female',
+  height_value: 165,
+  height_unit: 'cm',
+  current_weight_value: 64.3,
+  current_weight_unit: 'kg',
+  goal_weight_value: 60,
+  goal_weight_unit: 'kg',
+};
+const PLAN = { enrollment: { started_on: '2026-09-14', plan: { name: 'Upper / Lower Split', days_per_week: 4, category: { name: 'Strength' } } } };
+const STATS = { total_workouts_completed: 21, workouts_this_week: 2, current_streak: 3, total_volume_last_30_days_kg: 18420, total_volume_last_30_days: 99999 };
+const SESSIONS = [
+  { id: 101, status: 'completed', completed_at: '2026-10-23T10:00:00Z', duration_seconds: 2940, total_volume_kg: 6240, total_volume: 1, workout_plan_day: { title: 'Upper A' } },
+  { id: 102, status: 'in_progress', started_at: '2026-10-22T10:00:00Z', duration_seconds: 2640 },
+];
+const ASSIGNMENTS = [
+  { id: 1, workout_plan_id: 12, status: 'active', created_at: '2026-09-14T00:00:00Z' },
+  { id: 2, workout_plan_id: 7, status: 'replaced', created_at: '2026-07-02T00:00:00Z' },
+];
+
+const texts = (tree) =>
+  tree.root
+    .findAll((node) => node.type === 'Text')
+    .map((node) => [].concat(node.props.children).filter((part) => typeof part !== 'object').join(''));
+const byTestID = (tree, testID) => tree.root.findAll((node) => node.props.testID === testID && typeof node.type !== 'string')[0];
+const host = (tree, testID) => tree.root.findAll((node) => node.props.testID === testID && typeof node.type === 'string')[0];
+
+function setWindow(width, fontScale = 1) {
+  useWindowDimensions.mockReturnValue({ width, height: 1194, scale: 2, fontScale });
+}
+
+function load({ plan = PLAN, profile = PROFILE, email = 'sara@example.com', stats = STATS, sessions = SESSIONS, assignments = ASSIGNMENTS } = {}) {
+  getClientPlan.mockResolvedValue(plan);
+  getClientProfileAndEmail.mockResolvedValue({ profile, clientEmail: email });
+  getClientProgress.mockResolvedValue({ summary: null, stats });
+  getClientWorkoutHistory.mockResolvedValue({ items: sessions });
+  listClientAssignments.mockResolvedValue(assignments);
+}
+
+async function render(element = <ClientDetailScreen />) {
+  let tree;
+  await act(async () => {
+    tree = create(element);
+  });
+  return tree;
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockParams = { clientUserId: 12 };
+  setWindow(390);
+  load();
+});
+
+describe('Client detail, phone', () => {
+  it('identity: back link, the avatar (initials, person colour), the name as the page heading', async () => {
+    const tree = await render();
+    const avatar = tree.root.findAllByType(ClientAvatar)[0];
+    expect([avatar.props.userId, avatar.props.initials, avatar.props.size]).toEqual([12, 'SL', 64]);
+    const name = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Sara Lopez')[0];
+    expect(name.props.accessibilityRole).toBe('header');
+    expect(name.props.maxFontSizeMultiplier).toBe(textScale.title);
+    await act(async () => byTestID(tree, 'client-all-clients').props.onPress());
+    expect(mockNavigation.push).toHaveBeenCalledWith('TrainerClients');
+  });
+
+  it('actions once: glass Email (mailto, "Email {name}") + gold Change plan; the plan card has no second button', async () => {
+    const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    const tree = await render();
+    const email = byTestID(tree, 'client-email');
+    expect([email.props.variant, email.props.accessibilityLabel, email.props.title]).toEqual(['secondary', 'Email Sara Lopez', 'Email']);
+    await act(async () => email.props.onPress());
+    expect(open).toHaveBeenCalledWith('mailto:sara@example.com');
+    const plan = tree.root.findAll((node) => node.props.testID === 'client-assign-plan' && node.type === PillButton);
+    expect(plan).toHaveLength(1);
+    expect([plan[0].props.title, plan[0].props.variant]).toEqual(['Change plan', undefined]);
+    await act(async () => plan[0].props.onPress());
+    expect(openAssignPlan).toHaveBeenCalledWith(12);
+    open.mockRestore();
+  });
+
+  it('Email with no mail handler: the openURL rejection is caught (silent, as v1 TrainerHub), no toast, the screen stays', async () => {
+    let caught;
+    const open = jest.spyOn(Linking, 'openURL').mockImplementation(() => {
+      const rejected = Promise.reject(new Error('No Activity found to handle Intent'));
+      caught = jest.spyOn(rejected, 'catch');
+      return rejected;
+    });
+    const tree = await render();
+    await act(async () => {
+      await expect(Promise.resolve(byTestID(tree, 'client-email').props.onPress())).resolves.toBeUndefined();
+    });
+    expect(open).toHaveBeenCalledWith('mailto:sara@example.com');
+    expect(caught).toHaveBeenCalledTimes(1);
+    expect(addToast).not.toHaveBeenCalled();
+    expect(mockNavigation.push).not.toHaveBeenCalled();
+    expect(byTestID(tree, 'client-email')).toBeTruthy();
+    open.mockRestore();
+  });
+
+  it('no client_email → no Email action; no plan → "Assign a plan" + the No active plan EmptyState', async () => {
+    load({ email: null, plan: null });
+    const tree = await render();
+    expect(byTestID(tree, 'client-email')).toBeUndefined();
+    expect(byTestID(tree, 'client-assign-plan').props.title).toBe('Assign a plan');
+    expect(texts(tree)).toEqual(expect.arrayContaining(['No active plan', 'This client isn’t enrolled in a plan. Assign one to get them started.']));
+    expect(host(tree, 'client-plan-card')).toBeUndefined();
+  });
+
+  it('stats: Workouts, Volume (total_volume_last_30_days_kg in the client unit), This week, Streak (teal)', async () => {
+    const tree = await render();
+    const tiles = tree.root.findAllByType(StatTile).map((tile) => [tile.props.label, String(tile.props.value), tile.props.sub]);
+    expect(tiles).toEqual([
+      ['Workouts', '21', 'completed'],
+      ['Volume', (18420).toLocaleString(), 'kg · last 30 days'],
+      ['This week', '2', 'workouts'],
+      ['Streak', '3', 'days'],
+    ]);
+    expect(tree.root.findAllByType(StatTile)[3].props.valueColor).toBe(colors.teal);
+    expect(texts(tree)).not.toContain((99999).toLocaleString());
+  });
+
+  it('volume in lb for an lb client; the tile hides when the _kg field is absent', async () => {
+    load({ profile: { ...PROFILE, current_weight_unit: 'lb' } });
+    let tree = await render();
+    const volume = tree.root.findAllByType(StatTile).find((tile) => tile.props.label === 'Volume');
+    expect([volume.props.value, volume.props.sub]).toEqual([(40609).toLocaleString(), 'lb · last 30 days']);
+    load({ stats: { ...STATS, total_volume_last_30_days_kg: undefined } });
+    tree = await render();
+    expect(tree.root.findAllByType(StatTile).map((tile) => tile.props.label)).toEqual(['Workouts', 'This week', 'Streak']);
+  });
+
+  it('no stats → no tiles', async () => {
+    load({ stats: null });
+    const tree = await render();
+    expect(tree.root.findAllByType(StatTile)).toHaveLength(0);
+  });
+
+  it('Client details: Age, Sex, Height, Current weight (a gold button → weight history), Goal weight; no Name cell', async () => {
+    const tree = await render();
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Client details', 'Age', '29', 'Sex', 'Female', 'Height', '165 cm', 'Current weight', '64.3 kg', 'Goal weight', '60 kg']));
+    expect(texts(tree)).not.toContain('Name');
+    const weight = byTestID(tree, 'client-current-weight');
+    expect(weight.props.accessibilityLabel).toBe('Current weight, 64.3 kg, opens weight history');
+    await act(async () => weight.props.onPress());
+    expect(WeightHistoryModal.mock.calls.at(-1)[0]).toEqual(expect.objectContaining({ isOpen: true, clientUserId: 12, profile: PROFILE, clientName: 'Sara Lopez' }));
+  });
+
+  it('no profile: "No profile yet", heading "Unnamed client", avatar "?"; no weight button', async () => {
+    load({ profile: null });
+    const tree = await render();
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Unnamed client', 'No profile yet']));
+    expect(tree.root.findAllByType(ClientAvatar)[0].props.initials).toBe('?');
+    expect(byTestID(tree, 'client-current-weight')).toBeUndefined();
+  });
+
+  it('Assigned plan: the gold-gradient card, name, start date, days/week · category', async () => {
+    const tree = await render();
+    const card = host(tree, 'client-plan-card');
+    const fill = card.findAll((node) => node.type === GradientFill)[0];
+    expect(fill.props.colors).toEqual(gradients.gold.colors);
+    expect(texts(tree)).toEqual(
+      expect.arrayContaining(['Assigned plan', 'Upper / Lower Split', `Started ${new Date('2026-09-14').toLocaleDateString()}`, '4 days / week · Strength'])
+    );
+    load({ plan: { enrollment: { plan: {} } } });
+    const bare = await render();
+    expect(texts(bare)).toEqual(expect.arrayContaining(['Current plan', 'Active enrollment']));
+  });
+
+  it('Recent workouts: initials tile of the workout name, kg volume only from total_volume_kg, sentence-case pills; a row opens the workout', async () => {
+    const tree = await render();
+    expect(texts(tree)).toContain('UA');
+    expect(texts(tree)).toEqual(expect.arrayContaining([`49 min · ${(6240).toLocaleString()} kg volume`, '44 min']));
+    const pills = tree.root.findAllByType(StatusPill).map((pill) => [pill.props.label, pill.props.tone]);
+    expect(pills.slice(0, 2)).toEqual([
+      ['Completed', 'completed'],
+      ['In_progress', 'gold'],
+    ]);
+    expect(byTestID(tree, 'client-session-101').props.accessibilityLabel).toMatch(/^Upper A, .*, 49 min · .* kg volume, Completed$/);
+    await act(async () => byTestID(tree, 'client-session-101').props.onPress());
+    // p56 merge (P5 M1/M2): the client's profile (VOLUME RULE unit) + the shown name (eyebrow).
+    expect(WorkoutDetailModal.mock.calls.at(-1)[0]).toEqual(expect.objectContaining({ clientUserId: 12, workoutId: 101, profile: PROFILE, clientName: 'Sara Lopez' }));
+  });
+
+  it('Assignment history: "Plan #id", Active = teal, replaced = neutral', async () => {
+    const tree = await render();
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Plan #12', 'Plan #7']));
+    const pills = tree.root.findAllByType(StatusPill).map((pill) => [pill.props.label, pill.props.tone]);
+    expect(pills.slice(2)).toEqual([
+      ['Active', 'active'],
+      ['Replaced', 'neutral'],
+    ]);
+  });
+
+  it('empty sections: No workouts yet / Nothing assigned yet', async () => {
+    load({ sessions: [], assignments: [] });
+    const tree = await render();
+    expect(texts(tree)).toEqual(expect.arrayContaining(['No workouts yet', 'Nothing assigned yet']));
+  });
+
+  it('status line from the row activity: amber Missed, green On track, none without the data', async () => {
+    let tree = await render();
+    expect(tree.root.findAllByType(StatusLine)).toHaveLength(0);
+    mockParams = { clientUserId: 12, clientActivity: { current_plan: { name: 'X' }, week: { planned: 3, done: 1, missed: 2, days: [] } } };
+    tree = await render();
+    expect(tree.root.findAllByType(StatusLine).map((line) => [line.props.tone, line.props.text])).toEqual([['warning', 'Missed 2 this week']]);
+    mockParams = {
+      clientUserId: 12,
+      clientActivity: { current_plan: { name: 'X' }, week: { planned: 3, done: 1, missed: 0, days: [{ date: '2026-10-26', status: 'done' }, { date: '2026-10-27', status: 'rest' }] } },
+    };
+    tree = await render();
+    expect(tree.root.findAllByType(StatusLine).map((line) => [line.props.tone, line.props.text])).toEqual([['success', 'On track']]);
+    // ND-11 weekday chips only with the data.
+    expect(texts(tree)).toContain('Mon');
+  });
+
+  it('End coaching: the danger-outline button opens the dialog; success toasts and pushes Clients', async () => {
+    endCoaching.mockResolvedValue({});
+    const tree = await render();
+    const dialog = () => EndCoachingDialog.mock.calls.at(-1)[0];
+    // p56 merge (P5 M6): the End coaching dialog, client variant.
+    expect(dialog()).toEqual(expect.objectContaining({ isOpen: false, title: 'End coaching with this client?', confirmLabel: 'End coaching', variant: 'client' }));
+    const button = host(tree, 'client-end-coaching');
+    expect(StyleSheet.flatten(button.props.style)).toEqual(expect.objectContaining({ borderColor: colors.dangerLine, minHeight: 44 }));
+    await act(async () => byTestID(tree, 'client-end-coaching').props.onPress());
+    expect(dialog().isOpen).toBe(true);
+    await act(async () => dialog().onConfirm());
+    expect(endCoaching).toHaveBeenCalledWith(12);
+    expect(addToast).toHaveBeenCalledWith('success', 'Coaching ended', 'They keep their plan, schedule and history — it just isn’t managed by you now.');
+    expect(mockNavigation.push).toHaveBeenCalledWith('TrainerClients');
+  });
+
+  it('End coaching failure: error toast, the dialog closes, no navigation', async () => {
+    endCoaching.mockRejectedValue({ response: { status: 500, data: { message: 'Busy' } } });
+    const tree = await render();
+    await act(async () => byTestID(tree, 'client-end-coaching').props.onPress());
+    await act(async () => EndCoachingDialog.mock.calls.at(-1)[0].onConfirm());
+    expect(addToast).toHaveBeenCalledWith('error', 'Could not end coaching', 'Busy');
+    expect(EndCoachingDialog.mock.calls.at(-1)[0].isOpen).toBe(false);
+    expect(mockNavigation.push).not.toHaveBeenCalled();
+  });
+
+  it('a non-404 failure: "Could not load this client" + the server text; Retry reloads to the page', async () => {
+    getClientPlan.mockRejectedValueOnce({ response: { status: 500, data: { message: 'Server down' } } });
+    const tree = await render();
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Could not load this client', 'Server down']));
+    expect(byTestID(tree, 'client-email')).toBeUndefined();
+    const retry = tree.root.findAll((node) => typeof node.props.onRetry === 'function')[0];
+    await act(async () => retry.props.onRetry());
+    expect(getClientPlan).toHaveBeenCalledTimes(2);
+    expect(byTestID(tree, 'client-email')).toBeTruthy();
+  });
+
+  it('loading keeps the heading "Client"; a 404 is Not your client', async () => {
+    getClientPlan.mockReturnValue(new Promise(() => {}));
+    let tree = await render();
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Client', 'Loading client']));
+    getClientPlan.mockRejectedValue({ response: { status: 404, data: {} } });
+    tree = await render();
+    expect(texts(tree)).toContain('Not your client');
+  });
+});
+
+describe('Client detail, tablet page', () => {
+  beforeEach(() => {
+    setWindow(1194);
+  });
+
+  it('hero card (gradient-card, avatar 80, "Client details", 5 cells), 4 tiles, the ink plan pill once, wide coaching', async () => {
+    const tree = await render();
+    expect(host(tree, 'client-detail-tablet')).toBeTruthy();
+    const hero = host(tree, 'client-hero');
+    expect(hero.findAll((node) => node.type === GradientFill)[0].props.colors).toEqual(gradients.card.colors);
+    expect(tree.root.findAllByType(ClientAvatar)[0].props.size).toBe(80);
+    const tiles = tree.root.findAllByType(StatTile).map((tile) => [tile.props.label, tile.props.valueColor]);
+    expect(tiles).toEqual([
+      ['Workouts', colors.gold],
+      ['Volume', colors.textPrimary],
+      ['This week', colors.success],
+      ['Streak', colors.warning],
+    ]);
+    const plan = tree.root.findAll((node) => node.props.testID === 'client-assign-plan' && typeof node.type !== 'string');
+    expect(plan.every((node) => node.type !== PillButton)).toBe(true);
+    expect(host(tree, 'client-plan-card').findAll((node) => node.props.testID === 'client-assign-plan').length).toBeGreaterThan(0);
+    expect(byTestID(tree, 'client-email')).toBeTruthy();
+    expect(StyleSheet.flatten(host(tree, 'client-coaching').props.style).flexDirection).toBe('row');
+  });
+
+  it('the pane layout (inside tablet Clients) is one column with the 60 avatar and calls onEnded', async () => {
+    endCoaching.mockResolvedValue({});
+    const onEnded = jest.fn();
+    const tree = await render(<ClientDetailContent clientUserId={12} layout="pane" onEnded={onEnded} />);
+    expect(tree.root.findAllByType(ClientAvatar)[0].props.size).toBe(60);
+    await act(async () => byTestID(tree, 'client-end-coaching').props.onPress());
+    await act(async () => EndCoachingDialog.mock.calls.at(-1)[0].onConfirm());
+    expect(onEnded).toHaveBeenCalled();
+    expect(mockNavigation.push).not.toHaveBeenCalled();
+  });
+});
+
+describe('Client detail, large text (§9)', () => {
+  it.each([1, 2, 3.1])('fontScale %s: past 1.3 the action pair stacks (plan first, full width) and tiles become rows', async (fontScale) => {
+    setWindow(390, fontScale);
+    const tree = await render();
+    const reflow = fontScale > textScale.reflowAbove;
+    const order = tree.root.findAllByType(PillButton).map((button) => button.props.testID).filter((id) => ['client-email', 'client-assign-plan'].includes(id));
+    expect(order).toEqual(reflow ? ['client-assign-plan', 'client-email'] : ['client-email', 'client-assign-plan']);
+    expect(byTestID(tree, 'client-assign-plan').props.fullWidth).toBe(reflow);
+    tree.root.findAllByType(StatTile).forEach((tile) => expect(tile.props.row).toBe(reflow));
+  });
+});

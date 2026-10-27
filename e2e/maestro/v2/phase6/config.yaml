@@ -1,0 +1,7 @@
+# v2 Phase 6 (trainer). Team 6o flows (Trainer plans, Plan create, Trainer
+# profile) run on QA_TRAINER, signed in by the lead's safe runner first:
+#   maestro test --include-tags=trainer e2e/maestro/v2/phase6
+# Shared steps come from ../subflows (signed-in-start, trainer-workspace,
+# restore-workspace; the Phase 1/2 helper set).
+flows:
+  - "*.yaml"

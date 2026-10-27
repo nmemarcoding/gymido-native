@@ -47,9 +47,11 @@ export default function NotificationPanel() {
           </Pressable>
         ) : null}
       </View>
-      <View style={styles.filters}>
-        <FilterButton label="All" a11y="Show all notifications" active={filter === 'all'} onPress={() => setFilter('all')} />
+      {/* §3 a11y: All / Unread are TABS (selected state); the list is the tab panel. */}
+      <View accessibilityRole="tablist" style={styles.filters}>
+        <FilterButton testID="notification-panel-tab-all" label="All" a11y="Show all notifications" active={filter === 'all'} onPress={() => setFilter('all')} />
         <FilterButton
+          testID="notification-panel-tab-unread"
           label={unreadLabel}
           a11y="Show unread notifications"
           active={filter === 'unread'}
@@ -71,8 +73,10 @@ export default function NotificationPanel() {
           </View>
         ) : (
           <>
-            {visible.map((item) => (
-              <NotificationItem key={item.id} item={item} tablet={tablet} />
+            {visible.map((item, index) => (
+              <View key={item.id} style={index > 0 && styles.rowDivider}>
+                <NotificationItem item={item} />
+              </View>
             ))}
             {hasMore ? (
               <View style={styles.moreRow}>
@@ -91,6 +95,7 @@ export default function NotificationPanel() {
       </ScrollView>
       <View style={styles.footer}>
         <Pressable
+          testID="notification-panel-view-all"
           accessibilityRole="link"
           onPress={() => {
             closePanel();
@@ -104,9 +109,9 @@ export default function NotificationPanel() {
   );
 }
 
-function FilterButton({ label, a11y, active, onPress }) {
+function FilterButton({ testID, label, a11y, active, onPress }) {
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={a11y} accessibilityState={{ selected: active }} onPress={onPress}>
+    <Pressable testID={testID} accessibilityRole="tab" accessibilityLabel={a11y} accessibilityState={{ selected: active }} onPress={onPress}>
       {({ pressed }) => (
         <Text style={[styles.filter, active ? styles.filterActive : pressed && styles.filterPressed]}>{label}</Text>
       )}
@@ -115,6 +120,10 @@ function FilterButton({ label, a11y, active, onPress }) {
 }
 
 const styles = StyleSheet.create({
+  rowDivider: {
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+  },
   panel: {
     position: 'absolute',
     borderRadius: radii.xxl,

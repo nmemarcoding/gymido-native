@@ -29,7 +29,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../api/exercisesApi', () => ({ listExercisesPage: jest.fn() }));
 jest.mock('../../shell/AppHeader', () => () => null);
-jest.mock('../../shell/DesktopSidebar', () => () => null);
+jest.mock('../../shell/TabletRail', () => () => null); // T-55 replaced DesktopSidebar (merge resolution)
 jest.mock('../../shell/ModeSwitch', () => () => null);
 jest.mock('../../../shared/components/BlurLayer', () => () => null);
 jest.mock('../../../shared/components/RemoteImage', () => () => null);

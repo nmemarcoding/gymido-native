@@ -1,0 +1,34 @@
+# v2 Phase 5 L (p5l): the bell panel's All / Unread tabs → "View All" → the
+# Notifications page (unread line; rows when any). Member QA account, starts
+# signed in on the tab root. Read-only: no row is tapped or deleted. IDs only.
+appId: com.gymido.app
+---
+- extendedWaitUntil:
+    visible:
+      id: "notification-bell"
+    timeout: 60000
+- tapOn:
+    id: "notification-bell"
+- extendedWaitUntil:
+    visible:
+      id: "notification-panel"
+    timeout: 15000
+- tapOn:
+    id: "notification-panel-tab-unread"
+- tapOn:
+    id: "notification-panel-tab-all"
+- tapOn:
+    id: "notification-panel-view-all"
+- extendedWaitUntil:
+    visible:
+      id: "notifications-screen"
+    timeout: 30000
+- assertVisible:
+    id: "notifications-unread"
+- runFlow:
+    when:
+      visible:
+        id: "notifications-list"
+    commands:
+      - assertVisible:
+          id: "notification-delete-.*"
