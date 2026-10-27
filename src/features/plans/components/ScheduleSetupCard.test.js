@@ -331,3 +331,45 @@ describe('§9 large text', () => {
 });
 
 const WEEKDAYS_IDS = [1, 2, 3, 4, 5, 6, 7];
+
+describe('Board geometry (phase2-open-items §3 B, TabletScheduleSetup)', () => {
+  it('tablet: card radius 32, padding 36; chips 84 tall, radius 22 (on and off); title 44/46', () => {
+    mockWidth = 834;
+    const tree = render();
+    expect(styleOf(host(tree.root, 'schedule-setup'))).toMatchObject({ borderRadius: 32, padding: 36, overflow: 'hidden' });
+    expect(styleOf(chip(tree, 1))).toMatchObject({ minHeight: 84, borderRadius: 22 });
+    expect(styleOf(chip(tree, 6))).toMatchObject({ minHeight: 84, borderRadius: 22 });
+    const title = tree.root.find((node) => node.type === 'Text' && node.props.accessibilityRole === 'header');
+    expect(StyleSheet.flatten(title.props.style)).toMatchObject({ fontSize: 44, lineHeight: 46 });
+  });
+
+  it('tablet pressed overlay follows the 22 radius (21 inside the 1 px edge)', () => {
+    mockWidth = 834;
+    const tree = render();
+    const node = chip(tree, 1);
+    const content = node.props.children({ pressed: true });
+    let overlay;
+    act(() => {
+      overlay = create(<View>{content}</View>);
+    });
+    const layer = overlay.root.find((n) => n.props.testID === 'schedule-setup-weekday-1-pressed');
+    expect(StyleSheet.flatten(layer.props.style).borderRadius).toBe(21);
+    act(() => overlay.unmount());
+  });
+
+  it('phone keeps the hero radius 28 and radius-lg 20 chips (UX: radius-lg on phone)', () => {
+    const tree = render();
+    expect(styleOf(host(tree.root, 'schedule-setup')).borderRadius).toBe(28);
+    expect(styleOf(chip(tree, 1)).borderRadius).toBe(20);
+  });
+
+  it.each([1, 2, 3.1])('tablet at fontScale %s: the radii stay; chips grow (minHeight, never a fixed height)', (scale) => {
+    mockWidth = 834;
+    mockFontScale = scale;
+    const tree = render();
+    expect(styleOf(host(tree.root, 'schedule-setup')).borderRadius).toBe(32);
+    const style = styleOf(chip(tree, 1));
+    expect(style).toMatchObject({ borderRadius: 22, minHeight: 84 });
+    expect(style.height).toBeUndefined();
+  });
+});

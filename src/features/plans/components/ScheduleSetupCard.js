@@ -192,7 +192,7 @@ function DayChip({ weekday, on, tablet, reflow, onPress }) {
             <View
               testID={`${testID}-pressed`}
               pointerEvents="none"
-              style={[StyleSheet.absoluteFill, styles.chipOverlay, on ? styles.chipOverlayInk : styles.chipOverlayWhite]}
+              style={[StyleSheet.absoluteFill, styles.chipOverlay, tablet && styles.chipOverlayTablet, on ? styles.chipOverlayInk : styles.chipOverlayWhite]}
             />
           ) : null}
           <Text
@@ -219,7 +219,9 @@ const styles = StyleSheet.create({
     borderColor: colors.goldLine,
     padding: spacing[5],
   },
+  // Tablet board: radius 32 (no token; the hero card's own is 28).
   cardTablet: {
+    borderRadius: spacing[8],
     padding: 36,
     gap: spacing[6],
   },
@@ -253,8 +255,10 @@ const styles = StyleSheet.create({
     ...typography.titleXl,
     color: colors.textPrimary,
   },
+  // Board: 44/46 (display-md is 44/44).
   titleTablet: {
     ...typography.displayMd,
+    lineHeight: 46,
     color: colors.textPrimary,
   },
   gold: {
@@ -313,8 +317,10 @@ const styles = StyleSheet.create({
   chipPhone: {
     minHeight: 64,
   },
+  // Tablet board: radius 22 (no token; phone keeps radius-lg 20).
   chipTablet: {
     minHeight: 84,
+    borderRadius: 22,
   },
   // ring-selected: a 2 px ground inset + a 1 px gold outer ring (phone).
   chipOn: {
@@ -337,6 +343,9 @@ const styles = StyleSheet.create({
   },
   chipOverlay: {
     borderRadius: radii.lg - 1,
+  },
+  chipOverlayTablet: {
+    borderRadius: 21,
   },
   chipOverlayInk: {
     backgroundColor: colors.pressOverlayInk,

@@ -439,3 +439,33 @@ describe('§9 large text', () => {
     expect(flat(host(tree.root, 'profile-weights-pair').props.style).flexDirection).toBe('column');
   });
 });
+
+describe('Board geometry (phase2-open-items §3 B): the title', () => {
+  const titleOf = (tree) => tree.root.find((node) => node.type === 'Text' && node.props.accessibilityRole === 'header');
+
+  it('phone: 48/46 700 −0.055em (CreateProfile board)', () => {
+    const style = flat(titleOf(render()).props.style);
+    expect(style).toMatchObject({ fontSize: 48, lineHeight: 46, letterSpacing: -2.64, fontFamily: 'Geist-Bold' });
+    expect(style.fontWeight).toBeUndefined();
+  });
+
+  it('tablet: 60/60 700 −0.055em (TabletCreateProfile board)', () => {
+    mockWidth = 834;
+    const style = flat(titleOf(render()).props.style);
+    expect(style).toMatchObject({ fontSize: 60, lineHeight: 60, letterSpacing: -3.3, fontFamily: 'Geist-Bold' });
+    expect(style.fontWeight).toBeUndefined();
+  });
+
+  it.each([
+    ['phone', 390, 1],
+    ['phone', 390, 3.1],
+    ['tablet', 834, 1],
+    ['tablet', 834, 3.1],
+  ])('%s at fontScale %s: capped 1.3, 3 lines, shrinks a long word; no fixed height', (_, width, scale) => {
+    mockWidth = width;
+    mockFontScale = scale;
+    const title = titleOf(render());
+    expect(title.props).toMatchObject({ maxFontSizeMultiplier: 1.3, numberOfLines: 3, adjustsFontSizeToFit: true, minimumFontScale: 0.7 });
+    expect(flat(title.props.style).height).toBeUndefined();
+  });
+});
