@@ -21,6 +21,8 @@
 # Usage: e2e/scripts/ios-safe-sign-in.sh <simulator-udid> <ACCOUNT>
 #   ACCOUNT is the env-file prefix, e.g. QA_MEMBER → QA_MEMBER_EMAIL / _PASSWORD
 # Requires: Metro running, the dev client installed, .env.e2e.local present.
+# Refuses (exit 3) unless the installed app's API is a local test API
+# (e2e/scripts/apiGuard.js).
 # Never take screenshots while the form is filled.
 
 set -uo pipefail
@@ -36,6 +38,8 @@ MARK="$WORK/.mark"
 touch "$MARK"
 
 [ -f "$ENV_FILE" ] || { echo "missing $ENV_FILE" >&2; exit 2; }
+# Prod safety: never type credentials into an app aimed at a non-test API.
+node "$ROOT/e2e/scripts/apiGuard.js" "$UDID" || { rm -rf "$WORK"; exit 3; }
 value() { grep -E "^$1=" "$ENV_FILE" | head -1 | cut -d= -f2-; }
 MAESTRO_LOGIN_EMAIL="$(value "${ACCOUNT}_EMAIL")"
 MAESTRO_LOGIN_PASSWORD="$(value "${ACCOUNT}_PASSWORD")"

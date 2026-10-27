@@ -13,6 +13,12 @@ UI smoke tests for the Login & Sign Up flow, run against the dev client on an iO
 
 ## Running
 
+**Prod safety first.** Run flows through `e2e/scripts/maestro-guarded.sh <device> <maestro test args…>`.
+It refuses (exit 3) unless the installed app, and Metro when `GYMIDO_METRO_PORT` is set,
+uses a local test API: `localhost`, `127.0.0.1` or `10.0.2.2` on `:8080` (test stack) or
+`:8091` (owner preview), both on gymido_testdb. Check a device alone with
+`node e2e/scripts/apiGuard.js <device> [--metro <port>]`.
+
 ```bash
 export PATH="$HOME/.maestro/bin:$PATH"
 
