@@ -18,6 +18,7 @@ import {
   heroDayTitle,
   heroImageUrl,
   recentWorkoutMeta,
+  isSessionOpen,
   todayCard,
   todayDateLabel,
   todayEmptyStats,
@@ -114,7 +115,7 @@ function Home() {
     const current = getCurrentWorkout();
     verifySessionState({ fetchCurrent: () => current });
     const sessionLoad = current.then(
-      (session) => mounted.current && setSessionOpen(Boolean(session)),
+      (session) => mounted.current && setSessionOpen(isSessionOpen(session)),
       () => {}
     );
     Promise.allSettled([getDashboard(), setupLoad, sessionLoad]).then(([dashboard]) => {

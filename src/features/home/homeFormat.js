@@ -26,6 +26,12 @@ export function greetingLine(profile, email) {
 // training days picked (days > 0 and no schedule); it wins first. T-63:
 // `sessionOpen` (GET /workouts/current gave a session) relabels the primary
 // "Resume workout" in every state; the pill and headline stay.
+// T-63 (web parity): GET /workouts/current's session counts as open only
+// while in progress; a missing status counts as in progress.
+export function isSessionOpen(session) {
+  return Boolean(session) && (session.status ?? 'in_progress') === 'in_progress';
+}
+
 export function todayCard(dashboard, setupDayCount = null, sessionOpen = false) {
   const today = dashboard?.today_status;
   const missed = dashboard?.missed_this_week ?? [];

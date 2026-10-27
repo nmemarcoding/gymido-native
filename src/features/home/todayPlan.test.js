@@ -27,7 +27,7 @@ import ProgressRing from '../workout/components/ProgressRing';
 import { getCurrentWeek, getDashboard } from './api/homeApi';
 import { getCurrentPlan, listPlanDays } from '../plans/api/libraryApi';
 import HomeScreen from './HomeScreen';
-import { exerciseCountText, heroDayTitle, todayCard, todayExerciseCount, heroImageUrl, memberVolume, weekRing, weekStrip, workoutInitials } from './homeFormat';
+import { exerciseCountText, heroDayTitle, isSessionOpen, todayCard, todayExerciseCount, heroImageUrl, memberVolume, weekRing, weekStrip, workoutInitials } from './homeFormat';
 import { TodayHero } from './TodayPlanView';
 
 const { getCurrentWorkout } = jest.requireMock('../workout/api/workoutApi');
@@ -557,6 +557,16 @@ describe('§9 large text (fontScale 1 / 2 / 3.1)', () => {
 // RN-SPEC-home H1.3 dated change (27 Oct 2026, owner T-63): "Resume workout"
 // while GET /workouts/current returns a session, in every state; fail-soft.
 describe('T-63 "Resume workout" while a session is open', () => {
+  // Reviewer LOW (exact parity with web): open = (status ?? 'in_progress') === 'in_progress'.
+  it('a session is open only while in progress (a missing status counts as in progress)', () => {
+    expect(isSessionOpen({ id: 1, status: 'in_progress' })).toBe(true);
+    expect(isSessionOpen({ id: 1 })).toBe(true);
+    expect(isSessionOpen({ id: 1, status: 'completed' })).toBe(false);
+    expect(isSessionOpen({ id: 1, status: 'abandoned' })).toBe(false);
+    expect(isSessionOpen(null)).toBe(false);
+    expect(isSessionOpen(undefined)).toBe(false);
+  });
+
   const SESSION = { id: 9, status: 'in_progress' };
   const SETUP_PLAN = { enrollment: { plan: { id: 4, name: 'Upper / Lower' } }, schedule: [] };
   const STATES = [
