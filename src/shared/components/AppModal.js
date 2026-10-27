@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { Children, useEffect, useRef } from 'react';
 import {
   Animated,
   Easing,
@@ -15,25 +15,44 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import { breakpoints, colors, motion, radii, shadows } from '../theme/tokens';
+import { breakpoints, colors, motion, radii, shadows, spacing, typography } from '../theme/tokens';
 import BlurLayer from './BlurLayer';
 
-const EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
-// Design system v1 P10: the workout dialogs pop in (ease-pop, 260 ms).
-const EASE_POP = Easing.bezier(0.34, 1.56, 0.64, 1);
-const MAX_WIDTHS = { md: 448, lg: 512, '2xl': 672 };
+// RN-SPEC-v2-foundation §6 + UX's dialog ruling (26 Oct).
+// Phone (< 768): every dialog is a bottom sheet that slides up 300 ms
+// ease-spring (no slide under reduced motion). Tablet (≥ 768): a centred card
+// over the scrim; `entrance="pop"` pops it in with ease-pop.
+const EASE_SPRING = Easing.bezier(...motion.easeSpring);
+const EASE_POP = Easing.bezier(...motion.easePop);
+// v1's dialog pop length (RuntimeOverlays POP), kept.
+const POP_MS = 260;
+// Tablet card widths (UX ruling: confirm 448, forms/pickers/sheets 520–640,
+// rest 600). The v1 size prop maps to the closest one:
+//   md  (v1 448) → 448  confirms, WeightLogModal, DeleteAccountDialog
+//   lg  (v1 512) → 560  forms: AddDay, EditPlanDetails, ChangePassword, InviteClient (boards 540–560)
+//   2xl (v1 672) → 600  AddSet, WorkoutDetail, WeightHistory (boards 560–580; "rest" 600)
+export const TABLET_WIDTHS = Object.freeze({ md: 448, lg: 560, '2xl': 600 });
+const TABLET_REST_WIDTH = 600;
+const TABLET_MARGIN = spacing[6];
+const SHEET_TOP_GAP = spacing[4];
+
+export function isTabletWidth(width) {
+  return width >= breakpoints.md;
+}
 
 // Trainer plans spec §A3.1. RN <Modal> gives the paired scroll lock for free;
 // Android back and the scrim both call onClose.
 export default function AppModal({ isOpen, onClose, title, description, size = 'lg', footer, children, testID, entrance = 'slide', compact = false }) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const wide = width >= breakpoints.sm;
+  const tablet = isTabletWidth(width);
   const reducedMotion = useReducedMotion();
   const keyboardHeight = useKeyboardHeight();
-  // An open keyboard replaces the bottom inset so the card stays above it.
-  const bottomInset = keyboardHeight > 0 ? keyboardHeight : insets.bottom;
+  const keyboardOpen = keyboardHeight > 0;
+  // An open keyboard replaces the bottom inset so the sheet / card stays above it.
+  const bottomInset = keyboardOpen ? keyboardHeight : insets.bottom;
   const progress = useRef(new Animated.Value(0)).current;
+  const pop = tablet && entrance === 'pop';
 
   useEffect(() => {
     if (!isOpen) {
@@ -44,170 +63,190 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
       progress.setValue(1);
       return undefined;
     }
-    const pop = entrance === 'pop';
     const animation = Animated.timing(progress, {
       toValue: 1,
-      duration: pop ? 260 : motion.fadeMs,
-      easing: pop ? EASE_POP : EASE_OUT,
+      duration: pop ? POP_MS : motion.durationSlow,
+      easing: pop ? EASE_POP : EASE_SPRING,
       useNativeDriver: true,
     });
     animation.start();
     return () => animation.stop();
-  }, [isOpen, progress, reducedMotion, entrance]);
+  }, [isOpen, progress, reducedMotion, pop]);
 
-  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [entrance === 'pop' ? 0 : motion.cardOffsetY, 0] });
-  const scale = progress.interpolate({ inputRange: [0, 1], outputRange: [entrance === 'pop' ? 0.95 : 1, 1] });
+  let motionStyle;
+  if (!tablet) {
+    // The sheet slides up from below the window; it does not fade.
+    motionStyle = { transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [height, 0] }) }] };
+  } else if (pop) {
+    motionStyle = { opacity: progress, transform: [{ scale: progress.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] }) }] };
+  } else {
+    motionStyle = {
+      opacity: progress,
+      transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [motion.cardOffsetY, 0] }) }],
+    };
+  }
+
+  const frame = tablet
+    ? {
+        scrim: { paddingTop: TABLET_MARGIN + insets.top, paddingBottom: TABLET_MARGIN + bottomInset },
+        card: {
+          maxWidth: TABLET_WIDTHS[size] ?? TABLET_REST_WIDTH,
+          maxHeight: height - 2 * TABLET_MARGIN - insets.top - bottomInset,
+        },
+      }
+    : {
+        // C10 + §6 [O2]: the sheet hugs the bottom edge and pads the safe
+        // area itself; an open keyboard lifts the whole sheet instead.
+        scrim: { paddingTop: SHEET_TOP_GAP + insets.top, paddingBottom: keyboardOpen ? keyboardHeight : 0 },
+        card: {
+          paddingBottom: spacing[6] + (keyboardOpen ? 0 : insets.bottom),
+          maxHeight: height - SHEET_TOP_GAP - insets.top - (keyboardOpen ? keyboardHeight : 0),
+        },
+      };
+
+  const hasChildren = Children.toArray(children).length > 0;
 
   return (
     <Modal transparent visible={isOpen} animationType="none" onRequestClose={onClose} statusBarTranslucent>
-      {/* C10: the safe-area insets pad the scrim and come off the max height. */}
-      <View
-        style={[
-          styles.scrim,
-          wide ? styles.scrimWide : styles.scrimPhone,
-          { paddingTop: (wide ? 24 : 16) + insets.top, paddingBottom: (wide ? 24 : 16) + bottomInset },
-        ]}
-      >
+      <View testID="app-modal-overlay" style={[styles.scrim, tablet ? styles.scrimTablet : styles.scrimPhone, frame.scrim]}>
         <BlurLayer blurPx={8} overApp />
-        <Pressable style={[styles.inset, styles.scrimColor]} onPress={onClose} accessibilityLabel="Close" />
+        <Pressable style={[StyleSheet.absoluteFill, styles.scrimColor]} onPress={onClose} accessibilityLabel="Close" />
         <Animated.View
           testID={testID}
           accessibilityViewIsModal
           accessibilityRole="none"
           accessibilityLabel={title}
-          style={[
-            styles.card,
-            wide ? styles.cardWide : styles.cardPhone,
-            // §A3.1 (dated note): also clear the safe-area top and bottom.
-            { maxWidth: MAX_WIDTHS[size], maxHeight: height - (wide ? 64 : 48) - insets.top - bottomInset },
-            { opacity: progress, transform: [{ translateY }, { scale }] },
-          ]}
+          style={[styles.card, tablet ? styles.cardTablet : styles.cardPhone, frame.card, motionStyle]}
         >
+          {tablet ? null : (
+            <View
+              testID="app-modal-grab-handle"
+              style={styles.grabHandle}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            />
+          )}
           <ScrollView
             style={styles.scroll}
-            contentContainerStyle={styles.scrollContent}
             overScrollMode="never"
             bounces={false}
             keyboardShouldPersistTaps="handled"
           >
-            <Text accessibilityRole="header" style={[styles.title, wide && styles.titleWide]}>
+            <Text accessibilityRole="header" style={tablet ? styles.titleTablet : styles.title}>
               {title}
             </Text>
-            {description ? <Text style={[styles.description, wide && styles.descriptionWide, compact && styles.descriptionCompact]}>{description}</Text> : null}
-            <View style={[styles.children, wide && styles.childrenWide]}>{children}</View>
+            {description ? (
+              <Text style={[styles.description, tablet && !compact && styles.descriptionTablet, tablet && styles.descriptionTabletGap]}>
+                {description}
+              </Text>
+            ) : null}
+            {hasChildren ? <View style={tablet ? styles.childrenTablet : styles.children}>{children}</View> : null}
           </ScrollView>
-          {footer ? <View style={[styles.footer, wide && styles.footerWide]}>{footer}</View> : null}
+          {footer ? <View style={tablet ? styles.footerTablet : styles.footer}>{footer}</View> : null}
         </Animated.View>
       </View>
     </Modal>
   );
 }
 
-// Footer row of the plan modals: Cancel + action; column-reverse on phones.
+// Footer actions of the dialogs: children are [Cancel, verb]. Phone: stacked
+// full width, the verb on top (column-reverse). Tablet: a row at the right,
+// Cancel left, the verb right (§6).
 export function ModalActions({ children }) {
   const { width } = useWindowDimensions();
-  const wide = width >= breakpoints.sm;
-  return <View style={wide ? styles.actionsWide : styles.actionsPhone}>{children}</View>;
+  return <View style={isTabletWidth(width) ? styles.actionsTablet : styles.actionsPhone}>{children}</View>;
 }
 
 const styles = StyleSheet.create({
   scrim: {
     flex: 1,
+    alignItems: 'center',
   },
   scrimColor: {
     backgroundColor: colors.scrim,
   },
   scrimPhone: {
     justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 12,
   },
-  scrimWide: {
+  scrimTablet: {
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 24,
-    paddingHorizontal: 16,
-  },
-  inset: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
+    paddingHorizontal: TABLET_MARGIN,
   },
   card: {
     width: '100%',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    boxShadow: shadows.modal,
+    backgroundColor: colors.surfaceRaised,
+    borderColor: colors.hairlineStrong,
+    boxShadow: shadows.float,
     overflow: 'hidden',
-    gap: 24,
   },
+  // §6 bottom sheet: radius 28 28 0 0, 1 px top hairline, padding 12 22 24.
   cardPhone: {
-    borderRadius: radii.lg,
-    padding: 24,
+    borderTopLeftRadius: radii.xxl,
+    borderTopRightRadius: radii.xxl,
+    borderTopWidth: 1,
+    paddingTop: spacing[3],
+    paddingHorizontal: spacing['5_5'],
   },
-  cardWide: {
+  // §6 modal ≥ 768: radius 28, 1 px hairline all round.
+  cardTablet: {
     borderRadius: radii.xxl,
-    padding: 32,
+    borderWidth: 1,
+    padding: spacing[8],
+  },
+  grabHandle: {
+    alignSelf: 'center',
+    width: 36,
+    height: 5,
+    borderRadius: radii.full,
+    backgroundColor: colors.grabHandle,
+    marginBottom: spacing[4],
   },
   scroll: {
     flexGrow: 0,
     flexShrink: 1,
   },
-  scrollContent: {
-    gap: 16,
-  },
   title: {
-    fontSize: 24,
-    lineHeight: 32,
-    fontWeight: '700',
-    letterSpacing: -0.6,
+    ...typography.titleSm,
     color: colors.textPrimary,
   },
-  titleWide: {
-    fontSize: 30,
-    lineHeight: 36,
-    letterSpacing: -0.75,
+  titleTablet: {
+    ...typography.titleLg,
+    color: colors.textPrimary,
   },
   description: {
-    fontSize: 16,
-    lineHeight: 26,
+    ...typography.body,
     color: colors.textSecondary,
+    marginTop: spacing['1_5'],
   },
-  descriptionWide: {
-    fontSize: 18,
-    lineHeight: 29,
+  descriptionTablet: {
+    ...typography.bodyLg,
   },
-  // Design system v1: the workout dialogs' body is 14/24 at every width.
-  descriptionCompact: {
-    fontSize: 14,
-    lineHeight: 24,
+  descriptionTabletGap: {
+    marginTop: spacing['2_5'],
   },
   children: {
-    gap: 12,
+    gap: spacing[3],
+    marginTop: spacing[4],
   },
-  childrenWide: {
-    gap: 16,
+  childrenTablet: {
+    gap: spacing[4],
+    marginTop: spacing[6],
   },
   footer: {
     flexShrink: 0,
-    borderTopWidth: 1,
-    borderTopColor: colors.gray200,
-    paddingTop: 16,
+    paddingTop: spacing[5],
   },
-  footerWide: {
-    paddingTop: 24,
+  footerTablet: {
+    flexShrink: 0,
+    paddingTop: spacing[7],
   },
   actionsPhone: {
     flexDirection: 'column-reverse',
-    gap: 12,
+    gap: spacing[2],
   },
-  actionsWide: {
+  actionsTablet: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 12,
+    gap: spacing[3],
   },
 });
