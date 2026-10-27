@@ -20,7 +20,8 @@
 #
 # Usage: e2e/scripts/ios-safe-sign-in.sh <simulator-udid> <ACCOUNT>
 #   ACCOUNT is the env-file prefix, e.g. QA_MEMBER → QA_MEMBER_EMAIL / _PASSWORD
-# Requires: Metro running, the dev client installed, .env.e2e.local present.
+# Requires: .env.e2e.local, and either a guarded Release build (no Metro) or
+# the dev client with Metro running.
 # Refuses (exit 3) unless the app's runtime API is a local test API
 # (e2e/scripts/apiGuard.js; a dev client is checked against Metro).
 # Never take screenshots while the form is filled.
@@ -40,7 +41,10 @@ touch "$MARK"
 [ -f "$ENV_FILE" ] || { echo "missing $ENV_FILE" >&2; exit 2; }
 # Prod safety: never type credentials into an app aimed at a non-test API.
 # A dev client is checked against Metro (default :8081, or GYMIDO_METRO_PORT).
-node "$ROOT/e2e/scripts/apiGuard.js" "$UDID" ${GYMIDO_METRO_PORT:+--metro "$GYMIDO_METRO_PORT"} || { rm -rf "$WORK"; exit 3; }
+GUARD_OUT="$(node "$ROOT/e2e/scripts/apiGuard.js" "$UDID" ${GYMIDO_METRO_PORT:+--metro "$GYMIDO_METRO_PORT"})" || { rm -rf "$WORK"; exit 3; }
+printf '%s\n' "$GUARD_OUT"
+# Release build → the launch subflow uses launchApp, not the dev-client link.
+if printf '%s' "$GUARD_OUT" | grep -q 'Release build'; then export MAESTRO_GYMIDO_RELEASE=true; else export MAESTRO_GYMIDO_RELEASE=false; fi
 value() { grep -E "^$1=" "$ENV_FILE" | head -1 | cut -d= -f2-; }
 MAESTRO_LOGIN_EMAIL="$(value "${ACCOUNT}_EMAIL")"
 MAESTRO_LOGIN_PASSWORD="$(value "${ACCOUNT}_PASSWORD")"

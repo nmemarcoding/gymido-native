@@ -37,5 +37,8 @@ esac
 FLAGS=()
 [ -n "${GYMIDO_METRO_PORT:-}" ] && FLAGS=(--metro "$GYMIDO_METRO_PORT")
 [ "${GYMIDO_NO_METRO:-0}" = 1 ] && FLAGS=(--no-metro)
-node "$ROOT/e2e/scripts/apiGuard.js" "$DEVICE" ${FLAGS[@]+"${FLAGS[@]}"} || exit 3
+GUARD_OUT="$(node "$ROOT/e2e/scripts/apiGuard.js" "$DEVICE" ${FLAGS[@]+"${FLAGS[@]}"})" || exit 3
+printf '%s\n' "$GUARD_OUT"
+# Release build → the launch subflow uses launchApp, not the dev-client link.
+if printf '%s' "$GUARD_OUT" | grep -q 'Release build'; then export MAESTRO_GYMIDO_RELEASE=true; else export MAESTRO_GYMIDO_RELEASE=false; fi
 exec maestro --device "$DEVICE" test "$@"
