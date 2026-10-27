@@ -41,3 +41,10 @@ export async function createSchedule(enrollmentId, items) {
 export async function replaceSchedule(enrollmentId, items) {
   return data(await apiClient.put(`/my-plans/${enrollmentId}/schedule`, { items }));
 }
+
+// v2 Phase 4 §1 (approved #9): the enrolled week, Monday first:
+// `{ week: [{ weekday, is_workout_day, plan_day?, date?, status? } × 7] }`
+// (BE #9 adds `date` + `status` ∈ done | today | upcoming | missed | rest).
+export async function getCurrentWeek() {
+  return data(await apiClient.get('/my-plans/current/week')).week ?? [];
+}

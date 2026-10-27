@@ -1,0 +1,48 @@
+# Phase 4 §1 (H): Plans → a catalog plan → Plan detail → back to Plans.
+# READ-ONLY: never taps Start workout plan / Update schedule / Copy.
+# Starts signed in on a tab root (the lead's safe runner signs in first).
+# IDs only, no coordinates, no credentials, no screenshots.
+appId: com.gymido.app
+---
+- tapOn:
+    id: "tab-Plans"
+- extendedWaitUntil:
+    visible:
+      id: "plans-library-screen"
+    timeout: 30000
+- extendedWaitUntil:
+    visible:
+      id: "plans-entry-tiles"
+    timeout: 30000
+- assertVisible:
+    id: "my-plans-entry"
+- scrollUntilVisible:
+    element:
+      id: "plans-card-.*"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "plans-card-.*"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: "plan-detail-back"
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: "plan-schedule-card"
+    direction: DOWN
+    timeout: 20000
+- assertVisible:
+    id: "plan-activate"
+- scrollUntilVisible:
+    element:
+      id: "plan-detail-back"
+    direction: UP
+    timeout: 20000
+- tapOn:
+    id: "plan-detail-back"
+- extendedWaitUntil:
+    visible:
+      id: "plans-entry-tiles"
+    timeout: 30000

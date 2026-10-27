@@ -80,3 +80,46 @@ describe('WeekdayGrid', () => {
     expect(texts(render({ selected: [] }), 'Selected: None yet')).toHaveLength(1);
   });
 });
+
+describe('WeekdayGrid detail variant (UX H Plan detail)', () => {
+  const { StyleSheet: SS } = require('react-native');
+  const { colors: c, radii: r } = require('../../../shared/theme/tokens');
+  function renderDetail(selected = [1]) {
+    let tree;
+    act(() => {
+      tree = create(<WeekdayGrid selected={selected} onToggle={() => {}} testIDPrefix="day" variant="detail" />);
+    });
+    return tree;
+  }
+  const chipOf = (tree, id) => tree.root.findAll((node) => node.props.testID === `day-${id}` && typeof node.props.style === 'function')[0];
+
+  it('48 tall, no 52 cap, gap 6, hit area into the gap; idle fill-glass; selected gold', () => {
+    const tree = renderDetail();
+    const idle = SS.flatten(chipOf(tree, 2).props.style({ pressed: false }));
+    expect(idle).toEqual(expect.objectContaining({ minHeight: 48, maxWidth: undefined, borderRadius: r.md, backgroundColor: c.fillGlass }));
+    expect(SS.flatten(chipOf(tree, 1).props.style({ pressed: false })).backgroundColor).toBe(c.gold);
+    expect(chipOf(tree, 2).props.hitSlop).toEqual({ top: 0, bottom: 0, left: 3, right: 3 });
+    const grid = tree.root.find((node) => node.props.testID === 'day-grid' && typeof node.type === 'string');
+    expect(SS.flatten(grid.props.style).gap).toBe(6);
+  });
+
+  it('labels 14/600 (selected on-gold, idle text-strong-2), the ✓ at 10, "Selected:" 13 muted', () => {
+    const tree = renderDetail();
+    const labels = tree.root.findAll((node) => node.type === 'Text' && (node.props.children === 'Mon' || node.props.children === 'Tue'));
+    const [mon, tue] = labels.map((node) => SS.flatten(node.props.style));
+    expect([mon.fontSize, mon.color]).toEqual([14, c.onGold]);
+    expect([tue.fontSize, tue.color]).toEqual([14, c.textStrong2]);
+    const check = tree.root.find((node) => node.type === 'Text' && node.props.children === '✓');
+    expect(SS.flatten(check.props.style).fontSize).toBe(10);
+    const selected = tree.root.find((node) => node.type === 'Text' && node.props.children === 'Selected: Mon');
+    expect(SS.flatten(selected.props.style)).toEqual(expect.objectContaining({ fontSize: 13, color: c.textMuted }));
+  });
+
+  it('the default variant is unchanged (52 cap)', () => {
+    let tree;
+    act(() => {
+      tree = create(<WeekdayGrid selected={[]} onToggle={() => {}} testIDPrefix="day" />);
+    });
+    expect(SS.flatten(chipOf(tree, 1).props.style({ pressed: false })).maxWidth).toBe(52);
+  });
+});

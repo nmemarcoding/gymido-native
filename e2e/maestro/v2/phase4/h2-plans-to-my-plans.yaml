@@ -1,0 +1,33 @@
+# Phase 4 §1 (H): Plans → My plans (the entry tile) → "← All plans" back.
+# READ-ONLY: never taps Create a plan / Build me a plan / Open.
+# Starts signed in on a tab root. IDs only.
+appId: com.gymido.app
+---
+- tapOn:
+    id: "tab-Plans"
+- extendedWaitUntil:
+    visible:
+      id: "my-plans-entry"
+    timeout: 30000
+- tapOn:
+    id: "my-plans-entry"
+- extendedWaitUntil:
+    visible:
+      id: "my-plans-all-plans"
+    timeout: 30000
+# Either the list/empty state with the actions, or the on-hold box.
+- runFlow:
+    when:
+      notVisible:
+        id: "my-plans-on-hold"
+    commands:
+      - extendedWaitUntil:
+          visible:
+            id: "my-plans-create"
+          timeout: 30000
+- tapOn:
+    id: "my-plans-all-plans"
+- extendedWaitUntil:
+    visible:
+      id: "plans-entry-tiles"
+    timeout: 30000
