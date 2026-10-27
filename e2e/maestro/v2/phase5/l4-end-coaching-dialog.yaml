@@ -1,0 +1,40 @@
+# v2 Phase 5 L (p5l): My trainer → End coaching → the confirm dialog → Cancel.
+# Member QA account WITH an active trainer (skipped silently otherwise),
+# starts signed in on the tab root. Never confirms (no DELETE /my-trainer).
+appId: com.gymido.app
+---
+- extendedWaitUntil:
+    visible:
+      id: "tab-Profile"
+    timeout: 60000
+- tapOn:
+    id: "tab-Profile"
+- extendedWaitUntil:
+    visible:
+      id: "profile-coaching-card"
+    timeout: 30000
+- tapOn:
+    id: "profile-coaching-card"
+- extendedWaitUntil:
+    visible:
+      id: "trainer-hub-screen"
+    timeout: 30000
+- runFlow:
+    when:
+      visible:
+        id: "trainer-hub-end"
+    commands:
+      - tapOn:
+          id: "trainer-hub-end"
+      - extendedWaitUntil:
+          visible:
+            id: "trainer-hub-end-dialog"
+          timeout: 10000
+      - assertVisible:
+          id: "trainer-hub-end-dialog-confirm"
+      - tapOn:
+          id: "trainer-hub-end-dialog-cancel"
+      - extendedWaitUntil:
+          notVisible:
+            id: "trainer-hub-end-dialog"
+          timeout: 10000

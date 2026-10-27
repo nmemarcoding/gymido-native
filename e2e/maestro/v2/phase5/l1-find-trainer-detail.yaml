@@ -1,0 +1,76 @@
+# v2 Phase 5 L (p5l): Profile → Coaching → Find a trainer → Trainer detail →
+# "← All trainers". Member QA account, starts signed in on the tab root (the
+# lead's safe runner signs in). Read-only: the request dialog is opened and
+# CANCELLED, never sent. IDs only.
+appId: com.gymido.app
+---
+- extendedWaitUntil:
+    visible:
+      id: "tab-Profile"
+    timeout: 60000
+- tapOn:
+    id: "tab-Profile"
+- extendedWaitUntil:
+    visible:
+      id: "profile-coaching-card"
+    timeout: 30000
+- tapOn:
+    id: "profile-coaching-card"
+- extendedWaitUntil:
+    visible:
+      id: "trainer-hub-screen"
+    timeout: 30000
+# "Browse trainers" shows for a member WITHOUT a trainer (the QA member
+# account today); with a trainer this flow stops here by design.
+- tapOn:
+    id: "trainer-hub-browse"
+- extendedWaitUntil:
+    visible:
+      id: "trainers-screen"
+    timeout: 30000
+- assertVisible:
+    id: "trainers-heading"
+- assertVisible:
+    id: "trainers-search"
+- extendedWaitUntil:
+    visible:
+      id: "trainers-card-.*"
+    timeout: 30000
+- tapOn:
+    id: "trainers-card-.*"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: "trainer-detail-screen"
+    timeout: 30000
+- assertVisible:
+    id: "trainer-detail-all"
+- extendedWaitUntil:
+    visible:
+      id: "trainer-detail-card"
+    timeout: 30000
+- assertVisible:
+    id: "trainer-detail-about"
+- runFlow:
+    when:
+      visible:
+        id: "trainer-detail-ask"
+    commands:
+      - tapOn:
+          id: "trainer-detail-ask"
+      - extendedWaitUntil:
+          visible:
+            id: "trainer-detail-dialog"
+          timeout: 10000
+      - tapOn:
+          id: "trainer-detail-dialog-cancel"
+      - extendedWaitUntil:
+          notVisible:
+            id: "trainer-detail-dialog"
+          timeout: 10000
+- tapOn:
+    id: "trainer-detail-all"
+- extendedWaitUntil:
+    visible:
+      id: "trainers-screen"
+    timeout: 30000

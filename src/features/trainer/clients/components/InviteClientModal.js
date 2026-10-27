@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Platform, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 import { getServerMessage, getStatus } from '../../../../shared/api/apiError';
-import AppModal, { ModalActions } from '../../../../shared/components/AppModal';
+import AppModal, { ModalActions, isTabletWidth } from '../../../../shared/components/AppModal';
 import EmptyState from '../../../../shared/components/EmptyState';
 import ErrorAlert from '../../../../shared/components/ErrorAlert';
 import FormField from '../../../../shared/components/FormField';
+import { CAP_BODY, CAP_PILL } from '../../../../shared/components/largeText';
 import PillButton from '../../../../shared/components/PillButton';
 import Spinner from '../../../../shared/components/Spinner';
 import { ToastTone, addToast } from '../../../../shared/components/toastStore';
-import { colors, motion, radii } from '../../../../shared/theme/tokens';
+import { colors, font, motion, radii, spacing } from '../../../../shared/theme/tokens';
 import { inviteClient, searchMembers } from '../api/clientsApi';
 import { isEmailShaped } from '../clientFormat';
 
@@ -19,7 +21,9 @@ const SEARCHING_STATUS = 'Searching…';
 // C1a (trainer clients spec §C3.3, exact-email invite T-32 M1). Lifecycle
 // pairing: everything resets on the open → closed edge; the debounce timer is
 // created per keystroke and cancelled by the next keystroke, Enter or unmount.
+// v2 (UX M §Invite client (4.1.0) / §Tablet): look only; behaviour T-32 M1.
 export default function InviteClientModal({ isOpen, onClose, onInvited }) {
+  const tablet = isTabletWidth(useWindowDimensions().width);
   const [input, setInput] = useState('');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -129,13 +133,15 @@ export default function InviteClientModal({ isOpen, onClose, onInvited }) {
       testID="invite-client-modal"
       isOpen={isOpen}
       onClose={onClose}
+      // KIT NEED (p5l): AppModal `eyebrow` (tablet "Clients", 12/600 gold).
+      eyebrow={tablet ? 'Clients' : undefined}
       title="Invite a client"
       description="Enter your client's full email address to invite them."
       size="lg"
       footer={
         // Full width on phone and tablet (the board's block Done).
         <ModalActions fill>
-          <PillButton testID="invite-done" title="Done" variant="secondary" fullWidth onPress={onClose} />
+          <PillButton testID="invite-done" title="Done" variant="secondary" size={tablet ? 'cta' : 'default'} fullWidth onPress={onClose} />
         </ModalActions>
       }
     >
@@ -143,6 +149,10 @@ export default function InviteClientModal({ isOpen, onClose, onInvited }) {
         <FormField
           testID="invite-search"
           label="Client's email"
+          labelStyle={styles.label}
+          // UX M: the drawn well fill + a 0.16 edge, radius 16 = the kit `well` field
+          // (surfaceWell, hairlineStrong edge; values reported).
+          variant="well"
           helperText={liveShaped ? undefined : 'Enter their full email address.'}
           keyboardType="email-address"
           textContentType="emailAddress"
@@ -155,7 +165,7 @@ export default function InviteClientModal({ isOpen, onClose, onInvited }) {
           onSubmitEditing={onSubmit}
           trailing={
             searching ? (
-              <Spinner size={18} thickness={2} color={colors.brand700} track={colors.border} reducedMotionLoopMs={motion.spinnerReducedLoopMs} />
+              <Spinner size={18} thickness={2} color={colors.gold} track={colors.hairlineButton} reducedMotionLoopMs={motion.spinnerReducedLoopMs} />
             ) : null
           }
         />
@@ -189,19 +199,28 @@ export default function InviteClientModal({ isOpen, onClose, onInvited }) {
       );
     }
     return (
-      <View style={styles.list}>
+      <View testID="invite-results" style={[styles.list, tablet && styles.listTablet]}>
         {results.map((user, index) => (
-          <View key={user.id} style={[styles.row, index > 0 && styles.divider]}>
-            <Text numberOfLines={1} style={styles.email}>
+          <View key={user.id} style={[styles.row, tablet && styles.rowTablet, index > 0 && styles.divider]}>
+            <Text {...CAP_BODY} numberOfLines={1} style={[styles.email, tablet && styles.emailTablet]}>
               {user.email}
             </Text>
             {invitedIds.has(user.id) ? (
-              <Text style={styles.invited}>Invited</Text>
+              <View testID={`invite-invited-${user.id}`} style={styles.invitedRow}>
+                <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                  <Path d="M5 12l5 5L20 7" stroke={colors.success} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+                <Text {...CAP_PILL} style={styles.invited}>
+                  Invited
+                </Text>
+              </View>
             ) : (
               <PillButton
                 testID={`invite-user-${user.id}`}
                 title="Invite"
                 variant="secondary"
+                size="compact"
+                accessibilityLabel={`Invite ${user.email}`}
                 loading={invitingId === user.id}
                 disabled={invitingId !== null}
                 onPress={() => invite(user)}
@@ -216,7 +235,13 @@ export default function InviteClientModal({ isOpen, onClose, onInvited }) {
 
 const styles = StyleSheet.create({
   body: {
-    gap: 16,
+    gap: spacing[4],
+  },
+  label: {
+    ...font(600),
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textStrong2,
   },
   // Off screen but still read: the "Searching…" status of a running request.
   hiddenStatus: {
@@ -229,34 +254,53 @@ const styles = StyleSheet.create({
     color: 'transparent',
   },
   list: {
+    overflow: 'hidden',
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
+    borderColor: colors.hairline,
+    backgroundColor: colors.surface,
+  },
+  listTablet: {
+    borderRadius: radii.xl,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    gap: spacing[3],
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[4],
+  },
+  rowTablet: {
+    gap: spacing['3_5'],
+    paddingVertical: spacing['3_5'],
   },
   divider: {
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.hairline,
   },
   email: {
+    ...font(600),
     flexShrink: 1,
-    fontSize: 14,
+    minWidth: 0,
+    fontSize: 15,
     lineHeight: 20,
-    fontWeight: '600',
     color: colors.textPrimary,
   },
+  emailTablet: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  invitedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    minHeight: 44,
+  },
   invited: {
+    ...font(700),
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '700',
-    color: colors.success700,
+    color: colors.success,
   },
 });

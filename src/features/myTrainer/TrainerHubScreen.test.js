@@ -371,25 +371,26 @@ describe('My trainer tokens (Phase 2 exact match)', () => {
     expect(styleOfHost(tree.root, 'trainer-hub-active-orb')).toMatchObject({ width: 200, right: -60, top: -60 });
   });
 
-  it('the active trainer avatar: teal → teal-strong disc, ink initials, card-coloured gap and teal-strong ring', async () => {
+  // Declared change (p5l, v2 Phase 5 avatar colour rule): the person's colour
+  // (user_id mod 6) at 16 % + initials in that colour replace the teal disc /
+  // the gold-on-ground disc.
+  it('the active trainer avatar: the colour rule (id 9 → index 3 legs), gap ring in surface-card-2, 1 px ring in that colour', async () => {
     getMyTrainer.mockResolvedValue(activeMine);
     listPendingTrainerRequests.mockResolvedValue([]);
     const tree = await render();
     const disc = host(tree.root, 'trainer-hub-avatar')[0];
-    expect(disc.findByType(GradientFill).props).toMatchObject({ angle: 140, colors: [colors.teal, colors.tealStrong] });
-    expect(flatStyle(disc.findByType(Text).props.style).color).toBe(colors.onGold);
-    expect(styleOfHost(tree.root, 'trainer-hub-avatar-ring')).toMatchObject({
-      padding: 5,
-      borderWidth: 1,
-      borderColor: colors.tealStrong,
-      backgroundColor: colors.surfaceCard2,
-    });
+    expect(flatStyle(disc.findByType(Text).props.style).color).toBe('#9DB0CF');
+    expect(styleOfHost(tree.root, 'trainer-hub-avatar-fill')).toMatchObject({ backgroundColor: '#9DB0CF', opacity: 0.16 });
+    expect(styleOfHost(tree.root, 'trainer-hub-avatar-ring')).toMatchObject({ padding: 5, backgroundColor: colors.surfaceCard2 });
+    expect(styleOfHost(tree.root, 'trainer-hub-avatar-ring-line')).toMatchObject({ borderWidth: 1, borderColor: '#9DB0CF', opacity: 0.6 });
   });
 
-  it('the invitation avatar keeps the ground disc and gold initials, its edge on the gold-line step', async () => {
+  it('the invitation avatar: the rounded-square tile in the colour rule, no ring', async () => {
+    listPendingTrainerRequests.mockResolvedValue([{ ...invitation, trainer: { ...invitation.trainer, user_id: 4 } }]);
     const tree = await render();
     const disc = host(tree.root, 'trainer-hub-avatar')[0];
-    expect(flatStyle(disc.props.style)).toMatchObject({ backgroundColor: colors.ground, borderColor: colors.goldLine });
+    expect(flatStyle(disc.props.style)).toMatchObject({ width: 60, borderRadius: 20 });
+    expect(styleOfHost(tree.root, 'trainer-hub-avatar-fill')).toMatchObject({ backgroundColor: '#C79BFF' });
     expect(host(tree.root, 'trainer-hub-avatar-ring')).toHaveLength(0);
   });
 

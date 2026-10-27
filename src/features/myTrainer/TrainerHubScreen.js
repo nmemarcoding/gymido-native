@@ -26,7 +26,8 @@ import {
   listPendingTrainerRequests,
   rejectTrainerRequest,
 } from './api/myTrainerApi';
-import { acceptErrorMessage, deriveHub, trainerDisplayName } from './myTrainerFormat';
+import PersonAvatar, { personInitials } from '../trainers/personAvatar';
+import { acceptErrorMessage, deriveHub, statusPill, trainerDisplayName } from './myTrainerFormat';
 
 // v2 Phase 2 C5 (UX C §My trainer / §Tablet): LOOK only. Behaviour is
 // RN-SPEC-my-trainer MT1.4–MT1.5 (Contact, End coaching + confirm, View
@@ -45,8 +46,6 @@ const TITLE_TEXT = Object.freeze({
 const DISPLAY_TEXT = Object.freeze({ ...TITLE_TEXT, maxFontSizeMultiplier: textScale.display });
 const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
 const PILL_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.pill });
-// Initials sit in a fixed circle (fixed-geometry chrome).
-const BADGE_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.badge });
 
 // UX §8.3 decorative teal orb on the teal-accent cards (gradients.tealOrb):
 // phone 200 at right/top −60 ("Find a trainer"); tablet "Your trainer" 340 at
@@ -59,32 +58,14 @@ export const LINK_FILL = Object.freeze({
   gold: Object.freeze([colors.goldTint, colors.goldFaint]),
   teal: Object.freeze([colors.tealTint, colors.tealFaint]),
 });
-// The teal avatar: 140° teal → teal-strong (the drawn deep teal folds into it,
-// UX §8.4), a 5 px card-coloured gap and a 1 px teal-strong ring, and the
-// teal-strong glow under it.
-const AVATAR_FILL = Object.freeze([colors.teal, colors.tealStrong]);
+// The active trainer avatar's 5 px card-coloured gap (tablet board).
 const AVATAR_GAP = 5;
 
-// Two letters for an avatar: the first letters of the first two words.
-export function initialsOf(name) {
-  const words = String(name ?? '')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  if (words.length === 0) {
-    return '';
-  }
-  return (words.length === 1 ? words[0].slice(0, 2) : `${words[0][0]}${words[1][0]}`).toUpperCase();
-}
+// Initials (§3 a11y rule): the first and last word of the name/email.
+export const initialsOf = personInitials;
 
-// The status pill: the code's status in sentence case ("pending" → "Pending");
-// Active = teal (UX ruling), Pending = warning, anything else neutral.
-export function statusPill(status) {
-  const key = String(status ?? '').trim().toLowerCase();
-  const label = key ? `${key[0].toUpperCase()}${key.slice(1)}` : '';
-  const tone = key === 'active' ? 'active' : key === 'pending' ? 'warning' : 'neutral';
-  return { label, tone };
-}
+// The status pill rule lives in myTrainerFormat (shared with Trainer detail).
+export { statusPill };
 
 // One gold action per state: an invitation's Accept wins; then Contact (an
 // active trainer with an email); then "Switch to Trainer Mode"; else
@@ -275,7 +256,7 @@ function TrainerHub() {
           return (
             <View key={request.id} testID={`trainer-hub-invitation-${request.id}`} style={styles.invitation}>
               <View style={styles.invitationTop}>
-                <Avatar name={name} size={60} />
+                <Avatar name={name} userId={request.trainer?.user_id ?? request.trainer_user_id} size={60} />
                 <View style={styles.textColumn}>
                   <Text {...TITLE_TEXT} style={styles.invitationName}>
                     {name}
@@ -338,6 +319,7 @@ function TrainerHub() {
         name={hub.trainerName}
         trainer={state.trainer}
         status={state.relationship?.status}
+        userId={state.trainer?.user_id ?? state.relationship?.trainer_user_id}
         contactVariant={variantFor('contact')}
         onEnd={() => setEndOpen(true)}
       />
@@ -442,37 +424,22 @@ function TrainerHub() {
   );
 }
 
-// Initials avatar: the ground disc with gold initials (phone board).
-// The teal one (the active trainer) is the teal gradient disc with ink
-// initials inside a card-coloured gap and a teal-strong ring (tablet board).
-function Avatar({ name, size, teal = false }) {
-  const disc = (
-    <View
-      testID="trainer-hub-avatar"
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-      style={[styles.avatar, { width: size, height: size, borderRadius: teal ? size / 2 : radii.lg }, teal && styles.avatarTeal]}
-    >
-      {teal ? <GradientFill angle={140} colors={AVATAR_FILL} /> : null}
-      <Text
-        {...BADGE_TEXT}
-        style={[
-          styles.avatarText,
-          { fontSize: Math.round(size / 3), lineHeight: Math.round(size / 3) + 4 },
-          teal && styles.avatarTextTeal,
-        ]}
-      >
-        {initialsOf(name)}
-      </Text>
-    </View>
-  );
-  if (!teal) {
-    return disc;
-  }
+// v2 Phase 5 avatar colour rule (RN-SPEC-v2-phase5 §1): the trainer's
+// colour = user_id mod 6, 16 % fill + that colour for the initials. The
+// active trainer keeps the board's card-coloured gap and 1 px ring (in the
+// person's colour); an invitation keeps the rounded-square tile.
+function Avatar({ name, userId, size, ring = false }) {
   return (
-    <View testID="trainer-hub-avatar-ring" style={styles.avatarRing}>
-      {disc}
-    </View>
+    <PersonAvatar
+      testID="trainer-hub-avatar"
+      userId={userId}
+      name={name}
+      size={size}
+      radius={ring ? undefined : radii.lg}
+      initialsSize={Math.round(size / 3)}
+      ring={ring ? { gap: AVATAR_GAP, gapColor: colors.surfaceCard2, alpha: 0.6 } : null}
+      style={ring ? styles.avatarRing : undefined}
+    />
   );
 }
 
@@ -530,14 +497,14 @@ function LinkCard({ testID, title, icon, tone, tablet, onPress }) {
 }
 
 // MT1.4
-function ActiveTrainerCard({ tablet, stacked = false, name, trainer, status, contactVariant, onEnd }) {
+function ActiveTrainerCard({ tablet, stacked = false, name, userId, trainer, status, contactVariant, onEnd }) {
   const pill = statusPill(status);
   return (
     <View testID="trainer-hub-active" style={[styles.heroCard, styles.activeCard, tablet && styles.activeCardTablet]}>
       <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
       <TealOrb testID="trainer-hub-active-orb" orb={tablet ? ORB_TABLET : ORB_PHONE} />
       <View style={[styles.activeTop, tablet && styles.activeTopTablet]}>
-        <Avatar name={name} size={tablet ? 104 : 64} teal />
+        <Avatar name={name} userId={userId} size={tablet ? 104 : 64} ring />
         <View style={styles.textColumn}>
           <Text {...BODY_TEXT} style={styles.yourTrainer}>
             Your trainer
@@ -709,36 +676,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing[2],
   },
-  avatar: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.ground,
-    borderWidth: 1,
-    borderColor: colors.goldLine,
-  },
-  avatarTeal: {
-    overflow: 'hidden',
-    borderWidth: 0,
-    backgroundColor: colors.teal,
-  },
-  // The 5 px gap ring (as drawn: surface-card-2), the 1 px
-  // teal-strong ring and the glow; the negative margin keeps the drawn layout
-  // (the board draws the rings as shadows outside the disc).
+  // The ring (5 px gap + 1 px line) sits outside the disc, as the board
+  // draws it with shadows: the negative margin keeps the drawn layout.
   avatarRing: {
-    margin: -(AVATAR_GAP + 1),
-    padding: AVATAR_GAP,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.tealStrong,
-    backgroundColor: colors.surfaceCard2,
-    boxShadow: `0px 24px 60px -18px ${colors.tealStrong}`,
-  },
-  avatarText: {
-    ...font(700),
-    color: colors.gold,
-  },
-  avatarTextTeal: {
-    color: colors.onGold,
+    margin: -AVATAR_GAP,
   },
   eyebrow: {
     ...typography.eyebrow,

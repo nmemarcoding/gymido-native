@@ -6,25 +6,36 @@ import { getServerMessage } from '../../../shared/api/apiError';
 import EmptyState from '../../../shared/components/EmptyState';
 import ErrorAlert from '../../../shared/components/ErrorAlert';
 import FormField from '../../../shared/components/FormField';
+import { CAP_BODY, useLargeTextReflow } from '../../../shared/components/largeText';
 import Loader from '../../../shared/components/Loader';
 import PillButton from '../../../shared/components/PillButton';
 import StateSlot from '../../../shared/components/StateSlot';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
-import { breakpoints, colors } from '../../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, radii, spacing } from '../../../shared/theme/tokens';
 import ShellPage from '../../shell/ShellPage';
-import { CoachingHeader } from '../../trainer/clients/components/ClientsUi';
 import { TRAINERS_PER_PAGE, listTrainers } from '../api/trainersApi';
+import { PageHeading } from '../components/CoachingPage';
 import TrainerCard from '../components/TrainerCard';
 import { TRAINER_DETAIL_ROUTE } from '../trainerRoutes';
 import { clampPage, pagerText, readTrainerList, showsPager, trainersEmptyCopy } from '../trainersFormat';
 
 export const SEARCH_DEBOUNCE_MS = 300;
 
-// TR1 Find a trainer (`/trainers`). Every focus is a fresh mount.
+// UX L §Trainers: the page glow. Phone radial(120 % 45 % at 85 % −8 %),
+// tablet (70 % 40 % at 85 % −8 %); the drawn 0.22 / 0.20 fold to the
+// gold-ambient token (0.20).
+export const TRAINERS_GLOW = Object.freeze({
+  phone: Object.freeze({ radial: { cx: 0.85, cy: -0.08, rx: 1.2, ry: 0.45 }, colors: gradients.goldAmbient.colors, stops: [0, 0.6] }),
+  tablet: Object.freeze({ radial: { cx: 0.85, cy: -0.08, rx: 0.7, ry: 0.4 }, colors: gradients.goldAmbient.colors, stops: [0, 0.6] }),
+});
+
+// TR1 Find a trainer (`/trainers`). Every focus is a fresh mount. The shell
+// header carries "← Coaching" (→ My trainer) and the "Coaching" title.
 export default function TrainersScreen() {
   const remountKey = useFocusRemountKey();
+  const tablet = useWindowDimensions().width >= breakpoints.md;
   return (
-    <ShellPage testID="trainers-screen">
+    <ShellPage testID="trainers-screen" glow={tablet ? TRAINERS_GLOW.tablet : TRAINERS_GLOW.phone}>
       <View style={styles.column}>
         <TrainersList key={remountKey} />
       </View>
@@ -35,7 +46,10 @@ export default function TrainersScreen() {
 function TrainersList() {
   const navigation = useNavigation();
   const { width } = useWindowDimensions();
-  const twoColumns = width >= breakpoints.sm;
+  const tablet = width >= breakpoints.md;
+  const reflow = useLargeTextReflow();
+  // UX §9 rule 4: past the reflow point the grid is one column.
+  const twoColumns = width >= breakpoints.sm && !reflow;
   const [searchTerm, setSearchTerm] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -75,11 +89,14 @@ function TrainersList() {
   const openTrainer = (trainer) => navigation.push(TRAINER_DETAIL_ROUTE, { trainerUserId: String(trainer.user_id) });
 
   return (
-    <View style={styles.page}>
-      <CoachingHeader title="Find a trainer" subtitle="Browse trainers and ask one to coach you." />
+    <View style={[styles.page, tablet && styles.pageTablet]}>
+      <PageHeading testID="trainers-heading" tablet={tablet} title="Find a trainer" subtitle="Browse trainers and ask one to coach you." />
       <FormField
         testID="trainers-search"
         label="Search"
+        // The label is visually hidden (UX L): the field is still named "Search".
+        labelStyle={styles.hiddenLabel}
+        variant="pill"
         placeholder="Search by email"
         value={searchTerm}
         onChangeText={setSearchTerm}
@@ -124,31 +141,35 @@ function TrainersList() {
     const rows = twoColumns ? pairs(state.trainers) : state.trainers.map((trainer) => [trainer]);
     return (
       <>
-        <View style={styles.grid}>
+        <View testID="trainers-grid" style={[styles.grid, tablet && styles.gridTablet]}>
           {rows.map((row) => (
-            <View key={row[0].user_id} style={styles.gridRow}>
+            <View key={row[0].user_id} style={[styles.gridRow, tablet && styles.gridTablet]}>
               {row.map((trainer) => (
-                <TrainerCard key={trainer.user_id} trainer={trainer} style={styles.cell} onPress={() => openTrainer(trainer)} />
+                <TrainerCard key={trainer.user_id} trainer={trainer} tablet={tablet} style={styles.cell} onPress={() => openTrainer(trainer)} />
               ))}
               {twoColumns && row.length === 1 ? <View style={styles.cell} /> : null}
             </View>
           ))}
         </View>
         {showsPager(pagination) ? (
-          <View testID="trainers-pager" style={styles.pager}>
-            <Text style={styles.pagerText}>{pagerText(pagination)}</Text>
+          <View testID="trainers-pager" style={[styles.pager, tablet && styles.pagerTablet]}>
+            <Text {...CAP_BODY} style={[styles.pagerText, tablet && styles.pagerTextTablet]}>
+              {pagerText(pagination)}
+            </Text>
             <View style={styles.pagerButtons}>
               <PillButton
                 testID="trainers-previous"
                 title="Previous"
-                variant="secondary"
+                variant={tablet ? 'ghost' : 'secondary'}
+                size="compact"
                 disabled={pagination.currentPage <= 1}
                 onPress={() => setPage(clampPage(pagination.currentPage - 1, pagination.totalPages))}
               />
               <PillButton
                 testID="trainers-next"
                 title="Next"
-                variant="secondary"
+                variant={tablet ? 'light' : 'secondary'}
+                size="compact"
                 disabled={pagination.currentPage >= pagination.totalPages}
                 onPress={() => setPage(clampPage(pagination.currentPage + 1, pagination.totalPages))}
               />
@@ -169,25 +190,38 @@ function pairs(items) {
 }
 
 const styles = StyleSheet.create({
+  // Tablet: full width (no max), as drawn; phone: the shell's column.
   column: {
     width: '100%',
-    maxWidth: 896,
     alignSelf: 'center',
   },
   page: {
-    gap: 20,
-    paddingBottom: 24,
+    gap: spacing['3_5'],
+    paddingBottom: spacing[6],
+  },
+  pageTablet: {
+    gap: spacing[5],
+  },
+  hiddenLabel: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    opacity: 0,
+    overflow: 'hidden',
   },
   loader: {
     alignSelf: 'center',
     paddingVertical: 48,
   },
   grid: {
-    gap: 16,
+    gap: spacing['3_5'],
   },
   gridRow: {
     flexDirection: 'row',
-    gap: 16,
+    gap: spacing['3_5'],
+  },
+  gridTablet: {
+    gap: spacing[4],
   },
   cell: {
     flex: 1,
@@ -198,15 +232,36 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: spacing[3],
+    paddingHorizontal: spacing[1],
+    paddingVertical: spacing['0_5'],
+  },
+  // Tablet: the pager pill (the drawn the 0.6 glass folds to
+  // colors.glass 0.72, reported).
+  pagerTablet: {
+    alignSelf: 'flex-start',
+    paddingLeft: spacing['4_5'],
+    paddingRight: spacing['1_5'],
+    paddingVertical: spacing['1_5'],
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.choiceBorder,
+    backgroundColor: colors.glass,
   },
   pagerText: {
+    ...font(400),
+    flexShrink: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textMuted,
+  },
+  pagerTextTablet: {
     fontSize: 14,
     lineHeight: 20,
     color: colors.textSecondary,
   },
   pagerButtons: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing[2],
   },
 });
