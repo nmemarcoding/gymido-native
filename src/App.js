@@ -10,6 +10,7 @@ import RootNavigator from './navigation/RootNavigator';
 import { navigationRef } from './navigation/navigationRef';
 import RouteErrorBoundary from './shared/components/RouteErrorBoundary';
 import { appBlurTargetRef } from './shared/components/blurTarget';
+import { useFontScaleRemount } from './shared/hooks/useFontScaleRemount';
 import ToastHost from './shared/components/ToastHost';
 import { initRestAlerts } from './features/workout/runtime/restAlertPlatform';
 import { unlockTabletOrientation } from './shared/device/tabletOrientation';
@@ -28,13 +29,15 @@ const AppBlurTarget = Platform.OS === 'android' ? BlurTargetView : View;
 
 export default function App() {
   useAuthLifecycle();
+  // T-59: a live font-size change remounts the screens on the same route.
+  const navigation = useFontScaleRemount(navigationRef);
 
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         {/* Android blur source for Modal scrims (expo-blur 57). */}
         <AppBlurTarget ref={appBlurTargetRef} style={styles.root}>
-          <NavigationContainer ref={navigationRef}>
+          <NavigationContainer key={navigation.key} ref={navigationRef} initialState={navigation.initialState}>
             {/* App-shell §9.2: render crashes show the reload screen; toasts stay outside. */}
             <RouteErrorBoundary>
               <RootNavigator />
