@@ -2,6 +2,7 @@ jest.mock('../shell/ShellPage', () => ({ children }) => children);
 jest.mock('../shell/shellLinks', () => ({ openShellPath: jest.fn(), openPlanDetailAlone: jest.fn() }));
 jest.mock('./api/homeApi', () => ({ getDashboard: jest.fn(), logWeight: jest.fn(), getCurrentWeek: jest.fn() }));
 jest.mock('../plans/api/libraryApi', () => ({ getCurrentPlan: jest.fn(() => Promise.resolve(null)), listPlanDays: jest.fn() }));
+jest.mock('../workout/api/workoutApi', () => ({ getCurrentWorkout: jest.fn(() => Promise.resolve(null)) }));
 jest.mock('../planGenerator/api/generatorApi', () => ({ getGeneratorProfile: jest.fn(() => Promise.resolve({ available: false })) }));
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ addListener: () => () => {} }) }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
@@ -26,8 +27,10 @@ import ProgressRing from '../workout/components/ProgressRing';
 import { getCurrentWeek, getDashboard } from './api/homeApi';
 import { getCurrentPlan, listPlanDays } from '../plans/api/libraryApi';
 import HomeScreen from './HomeScreen';
-import { exerciseCountText, heroDayTitle, todayExerciseCount, heroImageUrl, memberVolume, weekRing, weekStrip, workoutInitials } from './homeFormat';
+import { exerciseCountText, heroDayTitle, todayCard, todayExerciseCount, heroImageUrl, memberVolume, weekRing, weekStrip, workoutInitials } from './homeFormat';
 import { TodayHero } from './TodayPlanView';
+
+const { getCurrentWorkout } = jest.requireMock('../workout/api/workoutApi');
 
 function textOf(node) {
   return []
@@ -170,7 +173,10 @@ describe('Today hero (UX E, all five states)', () => {
     expect(styleOf(host(missed.root, 'home-more-missed')).color).toBe(colors.warning);
   });
 
+  // DECLARED change (T-63): was the default 390 phone; 390 now stacks (View plan 52), so the side-by-side 58 / 58
+  // pair is checked on a 430 phone.
   it('primary: gold, the gold glow, a ground disc; pressed adds the ink 4 % overlay (state rule)', async () => {
+    mockWidth = 430;
     const tree = await render();
     const primary = host(tree.root, 'home-today-primary');
     expect(styleOf(primary)).toMatchObject({ backgroundColor: colors.gold, minHeight: 58, boxShadow: shadows.goldGlow });
@@ -518,7 +524,10 @@ describe('Stats, week, weight and recent', () => {
 });
 
 describe('§9 large text (fontScale 1 / 2 / 3.1)', () => {
+  // DECLARED change (T-63): was the default 390 phone; at 1× a 390 phone now stacks by the 21rem row rule, so the
+  // scale-only check runs on a 430 phone (row 354 ≥ 336).
   it.each([1, 2, 3.1])('at %s: headline cap 1.3 + word fit; body 2.0; no truncated actions', async (scale) => {
+    mockWidth = 430;
     mockFontScale = scale;
     const tree = await render();
     const headline = host(tree.root, 'home-today-headline');
@@ -542,5 +551,117 @@ describe('§9 large text (fontScale 1 / 2 / 3.1)', () => {
     mockFontScale = 3.1;
     const tree = await render();
     expect(styleOf(host(tree.root, 'home-today-buttons'))).toMatchObject({ flexDirection: 'column', maxWidth: undefined });
+  });
+});
+
+// RN-SPEC-home H1.3 dated change (27 Oct 2026, owner T-63): "Resume workout"
+// while GET /workouts/current returns a session, in every state; fail-soft.
+describe('T-63 "Resume workout" while a session is open', () => {
+  const SESSION = { id: 9, status: 'in_progress' };
+  const SETUP_PLAN = { enrollment: { plan: { id: 4, name: 'Upper / Lower' } }, schedule: [] };
+  const STATES = [
+    ['training', DASH, "Today's workout", 'Upper A'],
+    ['completed', { ...DASH, today_status: { already_completed: true, plan_day: { title: 'Upper A' } } }, 'Completed', 'Upper A'],
+    ['missed', { ...DASH, today_status: {}, missed_this_week: [{ weekday: { name: 'Monday' }, plan_day: { title: 'Lower' } }] }, 'Missed', "You missed Monday's Lower"],
+    ['rest', { ...DASH, today_status: {} }, 'Rest day', 'Recovery day'],
+  ];
+  beforeEach(() => {
+    getCurrentWorkout.mockResolvedValue(null);
+    getCurrentPlan.mockResolvedValue(null);
+  });
+
+  it('todayCard: an open session relabels the primary only; none keeps the usual label', () => {
+    expect(todayCard(DASH, null, true)).toMatchObject({ state: 'training', pill: "Today's workout", headline: 'Upper A', primary: 'Resume workout' });
+    expect(todayCard(DASH, 3, true)).toMatchObject({ state: 'setup', primary: 'Resume workout' });
+    expect(todayCard(DASH, null, false).primary).toBe('Start workout');
+    expect(todayCard(DASH).primary).toBe('Start workout');
+  });
+
+  it.each(STATES)('%s: "Resume workout", the pill and headline unchanged, the same push to Workout', async (state, dash, pill, headline) => {
+    getCurrentWorkout.mockResolvedValue(SESSION);
+    const tree = await render(dash);
+    expect(texts(host(tree.root, 'home-today-primary'))).toEqual(['Resume workout']);
+    expect(tree.root.findAllByType(StatusPill)[0].props.label).toBe(pill);
+    expect(texts(host(tree.root, 'home-today-headline'))).toEqual([headline]);
+    act(() => pressable(tree.root, 'home-today-primary').props.onPress());
+    expect(openShellPath).toHaveBeenCalledWith('/workout');
+  });
+
+  it('"Choose days" setup: "Resume workout" too', async () => {
+    getCurrentWorkout.mockResolvedValue(SESSION);
+    getCurrentPlan.mockResolvedValue(SETUP_PLAN);
+    listPlanDays.mockResolvedValue([{ id: 1 }, { id: 2 }]);
+    const tree = await render();
+    expect(texts(host(tree.root, 'home-today-headline'))).toEqual(['Pick your training days']);
+    expect(texts(host(tree.root, 'home-today-primary'))).toEqual(['Resume workout']);
+  });
+
+  it('no session (200 session null) or a failed read: the usual label, the page still loads', async () => {
+    const none = await render();
+    expect(texts(host(none.root, 'home-today-primary'))).toEqual(['Start workout']);
+    getCurrentWorkout.mockRejectedValue(new Error('Network Error'));
+    const failed = await render();
+    expect(texts(host(failed.root, 'home-today-primary'))).toEqual(['Start workout']);
+    expect(queryHost(failed.root, 'home-error')).toHaveLength(0);
+  });
+
+  it('one GET /workouts/current per Today load (mount / refocus)', async () => {
+    await render();
+    expect(getCurrentWorkout).toHaveBeenCalledTimes(1);
+  });
+});
+
+// T-63 layout (UX ruling, 27 Oct): the phone pair stacks while the measured
+// row is narrower than 21rem (21 × 16 × fontScale); from 21rem side by side.
+describe('T-63 phone button pair: stacks below 21rem of row width', () => {
+  const layout = (tree, width) =>
+    act(() => host(tree.root, 'home-today-buttons').props.onLayout({ nativeEvent: { layout: { width, height: 120 } } }));
+  const order = (tree) =>
+    host(tree.root, 'home-today-buttons')
+      .findAll((node) => ['home-today-primary', 'home-view-plan'].includes(node.props.testID) && typeof node.type === 'string')
+      .map((node) => node.props.testID);
+  beforeEach(() => getCurrentWorkout.mockResolvedValue(null));
+
+  it.each([
+    ['Start workout', null],
+    ['Resume workout', { id: 9 }],
+  ])('%s: below 336 stacked (gold first, 58 full width with its disc; View plan 52 full width; gap 10); from 336 side by side (both 58)', async (label, session) => {
+    getCurrentWorkout.mockResolvedValue(session);
+    const tree = await render();
+    expect(texts(host(tree.root, 'home-today-primary'))).toEqual([label]);
+    layout(tree, 335);
+    expect(styleOf(host(tree.root, 'home-today-buttons'))).toMatchObject({ flexDirection: 'column', alignItems: 'stretch', gap: 10 });
+    expect(order(tree)).toEqual(['home-today-primary', 'home-view-plan']);
+    expect(styleOf(host(tree.root, 'home-today-primary'))).toMatchObject({ minHeight: 58, flex: 0, alignSelf: 'stretch' });
+    expect(host(tree.root, 'home-today-primary').findAll((node) => node.type === 'RNSVGSvgView' || node.type === 'Svg').length).toBeGreaterThan(0);
+    expect(styleOf(host(tree.root, 'home-view-plan'))).toMatchObject({ minHeight: 52, flex: 0, alignSelf: 'stretch' });
+    layout(tree, 336);
+    expect(styleOf(host(tree.root, 'home-today-buttons')).flexDirection).toBe('row');
+    expect(styleOf(host(tree.root, 'home-today-primary')).minHeight).toBe(58);
+    expect(styleOf(host(tree.root, 'home-view-plan')).minHeight).toBe(58);
+  });
+
+  it('the threshold follows the font scale: at 1.2 a 380 row (< 403.2) stacks, a 404 row does not', async () => {
+    mockFontScale = 1.2;
+    const tree = await render();
+    layout(tree, 380);
+    expect(styleOf(host(tree.root, 'home-today-buttons')).flexDirection).toBe('column');
+    layout(tree, 404);
+    expect(styleOf(host(tree.root, 'home-today-buttons')).flexDirection).toBe('row');
+  });
+
+  it('before the first measure: estimated from the window (390 → stacked, 430 → side by side)', async () => {
+    const narrow = await render();
+    expect(styleOf(host(narrow.root, 'home-today-buttons')).flexDirection).toBe('column');
+    mockWidth = 430;
+    const wide = await render();
+    expect(styleOf(host(wide.root, 'home-today-buttons')).flexDirection).toBe('row');
+  });
+
+  it('tablet: no width rule (side by side at 1×, the 480 max row kept)', async () => {
+    mockWidth = 834;
+    const tree = await render();
+    expect(host(tree.root, 'home-today-buttons').props.onLayout).toBeUndefined();
+    expect(styleOf(host(tree.root, 'home-today-buttons'))).toMatchObject({ flexDirection: 'row', maxWidth: 480 });
   });
 });

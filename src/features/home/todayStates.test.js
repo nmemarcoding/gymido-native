@@ -2,6 +2,7 @@ jest.mock('../shell/ShellPage', () => ({ children }) => children);
 jest.mock('../shell/shellLinks', () => ({ openShellPath: jest.fn(), openPlanDetailAlone: jest.fn() }));
 jest.mock('./api/homeApi', () => ({ getDashboard: jest.fn(), logWeight: jest.fn(), getCurrentWeek: jest.fn(() => Promise.resolve(null)) }));
 jest.mock('../plans/api/libraryApi', () => ({ getCurrentPlan: jest.fn(() => Promise.resolve(null)), listPlanDays: jest.fn() }));
+jest.mock('../workout/api/workoutApi', () => ({ getCurrentWorkout: jest.fn(() => Promise.resolve(null)) }));
 jest.mock('../planGenerator/api/generatorApi', () => ({ getGeneratorProfile: jest.fn() }));
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ addListener: () => () => {} }) }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
@@ -545,7 +546,10 @@ describe('§9 large text: reflow past 1.3', () => {
     expect(rowTexts.find((node) => textOf(node) === 'completed').props.maxFontSizeMultiplier).toBe(1.6);
   });
 
+  // DECLARED change (T-63): the 1× side-by-side check was on the default 390 phone, which now stacks by the 21rem
+  // row rule; it runs on a 430 phone (the 2× render is unchanged).
   it('plan state: the Start · View plan pair stacks at 2 (primary on top, full width), labels never truncate; stats become rows', async () => {
+    mockWidth = 430;
     const small = await render(PLAN);
     expect(styleOf(host(small.root, 'home-today-buttons')).flexDirection).toBe('row');
     expect(host(small.root, 'home-today-primary').findByType('Text').props.numberOfLines).toBeUndefined();

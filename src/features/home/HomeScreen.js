@@ -28,6 +28,7 @@ import {
 } from './homeFormat';
 import { RecentWorkouts, TodayHero, TodayStats, WeekCard, WeightCard, WeightValues } from './TodayPlanView';
 import { LARGE_TEXT as LT, TodayEmpty, TodayError, TodayHeader, TodayLoading, useReflow } from './TodayStates';
+import { getCurrentWorkout } from '../workout/api/workoutApi';
 import { verifySessionState } from '../workout/runtime/workoutSessionStore';
 import WeightLogModal from './WeightLogModal';
 
@@ -41,12 +42,6 @@ const VALUE_TEXT = { maxFontSizeMultiplier: textScale.title };
 // from the first render.
 export default function HomeScreen() {
   const remountKey = useFocusRemountKey();
-  // T-59: a workout ended elsewhere must not leave its stored rest alert
-  // scheduled while the user stays on Today (the store asks the server only
-  // when a session is stored).
-  useEffect(() => {
-    verifySessionState();
-  }, [remountKey]);
   return (
     <ShellPage glow>
       <Home key={remountKey} />
@@ -89,6 +84,8 @@ function Home() {
   const [planDays, setPlanDays] = useState(null);
   // U1: the week strip; null (hidden) until loaded or on any failure.
   const [week, setWeek] = useState(null);
+  // T-63: GET /workouts/current gave a session → "Resume workout".
+  const [sessionOpen, setSessionOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const mounted = useRef(true);
@@ -110,7 +107,17 @@ function Home() {
     });
     // U1: optional, never blocks or fails the page.
     getCurrentWeek().then((days) => mounted.current && setWeek(days));
-    Promise.allSettled([getDashboard(), setupLoad]).then(([dashboard]) => {
+    // T-63 (H1.3 dated 27 Oct): one GET /workouts/current per load, in
+    // parallel; a failed read keeps the usual label. The same read is the
+    // T-59 re-check: a workout ended elsewhere must not leave its stored rest
+    // alert scheduled while the user stays on Today.
+    const current = getCurrentWorkout();
+    verifySessionState({ fetchCurrent: () => current });
+    const sessionLoad = current.then(
+      (session) => mounted.current && setSessionOpen(Boolean(session)),
+      () => {}
+    );
+    Promise.allSettled([getDashboard(), setupLoad, sessionLoad]).then(([dashboard]) => {
       if (!mounted.current) {
         return;
       }
@@ -213,7 +220,7 @@ function Home() {
   }
 
   const strip = weekStrip(week);
-  const card = todayCard(dashboard, setupDayCount);
+  const card = todayCard(dashboard, setupDayCount, sessionOpen);
   return (
     <View style={[styles.page, tablet && styles.pageTablet]}>
       {toast}

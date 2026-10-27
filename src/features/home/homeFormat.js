@@ -23,8 +23,10 @@ export function greetingLine(profile, email) {
 }
 
 // H1.3 + Batch B #3/#6. `setupDayCount` is set when the plan needs its
-// training days picked (days > 0 and no schedule); it wins first.
-export function todayCard(dashboard, setupDayCount = null) {
+// training days picked (days > 0 and no schedule); it wins first. T-63:
+// `sessionOpen` (GET /workouts/current gave a session) relabels the primary
+// "Resume workout" in every state; the pill and headline stay.
+export function todayCard(dashboard, setupDayCount = null, sessionOpen = false) {
   const today = dashboard?.today_status;
   const missed = dashboard?.missed_this_week ?? [];
   const miss = missed[0];
@@ -56,7 +58,8 @@ export function todayCard(dashboard, setupDayCount = null) {
   }
   // ⚠H-4: shown in every state.
   const more = missed.length - 1;
-  return { ...card, moreMissed: more > 0 ? `+${more} more missed this week` : null };
+  const primary = sessionOpen ? 'Resume workout' : card.primary;
+  return { ...card, primary, moreMissed: more > 0 ? `+${more} more missed this week` : null };
 }
 
 // H1.4

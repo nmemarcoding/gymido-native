@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { CardSurface } from '../../shared/components/Card';
@@ -21,6 +21,14 @@ import { keepUnitsTogether } from '../../shared/format/counts';
 // weight card, "Last workout {date}" and Recent workouts.
 
 const PILL_TONE = { brand: 'gold', success: 'completed', warning: 'warning', muted: 'neutral' };
+
+// T-63 (UX ruling 27 Oct): the phone button pair stacks while its row is
+// narrower than 21rem; native rem = 16 × the font scale, so large text stacks
+// too. Until the row is measured it is estimated from the window: the phone
+// gutters (16 × 2) and the hero padding (22 × 2).
+const STACK_BELOW_REM = 21;
+const REM = 16;
+const PHONE_ROW_INSET = 76;
 
 function ArrowIcon({ size, color }) {
   return (
@@ -101,6 +109,10 @@ export function TodayHero({ plan, card, tablet, reflow, imageUrl, dayTitle, dayO
   const [longMissed, setLongMissed] = useState(false);
   const missedLong = card.state === 'missed' && longMissed;
   const countText = card.sub ? null : exerciseCountText(exerciseCount);
+  const { width, fontScale } = useWindowDimensions();
+  const [rowWidth, setRowWidth] = useState(null);
+  // §9 reflow stacks on both; the 21rem row rule is the phone's.
+  const stacked = reflow || (!tablet && (rowWidth ?? width - PHONE_ROW_INSET) < STACK_BELOW_REM * REM * fontScale);
   return (
     <CardSurface hero testID="home-today-card" style={[styles.hero, tablet && styles.heroTablet]}>
       {photo ? (
@@ -170,16 +182,20 @@ export function TodayHero({ plan, card, tablet, reflow, imageUrl, dayTitle, dayO
           {card.moreMissed}
         </Text>
       ) : null}
-      {/* §9: past 1.3 the pair stacks, primary on top, both full width. */}
-      <View testID="home-today-buttons" style={[styles.buttons, tablet && styles.buttonsTablet, reflow && styles.buttonsStacked]}>
-        <DiscButton testID="home-today-primary" label={card.primary} tablet={tablet} stacked={reflow} onPress={onPrimary} />
+      {/* §9 + T-63: stacked, the primary on top, both full width (phone View plan 52). */}
+      <View
+        testID="home-today-buttons"
+        onLayout={tablet ? undefined : (event) => setRowWidth(event.nativeEvent.layout.width)}
+        style={[styles.buttons, tablet && styles.buttonsTablet, stacked && styles.buttonsStacked]}
+      >
+        <DiscButton testID="home-today-primary" label={card.primary} tablet={tablet} stacked={stacked} onPress={onPrimary} />
         <GlassButton
           testID="home-view-plan"
           label="View plan"
-          height={tablet ? 60 : 58}
+          height={tablet ? 60 : stacked ? 52 : 58}
           onPress={onViewPlan}
           textStyle={tablet ? styles.viewPlanTextTablet : null}
-          style={[styles.viewPlan, tablet && styles.viewPlanTablet, reflow && styles.buttonStacked]}
+          style={[styles.viewPlan, tablet && styles.viewPlanTablet, stacked && styles.buttonStacked]}
         />
       </View>
     </CardSurface>
