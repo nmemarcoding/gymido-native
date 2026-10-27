@@ -53,10 +53,10 @@ export function getRemoteImageSources(url) {
     return [original];
   }
   const encoded = encodeURIComponent(id);
+  // Dated change (RN-SPEC @ 81ef4911, 26 Oct 2026): no uc?export=view /
+  // export=download candidates (an original uc URL is still tried first).
   const candidates = [
     original,
-    `https://drive.google.com/uc?export=view&id=${encoded}`,
-    `https://drive.google.com/uc?export=download&id=${encoded}`,
     `https://drive.google.com/thumbnail?id=${encoded}&sz=w1600`,
     `https://lh3.googleusercontent.com/d/${encoded}=w1600`,
     `https://lh3.googleusercontent.com/d/${encoded}=s1600`,

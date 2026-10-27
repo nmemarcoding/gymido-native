@@ -21,7 +21,12 @@ import ProfileSettingsScreen from './profile/screens/ProfileSettingsScreen';
 import { loadProgress } from './progress/api/progressApi';
 import ProgressScreen from './progress/ProgressScreen';
 import WeightHistoryChart from './trainer/clients/components/WeightHistoryChart';
-import { listPlanDays as listBuilderDays, listDayExercises as listBuilderExercises } from './trainer/plans/api/plansApi';
+import {
+  listExercisesPage,
+  listPlanDays as listBuilderDays,
+  listDayExercises as listBuilderExercises,
+} from './trainer/plans/api/plansApi';
+import ExercisePickerSheet from './trainer/plans/components/ExercisePickerSheet';
 import { SharedPlanScreen } from './trainer/plans/screens/PlanScreen';
 import { getMyTrainerApplication, getTrainer, listTrainers, submitTrainerApplication } from './trainers/api/trainersApi';
 import TrainerApplyScreen from './trainers/screens/TrainerApplyScreen';
@@ -90,13 +95,14 @@ jest.mock('./trainer/plans/api/plansApi', () => ({
   listPlanDays: jest.fn(),
   listDayExercises: jest.fn(),
   listExerciseSets: jest.fn(() => Promise.resolve([])),
+  listExercisesPage: jest.fn(() => Promise.resolve({ items: [], totalPages: 1 })),
   listMuscleGroups: jest.fn(() => Promise.resolve([])),
   listEquipmentTypes: jest.fn(() => Promise.resolve([])),
   listPlanCategories: jest.fn(() => Promise.resolve([])),
   listDifficultyLevels: jest.fn(() => Promise.resolve([])),
 }));
 jest.mock('./trainer/plans/components/SortableExerciseList', () => () => null);
-jest.mock('./trainer/plans/loadExerciseCatalog', () => ({ loadExerciseCatalog: () => Promise.resolve([]), wait: () => Promise.resolve() }));
+jest.mock('./trainer/plans/loadExerciseCatalog', () => ({ wait: () => Promise.resolve() }));
 jest.mock('./profile/CoachingCard', () => () => null);
 jest.mock('./auth/authService', () => ({ logout: jest.fn() }));
 jest.mock('./profile/api/profileApi', () => ({ getProfile: jest.fn(), updateProfile: jest.fn(), sendPasswordResetEmail: jest.fn() }));
@@ -286,7 +292,7 @@ describe('My plans (rows 13-14)', () => {
     expect(texts(tree)).toContain('No plans yet');
   });
 
-  it('row 14: EmptyState + compact gold "Create a plan" and glass "Browse the catalog" in the column', async () => {
+  it('row 14: EmptyState + compact glass "Create a plan" and "Browse the catalog"; the header keeps the one gold "Create a plan"', async () => {
     listMyPlans.mockResolvedValue({ items: [], currentPage: 1, totalPages: 1, totalRecords: 0 });
     const tree = await render(<MyPlansScreen />);
     const empty = expectInSlot(tree, EmptyState, {}, {});
@@ -296,7 +302,9 @@ describe('My plans (rows 13-14)', () => {
     ]);
     const create = find(tree, PillButton, { testID: 'my-plans-empty-create' });
     const browse = find(tree, PillButton, { testID: 'my-plans-browse' });
-    expect([create.props.variant, create.props.size]).toEqual([undefined, 'compact']);
+    expect([create.props.variant, create.props.size]).toEqual(['secondary', 'compact']);
+    const golds = tree.root.findAllByType(PillButton).filter((button) => (button.props.variant ?? 'primary') === 'primary');
+    expect(golds.map((button) => button.props.testID)).toEqual(['my-plans-create']);
     expect([browse.props.variant, browse.props.size]).toEqual(['secondary', 'compact']);
     expect(StyleSheet.flatten(create.parent.props.style)).toEqual(expect.objectContaining({ flexDirection: 'row', justifyContent: 'center', gap: 8 }));
     await act(async () => create.props.onPress());
@@ -355,6 +363,25 @@ describe('My plan builder (rows 15-17)', () => {
     const noExercises = find(tree, EmptyState, { title: 'No exercises yet' });
     expect(noExercises.props.message).toBe('Add an exercise to this day.');
     expect(slotOf(noExercises)).toBeNull();
+  });
+
+  it('§D4: a failed catalog load reaches the picker as its alert; Retry reloads; focus returns to "Add exercise"', async () => {
+    listBuilderDays.mockResolvedValue([{ id: 1, name: 'Day 1', day_number: 1 }]);
+    listBuilderExercises.mockResolvedValue([]);
+    listExercisesPage.mockReset();
+    listExercisesPage.mockRejectedValueOnce(serverError()).mockResolvedValue({ items: [{ id: 5, name: 'Squat' }], totalPages: 1 });
+    const tree = await render(<SharedPlanScreen planId="9" adapter={adapter(() => Promise.resolve({ id: 9, name: 'Mine' }))} />);
+    let picker = tree.root.findByType(ExercisePickerSheet);
+    expect([picker.props.loading, picker.props.catalogError, picker.props.catalog]).toEqual([false, SERVER, []]);
+    const add = find(tree, PillButton, { testID: 'plan-add-exercise' });
+    expect(picker.props.returnFocusRef).toBeTruthy();
+    expect(picker.props.returnFocusRef.current).toBeTruthy();
+    expect(add).toBeTruthy();
+
+    await act(async () => picker.props.onRetryCatalog());
+    picker = tree.root.findByType(ExercisePickerSheet);
+    expect(listExercisesPage).toHaveBeenCalledTimes(2);
+    expect([picker.props.loading, picker.props.catalogError, picker.props.catalog]).toEqual([false, null, [{ id: 5, name: 'Squat' }]]);
   });
 });
 

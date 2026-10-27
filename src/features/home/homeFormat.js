@@ -3,14 +3,21 @@ import { formatDate, formatDuration, formatLocalDateForInput } from '../../share
 
 // Rules and copy of RN-SPEC-home (dated changes of 23 Oct included). Pure.
 
-// H1.2: first name, else the email's local part, else "there" (each trimmed).
+// H1.2: first name, else the email's local part (each trimmed), else none.
+// v2 parity with web (FE, 26 Oct 2026): no "there" placeholder.
 export function greetingName(profile, email) {
   const first = typeof profile?.first_name === 'string' ? profile.first_name.trim() : '';
   if (first) {
     return first;
   }
   const local = typeof email === 'string' ? email.trim().split('@')[0].trim() : '';
-  return local || 'there';
+  return local;
+}
+
+// The Today h1: "Welcome back, {name}", or "Welcome back" with no name.
+export function greetingLine(profile, email) {
+  const name = greetingName(profile, email);
+  return name ? `Welcome back, ${name}` : 'Welcome back';
 }
 
 // H1.3 + Batch B #3/#6. `setupDayCount` is set when the plan needs its
@@ -107,13 +114,14 @@ export function weightLogBody(value, unit, now = new Date()) {
 }
 
 // v2 Phase 2 B3: the Today header (main Today board): "Today · Thursday, Oct 29".
+// The device's local date above the greeting, e.g. "Thursday, Oct 29"
+// (web parity: "Today" is the nav item, never a heading here).
 export function todayDateLabel(now = new Date()) {
-  const date = now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-  return `Today · ${date}`;
+  return now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 }
 
 // The header avatar (decorative): first + last initial, else the first
-// letter of the greeting name ("there" → none).
+// letter of the greeting name (none → no initials).
 export function avatarInitials(profile, email) {
   const first = typeof profile?.first_name === 'string' ? profile.first_name.trim() : '';
   const last = typeof profile?.last_name === 'string' ? profile.last_name.trim() : '';

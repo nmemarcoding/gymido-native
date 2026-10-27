@@ -18,7 +18,7 @@ const member = { roles: ['member'] };
 
 describe('getHeaderTitle (§6.1)', () => {
   it('follows the first-match table (5-tab nav)', () => {
-    expect(getHeaderTitle('/')).toBe('Today');
+    expect(getHeaderTitle('/')).toBe('');
     expect(getHeaderTitle('/workout')).toBe('Workout');
     expect(getHeaderTitle('/exercises/3')).toBe('Exercises');
     expect(getHeaderTitle('/plansX')).toBe('Plans');

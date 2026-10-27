@@ -1,4 +1,5 @@
 import {
+  greetingLine,
   greetingName,
   quickStats,
   recentWorkoutMeta,
@@ -9,10 +10,18 @@ import {
 } from './homeFormat';
 
 describe('greetingName (H1.2)', () => {
-  it('falls back from first name to the email local part to "there"', () => {
+  it('falls back from first name to the email local part to none', () => {
     expect(greetingName({ first_name: '  Arash ' }, 'a@b.c')).toBe('Arash');
     expect(greetingName({ first_name: ' ' }, ' coach@x.com')).toBe('coach');
-    expect(greetingName(null, '@x.com')).toBe('there');
+    expect(greetingName(null, '@x.com')).toBe('');
+  });
+
+  it('greetingLine: "Welcome back, {name}", or "Welcome back" with no name (never "there")', () => {
+    expect(greetingLine({ first_name: ' Arash ' }, 'a@b.c')).toBe('Welcome back, Arash');
+    expect(greetingLine(null, 'coach@x.com')).toBe('Welcome back, coach');
+    expect(greetingLine(null, '@x.com')).toBe('Welcome back');
+    expect(greetingLine({ first_name: '   ' }, '  ')).toBe('Welcome back');
+    expect(greetingLine(null, undefined)).toBe('Welcome back');
   });
 });
 

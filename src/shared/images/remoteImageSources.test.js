@@ -8,12 +8,10 @@ describe('getRemoteImageSources', () => {
     expect(getRemoteImageSources(null)).toEqual([]);
   });
 
-  it('adds the Drive fallbacks in order', () => {
+  it('adds the Drive fallbacks in order, without the uc?export candidates (dated change @ 81ef4911)', () => {
     const url = 'https://drive.google.com/file/d/abc_123-x/view?usp=sharing';
     expect(getRemoteImageSources(url)).toEqual([
       url,
-      'https://drive.google.com/uc?export=view&id=abc_123-x',
-      'https://drive.google.com/uc?export=download&id=abc_123-x',
       'https://drive.google.com/thumbnail?id=abc_123-x&sz=w1600',
       'https://lh3.googleusercontent.com/d/abc_123-x=w1600',
       'https://lh3.googleusercontent.com/d/abc_123-x=s1600',
@@ -22,7 +20,13 @@ describe('getRemoteImageSources', () => {
 
   it('drops a duplicate of the original', () => {
     const url = 'https://drive.google.com/uc?export=view&id=AB';
-    expect(getRemoteImageSources(url)).toHaveLength(5);
+    expect(getRemoteImageSources(url)).toEqual([
+      url,
+      'https://drive.google.com/thumbnail?id=AB&sz=w1600',
+      'https://lh3.googleusercontent.com/d/AB=w1600',
+      'https://lh3.googleusercontent.com/d/AB=s1600',
+    ]);
+    expect(getRemoteImageSources(url).some((source) => source.includes('export=download'))).toBe(false);
   });
 });
 

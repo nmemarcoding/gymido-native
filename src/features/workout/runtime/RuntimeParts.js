@@ -59,7 +59,7 @@ function PopIn({ children }) {
 
 // §19.1, pinned to the top (§19.0). The rail fill is a full-width view
 // scaled by scaleX, never a width (§19.10).
-export function SessionChrome({ planName, completedSets, totalSets, exerciseCount, onExit, onAll }) {
+export function SessionChrome({ planName, completedSets, totalSets, exerciseCount, onExit, onAll, allRef }) {
   const { width } = useWindowDimensions();
   const reducedMotion = useReducedMotion();
   const ratio = totalSets > 0 ? completedSets / totalSets : 0;
@@ -91,7 +91,7 @@ export function SessionChrome({ planName, completedSets, totalSets, exerciseCoun
           </Text>
           <Text style={styles.chromeSub}>{`${completedSets}/${totalSets} ${setsWord(totalSets)} done`}</Text>
         </View>
-        <Pressable testID="session-all" accessibilityRole="button" onPress={onAll} style={styles.chromeButton}>
+        <Pressable ref={allRef} testID="session-all" accessibilityRole="button" onPress={onAll} style={styles.chromeButton}>
           {({ pressed }) => <Text style={[styles.allText, pressed && styles.allPressed]}>{`All (${exerciseCount})`}</Text>}
         </Pressable>
       </View>

@@ -81,8 +81,8 @@ async function render(dashboard = EMPTY) {
 }
 
 describe('homeFormat (B3 header + empty stats)', () => {
-  it('todayDateLabel: "Today · {weekday}, {Mon} {d}"', () => {
-    expect(todayDateLabel(new Date(2026, 9, 29, 9))).toBe('Today · Thursday, Oct 29');
+  it('todayDateLabel: "{weekday}, {Mon} {d}" (no "Today ·" prefix)', () => {
+    expect(todayDateLabel(new Date(2026, 9, 29, 9))).toBe('Thursday, Oct 29');
   });
 
   it('avatarInitials: first + last, else first, else the email letter, else none', () => {
@@ -114,6 +114,12 @@ describe('B3 header (every Today state)', () => {
     expect(textOf(host(loading.root, 'home-greeting'))).toBe('Welcome back, Nima');
     const failed = await render(new Error('Network Error'));
     expect(textOf(host(failed.root, 'home-greeting'))).toBe('Welcome back, Nima');
+  });
+
+  it('the greeting is the page heading (the shell header on "/" is untitled)', async () => {
+    const tree = await render();
+    expect(host(tree.root, 'home-greeting').props.accessibilityRole).toBe('header');
+    expect(texts(tree.root)).not.toContain('Today');
   });
 });
 

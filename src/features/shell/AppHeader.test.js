@@ -46,14 +46,19 @@ afterEach(() => {
 
 describe('AppHeader v2 look (§7.4)', () => {
   it('phone: the tab title in title-xl (36/40 Geist Bold, primary text), no fontWeight', () => {
-    const tree = render({ path: '/' });
-    expect(title(tree).props.children).toBe('Today');
+    const tree = render({ path: '/plans' });
+    expect(title(tree).props.children).toBe('Plans');
     expect(titleStyle(tree)).toMatchObject({ fontSize: 36, lineHeight: 40, fontFamily: 'Geist-Bold', color: '#F5F6F8' });
     expect(titleStyle(tree).fontWeight).toBeUndefined();
   });
 
   it('tablet: the title in display-lg (52/52, UX)', () => {
-    expect(titleStyle(render({ path: '/' }, 1024))).toMatchObject({ fontSize: 52, lineHeight: 52, fontFamily: 'Geist-Bold' });
+    expect(titleStyle(render({ path: '/plans' }, 1024))).toMatchObject({ fontSize: 52, lineHeight: 52, fontFamily: 'Geist-Bold' });
+  });
+
+  it('"/" is untitled: Today\'s greeting is the page heading (web parity)', () => {
+    const tree = render({ path: '/' });
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'header')).toHaveLength(0);
   });
 
   it('back link: 14/600 gold, min-height 32 with a 44 hit area, goes to the tab root', () => {

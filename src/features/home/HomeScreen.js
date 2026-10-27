@@ -15,7 +15,7 @@ import { getDashboard } from './api/homeApi';
 import {
   avatarInitials,
   defaultWeightUnit,
-  greetingName,
+  greetingLine,
   quickStats,
   recentWorkoutMeta,
   todayCard,
@@ -124,7 +124,7 @@ function Home() {
       tablet={tablet}
       initials={avatarInitials(profile, email)}
       dateLabel={todayDateLabel()}
-      greeting={`Welcome back, ${greetingName(profile, email)}`}
+      greeting={greetingLine(profile, email)}
     />
   );
 

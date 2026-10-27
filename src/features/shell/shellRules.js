@@ -19,9 +19,10 @@ const TITLES = [
 ];
 
 // During a workout session the Workout header is untitled (session override).
+// "/" is untitled too: Today's own greeting is the page heading (v2, web parity).
 export function getHeaderTitle(path, isSessionActive = false) {
   if (path === '/') {
-    return 'Today';
+    return '';
   }
   if (isSessionActive && path.startsWith('/workout')) {
     return '';

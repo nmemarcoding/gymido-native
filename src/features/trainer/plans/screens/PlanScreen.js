@@ -31,9 +31,10 @@ import PlanActionDialog, { PlanAction } from '../components/PlanActionDialog';
 import { PlanPage, TextLink } from '../components/PlanPage';
 import SortableExerciseList from '../components/SortableExerciseList';
 import StaticExerciseList from '../components/StaticExerciseList';
-import { loadExerciseCatalog, wait } from '../loadExerciseCatalog';
+import { wait } from '../loadExerciseCatalog';
 import { getAddDayContext, getAddedExerciseIds, getNextSetNumber, getOrderIndexBase, moveItem } from '../planFormat';
 import { createTrainerPlanAdapter } from '../trainerPlanAdapter';
+import { useExerciseCatalog } from '../useExerciseCatalog';
 import { canEditPlan } from '../trainerPlanBuilder';
 
 const EDIT_PLAN_FIELDS = ['name', 'category_id', 'days_per_week', 'difficulty_level_id', 'description'];
@@ -89,8 +90,9 @@ function PlanBuilder({ planId, adapter }) {
 
   const [muscleGroups, setMuscleGroups] = useState([]);
   const [equipmentTypes, setEquipmentTypes] = useState([]);
-  const [catalog, setCatalog] = useState([]);
-  const [catalogLoading, setCatalogLoading] = useState(true);
+  // §D4: a failed catalog load shows the picker's alert + Retry.
+  const catalogState = useExerciseCatalog();
+  const addExerciseRef = useRef(null);
 
   // Part B
   const [affectedCount, setAffectedCount] = useState(null);
@@ -219,12 +221,6 @@ function PlanBuilder({ planId, adapter }) {
     listEquipmentTypes()
       .catch(() => [])
       .then((items) => mounted.current && setEquipmentTypes(items));
-    loadExerciseCatalog().then((items) => {
-      if (mounted.current) {
-        setCatalog(items);
-        setCatalogLoading(false);
-      }
-    });
   }, [loadPlan]);
 
   useEffect(() => {
@@ -689,8 +685,11 @@ function PlanBuilder({ planId, adapter }) {
       <ExercisePickerSheet
         isOpen={pickerOpen}
         onClose={() => setPickerOpen(false)}
-        catalog={catalog}
-        loading={catalogLoading}
+        catalog={catalogState.catalog}
+        loading={catalogState.loading}
+        catalogError={catalogState.error}
+        onRetryCatalog={catalogState.retry}
+        returnFocusRef={addExerciseRef}
         muscleGroups={muscleGroups}
         equipmentTypes={equipmentTypes}
         addedIds={getAddedExerciseIds(exercises)}
@@ -754,6 +753,7 @@ function PlanBuilder({ planId, adapter }) {
           <Text style={styles.exercisesTitle}>Exercises</Text>
           {capabilities.addExercise ? (
             <PillButton
+              ref={addExerciseRef}
               testID="plan-add-exercise"
               title="Add exercise"
               variant="secondary"

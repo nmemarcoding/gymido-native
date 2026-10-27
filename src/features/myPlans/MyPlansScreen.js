@@ -118,14 +118,15 @@ function MyPlansList() {
     const { items, currentPage, totalPages, totalRecords } = state.result;
     if (items.length === 0) {
       return (
-        // §D1: compact 44 actions; the code's primary + secondary pair.
+        // §D1: compact 44 actions, both glass: the header's "Create a plan"
+        // is the page's one gold action (UX, 26 Oct 2026).
         <StateSlot style={styles.empty}>
           <EmptyState
             title="No plans yet"
             message="Create a plan from scratch, or copy one from the catalog to make it yours."
           />
           <View style={styles.emptyButtons}>
-            <PillButton testID="my-plans-empty-create" title="Create a plan" size="compact" onPress={openCreate} />
+            <PillButton testID="my-plans-empty-create" title="Create a plan" variant="secondary" size="compact" onPress={openCreate} />
             <PillButton
               testID="my-plans-browse"
               title="Browse the catalog"

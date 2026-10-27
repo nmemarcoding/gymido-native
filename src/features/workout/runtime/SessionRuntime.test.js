@@ -2,6 +2,8 @@ import { Keyboard, PanResponder, StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { abandonWorkout, completeWorkout, updateSessionSet } from '../api/workoutApi';
+import { ExerciseSheet } from './ExerciseNavigation';
+import { SessionChrome } from './RuntimeParts';
 import SessionRuntime, { ENDED_ELSEWHERE } from './SessionRuntime';
 
 jest.mock('@react-navigation/native', () => ({ useIsFocused: () => true }));
@@ -191,5 +193,19 @@ describe('SessionRuntime', () => {
     act(() => byId(tree, 'exercise-nav-segment-1').props.onPress());
     act(() => byId(tree, 'exercise-nav-segment-0').props.onPress());
     expect(spy.mock.calls.length).toBe(created);
+  });
+});
+
+describe('All exercises sheet wiring (v2 Phase 2 C4)', () => {
+  it('passes the plan name (else "Workout") and returns focus to the All (n) opener', () => {
+    const { tree } = render();
+    const sheet = tree.root.findByType(ExerciseSheet);
+    expect(sheet.props.planName).toBe('Plan');
+    const chrome = tree.root.findByType(SessionChrome);
+    expect(chrome.props.allRef).toBeTruthy();
+    expect(sheet.props.returnFocusRef).toBe(chrome.props.allRef);
+    act(() => mounted.unmount());
+    const untitled = render({ planName: '' }).tree;
+    expect(untitled.root.findByType(ExerciseSheet).props.planName).toBe('Workout');
   });
 });

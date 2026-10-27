@@ -78,6 +78,8 @@ export default function SessionRuntime({
   const isFocused = useIsFocused();
   const scrollRef = useRef(null);
   const contentRef = useRef(null);
+  // The All (n) opener: the exercise sheet returns focus here on close.
+  const allRef = useRef(null);
   const rowRefs = useRef({});
   // §22.3: the viewport and content heights are read when the key changes,
   // never as effect deps (a keyboard resize must not re-centre the row).
@@ -327,6 +329,7 @@ export default function SessionRuntime({
           exerciseCount={exercises.length}
           onExit={dismiss(() => setShowDiscard(true))}
           onAll={dismiss(() => setShowSheet(true))}
+          allRef={allRef}
         />
         <ScrollView
           ref={scrollRef}
@@ -427,6 +430,8 @@ export default function SessionRuntime({
       />
       <ExerciseSheet
         open={showSheet}
+        planName={planName || 'Workout'}
+        returnFocusRef={allRef}
         exercises={exercises}
         muscleGroups={groups}
         activeMuscle={muscle}

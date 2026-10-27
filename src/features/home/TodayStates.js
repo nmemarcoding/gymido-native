@@ -22,8 +22,9 @@ import ProgressRing from '../workout/components/ProgressRing';
 export const LOADING_LABEL = 'Loading dashboard';
 
 // The main Today board's header: a 44 gold avatar (60 on tablet), the
-// "Today · {date}" line and "Welcome back, {name}". The bell stays in the
-// shell header.
+// "{weekday}, {Mon} {d}" line and the page heading "Welcome back, {name}"
+// (the shell header on "/" is untitled: one heading, web parity). The bell
+// stays in the shell header.
 export function TodayHeader({ initials, dateLabel, greeting, tablet }) {
   return (
     <View testID="home-header" style={styles.header}>
@@ -38,7 +39,7 @@ export function TodayHeader({ initials, dateLabel, greeting, tablet }) {
       </View>
       <View style={styles.headerText}>
         {tablet ? null : <Text style={styles.dateLine}>{dateLabel}</Text>}
-        <Text testID="home-greeting" style={tablet ? styles.greetingTablet : styles.greeting}>
+        <Text testID="home-greeting" accessibilityRole="header" style={tablet ? styles.greetingTablet : styles.greeting}>
           {greeting}
         </Text>
       </View>
