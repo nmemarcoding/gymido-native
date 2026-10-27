@@ -1,0 +1,97 @@
+# v2 Phase 1 shell, trainer tab bar (4 tabs) and the workspace switch.
+# Account: QA_TRAINER (needs the trainer role). Start: signed in, default size.
+#
+# Checks: each trainer tab opens its root and is selected; the phone
+# Workspace switch goes Trainer → Personal (member tabs, Today) and back.
+# The trainer Profile root is only checked through the selected tab.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase1
+  - trainer
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/trainer-workspace.yaml
+
+- tapOn:
+    id: "tab-TToday"
+- extendedWaitUntil:
+    visible:
+      id: "trainer-dashboard-clients"
+    timeout: 30000
+- assertVisible:
+    id: "tab-TToday"
+    selected: true
+
+- tapOn:
+    id: "tab-TClients"
+- extendedWaitUntil:
+    visible:
+      id: "clients-invite"
+    timeout: 30000
+- assertVisible:
+    id: "tab-TClients"
+    selected: true
+- assertNotVisible:
+    id: "trainer-dashboard-clients"
+
+- tapOn:
+    id: "tab-TPlans"
+- extendedWaitUntil:
+    visible:
+      id: "plans-create"
+    timeout: 30000
+- assertVisible:
+    id: "tab-TPlans"
+    selected: true
+
+- tapOn:
+    id: "tab-TProfile"
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible:
+    id: "tab-TProfile"
+    selected: true
+- assertNotVisible:
+    id: "plans-create"
+- assertNotVisible:
+    id: "clients-invite"
+
+# Workspace switch: Trainer → Personal lands on Today with the member tabs.
+- scrollUntilVisible:
+    element:
+      id: "mode-switch-member"
+    direction: DOWN
+    centerElement: true
+    timeout: 10000
+- tapOn:
+    id: "mode-switch-member"
+- extendedWaitUntil:
+    visible:
+      id: "home-header"
+    timeout: 30000
+- assertVisible:
+    id: "tab-Today"
+    selected: true
+- assertNotVisible:
+    id: "tab-TToday"
+# … and back: Personal → Trainer lands on the trainer dashboard.
+- tapOn:
+    id: "tab-Profile"
+- scrollUntilVisible:
+    element:
+      id: "mode-switch-trainer"
+    direction: DOWN
+    centerElement: true
+    timeout: 10000
+- tapOn:
+    id: "mode-switch-trainer"
+- extendedWaitUntil:
+    visible:
+      id: "trainer-dashboard-clients"
+    timeout: 30000
+- assertVisible:
+    id: "tab-TToday"
+    selected: true
+
+- runFlow: ../subflows/restore-workspace.yaml

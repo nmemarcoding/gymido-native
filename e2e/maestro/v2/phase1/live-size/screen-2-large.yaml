@@ -1,0 +1,56 @@
+# v2 Phase 1 LIVE text-size change on a screen, PART 2 of 3.
+# Run ONLY right after part 1 and LEAD STEP A (see screen-1-before.yaml):
+#   iOS:     xcrun simctl ui <udid> content_size accessibility-large
+#   Android: adb -s <serial> shell settings put system font_scale 2.0
+#
+# Checks, without relaunching: still on Plans (the change did not reset the
+# navigation), the page and header re-laid out (title visible, page content
+# back after the remount), the tab bar switched to icons only (Android label
+# check; iOS on the screenshot), and the tabs still work. The look (no
+# clipped text) is on the named screenshot: compare with part 1.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase1
+  - live-size
+  - member
+---
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible:
+      id: "plans-library-screen"
+    timeout: 30000
+- assertVisible:
+    id: "tab-Plans"
+    selected: true
+- extendedWaitUntil:
+    visible:
+      id: "my-plans-entry"
+    timeout: 30000
+- assertVisible:
+    text: "Plans"
+    childOf:
+      id: "plans-library-screen"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertNotVisible:
+          id: "tab-Plans"
+          containsChild:
+            text: "Plans"
+- takeScreenshot: v2-p1-live-size-2-large
+# The tabs still navigate, and Plans re-renders fine after a tab round trip.
+- tapOn:
+    id: "tab-Today"
+- extendedWaitUntil:
+    visible:
+      id: "home-header"
+    timeout: 30000
+- tapOn:
+    id: "tab-Plans"
+- extendedWaitUntil:
+    visible:
+      id: "my-plans-entry"
+    timeout: 30000

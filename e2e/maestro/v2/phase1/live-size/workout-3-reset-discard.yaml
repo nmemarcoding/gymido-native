@@ -1,0 +1,35 @@
+# v2 Phase 1 LIVE text-size change during an ACTIVE WORKOUT, PART 3 of 3.
+# Run ONLY right after part 2 and LEAD STEP B (see workout-1-start.yaml):
+#   iOS:     xcrun simctl ui <udid> content_size large
+#   Android: adb -s <serial> shell settings put system font_scale 1.0
+#
+# Checks: the same session survived the change back, then DISCARDS it
+# (cleanup: nothing is recorded) and the tab bar returns with its labels.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase1
+  - live-size
+  - member
+---
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible:
+      id: "session-chrome"
+    timeout: 30000
+- runFlow: ../../subflows/dismiss-session-dialogs.yaml
+- assertVisible:
+    id: "exercise-stage"
+- assertNotVisible:
+    id: "bottom-nav"
+- takeScreenshot: v2-p1-live-size-workout-3-reset
+- runFlow: ../../subflows/discard-workout.yaml
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: "tab-Today"
+          containsChild:
+            text: "Today"

@@ -1,0 +1,96 @@
+# v2 Phase 2 C3: My plan create (/plans/mine/new), form only, NOTHING saved.
+# Account: QA_MEMBER or QA_TRAINER (Personal workspace), not on hold.
+# Start: signed in.
+#
+# Checks: "Create a plan" opens the form with Name, Category, Days per week,
+# Difficulty, Description, Create and Cancel; the member form has NO slug
+# field; submitting EMPTY shows v1's client-side messages and creates nothing
+# (Name is empty, so validation stops it before any request); Cancel returns
+# to My plans.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase2
+  - member
+  - trainer
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/member-workspace.yaml
+- tapOn:
+    id: "tab-Plans"
+- extendedWaitUntil:
+    visible:
+      id: "my-plans-entry"
+    timeout: 30000
+- tapOn:
+    id: "my-plans-entry"
+- extendedWaitUntil:
+    visible:
+      id: "my-plans-create|my-plans-on-hold"
+    timeout: 30000
+- runFlow:
+    when:
+      visible:
+        id: "my-plans-on-hold"
+    commands:
+      - assertTrue:
+          condition: ${false}
+          label: "Account's plans are on hold (it has a trainer): My plan create is not reachable. Use an account without a trainer."
+- tapOn:
+    id: "my-plans-create"
+- extendedWaitUntil:
+    visible:
+      id: "create-plan-screen"
+    timeout: 20000
+- assertVisible:
+    id: "create-plan-name"
+- assertVisible:
+    id: "create-plan-category"
+- assertNotVisible:
+    id: "create-plan-slug"
+- scrollUntilVisible:
+    element:
+      id: "create-plan-days"
+    direction: DOWN
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: "create-plan-difficulty"
+    direction: DOWN
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: "create-plan-description"
+    direction: DOWN
+    timeout: 10000
+- takeScreenshot: v2-p2-my-plan-create
+# The form remounts empty on every focus, so Name is empty here and the
+# submit below cannot reach the API.
+- scrollUntilVisible:
+    element:
+      id: "create-plan-submit"
+    direction: DOWN
+    centerElement: true
+    timeout: 10000
+- tapOn:
+    id: "create-plan-submit"
+- extendedWaitUntil:
+    visible: "Name is required\\."
+    timeout: 10000
+- assertVisible:
+    id: "create-plan-screen"
+- scrollUntilVisible:
+    element:
+      id: "create-plan-cancel"
+    direction: DOWN
+    centerElement: true
+    timeout: 10000
+- tapOn:
+    id: "create-plan-cancel"
+- extendedWaitUntil:
+    visible:
+      id: "my-plans-screen"
+    timeout: 20000
+- assertNotVisible:
+    id: "create-plan-screen"
+- runFlow: ../subflows/restore-workspace.yaml

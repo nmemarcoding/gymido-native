@@ -1,0 +1,66 @@
+# v2 Phase 2 C5: My trainer hub, TRAINER view, read-only.
+# Account: QA_TRAINER (trainer role). Start: signed in; runs in the Personal
+# workspace and puts the stored workspace back at the end.
+#
+# Checks: Profile → Coaching opens the hub with the "Trainer mode" card and
+# the View plans / View progress links; no "find a trainer", no "you don't
+# have a trainer" and no "Become a trainer" for a trainer. Never taps the
+# trainer-mode switch, Contact, End coaching, Accept or Decline.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase2
+  - trainer
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/member-workspace.yaml
+- tapOn:
+    id: "tab-Profile"
+- scrollUntilVisible:
+    element:
+      id: "profile-coaching-card"
+    direction: DOWN
+    centerElement: true
+    timeout: 15000
+- tapOn:
+    id: "profile-coaching-card"
+- extendedWaitUntil:
+    visible:
+      id: "trainer-hub-screen"
+    timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: "trainer-hub-trainer-mode"
+    timeout: 30000
+- assertVisible:
+    id: "trainer-hub-switch"
+- scrollUntilVisible:
+    element:
+      id: "trainer-hub-links"
+    direction: DOWN
+    timeout: 10000
+- assertVisible:
+    id: "trainer-hub-view-plans"
+- assertVisible:
+    id: "trainer-hub-view-progress"
+- assertNotVisible:
+    id: "trainer-hub-empty"
+- assertNotVisible:
+    id: "trainer-hub-find"
+- assertNotVisible:
+    id: "trainer-hub-become-card"
+- takeScreenshot: v2-p2-my-trainer-trainer
+- scrollUntilVisible:
+    element:
+      id: "header-back-link"
+    direction: UP
+    timeout: 10000
+- tapOn:
+    id: "header-back-link"
+- extendedWaitUntil:
+    notVisible:
+      id: "trainer-hub-screen"
+    timeout: 10000
+- tapOn:
+    id: "tab-Today"
+- runFlow: ../subflows/restore-workspace.yaml

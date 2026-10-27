@@ -1,0 +1,78 @@
+# v2 Phase 2 B3: the Today header, in whichever Today state the account is in.
+# Account: QA_MEMBER or QA_TRAINER (Personal workspace). Start: signed in.
+#
+# Checks: the header (avatar + date line + greeting heading) shows; the
+# greeting reads "Welcome back" or "Welcome back, {name}"; the date line is
+# "{Weekday}, {Mon} {d}" (en-US; the device's date, so only its shape is
+# checked); the page body is one of the Today states (plan card / empty hero);
+# the empty hero has "Choose a plan" (its "Build me a plan" gate is in 08);
+# the header comes back after leaving Today and returning (Today reloads).
+# Loading is transient and the error state needs a failing API: Jest-covered.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase2
+  - member
+  - trainer
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/member-workspace.yaml
+- tapOn:
+    id: "tab-Today"
+- extendedWaitUntil:
+    visible:
+      id: "home-header"
+    timeout: 30000
+- assertVisible:
+    id: "home-avatar"
+- assertVisible:
+    id: "home-greeting"
+    text: "Welcome back(, .+)?"
+- assertVisible:
+    id: "home-date"
+    text: "(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [0-9]{1,2}"
+
+# The body settles into a loaded Today state (not the error card).
+- extendedWaitUntil:
+    visible:
+      id: "home-today-card|home-empty-hero|home-error"
+    timeout: 30000
+- assertNotVisible:
+    id: "home-error"
+- runFlow:
+    when:
+      visible:
+        id: "home-empty-hero"
+    commands:
+      - assertVisible:
+          id: "home-choose-plan"
+      - assertNotVisible:
+          id: "home-today-card"
+- runFlow:
+    when:
+      visible:
+        id: "home-today-card"
+    commands:
+      - assertVisible:
+          id: "home-today-primary"
+      - assertVisible:
+          id: "home-view-plan"
+      - assertNotVisible:
+          id: "home-empty-hero"
+
+# Leave and come back: the header is there again after the reload.
+- tapOn:
+    id: "tab-Exercises"
+- extendedWaitUntil:
+    visible:
+      id: "exercises-screen"
+    timeout: 30000
+- tapOn:
+    id: "tab-Today"
+- extendedWaitUntil:
+    visible:
+      id: "home-greeting"
+    timeout: 30000
+- assertVisible:
+    id: "home-date"
+- runFlow: ../subflows/restore-workspace.yaml

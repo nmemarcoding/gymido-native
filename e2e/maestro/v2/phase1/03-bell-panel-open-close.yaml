@@ -1,0 +1,97 @@
+# v2 Phase 1 shell, the notification bell and panel. Account: QA_MEMBER or
+# QA_TRAINER (runs in the Personal workspace). Start: signed in.
+#
+# Checks: the bell is in the header on every member tab root (full header on
+# Today/Plans/Progress, compact on Exercises); a tap opens the panel and a
+# second tap closes it; a tab press while the panel is open closes it and
+# opens the tab. Read-only: never taps "Mark all as read" or a notification.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase1
+  - member
+  - trainer
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/member-workspace.yaml
+
+- tapOn:
+    id: "tab-Today"
+- extendedWaitUntil:
+    visible:
+      id: "home-header"
+    timeout: 30000
+- assertVisible:
+    id: "notification-bell"
+
+# Open, then close with the bell (the scrim takes the tap on phones, which
+# closes the panel just the same).
+- tapOn:
+    id: "notification-bell"
+- extendedWaitUntil:
+    visible:
+      id: "notification-panel"
+    timeout: 10000
+- tapOn:
+    id: "notification-bell"
+- extendedWaitUntil:
+    notVisible:
+      id: "notification-panel"
+    timeout: 5000
+- assertVisible:
+    id: "home-header"
+
+# Open again, then a tab press closes the panel and switches tab.
+- tapOn:
+    id: "notification-bell"
+- extendedWaitUntil:
+    visible:
+      id: "notification-panel"
+    timeout: 10000
+- tapOn:
+    id: "tab-Plans"
+- extendedWaitUntil:
+    notVisible:
+      id: "notification-panel"
+    timeout: 5000
+- extendedWaitUntil:
+    visible:
+      id: "plans-library-screen"
+    timeout: 30000
+- assertVisible:
+    id: "notification-bell"
+
+# Compact header (Exercises): the bell is still there and still opens the panel.
+- tapOn:
+    id: "tab-Exercises"
+- extendedWaitUntil:
+    visible:
+      id: "exercises-screen"
+    timeout: 30000
+- assertVisible:
+    id: "notification-bell"
+- tapOn:
+    id: "notification-bell"
+- extendedWaitUntil:
+    visible:
+      id: "notification-panel"
+    timeout: 10000
+- tapOn:
+    id: "notification-bell"
+- extendedWaitUntil:
+    notVisible:
+      id: "notification-panel"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-Progress"
+- extendedWaitUntil:
+    visible:
+      id: "progress-tabs|progress-error"
+    timeout: 30000
+- assertVisible:
+    id: "notification-bell"
+
+- tapOn:
+    id: "tab-Today"
+- runFlow: ../subflows/restore-workspace.yaml

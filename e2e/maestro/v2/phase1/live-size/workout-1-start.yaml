@@ -1,0 +1,30 @@
+# v2 Phase 1 LIVE text-size change during an ACTIVE WORKOUT, PART 1 of 3.
+# Account: QA_MEMBER with an ACTIVE plan. Start: signed in, DEFAULT text size,
+# no workout running. Creates a session; part 3 DISCARDS it (nothing saved).
+# Run order (app left OPEN in the session between parts):
+#   1. maestro test … live-size/workout-1-start.yaml
+#   2. LEAD STEP A:
+#        iOS:     xcrun simctl ui <udid> content_size accessibility-large
+#        Android: adb -s <serial> shell settings put system font_scale 2.0
+#   3. maestro test … live-size/workout-2-large.yaml
+#   4. LEAD STEP B:
+#        iOS:     xcrun simctl ui <udid> content_size large
+#        Android: adb -s <serial> shell settings put system font_scale 1.0
+#   5. maestro test … live-size/workout-3-reset-discard.yaml
+# If part 2 or 3 fails, run v2/cleanup/discard-active-session.yaml, then reset
+# the text size (step B).
+appId: com.gymido.app
+tags:
+  - v2
+  - phase1
+  - live-size
+  - member
+---
+- runFlow: ../../subflows/signed-in-start.yaml
+- runFlow: ../../subflows/member-workspace.yaml
+- runFlow: ../../subflows/start-workout.yaml
+- assertVisible:
+    id: "session-all"
+- assertVisible:
+    id: "exercise-stage"
+- takeScreenshot: v2-p1-live-size-workout-1-default

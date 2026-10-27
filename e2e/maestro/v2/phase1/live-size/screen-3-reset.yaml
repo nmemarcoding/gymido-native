@@ -1,0 +1,43 @@
+# v2 Phase 1 LIVE text-size change on a screen, PART 3 of 3.
+# Run ONLY right after part 2 and LEAD STEP B (see screen-1-before.yaml):
+#   iOS:     xcrun simctl ui <udid> content_size large
+#   Android: adb -s <serial> shell settings put system font_scale 1.0
+#
+# Checks: still on Plans, labels back on the tab bar (Android), title and
+# content visible. Screenshot should match part 1.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase1
+  - live-size
+  - member
+---
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible:
+      id: "plans-library-screen"
+    timeout: 30000
+- extendedWaitUntil:
+    visible:
+      id: "my-plans-entry"
+    timeout: 30000
+- assertVisible:
+    text: "Plans"
+    childOf:
+      id: "plans-library-screen"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: "tab-Plans"
+          containsChild:
+            text: "Plans"
+- takeScreenshot: v2-p1-live-size-3-reset
+- tapOn:
+    id: "tab-Today"
+- extendedWaitUntil:
+    visible:
+      id: "home-header"
+    timeout: 30000

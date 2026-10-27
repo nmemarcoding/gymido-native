@@ -1,0 +1,96 @@
+# v2 Phase 1 large text: page header titles and the bell (+ its badge).
+# Account: QA_MEMBER (or QA_TRAINER; runs in the Personal workspace).
+#
+# LEAD, BEFORE this flow:
+#   iOS:     xcrun simctl ui <udid> content_size accessibility-large
+#   Android: adb -s <serial> shell settings put system font_scale 2.0
+# LEAD, AFTER:
+#   iOS:     xcrun simctl ui <udid> content_size large
+#   Android: adb -s <serial> shell settings put system font_scale 1.0
+# Optional second pass on iOS at the largest size (AX5):
+#   xcrun simctl ui <udid> content_size accessibility-extra-extra-extra-large
+#
+# Checks: the header title stays visible on Plans (full header) and Exercises
+# (phone compact header with its H1); the bell stays visible and still opens
+# and closes the panel; when there are unread notifications the bell's name
+# carries the count and (Android) the badge count is drawn inside the bell.
+# The title must not break mid-word and the badge must sit outside the bell:
+# that is LOOK, checked on the named screenshots (the text content is the same
+# either way).
+appId: com.gymido.app
+tags:
+  - v2
+  - phase1
+  - large-text
+  - member
+---
+- runFlow: ../../subflows/signed-in-start.yaml
+- runFlow: ../../subflows/member-workspace.yaml
+
+# Plans: full header, title "Plans".
+- tapOn:
+    id: "tab-Plans"
+- extendedWaitUntil:
+    visible:
+      id: "plans-library-screen"
+    timeout: 30000
+- assertVisible:
+    text: "Plans"
+    childOf:
+      id: "plans-library-screen"
+- assertVisible:
+    id: "notification-bell"
+- takeScreenshot: v2-p1-large-text-header-plans
+
+# Exercises: phone compact header keeps its H1 and the bell.
+- tapOn:
+    id: "tab-Exercises"
+- extendedWaitUntil:
+    visible:
+      id: "exercises-screen"
+    timeout: 30000
+- assertVisible:
+    text: "Exercises"
+    childOf:
+      id: "exercises-screen"
+- assertVisible:
+    id: "notification-bell"
+
+# Bell badge: only when the account has unread notifications.
+- runFlow:
+    when:
+      visible:
+        id: "notification-bell"
+        text: "Notifications, [0-9]+ unread"
+    commands:
+      - runFlow:
+          when:
+            platform: Android
+          commands:
+            - assertVisible:
+                id: "notification-bell"
+                containsDescendants:
+                  - text: "[0-9]+|99\\+"
+      - takeScreenshot: v2-p1-large-text-bell-badge
+
+# The bell still works at this size.
+- tapOn:
+    id: "notification-bell"
+- extendedWaitUntil:
+    visible:
+      id: "notification-panel"
+    timeout: 10000
+- tapOn:
+    id: "notification-bell"
+- extendedWaitUntil:
+    notVisible:
+      id: "notification-panel"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-Today"
+- extendedWaitUntil:
+    visible:
+      id: "home-header"
+    timeout: 30000
+- runFlow: ../../subflows/restore-workspace.yaml

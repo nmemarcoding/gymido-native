@@ -1,0 +1,42 @@
+# CLEANUP (run by hand only): discards a workout session left running by a
+# failed v2 flow (start-workout → … → failure before discard-workout).
+# DESTRUCTIVE for a real session: only run it on a QA account when you know
+# the active session is a leftover test session. Signed-in start.
+appId: com.gymido.app
+---
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible:
+      id: "bottom-nav|session-chrome"
+    timeout: 30000
+- runFlow:
+    when:
+      visible:
+        id: "bottom-nav"
+    commands:
+      - tapOn:
+          id: "tab-Today"
+      - extendedWaitUntil:
+          visible:
+            id: "home-today-primary|home-empty-hero|home-error"
+          timeout: 30000
+      - runFlow:
+          when:
+            visible:
+              id: "home-today-primary"
+          commands:
+            - tapOn:
+                id: "home-today-primary"
+            - extendedWaitUntil:
+                visible:
+                  id: "session-chrome|workout-hero|workout-day-.*|workout-empty|workout-error|schedule-setup"
+                timeout: 30000
+- runFlow:
+    when:
+      visible:
+        id: "session-chrome"
+    commands:
+      - runFlow: ../subflows/discard-workout.yaml
+- assertNotVisible:
+    id: "session-chrome"

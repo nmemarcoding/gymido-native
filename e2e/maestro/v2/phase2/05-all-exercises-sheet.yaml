@@ -1,0 +1,130 @@
+# v2 Phase 2 C4: the All exercises sheet in a running workout.
+# Account: QA_MEMBER. FIXTURE: an ACTIVE plan (Today shows its card).
+# Start: signed in, no workout running.
+# Starts a workout and DISCARDS it at the end (nothing is recorded). If the
+# flow fails in between, run v2/cleanup/discard-active-session.yaml.
+#
+# Checks: the chrome's "All (n)" opens the sheet: title, the ND-5 subtitle
+# "{plan} · n/m set(s) done", Close; the muscle chips filter (a group, then
+# All); Close closes it (the "All" opener is back); the exercise navigator's
+# own "All" opens it too; Android back closes it; "View" on another exercise
+# opens that exercise inside the workout (the stage), never a new screen.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase2
+  - member
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/member-workspace.yaml
+- runFlow: ../subflows/start-workout.yaml
+
+- tapOn:
+    id: "session-all"
+- extendedWaitUntil:
+    visible:
+      id: "exercise-sheet"
+    timeout: 10000
+- assertVisible:
+    id: "exercise-sheet-title"
+- assertVisible:
+    id: "exercise-sheet-subtitle"
+    text: "(.+ · )?[0-9]+/[0-9]+ sets? done"
+- assertVisible:
+    id: "exercise-sheet-close"
+- assertVisible:
+    id: "exercise-sheet-list"
+- takeScreenshot: v2-p2-all-exercises-sheet
+# Chips: pick the first muscle group, then back to All.
+- runFlow:
+    when:
+      visible:
+        id: "exercise-sheet-chip-all"
+    commands:
+      - tapOn:
+          id: "exercise-sheet-chip-(?!all$).+"
+          index: 0
+      - assertVisible:
+          id: "exercise-sheet-list"
+      - tapOn:
+          id: "exercise-sheet-chip-all"
+      - assertVisible:
+          id: "exercise-sheet-card-0"
+- tapOn:
+    id: "exercise-sheet-close"
+- extendedWaitUntil:
+    notVisible:
+      id: "exercise-sheet"
+    timeout: 10000
+- assertVisible:
+    id: "session-all"
+
+# The navigator's "All" opens the same sheet.
+- runFlow:
+    when:
+      visible:
+        id: "exercise-nav-all"
+    commands:
+      - tapOn:
+          id: "exercise-nav-all"
+      - extendedWaitUntil:
+          visible:
+            id: "exercise-sheet"
+          timeout: 10000
+      - runFlow:
+          when:
+            platform: Android
+          commands:
+            - pressKey: Back
+            - extendedWaitUntil:
+                notVisible:
+                  id: "exercise-sheet"
+                timeout: 10000
+      - runFlow:
+          when:
+            visible:
+              id: "exercise-sheet"
+          commands:
+            - tapOn:
+                id: "exercise-sheet-close"
+            - extendedWaitUntil:
+                notVisible:
+                  id: "exercise-sheet"
+                timeout: 10000
+
+# "View" on the second exercise opens it inside the workout.
+- tapOn:
+    id: "session-all"
+- extendedWaitUntil:
+    visible:
+      id: "exercise-sheet"
+    timeout: 10000
+- runFlow:
+    when:
+      visible:
+        id: "exercise-sheet-action-1"
+    commands:
+      - tapOn:
+          id: "exercise-sheet-action-1"
+      - extendedWaitUntil:
+          notVisible:
+            id: "exercise-sheet"
+          timeout: 10000
+      - assertVisible:
+          id: "exercise-stage"
+      - assertVisible:
+          id: "session-chrome"
+- runFlow:
+    when:
+      visible:
+        id: "exercise-sheet"
+    commands:
+      - tapOn:
+          id: "exercise-sheet-close"
+      - extendedWaitUntil:
+          notVisible:
+            id: "exercise-sheet"
+          timeout: 10000
+
+- runFlow: ../subflows/discard-workout.yaml
+- runFlow: ../subflows/restore-workspace.yaml

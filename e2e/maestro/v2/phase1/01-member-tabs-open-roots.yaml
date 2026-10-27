@@ -1,0 +1,138 @@
+# v2 Phase 1 shell, member tab bar (5 tabs). Account: QA_MEMBER (also passes
+# for QA_TRAINER: it switches to the Personal workspace and back).
+# Start: signed in, default text size.
+#
+# Checks: every tab opens its ROOT and is the selected tab; a tab press from a
+# pushed screen pops back to the root (Plans → My plans → Plans tab); the
+# labels show at the default size (Android: the label is a child node; iOS
+# exposes the tab as one element, so this part is Android-only).
+# The Profile root is never asserted on (owner rule): the Profile tab is
+# checked through the tab's selected state and the other roots being gone.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase1
+  - member
+  - trainer
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/member-workspace.yaml
+
+# Today → its root is the Today header (greeting + date).
+- tapOn:
+    id: "tab-Today"
+- extendedWaitUntil:
+    visible:
+      id: "home-header"
+    timeout: 30000
+- assertVisible:
+    id: "tab-Today"
+    selected: true
+
+# Plans → the plans library.
+- tapOn:
+    id: "tab-Plans"
+- extendedWaitUntil:
+    visible:
+      id: "plans-library-screen"
+    timeout: 30000
+- assertVisible:
+    id: "tab-Plans"
+    selected: true
+- assertNotVisible:
+    id: "home-header"
+# A tab press on a pushed screen resets the stack to the root.
+- extendedWaitUntil:
+    visible:
+      id: "my-plans-entry"
+    timeout: 30000
+- tapOn:
+    id: "my-plans-entry"
+- extendedWaitUntil:
+    visible:
+      id: "my-plans-screen"
+    timeout: 20000
+- assertVisible:
+    id: "tab-Plans"
+    selected: true
+- tapOn:
+    id: "tab-Plans"
+- extendedWaitUntil:
+    visible:
+      id: "plans-library-screen"
+    timeout: 20000
+- assertNotVisible:
+    id: "my-plans-screen"
+
+# Exercises → the exercise library.
+- tapOn:
+    id: "tab-Exercises"
+- extendedWaitUntil:
+    visible:
+      id: "exercises-screen"
+    timeout: 30000
+- assertVisible:
+    id: "tab-Exercises"
+    selected: true
+
+# Progress → its segmented tabs (or its page error).
+- tapOn:
+    id: "tab-Progress"
+- extendedWaitUntil:
+    visible:
+      id: "progress-tabs|progress-error"
+    timeout: 30000
+- assertVisible:
+    id: "tab-Progress"
+    selected: true
+
+# Profile → selected; no other root left on screen (Profile itself not read).
+- tapOn:
+    id: "tab-Profile"
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible:
+    id: "tab-Profile"
+    selected: true
+- assertNotVisible:
+    id: "home-header"
+- assertNotVisible:
+    id: "plans-library-screen"
+- assertNotVisible:
+    id: "exercises-screen"
+- assertNotVisible:
+    id: "progress-tabs"
+
+# Default text size: each tab shows its label (Android only, see header).
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: "tab-Today"
+          containsChild:
+            text: "Today"
+      - assertVisible:
+          id: "tab-Plans"
+          containsChild:
+            text: "Plans"
+      - assertVisible:
+          id: "tab-Exercises"
+          containsChild:
+            text: "Exercises"
+      - assertVisible:
+          id: "tab-Progress"
+          containsChild:
+            text: "Progress"
+      - assertVisible:
+          id: "tab-Profile"
+          containsChild:
+            text: "Profile"
+
+- tapOn:
+    id: "tab-Today"
+- extendedWaitUntil:
+    visible:
+      id: "home-header"
+    timeout: 30000
+- runFlow: ../subflows/restore-workspace.yaml

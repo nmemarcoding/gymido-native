@@ -1,0 +1,36 @@
+# v2 suite entry: checks the app is already SIGNED IN and in front, without
+# launching, signing in or typing anything. The lead signs the account in with
+# the safe runner first (iOS: e2e/scripts/ios-safe-sign-in.sh <udid> <ACCOUNT>).
+#
+# `launchApp` with stopApp:false only brings the running app to the front (a
+# dev client keeps its loaded bundle; a release build is unaffected).
+# Refuses to start on top of an active workout session: these flows discard
+# only sessions they started themselves (see cleanup/discard-active-session).
+appId: com.gymido.app
+---
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible:
+      id: "bottom-nav|session-chrome"
+    timeout: 30000
+- runFlow:
+    when:
+      visible:
+        id: "session-chrome"
+    commands:
+      - assertTrue:
+          condition: ${false}
+          label: "A workout session is already active. Run v2/cleanup/discard-active-session.yaml (or finish it by hand) first."
+# A notification panel left open by an earlier run covers the page.
+- runFlow:
+    when:
+      visible:
+        id: "notification-panel"
+    commands:
+      - tapOn:
+          id: "notification-bell"
+      - extendedWaitUntil:
+          notVisible:
+            id: "notification-panel"
+          timeout: 5000

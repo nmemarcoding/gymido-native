@@ -1,0 +1,6 @@
+# v2 Phase 2 (states). A folder run picks the flows in this folder; choose the
+# signed-in account with tags (see ../README.md for fixtures per flow):
+#   maestro test --include-tags=member  e2e/maestro/v2/phase2   (QA_MEMBER)
+#   maestro test --include-tags=trainer e2e/maestro/v2/phase2   (QA_TRAINER)
+flows:
+  - "*.yaml"

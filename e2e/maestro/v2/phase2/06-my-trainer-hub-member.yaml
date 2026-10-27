@@ -1,0 +1,106 @@
+# v2 Phase 2 C5: My trainer hub (/my-trainer), member view, read-only.
+# Account: QA_MEMBER (no trainer role). Start: signed in.
+#
+# Checks: Profile → Coaching card opens the hub (header "Coaching" with the
+# "← Profile" back link); the hub settles in the member's state:
+#   - no trainer: "You don't have a trainer" + Find a trainer + Become a
+#     trainer, no trainer links;
+#   - active trainer: the trainer card with Contact / End coaching and the
+#     View plans / View progress links, no Find/Become.
+#   - pending invitations (if any) sit on top.
+# Never taps Contact, End coaching, Accept, Decline or Become a trainer.
+# The back link returns to Profile (the Profile root is not read: owner rule).
+# The load-error state needs a failing API: Jest-covered.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase2
+  - member
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/member-workspace.yaml
+- tapOn:
+    id: "tab-Profile"
+- scrollUntilVisible:
+    element:
+      id: "profile-coaching-card"
+    direction: DOWN
+    centerElement: true
+    timeout: 15000
+- tapOn:
+    id: "profile-coaching-card"
+- extendedWaitUntil:
+    visible:
+      id: "trainer-hub-screen"
+    timeout: 20000
+- assertVisible:
+    id: "header-back-link"
+- extendedWaitUntil:
+    visible:
+      id: "trainer-hub-empty|trainer-hub-active|trainer-hub-invitations"
+    timeout: 30000
+- assertNotVisible:
+    id: "trainer-hub-trainer-mode"
+
+- runFlow:
+    when:
+      visible:
+        id: "trainer-hub-active"
+    commands:
+      - assertVisible:
+          id: "trainer-hub-contact"
+      - assertVisible:
+          id: "trainer-hub-end"
+      - scrollUntilVisible:
+          element:
+            id: "trainer-hub-links"
+          direction: DOWN
+          timeout: 10000
+      - assertVisible:
+          id: "trainer-hub-view-plans"
+      - assertVisible:
+          id: "trainer-hub-view-progress"
+      - assertNotVisible:
+          id: "trainer-hub-find"
+      - takeScreenshot: v2-p2-my-trainer-active
+
+- runFlow:
+    when:
+      visible:
+        id: "trainer-hub-empty"
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "trainer-hub-find"
+          direction: DOWN
+          timeout: 10000
+      - assertVisible:
+          id: "trainer-hub-browse"
+      - scrollUntilVisible:
+          element:
+            id: "trainer-hub-become-card"
+          direction: DOWN
+          timeout: 10000
+      - assertVisible:
+          id: "trainer-hub-become"
+      - assertNotVisible:
+          id: "trainer-hub-links"
+      - takeScreenshot: v2-p2-my-trainer-none
+
+- scrollUntilVisible:
+    element:
+      id: "header-back-link"
+    direction: UP
+    timeout: 10000
+- tapOn:
+    id: "header-back-link"
+- extendedWaitUntil:
+    notVisible:
+      id: "trainer-hub-screen"
+    timeout: 10000
+- assertVisible:
+    id: "tab-Profile"
+    selected: true
+- tapOn:
+    id: "tab-Today"
+- runFlow: ../subflows/restore-workspace.yaml

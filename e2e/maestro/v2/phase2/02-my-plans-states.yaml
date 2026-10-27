@@ -1,0 +1,126 @@
+# v2 Phase 2: My plans (/plans/mine), empty OR list (OR on hold), read-only.
+# Account: QA_MEMBER or QA_TRAINER (Personal workspace). Start: signed in.
+#
+# Checks: Plans → "My plans" opens My plans; it settles in one state:
+#   - empty: "No plans yet" with the two compact actions (Create, Browse);
+#     Browse opens the catalog;
+#   - list: plan cards with Open; the pager (if any) pages forward and back;
+#   - on hold (member with a trainer): the on-hold banner, no Create button.
+# "← All plans" returns to the catalog. Nothing is created or changed.
+# The load-error state needs a failing API: Jest-covered.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase2
+  - member
+  - trainer
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/member-workspace.yaml
+- tapOn:
+    id: "tab-Plans"
+- extendedWaitUntil:
+    visible:
+      id: "my-plans-entry"
+    timeout: 30000
+- tapOn:
+    id: "my-plans-entry"
+- extendedWaitUntil:
+    visible:
+      id: "my-plans-screen"
+    timeout: 20000
+- assertVisible:
+    id: "my-plans-all-plans"
+- extendedWaitUntil:
+    visible:
+      id: "my-plans-empty-buttons|my-plan-card-[0-9]+|my-plans-on-hold"
+    timeout: 30000
+
+# On hold: banner, no create actions.
+- runFlow:
+    when:
+      visible:
+        id: "my-plans-on-hold"
+    commands:
+      - assertNotVisible:
+          id: "my-plans-create"
+      - assertNotVisible:
+          id: "my-plans-empty-buttons"
+
+# Empty: both compact actions; the header's Create is the one gold action.
+- runFlow:
+    when:
+      visible:
+        id: "my-plans-empty-buttons"
+    commands:
+      - assertVisible:
+          id: "my-plans-create"
+      - assertVisible:
+          id: "my-plans-empty-create"
+      - assertVisible:
+          id: "my-plans-browse"
+      - takeScreenshot: v2-p2-my-plans-empty
+      - tapOn:
+          id: "my-plans-browse"
+      - extendedWaitUntil:
+          visible:
+            id: "plans-library-screen"
+          timeout: 30000
+      - tapOn:
+          id: "my-plans-entry"
+      - extendedWaitUntil:
+          visible:
+            id: "my-plans-empty-buttons"
+          timeout: 30000
+
+# List: cards with Open; the pager pages (read-only).
+- runFlow:
+    when:
+      visible:
+        id: "my-plan-card-[0-9]+"
+    commands:
+      - assertVisible:
+          id: "my-plans-create"
+      - assertVisible:
+          id: "my-plan-card-open-[0-9]+"
+          index: 0
+      - assertNotVisible:
+          id: "my-plans-empty-buttons"
+      - takeScreenshot: v2-p2-my-plans-list
+      - runFlow:
+          when:
+            visible:
+              id: "my-plans-next"
+              enabled: true
+          commands:
+            - tapOn:
+                id: "my-plans-next"
+            - extendedWaitUntil:
+                visible:
+                  id: "my-plan-card-[0-9]+"
+                timeout: 30000
+            - scrollUntilVisible:
+                element:
+                  id: "my-plans-previous"
+                direction: DOWN
+                timeout: 10000
+            - tapOn:
+                id: "my-plans-previous"
+            - extendedWaitUntil:
+                visible:
+                  id: "my-plan-card-[0-9]+"
+                timeout: 30000
+
+# Back to the catalog.
+- scrollUntilVisible:
+    element:
+      id: "my-plans-all-plans"
+    direction: UP
+    timeout: 10000
+- tapOn:
+    id: "my-plans-all-plans"
+- extendedWaitUntil:
+    visible:
+      id: "plans-library-screen"
+    timeout: 30000
+- runFlow: ../subflows/restore-workspace.yaml

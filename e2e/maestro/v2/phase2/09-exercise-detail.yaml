@@ -1,0 +1,61 @@
+# v2 Phase 2 C1: Exercise detail (look), opened from the Exercises library.
+# Account: QA_MEMBER or QA_TRAINER (Personal workspace). Start: signed in.
+# Read-only.
+#
+# Checks: the first exercise opens its detail (hero, title, Muscles,
+# Equipment, How to do it when the library has instructions); the in-page
+# back returns to the list; the Exercises tab stays selected (⚠X-7).
+appId: com.gymido.app
+tags:
+  - v2
+  - phase2
+  - member
+  - trainer
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/member-workspace.yaml
+- tapOn:
+    id: "tab-Exercises"
+- extendedWaitUntil:
+    visible:
+      id: "exercise-card-.*"
+    timeout: 30000
+- tapOn:
+    id: "exercise-card-.*"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: "exercise-detail-screen"
+    timeout: 20000
+- assertVisible:
+    id: "exercise-detail-hero"
+- assertVisible:
+    id: "exercise-detail-title"
+- assertVisible:
+    id: "tab-Exercises"
+    selected: true
+- scrollUntilVisible:
+    element:
+      id: "exercise-detail-muscles"
+    direction: DOWN
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: "exercise-detail-equipment"
+    direction: DOWN
+    timeout: 10000
+- takeScreenshot: v2-p2-exercise-detail
+- scrollUntilVisible:
+    element:
+      id: "exercise-detail-back"
+    direction: UP
+    timeout: 10000
+- tapOn:
+    id: "exercise-detail-back"
+- extendedWaitUntil:
+    visible:
+      id: "exercises-list"
+    timeout: 20000
+- assertNotVisible:
+    id: "exercise-detail-screen"
+- runFlow: ../subflows/restore-workspace.yaml

@@ -1,0 +1,184 @@
+# v2 Phase 2 C2: the builder's exercise picker, open/close + return target.
+# Account: QA_MEMBER (or QA_TRAINER in the Personal workspace).
+# FIXTURE: the account owns at least one My plan with at least one day
+# (create it once by hand; this flow never creates or deletes plans).
+# Start: signed in.
+#
+# Checks: My plans → first plan → "Add exercise" opens the picker sheet
+# (title, search field, Cancel, Add Selected disabled with nothing selected,
+# a list or the D4 catalog alert); Cancel closes it and the opener ("Add
+# exercise") is back on screen (the accessibility-focus return itself is
+# Jest-covered: useSheetFocus.test.js); selecting a row shows the gold count
+# pill and is DROPPED on Cancel (lifecycle reset on close, nothing added);
+# Android back closes it too. Nothing is ever added to the plan.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase2
+  - member
+  - trainer
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/member-workspace.yaml
+- tapOn:
+    id: "tab-Plans"
+- extendedWaitUntil:
+    visible:
+      id: "my-plans-entry"
+    timeout: 30000
+- tapOn:
+    id: "my-plans-entry"
+- extendedWaitUntil:
+    visible:
+      id: "my-plans-empty-buttons|my-plan-card-[0-9]+|my-plans-on-hold"
+    timeout: 30000
+- runFlow:
+    when:
+      notVisible:
+        id: "my-plan-card-open-[0-9]+"
+    commands:
+      - assertTrue:
+          condition: ${false}
+          label: "Fixture missing: the account has no My plan (or its plans are on hold). Create one plan with one day by hand, then rerun."
+- tapOn:
+    id: "my-plan-card-open-[0-9]+"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: "plan-add-exercise|plan-add-day"
+    timeout: 30000
+- runFlow:
+    when:
+      notVisible:
+        id: "plan-add-exercise"
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "plan-add-exercise"
+          direction: DOWN
+          timeout: 15000
+          optional: true
+- runFlow:
+    when:
+      notVisible:
+        id: "plan-add-exercise"
+    commands:
+      - assertTrue:
+          condition: ${false}
+          label: "Fixture missing: the first My plan has no day, so there is no Add exercise. Add one day to it by hand, then rerun."
+- scrollUntilVisible:
+    element:
+      id: "plan-add-exercise"
+    direction: DOWN
+    centerElement: true
+    timeout: 10000
+
+# Open → the sheet and its parts.
+- tapOn:
+    id: "plan-add-exercise"
+- extendedWaitUntil:
+    visible:
+      id: "exercise-picker"
+    timeout: 10000
+- assertVisible:
+    id: "exercise-picker-title"
+- assertVisible:
+    id: "exercise-picker-search-field"
+- assertVisible:
+    id: "exercise-picker-cancel"
+- assertVisible:
+    id: "exercise-picker-add"
+    enabled: false
+- assertNotVisible:
+    id: "exercise-picker-selected-pill"
+- extendedWaitUntil:
+    visible:
+      id: "exercise-picker-row-[0-9]+|exercise-picker-catalog-error"
+    timeout: 30000
+- takeScreenshot: v2-p2-exercise-picker
+
+# Cancel closes it; the opener is back.
+- tapOn:
+    id: "exercise-picker-cancel"
+- extendedWaitUntil:
+    notVisible:
+      id: "exercise-picker"
+    timeout: 10000
+- assertVisible:
+    id: "plan-add-exercise"
+
+# Select a row (count pill), Cancel, reopen: the selection was dropped.
+- tapOn:
+    id: "plan-add-exercise"
+- extendedWaitUntil:
+    visible:
+      id: "exercise-picker-row-[0-9]+|exercise-picker-catalog-error"
+    timeout: 30000
+- runFlow:
+    when:
+      visible:
+        id: "exercise-picker-row-[0-9]+"
+    commands:
+      - tapOn:
+          id: "exercise-picker-row-[0-9]+"
+          index: 0
+      # The first row may already be in this day (not selectable): then the
+      # pill stays hidden and the reset check below is a no-op.
+      - runFlow:
+          when:
+            visible:
+              id: "exercise-picker-selected-pill"
+          commands:
+            - assertVisible:
+                id: "exercise-picker-add-count"
+            - assertVisible:
+                id: "exercise-picker-add"
+                enabled: true
+- tapOn:
+    id: "exercise-picker-cancel"
+- extendedWaitUntil:
+    notVisible:
+      id: "exercise-picker"
+    timeout: 10000
+- tapOn:
+    id: "plan-add-exercise"
+- extendedWaitUntil:
+    visible:
+      id: "exercise-picker"
+    timeout: 10000
+- assertNotVisible:
+    id: "exercise-picker-selected-pill"
+- assertVisible:
+    id: "exercise-picker-add"
+    enabled: false
+
+# Android back closes the sheet (onRequestClose = Cancel).
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - pressKey: Back
+      - extendedWaitUntil:
+          notVisible:
+            id: "exercise-picker"
+          timeout: 10000
+- runFlow:
+    when:
+      visible:
+        id: "exercise-picker"
+    commands:
+      - tapOn:
+          id: "exercise-picker-cancel"
+      - extendedWaitUntil:
+          notVisible:
+            id: "exercise-picker"
+          timeout: 10000
+- assertVisible:
+    id: "plan-add-exercise"
+- tapOn:
+    id: "tab-Plans"
+- extendedWaitUntil:
+    visible:
+      id: "plans-library-screen"
+    timeout: 30000
+- runFlow: ../subflows/restore-workspace.yaml

@@ -1,0 +1,30 @@
+# CLEANUP (QA_TRAINER only, run by hand): a trainer flow that failed after
+# switching to the member workspace leaves the stored workspace on Personal.
+# This puts it back on Trainer (device state only, no server data).
+appId: com.gymido.app
+---
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible:
+      id: "bottom-nav"
+    timeout: 30000
+- runFlow:
+    when:
+      visible:
+        id: "tab-Today"
+    commands:
+      - tapOn:
+          id: "tab-Profile"
+      - scrollUntilVisible:
+          element:
+            id: "mode-switch-trainer"
+          direction: DOWN
+          centerElement: true
+          timeout: 10000
+      - tapOn:
+          id: "mode-switch-trainer"
+- extendedWaitUntil:
+    visible:
+      id: "tab-TToday"
+    timeout: 20000

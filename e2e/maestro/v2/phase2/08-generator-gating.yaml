@@ -1,0 +1,131 @@
+# v2 Phase 2: the plan generator entry GATE, for whichever answer the server
+# gives this account. Account: QA_MEMBER or QA_TRAINER (Personal workspace).
+# Start: signed in. Read-only: the generator is opened and left, never run.
+#
+# The gate (GET /plan-generator/profile → available === true) drives three
+# entries, and they must agree:
+#   1. the "Build me a plan" card on Plans (generator-entry-card),
+#   2. "Build me a plan" in the My plans header (my-plans-generate),
+#   3. "Build me a plan" under "Choose a plan" on the EMPTY Today (home-build-plan).
+# Available → all shown (and the card opens the generator); not available
+# (unavailable / has a trainer / any error) → all hidden, no explanation.
+# The check runs per mount, so each screen gets a settle wait before a
+# "hidden" verdict.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase2
+  - member
+  - trainer
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/member-workspace.yaml
+- tapOn:
+    id: "tab-Plans"
+- extendedWaitUntil:
+    visible:
+      id: "my-plans-entry"
+    timeout: 30000
+# Give the per-mount gate call time to answer.
+- extendedWaitUntil:
+    visible:
+      id: "generator-entry-card"
+    timeout: 10000
+    optional: true
+- evalScript: ${output.v2GenAvailable = false}
+- runFlow:
+    when:
+      visible:
+        id: "generator-entry-card"
+    commands:
+      - evalScript: ${output.v2GenAvailable = true}
+
+# 1. The Plans card opens the generator (available only).
+- runFlow:
+    when:
+      true: ${output.v2GenAvailable === true}
+    commands:
+      - tapOn:
+          id: "generator-entry-start"
+      - extendedWaitUntil:
+          visible:
+            id: "plan-generator-screen"
+          timeout: 20000
+      - tapOn:
+          id: "tab-Plans"
+      - extendedWaitUntil:
+          visible:
+            id: "my-plans-entry"
+          timeout: 30000
+
+# 2. My plans header agrees.
+- tapOn:
+    id: "my-plans-entry"
+- extendedWaitUntil:
+    visible:
+      id: "my-plans-create|my-plans-on-hold"
+    timeout: 30000
+- runFlow:
+    when:
+      true: ${output.v2GenAvailable === true}
+    commands:
+      - extendedWaitUntil:
+          visible:
+            id: "my-plans-generate"
+          timeout: 10000
+- runFlow:
+    when:
+      true: ${output.v2GenAvailable !== true}
+    commands:
+      - waitForAnimationToEnd:
+          timeout: 5000
+      - extendedWaitUntil:
+          visible:
+            id: "my-plans-generate"
+          timeout: 8000
+          optional: true
+      - assertNotVisible:
+          id: "my-plans-generate"
+
+# 3. Empty Today agrees (only when Today is in its empty state).
+- tapOn:
+    id: "tab-Today"
+- extendedWaitUntil:
+    visible:
+      id: "home-today-card|home-empty-hero|home-error"
+    timeout: 30000
+- runFlow:
+    when:
+      visible:
+        id: "home-empty-hero"
+    commands:
+      - assertVisible:
+          id: "home-choose-plan"
+      - runFlow:
+          when:
+            true: ${output.v2GenAvailable === true}
+          commands:
+            - extendedWaitUntil:
+                visible:
+                  id: "home-build-plan"
+                timeout: 10000
+      - runFlow:
+          when:
+            true: ${output.v2GenAvailable !== true}
+          commands:
+            - extendedWaitUntil:
+                visible:
+                  id: "home-build-plan"
+                timeout: 8000
+                optional: true
+            - assertNotVisible:
+                id: "home-build-plan"
+# Today with a plan never shows the empty-state "Build me a plan".
+- runFlow:
+    when:
+      visible:
+        id: "home-today-card"
+    commands:
+      - assertNotVisible:
+          id: "home-build-plan"
+- runFlow: ../subflows/restore-workspace.yaml

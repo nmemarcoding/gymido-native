@@ -1,0 +1,47 @@
+# v2 Phase 1 LIVE text-size change on a screen, PART 1 of 3.
+# Account: QA_MEMBER. Start: signed in, DEFAULT text size.
+# Run order (the lead runs the shell steps between the parts, app left OPEN):
+#   1. maestro test … live-size/screen-1-before.yaml
+#   2. LEAD STEP A (make text large while the app stays open):
+#        iOS:     xcrun simctl ui <udid> content_size accessibility-large
+#        Android: adb -s <serial> shell settings put system font_scale 2.0
+#   3. maestro test … live-size/screen-2-large.yaml
+#   4. LEAD STEP B (back to default while the app stays open):
+#        iOS:     xcrun simctl ui <udid> content_size large
+#        Android: adb -s <serial> shell settings put system font_scale 1.0
+#   5. maestro test … live-size/screen-3-reset.yaml
+# Parts 2 and 3 must not relaunch the app: their entry only brings it to the front.
+#
+# Part 1: leaves the app on Plans at the default size, labels showing.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase1
+  - live-size
+  - member
+---
+- runFlow: ../../subflows/signed-in-start.yaml
+- runFlow: ../../subflows/member-workspace.yaml
+- tapOn:
+    id: "tab-Plans"
+- extendedWaitUntil:
+    visible:
+      id: "plans-library-screen"
+    timeout: 30000
+- extendedWaitUntil:
+    visible:
+      id: "my-plans-entry"
+    timeout: 30000
+- assertVisible:
+    text: "Plans"
+    childOf:
+      id: "plans-library-screen"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: "tab-Plans"
+          containsChild:
+            text: "Plans"
+- takeScreenshot: v2-p1-live-size-1-default

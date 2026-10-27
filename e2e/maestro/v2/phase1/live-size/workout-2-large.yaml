@@ -1,0 +1,51 @@
+# v2 Phase 1 LIVE text-size change during an ACTIVE WORKOUT, PART 2 of 3.
+# Run ONLY right after part 1 and LEAD STEP A (see workout-1-start.yaml):
+#   iOS:     xcrun simctl ui <udid> content_size accessibility-large
+#   Android: adb -s <serial> shell settings put system font_scale 2.0
+#
+# Checks, without relaunching: the SAME session is still running (the size
+# change remounted the session view but kept its state: no hub, no dialog),
+# the chrome and the exercise stage are back, the tab bar stays hidden, and
+# the All exercises sheet still opens and closes at this size.
+# Clipping is LOOK: compare the screenshot with part 1.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase1
+  - live-size
+  - member
+---
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible:
+      id: "session-chrome"
+    timeout: 30000
+- runFlow: ../../subflows/dismiss-session-dialogs.yaml
+- assertVisible:
+    id: "session-exit"
+- assertVisible:
+    id: "session-all"
+- assertVisible:
+    id: "exercise-stage"
+- assertNotVisible:
+    id: "bottom-nav"
+- assertNotVisible:
+    id: "discard-dialog"
+- takeScreenshot: v2-p1-live-size-workout-2-large
+- tapOn:
+    id: "session-all"
+- extendedWaitUntil:
+    visible:
+      id: "exercise-sheet"
+    timeout: 10000
+- assertVisible:
+    id: "exercise-sheet-title"
+- tapOn:
+    id: "exercise-sheet-close"
+- extendedWaitUntil:
+    notVisible:
+      id: "exercise-sheet"
+    timeout: 10000
+- assertVisible:
+    id: "session-chrome"

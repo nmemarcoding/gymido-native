@@ -1,0 +1,7 @@
+# v2 Phase 1 (shell). A folder run picks only the flows in THIS folder:
+# large-text/ and live-size/ need the lead's shell commands between runs and
+# are started one by one (see ../README.md). Pick the account with tags:
+#   maestro test --include-tags=member  e2e/maestro/v2/phase1   (signed in as QA_MEMBER)
+#   maestro test --include-tags=trainer e2e/maestro/v2/phase1   (signed in as QA_TRAINER)
+flows:
+  - "*.yaml"
