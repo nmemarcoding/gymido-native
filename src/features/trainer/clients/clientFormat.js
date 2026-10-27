@@ -1,4 +1,5 @@
 // Labels and number formats of RN-SPEC-TRAINER-CLIENTS, exact.
+import { convertWeight } from '../../../shared/format/weight';
 
 // §C1.1
 export function clientDisplayName(client) {
@@ -82,16 +83,17 @@ export function formatVolume(value) {
   return Math.round(Number(value) || 0).toLocaleString();
 }
 
-// §C4.4 recent workout detail line.
-export function formatSessionDetail(session) {
+// §C4.4 recent workout detail line. VOLUME RULE (RN-SPEC-v2-phase3, PM 27
+// Oct; v2-phase6 ND-10): only `total_volume_kg`, in the CLIENT's unit
+// (`unit`, kg by default), hidden when absent; never the raw total_volume.
+export function formatSessionDetail(session, unit = 'kg') {
   const minutes =
     session.duration_seconds !== null && session.duration_seconds !== undefined
       ? `${Math.round(session.duration_seconds / 60)} min`
       : null;
-  const volume =
-    session.total_volume !== null && session.total_volume !== undefined
-      ? `${formatVolume(session.total_volume)} volume`
-      : null;
+  const kg = session.total_volume_kg;
+  const hasVolume = kg !== null && kg !== undefined && kg !== '' && !Number.isNaN(Number(kg));
+  const volume = hasVolume ? `${formatVolume(convertWeight(kg, 'kg', unit))} ${unit} volume` : null;
   return [minutes, volume].filter(Boolean).join(' · ') || 'No details recorded';
 }
 
@@ -129,4 +131,20 @@ export function formatTrainerDateTime(value) {
 
 export function plural(count, one, many) {
   return count === 1 ? one : many;
+}
+
+// UX §10: status pills are sentence case ("completed" → "Completed"); the
+// text is still the server's status.
+export function sentenceCase(text) {
+  const value = String(text ?? '').trim();
+  return value ? value[0].toUpperCase() + value.slice(1) : value;
+}
+
+// A v2 StatusPill tone for a trainer status (X-4): active = teal "Active",
+// completed / approved = green, pending = gold, missed = amber, the rest
+// (replaced / ended / cancelled / rejected …) neutral.
+const STATUS_TONES = { active: 'active', completed: 'completed', approved: 'completed', pending: 'gold', missed: 'warning' };
+
+export function statusTone(status) {
+  return STATUS_TONES[String(status ?? '').trim().toLowerCase()] ?? 'neutral';
 }

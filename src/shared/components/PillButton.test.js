@@ -31,8 +31,8 @@ const labelStyle = (tree) => StyleSheet.flatten(tree.root.findByType(Text).props
 const button = (props) => render(<PillButton testID="btn" title="Save" onPress={() => {}} {...props} />);
 
 describe('variants (§4.1 table)', () => {
-  it('has exactly the five v2 variants and three sizes', () => {
-    expect(BUTTON_VARIANTS).toEqual(['primary', 'secondary', 'ghost', 'danger', 'light']);
+  it('has exactly the six v2 variants (goldTint added for UX O ruling 4) and three sizes', () => {
+    expect(BUTTON_VARIANTS).toEqual(['primary', 'secondary', 'ghost', 'danger', 'light', 'goldTint']);
     expect(BUTTON_SIZES).toEqual(['default', 'compact', 'cta']);
   });
 
@@ -93,6 +93,25 @@ describe('variants (§4.1 table)', () => {
     expect(labelStyle(tree).color).toBe(colors.onLight);
     expect(pressedStyle(tree).backgroundColor).toBe(colors.textPrimary);
     expect(overlayOf(tree).backgroundColor).toBe(colors.pressOverlayInk);
+  });
+
+  it('goldTint (UX O ruling 4): gold text on the 14 % gold fill with the 1 px goldLine edge, no shadow', () => {
+    const tree = button({ variant: 'goldTint' });
+    expect(restStyle(tree)).toMatchObject({ backgroundColor: colors.goldTint, borderWidth: 1, borderColor: colors.goldLine, borderRadius: radii.full });
+    expect(colors.goldTint).toBe('rgba(255, 194, 26, 0.14)');
+    expect(colors.goldLine).toBe('rgba(255, 194, 26, 0.30)');
+    expect(restStyle(tree).boxShadow).toBeUndefined();
+    expect(labelStyle(tree).color).toBe(colors.gold);
+    // §8.6 / §10 hover rule: the tint stays + the white 4 % overlay (a dark fill).
+    expect(pressedStyle(tree)).toMatchObject({ backgroundColor: colors.goldTint, borderColor: colors.goldLine });
+    expect(overlayOf(tree).backgroundColor).toBe(colors.pressOverlay);
+    expect(overlayOf(tree, false)).toBeNull();
+  });
+
+  it('goldTint loading: the spinner takes the gold ink on the goldLine track; disabled dims it', () => {
+    const loading = button({ variant: 'goldTint', loading: true });
+    expect(loading.root.findByType(Spinner).props).toMatchObject({ color: colors.gold, track: colors.goldLine });
+    expect(restStyle(button({ variant: 'goldTint', disabled: true })).opacity).toBe(0.5);
   });
 
   it('only the primary carries a shadow', () => {
@@ -242,6 +261,7 @@ describe('pressed: the §8.6 STATE RULE on every variant', () => {
     expect(overlayOf(button({ variant: 'light' })).backgroundColor).toBe(colors.pressOverlayInk);
     expect(overlayOf(button({ variant: 'secondary' })).backgroundColor).toBe(colors.pressOverlay);
     expect(overlayOf(button({ variant: 'ghost' })).backgroundColor).toBe(colors.pressOverlay);
+    expect(overlayOf(button({ variant: 'goldTint' })).backgroundColor).toBe(colors.pressOverlay);
   });
 
   it('loading: no pressed overlay (inactive)', () => {

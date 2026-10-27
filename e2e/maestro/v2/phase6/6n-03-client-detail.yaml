@@ -1,0 +1,76 @@
+# v2 Phase 6 N: Client detail, READ-ONLY (End coaching is opened and
+# CANCELLED; Change plan / Email are never tapped).
+# Account: QA_TRAINER with at least one active client (skips otherwise).
+# Start: signed in, tab root.
+#
+# Checks: a client row opens the detail (phone: the page with "← All
+# clients"; tablet: the master/detail pane); the stats, the Recent workouts
+# and Assignment history sections and the Coaching card show; End coaching
+# opens the dialog and Cancel closes it; the back link returns to Clients.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase6
+  - trainer
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/trainer-workspace.yaml
+- tapOn:
+    id: "tab-TClients"
+- extendedWaitUntil:
+    visible:
+      id: "clients-search|state-slot"
+    timeout: 30000
+- runFlow:
+    when:
+      visible:
+        id: "clients-row-.*"
+    commands:
+      - tapOn:
+          id: "clients-row-.*"
+          index: 0
+      - extendedWaitUntil:
+          visible:
+            id: "client-detail-phone|client-detail-pane"
+          timeout: 20000
+      - extendedWaitUntil:
+          visible:
+            id: "client-assign-plan|state-slot"
+          timeout: 30000
+      - scrollUntilVisible:
+          element:
+            id: "client-end-coaching"
+          direction: DOWN
+          timeout: 20000
+      - assertVisible: "Recent workouts"
+      - assertVisible: "Assignment history"
+      - tapOn:
+          id: "client-end-coaching"
+      - extendedWaitUntil:
+          visible:
+            id: "end-coaching-dialog"
+          timeout: 15000
+      - tapOn:
+          id: "end-coaching-dialog-cancel"
+      - extendedWaitUntil:
+          notVisible:
+            id: "end-coaching-dialog"
+          timeout: 15000
+      # Phone only: the back link pushes Clients.
+      - runFlow:
+          when:
+            visible:
+              id: "client-detail-phone"
+          commands:
+            - scrollUntilVisible:
+                element:
+                  id: "client-all-clients"
+                direction: UP
+                timeout: 20000
+            - tapOn:
+                id: "client-all-clients"
+            - extendedWaitUntil:
+                visible:
+                  id: "clients-invite"
+                timeout: 20000
+- runFlow: ../subflows/restore-workspace.yaml

@@ -1,0 +1,46 @@
+# v2 Phase 6 O: Trainer profile (/trainer/profile), look only, NOTHING saved
+# (Save would make the QA trainer discoverable) and NO Logout tap.
+# Account: QA_TRAINER. Start: signed in. No screenshots (Profile rule).
+#
+# Checks: the TProfile tab opens the page with the Coaching chip, the own
+# avatar hero, Display name and Bio, the inline "Save profile" with no
+# "Saved." (the form opens blank, ⚠TP-1) and Logout at the end. IDs only.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase6
+  - trainer
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/trainer-workspace.yaml
+- tapOn:
+    id: "tab-TProfile"
+- extendedWaitUntil:
+    visible:
+      id: "trainer-profile-screen"
+    timeout: 30000
+- assertVisible:
+    id: "tab-TProfile"
+    selected: true
+- assertVisible:
+    id: "trainer-profile-eyebrow"
+- assertVisible:
+    id: "trainer-profile-avatar"
+- scrollUntilVisible:
+    element:
+      id: "trainer-profile-bio"
+    direction: DOWN
+    timeout: 10000
+- assertVisible:
+    id: "trainer-profile-display-name"
+- scrollUntilVisible:
+    element:
+      id: "trainer-profile-sign-out"
+    direction: DOWN
+    centerElement: true
+    timeout: 10000
+- assertVisible:
+    id: "trainer-profile-save"
+- assertNotVisible:
+    id: "trainer-profile-saved-status"
+- runFlow: ../subflows/restore-workspace.yaml

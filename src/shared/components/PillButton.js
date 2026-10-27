@@ -5,12 +5,12 @@ import { colors, font, motion, radii, shadows, spacing, typography } from '../th
 import { CAP_BODY } from './largeText';
 import Spinner from './Spinner';
 
-// RN-SPEC-v2-foundation §4.1 Button (pill): five variants, flat fills. Only
+// RN-SPEC-v2-foundation §4.1 Button (pill): five variants + goldTint, flat fills. Only
 // the gold primary carries the glow (one gold primary per screen); text on
 // gold is always colors.onGold.
 // Pressed (UX §8.6 STATE RULE): the rest colour stays and a 4 % overlay View
 // covers the pill: pressOverlayInk (ink) on the light fills (gold, light),
-// pressOverlay (white) on the dark ones (secondary, ghost). Never a new alpha
+// pressOverlay (white) on the dark ones (secondary, ghost, goldTint). Never a new alpha
 // step and never goldDeep. The one exception (§8.6a 5): the solid danger
 // button turns colors.dangerHover.
 const VARIANTS = {
@@ -47,9 +47,17 @@ const VARIANTS = {
     text: colors.onLight,
     spinnerTrack: colors.onGoldSpinnerTrack,
   },
+  // Gold text on the 14 % gold tint with the 1 px goldLine edge (UX O ruling
+  // 4: assign-mode "Assign"). A dark fill, so the white 4 % overlay.
+  goldTint: {
+    rest: { backgroundColor: colors.goldTint, borderWidth: 1, borderColor: colors.goldLine },
+    overlay: colors.pressOverlay,
+    text: colors.gold,
+    spinnerTrack: colors.goldLine,
+  },
 };
 
-// Older / alternative names map onto the five v2 variants so call sites keep
+// Older / alternative names map onto the v2 variants so call sites keep
 // working; an unknown name falls back to primary.
 const VARIANT_ALIASES = {
   glass: 'secondary',

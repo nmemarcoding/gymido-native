@@ -19,11 +19,16 @@ import {
 import WeightHistoryChart from './components/WeightHistoryChart';
 import WeightHistoryModal from './components/WeightHistoryModal';
 import WorkoutDetailModal from './components/WorkoutDetailModal';
+import { getClientProfileAndEmail } from './clientDetailApi';
+import ClientDetailContent from './screens/ClientDetailContent';
 import ClientDetailScreen from './screens/ClientDetailScreen';
 import { buildWeightSeries, goalInUnit } from './weightChartData';
 
 // p5fix: review native-phase5-b65f8fc M1 (volume unit), M2 (client-name
 // eyebrow via AppModal `eyebrow`), M6 (goal line, End coaching look).
+// p56 merge: Phase 6 rebuilt Client detail; the page (phone / tablet) and the
+// tablet Clients pane now render ClientDetailContent, which owns the modals,
+// so the M1/M2/M6 Client-detail tests go through ClientDetailContent.
 
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('@react-navigation/native', () => ({
@@ -52,6 +57,7 @@ jest.mock('./api/clientsApi', () => ({
   getClientWorkout: jest.fn(),
   listClientWeightLogs: jest.fn(),
 }));
+jest.mock('./clientDetailApi', () => ({ getClientProfileAndEmail: jest.fn() }));
 jest.mock('../../../shared/components/toastStore', () => ({ ToastTone: { success: 'success', error: 'error' }, addToast: jest.fn() }));
 
 const flat = (node) => StyleSheet.flatten(node.props.style) ?? {};
@@ -90,6 +96,7 @@ const WORKOUT = {
 function loadClient(profile) {
   getClientPlan.mockResolvedValue(null);
   getClientProfile.mockResolvedValue(profile);
+  getClientProfileAndEmail.mockResolvedValue({ profile, clientEmail: null });
   getClientProgress.mockResolvedValue(null);
   getClientWorkoutHistory.mockResolvedValue({ items: [{ id: 3, status: 'completed', started_at: '2026-10-28T18:12:00Z' }] });
   listClientAssignments.mockResolvedValue([]);
@@ -126,33 +133,44 @@ describe('AppModal `eyebrow` (M2)', () => {
   });
 });
 
-describe('Client detail wires the client into its modals (M1 + M2)', () => {
+describe('Client detail wires the client into its modals (M1 + M2), through ClientDetailContent', () => {
   const LB = { first_name: 'Sara', last_name: 'Lopez', current_weight_value: 150, current_weight_unit: 'lb' };
   const KG = { first_name: 'Ali', last_name: 'Reza', current_weight_value: 80, current_weight_unit: 'kg' };
+  // The three ways in: the phone page, the tablet page, the tablet Clients pane.
+  const PATHS = [
+    ['phone page', 390, () => <ClientDetailScreen />],
+    ['tablet page', 834, () => <ClientDetailScreen />],
+    ['tablet pane', 834, () => <ClientDetailContent clientUserId={7} layout="pane" />],
+  ];
 
-  it('the workout modal gets the client profile + the shown name; the weight modal the name too', async () => {
+  it.each(PATHS)('%s: the workout modal gets the client profile + the shown name; the weight modal the name too', async (_, width, element) => {
+    setWindow(width);
     loadClient(LB);
-    const tree = await render(<ClientDetailScreen />);
+    const tree = await render(element());
+    expect(tree.root.findAllByType(ClientDetailContent)).toHaveLength(1);
     const workout = tree.root.findByType(WorkoutDetailModal);
     expect(workout.props.profile).toEqual(LB);
     expect(workout.props.clientName).toBe('Sara Lopez');
     expect(tree.root.findByType(WeightHistoryModal).props.clientName).toBe('Sara Lopez');
   });
 
-  it('M1: an lb client reads the session volume in lb ("2,205 lb volume"), never kg or the raw total_volume', async () => {
+  it.each(PATHS)('M1 (%s): an lb client reads the session volume in lb ("2,205 lb volume"), never kg or the raw total_volume', async (_, width, element) => {
+    setWindow(width);
     loadClient(LB);
-    const tree = await render(<ClientDetailScreen />);
+    const tree = await render(element());
     await openSession(tree);
     const [volume] = hostAll(tree, 'workout-detail-volume');
     expect(textOf(volume)).toBe('2,205 lb volume');
     expect(allTexts(tree).some((text) => /99,?999/.test(text))).toBe(false);
   });
 
-  it('M1: a kg client reads it in kg ("1,000 kg volume")', async () => {
+  it.each(PATHS)('M1 (%s): a kg client reads it in kg ("1,000 kg volume")', async (_, width, element) => {
+    setWindow(width);
     loadClient(KG);
-    const tree = await render(<ClientDetailScreen />);
+    const tree = await render(element());
     await openSession(tree);
     expect(textOf(hostAll(tree, 'workout-detail-volume')[0])).toBe('1,000 kg volume');
+    expect(allTexts(tree).some((text) => /99,?999/.test(text))).toBe(false);
   });
 
   it('M1: only a goal unit → that unit; the line is shown (never hidden while total_volume_kg exists)', async () => {
@@ -162,13 +180,16 @@ describe('Client detail wires the client into its modals (M1 + M2)', () => {
     expect(textOf(hostAll(tree, 'workout-detail-volume')[0])).toBe('2,205 lb volume');
   });
 
-  it('M2: on tablet the workout modal shows the client-name eyebrow; on phone it does not', async () => {
+  it('M2: on tablet (page and pane) the workout modal shows the client-name eyebrow; on phone it does not', async () => {
     setWindow(834);
     loadClient(LB);
     const tablet = await render(<ClientDetailScreen />);
     await openSession(tablet);
-    const eyebrows = hostAll(tablet, 'app-modal-eyebrow').map(textOf);
-    expect(eyebrows).toContain('Sara Lopez');
+    expect(hostAll(tablet, 'app-modal-eyebrow').map(textOf)).toContain('Sara Lopez');
+    loadClient(LB);
+    const pane = await render(<ClientDetailContent clientUserId={7} layout="pane" />);
+    await openSession(pane);
+    expect(hostAll(pane, 'app-modal-eyebrow').map(textOf)).toContain('Sara Lopez');
     setWindow(390);
     loadClient(LB);
     const phone = await render(<ClientDetailScreen />);
@@ -324,11 +345,14 @@ describe('End coaching dialog look (M6, UX L End coaching / M End coaching clien
     expect(END_COACHING_TILE.member.phone.size).toBe(56);
   });
 
-  it('Client detail uses it (same testID as before; My trainer: TrainerHubScreen.test)', async () => {
+  it.each([
+    ['the page', () => <ClientDetailScreen />],
+    ['the tablet pane', () => <ClientDetailContent clientUserId={7} layout="pane" />],
+  ])('Client detail (%s, via ClientDetailContent) uses it (same testID as before; My trainer: TrainerHubScreen.test)', async (_, element) => {
     loadClient({ first_name: 'Sara' });
     getClientPlan.mockResolvedValue(null);
     endCoaching.mockResolvedValue({});
-    const tree = await render(<ClientDetailScreen />);
+    const tree = await render(element());
     const dialog = tree.root.findByType(EndCoachingDialog);
     expect(dialog.props).toMatchObject({ testID: 'end-coaching-dialog', variant: 'client', title: 'End coaching with this client?', confirmLabel: 'End coaching' });
   });
