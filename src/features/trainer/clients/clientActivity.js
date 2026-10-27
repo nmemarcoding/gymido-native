@@ -159,7 +159,8 @@ export function needAttention(rows) {
 }
 
 // ND-8 filters. `invited` are the trainer's pending invitations (ND-9 rows).
-export const ClientFilter = Object.freeze({ all: 'all', active: 'active', missed: 'missed' });
+// Web parity (PM, 27 Oct): Invited = the trainer's pending invitations only.
+export const ClientFilter = Object.freeze({ all: 'all', active: 'active', missed: 'missed', invited: 'invited' });
 
 function matches(row, query, label) {
   const needle = query.trim().toLowerCase();
@@ -181,6 +182,9 @@ export function filterClients({ clients, invited, filter, query = '' }) {
   if (filter === ClientFilter.missed) {
     return { clients: active.filter((row) => missedOf(row) >= 1), invited: [] };
   }
+  if (filter === ClientFilter.invited) {
+    return { clients: [], invited: pending };
+  }
   return { clients: active, invited: pending };
 }
 
@@ -189,6 +193,7 @@ export function filterCounts({ clients, invited }) {
     all: clients.length + invited.length,
     active: clients.filter((row) => missedOf(row) === 0).length,
     missed: clients.filter((row) => missedOf(row) >= 1).length,
+    invited: invited.length,
   };
 }
 

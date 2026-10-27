@@ -91,9 +91,11 @@ describe('Clients, phone', () => {
 
   it('without BE data: chips All / Active (no counts, no Missed); rows name + "View →"; invited row under All', async () => {
     const tree = await render();
+    // DECLARED (web parity, PM 27 Oct): the Invited chip joins the row.
     expect(chipLabels(tree)).toEqual([
       ['All', true],
       ['Active', false],
+      ['Invited', false],
     ]);
     expect(texts(tree).filter((text) => text === 'View →')).toHaveLength(2);
     expect(tree.root.findAllByType(WeekRing)).toHaveLength(0);
@@ -118,9 +120,18 @@ describe('Clients, phone', () => {
     expect(chipLabels(tree)).toEqual([
       ['All', false],
       ['Active', true],
+      ['Invited', false],
     ]);
     await act(async () => byTestID(tree, 'clients-filter-all').props.onPress());
     expect(host(tree, 'clients-invited-60')).toBeTruthy();
+  });
+
+  it('Invited filter (web parity): only the pending invitations, no client rows', async () => {
+    const tree = await render();
+    await act(async () => byTestID(tree, 'clients-filter-invited').props.onPress());
+    expect(host(tree, 'clients-invited-60')).toBeTruthy();
+    expect(host(tree, 'clients-row-11')).toBeUndefined();
+    expect(chipLabels(tree).find(([label]) => label.startsWith('Invited'))[1]).toBe(true);
   });
 
   it('search by name; no match → "No clients found" (polite live)', async () => {
@@ -146,7 +157,9 @@ describe('Clients, phone', () => {
       ['All · 5', true],
       ['Active · 3', false],
       ['Missed · 1', false],
+      ['Invited · 1', false],
     ]);
+    expect(byTestID(tree, 'clients-filter-invited').props.accessibilityLabel).toBe('Invited, 1 clients');
     expect(byTestID(tree, 'clients-filter-active').props.accessibilityLabel).toBe('Active, 3 clients');
     expect(texts(tree)).toEqual(expect.arrayContaining(['Upper / Lower Split', '3/4', '0/4', '0/3', 'No plan yet']));
     expect(tree.root.findAllByType(StatusLine).map((line) => [line.props.tone, line.props.text])).toEqual([

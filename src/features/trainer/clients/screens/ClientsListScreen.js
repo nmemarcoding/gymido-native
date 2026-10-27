@@ -243,6 +243,7 @@ function ClientsList() {
       { key: ClientFilter.all, label: 'All', count: counts.all },
       { key: ClientFilter.active, label: 'Active', count: counts.active },
       hasData ? { key: ClientFilter.missed, label: 'Missed', count: counts.missed } : null,
+      { key: ClientFilter.invited, label: 'Invited', count: counts.invited },
     ].filter(Boolean);
     // Dated 27 Oct 2026 (§C3.2, audit b2): ONE row that never wraps; it
     // scrolls sideways (no scrollbar) and each chip keeps its width.

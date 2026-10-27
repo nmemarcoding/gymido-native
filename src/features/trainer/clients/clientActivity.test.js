@@ -160,7 +160,10 @@ describe('ND-8 filters and search', () => {
     expect(filterClients({ clients: [alex, sara], invited: [invite], filter: ClientFilter.all })).toEqual({ clients: [alex, sara], invited: [invite] });
     expect(filterClients({ clients: [alex, sara], invited: [invite], filter: ClientFilter.active })).toEqual({ clients: [alex], invited: [] });
     expect(filterClients({ clients: [alex, sara], invited: [invite], filter: ClientFilter.missed })).toEqual({ clients: [sara], invited: [] });
-    expect(filterCounts({ clients: [alex, sara], invited: [invite] })).toEqual({ all: 3, active: 1, missed: 1 });
+    // Web parity (PM, 27 Oct; TRAINER-CLIENTS audit b2 chips "All · Active · Missed · Invited"):
+    // Invited = the trainer's pending invitations only.
+    expect(filterClients({ clients: [alex, sara], invited: [invite], filter: ClientFilter.invited })).toEqual({ clients: [], invited: [invite] });
+    expect(filterCounts({ clients: [alex, sara], invited: [invite] })).toEqual({ all: 3, active: 1, missed: 1, invited: 1 });
   });
 
   it('without the data, Active = the relationship status (every loaded row)', () => {
