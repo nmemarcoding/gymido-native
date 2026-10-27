@@ -1,19 +1,24 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { colors, radii } from '../../../shared/theme/tokens';
+import { colors, font, layout, radii, spacing, typography } from '../../../shared/theme/tokens';
 
-// Controls of RN-SPEC-PLAN-GENERATOR §G1.2 and the G2 callouts.
+// Controls of RN-SPEC-PLAN-GENERATOR §G1.2 and the G2 callouts. v2 look:
+// RN-SPEC-v2-foundation §4.4 (Option pill / Choice), §4.6 (Checkbox, card
+// radio) and §5 (Callout), as drawn on the "GeneratorControls" board.
 
-function Check() {
+// The Choice's 24 px gold disc with "✓". Its slot is ALWAYS reserved (empty
+// when off), so the row never shifts.
+function Check({ on }) {
   return (
-    <View style={styles.check} accessibilityElementsHidden importantForAccessibility="no">
-      <Text numberOfLines={1} textBreakStrategy="simple" style={styles.checkMark}>✓</Text>
+    <View testID={on ? 'choice-check' : 'choice-check-slot'} style={[styles.check, on && styles.checkOn]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {on ? <Text numberOfLines={1} textBreakStrategy="simple" style={styles.checkMark}>✓</Text> : null}
     </View>
   );
 }
 
-// Full-width choice row.
+// Full-width choice row (the card radio): min-height 56, radius 16; selected
+// = gold-tint-weak fill + an inset 1.5 px gold ring + the gold disc.
 export function Choice({ label, hint, selected, disabled = false, onPress, testID }) {
   return (
     <Pressable
@@ -23,13 +28,17 @@ export function Choice({ label, hint, selected, disabled = false, onPress, testI
       accessibilityState={{ selected, checked: selected, disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={[styles.choice, selected && styles.selected, disabled && styles.disabled]}
+      style={({ pressed }) => [
+        styles.choice,
+        selected ? styles.choiceOn : [styles.choiceOff, pressed && styles.choicePressed],
+        disabled && styles.disabled,
+      ]}
     >
       <View style={styles.flex}>
         <Text style={styles.choiceLabel}>{label}</Text>
         {hint ? <Text style={styles.choiceHint}>{hint}</Text> : null}
       </View>
-      {selected ? <Check /> : null}
+      <Check on={Boolean(selected)} />
     </Pressable>
   );
 }
@@ -38,8 +47,13 @@ export function ChoiceList({ children }) {
   return <View style={styles.choiceList}>{children}</View>;
 }
 
-// Batch A (A3): 44 tall on touch (padding-vertical 12). T-18/T-40: step 6
-// pills pass their role and hint (the section label, plus a block hint).
+// Option pill (board: 40 tall, padding 0 14; gold when selected, glass when
+// not) with a 44 hit area. T-18/T-40: step 6 pills pass their role and hint
+// (the section label, plus a block hint).
+const PILL_HEIGHT = 40;
+const PILL_SLOP = (layout.touchMin - PILL_HEIGHT) / 2;
+const PILL_HIT_SLOP = { top: PILL_SLOP, bottom: PILL_SLOP, left: 0, right: 0 };
+
 export function OptionPill({
   label,
   selected,
@@ -59,10 +73,16 @@ export function OptionPill({
       accessibilityState={{ selected, disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={[styles.pill, selected ? styles.selected : styles.pillRest, disabled && styles.disabled]}
+      hitSlop={PILL_HIT_SLOP}
+      style={({ pressed }) => [
+        styles.pill,
+        selected ? (pressed ? styles.pillOnPressed : styles.pillOn) : [styles.pillRest, pressed && styles.pillRestPressed],
+        disabled && styles.disabled,
+      ]}
     >
-      {/* Design system v1 #15: a leading ✓ when selected. Its space is always
-          reserved (transparent when off), so the pill never changes width. */}
+      {/* Design system v1 #15 (kept in v2): a leading ✓ when selected. Its
+          space is always reserved (transparent when off), so the pill never
+          changes width. */}
       <View style={styles.pillContent}>
         <Text
           style={[styles.pillCheck, !selected && styles.pillCheckOff]}
@@ -71,7 +91,7 @@ export function OptionPill({
         >
           ✓
         </Text>
-        <Text style={[styles.pillText, { color: selected ? colors.textPrimary : colors.textSecondary }]}>{label}</Text>
+        <Text style={[styles.pillText, selected ? styles.pillTextOn : styles.pillTextOff]}>{label}</Text>
       </View>
     </Pressable>
   );
@@ -81,35 +101,42 @@ export function PillRow({ children, style }) {
   return <View style={[styles.pillRow, style]}>{children}</View>;
 }
 
+// §4.6 Checkbox: 24 × 24, radius 8. Off: a 1.5 px border; on: gold fill + a
+// dark ✓. The caller's row (min-height 44) is the hit target.
 export function Checkbox({ checked }) {
   return (
     <View
-      style={[styles.checkbox, checked && styles.checkboxOn]}
+      style={[styles.checkbox, checked ? styles.checkboxOn : styles.checkboxOff]}
       accessibilityElementsHidden
-      importantForAccessibility="no"
+      importantForAccessibility="no-hide-descendants"
     >
-      {checked ? <Text numberOfLines={1} textBreakStrategy="simple" style={styles.checkboxMark}>✓</Text> : null}
+      {checked ? (
+        <Svg testID="checkbox-mark" width={14} height={14} viewBox="0 0 24 24" fill="none">
+          <Path d="M5 12l5 5L20 7" stroke={colors.onGold} strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      ) : null}
     </View>
   );
 }
 
+// §5 Callout: the tone is the fill and border; the text is text-strong-2.
 const CALLOUT_TONES = {
-  info: { borderColor: colors.infoBorder, backgroundColor: colors.infoFill, color: colors.infoText },
-  warning: { borderColor: colors.warningBorder, backgroundColor: colors.warningFill, color: colors.warning700 },
+  info: { borderColor: colors.infoBorder, backgroundColor: colors.infoTint },
+  warning: { borderColor: colors.warningBorder, backgroundColor: colors.warningFill },
 };
 
 // `role` is passed through (T-18: the GO_EASY_AREAS note is role="note").
 export function Callout({ tone = 'info', children, testID, style, role }) {
-  const look = CALLOUT_TONES[tone];
+  const look = CALLOUT_TONES[tone] ?? CALLOUT_TONES.info;
   return (
-    <View testID={testID} role={role} style={[styles.callout, { borderColor: look.borderColor, backgroundColor: look.backgroundColor }, style]}>
-      <Text style={[styles.calloutText, { color: look.color }]}>{children}</Text>
+    <View testID={testID} role={role} style={[styles.callout, look, style]}>
+      <Text style={styles.calloutText}>{children}</Text>
     </View>
   );
 }
 
 // Batch B #2: a decorative sparkle.
-export function SparkleIcon({ size = 14, color = colors.brand700 }) {
+export function SparkleIcon({ size = 13, color = colors.gold }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" accessibilityElementsHidden importantForAccessibility="no">
       <Path
@@ -120,7 +147,8 @@ export function SparkleIcon({ size = 14, color = colors.brand700 }) {
   );
 }
 
-// Batch B #2 why-line: icon + "Why this:" + the server text, read as one sentence.
+// Batch B #2 why-line: icon + "Why this:" + the server text, read as one
+// sentence. v2: 13/18 text-secondary, "Why this:" 600 in gold.
 export function WhyLine({ text, style }) {
   return (
     <View accessible accessibilityLabel={`Why this: ${text}`} style={[styles.whyRow, style]}>
@@ -141,137 +169,160 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   choiceList: {
-    gap: 12,
+    gap: spacing[3],
   },
   choice: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
-    borderRadius: radii.lg,
+    gap: spacing[3],
+    borderRadius: radii.md,
+    // Always 1 px so the card keeps its size when it turns on.
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    minHeight: 44,
+    paddingHorizontal: spacing['3_5'],
+    paddingVertical: spacing['2_5'],
+    minHeight: 56,
   },
-  selected: {
-    borderColor: colors.brand400,
-    backgroundColor: colors.brand50,
+  choiceOff: {
+    borderColor: colors.choiceBorder,
+    backgroundColor: colors.surface,
+  },
+  choicePressed: {
+    backgroundColor: colors.surfaceRaised,
+  },
+  choiceOn: {
+    borderColor: colors.gold,
+    backgroundColor: colors.goldTintWeak,
+    // The 1 px gold border + 0.5 px inset = the 1.5 px gold ring.
+    boxShadow: `inset 0px 0px 0px 0.5px ${colors.gold}`,
   },
   disabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   choiceLabel: {
-    fontSize: 14,
+    ...font(600),
+    fontSize: 15,
     lineHeight: 20,
-    fontWeight: '700',
     color: colors.textPrimary,
   },
   choiceHint: {
+    ...font(400),
     marginTop: 2,
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 13,
+    lineHeight: 18,
     color: colors.textMuted,
   },
   check: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.brand400,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  checkOn: {
+    backgroundColor: colors.gold,
+  },
   checkMark: {
-    fontSize: 12,
+    ...font(700),
+    fontSize: 13,
     lineHeight: 16,
-    fontWeight: '900',
-    color: colors.navy,
+    color: colors.onGold,
   },
   pillRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing[2],
   },
   pill: {
-    minHeight: 44,
+    minHeight: PILL_HEIGHT,
     justifyContent: 'center',
     borderRadius: radii.full,
     borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: spacing['3_5'],
+  },
+  pillOn: {
+    borderColor: colors.gold,
+    backgroundColor: colors.gold,
+  },
+  pillOnPressed: {
+    borderColor: colors.goldDeep,
+    backgroundColor: colors.goldDeep,
+  },
+  pillRest: {
+    borderColor: colors.hairlineButton,
+    backgroundColor: colors.fillButton,
+  },
+  pillRestPressed: {
+    backgroundColor: colors.hairlineButton,
   },
   pillContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing['1_5'],
   },
   pillCheck: {
+    ...font(700),
     fontSize: 12,
     lineHeight: 20,
-    fontWeight: '900',
-    color: colors.navy,
+    color: colors.onGold,
   },
   pillCheckOff: {
     opacity: 0,
   },
-  pillRest: {
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
   pillText: {
+    ...font(600),
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '700',
+  },
+  pillTextOn: {
+    color: colors.onGold,
+  },
+  pillTextOff: {
+    color: colors.textPrimary,
   },
   checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxOn: {
-    borderColor: colors.brand400,
-    backgroundColor: colors.brand400,
+  checkboxOff: {
+    borderColor: colors.checkboxBorder,
   },
-  checkboxMark: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '900',
-    color: colors.navy,
+  checkboxOn: {
+    borderColor: colors.gold,
+    backgroundColor: colors.gold,
   },
   callout: {
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
     borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: spacing['3_5'],
+    paddingVertical: spacing[3],
   },
   calloutText: {
-    fontSize: 14,
-    lineHeight: 24,
+    ...font(400),
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textStrong2,
   },
   whyRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 6,
+    gap: spacing['1_5'],
   },
   whyIcon: {
-    paddingTop: 3,
+    paddingTop: 2,
   },
   whyText: {
+    ...typography.label,
+    ...font(400),
     flex: 1,
-    fontSize: 13,
-    lineHeight: 20,
     color: colors.textSecondary,
   },
   whyLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.brand700,
+    ...font(600),
+    color: colors.gold,
   },
 });

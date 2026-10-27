@@ -1,21 +1,37 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { breakpoints, colors, radii, shadows } from '../theme/tokens';
+import { colors, font, radii, spacing, typography } from '../theme/tokens';
 
-// The label, field box, helper and error of the trainer plans spec §A3.4.
-// `kind` picks the label style: input | select | textarea.
-export function FieldFrame({ label, helperText, error, kind = 'input', labelStyle: labelOverride, children }) {
-  const { width } = useWindowDimensions();
-  const wide = width >= breakpoints.sm;
+// RN-SPEC-v2-foundation §4.5: one member/trainer size (52, radius 20).
+export const FIELD_HEIGHT = 52;
+const OPTIONAL = ' (optional)';
 
+// OptionalLabel (§4.5): a label ending in " (optional)" draws that part in
+// text-faint 400. The words are unchanged, so screen readers read the same.
+function LabelText({ label, style }) {
+  if (typeof label === 'string' && label.endsWith(OPTIONAL)) {
+    return (
+      <Text style={style}>
+        {label.slice(0, -OPTIONAL.length)}
+        <Text style={styles.optional}>{OPTIONAL}</Text>
+      </Text>
+    );
+  }
+  return <Text style={style}>{label}</Text>;
+}
+
+// The label, field box, helper and error (§4.5). `kind` (input | select |
+// textarea) is kept for callers; v2 draws one label style for all three.
+export function FieldFrame({ label, helperText, error, labelStyle: labelOverride, children }) {
   return (
     <View>
-      {label ? <Text style={[styles.label, labelStyle(kind, wide), labelOverride]}>{label}</Text> : null}
+      {label ? <LabelText label={label} style={[styles.label, labelOverride]} /> : null}
       {children}
       {helperText ? <Text style={styles.helper}>{helperText}</Text> : null}
       {error ? (
-        <Text accessibilityRole="alert" style={styles.error}>
+        // Announced: an alert on iOS, a polite live region on Android.
+        <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>
           {error}
         </Text>
       ) : null}
@@ -23,17 +39,8 @@ export function FieldFrame({ label, helperText, error, kind = 'input', labelStyl
   );
 }
 
-function labelStyle(kind, wide) {
-  if (kind === 'textarea') {
-    return { fontSize: 14, marginBottom: 8 };
-  }
-  if (kind === 'select') {
-    return { fontSize: 14, marginBottom: wide ? 8 : 4 };
-  }
-  return { fontSize: wide ? 14 : 12, marginBottom: wide ? 8 : 4 };
-}
-
-// Border and ring of a field box in its current state.
+// Border and ring of a field box in its current state (§4.5): focus = 1 px
+// gold border + a 4 px gold 18 % ring; error = the danger-text border.
 export function fieldBoxStyle({ focused, error, disabled }) {
   return [
     styles.box,
@@ -44,8 +51,24 @@ export function fieldBoxStyle({ focused, error, disabled }) {
 }
 
 // `trailing` sits inside the box at the right, vertically centred on the
-// field (e.g. an in-field spinner); the text then keeps clear of it.
-export default function FormField({ label, helperText, error, multiline = false, rows = 4, editable = true, testID, labelStyle, trailing, ...inputProps }) {
+// field (e.g. an in-field spinner); the text then keeps clear of it. `unit`
+// is the suffix (kg, lb, cm, ft, in) at right 16; callers keep the unit in
+// the label, so the suffix itself is not read twice.
+export default function FormField({
+  label,
+  helperText,
+  error,
+  multiline = false,
+  rows = 4,
+  editable = true,
+  testID,
+  labelStyle,
+  trailing,
+  unit,
+  onFocus,
+  onBlur,
+  ...inputProps
+}) {
   const [focused, setFocused] = useState(false);
 
   return (
@@ -56,15 +79,40 @@ export default function FormField({ label, helperText, error, multiline = false,
         <TextInput
           testID={testID}
           accessibilityLabel={label}
-          placeholderTextColor={colors.textMuted}
+          // Described by the error message (§4.5), read when the field is focused.
+          accessibilityHint={error || undefined}
+          placeholderTextColor={colors.textFaint}
           editable={editable}
           multiline={multiline}
           textAlignVertical={multiline ? 'top' : 'center'}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          style={[styles.input, styles.text, multiline && { minHeight: rows * 20 + 24 }, trailing && styles.inputWithTrailing]}
+          onFocus={(event) => {
+            setFocused(true);
+            onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setFocused(false);
+            onBlur?.(event);
+          }}
+          style={[
+            styles.text,
+            focused && styles.textFocused,
+            multiline ? [styles.multiline, { minHeight: rows * 24 + 28 }] : styles.input,
+            unit ? styles.inputWithUnit : null,
+            trailing ? styles.inputWithTrailing : null,
+          ]}
           {...inputProps}
         />
+        {unit ? (
+          <View
+            testID={testID ? `${testID}-unit` : undefined}
+            style={styles.unit}
+            pointerEvents="none"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            <Text style={styles.unitText}>{unit}</Text>
+          </View>
+        ) : null}
         {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
       </View>
     </FieldFrame>
@@ -72,48 +120,79 @@ export default function FormField({ label, helperText, error, multiline = false,
 }
 
 const styles = StyleSheet.create({
+  // 13/500 text-secondary, gap 8 to the field.
   label: {
-    fontWeight: '600',
-    lineHeight: 20,
-    color: colors.textPrimary,
+    ...typography.label,
+    color: colors.textSecondary,
+    marginBottom: spacing[2],
   },
+  optional: {
+    ...font(400),
+    color: colors.textFaint,
+  },
+  // No height here: Select and DateInput callers may size the box
+  // (boxStyle), so each component sets its own 52.
   box: {
+    justifyContent: 'center',
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hairlineStrong,
     backgroundColor: colors.surface,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    boxShadow: shadows.insetSoft,
+    paddingHorizontal: spacing[4],
   },
   boxError: {
     borderColor: colors.dangerText,
   },
   focused: {
-    borderColor: colors.brand500,
-    outlineWidth: 2,
-    outlineColor: colors.focusRing,
+    borderColor: colors.gold,
+    outlineWidth: 4,
+    outlineColor: colors.goldFocus,
     outlineStyle: 'solid',
   },
   focusedError: {
     borderColor: colors.dangerText,
-    outlineWidth: 2,
-    outlineColor: colors.focusRingError,
+    outlineWidth: 4,
+    outlineColor: colors.dangerFocus,
     outlineStyle: 'solid',
   },
   boxDisabled: {
-    backgroundColor: colors.surfaceMuted,
+    opacity: 0.5,
   },
   inputBox: {
-    paddingVertical: 0,
+    minHeight: FIELD_HEIGHT,
     paddingHorizontal: 0,
   },
+  // Single line: the box is 52 with a 1 px border, so the input is 50. No
+  // lineHeight on a single-line input (iOS shifts the text down with one).
   input: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    height: FIELD_HEIGHT - 2,
+    paddingVertical: 0,
+    paddingHorizontal: spacing[4],
+  },
+  // Textarea: padding 14 16, 16/24.
+  multiline: {
+    paddingVertical: spacing['3_5'],
+    paddingHorizontal: spacing[4],
+    lineHeight: typography.bodyLg.lineHeight,
+  },
+  inputWithUnit: {
+    paddingRight: 48,
   },
   inputWithTrailing: {
     paddingRight: 44,
+  },
+  unit: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: spacing[4],
+    justifyContent: 'center',
+  },
+  unitText: {
+    ...font(400),
+    fontSize: 15,
+    lineHeight: 20,
+    color: colors.textFaint,
   },
   trailing: {
     position: 'absolute',
@@ -122,22 +201,25 @@ const styles = StyleSheet.create({
     right: 14,
     justifyContent: 'center',
   },
+  // 16 px input text (keeps iOS from zooming), weight 500 on focus.
   text: {
-    fontSize: 14,
-    lineHeight: 20,
+    ...font(400),
+    fontSize: typography.bodyLg.fontSize,
     color: colors.textPrimary,
   },
+  textFocused: {
+    ...font(500),
+  },
+  // 12 text-muted below the field.
   helper: {
-    marginTop: 8,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.caption,
+    marginTop: spacing[2],
     color: colors.textMuted,
   },
+  // 13 danger-text below the field.
   error: {
-    marginTop: 8,
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '500',
-    color: colors.danger700,
+    ...typography.label,
+    marginTop: spacing[2],
+    color: colors.dangerText,
   },
 });

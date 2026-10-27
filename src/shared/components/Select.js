@@ -3,12 +3,25 @@ import { useState } from 'react';
 import { Keyboard, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors } from '../theme/tokens';
-import { FieldFrame, fieldBoxStyle } from './FormField';
+import Svg, { Path } from 'react-native-svg';
+
+import { colors, font, spacing, typography } from '../theme/tokens';
+import { FIELD_HEIGHT, FieldFrame, fieldBoxStyle } from './FormField';
+
+// §4.5 Select: the input style + a 16 px chevron at right (text-muted).
+export function SelectChevron({ color = colors.textMuted }) {
+  return (
+    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Path d="M6 9l6 6 6-6" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
 
 // Web `<select>` as the platform picker (profile-create spec §3.6): an iOS
 // wheel in a bottom sheet with "Done", an Android list dialog. The choice
-// applies immediately.
+// applies immediately. With no `trailing` and no `boxStyle` it draws the
+// v2 chevron; a caller that restyles the box (e.g. the 40 px set-row unit)
+// owns its trailing content.
 export default function Select({
   label,
   value,
@@ -33,15 +46,16 @@ export default function Select({
     <Picker.Item key={String(option.value)} label={option.label} value={option.value} />
   ));
 
+  const trailingContent = trailing === undefined && !boxStyle ? <SelectChevron /> : trailing;
   const box = (
     <View
-      style={[fieldBoxStyle({ focused: open, error: Boolean(error), disabled }), styles.box, boxStyle]}
+      style={[fieldBoxStyle({ focused: open, error: Boolean(error), disabled }), styles.box, !boxStyle && styles.boxHeight, trailingContent ? styles.boxWithTrailing : null, boxStyle]}
       pointerEvents="none"
     >
       <Text numberOfLines={1} style={[styles.value, textStyle]}>
         {selected?.label ?? ''}
       </Text>
-      {trailing}
+      {trailingContent}
     </View>
   );
 
@@ -95,7 +109,7 @@ export default function Select({
               <Text style={styles.done}>Done</Text>
             </Pressable>
           </View>
-          <Picker selectedValue={value} onValueChange={(next) => onChange(next)}>
+          <Picker selectedValue={value} onValueChange={(next) => onChange(next)} itemStyle={styles.wheelItem}>
             {items}
           </Picker>
         </View>
@@ -109,12 +123,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 46,
+    gap: spacing[2],
   },
+  boxHeight: {
+    minHeight: FIELD_HEIGHT,
+  },
+  boxWithTrailing: {
+    paddingRight: 14,
+  },
+  // The input's 16/400 text-primary.
   value: {
+    ...font(400),
     flexShrink: 1,
-    fontSize: 14,
+    fontSize: typography.bodyLg.fontSize,
     lineHeight: 20,
+    color: colors.textPrimary,
+  },
+  wheelItem: {
+    ...font(400),
     color: colors.textPrimary,
   },
   androidPicker: {
@@ -141,9 +167,9 @@ const styles = StyleSheet.create({
     borderTopColor: colors.pickerToolbarBorder,
   },
   done: {
+    ...font(600),
     fontSize: 16,
     lineHeight: 22,
-    fontWeight: '600',
     color: colors.pickerDone,
   },
 });

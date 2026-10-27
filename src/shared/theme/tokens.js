@@ -65,6 +65,10 @@ const V2_COLORS = {
   info: '#8FA8FF',
   infoTint: 'rgba(143, 168, 255, 0.10)',
   infoBorder: 'rgba(143, 168, 255, 0.25)',
+  // v2 kit: input (§4.6): the checkbox's off border and the card radio's
+  // off border.
+  checkboxBorder: 'rgba(255, 255, 255, 0.28)',
+  choiceBorder: 'rgba(255, 255, 255, 0.08)',
 };
 
 // v1 names kept as ALIASES of v2 values while screens move to the v2 names
