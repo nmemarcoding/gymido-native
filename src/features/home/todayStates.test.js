@@ -1,6 +1,6 @@
 jest.mock('../shell/ShellPage', () => ({ children }) => children);
 jest.mock('../shell/shellLinks', () => ({ openShellPath: jest.fn(), openPlanDetailAlone: jest.fn() }));
-jest.mock('./api/homeApi', () => ({ getDashboard: jest.fn(), logWeight: jest.fn() }));
+jest.mock('./api/homeApi', () => ({ getDashboard: jest.fn(), logWeight: jest.fn(), getCurrentWeek: jest.fn(() => Promise.resolve(null)) }));
 jest.mock('../plans/api/libraryApi', () => ({ getCurrentPlan: jest.fn(() => Promise.resolve(null)), listPlanDays: jest.fn() }));
 jest.mock('../planGenerator/api/generatorApi', () => ({ getGeneratorProfile: jest.fn() }));
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ addListener: () => () => {} }) }));
@@ -377,6 +377,22 @@ describe('Phase 2 tokens: exact colours', () => {
     expect(tile.boxShadow).toBeUndefined();
   });
 
+  it('tile glyph ruling (tokens §7 "Tile glyphs"): the hero glyph is 34 in the 76 tile (phone) and 40 in the 84 tile (tablet), stroke 2.4 on the 32 viewBox', async () => {
+    const glyph = (root) => {
+      const tile = host(root, 'home-empty-hero-tile');
+      const svg = tile.find((node) => node.props.viewBox === '0 0 32 32' && typeof node.type !== 'string');
+      const strokes = tile.findAll((node) => node.props.strokeWidth !== undefined).map((node) => Number(node.props.strokeWidth));
+      return { width: svg.props.width, tile: styleOf(tile).width, strokes };
+    };
+    const phone = glyph((await render()).root);
+    expect(phone).toMatchObject({ width: 34, tile: 76 });
+    phone.strokes.forEach((value) => expect(value).toBe(2.4));
+    mockWidth = 834;
+    const tablet = glyph((await render()).root);
+    expect(tablet).toMatchObject({ width: 40, tile: 84 });
+    tablet.strokes.forEach((value) => expect(value).toBe(2.4));
+  });
+
   it('recent (empty, phone): fill-subtle with a dashed hairline-strong edge', async () => {
     const tree = await render();
     expect(styleOf(host(tree.root, 'home-recent-empty'))).toMatchObject({ backgroundColor: colors.fillWell, borderColor: colors.hairlineStrong, borderStyle: 'dashed' });
@@ -522,7 +538,8 @@ describe('§9 large text: reflow past 1.3', () => {
     const row = host(large.root, 'home-recent-9');
     expect(styleOf(row)).toMatchObject({ flexDirection: 'column', alignItems: 'flex-start' });
     const rowTexts = row.findAll((node) => node.type === 'Text');
-    expect(rowTexts[0].props.numberOfLines).toBe(2);
+    // Phase 3 ND6: the neutral initials tile comes first; the name keeps 2 lines.
+    expect(host(row, 'home-recent-title').props.numberOfLines).toBe(2);
     expect(rowTexts.find((node) => textOf(node) === 'completed').props.maxFontSizeMultiplier).toBe(1.6);
   });
 
@@ -540,7 +557,8 @@ describe('§9 large text: reflow past 1.3', () => {
     expect(styleOf(host(large.root, 'home-today-primary'))).toMatchObject({ flex: 0, alignSelf: 'stretch' });
     expect(styleOf(host(large.root, 'home-view-plan'))).toMatchObject({ flex: 0, alignSelf: 'stretch' });
     expect(styleOf(host(large.root, 'home-stats')).flexDirection).toBe('column');
-    expect(queryHost(large.root, 'home-stat-row-Done total')).toHaveLength(1);
+    // Phase 3 ND8: the two stat tiles stack and the ring drops above its number.
+    expect(styleOf(host(large.root, 'home-stat-this-week-row')).flexDirection).toBe('column');
     noTruncation(host(large.root, 'home-today-buttons'));
   });
 

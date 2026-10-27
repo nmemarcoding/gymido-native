@@ -8,6 +8,7 @@ import {
   FlatList,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -19,13 +20,15 @@ import Svg, { Path } from 'react-native-svg';
 
 import { routes } from '../../../navigation/routes';
 import BlurLayer from '../../../shared/components/BlurLayer';
+import Chip from '../../../shared/components/Chip';
 import EmptyState from '../../../shared/components/EmptyState';
 import ErrorAlert from '../../../shared/components/ErrorAlert';
 import { InlineError } from '../../../shared/components/FeedbackBox';
 import Loader from '../../../shared/components/Loader';
-import RemoteImage from '../../../shared/components/RemoteImage';
+import ExerciseImage, { muscleTextColor } from '../../../shared/components/ExerciseImage';
+import { CAP_BODY, CAP_PILL, TITLE_TEXT } from '../../../shared/components/largeText';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
-import { breakpoints, colors, radii, shadows, textInputColors } from '../../../shared/theme/tokens';
+import { blur, breakpoints, colors, font, radii, spacing, textInputColors, textScale } from '../../../shared/theme/tokens';
 import { useAuthStore } from '../../auth/authStore';
 import AppHeader from '../../shell/AppHeader';
 import DesktopSidebar from '../../shell/DesktopSidebar';
@@ -40,10 +43,10 @@ import {
   cardMuscleLabel,
   cardThumbnailSources,
   catalogErrorMessage,
-  countFor,
   deriveCatalog,
+  filterChips,
+  flatGridRows,
   gridColumns,
-  gridRows,
   loadExerciseCatalog,
   loadRestPages,
   popSearch,
@@ -68,7 +71,7 @@ function ExercisesCatalog() {
   const navigation = useNavigation();
   const route = useRoute();
   const path = getScreenPath(route.name, route.params);
-  const { width } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const storedPreference = useAuthStore((state) => state.workspace);
@@ -278,7 +281,8 @@ function ExercisesCatalog() {
         rows.push({ type: 'empty', key: 'empty' });
       } else {
         // ⚠E-6: a filter with no matches renders no groups and no empty state.
-        rows.push(...gridRows(catalog.groups, columns));
+        // ND-3: flat grid, v1 order.
+        rows.push(...flatGridRows(catalog.groups, columns));
       }
     }
     return rows;
@@ -290,6 +294,12 @@ function ExercisesCatalog() {
         return (
           <View style={{ paddingLeft: pad + sideLeft, paddingRight: pad + sideRight }}>
             <AppHeader path={path} mode={mode} />
+            {/* UX G "Tablet: Exercises": the board draws the H1 (supersedes "Tablets have no title"). */}
+            {tablet ? (
+              <Text testID="exercises-title" accessibilityRole="header" {...TITLE_TEXT} style={styles.titleTablet}>
+                Exercises
+              </Text>
+            ) : null}
             {!tablet && showsMobileModeSwitch({ user, path }) ? (
               <View style={styles.mobileSwitch}>
                 <Text style={styles.mobileSwitchLabel}>Workspace</Text>
@@ -321,9 +331,12 @@ function ExercisesCatalog() {
             onSubmitSearch={() => setSearch((current) => submitSearch(current, searchValue))}
             searching={searching}
             showFilter={catalog.categories.length > 0}
+            categories={catalog.categories}
             categoryFilter={categoryFilter}
-            filterCount={countFor(catalog.categoryCounts, categoryFilter)}
+            onSelectFilter={setCategoryFilter}
             onOpenFilter={() => setFilterOpen(true)}
+            tablet={tablet}
+            reflow={fontScale > textScale.reflowAbove}
           />
         );
       case 'partialError':
@@ -346,20 +359,13 @@ function ExercisesCatalog() {
             <EmptyState title="No exercises found" message="Try a different search term." />
           </View>
         );
-      case 'group':
-        return (
-          <View style={[padding, styles.groupHeader, { paddingTop: item.first ? 20 : 24 }]}>
-            <Text style={styles.groupTitle}>{item.title}</Text>
-            <Text style={styles.groupCount}>{item.count}</Text>
-          </View>
-        );
       case 'row':
         return (
-          <View style={[padding, styles.gridRow, !item.firstInGroup && styles.gridRowGap]}>
+          <View style={[padding, styles.gridRow, item.firstInGroup ? styles.firstRow : styles.gridRowGap]}>
             {Array.from({ length: columns }, (_, slot) => {
               const exercise = item.cards[slot];
               return exercise ? (
-                <ExerciseCard key={exercise.id ?? slot} exercise={exercise} onOpen={openExercise} />
+                <ExerciseCard key={exercise.id ?? slot} exercise={exercise} onOpen={openExercise} tablet={tablet} />
               ) : (
                 <View key={`filler-${slot}`} style={styles.cardSlot} />
               );
@@ -419,14 +425,51 @@ function ExercisesCatalog() {
   );
 }
 
-// §E1.4 sticky bar: search form + filter button.
-function StickyBar({ padding, searchValue, onChangeSearch, onSubmitSearch, searching, showFilter, categoryFilter, filterCount, onOpenFilter }) {
+// §E1.4 sticky bar, v2 (UX G "Exercises", ND-2): the pill search field
+// and the chip row AS DRAWN: "All" + the raw muscle groups, single select,
+// horizontally scrolling (§9: wraps past 1.3, never hides chips), then the
+// native trailing "All muscle groups ▾" chip that opens the full-list sheet.
+function StickyBar({ padding, searchValue, onChangeSearch, onSubmitSearch, searching, showFilter, categories, categoryFilter, onSelectFilter, onOpenFilter, tablet, reflow }) {
   const [focused, setFocused] = useState(false);
+  const chips = filterChips(categories).map((chip) => (
+    <Chip
+      key={chip.value || '__all__'}
+      testID={`exercises-chip-${chip.value || 'all'}`}
+      label={chip.label}
+      selected={chip.value === categoryFilter}
+      onPress={() => onSelectFilter(chip.value)}
+      style={tablet ? styles.chipTablet : null}
+    />
+  ));
+  const sheetChip = (
+    <Pressable
+      key="__sheet__"
+      testID="exercises-filter"
+      accessibilityRole="button"
+      // Batch 3 (f), web parity: named by its visible text; no selected count.
+      accessibilityLabel="All muscle groups"
+      onPress={onOpenFilter}
+      hitSlop={{ top: 3, bottom: 3 }}
+      style={[styles.sheetChip, tablet && styles.chipTablet]}
+    >
+      {({ pressed }) => (
+        <>
+          {pressed ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.pressOverlay]} /> : null}
+          <Text {...CAP_BODY} style={styles.sheetChipText}>
+            All muscle groups
+          </Text>
+          <Svg width={14} height={14} viewBox="0 0 20 20" fill="none">
+            <Path d="M6 8l4 4 4-4" stroke={colors.textStrong2} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+          </Svg>
+        </>
+      )}
+    </Pressable>
+  );
   return (
     <View testID="exercises-bar" style={[styles.bar, padding]}>
-      <BlurLayer blurPx={8} />
+      <BlurLayer blurPx={blur.groundBar} />
       <View style={[StyleSheet.absoluteFill, styles.barFill]} />
-      <View style={styles.searchBox}>
+      <View testID="exercises-search-box" style={[styles.searchBox, tablet && styles.searchBoxTablet]}>
         <TextInput
           {...textInputColors}
           testID="exercises-search"
@@ -436,10 +479,11 @@ function StickyBar({ padding, searchValue, onChangeSearch, onSubmitSearch, searc
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           placeholder="Search exercises"
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={colors.textFaint}
           accessibilityLabel="Search exercises"
           returnKeyType="search"
           enterKeyHint="search"
+          maxFontSizeMultiplier={textScale.body}
           // iOS's clear "×" would sit on the spinner, so it hides while a
           // search loads (T-12 F2, PM/UX decision 26 Oct 2026).
           clearButtonMode={!searching && Platform.OS === 'ios' ? 'while-editing' : 'never'}
@@ -447,37 +491,34 @@ function StickyBar({ padding, searchValue, onChangeSearch, onSubmitSearch, searc
           autoCapitalize="none"
           style={[styles.searchInput, searching && styles.searchInputSearching, focused && styles.searchInputFocused]}
         />
-        <View pointerEvents="none" style={styles.searchGlyph} accessibilityElementsHidden importantForAccessibility="no">
-          <Text style={styles.searchGlyphText}>⌕</Text>
+        <View testID="exercises-search-icon" pointerEvents="none" style={styles.searchGlyph} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+            <Path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14ZM20 20l-4-4" stroke={colors.textMuted} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          </Svg>
         </View>
         {searching ? <SearchSpinner /> : null}
       </View>
       {showFilter ? (
-        <Pressable
-          testID="exercises-filter"
-          accessibilityRole="button"
-          onPress={onOpenFilter}
-          style={({ pressed }) => [styles.filter, pressed && styles.filterPressed]}
-        >
-          <View style={styles.filterLeft}>
-            <Svg width={16} height={16} viewBox="0 0 20 20" fill="none">
-              <Path d="M3 5h14M6 10h8M9 15h2" stroke={colors.textMuted} strokeWidth={1.8} strokeLinecap="round" />
-            </Svg>
-            <Text numberOfLines={1} style={styles.filterLabel}>
-              {categoryFilter || 'All muscle groups'}
-            </Text>
+        reflow ? (
+          <View testID="exercises-chips" accessibilityRole="radiogroup" accessibilityLabel="Muscle group" style={styles.chipsWrap}>
+            {chips}
+            {sheetChip}
           </View>
-          <View style={styles.filterRight}>
-            {categoryFilter ? (
-              <View style={styles.countPill}>
-                <Text style={styles.countPillText}>{filterCount}</Text>
-              </View>
-            ) : null}
-            <Svg width={16} height={16} viewBox="0 0 20 20" fill="none">
-              <Path d="M6 8l4 4 4-4" stroke={colors.textMuted} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
-            </Svg>
-          </View>
-        </Pressable>
+        ) : (
+          <ScrollView
+            testID="exercises-chips"
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            accessibilityRole="radiogroup"
+            accessibilityLabel="Muscle group"
+            keyboardShouldPersistTaps="handled"
+            style={styles.chipsScroll}
+            contentContainerStyle={styles.chipsRow}
+          >
+            {chips}
+            {sheetChip}
+          </ScrollView>
+        )
       ) : null}
     </View>
   );
@@ -505,30 +546,43 @@ function SearchSpinner() {
   );
 }
 
-// §E1a. Pressable → push Exercise detail (dated change 23 Oct 2026).
-const ExerciseCard = memo(function ExerciseCard({ exercise, onOpen }) {
+// §E1a. Pressable → push Exercise detail (dated change 23 Oct 2026). v2
+// (UX G): the photo / §8.1 tile area (108, tablet 150) with the muscle chip
+// on the glass on-photo pill bottom-left; the name wraps to 2 lines; the
+// sub-line is the muscle label (ND-4).
+const ExerciseCard = memo(function ExerciseCard({ exercise, onOpen, tablet }) {
   const url = exercise?.thumbnail?.url;
   const sources = useMemo(() => cardThumbnailSources(url), [url]);
   const muscle = cardMuscleLabel(exercise);
+  const muscleInk = muscleTextColor(exercise?.primary_muscle_group?.code || exercise?.primary_muscle_group?.name) ?? colors.textSecondary;
   return (
     <Pressable
       testID={`exercise-card-${exercise.id}`}
       accessibilityRole="button"
+      accessibilityLabel={`${exercise.name}, ${muscle}`}
       onPress={() => onOpen(exercise.id)}
       style={({ pressed }) => [styles.cardSlot, styles.card, pressed && styles.cardPressed]}
     >
-      <View style={styles.cardMedia}>
-        {url ? (
-          <RemoteImage url={url} sources={sources} style={styles.cardImage} accessibilityLabel={exercise.name} />
-        ) : (
-          <Text style={styles.cardPlaceholder}>{muscle}</Text>
-        )}
-      </View>
-      <View style={styles.cardBody}>
-        <Text numberOfLines={1} style={styles.cardName}>
+      <ExerciseImage
+        testID={`exercise-card-image-${exercise.id}`}
+        exercise={exercise}
+        muscleCode={exercise?.primary_muscle_group?.code || exercise?.primary_muscle_group?.name}
+        sources={sources}
+        hero
+        style={[styles.cardMedia, tablet && styles.cardMediaTablet]}
+      >
+        <View testID={`exercise-card-chip-${exercise.id}`} style={styles.muscleChip} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <Text {...CAP_PILL} numberOfLines={1} style={[styles.muscleChipText, tablet && styles.muscleChipTextTablet, { color: muscleInk }]}>
+            {muscle}
+          </Text>
+        </View>
+      </ExerciseImage>
+      <View style={[styles.cardBody, tablet && styles.cardBodyTablet]}>
+        {/* §9: a user-facing name in a dense grid: 2 lines max, full text in the label. */}
+        <Text {...CAP_BODY} numberOfLines={2} style={[styles.cardName, tablet && styles.cardNameTablet]}>
           {exercise.name}
         </Text>
-        <Text numberOfLines={1} style={styles.cardMuscle}>
+        <Text {...CAP_BODY} numberOfLines={1} style={[styles.cardMuscle, tablet && styles.cardMuscleTablet]}>
           {muscle}
         </Text>
       </View>
@@ -577,36 +631,51 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: colors.textMuted,
   },
+  titleTablet: {
+    ...font(700),
+    marginTop: spacing[2],
+    fontSize: 40,
+    lineHeight: 44,
+    letterSpacing: -1.6,
+    color: colors.textPrimary,
+  },
   bar: {
     overflow: 'hidden',
-    gap: 12,
+    gap: 14,
     paddingTop: 12,
     paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   barFill: {
-    backgroundColor: colors.stickyHeaderFill,
+    backgroundColor: colors.groundBar,
   },
   searchBox: {
     justifyContent: 'center',
   },
+  searchBoxTablet: {
+    width: 320,
+    maxWidth: '100%',
+  },
+  // UX G: 52 tall pill, surface, the 0.08 edge → hairline-strong (ladder).
   searchInput: {
-    borderRadius: radii.lg,
+    ...font(400),
+    minHeight: 52,
+    borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hairlineStrong,
     backgroundColor: colors.surface,
-    paddingVertical: 12,
-    paddingLeft: 44,
+    paddingVertical: 14,
+    paddingLeft: 46,
     paddingRight: 16,
     fontSize: 16,
+    lineHeight: 20,
     color: colors.textPrimary,
   },
   searchInputSearching: {
     paddingRight: 44,
   },
   searchInputFocused: {
-    borderColor: colors.brand400,
+    borderColor: colors.gold,
+    boxShadow: `0px 0px 0px 4px ${colors.goldFocus}`,
   },
   spinnerSlot: {
     position: 'absolute',
@@ -620,92 +689,57 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 9,
     borderWidth: 2,
-    borderColor: colors.border,
-    borderTopColor: colors.brand700,
+    borderColor: colors.hairlineStrong,
+    borderTopColor: colors.gold,
   },
   searchGlyph: {
     position: 'absolute',
     top: 0,
     bottom: 0,
-    left: 16,
+    left: 18,
     justifyContent: 'center',
   },
-  searchGlyphText: {
-    fontSize: 18,
-    lineHeight: 28,
-    color: colors.textMuted,
+  chipsScroll: {
+    marginHorizontal: -16,
   },
-  filter: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+  chipsRow: {
+    gap: spacing[2],
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 3,
   },
-  filterPressed: {
-    backgroundColor: colors.surfaceMuted,
+  chipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[2],
   },
-  filterLeft: {
+  chipTablet: {
+    minHeight: 40,
+    paddingHorizontal: 18,
+  },
+  // Off-chip look (kit Chip off) with a trailing chevron.
+  sheetChip: {
+    minHeight: 38,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    flexShrink: 1,
-    minWidth: 0,
-  },
-  filterLabel: {
-    flexShrink: 1,
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  filterRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  countPill: {
+    gap: spacing['1_5'],
+    overflow: 'hidden',
     borderRadius: radii.full,
-    backgroundColor: colors.brand50,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+    backgroundColor: colors.fillWell,
+    paddingHorizontal: spacing[4],
   },
-  countPillText: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '700',
-    color: colors.brand700,
+  sheetChipText: {
+    ...font(500),
+    fontSize: 14,
+    lineHeight: 18,
+    color: colors.textStrong2,
+  },
+  pressOverlay: {
+    backgroundColor: colors.pressOverlay,
   },
   contentTop: {
     paddingTop: 20,
-  },
-  groupHeader: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: 12,
-    paddingBottom: 12,
-  },
-  groupTitle: {
-    flexShrink: 1,
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
-    letterSpacing: 0.35,
-    textTransform: 'uppercase',
-    color: colors.textMuted,
-  },
-  groupCount: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '600',
-    color: colors.textMuted,
   },
   gridRow: {
     flexDirection: 'row',
@@ -714,58 +748,79 @@ const styles = StyleSheet.create({
   gridRowGap: {
     marginTop: 12,
   },
+  firstRow: {
+    marginTop: 4,
+  },
   cardSlot: {
     flex: 1,
     minWidth: 0,
   },
   card: {
     overflow: 'hidden',
-    borderRadius: radii.xxl,
+    borderRadius: radii.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hairline,
     backgroundColor: colors.surface,
-    boxShadow: shadows.soft,
   },
+  // Pressed: the gold-line edge (code 0.40 → gold-line 0.30).
   cardPressed: {
-    borderColor: colors.brandPressedBorder,
+    borderColor: colors.goldLine,
   },
   cardMedia: {
-    aspectRatio: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceMuted,
+    aspectRatio: undefined,
+    height: 108,
+    borderRadius: 0,
   },
-  cardImage: {
+  cardMediaTablet: {
+    height: 150,
+  },
+  muscleChip: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
+    left: 10,
+    bottom: 10,
+    maxWidth: '80%',
+    minHeight: 24,
+    justifyContent: 'center',
+    borderRadius: radii.full,
+    backgroundColor: colors.onPhoto,
+    paddingHorizontal: 9,
   },
-  // Batch A (A1): placeholder muscle text in brand-700.
-  cardPlaceholder: {
-    paddingHorizontal: 12,
+  muscleChipText: {
+    ...font(600),
     fontSize: 12,
     lineHeight: 16,
-    fontWeight: '700',
-    letterSpacing: 2.16,
-    textTransform: 'uppercase',
-    textAlign: 'center',
-    color: colors.brand700,
+  },
+  muscleChipTextTablet: {
+    fontSize: 13,
   },
   cardBody: {
-    padding: 12,
+    paddingTop: 12,
+    paddingHorizontal: 14,
+    paddingBottom: 16,
+  },
+  cardBodyTablet: {
+    paddingHorizontal: 16,
+    paddingBottom: 18,
   },
   cardName: {
-    fontSize: 14,
-    lineHeight: 17.5,
-    fontWeight: '700',
+    ...font(600),
+    fontSize: 15,
+    lineHeight: 20,
     color: colors.textPrimary,
   },
+  cardNameTablet: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
   cardMuscle: {
-    marginTop: 2,
+    ...font(400),
+    marginTop: 3,
     fontSize: 12,
     lineHeight: 16,
     color: colors.textMuted,
+  },
+  cardMuscleTablet: {
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

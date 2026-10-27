@@ -1,12 +1,12 @@
 import { useFocusEffect, useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { getServerMessage } from '../../../shared/api/apiError';
-import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { InlineToast } from '../../../shared/components/ToastHost';
 import { ToastTone } from '../../../shared/components/toastStore';
-import { breakpoints, colors } from '../../../shared/theme/tokens';
+import { CAP_BODY, DISPLAY_TITLE_TEXT, TITLE_TEXT } from '../../../shared/components/largeText';
+import { breakpoints, colors, font, spacing, textScale, typography } from '../../../shared/theme/tokens';
 import { useAuthStore } from '../../auth/authStore';
 import ScheduleSetupCard from '../../plans/components/ScheduleSetupCard';
 import AppHeader from '../../shell/AppHeader';
@@ -23,6 +23,7 @@ import { loadWorkoutPage } from '../loadWorkoutPage';
 import { CompletionPopup } from '../runtime/RuntimeOverlays';
 import restAlertPlatform from '../runtime/restAlertPlatform';
 import { requestPermissionAtWorkoutStart } from '../runtime/restAlerts';
+import { LeaveWorkoutDialog } from '../runtime/SessionDialogs';
 import SessionRuntime from '../runtime/SessionRuntime';
 import { applyOverlay, reconcileOverlay } from '../runtime/sessionMath';
 import {
@@ -58,7 +59,7 @@ function WorkoutPage() {
   const navigation = useNavigation();
   const route = useRoute();
   const isFocused = useIsFocused();
-  const { width } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
   const setSessionActive = useShellUiStore((state) => state.setSessionActive);
   const user = useAuthStore((state) => state.user);
   const storedPreference = useAuthStore((state) => state.workspace);
@@ -241,11 +242,15 @@ function WorkoutPage() {
           loadError={loadError}
           page={page}
           width={width}
+          fontScale={fontScale}
           actionError={actionError}
           successMessage={successMessage}
           isStartingDayId={isStartingDayId}
           onRetry={() => load()}
           onStart={handleStart}
+          // M1 (U5): always the Today root; goBack under backBehavior
+          // "history" could land on another tab.
+          onBackToToday={() => openShellPath('/')}
           onScheduleSaved={async () => {
             setSuccessMessage('Training days saved.');
             await load();
@@ -264,26 +269,31 @@ function WorkoutPage() {
     <>
       {branch}
       <CompletionPopup popup={popup} onClose={() => setPopup(null)} />
-      <ConfirmDialog
-        testID="leave-workout-dialog"
-        entrance="pop"
-        compact
-        cancelTestID="leave-workout-stay"
-        confirmTestID="leave-workout-leave"
-        isOpen={leaveGuard.open}
-        onClose={leaveGuard.stay}
-        onConfirm={leaveGuard.leave}
-        title="Leave workout?"
-        description="Your workout stays saved. You can pick it up from Today."
-        confirmLabel="Leave"
-        cancelLabel="Stay"
-        tone="primary"
-      />
+      <LeaveWorkoutDialog open={leaveGuard.open} onStay={leaveGuard.stay} onLeave={leaveGuard.leave} />
     </>
   );
 }
 
-function Hub({ status, loadError, page, width, actionError, successMessage, isStartingDayId, onRetry, onStart, onScheduleSaved }) {
+// U5 "← Today" + the page title (UX G: 52 phone / 64 tablet), above every
+// loaded hub state. The link is drawn 32 tall with a 44 hit area.
+function HubHeader({ tablet, onBack }) {
+  return (
+    <View testID="workout-hub-header" style={styles.header}>
+      <Pressable testID="workout-back-today" accessibilityRole="link" accessibilityLabel="Today" onPress={onBack} hitSlop={6} style={styles.backLink}>
+        {({ pressed }) => (
+          <Text {...CAP_BODY} style={[tablet ? styles.backTextTablet : styles.backText, pressed && styles.backPressed]}>
+            ← Today
+          </Text>
+        )}
+      </Pressable>
+      <Text testID="workout-title" accessibilityRole="header" {...DISPLAY_TITLE_TEXT} style={tablet ? styles.titleTablet : styles.title}>
+        Workout
+      </Text>
+    </View>
+  );
+}
+
+function Hub({ status, loadError, page, width, actionError, successMessage, isStartingDayId, onRetry, onStart, onScheduleSaved, onBackToToday, fontScale = 1 }) {
   const toasts = (
     <>
       {successMessage ? <InlineToast testID="workout-saved-toast" tone={ToastTone.success} title="Saved" message={successMessage} /> : null}
@@ -294,13 +304,22 @@ function Hub({ status, loadError, page, width, actionError, successMessage, isSt
   if (status === 'loading') {
     return <WorkoutSkeleton />;
   }
+  // P3-1: the shell header on /workout is bell-only, so the page header is
+  // the ONE "← Today" + "Workout" in every state (the skeleton draws its own).
+  const tablet = width >= breakpoints.md;
   if (status === 'error') {
-    return <WorkoutErrorState message={loadError?.message || 'Please try again.'} onRetry={onRetry} />;
+    return (
+      <View style={[styles.page, tablet && styles.pageTablet]}>
+        <HubHeader tablet={tablet} onBack={onBackToToday} />
+        <WorkoutErrorState message={loadError?.message || 'Please try again.'} onRetry={onRetry} />
+      </View>
+    );
   }
   if (!page.currentPlan?.enrollment?.plan) {
     return (
-      <View style={styles.page}>
+      <View style={[styles.page, tablet && styles.pageTablet]}>
         {toasts}
+        <HubHeader tablet={tablet} onBack={onBackToToday} />
         <WorkoutEmptyState onBrowse={() => openShellPath('/plans')} />
       </View>
     );
@@ -309,11 +328,13 @@ function Hub({ status, loadError, page, width, actionError, successMessage, isSt
   const { currentPlan, todayStatus, planDays, completedThisWeekDayIds } = page;
   const weekdaysByDay = scheduledWeekdaysByDayId(currentPlan.schedule);
   const heroDayId = todayStatus?.plan_day?.id;
-  const columns = width >= 1280 ? 3 : width >= breakpoints.sm ? 2 : 1;
+  // UX G: 2 columns on phone and tablet (3 from 1280); §9: one column past 1.3.
+  const columns = fontScale > textScale.reflowAbove ? 1 : width >= 1280 ? 3 : 2;
 
   return (
-    <View style={styles.page}>
+    <View style={[styles.page, tablet && styles.pageTablet]}>
       {toasts}
+      <HubHeader tablet={tablet} onBack={onBackToToday} />
       {needsScheduleSetup(currentPlan, planDays) ? (
         <ScheduleSetupCard
           planName={currentPlan.enrollment.plan.name}
@@ -332,12 +353,13 @@ function Hub({ status, loadError, page, width, actionError, successMessage, isSt
         showStart={showsHeroStart(todayStatus)}
         starting={isStartingDayId === heroDayId}
         onStart={() => onStart(heroDayId)}
+        imageUrl={todayStatus?.image?.url}
       />
       <View style={styles.section}>
-        <Text accessibilityRole="header" style={styles.heading}>
+        <Text accessibilityRole="header" {...TITLE_TEXT} style={tablet ? styles.headingTablet : styles.heading}>
           All training days
         </Text>
-        <DayGrid columns={columns}>
+        <DayGrid columns={columns} gap={tablet ? 14 : 12}>
           {planDays.map((day, index) => (
             <PlanDayCard
               key={day.id}
@@ -356,14 +378,13 @@ function Hub({ status, loadError, page, width, actionError, successMessage, isSt
 }
 
 // §2: 1 column below 640, 2 from 640, 3 from 1280, gap 12.
-function DayGrid({ columns, children }) {
+function DayGrid({ columns, gap = 12, children }) {
   const [width, setWidth] = useState(0);
-  const gap = 12;
   const itemWidth = columns > 1 && width > 0 ? (width - gap * (columns - 1)) / columns : undefined;
   return (
-    <View style={styles.grid} onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
+    <View style={[styles.grid, { gap }]} onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
       {(Array.isArray(children) ? children : [children]).map((child, index) => (
-        <View key={child?.key ?? index} style={itemWidth ? { width: itemWidth } : styles.fullWidth}>
+        <View key={child?.key ?? index} style={[styles.cell, itemWidth ? { width: itemWidth } : styles.fullWidth]}>
           {child}
         </View>
       ))}
@@ -373,25 +394,72 @@ function DayGrid({ columns, children }) {
 
 const styles = StyleSheet.create({
   page: {
-    gap: 20,
+    gap: 14,
     paddingBottom: 20,
+  },
+  pageTablet: {
+    gap: 18,
+  },
+  header: {
+    paddingHorizontal: spacing[1],
+  },
+  backLink: {
+    alignSelf: 'flex-start',
+    minHeight: 32,
+    justifyContent: 'center',
+  },
+  backText: {
+    ...font(600),
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.gold,
+  },
+  backTextTablet: {
+    ...font(600),
+    fontSize: 15,
+    lineHeight: 20,
+    color: colors.gold,
+  },
+  backPressed: {
+    textDecorationLine: 'underline',
+  },
+  title: {
+    ...typography.displayLg,
+    marginTop: spacing['0_5'],
+    letterSpacing: -2.86,
+    color: colors.textPrimary,
+  },
+  titleTablet: {
+    ...font(700),
+    marginTop: spacing['0_5'],
+    fontSize: 64,
+    lineHeight: 64,
+    letterSpacing: -3.2,
+    color: colors.textPrimary,
   },
   section: {
     gap: 12,
   },
   heading: {
-    paddingHorizontal: 4,
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
-    letterSpacing: 0.35,
-    textTransform: 'uppercase',
-    color: colors.textMuted,
+    ...typography.titleSm,
+    marginTop: spacing[3],
+    paddingHorizontal: spacing[1],
+    color: colors.textPrimary,
+  },
+  headingTablet: {
+    ...font(600),
+    marginTop: spacing['1_5'],
+    paddingHorizontal: spacing[1],
+    fontSize: 16,
+    lineHeight: 22,
+    color: colors.textSecondary,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+  },
+  cell: {
+    flexDirection: 'column',
   },
   fullWidth: {
     width: '100%',

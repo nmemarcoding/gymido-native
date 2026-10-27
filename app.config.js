@@ -127,6 +127,9 @@ module.exports = {
       // Playback of a short foreground beep only: no microphone, no
       // background audio (each default would add a store-review flag).
       ['expo-audio', { microphonePermission: false, recordAudioAndroid: false, enableBackgroundPlayback: false }],
+      // How-to file videos play inline in the sheet (web parity, owner
+      // approved 27 Oct): foreground only, no background audio, no PiP.
+      ['expo-video', { supportsBackgroundPlayback: false, supportsPictureInPicture: false }],
       ['expo-notifications', { icon: './assets/notification-icon.png', color: '#FFC21A' }],
       // The G tile, 52 pt, centred on color-ground (the Session loading tile
       // sits at the same centre, so splash → loading only adds the ring).

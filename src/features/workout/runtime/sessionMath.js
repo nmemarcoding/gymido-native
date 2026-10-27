@@ -61,6 +61,7 @@ export function sessionProgress(session) {
   let targetReps = 0;
   let actualReps = 0;
   let liveVolume = 0;
+  let volumeKg = 0;
   let activeExerciseIndex = -1;
   exercises.forEach((exercise, index) => {
     const sets = exercise.sets ?? [];
@@ -78,8 +79,9 @@ export function sessionProgress(session) {
       if (set.is_completed) {
         const reps = Number(set.actual_reps || 0);
         actualReps += reps;
-        // ⚠W15: unit-blind.
+        // ⚠W15: unit-blind (v1's number, kept for reference; never shown).
         liveVolume += Number(set.actual_weight_value || 0) * reps;
+        volumeKg += setVolumeKg(set);
       }
     }
   });
@@ -91,6 +93,7 @@ export function sessionProgress(session) {
     targetReps,
     actualReps,
     liveVolume,
+    volumeKg,
     activeExerciseIndex,
   };
 }
@@ -190,13 +193,16 @@ export function validateDraftWeight(value) {
   return null;
 }
 
-// §20.4: the PATCH body. Reps are always the plan's target (⚠W14).
+// §20.4: the PATCH body. v2 U3 (approved): "Did it" sends the REAL reps
+// the member entered (`draft.actualReps`, 1–99); a blank reps field logs what
+// v1 sent (⚠W14: the saved reps, else the plan's target). Undo sends v1's.
 export function buildSetPatch(set, draft, now = new Date()) {
   const completing = !set.is_completed;
   const number = parseWeight(draft?.actualWeightValue);
   const weight = Number.isFinite(number) && number > 0 ? number : null;
+  const typedReps = completing ? parseReps(draft?.actualReps) : null;
   return {
-    actual_reps: set.actual_reps ?? set.target_reps_max ?? set.target_reps_min ?? 0,
+    actual_reps: typedReps ?? set.actual_reps ?? set.target_reps_max ?? set.target_reps_min ?? 0,
     actual_weight_value: weight,
     actual_weight_unit: weight === null ? null : draft?.actualWeightUnit || set.actual_weight_unit || set.target_weight_unit || 'lb',
     rest_seconds_actual: set.rest_seconds_actual ?? set.rest_seconds_planned ?? null,
@@ -260,13 +266,17 @@ export function staleSessionTitle(startedAt, now = new Date()) {
   return `Started ${WEEKDAYS[started.getDay()]}, ${MONTHS[started.getMonth()]} ${started.getDate()}`;
 }
 
-// §23.1: the popup snapshot, taken before the request.
-export function completionSnapshot(session, planName, elapsedSeconds) {
+// §23.1: the popup snapshot, taken before the request. VOLUME RULE (PM,
+// 27 Oct): the volume is the client sum in kg, shown in the member's unit
+// (`volumeUnit`), never v1's unit-blind number with "lb".
+export function completionSnapshot(session, planName, elapsedSeconds, unit = 'kg') {
   const progress = sessionProgress(session);
+  const volumeUnit = normalUnit(unit);
   return {
     planName: planName || 'Workout',
     durationSeconds: elapsedSeconds,
-    totalVolume: progress.liveVolume,
+    totalVolume: volumeInUnit(progress.volumeKg, volumeUnit),
+    volumeUnit,
     totalReps: progress.actualReps,
     completedSets: progress.completedSets,
     totalSets: progress.totalSets,
@@ -321,4 +331,279 @@ export function centeredScrollOffset({ rowY, rowHeight, visibleHeight, contentHe
   const max = Math.max(0, (contentHeight || 0) - visibleHeight);
   const target = rowY + rowHeight / 2 - visibleHeight / 2;
   return Math.min(Math.max(0, target), max);
+}
+
+// ---------------------------------------------------------------------------
+// v2 Phase 3 §3 Workout (UX F1): steppers, "Last time", the volume rule and
+// the session chrome's texts.
+
+export const LB_PER_KG = 2.20462;
+// ND1: one weight step per press, per unit.
+export const WEIGHT_STEP = Object.freeze({ lb: 5, kg: 2.5 });
+export const REPS_MIN = 1;
+export const REPS_MAX = 99;
+
+export function normalUnit(unit) {
+  return unit === 'lb' ? 'lb' : 'kg';
+}
+
+function roundTo(value, step) {
+  return Math.round(value / step) * step;
+}
+
+// Two decimals at most, no float noise (82.5 + 2.5 → "85", 0.1 + 0.2 → "0.3").
+function numberText(value) {
+  return String(Math.round(value * 100) / 100);
+}
+
+export function convertWeight(value, from, to) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return NaN;
+  }
+  const source = from === 'kg' ? 'kg' : 'lb';
+  const target = to === 'kg' ? 'kg' : 'lb';
+  if (source === target) {
+    return number;
+  }
+  return target === 'kg' ? number / LB_PER_KG : number * LB_PER_KG;
+}
+
+// "Last time" numbers in the CURRENT unit: kg to 0.5, lb to whole numbers.
+export function roundForUnit(value, unit) {
+  return unit === 'kg' ? roundTo(value, 0.5) : Math.round(value);
+}
+
+// VOLUME RULE: a completed set's weight × reps in kg. A weight saved with no
+// unit reads as the set's planned unit, else lb (v1's default unit).
+export function setVolumeKg(set) {
+  const weight = Number(set?.actual_weight_value || 0);
+  const reps = Number(set?.actual_reps || 0);
+  if (!(weight > 0) || !(reps > 0)) {
+    return 0;
+  }
+  return convertWeight(weight, set.actual_weight_unit || set.target_weight_unit || 'lb', 'kg') * reps;
+}
+
+export function volumeInUnit(volumeKg, unit) {
+  return convertWeight(volumeKg, 'kg', normalUnit(unit));
+}
+
+// The member's unit for volumes: profile current_weight_unit, else
+// goal_weight_unit; unknown → kg.
+export function memberWeightUnit(profile) {
+  const unit = profile?.current_weight_unit || profile?.goal_weight_unit;
+  return unit === 'lb' || unit === 'kg' ? unit : 'kg';
+}
+
+// U3: the same SET NUMBER in the latest completed session that had it (BE
+// `previous_sets`). NO fallback to another set number (PM/UX, 27 Oct).
+export function previousSetFor(exercise, set) {
+  const list = Array.isArray(exercise?.previous_sets) ? exercise.previous_sets : [];
+  return list.find((item) => Number(item?.set_number) === Number(set?.set_number)) ?? null;
+}
+
+function previousReps(previous) {
+  const reps = Number(previous?.reps);
+  return Number.isInteger(reps) && reps > 0 ? reps : null;
+}
+
+// The previous weight converted to `unit`, rounded per unit; null when none.
+export function lastTimeWeight(previous, unit) {
+  const weight = Number(previous?.weight_value);
+  if (!previous || !(weight > 0)) {
+    return null;
+  }
+  const target = unit === 'kg' ? 'kg' : 'lb';
+  return roundForUnit(convertWeight(weight, previous.weight_unit || target, target), target);
+}
+
+// "Last time {w} × {r}" / "Last time {r} reps"; null hides the line.
+export function lastTimeLabel(previous, unit) {
+  if (!previous) {
+    return null;
+  }
+  const reps = previousReps(previous);
+  const weight = lastTimeWeight(previous, unit);
+  if (weight !== null && reps !== null) {
+    return `Last time ${formatPlain(weight)} × ${reps}`;
+  }
+  if (reps !== null) {
+    return `Last time ${reps} reps`;
+  }
+  // Review LOW (web): a weight-only previous set reads "Last time 135".
+  if (weight !== null) {
+    return `Last time ${formatPlain(weight)}`;
+  }
+  return null;
+}
+
+function formatPlain(value) {
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(value);
+}
+
+// ND1 weight stepper. `direction` +1 / −1. An empty (or unreadable) field
+// starts from the set's Last time weight, else 0. "−" at or below one step
+// clears the field (weight is optional; it never shows 0).
+export function stepWeight(value, unit, direction, startWeight = null) {
+  const step = WEIGHT_STEP[unit === 'kg' ? 'kg' : 'lb'];
+  const parsed = parseWeight(value);
+  const base = Number.isFinite(parsed) && parsed > 0 ? parsed : startWeight > 0 ? startWeight : 0;
+  if (direction < 0) {
+    return base <= step ? '' : numberText(base - step);
+  }
+  return numberText(base + step);
+}
+
+// ND2 reps: integers 1–99 typed or stepped; anything else is stripped (no
+// error copy).
+export function sanitizeReps(text) {
+  const digits = String(text ?? '').replace(/\D/g, '').replace(/^0+/, '');
+  if (digits === '') {
+    return '';
+  }
+  return String(Math.min(REPS_MAX, Number(digits.slice(0, 3))));
+}
+
+export function parseReps(value) {
+  const reps = Number(String(value ?? '').trim());
+  return Number.isInteger(reps) && reps >= REPS_MIN && reps <= REPS_MAX && String(value).trim() !== '' ? reps : null;
+}
+
+// Batch 3 (b), web parity: a blank field steps from `target` (the set's
+// target_reps_max ?? target_reps_min), else 0 ("+" on blank 8–10 → 11).
+export function stepReps(value, direction, target = null) {
+  const fallback = Number(target);
+  const current = parseReps(value) ?? (Number.isFinite(fallback) && fallback > 0 ? fallback : 0);
+  const next = Math.min(REPS_MAX, Math.max(REPS_MIN, current + direction));
+  return current === 0 && direction < 0 ? '' : String(next);
+}
+
+// Batch 3 (b): the top of the target range, min only as fallback.
+export function targetReps(set) {
+  return set?.target_reps_max ?? set?.target_reps_min ?? null;
+}
+
+// ND2 prefill: the set's own Last time reps, else the top of the target
+// range, else blank (blank → "Did it" logs the target, as v1).
+export function repsPrefill(set, previous) {
+  if (set?.is_completed && set.actual_reps != null) {
+    return String(set.actual_reps);
+  }
+  const last = previousReps(previous);
+  if (last !== null) {
+    return String(last);
+  }
+  const top = Number(targetReps(set) || 0);
+  return top > 0 ? String(Math.min(REPS_MAX, top)) : '';
+}
+
+// Reps drafts, seeded once per set like the weight drafts (§20.2).
+export function seedRepsDrafts(session, previous) {
+  const exercises = session?.exercises ?? [];
+  if (exercises.length === 0) {
+    return {};
+  }
+  const next = { ...previous };
+  for (const exercise of exercises) {
+    for (const set of exercise.sets ?? []) {
+      if (next[set.id] === undefined) {
+        next[set.id] = repsPrefill(set, previousSetFor(exercise, set));
+      }
+    }
+  }
+  return next;
+}
+
+// "8–10" / "12" / '' (EN DASH).
+export function targetRange(set) {
+  const min = Number(set?.target_reps_min || 0);
+  const max = Number(set?.target_reps_max || 0);
+  if (min && max && min !== max) {
+    return `${min}–${max}`;
+  }
+  return min || max ? String(min || max) : '';
+}
+
+// ND2 label: "Reps · target 8–10", or "Reps" with no target.
+export function repsFieldLabel(set) {
+  const range = targetRange(set);
+  return range ? `Reps · target ${range}` : 'Reps';
+}
+
+// A done chip: "135 × 10" / "10 reps" (weight blank) / "135" (no reps) /
+// "Done". Batch 3 (b), web parity: reps = actual_reps ?? target max ?? min
+// (an actual 0 stays 0, so it shows the weight or "Done", never "0 reps").
+export function doneSetLabel(set) {
+  const weight = Number(set?.actual_weight_value);
+  const reps = Number(set?.actual_reps ?? targetReps(set) ?? 0) || 0;
+  if (weight > 0) {
+    return reps ? `${formatPlain(weight)} × ${reps}` : formatPlain(weight);
+  }
+  return reps ? `${reps} reps` : 'Done';
+}
+
+// The chrome timer pill: m:ss, minutes never roll into hours ("95:03").
+export function formatClock(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  const minutes = Math.floor(total / 60);
+  const rest = total % 60;
+  return `${minutes}:${rest < 10 ? '0' : ''}${rest}`;
+}
+
+// The timer's spoken name, updated at most every 30 s (F1 a11y): never
+// announce each second.
+export function elapsedSpokenLabel(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  const bucket = total - (total % 30);
+  const minutes = Math.floor(bucket / 60);
+  const rest = bucket % 60;
+  const minutePart = `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+  return rest ? `Elapsed time ${minutePart} ${rest} seconds` : `Elapsed time ${minutePart}`;
+}
+
+// "Exercise 1: 3 of 3 sets done" (nav segments, F1 browsing).
+export function segmentLabel(exercise, index) {
+  const sets = exercise?.sets ?? [];
+  const done = sets.filter((set) => set.is_completed).length;
+  return `Exercise ${index + 1}: ${done} of ${sets.length} ${setsWord(sets.length)} done`;
+}
+
+export function exerciseDone(exercise) {
+  const sets = exercise?.sets ?? [];
+  return { done: sets.filter((set) => set.is_completed).length, total: sets.length };
+}
+
+// The stage eyebrow (code wins: "Current exercise" on the active one, else
+// "Exercise {i} of {n}"), with the muscle and the session count as drawn.
+export function stageEyebrow({ isActive, index, count, muscle, completedSets, totalSets }) {
+  const parts = [isActive ? 'Current exercise' : `Exercise ${index + 1} of ${count}`];
+  if (muscle) {
+    parts.push(muscle);
+  }
+  if (totalSets > 0) {
+    parts.push(`${completedSets}/${totalSets} ${setsWord(totalSets)} done`);
+  }
+  return parts.join(' · ');
+}
+
+// The tablet eyebrow: "Current exercise · 3 sets · 8–10 reps · rest 90s".
+export function tabletEyebrow({ isActive, index, count, exercise }) {
+  const sets = exercise?.sets ?? [];
+  const first = sets[0];
+  const parts = [isActive ? 'Current exercise' : `Exercise ${index + 1} of ${count}`, `${sets.length} ${setsWord(sets.length)}`];
+  const range = targetRange(first);
+  if (range) {
+    parts.push(`${range} reps`);
+  }
+  if (first && restSecondsFor(first) > 0) {
+    parts.push(`rest ${restSecondsFor(first)}s`);
+  }
+  return parts.join(' · ');
+}
+
+// The editor header's faint part: "of 3 · rest 90s".
+export function setOfLabel(set, total) {
+  const rest = Number(set?.rest_seconds_planned || 0);
+  return rest > 0 ? `of ${total} · rest ${rest}s` : `of ${total}`;
 }

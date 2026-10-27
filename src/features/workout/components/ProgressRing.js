@@ -12,7 +12,10 @@ const EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
 // o'clock and runs clockwise; the gradient rotates with it (lower-left
 // lightest, upper-right darkest). The label sits in an overlay View, never
 // SVG text. `total ≤ 0` draws no arc.
-export default function ProgressRing({ value, total, size, thickness, label, children }) {
+// `flat` (v2 §4.8 Progress ring, Phase 3 Today/Hub/Progress boards): a solid
+// gold round-cap arc on the 0.08 `track`, no groove and no gradient. Off by
+// default so the other callers keep their look until they adopt it.
+export default function ProgressRing({ value, total, size, thickness, label, children, flat = false, accessibilityRole = 'image', accessibilityValue }) {
   const id = useId().replace(/:/g, '');
   const reducedMotion = useReducedMotion();
   const radius = 50 - thickness / 2;
@@ -32,7 +35,13 @@ export default function ProgressRing({ value, total, size, thickness, label, chi
   }, [animated, offset, reducedMotion]);
 
   return (
-    <View accessible accessibilityRole="image" accessibilityLabel={label} style={[styles.wrap, { width: size, height: size }]}>
+    <View
+      accessible
+      accessibilityRole={accessibilityRole}
+      accessibilityLabel={label}
+      accessibilityValue={accessibilityValue}
+      style={[styles.wrap, { width: size, height: size }]}
+    >
       <Svg width={size} height={size} viewBox="0 0 100 100" style={styles.rotated}>
         <Defs>
           <LinearGradient id={id} x1="0%" y1="0%" x2="100%" y2="100%">
@@ -40,16 +49,23 @@ export default function ProgressRing({ value, total, size, thickness, label, chi
             <Stop offset="1" stopColor={colors.brand500} />
           </LinearGradient>
         </Defs>
-        <Circle cx={50} cy={50} r={radius} fill="none" stroke={colors.surfaceMuted} strokeWidth={thickness} />
-        {/* The groove sits 0.6 up on screen; after the −90° turn that is +x. */}
-        <Circle cx={50.6} cy={50} r={radius} fill="none" stroke={colors.ringTrack} strokeWidth={thickness} />
+        {flat ? (
+          <Circle testID="progress-ring-track" cx={50} cy={50} r={radius} fill="none" stroke={colors.track} strokeWidth={thickness} />
+        ) : (
+          <>
+            <Circle cx={50} cy={50} r={radius} fill="none" stroke={colors.surfaceMuted} strokeWidth={thickness} />
+            {/* The groove sits 0.6 up on screen; after the −90° turn that is +x. */}
+            <Circle cx={50.6} cy={50} r={radius} fill="none" stroke={colors.ringTrack} strokeWidth={thickness} />
+          </>
+        )}
         {ratio > 0 ? (
           <AnimatedCircle
             cx={50}
             cy={50}
             r={radius}
             fill="none"
-            stroke={`url(#${id})`}
+            testID="progress-ring-arc"
+            stroke={flat ? colors.gold : `url(#${id})`}
             strokeWidth={thickness}
             strokeLinecap="round"
             strokeDasharray={`${circumference} ${circumference}`}

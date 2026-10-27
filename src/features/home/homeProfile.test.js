@@ -1,6 +1,6 @@
 jest.mock('../shell/ShellPage', () => ({ children }) => children);
 jest.mock('../shell/shellLinks', () => ({ openShellPath: jest.fn(), openPlanDetailAlone: jest.fn() }));
-jest.mock('./api/homeApi', () => ({ getDashboard: jest.fn(), logWeight: jest.fn() }));
+jest.mock('./api/homeApi', () => ({ getDashboard: jest.fn(), logWeight: jest.fn(), getCurrentWeek: jest.fn(() => Promise.resolve(null)) }));
 jest.mock('../plans/api/libraryApi', () => ({ getCurrentPlan: jest.fn(() => Promise.resolve(null)), listPlanDays: jest.fn() }));
 jest.mock('../profile/api/profileApi', () => ({ getProfile: jest.fn() }));
 jest.mock('../planGenerator/api/generatorApi', () => ({ getGeneratorProfile: jest.fn(() => Promise.resolve({ available: false })) }));

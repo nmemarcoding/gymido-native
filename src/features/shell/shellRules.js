@@ -20,8 +20,10 @@ const TITLES = [
 
 // During a workout session the Workout header is untitled (session override).
 // "/" is untitled too: Today's own greeting is the page heading (v2, web parity).
+// "/workout" (the hub) is untitled: the page draws its own "← Today" + 52 H1
+// (UX G / U5), so the shell header there is just the bell (UX verdict P3-1).
 export function getHeaderTitle(path, isSessionActive = false) {
-  if (path === '/') {
+  if (path === '/' || path === '/workout') {
     return '';
   }
   if (isSessionActive && path.startsWith('/workout')) {
@@ -31,9 +33,9 @@ export function getHeaderTitle(path, isSessionActive = false) {
   return match ? match[1] : 'Workout';
 }
 
-// §6.1 back links: the exact path only, never during a session.
+// §6.1 back links: the exact path only, never during a session. The Workout
+// hub's "← Today" is drawn by the page itself (P3-1: one header, not two).
 const BACK_LINKS = Object.freeze({
-  '/workout': { label: '← Today', path: '/' },
   '/my-trainer': { label: '← Profile', path: '/profile' },
   // Dated change (23 Oct 2026): the Trainers list only; /trainers/:id has none.
   '/trainers': { label: '← Coaching', path: '/my-trainer' },
