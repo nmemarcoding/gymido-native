@@ -7,7 +7,7 @@ import { breakpoints, colors, font, layout, motion, radii, spacing } from '../th
 import FeedbackIcon from './FeedbackIcon';
 import GlassSurface from './GlassSurface';
 import { CAP_BODY, useLargeTextReflow } from './largeText';
-import { ToastTone, useToastHostStore, useToastStore } from './toastStore';
+import { ToastTone, markToastPresented, useToastHostStore, useToastStore, wasToastPresented } from './toastStore';
 
 const EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
 
@@ -75,21 +75,33 @@ export default function ToastHost({ hostId } = {}) {
       ]}
     >
       {toasts.map((toast, index) => (
-        <SlideUp key={`${toast.id}-${index}`} style={place.tablet ? styles.rowTablet : styles.rowPhone}>
-          {/* Outside the app's BlurTargetView, so it may blur the app behind it. */}
-          <ToastCard tone={toast.tone} title={toast.title} message={toast.message} onClose={() => removeToast(toast.id)} overApp />
-        </SlideUp>
+        <PresentedToast key={`${toast.id}-${index}`} toast={toast} style={place.tablet ? styles.rowTablet : styles.rowPhone} onClose={() => removeToast(toast.id)} />
       ))}
     </View>
   );
 }
 
-function SlideUp({ children, style }) {
+// One toast in a host. The first host to show an id plays the entrance and
+// announces it; a host it later moves to shows it as it is (review LOW).
+function PresentedToast({ toast, style, onClose }) {
+  const shown = useRef(wasToastPresented(toast.id)).current;
+  useEffect(() => {
+    markToastPresented(toast.id);
+  }, [toast.id]);
+  return (
+    <SlideUp style={style} entered={shown}>
+      {/* Outside the app's BlurTargetView, so it may blur the app behind it. */}
+      <ToastCard tone={toast.tone} title={toast.title} message={toast.message} onClose={onClose} overApp announce={!shown} />
+    </SlideUp>
+  );
+}
+
+function SlideUp({ children, style, entered = false }) {
   const reducedMotion = useReducedMotion();
-  const progress = useRef(new Animated.Value(reducedMotion ? 1 : 0)).current;
+  const progress = useRef(new Animated.Value(reducedMotion || entered ? 1 : 0)).current;
 
   useEffect(() => {
-    if (reducedMotion) {
+    if (reducedMotion || entered) {
       progress.setValue(1);
       return undefined;
     }
@@ -101,7 +113,7 @@ function SlideUp({ children, style }) {
     });
     animation.start();
     return () => animation.stop();
-  }, [progress, reducedMotion]);
+  }, [progress, reducedMotion, entered]);
 
   const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [motion.slideUpOffsetY, 0] });
   return <Animated.View style={[style, { opacity: progress, transform: [{ translateY }] }]}>{children}</Animated.View>;
@@ -118,7 +130,7 @@ function announcePolitely(parts) {
 
 // The glass toast. One line (title OR message): a 52 px pill, 15/500.
 // Title + message: radius 20, title 14/600 over the message 13 muted.
-export function ToastCard({ tone, title, message, onClose, overApp = false, testID, style }) {
+export function ToastCard({ tone, title, message, onClose, overApp = false, testID, style, announce = true }) {
   const look = TOAST_TONES[tone] ?? TOAST_TONES[ToastTone.info];
   // UX §9 reflow: past 1.3× a one-line toast draws as the stacked card
   // (radius lg, icon top-aligned) so its wrapped text isn't squeezed into a
@@ -128,8 +140,10 @@ export function ToastCard({ tone, title, message, onClose, overApp = false, test
   const single = !(title && message);
 
   useEffect(() => {
-    announcePolitely([title, message]);
-  }, [title, message]);
+    if (announce) {
+      announcePolitely([title, message]);
+    }
+  }, [title, message, announce]);
 
   return (
     <GlassSurface

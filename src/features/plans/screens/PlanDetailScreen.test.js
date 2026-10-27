@@ -23,7 +23,7 @@ jest.mock('../../shell/ShellPage', () => {
 jest.mock('../../shell/shellLinks', () => ({ openShellPath: jest.fn(), handOffToWorkout: jest.fn() }));
 jest.mock('../../../shared/hooks/useFocusRemountKey', () => ({ useFocusRemountKey: () => 0 }));
 jest.mock('../../../shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
-jest.mock('../../../shared/components/toastStore', () => ({ ToastTone: { success: 'success', error: 'error' }, addToast: jest.fn() }));
+jest.mock('../../../shared/components/toastStore', () => ({ ...jest.requireActual('../../../shared/components/toastStore'), ToastTone: { success: 'success', error: 'error' }, addToast: jest.fn() }));
 jest.mock('../../myPlans/api/myPlansApi', () => ({ copyToMyPlans: jest.fn() }));
 jest.mock('../api/libraryApi', () => ({
   getPlan: jest.fn(),

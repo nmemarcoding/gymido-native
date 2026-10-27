@@ -23,7 +23,7 @@ jest.mock('./myPlanRoutes', () => ({
   myPlanRoutes: { MyPlans: 'MyPlans', MyPlanCreate: 'MyPlanCreate', MyPlan: 'MyPlan', PlanGenerator: 'PlanGenerator' },
 }));
 jest.mock('./api/myPlansApi', () => ({ listMyPlans: jest.fn(), isGeneratorAvailable: jest.fn(), copyToMyPlans: jest.fn() }));
-jest.mock('../../shared/components/toastStore', () => ({ ToastTone: { success: 'success', error: 'error' }, addToast: jest.fn() }));
+jest.mock('../../shared/components/toastStore', () => ({ ...jest.requireActual('../../shared/components/toastStore'), ToastTone: { success: 'success', error: 'error' }, addToast: jest.fn() }));
 
 import { StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';

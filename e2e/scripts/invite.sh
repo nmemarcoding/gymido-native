@@ -65,7 +65,7 @@ appId: com.gymido.app
                 id: "rail-TClients"
       - extendedWaitUntil:
           visible:
-            id: "clients-search|clients-list|state-slot"
+            id: "clients-search|clients-list"
           timeout: 15000
 - scrollUntilVisible:
     element:

@@ -74,7 +74,9 @@ describe('invite.sh', () => {
   });
 
   it('opening Clients is verified and retried (tablet flake)', () => {
-    expect(text).toMatch(/- retry:\n\s+maxRetries: 2[\s\S]*rail-TClients[\s\S]*clients-search\|clients-list/);
+    expect(text).toMatch(/- retry:\n\s+maxRetries: 2[\s\S]*rail-TClients[\s\S]*id: "clients-search\|clients-list"\n/);
+    // Review LOW: StateSlot's default testID ("state-slot") can match on Today.
+    expect(text).not.toMatch(/state-slot/);
   });
 
   it('taps Invite only with --send', () => {

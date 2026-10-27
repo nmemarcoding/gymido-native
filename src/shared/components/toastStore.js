@@ -41,3 +41,12 @@ export const useToastHostStore = create((set) => ({
   pushModalHost: (id) => set((state) => ({ modalHosts: [...state.modalHosts.filter((host) => host !== id), id] })),
   popModalHost: (id) => set((state) => ({ modalHosts: state.modalHosts.filter((host) => host !== id) })),
 }));
+
+// Review LOW (BUG-N4): a toast can MOVE between hosts (a sheet closes while it
+// shows). Each id is presented once: the next host shows it without replaying
+// the entrance or announcing it again.
+const presentedToastIds = new Set();
+export const wasToastPresented = (id) => presentedToastIds.has(id);
+export const markToastPresented = (id) => {
+  presentedToastIds.add(id);
+};

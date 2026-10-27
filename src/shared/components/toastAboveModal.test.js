@@ -4,7 +4,7 @@
 // everything. While a modal is open, the topmost modal hosts the toast stack
 // inside its own window and the app-level host steps aside (no duplicate,
 // no double announcement).
-import { Modal, Text } from 'react-native';
+import { AccessibilityInfo, Animated, Modal, Platform, Text } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import AppModal from './AppModal';
@@ -88,3 +88,35 @@ describe('toasts above an open sheet (BUG-N4)', () => {
     expect(tree.root.findAllByType(Modal).some((m) => m.props.visible)).toBe(false);
   });
 });
+
+// Review db5ff79 LOW: a toast that MOVES between hosts (the sheet closes while
+// it shows) must not replay its entrance or be announced twice on iOS.
+describe('a toast moving between hosts is silent (review LOW)', () => {
+  const realOS = Platform.OS;
+  afterEach(() => {
+    Platform.OS = realOS;
+    jest.restoreAllMocks();
+  });
+
+  it('iOS: announced once and the entrance plays once across the move', () => {
+    Platform.OS = 'ios';
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {});
+    // RN's jest setup already mocks this; clear calls from earlier tests.
+    announce.mockClear();
+    let tree;
+    act(() => {
+      tree = create(app(true));
+    });
+    mounted.push(tree);
+    const timing = jest.spyOn(Animated, 'timing');
+    act(() => addToast(ToastTone.success, 'Invitation sent', 'client can accept or decline it.'));
+    const entrances = timing.mock.calls.length;
+    const toastAnnouncements = () => announce.mock.calls.filter(([text]) => String(text).includes('Invitation sent')).length;
+    expect(toastAnnouncements()).toBe(1);
+    act(() => tree.update(app(false)));
+    expect(toastTexts(tree.root)).toHaveLength(1);
+    expect(toastAnnouncements()).toBe(1);
+    expect(timing.mock.calls.length).toBe(entrances);
+  });
+});
+

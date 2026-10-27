@@ -36,7 +36,7 @@ jest.mock('../../shared/components/Select', () => {
   const { View } = require('react-native');
   return (props) => <View testID="mock-select" {...props} />;
 });
-jest.mock('../../shared/components/toastStore', () => ({
+jest.mock('../../shared/components/toastStore', () => ({ ...jest.requireActual('../../shared/components/toastStore'),
   ToastTone: { success: 'success', error: 'error', info: 'info' },
   addToast: jest.fn(),
 }));

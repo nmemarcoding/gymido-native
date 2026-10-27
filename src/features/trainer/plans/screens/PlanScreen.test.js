@@ -36,7 +36,7 @@ jest.mock('@react-navigation/native', () => ({
 jest.mock('../../../../shared/api/client', () => ({
   apiClient: { get: jest.fn(), post: jest.fn(), put: jest.fn(), patch: jest.fn(), delete: jest.fn() },
 }));
-jest.mock('../../../../shared/components/toastStore', () => ({ ToastTone: { success: 'success', error: 'error' }, addToast: jest.fn() }));
+jest.mock('../../../../shared/components/toastStore', () => ({ ...jest.requireActual('../../../../shared/components/toastStore'), ToastTone: { success: 'success', error: 'error' }, addToast: jest.fn() }));
 jest.mock('../../../../shared/hooks/useFocusRemountKey', () => ({ useFocusRemountKey: () => 0 }));
 jest.mock('../../../../shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
