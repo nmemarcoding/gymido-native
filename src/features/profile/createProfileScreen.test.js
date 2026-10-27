@@ -11,13 +11,13 @@ jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   default: () => ({ width: mockWidth, height: 1194, scale: 2, fontScale: mockFontScale }),
 }));
 
-import { StyleSheet } from 'react-native';
+import { AccessibilityInfo, StyleSheet, TextInput } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { useAuthStore } from '../auth/authStore';
-import { colors } from '../../shared/theme/tokens';
+import { colors, radii, spacing, typography } from '../../shared/theme/tokens';
 import CreateProfileScreen, { HEIGHT_UNITS, WEIGHT_UNITS } from './CreateProfileScreen';
-import { createProfile } from './api/profileApi';
+import { createProfile, getProfile } from './api/profileApi';
 import { resetProfileStore, useProfileStore } from './profileStore';
 
 function textOf(node) {
@@ -320,8 +320,11 @@ describe('B1 behaviour unchanged (v1)', () => {
     expect(mockNavigation.reset).toHaveBeenCalledWith(expect.objectContaining({ index: 0 }));
   });
 
-  it('409: "A profile already exists for this account."', async () => {
+  // Declared 27 Oct 2026: a 409 now reloads the profile first (⚠P7 retired);
+  // the message is only the reload-failed fallback.
+  it('409 and the reload fails: "A profile already exists for this account."', async () => {
     createProfile.mockRejectedValueOnce({ response: { status: 409, data: {} } });
+    getProfile.mockRejectedValueOnce({ response: { status: 500, data: {} } });
     const tree = render();
     fillValid(tree);
     await act(async () => pressable(tree.root, 'profile-submit').props.onPress());
@@ -467,5 +470,378 @@ describe('Board geometry (phase2-open-items §3 B): the title', () => {
     const title = titleOf(render());
     expect(title.props).toMatchObject({ maxFontSizeMultiplier: 1.3, numberOfLines: 3, adjustsFontSizeToFit: true, minimumFontScale: 0.7 });
     expect(flat(title.props.style).height).toBeUndefined();
+  });
+});
+
+// Dated changes 27 Oct 2026 (RN-SPEC-profile-create @ bdc7f348): D2 + S4
+// pills (⚠P5), 409 continues (⚠P7), focus the first error (⚠P8), lock while
+// submitting (⚠P9), editing clears its error (⚠P12), DOB/Sex errors (⚠P4).
+const pill = (tree, value) => pressable(tree.root, `profile-sex-${value || 'none'}`);
+const pillText = (tree, value) => pill(tree, value).findAll((node) => node.type === 'Text');
+const sentBody = () => createProfile.mock.calls[0][0];
+const composite = (root, id) => root.find((node) => node.props.testID === id && node.type === TextInput);
+function spyFocus(tree, ids) {
+  // The mocked TextInput's focus is one shared prototype mock: give each instance its own.
+  return Object.fromEntries(
+    ids.map((id) => {
+      const spy = jest.fn();
+      composite(tree.root, id).instance.focus = spy;
+      return [id, spy];
+    })
+  );
+}
+const a11yFocusTargets = (spy) => spy.mock.calls.filter(([, event]) => event === 'focus').map(([node]) => node?.props?.testID);
+
+describe('D2: Sex as S4 pills', () => {
+  it('reads Not set · Male · Female · Other · Prefer not to say, "Prefer not to say" once, Not set selected', () => {
+    const tree = render();
+    const group = host(tree.root, 'profile-sex');
+    const labels = group.findAll((node) => node.props.accessibilityRole === 'radio' && typeof node.type === 'string').map((node) => node.props.accessibilityLabel);
+    expect(labels).toEqual(['Not set', 'Male', 'Female', 'Other', 'Prefer not to say']);
+    expect(texts(tree.root).filter((line) => line === 'Prefer not to say')).toHaveLength(1);
+    expect(pill(tree, '').props.accessibilityState).toMatchObject({ checked: true, selected: true });
+    expect(pill(tree, 'male').props.accessibilityState).toMatchObject({ checked: false, selected: false });
+  });
+
+  it('is a radiogroup labelled "Sex" of radio pills, each at least 44 tall', () => {
+    const tree = render();
+    expect(host(tree.root, 'profile-sex').props).toMatchObject({ accessibilityRole: 'radiogroup', accessibilityLabel: 'Sex' });
+    ['', 'male', 'female', 'other', 'prefer_not_to_say'].forEach((value) => {
+      const node = pill(tree, value);
+      expect(node.props.accessibilityRole).toBe('radio');
+      expect(flat(node.props.style).minHeight).toBeGreaterThanOrEqual(44);
+    });
+  });
+
+  it('draws the pills as S4: radius full, 1 px border, 14/700; selected gold border + gold tint + primary text and a decorative ✓', () => {
+    const tree = render();
+    act(() => pill(tree, 'female').props.onPress());
+    const on = flat(pill(tree, 'female').props.style);
+    const off = flat(pill(tree, 'male').props.style);
+    expect(on).toMatchObject({ borderRadius: radii.full, borderWidth: 1, borderColor: colors.gold, backgroundColor: colors.goldTint });
+    expect(off).toMatchObject({ borderRadius: radii.full, borderWidth: 1, borderColor: colors.hairline, backgroundColor: colors.surface });
+    const [check, onLabel] = pillText(tree, 'female');
+    expect(textOf(check)).toBe('✓ ');
+    expect(check.props).toMatchObject({ accessibilityElementsHidden: true, importantForAccessibility: 'no' });
+    expect(flat(onLabel.props.style)).toMatchObject({ fontFamily: 'Geist-Bold', fontSize: 14, color: colors.textPrimary });
+    const offTexts = pillText(tree, 'male');
+    expect(offTexts).toHaveLength(1);
+    expect(flat(offTexts[0].props.style)).toMatchObject({ fontFamily: 'Geist-Bold', fontSize: typography.bodySm.fontSize, color: colors.textSecondary });
+    expect(flat(onLabel.props.style).fontWeight).toBeUndefined();
+  });
+
+  it('single-select: picks one, sends it; Not set and re-tapping the selected pill send null', async () => {
+    createProfile.mockResolvedValue({ first_name: 'Asad' });
+    const tree = render();
+    fillValid(tree);
+    act(() => pill(tree, 'male').props.onPress());
+    act(() => pill(tree, 'prefer_not_to_say').props.onPress());
+    expect(pill(tree, 'male').props.accessibilityState.checked).toBe(false);
+    expect(pill(tree, 'prefer_not_to_say').props.accessibilityState.checked).toBe(true);
+    await act(async () => pressable(tree.root, 'profile-submit').props.onPress());
+    expect(sentBody().sex).toBe('prefer_not_to_say');
+
+    const again = render();
+    fillValid(again);
+    act(() => pill(again, 'other').props.onPress());
+    act(() => pill(again, 'other').props.onPress());
+    expect(pill(again, '').props.accessibilityState.checked).toBe(true);
+    await act(async () => pressable(again.root, 'profile-submit').props.onPress());
+    expect(createProfile.mock.calls[1][0].sex).toBeNull();
+
+    const notSet = render();
+    fillValid(notSet);
+    act(() => pill(notSet, 'female').props.onPress());
+    act(() => pill(notSet, '').props.onPress());
+    await act(async () => pressable(notSet.root, 'profile-submit').props.onPress());
+    expect(createProfile.mock.calls[2][0].sex).toBeNull();
+  });
+
+  it.each([1, 2, 3.1])('large text at fontScale %s: the pills wrap, grow (minHeight, no fixed height) and cap at 2.0', (scale) => {
+    mockFontScale = scale;
+    const tree = render();
+    expect(flat(host(tree.root, 'profile-sex').props.style)).toMatchObject({ flexDirection: 'row', flexWrap: 'wrap' });
+    ['', 'male', 'prefer_not_to_say'].forEach((value) => {
+      expect(flat(pill(tree, value).props.style).height).toBeUndefined();
+      pillText(tree, value).forEach((node) => expect(node.props.maxFontSizeMultiplier).toBe(2));
+    });
+    expect(labelText(tree.root, 'Prefer not to say')).toBeTruthy();
+  });
+
+  it('tablet: the pills sit in the weight card', () => {
+    mockWidth = 834;
+    const tree = render();
+    const card = host(tree.root, 'profile-card-weight');
+    expect(card.findAll((node) => node.props.testID === 'profile-sex-none' && typeof node.type === 'string')).toHaveLength(1);
+  });
+});
+
+describe('409: continue to the app (⚠P7 retired)', () => {
+  it('reloads the profile (GET /profile) and resets into the app like a create', async () => {
+    createProfile.mockRejectedValueOnce({ response: { status: 409, data: {} } });
+    getProfile.mockResolvedValueOnce({ profile: { first_name: 'Existing' } });
+    useAuthStore.setState({ profileMissing: true });
+    const tree = render();
+    fillValid(tree);
+    await act(async () => pressable(tree.root, 'profile-submit').props.onPress());
+    expect(getProfile).toHaveBeenCalledTimes(1);
+    expect(useProfileStore.getState().profile).toEqual({ first_name: 'Existing' });
+    expect(useAuthStore.getState().profileMissing).toBe(false);
+    expect(mockNavigation.reset).toHaveBeenCalledWith(expect.objectContaining({ index: 0 }));
+    expect(texts(tree.root)).not.toContain('A profile already exists for this account.');
+  });
+
+  it('a reload with no profile shows the message and stays, unlocked', async () => {
+    createProfile.mockRejectedValueOnce({ response: { status: 409, data: {} } });
+    getProfile.mockResolvedValueOnce({ profile: null });
+    const tree = render();
+    fillValid(tree);
+    await act(async () => pressable(tree.root, 'profile-submit').props.onPress());
+    expect(mockNavigation.reset).not.toHaveBeenCalled();
+    expect(texts(tree.root)).toEqual(expect.arrayContaining(['Something went wrong', 'A profile already exists for this account.']));
+    expect(textInput(tree.root, 'profile-first_name').props.editable).toBe(true);
+  });
+
+  it('stays locked while the reload is in flight', async () => {
+    const reload = deferred();
+    createProfile.mockRejectedValueOnce({ response: { status: 409, data: {} } });
+    getProfile.mockReturnValueOnce(reload.promise);
+    const tree = render();
+    fillValid(tree);
+    await act(async () => {
+      pressable(tree.root, 'profile-submit').props.onPress();
+    });
+    expect(textInput(tree.root, 'profile-first_name').props.editable).toBe(false);
+    act(() => {
+      pressable(tree.root, 'profile-submit').props.onPress();
+    });
+    expect(createProfile).toHaveBeenCalledTimes(1);
+    await act(async () => reload.resolve({ profile: { first_name: 'Existing' } }));
+    expect(mockNavigation.reset).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('editing a field clears its own error (⚠P12 retired)', () => {
+  it('first name clears only "First name is required"', () => {
+    const tree = render();
+    press(tree, 'profile-submit');
+    type(tree, 'profile-first_name', 'A');
+    const shown = texts(tree.root);
+    expect(shown).not.toContain('First name is required');
+    expect(shown).toEqual(expect.arrayContaining(['Last name is required', 'Feet is required']));
+    expect(textInput(tree.root, 'profile-first_name').props.accessibilityState).toEqual({ invalid: false });
+    expect(textInput(tree.root, 'profile-last_name').props.accessibilityState).toEqual({ invalid: true });
+  });
+
+  it('any height input clears every height error; the unit switch too', () => {
+    const tree = render();
+    type(tree, 'profile-first_name', 'A');
+    type(tree, 'profile-last_name', 'B');
+    type(tree, 'profile-height_inches', '12');
+    press(tree, 'profile-submit');
+    expect(texts(tree.root)).toEqual(expect.arrayContaining(['Feet is required', 'Inches must be between 0 and 11']));
+    type(tree, 'profile-height_inches', '3');
+    expect(texts(tree.root)).not.toEqual(expect.arrayContaining(['Feet is required']));
+    expect(texts(tree.root)).not.toContain('Inches must be between 0 and 11');
+
+    type(tree, 'profile-height_inches', '');
+    press(tree, 'profile-height-unit-cm');
+    press(tree, 'profile-submit');
+    expect(texts(tree.root)).toContain('Height is required');
+    press(tree, 'profile-height-unit-in');
+    expect(texts(tree.root)).not.toContain('Height is required');
+  });
+
+  it('a weight clears its own error, not the other weight', () => {
+    const tree = render();
+    fillValid(tree);
+    type(tree, 'profile-current_weight_value', '0');
+    type(tree, 'profile-goal_weight_value', '0');
+    press(tree, 'profile-submit');
+    type(tree, 'profile-current_weight_value', '80');
+    expect(texts(tree.root)).not.toContain('Current weight must be greater than zero');
+    expect(texts(tree.root)).toContain('Goal weight must be greater than zero');
+  });
+
+  it('server errors: Sex and Date of birth clear on their own change', async () => {
+    createProfile.mockRejectedValueOnce({
+      response: { status: 422, data: { message: 'Validation failed', errors: { date_of_birth: ['Bad date'], sex: ['Bad sex'], last_name: ['Too long'] } } },
+    });
+    const tree = render();
+    fillValid(tree);
+    await act(async () => pressable(tree.root, 'profile-submit').props.onPress());
+    act(() => pill(tree, 'male').props.onPress());
+    expect(texts(tree.root)).not.toContain('Bad sex');
+    expect(texts(tree.root)).toEqual(expect.arrayContaining(['Bad date', 'Too long', 'Validation failed']));
+    act(() => tree.root.find((node) => node.props.testID === 'profile-date-of-birth' && node.props.onChange).props.onChange('1990-09-21'));
+    expect(texts(tree.root)).not.toContain('Bad date');
+    expect(texts(tree.root)).toContain('Too long');
+  });
+});
+
+describe('focus moves to the first field in error (⚠P8 retired)', () => {
+  const INPUTS = ['profile-first_name', 'profile-last_name', 'profile-height_feet', 'profile-height_inches', 'profile-current_weight_value', 'profile-goal_weight_value'];
+  const focusedIds = (spies) => Object.keys(spies).filter((id) => spies[id].mock.calls.length > 0);
+
+  it('client errors: the first in form order, once per submit, never while typing', () => {
+    const tree = render();
+    const spies = spyFocus(tree, INPUTS);
+    press(tree, 'profile-submit');
+    expect(focusedIds(spies)).toEqual(['profile-first_name']);
+    expect(spies['profile-first_name']).toHaveBeenCalledTimes(1);
+    type(tree, 'profile-first_name', 'A');
+    type(tree, 'profile-last_name', 'B');
+    expect(spies['profile-first_name']).toHaveBeenCalledTimes(1);
+    press(tree, 'profile-submit');
+    expect(spies['profile-height_feet']).toHaveBeenCalledTimes(1);
+  });
+
+  it('a feet error focuses Feet; an inches-only error focuses Inches', () => {
+    const tree = render();
+    fillValid(tree);
+    type(tree, 'profile-height_inches', '12');
+    const spies = spyFocus(tree, INPUTS);
+    press(tree, 'profile-submit');
+    expect(focusedIds(spies)).toEqual(['profile-height_inches']);
+  });
+
+  it('cm: a height error focuses the Height input', () => {
+    const tree = render();
+    fillValid(tree);
+    press(tree, 'profile-height-unit-cm');
+    type(tree, 'profile-height_value', '');
+    const spy = spyFocus(tree, ['profile-height_value'])['profile-height_value'];
+    press(tree, 'profile-submit');
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [{ height_unit: ['Height unit is required'] }, 'profile-height_feet'],
+    [{ height_value: ['The height value must be between 36 and 108 inches'] }, 'profile-height_feet'],
+    [{ goal_weight_value: ['Too heavy'], current_weight_value: ['Too light'] }, 'profile-current_weight_value'],
+  ])('422 %j focuses %s', async (errors, id) => {
+    createProfile.mockRejectedValueOnce({ response: { status: 422, data: { message: 'Validation failed', errors } } });
+    const tree = render();
+    fillValid(tree);
+    const spies = spyFocus(tree, INPUTS);
+    await act(async () => pressable(tree.root, 'profile-submit').props.onPress());
+    expect(focusedIds(spies)).toEqual([id]);
+  });
+
+  it.each([
+    [{ goal_weight_unit: ['Bad unit'], goal_weight_value: ['x'] }, 'profile-weight-unit-label'],
+    [{ date_of_birth: ['Bad date'], sex: ['Bad sex'] }, 'profile-date-of-birth-field'],
+    [{ sex: ['Bad sex'] }, 'profile-sex-none'],
+  ])('422 %j moves accessibility focus to %s', async (errors, id) => {
+    const a11y = jest.spyOn(AccessibilityInfo, 'sendAccessibilityEvent').mockImplementation(() => {});
+    createProfile.mockRejectedValueOnce({ response: { status: 422, data: { message: 'Validation failed', errors } } });
+    const tree = render();
+    fillValid(tree);
+    const spies = spyFocus(tree, INPUTS);
+    await act(async () => pressable(tree.root, 'profile-submit').props.onPress());
+    expect(a11yFocusTargets(a11y)).toEqual([id]);
+    expect(focusedIds(spies)).toEqual([]);
+    a11y.mockRestore();
+  });
+
+  it('brings the field into view (measured against the form, scrolled to it)', () => {
+    const tree = render();
+    const feet = composite(tree.root, 'profile-height_feet').instance;
+    // Own mock: the prototype's measureLayout is shared by every instance.
+    const measure = jest.fn((_relative, onSuccess) => onSuccess(0, 500));
+    feet.measureLayout = measure;
+    const scroll = tree.root.find((node) => node.props.testID === 'create-profile-screen' && node.instance && node.type !== 'RCTScrollView');
+    const scrollTo = jest.fn();
+    scroll.instance.scrollTo = scrollTo;
+    type(tree, 'profile-first_name', 'A');
+    type(tree, 'profile-last_name', 'B');
+    press(tree, 'profile-submit');
+    expect(measure).toHaveBeenCalledTimes(1);
+    // 500 into the form + the phone top padding (47 inset + 24) − 16 above it.
+    expect(scrollTo).toHaveBeenCalledWith({ y: 500 + 47 + spacing[6] - spacing[4], animated: false });
+  });
+});
+
+describe('everything locks while submitting (⚠P9 retired)', () => {
+  it('fields, pills, unit switches and the CTA are disabled; nothing edits; one request; all unlock on failure', async () => {
+    const pending = deferred();
+    createProfile.mockReturnValueOnce(pending.promise);
+    const tree = render();
+    fillValid(tree);
+    act(() => {
+      pressable(tree.root, 'profile-submit').props.onPress();
+    });
+    ['profile-first_name', 'profile-last_name', 'profile-height_feet', 'profile-height_inches', 'profile-current_weight_value', 'profile-goal_weight_value'].forEach((id) =>
+      expect(textInput(tree.root, id).props.editable).toBe(false)
+    );
+    ['', 'male', 'female', 'other', 'prefer_not_to_say'].forEach((value) => {
+      expect(pill(tree, value).props.accessibilityState.disabled).toBe(true);
+      expect(pill(tree, value).props.disabled).toBe(true);
+    });
+    ['profile-height-unit-lock', 'profile-weight-unit-lock', 'profile-date-of-birth-field'].forEach((id) => {
+      expect(host(tree.root, id).props.pointerEvents).toBe('none');
+      expect(flat(host(tree.root, id).props.style).opacity).toBe(0.5);
+    });
+
+    // Nothing edits, even if a handler fires.
+    type(tree, 'profile-first_name', 'Changed');
+    act(() => pill(tree, 'female').props.onPress());
+    press(tree, 'profile-height-unit-cm');
+    press(tree, 'profile-weight-unit-kg');
+    act(() => tree.root.find((node) => node.props.testID === 'profile-date-of-birth' && node.props.onChange).props.onChange('1990-09-21'));
+    expect(textInput(tree.root, 'profile-first_name').props.value).toBe(' Asad ');
+    expect(pill(tree, '').props.accessibilityState.checked).toBe(true);
+    expect(selected(tree, 'profile-height-unit-ft_in')).toBe(true);
+    expect(selected(tree, 'profile-weight-unit-lb')).toBe(true);
+    act(() => {
+      textInput(tree.root, 'profile-goal_weight_value').props.onSubmitEditing();
+    });
+    act(() => {
+      pressable(tree.root, 'profile-submit').props.onPress();
+    });
+    expect(createProfile).toHaveBeenCalledTimes(1);
+
+    await act(async () => pending.reject({ response: { status: 500, data: { message: 'Server down' } } }));
+    expect(textInput(tree.root, 'profile-first_name').props.editable).toBe(true);
+    expect(pill(tree, 'male').props.disabled).toBe(false);
+    ['profile-height-unit-lock', 'profile-weight-unit-lock', 'profile-date-of-birth-field'].forEach((id) => {
+      expect(host(tree.root, id).props.pointerEvents).toBe('auto');
+      expect(flat(host(tree.root, id).props.style)?.opacity).toBeUndefined();
+    });
+    act(() => pill(tree, 'female').props.onPress());
+    expect(pill(tree, 'female').props.accessibilityState.checked).toBe(true);
+  });
+
+  it('a validation failure never locks', () => {
+    const tree = render();
+    press(tree, 'profile-submit');
+    expect(textInput(tree.root, 'profile-first_name').props.editable).toBe(true);
+    expect(pill(tree, 'male').props.disabled).toBe(false);
+  });
+});
+
+describe('DOB and Sex server errors under their fields (⚠P4 narrowed)', () => {
+  it('shows each first message under its own control, with the error border; the banner says "Validation failed"', async () => {
+    createProfile.mockRejectedValueOnce({
+      response: { status: 422, data: { message: 'Validation failed', errors: { date_of_birth: ['Date of birth is invalid', 'second'], sex: ['Sex is invalid'] } } },
+    });
+    const tree = render();
+    fillValid(tree);
+    await act(async () => pressable(tree.root, 'profile-submit').props.onPress());
+    const dob = host(tree.root, 'profile-date-of-birth-field');
+    const sexField = host(tree.root, 'profile-sex-field');
+    expect(dob.findAll((node) => node.type === 'Text').map(textOf)).toContain('Date of birth is invalid');
+    expect(texts(tree.root)).not.toContain('second');
+    expect(sexField.findAll((node) => node.type === 'Text').map(textOf)).toContain('Sex is invalid');
+    expect(host(tree.root, 'profile-sex').props.accessibilityState).toMatchObject({ invalid: true });
+    expect(flat(pressable(tree.root, 'profile-date-of-birth').props.style).borderColor).toBe(colors.dangerText);
+    expect(host(tree.root, 'profile-error').findAll((node) => node.type === 'Text').map(textOf)).toContain('Validation failed');
+    expect(host(tree.root, 'profile-error').findAll((node) => node.type === 'Text').map(textOf)).not.toContain('Sex is invalid');
+  });
+
+  it('no error: no message under either control and the group is not invalid', () => {
+    const tree = render();
+    expect(host(tree.root, 'profile-sex').props.accessibilityState).toMatchObject({ invalid: false });
+    expect(host(tree.root, 'profile-sex-field').findAll((node) => node.props.accessibilityRole === 'alert')).toHaveLength(0);
   });
 });
