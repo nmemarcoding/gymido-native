@@ -17,6 +17,9 @@ const PATHS = {
   // Generator tile: a spark.
   spark: 'M12 3v4M12 17v4M3 12h4M17 12h4M6.3 6.3l2.8 2.8M14.9 14.9l2.8 2.8M6.3 17.7l2.8-2.8M14.9 9.1l2.8-2.8',
   copy: 'M9 9h10v10H9zM5 15V5h10',
+  // T-60 phone Plans: the next-workout dumbbell and the My plans pen.
+  dumbbell: 'M3 10v4M6.5 7.5v9M17.5 7.5v9M21 10v4M6.5 12h11',
+  pen: 'M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4',
 };
 
 export const PLAN_ICON_NAMES = Object.freeze(Object.keys(PATHS));

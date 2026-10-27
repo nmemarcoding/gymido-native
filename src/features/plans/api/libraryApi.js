@@ -48,3 +48,14 @@ export async function replaceSchedule(enrollmentId, items) {
 export async function getCurrentWeek() {
   return data(await apiClient.get('/my-plans/current/week')).week ?? [];
 }
+
+// T-60 (phone Plans page) side data, both existing endpoints: the next
+// workout (`{ is_workout_day, already_completed, plan_day, action, image? }`)
+// and the level names by difficulty_level_id.
+export async function getCurrentToday() {
+  return data(await apiClient.get('/my-plans/current/today'));
+}
+
+export async function listDifficultyLevels() {
+  return data(await apiClient.get('/exercise-difficulty-levels')).items ?? [];
+}

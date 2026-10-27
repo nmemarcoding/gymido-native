@@ -320,3 +320,162 @@ export function planPhotoUrl(plan) {
   const type = typeof thumbnail.media_type === 'string' ? thumbnail.media_type.toLowerCase() : 'image';
   return type.startsWith('image') ? url : null;
 }
+
+// ---- Dated change (27 Oct 2026, owner T-60): the PHONE Plans page ---------
+// (RN-SPEC-v2-phase4 "the Plans page redesign"; UX T60-plans-spec §2–§4).
+
+// The device's LOCAL calendar date as "YYYY-MM-DD" (the /week `date` form).
+export function localDateKey(now = new Date()) {
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+// The local weekday as the API's id (Mon 1 … Sun 7).
+function localWeekdayId(now) {
+  return now.getDay() === 0 ? 7 : now.getDay();
+}
+
+// A VALID GET /my-plans/current/week: an array of the 7 days.
+export function isValidWeek(week) {
+  return Array.isArray(week) && week.length === 7;
+}
+
+function weekItemDayId(item, index) {
+  const id = Number(item?.weekday?.id);
+  return id >= 1 && id <= 7 ? id : index + 1;
+}
+
+// The enrollment schedule's training days, Monday first, one per weekday:
+// [{ weekdayId, planDay }].
+function scheduledDays(schedule) {
+  const byId = new Map();
+  for (const item of schedule ?? []) {
+    const id = Number(item?.weekday?.id);
+    if (id >= 1 && id <= 7 && !byId.has(id)) {
+      byId.set(id, item?.plan_day ?? null);
+    }
+  }
+  return [...byId.entries()].sort((a, b) => a[0] - b[0]).map(([weekdayId, planDay]) => ({ weekdayId, planDay }));
+}
+
+// "Your week": 7 circles Monday first [{ id, letter, label, training, today }]
+// or null (the week hides; never seven rest days).
+// - A VALID /week is used as is: training = is_workout_day AND status ≠ rest
+//   (a training weekday before the enrollment comes back as rest); today =
+//   the entry dated the device's local date. No training day → null.
+// - Only a missing/failed /week falls back to the enrollment schedule (today
+//   = the local weekday); no schedule day → null.
+export function weekCircles({ week, schedule, now = new Date() }) {
+  const circle = (id, training, today) => {
+    const weekday = WEEKDAYS[id - 1];
+    return { id, letter: weekday.label[0], label: weekday.label, training, today };
+  };
+  if (isValidWeek(week)) {
+    const todayKey = localDateKey(now);
+    const circles = week.map((item, index) =>
+      circle(weekItemDayId(item, index), item?.is_workout_day === true && item?.status !== 'rest', Boolean(item?.date) && item.date === todayKey)
+    );
+    return circles.some((entry) => entry.training) ? circles : null;
+  }
+  const days = new Set(scheduledDays(schedule).map((day) => day.weekdayId));
+  if (days.size === 0) {
+    return null;
+  }
+  const todayId = localWeekdayId(now);
+  return WEEKDAYS.map((weekday) => circle(weekday.id, days.has(weekday.id), weekday.id === todayId));
+}
+
+// "Mon: training", "Wed: rest", "Thu: training, today", "Sat: rest, today".
+export function weekDayLabel(circle) {
+  return `${circle.label}: ${circle.training ? 'training' : 'rest'}${circle.today ? ', today' : ''}`;
+}
+
+// The day title as Today shows it: the title, else "Day {n}".
+export function planDayTitle(planDay) {
+  return planDay?.title || `Day ${planDay?.day_number ?? ''}`.trim();
+}
+
+// §2a "Next workout": { when: 'Today' | 'Mon'…, planDay, gold } or null (the
+// row and Start hide). `today` = GET /my-plans/current/today (null when it
+// failed), `week` = GET /week (null when it failed), `schedule` = the
+// enrollment schedule (GET /my-plans/current).
+export function nextWorkout({ today, week, schedule, now = new Date() }) {
+  const validWeek = isValidWeek(week) ? week : null;
+  const todayKey = localDateKey(now);
+  const todayId = localWeekdayId(now);
+  const days = scheduledDays(schedule).filter((day) => day.planDay);
+  const glass = (weekdayId, planDay) => ({ when: WEEKDAYS[weekdayId - 1].label, planDay, gold: false });
+  // The schedule's NEXT training weekday after today, else (wrapping past
+  // Sunday) its first.
+  const nextScheduled = (list) => list.find((day) => day.weekdayId > todayId) ?? list[0] ?? null;
+  const weekItems = (validWeek ?? []).map((item, index) => ({ item, weekdayId: weekItemDayId(item, index) }));
+  const firstUpcoming = weekItems.find(({ item }) => item?.status === 'upcoming' && item?.plan_day);
+  const action = today?.action;
+
+  if (action === 'start_workout' && today.plan_day) {
+    return { when: 'Today', planDay: today.plan_day, gold: true };
+  }
+  if (action === 'already_completed') {
+    if (validWeek) {
+      if (firstUpcoming) {
+        return glass(firstUpcoming.weekdayId, firstUpcoming.item.plan_day);
+      }
+      // After the week's last training day: the schedule's first training
+      // day (Monday first); without one, the week's first training weekday.
+      const first = days[0] ?? weekItems.filter(({ item }) => item?.is_workout_day && item?.plan_day).map(({ item, weekdayId }) => ({ weekdayId, planDay: item.plan_day }))[0];
+      return first ? glass(first.weekdayId, first.planDay) : null;
+    }
+    const next = nextScheduled(days);
+    return next ? glass(next.weekdayId, next.planDay) : null;
+  }
+  if (action === 'next_workout_day' && today.plan_day) {
+    const id = today.plan_day.id;
+    const later = weekItems.find(({ item }) => item?.plan_day?.id === id && (item.date ? item.date > todayKey : item.status === 'upcoming'));
+    if (later) {
+      return glass(later.weekdayId, today.plan_day);
+    }
+    const next = nextScheduled(days.filter((day) => day.planDay.id === id));
+    return next ? glass(next.weekdayId, today.plan_day) : null;
+  }
+  // /today missing or failed: /week's today item (gold), else its first upcoming.
+  const todayItem = weekItems.find(({ item }) => item?.status === 'today' && item?.plan_day);
+  if (todayItem) {
+    return { when: 'Today', planDay: todayItem.item.plan_day, gold: true };
+  }
+  return firstUpcoming ? glass(firstUpcoming.weekdayId, firstUpcoming.item.plan_day) : null;
+}
+
+// The level name for a plan's difficulty_level_id (one GET
+// /exercise-difficulty-levels per load); null when either is missing.
+export function levelNameOf(plan, levels) {
+  const id = plan?.difficulty_level_id;
+  if (id == null || !Array.isArray(levels)) {
+    return null;
+  }
+  return levels.find((level) => String(level?.id) === String(id))?.name || null;
+}
+
+function daysAWeek(plan) {
+  return plan?.days_per_week ? `${formatCount(plan.days_per_week, 'day', 'days')} a week` : '';
+}
+
+// Active card meta "{category} · {n} days a week · {level}"; parts drop out.
+export function activePlanMeta(plan, level) {
+  return [plan?.category?.name, daysAWeek(plan), level].filter(Boolean).join(' · ');
+}
+
+// Catalog card meta "{n} days a week · {level}".
+export function catalogMeta(plan, level) {
+  return [daysAWeek(plan), level].filter(Boolean).join(' · ');
+}
+
+// "5 exercises" / "1 exercise" (U+00A0); '' when the count is unknown.
+export function exercisesCountLabel(count) {
+  return typeof count === 'number' && Number.isFinite(count) ? formatCount(count, 'exercise', 'exercises') : '';
+}
+
+// The catalog without per-category sub-headings: the same plans in the same
+// order as the grouped list.
+export function catalogPlans(library) {
+  return library.groups.flatMap(([, plans]) => plans);
+}

@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { routes } from '../../../navigation/routes';
 import { getStatus } from '../../../shared/api/apiError';
@@ -16,13 +16,29 @@ import { colors, font, radii, spacing } from '../../../shared/theme/tokens';
 import { listMyPlans } from '../../myPlans/api/myPlansApi';
 import { myPlanRoutes } from '../../myPlans/myPlanRoutes';
 import ShellPage from '../../shell/ShellPage';
-import { getCurrentPlan, listPlans } from '../api/libraryApi';
+import { openShellPath } from '../../shell/shellLinks';
+import { getCurrentPlan, getCurrentToday, getCurrentWeek, listDifficultyLevels, listPlanDays, listPlans } from '../api/libraryApi';
 import ActivePlanCard from '../components/ActivePlanCard';
+import PhoneActivePlanCard from '../components/PhoneActivePlanCard';
+import PlanCatalogCard from '../components/PlanCatalogCard';
 import PlanEntryTiles from '../components/PlanEntryTiles';
 import PlanIcon from '../components/planIcons';
+import PlanOwnRows from '../components/PlanOwnRows';
 import PlanTile from '../components/PlanTile';
 import { useIsTablet, useReflow } from '../components/planUi';
-import { deriveLibrary, planCountLabel, weekChips } from '../libraryFormat';
+import {
+  activePlanMeta,
+  catalogMeta,
+  catalogPlans,
+  deriveLibrary,
+  exercisesCountLabel,
+  levelNameOf,
+  nextWorkout,
+  planCountLabel,
+  planDayTitle,
+  weekChips,
+  weekCircles,
+} from '../libraryFormat';
 
 // S1 (RN-SPEC-plans §3), v2 look per UX H (Plans #21, Tablet: Plans #88).
 // Every focus remounts and reloads (§8.1).
@@ -70,6 +86,45 @@ function useCanCreatePlan(enabled) {
   return enabled && canCreate;
 }
 
+// Dated change (27 Oct 2026, owner T-60): the PHONE page's side data, four
+// existing GETs, each FAIL-SOFT (a failure hides only its part; the page
+// never errors on them). /week, /today and the plan's days only with a
+// current plan; the level names once per load. Each value is undefined while
+// pending and null when the call failed. The tablet makes none (unchanged).
+const SIDE_PENDING = { week: undefined, today: undefined, days: undefined, levels: undefined };
+
+function useSideData(load, enabled) {
+  const [side, setSide] = useState(SIDE_PENDING);
+  useEffect(() => {
+    setSide(SIDE_PENDING);
+    if (!enabled || load.status !== 'loaded') {
+      return undefined;
+    }
+    let alive = true;
+    const settle = (key, call) => {
+      Promise.resolve()
+        .then(call)
+        .then(
+          (value) => alive && setSide((current) => ({ ...current, [key]: value ?? null })),
+          () => alive && setSide((current) => ({ ...current, [key]: null }))
+        );
+    };
+    settle('levels', listDifficultyLevels);
+    const planId = load.currentPlan?.enrollment?.plan?.id;
+    if (load.currentPlan?.enrollment?.plan) {
+      settle('week', getCurrentWeek);
+      settle('today', getCurrentToday);
+      if (planId != null) {
+        settle('days', () => listPlanDays(planId));
+      }
+    }
+    return () => {
+      alive = false;
+    };
+  }, [load, enabled]);
+  return side;
+}
+
 function PlansLibrary() {
   const navigation = useNavigation();
   const tablet = useIsTablet();
@@ -77,6 +132,8 @@ function PlansLibrary() {
   const canCreate = useCanCreatePlan(tablet);
   const [reloadCount, setReloadCount] = useState(0);
   const [load, setLoad] = useState({ status: 'loading', plans: [], currentPlan: null, error: null });
+  const side = useSideData(load, !tablet);
+  const { width } = useWindowDimensions();
 
   useEffect(() => {
     let alive = true;
@@ -138,6 +195,10 @@ function PlansLibrary() {
   const openPlan = (planId) => navigation.push(routes.PlanDetail, { planId: String(planId) });
   const columns = reflow ? 1 : 2;
 
+  if (!tablet) {
+    return <PhonePlans library={library} load={load} side={side} compact={width < 360} openPlan={openPlan} />;
+  }
+
   return (
     <View style={[styles.page, tablet && styles.pageTablet]}>
       {header}
@@ -187,6 +248,59 @@ function PlansLibrary() {
         </View>
       ) : !library.hasActivePlan && !library.noPlansAtAll ? (
         <Text {...CAP_BODY} accessibilityRole="header" style={[tablet ? styles.headingTablet : styles.heading, styles.headingAlone]}>
+          Choose your next plan
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+// Dated change (27 Oct 2026, owner T-60; UX T60-plans-spec §1–§5): the PHONE
+// page: the active plan card, "Make it your own", the catalog (no category
+// sub-headings; the same plans in the same order). Same destinations.
+function PhonePlans({ library, load, side, compact, openPlan }) {
+  const schedule = load.currentPlan?.schedule;
+  const now = new Date();
+  const plan = library.activePlanDetail;
+  const circles = side.week === undefined ? null : weekCircles({ week: side.week, schedule, now });
+  const found = side.week === undefined || side.today === undefined ? null : nextWorkout({ today: side.today, week: side.week, schedule, now });
+  const count = found && Array.isArray(side.days) ? side.days.find((day) => String(day?.id) === String(found.planDay?.id))?.exercises_count : null;
+  const next = found ? { when: found.when, title: planDayTitle(found.planDay), count: exercisesCountLabel(count), gold: found.gold } : null;
+  const plans = catalogPlans(library);
+
+  return (
+    <View style={styles.page}>
+      {library.hasActivePlan ? (
+        <PhoneActivePlanCard
+          plan={plan}
+          meta={activePlanMeta(plan, levelNameOf(plan, side.levels))}
+          circles={circles}
+          next={next}
+          compact={compact}
+          onStart={() => openShellPath('/workout')}
+          onView={openPlan}
+        />
+      ) : null}
+      <PlanOwnRows />
+      {library.noPlansAtAll ? (
+        <EmptyState title="No plans available" message="No active workout plans were returned by the backend." />
+      ) : null}
+      {plans.length > 0 ? (
+        <View testID="plans-catalog" style={styles.section}>
+          <View style={styles.catalogHeader}>
+            <Text {...CAP_BODY} testID="plans-catalog-heading" accessibilityRole="header" style={styles.phoneHeading}>
+              {library.hasActivePlan ? 'Try a different plan' : 'Choose your next plan'}
+            </Text>
+            <Text {...CAP_BODY} testID="plans-catalog-count" style={styles.phoneCount}>
+              {planCountLabel(plans.length)}
+            </Text>
+          </View>
+          {plans.map((item) => (
+            <PlanCatalogCard key={item.id} plan={item} meta={catalogMeta(item, levelNameOf(item, side.levels))} onPress={() => openPlan(item.id)} />
+          ))}
+        </View>
+      ) : !library.hasActivePlan && !library.noPlansAtAll ? (
+        <Text {...CAP_BODY} accessibilityRole="header" style={[styles.phoneHeading, styles.headingAlone]}>
           Choose your next plan
         </Text>
       ) : null}
@@ -295,5 +409,30 @@ const styles = StyleSheet.create({
   tileCell: {
     flex: 1,
     minWidth: 0,
+  },
+  // T-60 phone: header row margin 16 4 0 (baseline); 20/26/700 −0.02em; the
+  // count 14 secondary.
+  catalogHeader: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: spacing[3],
+    marginTop: spacing[4],
+    paddingHorizontal: spacing[1],
+  },
+  phoneHeading: {
+    ...font(700),
+    flexShrink: 1,
+    fontSize: 20,
+    lineHeight: 26,
+    letterSpacing: -0.4,
+    color: colors.textPrimary,
+  },
+  phoneCount: {
+    ...font(400),
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textSecondary,
   },
 });
