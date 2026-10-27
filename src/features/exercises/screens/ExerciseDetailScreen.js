@@ -1,14 +1,16 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { routes } from '../../../navigation/routes';
 import EmptyState from '../../../shared/components/EmptyState';
 import ErrorAlert from '../../../shared/components/ErrorAlert';
+import ExerciseImage, { muscleColor } from '../../../shared/components/ExerciseImage';
+import GradientFill from '../../../shared/components/GradientFill';
 import Loader from '../../../shared/components/Loader';
-import RemoteImage from '../../../shared/components/RemoteImage';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
-import { colors, radii, shadows } from '../../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, radii, spacing, typography } from '../../../shared/theme/tokens';
+import GymIcon from '../../shell/GymIcon';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
 import { getExercise, getExerciseProfile } from '../api/exercisesApi';
@@ -19,10 +21,47 @@ import {
   primaryMuscleName,
   resolveExerciseLoad,
   substituteSummary,
-  substituteTileCode,
 } from '../exerciseProfile';
 
 const MAX_ALTERNATIVES = 10;
+
+// v2 Phase 2 C1 (UX C §Exercise detail / §Tablet): LOOK only. Phone: a
+// full-bleed 400 hero with the Back pill and the caption on the photo;
+// tablet (≥ 768): the Back pill above a rounded 520 hero card. Behaviour is v1.
+export const PHONE_HERO = 400;
+export const TABLET_HERO = 520;
+const TOP_SCRIM = 120;
+const BOTTOM_FADE = 220;
+// The no-photo hero letters: 56 on phones; tablet capped at 120 (UX: 0.36 ×
+// 520 is too big). ExerciseImage sizes its letters at 0.36 × `size`.
+const PHONE_HERO_GLYPH = 56;
+const TABLET_HERO_GLYPH = 120;
+const glyphSize = (glyph) => Math.round(glyph / 0.36);
+// Drawn off the 5-step radius scale ([no token], built as drawn).
+const TABLET_HERO_RADIUS = 36;
+const ALTERNATIVE_TILE_RADIUS = 22;
+const ALTERNATIVE_ROW_RADIUS = 18;
+export const ALTERNATIVE_TILE_HEIGHT = 150;
+const ALTERNATIVE_ROW_IMAGE = Object.freeze({ width: 104, height: 84 });
+
+// ND-4 (UX ruling): instructions with line breaks show one numbered step per
+// non-empty line; otherwise null → today's single text block. No data change.
+export function howToSteps(instructions) {
+  if (typeof instructions !== 'string' || !/\r?\n/.test(instructions)) {
+    return null;
+  }
+  const steps = instructions
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return steps.length > 1 ? steps : null;
+}
+
+// The eyebrow / Primary value colour: the primary muscle's hue, gold when the
+// muscle has none (v1's brand colour).
+export function primaryHue(profile, exercise) {
+  return muscleColor(profile?.primary_muscle?.code ?? exercise?.primary_muscle_group?.code) ?? colors.gold;
+}
 
 // RN-SPEC-exercise-detail §X1. Pushed on the stack that opened it; every
 // focus remounts and reloads (plans §8.1).
@@ -40,6 +79,10 @@ export default function ExerciseDetailScreen() {
 function ExerciseDetail() {
   const navigation = useNavigation();
   const route = useRoute();
+  const { width } = useWindowDimensions();
+  const tablet = width >= breakpoints.md;
+  // ShellPage's phone gutter: the phone hero bleeds through it.
+  const gutter = width >= breakpoints.sm ? spacing[5] : spacing[4];
   const exerciseId = route.params?.exerciseId;
   const [attempt, setAttempt] = useState(0);
   const [load, setLoad] = useState({ status: 'loading' });
@@ -82,147 +125,276 @@ function ExerciseDetail() {
 
   const { exercise, profile } = load;
   const primaryMuscle = primaryMuscleName(profile, exercise);
+  const hue = primaryHue(profile, exercise);
   const chips = factChips(profile);
   const equipment = equipmentLines(profile?.equipment);
   const substitutes = (profile?.substitutes ?? []).slice(0, MAX_ALTERNATIVES);
   const goBack = () => (navigation.canGoBack() ? navigation.goBack() : openShellPath('/exercises'));
   const openSubstitute = (id) => navigation.push(routes.ExerciseDetail, { exerciseId: String(id) });
+  const steps = howToSteps(exercise?.instructions);
 
-  return (
-    <View style={styles.page}>
-      <Pressable testID="exercise-detail-back" accessibilityRole="button" onPress={goBack} style={styles.back} hitSlop={12}>
-        <Text style={styles.backText}>← Back</Text>
-      </Pressable>
+  const back = (
+    <Pressable
+      testID="exercise-detail-back"
+      accessibilityRole="button"
+      onPress={goBack}
+      hitSlop={tablet ? 2 : 0}
+      style={({ pressed }) => [tablet ? styles.backTablet : styles.backPhone, pressed && styles.backPressed]}
+    >
+      <Text style={styles.backText}>← Back</Text>
+    </Pressable>
+  );
 
-      <View>
-        <Text style={styles.eyebrow}>{primaryMuscle || 'Exercise'}</Text>
-        <Text textBreakStrategy="simple" accessibilityRole="header" style={styles.title}>
-          {exercise?.name}
-        </Text>
-      </View>
+  const muscles = primaryMuscle ? (
+    <Section title="Muscles" testID="exercise-detail-muscles" tablet={tablet} gradient style={styles.half}>
+      {tablet ? (
+        <View style={styles.pairs}>
+          <Pair label="Primary" value={primaryMuscle} />
+          {profile?.secondary_muscles?.length ? (
+            <Pair label="Secondary" value={profile.secondary_muscles.map((item) => item.name).join(' · ')} />
+          ) : null}
+          {profile?.stabilizer_muscles?.length ? (
+            <Pair label="Stabilizers" value={profile.stabilizer_muscles.map((item) => item.name).join(' · ')} />
+          ) : null}
+        </View>
+      ) : (
+        <View>
+          <Text style={[styles.smallLabel, styles.mt8]}>Primary</Text>
+          <Text testID="exercise-detail-primary" style={[styles.primaryValue, { color: hue }]}>
+            {primaryMuscle}
+          </Text>
+          {profile?.secondary_muscles?.length ? <MuscleChips label="Secondary" muscles={profile.secondary_muscles} /> : null}
+          {profile?.stabilizer_muscles?.length ? <MuscleChips label="Stabilizers" muscles={profile.stabilizer_muscles} /> : null}
+        </View>
+      )}
+    </Section>
+  ) : null;
 
-      <View style={styles.media}>
-        {exercise?.thumbnail?.url ? (
-          <RemoteImage url={exercise.thumbnail.url} style={styles.mediaImage} accessibilityLabel={exercise.name} />
-        ) : (
-          <Text style={styles.mediaPlaceholder}>{primaryMuscle || 'Exercise'}</Text>
-        )}
-      </View>
-
-      {chips.length ? (
-        <View style={styles.chipRow}>
-          {chips.map((chip) => (
-            <Chip key={chip} label={chip} />
+  const equipmentCard = equipment ? (
+    <Section title="Equipment" testID="exercise-detail-equipment" tablet={tablet} gradient={tablet} style={styles.half}>
+      {tablet ? (
+        <View style={styles.chipWrap}>
+          {equipment.map((line, index) => (
+            <View key={`${index}-${line}`} style={styles.softChipTablet}>
+              <Text style={styles.softChipTabletText}>{line}</Text>
+            </View>
           ))}
         </View>
-      ) : null}
-
-      {isComingSoon(profile) ? <Text style={styles.comingSoon}>More details for this exercise are coming soon.</Text> : null}
-
-      {primaryMuscle ? (
-        <Card title="Muscles" testID="exercise-detail-muscles">
-          <View style={styles.muscleRows}>
-            <MuscleRow label="Primary">
-              <Text style={styles.strong}>{primaryMuscle}</Text>
-            </MuscleRow>
-            {profile?.secondary_muscles?.length ? (
-              <MuscleRow label="Secondary">
-                {profile.secondary_muscles.map((muscle) => (
-                  <Chip key={muscle.id ?? muscle.name} label={muscle.name} />
-                ))}
-              </MuscleRow>
-            ) : null}
-            {profile?.stabilizer_muscles?.length ? (
-              <MuscleRow label="Stabilizers">
-                {profile.stabilizer_muscles.map((muscle) => (
-                  <Chip key={muscle.id ?? muscle.name} label={muscle.name} />
-                ))}
-              </MuscleRow>
-            ) : null}
-          </View>
-        </Card>
-      ) : null}
-
-      {equipment ? (
-        <Card title="Equipment" testID="exercise-detail-equipment">
-          <View style={styles.equipmentLines}>
-            {equipment.map((line, index) => (
-              <Text key={`${index}-${line}`} style={styles.strong}>
-                {line}
-              </Text>
-            ))}
-          </View>
-        </Card>
-      ) : null}
-
-      {exercise?.description || exercise?.instructions ? (
-        <Card title="How to do it" testID="exercise-detail-how-to">
-          {exercise.description ? <Text style={[styles.howTo, styles.mt12]}>{exercise.description}</Text> : null}
-          {exercise.instructions ? <Text style={[styles.howTo, styles.mt12]}>{exercise.instructions}</Text> : null}
-        </Card>
-      ) : null}
-
-      {substitutes.length ? (
-        <View>
-          <Text style={[styles.cardTitle, styles.alternativesTitle]}>Alternatives</Text>
-          <View style={styles.alternatives}>
-            {substitutes.map((substitute, index) => (
-              <Pressable
-                key={substitute.id}
-                testID={`exercise-alternative-${substitute.id}`}
-                accessibilityRole="button"
-                onPress={() => openSubstitute(substitute.id)}
-                style={({ pressed }) => [styles.alternative, index > 0 && styles.divider, pressed && styles.alternativePressed]}
+      ) : (
+        <View style={styles.equipmentRows}>
+          {equipment.map((line, index) => (
+            <View key={`${index}-${line}`} style={styles.equipmentRow}>
+              <View
+                testID={`exercise-detail-equipment-icon-${index}`}
+                style={[styles.equipmentIcon, index === 0 ? styles.equipmentIconFirst : styles.equipmentIconRest]}
               >
-                <View style={styles.tile}>
-                  {substitute.thumbnail?.url ? (
-                    <RemoteImage url={substitute.thumbnail.url} style={styles.tileImage} />
-                  ) : (
-                    <Text numberOfLines={1} textBreakStrategy="simple" style={styles.tileCode}>{substituteTileCode(substitute)}</Text>
-                  )}
-                </View>
-                <View style={styles.textColumn}>
-                  <Text numberOfLines={1} style={styles.alternativeName}>
-                    {substitute.name}
-                  </Text>
-                  <Text numberOfLines={1} style={styles.alternativeSummary}>
-                    {substituteSummary(substitute)}
-                  </Text>
-                </View>
-                <Text style={styles.chevron} accessibilityElementsHidden importantForAccessibility="no">
-                  ›
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+                <GymIcon name="workout" size={20} color={index === 0 ? colors.gold : colors.textStrong2} />
+              </View>
+              <Text style={[styles.equipmentLine, index === 0 ? styles.equipmentLineFirst : null]}>{line}</Text>
+            </View>
+          ))}
         </View>
-      ) : null}
+      )}
+    </Section>
+  ) : null;
+
+  return (
+    <View style={[styles.page, tablet && styles.pageTablet]}>
+      {tablet ? back : null}
+
+      <View
+        testID="exercise-detail-hero"
+        style={[styles.hero, tablet ? styles.heroTablet : { height: PHONE_HERO, marginHorizontal: -gutter }]}
+      >
+        {/* The h1 sits on the photo, so the photo itself has no label (UX). */}
+        <ExerciseImage
+          testID="exercise-detail-image"
+          url={exercise?.thumbnail?.url ?? null}
+          name={exercise?.name}
+          muscleCode={profile?.primary_muscle?.code ?? exercise?.primary_muscle_group?.code}
+          size={glyphSize(tablet ? TABLET_HERO_GLYPH : PHONE_HERO_GLYPH)}
+          style={styles.fill}
+        />
+        {/* Gradients exist from the first render (Android rule). */}
+        {tablet ? null : (
+          <View pointerEvents="none" style={styles.topScrim}>
+            <GradientFill angle={180} colors={[colors.scrim, gradients.imageFade.colors[0]]} />
+          </View>
+        )}
+        <View pointerEvents="none" style={tablet ? styles.fadeTablet : styles.fadePhone}>
+          <GradientFill
+            angle={180}
+            colors={[gradients.imageFade.colors[0], gradients.imageFade.colors[1], colors.ground]}
+            stops={tablet ? [0, 1, 1] : [0, 0.55, 1]}
+          />
+        </View>
+        {tablet ? null : <View style={styles.backOnPhoto}>{back}</View>}
+        <View style={tablet ? styles.captionTablet : styles.captionPhone}>
+          <Text testID="exercise-detail-eyebrow" style={[tablet ? styles.eyebrowTablet : styles.eyebrow, { color: hue }]}>
+            {primaryMuscle || 'Exercise'}
+          </Text>
+          <Text
+            testID="exercise-detail-title"
+            textBreakStrategy="simple"
+            accessibilityRole="header"
+            style={tablet ? styles.titleTablet : styles.title}
+          >
+            {exercise?.name}
+          </Text>
+          {chips.length ? (
+            <View style={[styles.factChips, tablet && styles.factChipsTablet]}>
+              {chips.map((chip) => (
+                <View key={chip} style={[styles.factChip, tablet && styles.factChipTablet]}>
+                  <Text style={[styles.factChipText, tablet && styles.factChipTextTablet]}>{chip}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </View>
+      </View>
+
+      <View style={[styles.body, tablet && styles.bodyTablet]}>
+        {isComingSoon(profile) ? <Text style={styles.comingSoon}>More details for this exercise are coming soon.</Text> : null}
+
+        {muscles || equipmentCard ? (
+          <View testID="exercise-detail-grid" style={[styles.grid, tablet && styles.gridTablet]}>
+            {muscles}
+            {equipmentCard}
+          </View>
+        ) : null}
+
+        {exercise?.description || exercise?.instructions ? (
+          <Section title="How to do it" testID="exercise-detail-how-to" tablet={tablet} gradient={tablet}>
+            <View style={tablet ? styles.howToBodyTablet : styles.howToBody}>
+              {exercise.description ? <Text style={[styles.howTo, tablet && styles.howToTablet]}>{exercise.description}</Text> : null}
+              {steps ? (
+                <View testID="exercise-detail-steps" style={styles.steps}>
+                  {steps.map((step, index) => (
+                    <View key={`${index}-${step}`} style={styles.step}>
+                      <Text style={[styles.howTo, tablet && styles.howToTablet, styles.stepNumber]}>{`${index + 1}.`}</Text>
+                      <Text style={[styles.howTo, tablet && styles.howToTablet, styles.stepText]}>{step}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : exercise.instructions ? (
+                <Text testID="exercise-detail-instructions" style={[styles.howTo, tablet && styles.howToTablet]}>
+                  {exercise.instructions}
+                </Text>
+              ) : null}
+            </View>
+          </Section>
+        ) : null}
+
+        {substitutes.length ? (
+          tablet ? (
+            <Section title="Alternatives" testID="exercise-detail-alternatives" tablet gradient>
+              <View style={styles.altGrid}>
+                {substitutes.map((substitute) => (
+                  <Pressable
+                    key={substitute.id}
+                    testID={`exercise-alternative-${substitute.id}`}
+                    accessibilityRole="button"
+                    onPress={() => openSubstitute(substitute.id)}
+                    style={({ pressed }) => [styles.altRow, pressed && styles.altRowPressed]}
+                  >
+                    <ExerciseImage
+                      testID={`exercise-alternative-${substitute.id}-image`}
+                      exercise={substitute}
+                      size={ALTERNATIVE_ROW_IMAGE.height}
+                      style={[ALTERNATIVE_ROW_IMAGE, styles.altRowImage]}
+                    />
+                    <View style={styles.textColumn}>
+                      <Text numberOfLines={2} style={styles.altRowName}>
+                        {substitute.name}
+                      </Text>
+                      <Text numberOfLines={2} style={styles.altRowSummary}>
+                        {substituteSummary(substitute)}
+                      </Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            </Section>
+          ) : (
+            <View testID="exercise-detail-alternatives">
+              <Text accessibilityRole="header" style={[styles.sectionTitle, styles.alternativesTitle]}>
+                Alternatives
+              </Text>
+              <View style={styles.altGrid}>
+                {substitutes.map((substitute) => (
+                  <Pressable
+                    key={substitute.id}
+                    testID={`exercise-alternative-${substitute.id}`}
+                    accessibilityRole="button"
+                    onPress={() => openSubstitute(substitute.id)}
+                    style={({ pressed }) => [styles.altTile, pressed && styles.altTilePressed]}
+                  >
+                    <ExerciseImage
+                      testID={`exercise-alternative-${substitute.id}-image`}
+                      exercise={substitute}
+                      size={ALTERNATIVE_TILE_HEIGHT}
+                      style={styles.fill}
+                    />
+                    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+                      <GradientFill
+                        angle={180}
+                        colors={[gradients.imageFade.colors[0], gradients.imageFade.colors[0], gradients.imageFade.colors[1]]}
+                        stops={[0, 0.3, 1]}
+                      />
+                    </View>
+                    <View style={styles.altCaption}>
+                      <Text numberOfLines={2} style={styles.altName}>
+                        {substitute.name}
+                      </Text>
+                      <Text numberOfLines={1} style={styles.altSummary}>
+                        {substituteSummary(substitute)}
+                      </Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          )
+        ) : null}
+      </View>
     </View>
   );
 }
 
-function Chip({ label }) {
+// A card with its title as a header. Phone: surface (or gradient-card) at
+// radius 24; tablet: gradient-card at radius 28, padding 24.
+function Section({ title, testID, tablet, gradient = false, style, children }) {
   return (
-    <View style={styles.chip}>
-      <Text style={styles.chipText}>{label}</Text>
-    </View>
-  );
-}
-
-function Card({ title, testID, children }) {
-  return (
-    <View testID={testID} style={styles.card}>
-      <Text style={styles.cardTitle}>{title}</Text>
+    <View testID={testID} style={[styles.card, tablet ? styles.cardTablet : null, gradient ? styles.cardGradient : null, style]}>
+      {gradient ? <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} /> : null}
+      <Text accessibilityRole="header" style={tablet ? styles.cardTitleTablet : styles.cardTitle}>
+        {title}
+      </Text>
       {children}
     </View>
   );
 }
 
-function MuscleRow({ label, children }) {
+function Pair({ label, value }) {
   return (
-    <View style={styles.muscleRow}>
-      <Text style={styles.muscleLabel}>{label}</Text>
-      <View style={styles.muscleValues}>{children}</View>
+    <View>
+      <Text style={styles.pairLabel}>{label}</Text>
+      <Text style={styles.pairValue}>{value}</Text>
+    </View>
+  );
+}
+
+function MuscleChips({ label, muscles }) {
+  return (
+    <View>
+      <Text style={[styles.smallLabel, styles.chipsLabel]}>{label}</Text>
+      <View style={styles.chipWrap}>
+        {muscles.map((item) => (
+          <View key={item.id ?? item.name} style={styles.softChip}>
+            <Text style={styles.softChipText}>{item.name}</Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
@@ -238,209 +410,401 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   page: {
-    gap: 20,
-    paddingBottom: 24,
+    paddingBottom: spacing[6],
   },
-  back: {
-    alignSelf: 'flex-start',
+  pageTablet: {
+    gap: spacing[4],
   },
-  backText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
-    color: colors.brand700,
-  },
-  eyebrow: {
-    fontSize: 11.2,
-    lineHeight: 16.8,
-    fontWeight: '700',
-    letterSpacing: 2.016,
-    textTransform: 'uppercase',
-    color: colors.brand700,
-  },
-  title: {
-    marginTop: 4,
-    fontSize: 30,
-    lineHeight: 37.5,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  media: {
-    aspectRatio: 16 / 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    borderRadius: radii.xxl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceMuted,
-    boxShadow: shadows.soft,
-  },
-  mediaImage: {
+  fill: {
     position: 'absolute',
     top: 0,
-    right: 0,
-    bottom: 0,
     left: 0,
+    width: '100%',
+    height: '100%',
+    borderRadius: 0,
   },
-  mediaPlaceholder: {
-    paddingHorizontal: 12,
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
-    letterSpacing: 2.52,
-    textTransform: 'uppercase',
-    textAlign: 'center',
-    color: colors.brand700,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
+  // Phone Back: on the photo, 44 tall, a dark glass pill.
+  backPhone: {
+    alignSelf: 'flex-start',
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingLeft: spacing[3],
+    paddingRight: spacing[4],
     borderRadius: radii.full,
-    backgroundColor: colors.surfaceMuted,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-  },
-  chipText: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  comingSoon: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.textMuted,
-  },
-  card: {
-    borderRadius: radii.xxl,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    padding: 20,
-    boxShadow: shadows.soft,
+    borderColor: colors.hairlineButton,
+    backgroundColor: colors.scrim,
   },
-  cardTitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
-    letterSpacing: 0.35,
-    textTransform: 'uppercase',
-    color: colors.textMuted,
+  // Tablet Back: a 40 pill (44 hit area via hitSlop) above the hero.
+  backTablet: {
+    alignSelf: 'flex-start',
+    height: 40,
+    justifyContent: 'center',
+    paddingLeft: spacing[3],
+    paddingRight: spacing[4],
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+    backgroundColor: colors.fillSkeleton,
   },
-  muscleRows: {
-    marginTop: 16,
-    gap: 12,
+  backPressed: {
+    backgroundColor: colors.hairlineButton,
   },
-  muscleRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'baseline',
-    columnGap: 12,
-    rowGap: 8,
-  },
-  muscleLabel: {
-    width: 96,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '700',
-    letterSpacing: 1.44,
-    textTransform: 'uppercase',
-    color: colors.textMuted,
-  },
-  muscleValues: {
-    flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  strong: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
+  backText: {
+    ...typography.bodySm,
+    ...font(600),
     color: colors.textPrimary,
   },
-  equipmentLines: {
-    marginTop: 12,
-    gap: 8,
-  },
-  howTo: {
-    fontSize: 14,
-    lineHeight: 24,
-    color: colors.textSecondary,
-  },
-  alternativesTitle: {
-    marginBottom: 12,
-    paddingHorizontal: 4,
-  },
-  alternatives: {
+  hero: {
     overflow: 'hidden',
-    borderRadius: radii.xxl,
-    borderWidth: 1,
-    borderColor: colors.border,
     backgroundColor: colors.surface,
-    boxShadow: shadows.soft,
   },
-  alternative: {
+  heroTablet: {
+    height: TABLET_HERO,
+    borderRadius: TABLET_HERO_RADIUS,
+    borderWidth: 1,
+    borderColor: colors.choiceBorder,
+  },
+  topScrim: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: TOP_SCRIM,
+  },
+  fadePhone: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: BOTTOM_FADE,
+  },
+  fadeTablet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '70%',
+  },
+  backOnPhoto: {
+    position: 'absolute',
+    top: spacing[3],
+    left: spacing[4],
+  },
+  captionPhone: {
+    position: 'absolute',
+    left: spacing[5],
+    right: spacing[5],
+    bottom: 14,
+  },
+  captionTablet: {
+    position: 'absolute',
+    left: spacing[7],
+    right: spacing[7],
+    bottom: 26,
+    gap: spacing[3],
+  },
+  eyebrow: {
+    ...typography.bodySm,
+    ...font(600),
+  },
+  eyebrowTablet: {
+    ...typography.body,
+    ...font(600),
+  },
+  title: {
+    ...typography.displayLg,
+    marginTop: spacing[1],
+    color: colors.textPrimary,
+  },
+  // 80/76 is larger than display-xl ([no token], built as drawn).
+  titleTablet: {
+    ...typography.displayXl,
+    fontSize: 80,
+    lineHeight: 76,
+    letterSpacing: -4.8,
+    color: colors.textPrimary,
+  },
+  factChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: spacing[3],
+  },
+  factChipsTablet: {
+    gap: spacing[2],
+    marginTop: 0,
+  },
+  factChip: {
+    height: 28,
+    justifyContent: 'center',
+    paddingHorizontal: spacing[3],
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.switchTrackOff,
+    backgroundColor: colors.scrim,
+  },
+  factChipTablet: {
+    height: 30,
+  },
+  factChipText: {
+    ...typography.caption,
+    ...font(600),
+    color: colors.textPrimary,
+  },
+  factChipTextTablet: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  body: {
+    gap: spacing[3],
+    paddingTop: spacing[2],
+  },
+  bodyTablet: {
+    gap: spacing[4],
+    paddingTop: 0,
+  },
+  comingSoon: {
+    ...typography.bodySm,
+    color: colors.textMuted,
+  },
+  grid: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[3],
+  },
+  gridTablet: {
+    gap: spacing[4],
+  },
+  half: {
+    flex: 1,
+    minWidth: 0,
+  },
+  card: {
+    overflow: 'hidden',
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: colors.surface,
+    padding: spacing[4],
+  },
+  cardGradient: {
+    borderColor: colors.choiceBorder,
+  },
+  cardTablet: {
+    borderRadius: radii.xxl,
+    padding: spacing[6],
+    gap: spacing[3],
+  },
+  cardTitle: {
+    ...typography.caption,
+    ...font(600),
+    color: colors.textMuted,
+  },
+  cardTitleTablet: {
+    ...typography.titleSm,
+    fontSize: 21,
+    letterSpacing: -0.42,
+    color: colors.textPrimary,
+  },
+  sectionTitle: {
+    ...typography.titleXs,
+    fontSize: 20,
+    letterSpacing: -0.6,
+    color: colors.textPrimary,
+  },
+  smallLabel: {
+    ...typography.micro,
+    ...font(400),
+    color: colors.textMuted,
+  },
+  mt8: {
+    marginTop: spacing[2],
+  },
+  chipsLabel: {
+    marginTop: 10,
+    marginBottom: spacing[1],
+  },
+  primaryValue: {
+    ...typography.titleMd,
+    fontSize: 26,
+    letterSpacing: -1.04,
+    marginTop: 2,
+  },
+  chipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  softChip: {
+    height: 26,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    borderRadius: radii.full,
+    backgroundColor: colors.fillSkeleton,
+  },
+  softChipText: {
+    ...typography.caption,
+    color: colors.textStrong2,
+  },
+  softChipTablet: {
+    height: 30,
+    justifyContent: 'center',
+    paddingHorizontal: spacing[3],
+    borderRadius: radii.full,
+    backgroundColor: colors.fillSkeleton,
+  },
+  softChipTabletText: {
+    ...typography.label,
+    ...font(400),
+    color: colors.textStrong2,
+  },
+  pairs: {
+    gap: spacing[3],
+  },
+  pairLabel: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  pairValue: {
+    ...typography.body,
+    ...font(600),
+    marginTop: 3,
+    color: colors.textPrimary,
+  },
+  equipmentRows: {
+    marginTop: 10,
+    gap: 10,
+  },
+  equipmentRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    gap: 10,
   },
-  divider: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  alternativePressed: {
-    backgroundColor: colors.rowPressedStrong,
-  },
-  tile: {
-    width: 44,
-    height: 44,
+  equipmentIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.sm,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  equipmentIconFirst: {
+    backgroundColor: colors.goldTint,
+  },
+  equipmentIconRest: {
+    backgroundColor: colors.fillSkeleton,
+  },
+  equipmentLine: {
+    flex: 1,
+    minWidth: 0,
+    ...typography.bodySm,
+    lineHeight: 18,
+    ...font(700),
+    color: colors.textPrimary,
+  },
+  equipmentLineFirst: {
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  howToBody: {
+    marginTop: 10,
+    gap: spacing[2],
+  },
+  howToBodyTablet: {
+    gap: 10,
+  },
+  howTo: {
+    ...typography.body,
+    lineHeight: 24,
+    color: colors.textStrong2,
+  },
+  howToTablet: {
+    color: colors.textSecondary,
+  },
+  steps: {
+    gap: spacing[2],
+  },
+  step: {
+    flexDirection: 'row',
+    gap: spacing[2],
+  },
+  stepNumber: {
+    ...font(700),
+    minWidth: 22,
+    fontVariant: ['tabular-nums'],
+  },
+  stepText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  alternativesTitle: {
+    marginTop: spacing[1],
+    marginBottom: 10,
+    marginHorizontal: spacing[1],
+  },
+  altGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[3],
+  },
+  altTile: {
+    width: '47%',
+    flexGrow: 1,
+    height: ALTERNATIVE_TILE_HEIGHT,
     overflow: 'hidden',
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceMuted,
+    borderRadius: ALTERNATIVE_TILE_RADIUS,
+    backgroundColor: colors.surface,
   },
-  tileImage: {
-    width: 44,
-    height: 44,
+  altTilePressed: {
+    transform: [{ scale: 0.98 }],
   },
-  // Batch 2 #24: 11px in the same 44pt tile.
-  tileCode: {
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-    color: colors.brand700,
+  altCaption: {
+    position: 'absolute',
+    left: spacing[3],
+    right: spacing[3],
+    bottom: 10,
+  },
+  altName: {
+    ...typography.labelLg,
+    ...font(700),
+    lineHeight: 19,
+    color: colors.textPrimary,
+  },
+  altSummary: {
+    ...typography.micro,
+    ...font(400),
+    marginTop: 2,
+    color: colors.textStrong2,
+  },
+  altRow: {
+    width: '47%',
+    flexGrow: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    padding: 10,
+    borderRadius: ALTERNATIVE_ROW_RADIUS,
+    backgroundColor: colors.fillWell,
+  },
+  altRowPressed: {
+    backgroundColor: colors.fillSkeleton,
+  },
+  altRowImage: {
+    borderRadius: ALTERNATIVE_ROW_RADIUS,
   },
   textColumn: {
     flex: 1,
     minWidth: 0,
   },
-  alternativeName: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
+  altRowName: {
+    ...typography.body,
+    ...font(600),
     color: colors.textPrimary,
   },
-  alternativeSummary: {
+  altRowSummary: {
+    ...typography.label,
+    ...font(400),
     marginTop: 2,
-    fontSize: 12,
-    lineHeight: 16,
     color: colors.textMuted,
-  },
-  chevron: {
-    fontSize: 18,
-    lineHeight: 28,
-    color: colors.textMuted,
-  },
-  mt12: {
-    marginTop: 12,
   },
 });

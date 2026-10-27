@@ -8,6 +8,8 @@ import { myPlanRoutes } from './myPlanRoutes';
 // M2 (§M2): the trainer create form (T2) with the member's differences.
 export const MEMBER_CREATE_VARIANT = {
   backLabel: '← My plans',
+  // v2 Phase 2 C3: the member form's own look (CreatePlanForm → CreatePlanV2).
+  look: 'v2',
   backRoute: myPlanRoutes.MyPlans,
   subtitle: 'Private to you. Build it out, then start it.',
   namePlaceholder: 'My strength plan',

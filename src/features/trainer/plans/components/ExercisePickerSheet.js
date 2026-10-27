@@ -14,31 +14,53 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BlurLayer from '../../../../shared/components/BlurLayer';
+import ErrorAlert from '../../../../shared/components/ErrorAlert';
+import ExerciseImage, { muscleColor, TILE_ALPHA } from '../../../../shared/components/ExerciseImage';
+import FeedbackIcon from '../../../../shared/components/FeedbackIcon';
+import IconButton from '../../../../shared/components/IconButton';
 import Select from '../../../../shared/components/Select';
 import { useKeyboardHeight } from '../../../../shared/hooks/useKeyboardHeight';
 import { useReducedMotion } from '../../../../shared/hooks/useReducedMotion';
-import { breakpoints, colors, motion, radii, shadows, textInputColors } from '../../../../shared/theme/tokens';
+import { useSheetFocus } from '../../../../shared/hooks/useSheetFocus';
+import { breakpoints, colors, font, motion, radii, shadows, spacing, textInputColors, typography } from '../../../../shared/theme/tokens';
 import { ALL_EQUIPMENT, ALL_MUSCLE_GROUPS, countLabel, filterCatalog } from '../planFormat';
-import ExerciseThumb from './ExerciseThumb';
 import { CheckIcon, ChevronIcon, SearchIcon } from './pickerIcons';
 
 const EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
 
+// v2 Phase 2 C2 (UX C §Exercise picker / §Tablet). Phone (< 768): a bottom
+// sheet, 86 % tall; tablet (≥ 768): a centred 620 dialog with a Close button
+// (same action as Cancel), a 3-column filter row and a 2-column card grid.
+// Drawn off the token scale ([no token], built as drawn).
+export const CATALOG_UNAVAILABLE_TITLE = 'Exercise catalog unavailable';
+const SHEET_RADIUS = 32;
+const DIALOG_RADIUS = 36;
+const ROW_RADIUS = 22;
+const ROW_IMAGE = Object.freeze({ width: 76, height: 64 });
+const CARD_PHOTO = 150;
+const TABLET_DIALOG = Object.freeze({ width: 620, height: 1040 });
+
 // T5 (spec §A7.2–§A7.3). `onAddSelected(exercises)` runs the add loop; the
 // sheet closes when it settles. No in-flight guard (⚠T5-2).
+// §D4: `catalogError` (the failed request's message) shows the
+// "Exercise catalog unavailable" alert in place of the empty line, with
+// `onRetryCatalog` as its Retry. `returnFocusRef` is the control that opened
+// the picker: screen-reader focus goes back to it on close.
 export default function ExercisePickerSheet({
   isOpen,
   onClose,
   catalog,
   loading,
+  catalogError = null,
+  onRetryCatalog,
   muscleGroups,
   equipmentTypes,
   addedIds,
   onAddSelected,
+  returnFocusRef,
 }) {
   const { width, height } = useWindowDimensions();
-  const wide = width >= breakpoints.sm;
-  const narrow = width <= 400;
+  const tablet = width >= breakpoints.md;
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
   const keyboardHeight = useKeyboardHeight();
@@ -50,6 +72,10 @@ export default function ExercisePickerSheet({
   const scrim = useRef(new Animated.Value(0)).current;
   const sheet = useRef(new Animated.Value(0)).current;
   const wasOpen = useRef(isOpen);
+  const titleRef = useRef(null);
+
+  // Focus in on open, back to the opener on close (PM parity rule).
+  useSheetFocus(isOpen, { initialRef: titleRef, returnRef: returnFocusRef });
 
   // Lifecycle pairing: everything resets on the open → closed edge.
   useEffect(() => {
@@ -73,11 +99,11 @@ export default function ExercisePickerSheet({
       sheet.setValue(1);
       return undefined;
     }
-    // ⚠ No entrance animation for the sheet at ≥640 (its web keyframes are missing).
+    // The tablet dialog fades in with the scrim; the phone sheet slides up.
     const animations = [
       Animated.timing(scrim, { toValue: 1, duration: motion.fadeMs, easing: EASE_OUT, useNativeDriver: true }),
     ];
-    if (wide) {
+    if (tablet) {
       sheet.setValue(1);
     } else {
       animations.push(
@@ -87,7 +113,7 @@ export default function ExercisePickerSheet({
     const animation = Animated.parallel(animations);
     animation.start();
     return () => animation.stop();
-  }, [isOpen, reducedMotion, scrim, sheet, wide]);
+  }, [isOpen, reducedMotion, scrim, sheet, tablet]);
 
   const visible = useMemo(
     () => filterCatalog(catalog, { search, muscle, equipment }),
@@ -115,7 +141,6 @@ export default function ExercisePickerSheet({
   }
 
   const selectedCount = selectedIds.size;
-  const gutter = wide ? 28 : 20;
   const muscleOptions = [
     { value: ALL_MUSCLE_GROUPS, label: ALL_MUSCLE_GROUPS },
     ...muscleGroups.map((group) => ({ value: group.name, label: group.name })),
@@ -126,45 +151,96 @@ export default function ExercisePickerSheet({
   ];
   const sheetTranslate = sheet.interpolate({ inputRange: [0, 1], outputRange: [motion.slideUpOffsetY, 0] });
 
+  // An open keyboard lifts the sheet / dialog and takes its space.
+  const room = height - keyboardHeight - insets.top - spacing[6];
+  const sheetHeight = tablet
+    ? Math.min(TABLET_DIALOG.height, height - insets.top - insets.bottom - 2 * spacing[6], room)
+    : keyboardHeight > 0
+      ? Math.min(height * 0.86, room)
+      : height * 0.86;
+
+  const filterLabel = [styles.filterLabel, tablet && styles.filterLabelTablet];
+  const selectBox = (active) => [styles.filterSelect, tablet && styles.fieldTablet, active && styles.filterSelectActive];
+  const countText = countLabel(visible.length, 'exercise', 'exercises');
+
+  // §D4 lifecycle: loading wins; then the alert; then the real empty case.
+  let listHeader = null;
+  if (loading) {
+    listHeader = <Text style={styles.loading}>Loading exercises...</Text>;
+  } else if (catalogError) {
+    listHeader = (
+      <ErrorAlert
+        testID="exercise-picker-catalog-error"
+        title={CATALOG_UNAVAILABLE_TITLE}
+        description={catalogError}
+        onRetry={onRetryCatalog}
+        style={tablet ? styles.alertTablet : null}
+      />
+    );
+  } else if (visible.length === 0) {
+    listHeader = (
+      <View style={[styles.noMatchBox, tablet && styles.alertTablet]}>
+        <Text style={styles.noMatch}>No exercises match the current filters.</Text>
+      </View>
+    );
+  }
+
   return (
     <Modal transparent visible={isOpen} animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <Animated.View
         style={[
           styles.scrim,
-          wide ? styles.scrimWide : styles.scrimPhone,
+          tablet ? styles.scrimTablet : styles.scrimPhone,
           { opacity: scrim, paddingBottom: keyboardHeight },
         ]}
       >
-        <BlurLayer blurPx={4} overApp />
-        <Pressable style={[styles.inset, styles.scrimColor]} onPress={onClose} accessibilityLabel="Close" />
+        <BlurLayer blurPx={tablet ? 6 : 4} overApp />
+        <Pressable style={[StyleSheet.absoluteFill, styles.scrimColor]} onPress={onClose} accessibilityLabel="Close" />
         <Animated.View
           testID="exercise-picker"
           accessibilityViewIsModal
           style={[
             styles.sheet,
-            wide ? styles.sheetWide : styles.sheetPhone,
-            {
-              // An open keyboard lifts the sheet and takes its space.
-              height: keyboardHeight > 0 ? Math.min(height * 0.86, height - keyboardHeight - insets.top - 24) : height * 0.86,
-              opacity: sheet,
-              transform: [{ translateY: sheetTranslate }],
-            },
+            tablet ? styles.sheetTablet : styles.sheetPhone,
+            { height: sheetHeight, opacity: sheet, transform: [{ translateY: sheetTranslate }] },
           ]}
         >
-          {wide ? null : <View style={styles.grabber} />}
-          <View style={{ paddingHorizontal: gutter, paddingTop: wide ? 24 : 16, paddingBottom: wide ? 16 : 12 }}>
-            <Text textBreakStrategy="simple" accessibilityRole="header" style={[styles.title, wide && styles.titleWide]}>
-              Add exercise
-            </Text>
-            <Text style={styles.subtitle}>Search and select exercises to add to this day.</Text>
+          <View
+            testID="exercise-picker-handle"
+            style={[styles.grabber, tablet && styles.grabberTablet]}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          />
+          <View style={[styles.header, tablet && styles.headerTablet]}>
+            <View style={styles.headerText}>
+              <Text
+                ref={titleRef}
+                testID="exercise-picker-title"
+                textBreakStrategy="simple"
+                accessibilityRole="header"
+                style={tablet ? styles.titleTablet : styles.title}
+              >
+                Add exercise
+              </Text>
+              <Text style={[styles.subtitle, tablet && styles.subtitleTablet]}>Search and select exercises to add to this day.</Text>
+            </View>
+            {tablet ? (
+              <IconButton testID="exercise-picker-close" accessibilityLabel="Close" onPress={onClose}>
+                {({ color }) => <FeedbackIcon name="close" size={18} color={color} />}
+              </IconButton>
+            ) : null}
           </View>
 
-          <View style={[styles.filters, { paddingHorizontal: gutter, paddingBottom: wide ? 16 : 12, gap: wide ? 12 : 8 }]}>
-            <View style={wide ? styles.thirdCell : styles.fullCell}>
-              <Text style={[styles.filterLabel, wide && styles.filterLabelWide]}>Search</Text>
-              {/* The border lives on the row, so the icon and its 36 px inset stay
+          <View style={[styles.filters, tablet && styles.filtersTablet]}>
+            <View style={tablet ? styles.searchCellTablet : styles.fullCell}>
+              <Text style={filterLabel}>Search</Text>
+              {/* Search field variant (UX ruling): pill, sunk fill, search icon.
+                  The border lives on the row, so the icon and its inset stay
                   put on Android once text is entered. */}
-              <View style={[styles.searchField, searchFocused && styles.searchFocused]}>
+              <View
+                testID="exercise-picker-search-field"
+                style={[styles.searchField, tablet && styles.fieldTablet, searchFocused && styles.searchFocused]}
+              >
                 <View style={styles.searchIcon}>
                   <SearchIcon />
                 </View>
@@ -180,84 +256,99 @@ export default function ExercisePickerSheet({
                   onBlur={() => setSearchFocused(false)}
                   autoCapitalize="none"
                   autoCorrect={false}
+                  returnKeyType="search"
                   style={styles.searchInput}
                 />
               </View>
             </View>
-            <View style={wide ? styles.thirdCell : styles.halfCell}>
+            <View style={tablet ? styles.selectCellTablet : styles.halfCell}>
               <Select
                 testID="exercise-picker-muscle"
                 label="Muscle group"
                 value={muscle}
                 options={muscleOptions}
                 onChange={setMuscle}
-                boxStyle={[styles.filterSelect, muscle !== ALL_MUSCLE_GROUPS && styles.filterSelectActive]}
-                textStyle={styles.filterSelectText}
+                boxStyle={selectBox(muscle !== ALL_MUSCLE_GROUPS)}
+                textStyle={[styles.filterSelectText, tablet && styles.filterSelectTextTablet]}
                 trailing={<ChevronIcon />}
-                labelStyle={[styles.filterLabel, wide && styles.filterLabelWide]}
+                labelStyle={filterLabel}
               />
             </View>
-            <View style={wide ? styles.thirdCell : styles.halfCell}>
+            <View style={tablet ? styles.selectCellTablet : styles.halfCell}>
               <Select
                 testID="exercise-picker-equipment"
                 label="Equipment"
                 value={equipment}
                 options={equipmentOptions}
                 onChange={setEquipment}
-                boxStyle={[styles.filterSelect, equipment !== ALL_EQUIPMENT && styles.filterSelectActive]}
-                textStyle={styles.filterSelectText}
+                boxStyle={selectBox(equipment !== ALL_EQUIPMENT)}
+                textStyle={[styles.filterSelectText, tablet && styles.filterSelectTextTablet]}
                 trailing={<ChevronIcon />}
-                labelStyle={[styles.filterLabel, wide && styles.filterLabelWide]}
+                labelStyle={filterLabel}
               />
             </View>
           </View>
 
-          <View style={[styles.divider, { marginHorizontal: gutter }]} />
-          <View style={[styles.meta, { paddingHorizontal: gutter }]}>
-            <Text numberOfLines={1} textBreakStrategy="simple" style={styles.metaCount}>{countLabel(visible.length, 'exercise', 'exercises')}</Text>
-            {selectedCount > 0 ? <Text numberOfLines={1} textBreakStrategy="simple" style={styles.metaSelected}>{selectedCount} selected</Text> : null}
-          </View>
+          {/* The count is a polite live region so a new selection is announced. */}
+          {tablet ? (
+            <Text testID="exercise-picker-meta" accessibilityLiveRegion="polite" numberOfLines={1} style={styles.metaTablet}>
+              {selectedCount > 0 ? `${countText} · ` : countText}
+              {selectedCount > 0 ? <Text style={styles.metaTabletSelected}>{`${selectedCount} selected`}</Text> : null}
+            </Text>
+          ) : (
+            <View testID="exercise-picker-meta" accessibilityLiveRegion="polite" style={styles.meta}>
+              <Text numberOfLines={1} textBreakStrategy="simple" style={styles.metaCount}>
+                {countText}
+              </Text>
+              {selectedCount > 0 ? (
+                <View testID="exercise-picker-selected-pill" style={styles.selectedPill}>
+                  <Text numberOfLines={1} textBreakStrategy="simple" style={styles.selectedPillText}>{`${selectedCount} selected`}</Text>
+                </View>
+              ) : null}
+            </View>
+          )}
 
-          {/* Virtualized: the catalog runs to hundreds of rows. Same look as a plain list. */}
+          {/* Virtualized: the catalog runs to hundreds of rows. */}
           <FlatList
+            key={tablet ? 'grid' : 'list'}
+            testID="exercise-picker-list"
             style={styles.list}
-            contentContainerStyle={[styles.listContent, { paddingHorizontal: gutter }]}
+            contentContainerStyle={[styles.listContent, tablet && styles.listContentTablet]}
+            columnWrapperStyle={tablet ? styles.gridRow : undefined}
+            numColumns={tablet ? 2 : 1}
             keyboardShouldPersistTaps="handled"
             data={visible}
             keyExtractor={(exercise) => String(exercise.id)}
             extraData={{ selectedIds, addedIds }}
             initialNumToRender={8}
-            ListHeaderComponent={
-              loading ? (
-                <Text style={styles.loading}>Loading exercises...</Text>
-              ) : visible.length === 0 ? (
-                <Text style={styles.noMatch}>No exercises match the current filters.</Text>
-              ) : null
-            }
-            renderItem={({ item: exercise }) => (
-              <PickerRow
-                exercise={exercise}
-                isAdded={addedIds.has(exercise.id)}
-                isSelected={selectedIds.has(exercise.id)}
-                onToggle={() => toggle(exercise.id)}
-              />
-            )}
+            ListHeaderComponent={listHeader}
+            renderItem={({ item: exercise }) => {
+              const Item = tablet ? PickerCard : PickerRow;
+              return (
+                <Item
+                  exercise={exercise}
+                  isAdded={addedIds.has(exercise.id)}
+                  isSelected={selectedIds.has(exercise.id)}
+                  onToggle={() => toggle(exercise.id)}
+                />
+              );
+            }}
           />
 
           <View
             style={[
               styles.footer,
-              narrow ? styles.footerNarrow : styles.footerRow,
-              { paddingHorizontal: gutter, paddingBottom: Math.max(12, insets.bottom) },
+              tablet && styles.footerTablet,
+              { paddingBottom: tablet ? spacing[7] : Math.max(spacing[7], insets.bottom + spacing[3]) },
             ]}
           >
             <Pressable
               testID="exercise-picker-cancel"
               accessibilityRole="button"
               onPress={onClose}
-              style={({ pressed }) => [styles.cancel, pressed && styles.cancelPressed]}
+              style={({ pressed }) => [styles.cancel, tablet && styles.footerButtonTablet, pressed && styles.cancelPressed]}
             >
-              <Text style={styles.footerLabel}>Cancel</Text>
+              <Text style={[styles.cancelLabel, tablet && styles.footerLabelTablet]}>Cancel</Text>
             </Pressable>
             <Pressable
               testID="exercise-picker-add"
@@ -267,14 +358,18 @@ export default function ExercisePickerSheet({
               onPress={addSelected}
               style={({ pressed }) => [
                 styles.add,
+                tablet && styles.addTablet,
+                tablet && styles.footerButtonTablet,
                 selectedCount === 0 ? styles.addDisabled : styles.addGlow,
                 pressed && styles.addPressed,
               ]}
             >
-              <Text style={[styles.footerLabel, styles.addLabel]}>Add Selected</Text>
+              <Text style={[styles.addLabel, tablet && styles.footerLabelTablet, tablet && styles.addLabelTablet]}>Add Selected</Text>
               {selectedCount > 0 ? (
-                <View style={styles.bubble}>
-                  <Text numberOfLines={1} textBreakStrategy="simple" style={styles.bubbleText}>{selectedCount}</Text>
+                <View testID="exercise-picker-add-count" style={[styles.bubble, tablet && styles.bubbleTablet]}>
+                  <Text numberOfLines={1} textBreakStrategy="simple" style={[styles.bubbleText, tablet && styles.bubbleTextTablet]}>
+                    {selectedCount}
+                  </Text>
                 </View>
               ) : null}
             </Pressable>
@@ -285,8 +380,13 @@ export default function ExercisePickerSheet({
   );
 }
 
+function equipmentNameOf(exercise) {
+  return exercise.equipment_type?.name || exercise.equipment_type_name || 'Any equipment';
+}
+
+// Phone row: 76×64 photo, name, muscle + equipment chips; the check bubble
+// when selected, "Added" when already in the day. The slug is not drawn (UX).
 function PickerRow({ exercise, isAdded, isSelected, onToggle }) {
-  const equipmentName = exercise.equipment_type?.name || exercise.equipment_type_name || 'Any equipment';
   return (
     <Pressable
       testID={`exercise-picker-row-${exercise.id}`}
@@ -300,22 +400,75 @@ function PickerRow({ exercise, isAdded, isSelected, onToggle }) {
         !isSelected && !isAdded && pressed && styles.rowPressed,
       ]}
     >
-      <ExerciseThumb exercise={exercise} />
+      <ExerciseImage exercise={exercise} size={ROW_IMAGE.height} style={styles.rowImage} />
       <View style={styles.rowMiddle}>
         <Text style={styles.rowName}>{exercise.name}</Text>
-        <Text style={styles.rowSlug}>{exercise.slug}</Text>
         <View style={styles.chips}>
           <Text numberOfLines={1} textBreakStrategy="simple" style={styles.chip}>{exercise.primary_muscle_group?.name || 'Any'}</Text>
-          <Text numberOfLines={1} textBreakStrategy="simple" style={styles.chip}>{equipmentName}</Text>
+          <Text numberOfLines={1} textBreakStrategy="simple" style={styles.chip}>{equipmentNameOf(exercise)}</Text>
         </View>
       </View>
       <View style={styles.rowTrailing}>
         {isAdded ? <Text style={styles.added}>Added</Text> : null}
         {!isAdded && isSelected ? (
-          <View style={styles.check}>
-            <CheckIcon />
+          <View testID={`exercise-picker-check-${exercise.id}`} style={styles.check}>
+            <CheckIcon color={colors.onGold} size={13} />
           </View>
         ) : null}
+      </View>
+    </Pressable>
+  );
+}
+
+// Tablet card: a 150 photo on top, the name and chips under it; a check
+// bubble (selected) or an empty ring (not selected, so selection is not
+// colour only); added cards dim their photo and carry an "Added" pill.
+function PickerCard({ exercise, isAdded, isSelected, onToggle }) {
+  const hue = muscleColor(exercise.primary_muscle_group?.code);
+  return (
+    <Pressable
+      testID={`exercise-picker-row-${exercise.id}`}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: isSelected, disabled: isAdded }}
+      disabled={isAdded}
+      onPress={onToggle}
+      style={({ pressed }) => [
+        styles.card,
+        isSelected ? styles.cardSelected : isAdded ? styles.cardAdded : styles.cardIdle,
+        !isAdded && pressed && styles.cardPressed,
+      ]}
+    >
+      <View style={[styles.cardPhoto, isAdded && styles.cardPhotoAdded]}>
+        <ExerciseImage exercise={exercise} size={CARD_PHOTO} style={styles.cardImage} />
+      </View>
+      {isAdded ? (
+        <View style={styles.addedPill}>
+          <Text style={styles.addedPillText}>Added</Text>
+        </View>
+      ) : isSelected ? (
+        <View testID={`exercise-picker-check-${exercise.id}`} style={[styles.cardMark, styles.cardMarkOn]}>
+          <CheckIcon color={colors.onGold} size={15} />
+        </View>
+      ) : (
+        <View testID={`exercise-picker-ring-${exercise.id}`} style={[styles.cardMark, styles.cardMarkOff]} />
+      )}
+      <View style={styles.cardBody}>
+        <Text numberOfLines={2} style={[styles.cardName, isAdded && styles.cardNameAdded]}>
+          {exercise.name}
+        </Text>
+        <View style={styles.cardChips}>
+          <View style={styles.cardChip}>
+            {hue ? <View style={[StyleSheet.absoluteFill, styles.cardChipTint, { backgroundColor: hue }]} /> : null}
+            <Text numberOfLines={1} style={[styles.cardChipText, { color: hue ?? colors.textStrong2 }]}>
+              {exercise.primary_muscle_group?.name || 'Any'}
+            </Text>
+          </View>
+          <View style={[styles.cardChip, styles.cardChipNeutral]}>
+            <Text numberOfLines={1} style={styles.cardChipText}>
+              {equipmentNameOf(exercise)}
+            </Text>
+          </View>
+        </View>
       </View>
     </Pressable>
   );
@@ -331,68 +484,90 @@ const styles = StyleSheet.create({
   scrimPhone: {
     justifyContent: 'flex-end',
     alignItems: 'center',
-    paddingHorizontal: 12,
   },
-  scrimWide: {
+  scrimTablet: {
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  inset: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
+    paddingHorizontal: spacing[6],
   },
   sheet: {
     width: '100%',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
-    borderColor: colors.border,
-    boxShadow: shadows.soft,
+    borderColor: colors.hairlineStrong,
+    boxShadow: shadows.float,
     overflow: 'hidden',
   },
   sheetPhone: {
-    borderTopLeftRadius: radii.xxl,
-    borderTopRightRadius: radii.xxl,
-    borderBottomLeftRadius: radii.lg,
-    borderBottomRightRadius: radii.lg,
-    marginBottom: 12,
+    borderBottomWidth: 0,
+    borderTopLeftRadius: SHEET_RADIUS,
+    borderTopRightRadius: SHEET_RADIUS,
+    paddingTop: 10,
+    paddingHorizontal: spacing[4],
   },
-  sheetWide: {
-    maxWidth: 660,
-    borderRadius: radii.xxl,
+  sheetTablet: {
+    maxWidth: TABLET_DIALOG.width,
+    borderRadius: DIALOG_RADIUS,
+    paddingTop: spacing[3],
+    paddingHorizontal: spacing[7],
   },
   grabber: {
     alignSelf: 'center',
     width: 36,
-    height: 4,
+    height: 5,
     borderRadius: radii.full,
-    backgroundColor: colors.border,
-    marginTop: 12,
+    backgroundColor: colors.grabHandle,
+  },
+  grabberTablet: {
+    width: 44,
+    height: 6,
+  },
+  header: {
+    marginTop: spacing[3],
+    paddingHorizontal: spacing[1],
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[3],
+  },
+  headerTablet: {
+    marginTop: 18,
+    paddingHorizontal: 0,
+  },
+  headerText: {
+    flex: 1,
+    minWidth: 0,
   },
   title: {
-    fontSize: 20,
-    lineHeight: 28,
-    fontWeight: '900',
-    letterSpacing: -0.5,
+    ...typography.titleXl,
+    fontSize: 34,
+    lineHeight: 36,
+    letterSpacing: -1.7,
     color: colors.textPrimary,
   },
-  titleWide: {
-    fontSize: 24,
-    lineHeight: 32,
-    letterSpacing: -0.6,
+  titleTablet: {
+    ...typography.titleXl,
+    color: colors.textPrimary,
   },
   subtitle: {
-    marginTop: 4,
-    fontSize: 14,
-    lineHeight: 19.25,
+    ...typography.bodySm,
+    marginTop: spacing[1],
     color: colors.textSecondary,
   },
+  subtitleTablet: {
+    ...typography.bodyLg,
+    lineHeight: 22,
+    marginTop: spacing[2],
+  },
   filters: {
+    marginTop: 14,
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: spacing[2],
+  },
+  filtersTablet: {
+    marginTop: spacing[5],
+    flexWrap: 'nowrap',
+    gap: 10,
   },
   fullCell: {
     width: '100%',
@@ -401,19 +576,24 @@ const styles = StyleSheet.create({
     flexBasis: '45%',
     flexGrow: 1,
   },
-  thirdCell: {
-    flexBasis: '30%',
-    flexGrow: 1,
+  searchCellTablet: {
+    flex: 1.4,
+    minWidth: 0,
+  },
+  selectCellTablet: {
+    flex: 1,
+    minWidth: 0,
   },
   filterLabel: {
-    marginBottom: 4,
-    fontSize: 11,
-    lineHeight: 16,
-    fontWeight: '700',
-    color: colors.textPrimary,
+    ...typography.caption,
+    ...font(600),
+    marginBottom: 6,
+    color: colors.textStrong2,
   },
-  filterLabelWide: {
-    fontSize: 12,
+  filterLabelTablet: {
+    ...typography.label,
+    ...font(600),
+    marginBottom: 6,
   },
   searchIcon: {
     position: 'absolute',
@@ -424,249 +604,411 @@ const styles = StyleSheet.create({
   },
   searchField: {
     height: 48,
-    borderRadius: radii.md,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingLeft: 36,
-    paddingRight: 12,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+    backgroundColor: colors.surfaceSunk,
+    paddingLeft: 38,
+    paddingRight: 14,
     justifyContent: 'center',
+  },
+  fieldTablet: {
+    height: 52,
+    minHeight: 52,
+    borderColor: colors.hairlineButton,
   },
   searchInput: {
     height: '100%',
     padding: 0,
-    fontSize: 16,
-    fontWeight: '500',
+    ...typography.labelLg,
+    ...font(400),
     color: colors.textPrimary,
   },
+  // Focused: gold border + the gold focus ring.
   searchFocused: {
-    borderColor: colors.brand500,
-    outlineWidth: 2,
-    outlineColor: colors.focusRing,
+    borderColor: colors.gold,
+    outlineWidth: 4,
+    outlineColor: colors.goldFocus,
     outlineStyle: 'solid',
   },
   filterSelect: {
     height: 48,
     minHeight: 48,
-    borderRadius: radii.md,
-    borderWidth: 1.5,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+    backgroundColor: colors.surfaceSunk,
     paddingVertical: 0,
-    paddingLeft: 12,
-    paddingRight: 12,
+    paddingLeft: spacing[3],
+    paddingRight: spacing[3],
     boxShadow: undefined,
   },
   filterSelectActive: {
-    borderColor: colors.brand500,
-    backgroundColor: colors.brand50,
+    borderColor: colors.goldBorder,
+    backgroundColor: colors.goldTintWeak,
   },
   filterSelectText: {
-    fontSize: 16,
-    fontWeight: '500',
+    ...typography.bodySm,
+    ...font(500),
   },
-  divider: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+  filterSelectTextTablet: {
+    ...typography.body,
+    ...font(500),
   },
-  // Batch 2 #30: 11px; the line wraps instead of shrinking.
   meta: {
-    paddingTop: 10,
+    marginTop: 14,
+    paddingTop: spacing[3],
+    paddingBottom: spacing[2],
+    paddingHorizontal: spacing[1],
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    columnGap: 8,
+    gap: spacing[2],
   },
   metaCount: {
-    fontSize: 11,
-    lineHeight: 16.5,
-    fontWeight: '900',
-    letterSpacing: 2.2,
-    textTransform: 'uppercase',
+    ...typography.caption,
+    ...font(600),
     color: colors.textMuted,
+    fontVariant: ['tabular-nums'],
   },
-  metaSelected: {
-    fontSize: 11,
-    lineHeight: 16.5,
-    fontWeight: '900',
-    letterSpacing: 1.76,
-    textTransform: 'uppercase',
-    color: colors.brand700,
+  selectedPill: {
+    height: 26,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    borderRadius: radii.full,
+    backgroundColor: colors.goldTint,
+  },
+  selectedPillText: {
+    ...typography.caption,
+    ...font(700),
+    color: colors.gold,
+    fontVariant: ['tabular-nums'],
+  },
+  metaTablet: {
+    marginTop: spacing[4],
+    ...typography.bodySm,
+    color: colors.textMuted,
+    fontVariant: ['tabular-nums'],
+  },
+  metaTabletSelected: {
+    ...font(600),
+    color: colors.gold,
   },
   list: {
     flex: 1,
   },
   listContent: {
-    paddingTop: 10,
-    paddingBottom: 12,
-    gap: 10,
+    paddingTop: spacing[1],
+    paddingBottom: spacing[3],
+    gap: spacing[2],
+  },
+  listContentTablet: {
+    paddingTop: spacing[3],
+    gap: spacing[3],
+  },
+  gridRow: {
+    gap: spacing[3],
+  },
+  alertTablet: {
+    marginBottom: spacing[1],
   },
   loading: {
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.bodySm,
     color: colors.textMuted,
   },
-  noMatch: {
+  noMatchBox: {
     borderRadius: radii.lg,
-    backgroundColor: colors.surfaceMuted,
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    overflow: 'hidden',
+    backgroundColor: colors.fillSkeleton,
+    paddingVertical: spacing[5],
+    paddingHorizontal: spacing[4],
+  },
+  noMatch: {
+    ...typography.bodySm,
     textAlign: 'center',
-    fontSize: 14,
-    lineHeight: 20,
     color: colors.textSecondary,
   },
   row: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 14,
-    padding: 14,
-    borderRadius: 18,
+    alignItems: 'center',
+    gap: spacing[3],
+    paddingTop: spacing[2],
+    paddingBottom: spacing[2],
+    paddingLeft: spacing[2],
+    paddingRight: spacing[3],
+    borderRadius: ROW_RADIUS,
     borderWidth: 1.5,
   },
   rowIdle: {
-    borderColor: colors.border,
+    borderColor: colors.hairline,
     backgroundColor: colors.surface,
   },
   rowSelected: {
-    borderColor: colors.brand500,
-    backgroundColor: colors.brand50,
+    borderColor: colors.gold,
+    backgroundColor: colors.goldTintWeak,
   },
   rowAdded: {
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceMuted,
-    opacity: 0.55,
+    borderColor: colors.hairline,
+    backgroundColor: colors.fillWell,
+    opacity: 0.6,
   },
   rowPressed: {
-    borderColor: colors.pickerRowPressedBorder,
-    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.goldBorder,
+    backgroundColor: colors.fillWell,
     transform: [{ scale: 0.99 }],
+  },
+  rowImage: {
+    width: ROW_IMAGE.width,
+    height: ROW_IMAGE.height,
+    borderRadius: radii.md,
   },
   rowMiddle: {
     flex: 1,
     minWidth: 0,
   },
   rowName: {
-    fontSize: 15,
-    lineHeight: 18.75,
-    fontWeight: '700',
+    ...typography.labelLg,
+    ...font(700),
+    letterSpacing: -0.16,
     color: colors.textPrimary,
   },
-  rowSlug: {
-    marginTop: 4,
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.textSecondary,
-  },
   chips: {
-    marginTop: 8,
+    marginTop: 6,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    rowGap: 4,
-    columnGap: 8,
+    gap: 6,
   },
   chip: {
+    height: 22,
     borderRadius: radii.full,
-    backgroundColor: colors.surfaceMuted,
-    paddingVertical: 2,
-    paddingHorizontal: 10,
+    backgroundColor: colors.fillButton,
+    paddingHorizontal: spacing[2],
     overflow: 'hidden',
-    // Batch 2 #24: 11px; the chip row wraps.
-    fontSize: 11,
-    lineHeight: 16.5,
-    fontWeight: '900',
-    letterSpacing: 1.76,
-    textTransform: 'uppercase',
-    color: colors.textMuted,
+    ...typography.micro,
+    ...font(600),
+    lineHeight: 22,
+    color: colors.textStrong2,
   },
   rowTrailing: {
     alignSelf: 'center',
   },
   added: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '700',
-    color: colors.textMuted,
+    ...typography.caption,
+    ...font(700),
+    color: colors.textSecondary,
   },
   check: {
-    width: 24,
-    height: 24,
+    width: 26,
+    height: 26,
     borderRadius: radii.full,
-    backgroundColor: colors.brand400,
+    backgroundColor: colors.gold,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  footer: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 14,
-    gap: 10,
+  card: {
+    flex: 1,
+    minWidth: 0,
+    overflow: 'hidden',
+    borderRadius: radii.xl,
+    borderWidth: 1,
   },
-  footerRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+  cardIdle: {
+    borderColor: colors.choiceBorder,
+    backgroundColor: colors.surfaceRaised,
   },
-  footerNarrow: {
-    flexDirection: 'column-reverse',
+  cardSelected: {
+    borderWidth: 1.5,
+    borderColor: colors.gold,
+    backgroundColor: colors.surfaceRaised,
+    boxShadow: shadows.goldGlow,
   },
-  footerLabel: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
+  cardAdded: {
+    borderColor: colors.hairline,
+    backgroundColor: colors.surfaceSunk,
+  },
+  cardPressed: {
+    transform: [{ scale: 0.99 }],
+  },
+  cardPhoto: {
+    height: CARD_PHOTO,
+  },
+  cardPhotoAdded: {
+    opacity: 0.45,
+  },
+  cardImage: {
+    width: '100%',
+    height: CARD_PHOTO,
+    borderRadius: 0,
+  },
+  cardMark: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 32,
+    height: 32,
+    borderRadius: radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardMarkOn: {
+    backgroundColor: colors.gold,
+  },
+  cardMarkOff: {
+    borderWidth: 2,
+    borderColor: colors.textSecondary,
+    backgroundColor: colors.scrim,
+  },
+  addedPill: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    height: 28,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    borderRadius: radii.full,
+    backgroundColor: colors.stickyHeaderFill,
+  },
+  addedPillText: {
+    ...typography.caption,
+    ...font(600),
+    color: colors.textStrong2,
+  },
+  cardBody: {
+    paddingTop: spacing[3],
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+  },
+  cardName: {
+    ...typography.labelLg,
+    fontSize: 17,
+    lineHeight: 22,
     color: colors.textPrimary,
   },
-  cancel: {
-    minHeight: 48,
+  cardNameAdded: {
+    color: colors.textMuted,
+  },
+  cardChips: {
+    marginTop: spacing[2],
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  cardChip: {
+    height: 24,
+    justifyContent: 'center',
+    paddingHorizontal: 9,
     borderRadius: radii.full,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    overflow: 'hidden',
+  },
+  cardChipTint: {
+    opacity: TILE_ALPHA,
+  },
+  cardChipNeutral: {
+    backgroundColor: colors.fillButton,
+  },
+  cardChipText: {
+    ...typography.caption,
+    ...font(600),
+    color: colors.textStrong2,
+  },
+  footer: {
+    marginHorizontal: -spacing[4],
+    paddingHorizontal: spacing[4],
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+    backgroundColor: colors.surfaceRaised,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  footerTablet: {
+    marginHorizontal: 0,
+    paddingHorizontal: 0,
+    paddingTop: spacing[5],
+    borderTopWidth: 0,
+    gap: spacing[3],
+  },
+  cancel: {
+    flex: 1,
+    height: 56,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+    backgroundColor: colors.fillSkeleton,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelPressed: {
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.pickerCancelPressedBorder,
+    backgroundColor: colors.hairlineButton,
     transform: [{ scale: 0.97 }],
   },
+  cancelLabel: {
+    ...typography.body,
+    ...font(600),
+    color: colors.textPrimary,
+  },
+  footerButtonTablet: {
+    height: 60,
+  },
+  footerLabelTablet: {
+    fontSize: 17,
+    lineHeight: 22,
+  },
   add: {
-    minHeight: 48,
+    flex: 1.4,
+    height: 56,
     borderRadius: radii.full,
-    backgroundColor: colors.brand400,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    backgroundColor: colors.gold,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: spacing[2],
   },
-  // T-27 (25 Oct 2026): the gold shadow-brand; was a leftover blue glow.
+  addTablet: {
+    flex: 1.6,
+    gap: 10,
+  },
   addGlow: {
-    boxShadow: shadows.brand,
+    boxShadow: shadows.goldGlow,
   },
   addDisabled: {
     opacity: 0.5,
   },
   addPressed: {
-    backgroundColor: colors.brand500,
+    backgroundColor: colors.goldDeep,
     transform: [{ scale: 0.97 }],
   },
   addLabel: {
-    color: colors.navy,
+    ...typography.body,
+    ...font(700),
+    color: colors.onGold,
+  },
+  addLabelTablet: {
+    ...font(700),
   },
   bubble: {
-    width: 20,
-    height: 20,
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 6,
     borderRadius: radii.full,
-    backgroundColor: colors.pickerBubble,
+    backgroundColor: colors.ground,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  bubbleTablet: {
+    minWidth: 28,
+    height: 28,
+    paddingHorizontal: spacing[2],
+  },
   bubbleText: {
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: '900',
-    color: colors.navy,
+    ...typography.caption,
+    ...font(700),
+    color: colors.gold,
+    fontVariant: ['tabular-nums'],
+  },
+  bubbleTextTablet: {
+    fontSize: 14,
+    lineHeight: 18,
   },
 });
