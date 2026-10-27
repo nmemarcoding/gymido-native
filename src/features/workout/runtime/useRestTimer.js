@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo } from 'react-native';
 
 import { adjustTimer, rebasedTotal, remainingSeconds } from './restEngine';
+import { peekSession, sessionEntry } from './workoutSessionStore';
 
 const TICK_MS = 500;
 
@@ -16,20 +17,54 @@ export function restAnnouncement(seconds) {
 // new rest replacing it, and a genuine unmount. Never on blur or background.
 // `alerts` (restAlerts.js) is told about every start, end move and clear, and
 // plays the rest-done alert at a natural end (O4, A1).
-export default function useRestTimer({ onRestComplete, alerts }) {
-  const [timer, setTimer] = useState(null);
-  const [minimized, setMinimized] = useState(true);
+// T-59 follow-up (27 Oct 2026, PM + reviewer): with a `sessionId` the rest
+// lives in the session store (workoutSessionStore), so ANY remount of the
+// screen — a font-scale remount, a rotation, leaving and coming back —
+// resumes the same END time, and the alerts keep their one scheduled alert
+// (nothing cleared or re-armed). Pairing D's "genuine unmount" clear then
+// becomes the session's end (finish, abandon, sign-out, another session).
+export default function useRestTimer({ onRestComplete, alerts, sessionId }) {
+  const [stored] = useState(() => (sessionId ? sessionEntry(sessionId) : null));
+  // Read once, at mount: the rest this screen resumes (or ends, if it ran out meanwhile).
+  const [resumed] = useState(() => {
+    const saved = stored?.rest;
+    if (!saved) {
+      return null;
+    }
+    const secondsLeft = remainingSeconds(saved.total, saved.startMs, Date.now());
+    return { ...saved, secondsLeft, expired: secondsLeft <= 0 };
+  });
+  const live = resumed && !resumed.expired ? resumed : null;
+  const [timer, setTimer] = useState(() =>
+    live ? { setId: live.setId, secondsLeft: live.secondsLeft, totalSeconds: live.totalSeconds, nextSetKey: live.nextSetKey } : null
+  );
+  const [minimized, setMinimizedState] = useState(() => stored?.restUi.minimized ?? true);
   // §22.2: kept across rests within the session, never persisted.
-  const [position, setPosition] = useState(null);
-  const startMs = useRef(0);
-  const total = useRef(0);
-  const currentSetId = useRef(null);
-  const alerted = useRef(new Set());
-  const expandedFinal = useRef(false);
+  const [position, setPositionState] = useState(() => stored?.restUi.position ?? null);
+  const startMs = useRef(resumed?.startMs ?? 0);
+  const total = useRef(resumed?.total ?? 0);
+  const currentSetId = useRef(live ? live.setId : null);
+  const alerted = useRef(new Set(resumed?.alerted ?? []));
+  const expandedFinal = useRef(live?.expandedFinal ?? false);
   const endedNaturally = useRef(false);
   const callbacks = useRef({ onRestComplete, alerts });
   callbacks.current = { onRestComplete, alerts };
   const endMs = () => startMs.current + total.current * 1000;
+
+  const keepUi = useCallback(
+    (key, setLocal) => (value) =>
+      setLocal((previous) => {
+        const next = typeof value === 'function' ? value(previous) : value;
+        const entry = sessionId ? peekSession(sessionId) : null;
+        if (entry) {
+          entry.restUi[key] = next;
+        }
+        return next;
+      }),
+    [sessionId]
+  );
+  const [setMinimized] = useState(() => keepUi('minimized', setMinimizedState));
+  const [setPosition] = useState(() => keepUi('position', setPositionState));
 
   const start = useCallback((setId, seconds, nextSetKey) => {
     setMinimized(true);
@@ -103,13 +138,49 @@ export default function useRestTimer({ onRestComplete, alerts }) {
     return () => clearInterval(interval);
   }, [timer]);
 
-  // Pairing D: a genuine unmount is the only native teardown.
+  // The session store follows every change (after the effect above set the clock).
+  useEffect(() => {
+    const entry = sessionId ? peekSession(sessionId) : null;
+    if (!entry) {
+      return;
+    }
+    entry.rest = timer
+      ? {
+          setId: timer.setId,
+          startMs: startMs.current,
+          total: total.current,
+          totalSeconds: timer.totalSeconds,
+          nextSetKey: timer.nextSetKey,
+          expandedFinal: expandedFinal.current,
+          alerted: [...alerted.current],
+        }
+      : null;
+  }, [timer, sessionId]);
+
+  // A rest that ran out while the screen was away ends naturally, once.
+  useEffect(() => {
+    if (!resumed?.expired) {
+      return;
+    }
+    if (!alerted.current.has(resumed.setId)) {
+      alerted.current.add(resumed.setId);
+      callbacks.current.alerts?.restEnded(resumed.setId, resumed.startMs + resumed.total * 1000);
+    }
+    if (resumed.nextSetKey) {
+      callbacks.current.onRestComplete?.(resumed.nextSetKey);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Pairing D: a genuine unmount is the only native teardown. With a session
+  // the rest outlives the screen; the session's end tears it down.
   useEffect(
     () => () => {
-      if (currentSetId.current !== null) {
+      if (!stored && currentSetId.current !== null) {
         callbacks.current.alerts?.restCleared();
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 

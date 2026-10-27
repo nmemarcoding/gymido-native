@@ -44,7 +44,8 @@ export default function App() {
             </RouteErrorBoundary>
           </NavigationContainer>
         </AppBlurTarget>
-        <ToastHost />
+        {/* T-59: a toast on screen re-measures at the new font scale too (toasts live in toastStore). */}
+        <ToastHost key={navigation.key} />
         {/* v2 is dark only (RN-SPEC-v2-foundation §1): light status-bar content. */}
         <StatusBar style="light" />
       </SafeAreaProvider>

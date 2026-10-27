@@ -97,3 +97,91 @@ describe('10-second announcement (design system v1 #13)', () => {
     act(() => tree.unmount());
   });
 });
+
+// T-59 follow-up (PM + reviewer, 27 Oct): with a session id the rest lives in
+// the session store, so ANY remount of the Workout screen (a font-scale
+// remount, a rotation, leaving and coming back) resumes the same END time.
+// The alert controller keeps its one scheduled alert: never cleared,
+// restarted or re-armed with another end.
+describe('useRestTimer with a session (survives remounts)', () => {
+  const { endSessionState, peekSession } = require('./workoutSessionStore');
+
+  function mountTimer(alerts, sessionId, onRestComplete = () => {}) {
+    const handle = {};
+    function Harness() {
+      Object.assign(handle, useRestTimer({ onRestComplete, alerts, sessionId }));
+      return null;
+    }
+    let tree;
+    act(() => {
+      tree = create(<Harness />);
+    });
+    return { handle, tree };
+  }
+  const endOf = (alerts) => alerts.restStarted.mock.calls[0][1];
+
+  afterEach(() => endSessionState());
+
+  it('a remount mid-rest keeps the remaining time and the end; exactly one scheduled alert, nothing cleared', () => {
+    const alerts = makeAlerts();
+    let { handle, tree } = mountTimer(alerts, 'S1');
+    act(() => handle.start('A', 60, 'next'));
+    act(() => handle.setMinimized(true));
+    act(() => jest.advanceTimersByTime(20000));
+    const end = endOf(alerts);
+    act(() => tree.unmount());
+    expect(alerts.restCleared).not.toHaveBeenCalled();
+
+    act(() => jest.advanceTimersByTime(5000));
+    ({ handle, tree } = mountTimer(alerts, 'S1'));
+    expect(handle.timer).toMatchObject({ setId: 'A', secondsLeft: 35, totalSeconds: 60, nextSetKey: 'next' });
+    expect(handle.minimized).toBe(true);
+    expect(alerts.restStarted).toHaveBeenCalledTimes(1);
+    expect(alerts.restCleared).not.toHaveBeenCalled();
+    alerts.endMoved.mock.calls.forEach(([endMs]) => expect(endMs).toBe(end));
+
+    act(() => jest.advanceTimersByTime(36000));
+    expect(alerts.restEnded).toHaveBeenCalledTimes(1);
+    expect(alerts.restEnded).toHaveBeenCalledWith('A', end);
+    act(() => tree.unmount());
+  });
+
+  it('a rest that ended while unmounted ends naturally on the next mount: one restEnded, no clear, the next set highlighted', () => {
+    const alerts = makeAlerts();
+    const onRestComplete = jest.fn();
+    let { handle, tree } = mountTimer(alerts, 'S1', onRestComplete);
+    act(() => handle.start('A', 10, 'next'));
+    act(() => tree.unmount());
+    act(() => jest.advanceTimersByTime(15000));
+    ({ handle, tree } = mountTimer(alerts, 'S1', onRestComplete));
+    expect(handle.timer).toBeNull();
+    expect(alerts.restEnded).toHaveBeenCalledTimes(1);
+    expect(alerts.restCleared).not.toHaveBeenCalled();
+    expect(onRestComplete).toHaveBeenCalledWith('next');
+    expect(peekSession('S1').rest).toBeNull();
+    act(() => tree.unmount());
+  });
+
+  it('clear() empties the stored rest; a new session starts clean', () => {
+    const alerts = makeAlerts();
+    let { handle, tree } = mountTimer(alerts, 'S1');
+    act(() => handle.start('A', 60, null));
+    act(() => handle.clear());
+    act(() => tree.unmount());
+    ({ handle, tree } = mountTimer(alerts, 'S1'));
+    expect(handle.timer).toBeNull();
+    act(() => handle.start('B', 60, null));
+    act(() => tree.unmount());
+    ({ handle, tree } = mountTimer(alerts, 'S2'));
+    expect(handle.timer).toBeNull();
+    act(() => tree.unmount());
+  });
+
+  it('without a session id an unmount still clears the rest (Pairing D, unchanged)', () => {
+    const alerts = makeAlerts();
+    const { handle, tree } = renderTimer(alerts);
+    act(() => handle.start('A', 60, null));
+    act(() => tree.unmount());
+    expect(alerts.restCleared).toHaveBeenCalledTimes(1);
+  });
+});

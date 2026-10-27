@@ -3,6 +3,7 @@ import { act, create } from 'react-test-renderer';
 
 import { loadWorkoutPage } from '../loadWorkoutPage';
 import WorkoutScreen from './WorkoutScreen';
+import { endSessionState } from '../runtime/workoutSessionStore';
 
 const mockNavigation = { dispatch: jest.fn(), setParams: jest.fn(), canGoBack: jest.fn(() => true) };
 let mockPreventRemove = { enabled: false, callback: null };
@@ -307,3 +308,6 @@ describe('WorkoutScreen', () => {
     act(() => tree.unmount());
   });
 });
+
+// T-59 follow-up: the live session's state outlives the screen; no test inherits another's.
+afterEach(() => endSessionState());

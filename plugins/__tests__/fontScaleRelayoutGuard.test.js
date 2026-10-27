@@ -16,3 +16,10 @@ it('the fontScale config change ships only with the remount at the new scale (BU
   expect(app).toMatch(/useFontScaleRemount\(navigationRef\)/);
   expect(app).toMatch(/<NavigationContainer key=\{navigation\.key\} ref=\{navigationRef\} initialState=\{navigation\.initialState\}>/);
 });
+
+// Reviewer (T-59): the toasts sit outside the navigation tree, so a toast on
+// screen during a font change kept its old measurement. The host takes the
+// same key (the toasts themselves live in toastStore and stay).
+it('the ToastHost remounts with the screens on a font-scale change', () => {
+  expect(read('src/App.js')).toMatch(/<ToastHost key=\{navigation\.key\} \/>/);
+});

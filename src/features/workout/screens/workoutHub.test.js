@@ -7,6 +7,7 @@ import ProgressRing from '../components/ProgressRing';
 import TodayHeroCard from '../components/TodayHeroCard';
 import { loadWorkoutPage } from '../loadWorkoutPage';
 import WorkoutScreen from './WorkoutScreen';
+import { endSessionState } from '../runtime/workoutSessionStore';
 
 const mockNavigation = { dispatch: jest.fn(), setParams: jest.fn(), canGoBack: jest.fn(() => true), goBack: jest.fn() };
 let mockWidth = 390;
@@ -242,3 +243,6 @@ describe('PlanDayCard (v2)', () => {
     expect(flat(host(tree.root, 'workout-day-start-3')).minHeight).toBe(50);
   });
 });
+
+// T-59 follow-up: the live session's state outlives the screen; no test inherits another's.
+afterEach(() => endSessionState());

@@ -7,6 +7,7 @@ import { SessionChrome } from './RuntimeParts';
 import { CompleteWorkoutButton, RestTimerWidget } from './RuntimeOverlays';
 import SessionRuntime, { ENDED_ELSEWHERE, exerciseImageMap } from './SessionRuntime';
 import * as restPresentation from './restPresentation';
+import { endSessionState, peekSession } from './workoutSessionStore';
 import { colors, spacing } from '../../../shared/theme/tokens';
 
 jest.mock('@react-navigation/native', () => ({ useIsFocused: () => true }));
@@ -88,7 +89,64 @@ beforeEach(() => {
 afterEach(() => {
   act(() => mounted?.unmount());
   mounted = null;
+  // T-59 follow-up: the live session's state outlives the screen; no test inherits another's.
+  endSessionState();
   jest.restoreAllMocks();
+});
+
+// T-59 follow-up (PM + reviewer, 27 Oct): unlogged set drafts outlive ANY
+// remount of the screen (a font-scale remount, a rotation, leaving and coming
+// back); the session's end (finish, abandon incl. a 409, ended elsewhere)
+// clears them with the rest.
+describe('session state outlives a remount (T-59 follow-up)', () => {
+  it('a typed weight survives a remount of the same session', () => {
+    let { tree } = render();
+    act(() => byId(tree, 'set-weight-12').props.onChangeText('42.5'));
+    act(() => tree.unmount());
+    ({ tree } = render());
+    expect(byId(tree, 'set-weight-12').props.value).toBe('42.5');
+  });
+
+  it('a NEW session starts clean', () => {
+    let { tree } = render();
+    act(() => byId(tree, 'set-weight-12').props.onChangeText('42.5'));
+    act(() => tree.unmount());
+    ({ tree } = render({ session: { ...SESSION, id: 2 } }));
+    expect(byId(tree, 'set-weight-12').props.value).not.toBe('42.5');
+    expect(peekSession(1)).toBeNull();
+  });
+
+  it.each([
+    ['finish', async (tree) => act(async () => byId(tree, 'complete-workout').props.onPress())],
+    ['finish 409 (ended elsewhere)', async (tree) => {
+      completeWorkout.mockRejectedValueOnce({ response: { status: 409, data: { message: 'Session is not active' } } });
+      await act(async () => byId(tree, 'complete-workout').props.onPress());
+    }],
+    ['discard', async (tree) => {
+      act(() => byId(tree, 'discard-workout').props.onPress());
+      await act(async () => byId(tree, 'discard-confirm').props.onPress());
+    }],
+    ['discard 409 = done', async (tree) => {
+      abandonWorkout.mockRejectedValueOnce({ response: { status: 409, data: { message: 'Session is not active' } } });
+      act(() => byId(tree, 'discard-workout').props.onPress());
+      await act(async () => byId(tree, 'discard-confirm').props.onPress());
+    }],
+  ])('%s ends the session state', async (_name, end) => {
+    const { tree } = render();
+    act(() => byId(tree, 'set-weight-12').props.onChangeText('42.5'));
+    expect(peekSession(1)).not.toBeNull();
+    await end(tree);
+    expect(peekSession(1)).toBeNull();
+  });
+
+  it('a failed discard (not 409) keeps it', async () => {
+    abandonWorkout.mockRejectedValueOnce({ response: { status: 500, data: { message: 'Server error' } } });
+    const { tree } = render();
+    act(() => byId(tree, 'set-weight-12').props.onChangeText('42.5'));
+    act(() => byId(tree, 'discard-workout').props.onPress());
+    await act(async () => byId(tree, 'discard-confirm').props.onPress());
+    expect(peekSession(1).values.drafts[12]).toBeDefined();
+  });
 });
 
 describe('SessionRuntime', () => {
@@ -171,6 +229,8 @@ describe('SessionRuntime', () => {
     const { tree, setActionError } = render({ actionError: 'Network Error' });
     act(() => byId(tree, 'discard-workout').props.onPress());
     setActionError.mockClear();
+    // Order-independent: the module mock keeps calls from earlier tests.
+    abandonWorkout.mockClear();
     await act(async () => byId(tree, 'discard-confirm').props.onPress());
     expect(setActionError).toHaveBeenCalledWith('');
     expect(setActionError.mock.invocationCallOrder[0]).toBeLessThan(abandonWorkout.mock.invocationCallOrder[0]);

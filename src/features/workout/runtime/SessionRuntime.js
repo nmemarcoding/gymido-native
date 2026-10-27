@@ -67,6 +67,7 @@ import {
 import useElapsedTimer from './useElapsedTimer';
 import useRestAlerts from './useRestAlerts';
 import useRestTimer from './useRestTimer';
+import { endSessionState, useSessionValue } from './workoutSessionStore';
 import { keepUnitsTogether } from '../../../shared/format/counts';
 
 // The phone column (app-shell §"phone", §19.6); tablets use the window.
@@ -144,8 +145,11 @@ export default function SessionRuntime({
   const [navHeight, setNavHeight] = useState(96);
   const [chromeHeight, setChromeHeight] = useState(48);
   const [measuredDock, setDockHeight] = useState(null);
-  const [drafts, setDrafts] = useState({});
-  const [repsDrafts, setRepsDrafts] = useState({});
+  // T-59 follow-up: the unlogged drafts live in the session store, so a
+  // remount of the screen (font scale, rotation, leaving and coming back)
+  // keeps what was typed.
+  const [drafts, setDrafts] = useSessionValue(session.id, 'drafts', {});
+  const [repsDrafts, setRepsDrafts] = useSessionValue(session.id, 'repsDrafts', {});
   const [validation, setValidation] = useState({});
   const pendingSets = useRef(null);
   if (pendingSets.current === null) {
@@ -168,10 +172,12 @@ export default function SessionRuntime({
 
   // Rest-done sound and alerts (time §7.2, O4, A1, A2, A3). The spoken copy
   // is the short form once no set is left besides the one just done.
-  const restAlerts = useRestAlerts(restAlertPlatform, (setId) =>
-    (session.exercises ?? []).some((exercise) => (exercise.sets ?? []).some((set) => !set.is_completed && set.id !== setId))
+  const restAlerts = useRestAlerts(
+    restAlertPlatform,
+    (setId) => (session.exercises ?? []).some((exercise) => (exercise.sets ?? []).some((set) => !set.is_completed && set.id !== setId)),
+    session.id
   );
-  const rest = useRestTimer({ onRestComplete: setHighlightedSetKey, alerts: restAlerts.alerts });
+  const rest = useRestTimer({ onRestComplete: setHighlightedSetKey, alerts: restAlerts.alerts, sessionId: session.id });
 
   const exercises = session.exercises ?? [];
   const progress = useMemo(() => sessionProgress(session), [session]);
@@ -304,6 +310,7 @@ export default function SessionRuntime({
   // "Workout error" toast shows the same message. No completion summary.
   function endedElsewhere() {
     rest.clear();
+    endSessionState();
     setHighlightedSetKey('');
     setActionError(ENDED_ELSEWHERE);
     scrollRef.current?.scrollTo({ y: 0, animated: false });
@@ -322,6 +329,7 @@ export default function SessionRuntime({
     setHighlightedSetKey('');
     try {
       const result = await completeWorkout(session.id);
+      endSessionState();
       setSuccessMessage('Workout completed.');
       // #15 (3c's PB card) and the photos it can show; volumeUnit per the
       // VOLUME RULE is already in the snapshot.
@@ -348,12 +356,14 @@ export default function SessionRuntime({
     setHighlightedSetKey('');
     try {
       await abandonWorkout(session.id);
+      endSessionState();
       await reload();
     } catch (error) {
       // RN-SPEC-workout §24 (dated 27 Oct 2026): a 409 ("not in progress")
       // means the session already stopped (an earlier abandon's response was
       // lost). The user wanted out: exactly like success, no error.
       if (getStatus(error) === 409) {
+        endSessionState();
         await reload();
       } else {
         setActionError(getServerMessage(error));
