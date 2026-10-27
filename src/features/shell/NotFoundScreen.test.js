@@ -46,7 +46,7 @@ describe('A5 Not found', () => {
     const svg = tree.root.find((node) => node.type === Svg);
     expect(svg.props).toMatchObject({ width: NUMERAL.width, height: NUMERAL.lineHeight });
     const glyphs = tree.root.find((node) => node.type === SvgText);
-    expect(glyphs.props).toMatchObject({ fill: 'none', stroke: colors.notFoundStroke, strokeWidth: 2, fontSize: 150, textAnchor: 'start' });
+    expect(glyphs.props).toMatchObject({ fill: 'none', stroke: colors.goldStrong, strokeWidth: 2, fontSize: 150, textAnchor: 'start' });
     expect(glyphs.props.children).toBe('404');
     // The "404" is not readable text; the heading carries the meaning.
     expect(readable(tree)).toEqual(['Page not found', 'The requested page does not exist. Return to the app home to keep going.', 'Go home']);
@@ -82,7 +82,7 @@ describe('A5 Not found', () => {
     const tree = render(<NotFoundScreen onGoHome={jest.fn()} />);
     expect(flat(host(tree, 'not-found-column'))).toMatchObject({ maxWidth: 640, alignSelf: 'center', alignItems: 'center' });
     const glyphs = tree.root.find((node) => node.type === SvgText);
-    expect(glyphs.props).toMatchObject({ textAnchor: 'middle', x: NUMERAL.width / 2, stroke: colors.notFoundStroke });
+    expect(glyphs.props).toMatchObject({ textAnchor: 'middle', x: NUMERAL.width / 2, stroke: colors.goldStrong });
     const heading = tree.root.find((node) => node.type === 'Text' && node.props.accessibilityRole === 'header');
     expect(flat(heading).textAlign).toBe('center');
     const home = tree.root.find((node) => node.type === PillButton);

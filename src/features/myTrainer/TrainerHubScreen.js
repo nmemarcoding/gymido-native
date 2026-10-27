@@ -452,6 +452,7 @@ function ActiveTrainerCard({ tablet, name, trainer, status, contactVariant, onEn
             testID="trainer-hub-contact"
             title="Contact"
             variant={contactVariant}
+            icon={({ color }) => <GymIcon name="mail" size={18} color={color} />}
             onPress={() => Linking.openURL(`mailto:${trainer.email}`).catch(() => {})}
           />
         ) : null}

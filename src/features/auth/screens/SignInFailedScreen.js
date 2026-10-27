@@ -113,7 +113,7 @@ export default function SignInFailedScreen() {
     <Screen glow={gradients.signInFailedGlow} style={styles.screenPhone}>
       <ScrollView contentContainerStyle={styles.scrollPhone}>
         <View testID="sign-in-failed-header" style={[styles.header, { marginTop: boardTop(180, 844, height, insets.top) }]}>
-          <IconTile testID="sign-in-failed-icon" icon="circle-alert" color={colors.dangerText} backgroundColor={colors.dangerDotTintStrong} />
+          <IconTile testID="sign-in-failed-icon" icon="circle-alert" color={colors.dangerText} backgroundColor={colors.dangerTint} />
           <Text style={[styles.eyebrow, styles.eyebrowPhone]}>Sign-in</Text>
           {title}
           <Text style={styles.body}>Auth0 rejected the login request.</Text>
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     padding: spacing[4],
     borderRadius: radii.lg,
     backgroundColor: colors.surface,
-    borderColor: colors.dangerDotBorderSoft,
+    borderColor: colors.dangerLine,
   },
   // margin-top:auto on the board: the CTA sits at the bottom, at least 24
   // under the alert.

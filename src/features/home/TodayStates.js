@@ -38,7 +38,9 @@ export function TodayHeader({ initials, dateLabel, greeting, tablet }) {
         <Text style={[styles.avatarText, tablet && styles.avatarTextTablet]}>{initials}</Text>
       </View>
       <View style={styles.headerText}>
-        {tablet ? null : <Text style={styles.dateLine}>{dateLabel}</Text>}
+        <Text testID="home-date" style={tablet ? styles.dateLineTablet : styles.dateLine}>
+          {dateLabel}
+        </Text>
         <Text testID="home-greeting" accessibilityRole="header" style={tablet ? styles.greetingTablet : styles.greeting}>
           {greeting}
         </Text>
@@ -327,6 +329,13 @@ const styles = StyleSheet.create({
   },
   dateLine: {
     ...typography.label,
+    color: colors.textMuted,
+  },
+  // Tablet: 15 text-muted above the h1, like web and phone (UX, 26 Oct).
+  dateLineTablet: {
+    ...font(400),
+    fontSize: 15,
+    lineHeight: 20,
     color: colors.textMuted,
   },
   greeting: {

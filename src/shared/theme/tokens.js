@@ -66,8 +66,8 @@ const V2_COLORS = {
   infoTint: 'rgba(143, 168, 255, 0.10)',
   infoBorder: 'rgba(143, 168, 255, 0.25)',
   // v2 kit: overlays
-  // §6 bottom sheet grab handle (36 × 5).
-  grabHandle: 'rgba(255, 255, 255, 0.2)',
+  // §6 bottom sheet grab handle (36 × 5): hairline-bright (UX §8.4 folds 0.2).
+  grabHandle: 'rgba(255, 255, 255, 0.18)',
   // v2 kit: feedback (§5 FeedbackBox / ErrorBox: tone fill 0.08 + border 0.25).
   // Success is GREEN everywhere (UX, 26 Oct); teal is only "Active" and trends.
   successFeedbackFill: 'rgba(74, 222, 128, 0.08)',
@@ -83,16 +83,51 @@ const V2_COLORS = {
   // v2 kit: card (UX §8.1): the failed-image tile's workout icon.
   failedTileIcon: '#C9D4E6',
   choiceBorder: 'rgba(255, 255, 255, 0.08)',
-  // v2 kit: auth screens (Phase 2 A; UX A boards): the Welcome outer ring's
-  // track, the tablet Account art badge ring, the Sign-in failed icon tile
-  // and phone error card edge, the tablet Account art disc and the outline
-  // "404" numeral's stroke.
-  artTrack: 'rgba(255, 255, 255, 0.06)',
-  artEdge: 'rgba(255, 255, 255, 0.14)',
-  dangerDotTintStrong: 'rgba(255, 90, 78, 0.14)',
-  dangerDotBorderSoft: 'rgba(255, 90, 78, 0.25)',
-  goldTintDisc: 'rgba(255, 194, 26, 0.12)',
-  notFoundStroke: 'rgba(255, 194, 26, 0.55)',
+  // UX tokens-and-components §8.3 + §8.4 (26 Oct 2026): the canvas values
+  // that had no token. Build exactly these; other canvas values fold into
+  // existing tokens per the §8.4 fold map.
+  surfaceWell: '#0F1116',
+  surfaceCard2: '#17191F',
+  // Near-solid glass sheets/panels (blur.glassStrong); glassSolid stays the
+  // low-end Android fallback only.
+  glassStrong: 'rgba(24, 26, 33, 0.92)',
+  scrimStrong: 'rgba(10, 11, 15, 0.72)',
+  // Glass chips/buttons over photos (blur.onPhoto) and solid photo badges.
+  onPhoto: 'rgba(10, 11, 15, 0.55)',
+  onPhotoStrong: 'rgba(10, 11, 15, 0.92)',
+  // Dark fills/rings ON gold surfaces.
+  inkTint: 'rgba(10, 11, 15, 0.10)',
+  // Borders on photos and glass chips, grab handles.
+  hairlineBright: 'rgba(255, 255, 255, 0.18)',
+  // §8.5 alpha ladder (Phase 2+; the Phase 1 kit re-folds after QA's gate):
+  // faint 0.08 · tint 0.14 · line 0.30 · strong 0.60 per accent. Danger
+  // fills/borders use #FF5A4E; #FF7A70 is for text only.
+  goldFaint: 'rgba(255, 194, 26, 0.08)',
+  goldLine: 'rgba(255, 194, 26, 0.30)',
+  goldStrong: 'rgba(255, 194, 26, 0.60)',
+  tealFaint: 'rgba(79, 216, 196, 0.08)',
+  tealLine: 'rgba(79, 216, 196, 0.30)',
+  tealStrong: 'rgba(79, 216, 196, 0.60)',
+  tealText: '#7FE6D6',
+  dangerFaint: 'rgba(255, 90, 78, 0.08)',
+  dangerTint: 'rgba(255, 90, 78, 0.14)',
+  dangerLine: 'rgba(255, 90, 78, 0.30)',
+  dangerStrong: 'rgba(255, 90, 78, 0.60)',
+  // Body copy on red cards.
+  dangerTextSoft: '#FFB4AD',
+  successFaint: 'rgba(74, 222, 128, 0.08)',
+  successLine: 'rgba(74, 222, 128, 0.30)',
+  successStrong: 'rgba(74, 222, 128, 0.60)',
+  warningFaint: 'rgba(245, 165, 36, 0.08)',
+  warningLine: 'rgba(245, 165, 36, 0.30)',
+  warningStrong: 'rgba(245, 165, 36, 0.60)',
+  infoFaint: 'rgba(143, 168, 255, 0.08)',
+  infoLine: 'rgba(143, 168, 255, 0.30)',
+  // White: ring/progress tracks.
+  track: 'rgba(255, 255, 255, 0.08)',
+  // Skeleton blocks and their shimmer highlight.
+  skeleton: '#262932',
+  skeletonShine: '#2B2F39',
 };
 
 // v1 names kept as ALIASES of v2 values while screens move to the v2 names
@@ -186,6 +221,18 @@ const LEGACY_COLORS = {
 export const colors = Object.freeze({ ...LEGACY_COLORS, ...V2_COLORS });
 export const legacyColorKeys = Object.freeze(Object.keys(LEGACY_COLORS));
 
+// UX §8.5 glow ladder (radial, decorative): ambient 0.18, orb 0.26 per
+// accent. Each board keeps its own geometry; the colours come from here.
+const glow = (rgb, alpha) => Object.freeze([`rgba(${rgb}, ${alpha})`, `rgba(${rgb}, 0)`]);
+const GLOW = Object.freeze({
+  goldAmbient: glow('255, 194, 26', 0.18),
+  goldOrb: glow('255, 194, 26', 0.26),
+  tealAmbient: glow('79, 216, 196', 0.18),
+  tealOrb: glow('79, 216, 196', 0.26),
+  dangerAmbient: glow('255, 90, 78', 0.18),
+  dangerOrb: glow('255, 90, 78', 0.26),
+});
+
 // §1.1/§1.3 Gradients as GradientFill props (SVG, fixed size, present from
 // the first render: never added on a state change, the Android crash rule).
 // gold is for avatars, initials tiles and the logo only (buttons are flat).
@@ -207,36 +254,38 @@ export const gradients = Object.freeze({
   // §4.8 the exercise hero image's 90 px bottom fade under the name
   // (color-ground at 0 → 0.9).
   imageFade: Object.freeze({ angle: 180, colors: Object.freeze(['rgba(10, 11, 15, 0)', 'rgba(10, 11, 15, 0.9)']) }),
-  // v2 kit: auth screens (Phase 2 A; UX A boards' own radial glows).
+  // v2 kit: auth screens (Phase 2 A; UX A boards' own radial geometry; the
+  // §8.5 ladder colours: welcome/card corner/hero = gold orb, account = gold
+  // ambient, sign-in failed = danger ambient, Today error = danger orb).
   welcomeGlow: Object.freeze({
     radial: Object.freeze({ cx: 0.5, cy: 0.3, rx: 0.9, ry: 0.55 }),
-    colors: Object.freeze(['rgba(255, 194, 26, 0.24)', 'rgba(255, 194, 26, 0)']),
+    colors: GLOW.goldOrb,
     stops: Object.freeze([0, 0.65]),
   }),
   signInFailedGlow: Object.freeze({
     radial: Object.freeze({ cx: 0.5, cy: 0.2, rx: 0.9, ry: 0.45 }),
-    colors: Object.freeze(['rgba(255, 90, 78, 0.14)', 'rgba(255, 90, 78, 0)']),
+    colors: GLOW.dangerAmbient,
     stops: Object.freeze([0, 0.65]),
   }),
   signInFailedGlowTablet: Object.freeze({
     radial: Object.freeze({ cx: 0.5, cy: 0.3, rx: 0.7, ry: 0.45 }),
-    colors: Object.freeze(['rgba(255, 90, 78, 0.14)', 'rgba(255, 90, 78, 0)']),
+    colors: GLOW.dangerAmbient,
     stops: Object.freeze([0, 0.7]),
   }),
   accountGlow: Object.freeze({
     radial: Object.freeze({ cx: 0.5, cy: 0.2, rx: 0.9, ry: 0.45 }),
-    colors: Object.freeze(['rgba(255, 194, 26, 0.16)', 'rgba(255, 194, 26, 0)']),
+    colors: GLOW.goldAmbient,
     stops: Object.freeze([0, 0.65]),
   }),
   accountGlowTablet: Object.freeze({
     radial: Object.freeze({ cx: 0.5, cy: 0.3, rx: 0.7, ry: 0.45 }),
-    colors: Object.freeze(['rgba(255, 194, 26, 0.18)', 'rgba(255, 194, 26, 0)']),
+    colors: GLOW.goldAmbient,
     stops: Object.freeze([0, 0.7]),
   }),
   // The tablet auth cards' gold corner glow (a circle, gold 0.28 → 0).
   cardCornerGlow: Object.freeze({
     radial: Object.freeze({ cx: 0.5, cy: 0.5, rx: 0.5, ry: 0.5 }),
-    colors: Object.freeze(['rgba(255, 194, 26, 0.28)', 'rgba(255, 194, 26, 0)']),
+    colors: GLOW.goldOrb,
     stops: Object.freeze([0, 1]),
   }),
   // v2 kit: Phase 2 Group B (Create profile, Today states)
@@ -249,15 +298,28 @@ export const gradients = Object.freeze({
   // Today-empty hero glow: a 260 circle of gold at 0.28 → 0 (UX B §Today, empty).
   heroGlow: Object.freeze({
     radial: Object.freeze({ cx: 0.5, cy: 0.5, rx: 0.5, ry: 0.5 }),
-    colors: Object.freeze(['rgba(255, 194, 26, 0.28)', 'rgba(255, 194, 26, 0)']),
+    colors: GLOW.goldOrb,
     stops: Object.freeze([0, 1]),
   }),
   // Today error: the danger-tinted card gradient (160deg) and its red glow.
   dangerCard: Object.freeze({ angle: 160, colors: Object.freeze(['#2A1A1C', '#16121A']) }),
   dangerGlow: Object.freeze({
     radial: Object.freeze({ cx: 0.5, cy: 0.5, rx: 0.5, ry: 0.5 }),
-    colors: Object.freeze(['rgba(255, 90, 78, 0.28)', 'rgba(255, 90, 78, 0)']),
+    colors: GLOW.dangerOrb,
     stops: Object.freeze([0, 1]),
+  }),
+  // UX §8.3: the decorative teal orb on teal-accent cards (a circle) and the
+  // teal page wash (70 % 34 % at 90 % −6 %), §8.5 ladder alphas. aria-hidden,
+  // no motion.
+  tealOrb: Object.freeze({
+    radial: Object.freeze({ cx: 0.5, cy: 0.5, rx: 0.5, ry: 0.5 }),
+    colors: GLOW.tealOrb,
+    stops: Object.freeze([0, 0.7]),
+  }),
+  tealAmbient: Object.freeze({
+    radial: Object.freeze({ cx: 0.9, cy: -0.06, rx: 0.7, ry: 0.34 }),
+    colors: GLOW.tealAmbient,
+    stops: Object.freeze([0, 0.7]),
   }),
 });
 
@@ -278,6 +340,31 @@ export const muscle = Object.freeze({
   core: '#FF9A57',
   cardio: '#4FD8C4',
 });
+
+// UX §8.4: text and icons on a 16 % muscle-tint pill (the lighter variant).
+export const muscleText = Object.freeze({
+  chest: '#A9BCFF',
+  back: '#FFD45C',
+  legs: '#B9C8E0',
+  arms: '#DDB8FF',
+  core: '#FFB07A',
+  cardio: '#7FE6D6',
+});
+
+// UX §8.4 glow-muscle: the orb behind the exercise-detail hero, the muscle
+// colour at 0.30 → transparent at 70 % (a circle).
+export function muscleGlow(hex) {
+  const value = parseInt(hex.slice(1), 16);
+  const rgb = `${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}`;
+  return Object.freeze({
+    radial: Object.freeze({ cx: 0.5, cy: 0.5, rx: 0.5, ry: 0.5 }),
+    colors: Object.freeze([`rgba(${rgb}, 0.30)`, `rgba(${rgb}, 0)`]),
+    stops: Object.freeze([0, 0.7]),
+  });
+}
+
+// Blur radii (px): §3 blur-glass, and UX §8.4 glass-strong / on-photo.
+export const blur = Object.freeze({ glass: 24, glassStrong: 24, onPhoto: 12 });
 
 // The API's muscle groups onto the six colours (UX, 26 Oct 2026); anything
 // else is neutral. v1's per-group thumbnail hues map through this until

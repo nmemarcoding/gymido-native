@@ -6,6 +6,16 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 // them (2.2–2.6 at 22 px): `workout` 2.6, the rest 2.4. The Svg always gets
 // explicit width/height. Unknown names render an empty box.
 const ICONS = {
+  // UX §8.3 `mail` (drawn on a 24 grid, stroke 2.2), scaled ×4/3 onto 32.
+  mail: {
+    width: 2.93,
+    body: () => (
+      <>
+        <Rect x={4} y={6.67} width={24} height={18.67} rx={2.67} />
+        <Path d="M4 9.33l12 8 12-8" />
+      </>
+    ),
+  },
   workout: { width: 2.6, body: () => <Path d="M4 13v6M9 10v12M23 10v12M28 13v6M9 16h14" /> },
   exercises: {
     width: 2.4,

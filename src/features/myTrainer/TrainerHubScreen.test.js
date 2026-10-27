@@ -181,6 +181,9 @@ describe('My trainer v2 look (C5), phone', () => {
     );
     expect(shown).not.toContain('Find a trainer');
     expect(comp(tree.root, 'trainer-hub-contact').props.variant).toBe('primary');
+    // UX §8.3: the 18 px mail icon, in the button's text colour.
+    const icon = comp(tree.root, 'trainer-hub-contact').props.icon({ color: '#0A0B0F' });
+    expect(icon.props).toMatchObject({ name: 'mail', size: 18, color: '#0A0B0F' });
     await act(async () => {
       await comp(tree.root, 'trainer-hub-contact').props.onPress();
     });

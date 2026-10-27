@@ -31,7 +31,7 @@ function OutlineNumeral({ centred }) {
           fontSize={NUMERAL.fontSize}
           letterSpacing={NUMERAL_TRACKING}
           fill="none"
-          stroke={colors.notFoundStroke}
+          stroke={colors.goldStrong}
           strokeWidth={2}
         >
           404

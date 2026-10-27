@@ -219,12 +219,12 @@ describe('A2 Sign-in failed', () => {
   it('phone: icon tile, eyebrow, title, body, the alert with the Auth0 message and a gold 60 Try again', () => {
     const tree = render(<SignInFailedScreen />);
     expect(glowOf(tree)).toBe(gradients.signInFailedGlow);
-    expect(flat(host(tree, 'sign-in-failed-icon')).backgroundColor).toBe(colors.dangerDotTintStrong);
+    expect(flat(host(tree, 'sign-in-failed-icon')).backgroundColor).toBe(colors.dangerTint);
     expect(texts(tree)).toEqual(['Sign-in', 'Sign-in failed', 'Auth0 rejected the login request.', 'Something went wrong', 'Access denied', 'Try again']);
     const alert = tree.root.find((node) => node.type === ErrorAlert);
     expect(alert.props).toMatchObject({ title: 'Something went wrong', description: 'Access denied' });
     expect(host(tree, 'sign-in-failed-alert').props.accessibilityRole).toBe('alert');
-    expect(flat(host(tree, 'sign-in-failed-alert'))).toMatchObject({ backgroundColor: colors.surface, borderColor: colors.dangerDotBorderSoft });
+    expect(flat(host(tree, 'sign-in-failed-alert'))).toMatchObject({ backgroundColor: colors.surface, borderColor: colors.dangerLine });
     expect(button(tree, 'sign-in-failed-try-again').props).toMatchObject({ size: 'cta', variant: 'primary', fullWidth: true, disabled: false });
   });
 

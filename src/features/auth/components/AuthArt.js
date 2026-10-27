@@ -53,7 +53,7 @@ export function WelcomeRings({ size = WELCOME_ART, style }) {
   return (
     <View testID="welcome-art" pointerEvents="none" {...HIDDEN} style={[{ width: size, height: size }, style]}>
       <Svg width={size} height={size} viewBox={`0 0 ${WELCOME_ART} ${WELCOME_ART}`}>
-        <Circle cx={c} cy={c} r={OUTER.r} fill="none" stroke={colors.artTrack} strokeWidth={OUTER.width} />
+        <Circle cx={c} cy={c} r={OUTER.r} fill="none" stroke={colors.track} strokeWidth={OUTER.width} />
         <Circle
           cx={c}
           cy={c}
@@ -116,10 +116,10 @@ export function AccountArt() {
   return (
     <View testID="account-unavailable-art" pointerEvents="none" {...HIDDEN}>
       <Svg width={132} height={120} viewBox="0 0 132 120">
-        <Circle cx={52} cy={60} r={46} fill={colors.goldTintDisc} />
+        <Circle cx={52} cy={60} r={46} fill={colors.goldTint} />
         <Circle cx={52} cy={48} r={16} fill="none" stroke={colors.gold} strokeWidth={5} />
         <Path d="M24 92a28 28 0 0 1 56 0" fill="none" stroke={colors.gold} strokeWidth={5} strokeLinecap="round" />
-        <Circle cx={102} cy={34} r={20} fill={colors.surface} stroke={colors.artEdge} strokeWidth={2} />
+        <Circle cx={102} cy={34} r={20} fill={colors.surface} stroke={colors.hairlineStrong} strokeWidth={2} />
         <Path d="M95 34h14" stroke={colors.textPrimary} strokeWidth={4} strokeLinecap="round" />
       </Svg>
     </View>

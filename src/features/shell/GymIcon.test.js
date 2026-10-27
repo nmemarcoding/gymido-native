@@ -49,3 +49,14 @@ describe('GymIcon (v2 §3 icon rule)', () => {
     expect(StyleSheet.flatten(tree.root.findByType(View).props.style)).toEqual({ width: 24, height: 24 });
   });
 });
+
+describe('mail (UX §8.3)', () => {
+  it('the 24-grid drawing scaled onto 32: stroke 2.2 × 4/3, a rect and the flap, explicit size', () => {
+    const tree = render(<GymIcon name="mail" size={18} color={colors.gold} />);
+    const svg = tree.root.findByType(Svg);
+    expect(svg.props).toMatchObject({ width: 18, height: 18, viewBox: '0 0 32 32', stroke: colors.gold, strokeWidth: 2.93, fill: 'none' });
+    const types = tree.root.findAll((node) => typeof node.type !== 'string' && node.props.d !== undefined).map((node) => node.props.d);
+    expect(types).toContain('M4 9.33l12 8 12-8');
+    expect(tree.root.findAll((node) => node.props.rx === 2.67 && node.props.width === 24)).not.toHaveLength(0);
+  });
+});

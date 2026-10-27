@@ -116,6 +116,17 @@ describe('B3 header (every Today state)', () => {
     expect(textOf(host(failed.root, 'home-greeting'))).toBe('Welcome back, Nima');
   });
 
+  it('the date line on both layouts: phone label style, tablet 15 text-muted (UX, 26 Oct)', async () => {
+    const phone = await render();
+    expect(textOf(host(phone.root, 'home-date'))).toBe(todayDateLabel());
+    mockWidth = 834;
+    const tablet = await render();
+    const line = host(tablet.root, 'home-date');
+    expect(textOf(line)).toBe(todayDateLabel());
+    expect(StyleSheet.flatten(line.props.style)).toMatchObject({ fontSize: 15, lineHeight: 20, color: '#9BA1AD', fontFamily: 'Geist-Regular' });
+    mockWidth = 390;
+  });
+
   it('the greeting is the page heading (the shell header on "/" is untitled)', async () => {
     const tree = await render();
     expect(host(tree.root, 'home-greeting').props.accessibilityRole).toBe('header');
