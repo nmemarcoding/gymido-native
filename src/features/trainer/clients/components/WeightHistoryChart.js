@@ -181,12 +181,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     boxShadow: shadows.soft,
   },
+  // Board chart dates: 13 px muted regular, sentence case.
   tooltipLabel: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '600',
-    letterSpacing: 2.64,
-    textTransform: 'uppercase',
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '400',
     color: colors.textMuted,
   },
   tooltipValue: {

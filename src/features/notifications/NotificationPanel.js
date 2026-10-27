@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import EmptyState from '../../shared/components/EmptyState';
 import Loader from '../../shared/components/Loader';
-import { breakpoints, colors, radii, shadows } from '../../shared/theme/tokens';
+import { breakpoints, colors, radii, shadows, typography } from '../../shared/theme/tokens';
 import { openShellPath } from '../shell/shellLinks';
 import { closePanel, useShellUiStore } from '../shell/shellUiStore';
 import NotificationItem from './NotificationItem';
@@ -147,14 +147,8 @@ const styles = StyleSheet.create({
   headText: {
     flexShrink: 1,
   },
-  eyebrow: {
-    fontSize: 11.2,
-    lineHeight: 16.8,
-    fontWeight: '700',
-    letterSpacing: 2.016,
-    textTransform: 'uppercase',
-    color: colors.brand700,
-  },
+  // Kit Eyebrow: caption 12/600 gold, sentence case.
+  eyebrow: typography.eyebrow,
   headTitle: {
     marginTop: 2,
     fontSize: 18,

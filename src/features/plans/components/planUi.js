@@ -4,8 +4,7 @@ import { CAP_BODY } from '../../../shared/components/largeText';
 import { breakpoints, colors, font, layout, radii, spacing, textScale } from '../../../shared/theme/tokens';
 import PlanIcon from './planIcons';
 
-// v2 pieces shared by Plans, Plan detail and My plans (UX H). PlanBits.js
-// keeps the v1 pieces for the generator preview (team 4j) unchanged.
+// v2 pieces shared by Plans, Plan detail and My plans (UX H).
 
 // v2 device split (§3): tablets are ≥ md (768) in both orientations.
 export function useIsTablet() {

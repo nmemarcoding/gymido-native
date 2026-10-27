@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import ExerciseImage, { TILE_ALPHA, muscleColor, muscleTextColor } from '../../../shared/components/ExerciseImage';
 import GlassSurface from '../../../shared/components/GlassSurface';
@@ -7,7 +7,6 @@ import GradientFill from '../../../shared/components/GradientFill';
 import PillButton from '../../../shared/components/PillButton';
 import Select from '../../../shared/components/Select';
 import { CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT, TITLE_TEXT, useLargeTextReflow } from '../../../shared/components/largeText';
-import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { colors, font, gradients, layout, radii, shadows, spacing, textInputColors, textScale, typography } from '../../../shared/theme/tokens';
 import ProgressRing from '../components/ProgressRing';
 import { CheckIcon, PlayIcon } from './SessionIcons';
@@ -26,7 +25,6 @@ import {
 } from './sessionMath';
 import { keepUnitsTogether } from '../../../shared/format/counts';
 
-const POP = Easing.bezier(0.34, 1.56, 0.64, 1);
 const CLEAR = gradients.photoFade.colors[0];
 // UX F1 drawn sizes (phone / tablet). Heights hold text, so they are minimums.
 export const PHONE_STAGE_HEIGHT = 330;
@@ -38,36 +36,6 @@ const TIMER_CAP = { maxFontSizeMultiplier: textScale.timer };
 // F1 §0.6: drawn controls below 44 keep their size and get a 44 hit area.
 export function hitFor(height) {
   return Math.max(0, Math.ceil((layout.touchMin - height) / 2));
-}
-
-// §19 StatTile (v1 look). Kept for the completion popup (RuntimeOverlays).
-export function StatTile({ label, value, tone }) {
-  return (
-    <View style={styles.statTile}>
-      <Text style={styles.statLabel}>{label}</Text>
-      <PopIn key={value}>
-        <Text numberOfLines={1} textBreakStrategy="simple" style={[styles.statValue, tone === 'brand' && styles.statValueBrand]}>{value}</Text>
-      </PopIn>
-    </View>
-  );
-}
-
-function PopIn({ children }) {
-  const reducedMotion = useReducedMotion();
-  const progress = useRef(new Animated.Value(reducedMotion ? 1 : 0)).current;
-  useEffect(() => {
-    // The setting resolves after mount, possibly mid-animation: snap to the
-    // end state or the value stays invisible.
-    if (reducedMotion) {
-      progress.setValue(1);
-      return undefined;
-    }
-    const animation = Animated.timing(progress, { toValue: 1, duration: 260, easing: POP, useNativeDriver: true });
-    animation.start();
-    return () => animation.stop();
-  }, [progress, reducedMotion]);
-  const scale = progress.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] });
-  return <Animated.View style={{ opacity: progress, transform: [{ scale }] }}>{children}</Animated.View>;
 }
 
 // §8.6 STATE RULE: pressed = the rest colour + a 4 % overlay.
@@ -750,34 +718,6 @@ const styles = StyleSheet.create({
   },
   dim: {
     opacity: 0.5,
-  },
-  // v1 StatTile (popup).
-  statTile: {
-    flex: 1,
-    alignItems: 'center',
-    borderRadius: radii.md,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 10,
-    paddingVertical: 12,
-  },
-  statLabel: {
-    fontSize: 11,
-    lineHeight: 15.6,
-    fontWeight: '700',
-    letterSpacing: 1.56,
-    textTransform: 'uppercase',
-    color: colors.textMuted,
-  },
-  statValue: {
-    marginTop: 4,
-    fontSize: 18,
-    lineHeight: 28,
-    fontWeight: '900',
-    fontVariant: ['tabular-nums'],
-    color: colors.textPrimary,
-  },
-  statValueBrand: {
-    color: colors.gold,
   },
   // Chrome.
   chrome: {
