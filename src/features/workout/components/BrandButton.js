@@ -1,71 +1,36 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-import GradientFill from '../../../shared/components/GradientFill';
-import Spinner from '../../../shared/components/Spinner';
-import { colors, shadows } from '../../../shared/theme/tokens';
+import PillButton from '../../../shared/components/PillButton';
 
-const RESTING = [colors.brand300, colors.brand400];
-const PRESSED = [colors.brand400, colors.brand500];
+// RN-SPEC-v2-foundation §4.1: v1's gold-gradient HeroButton is retired; the
+// gold actions (START TODAY'S WORKOUT, Resume) are the flat gold primary
+// Button with the gold glow. The v1 props stay so call sites need no change.
+// The Button owns its shape and type (pill, size, label), so `style` keeps
+// only outer layout and `labelStyle` is accepted but no longer applied.
+const BUTTON_OWNED = ['borderRadius', 'height', 'minHeight', 'padding', 'paddingVertical', 'paddingHorizontal', 'paddingTop', 'paddingBottom', 'boxShadow', 'backgroundColor'];
 
-// The gold `to bottom` buttons (START TODAY'S WORKOUT, Browse plans). §19.10:
-// both gradients are created at mount and a press only reveals the pressed
-// layer (exact colours, no drawable created by a press); press-3d adds the
-// 1px sink and inset shadow.
-export default function BrandButton({ label, onPress, loading = false, disabled = false, style, labelStyle, testID }) {
-  const inactive = disabled || loading;
-  return (
-    <Pressable
-      testID={testID}
-      accessibilityRole="button"
-      accessibilityState={{ disabled: inactive, busy: loading }}
-      disabled={inactive}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.button,
-        style,
-        pressed && !inactive ? styles.pressed : styles.resting,
-        inactive && styles.inactive,
-      ]}
-    >
-      {({ pressed }) => (
-        <>
-          <View style={[StyleSheet.absoluteFill, styles.clip]}>
-            <GradientFill colors={RESTING} />
-            <View style={[StyleSheet.absoluteFill, { opacity: pressed && !inactive ? 1 : 0 }]}>
-              <GradientFill colors={PRESSED} />
-            </View>
-          </View>
-          {loading ? <Spinner size={20} thickness={2} color={colors.navy} track={colors.onGoldSpinnerTrack} /> : null}
-          <Text numberOfLines={1} textBreakStrategy="simple" style={[styles.label, labelStyle]}>{label}</Text>
-        </>
-      )}
-    </Pressable>
-  );
+export function outerLayout(style) {
+  const flat = StyleSheet.flatten(style);
+  if (!flat) {
+    return undefined;
+  }
+  const kept = { ...flat };
+  BUTTON_OWNED.forEach((key) => delete kept[key]);
+  return kept;
 }
 
-const styles = StyleSheet.create({
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  clip: {
-    borderRadius: 9999,
-    overflow: 'hidden',
-  },
-  resting: {
-    boxShadow: shadows.brand,
-  },
-  pressed: {
-    transform: [{ translateY: 1 }],
-    boxShadow: shadows.press,
-  },
-  inactive: {
-    opacity: 0.6,
-  },
-  label: {
-    color: colors.navy,
-    fontWeight: '900',
-  },
-});
+// `labelStyle` (v1) is still accepted by callers; it is not read.
+export default function BrandButton({ label, onPress, loading = false, disabled = false, style, size, testID }) {
+  return (
+    <PillButton
+      testID={testID}
+      title={label}
+      variant="primary"
+      size={size}
+      loading={loading}
+      disabled={disabled}
+      onPress={onPress}
+      style={outerLayout(style)}
+    />
+  );
+}

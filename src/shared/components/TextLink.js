@@ -1,15 +1,16 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 
-import { colors } from '../theme/tokens';
+import { colors, font, layout } from '../theme/tokens';
 
-// Design system v1 TextLink (#19): 14/700 brand-700 text, a 44 pt touch area
-// (hitSlop, so the drawn text keeps its spacing), underlined while pressed.
-// `arrow` appends a decorative " →" that stays out of the accessible name.
-const HIT_SLOP = { top: 12, bottom: 12, left: 8, right: 8 };
+// RN-SPEC-v2-foundation §4.8 TextLink: 14/600 gold, min-height 44 (the
+// whole 44 is the touch area), optional trailing "→". Underlined while
+// pressed (v1, kept: the spec draws no pressed state). `arrow` appends a
+// decorative " →" that stays out of the accessible name.
+const HIT_SLOP = { left: 8, right: 8 };
 
 export default function TextLink({ label, onPress, arrow = false, testID, accessibilityLabel }) {
   return (
-    <Pressable testID={testID} accessibilityRole="link" accessibilityLabel={accessibilityLabel ?? label} onPress={onPress} hitSlop={HIT_SLOP}>
+    <Pressable testID={testID} accessibilityRole="link" accessibilityLabel={accessibilityLabel ?? label} onPress={onPress} hitSlop={HIT_SLOP} style={styles.link}>
       {({ pressed }) => (
         <Text numberOfLines={1} textBreakStrategy="simple" style={[styles.text, pressed && styles.pressed]}>
           {arrow ? `${label} →` : label}
@@ -28,11 +29,15 @@ export const textLinkRow = {
 };
 
 const styles = StyleSheet.create({
+  link: {
+    minHeight: layout.touchMin,
+    justifyContent: 'center',
+  },
   text: {
+    ...font(600),
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '700',
-    color: colors.brand700,
+    color: colors.gold,
   },
   pressed: {
     textDecorationLine: 'underline',
