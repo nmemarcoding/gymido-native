@@ -83,3 +83,30 @@ describe('dated chain, all screens (27 Oct 2026)', () => {
     expect(thumbImageProps({ thumbnail: { url: 'https://drive.google.com/file/d/abc/view' } }).sources[0]).toBe('https://drive.google.com/thumbnail?id=abc&sz=w400');
   });
 });
+
+// Kit review MEDIUM (web parity, VIDEO_FILE): a URL with a video file
+// extension is never drawn as an image when media_type is missing or says
+// image; LOW: only drive.google.com/uc counts as a uc link (web).
+describe('kit review: video files and uc links (web parity)', () => {
+  const { mediaUrl, getRemoteImageSources: chain } = require('./remoteImageSources');
+  const { imageUrlOf } = require('../../features/planGenerator/generatorLogic');
+
+  it.each(['mp4', 'webm', 'mov', 'm4v', 'avi', 'mkv', 'ogv', '3gp'])('a .%s URL is not an image (no media_type, or media_type image)', (ext) => {
+    const url = `https://cdn.example.com/clip.${ext}?v=2`;
+    expect(mediaUrl(url)).toBeNull();
+    expect(mediaUrl({ url })).toBeNull();
+    expect(mediaUrl({ url, media_type: 'image/jpeg' })).toBeNull();
+    expect(imageUrlOf({ thumbnail: { url, media_type: null } })).toBeNull();
+    expect(imageUrlOf({ thumbnail: url })).toBeNull();
+  });
+
+  it('image URLs still pass', () => {
+    expect(mediaUrl({ url: 'https://cdn.example.com/a.mp4.png' })).toBe('https://cdn.example.com/a.mp4.png');
+    expect(imageUrlOf({ thumbnail: { url: 'https://cdn.example.com/a.jpg' } })).toBe('https://cdn.example.com/a.jpg');
+  });
+
+  it('docs.google.com/uc is NOT a uc link (web matches drive.google.com only): the stored URL is tried first', () => {
+    expect(chain('https://docs.google.com/uc?id=XYZ')[0]).toBe('https://docs.google.com/uc?id=XYZ');
+    expect(chain('https://drive.google.com/uc?id=XYZ')[0]).toBe('https://drive.google.com/thumbnail?id=XYZ&sz=w1600');
+  });
+});

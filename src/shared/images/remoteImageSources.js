@@ -50,7 +50,16 @@ export function getDriveFileId(url) {
 // Each error advances (RemoteImage); all failed → the §8.1 tile. No
 // candidate at all (empty URL, a uc link with no id) → the tile at once.
 // A media whose media_type is not an image (a video) is never drawn.
-const UC_LINK = /^https?:\/\/(drive|docs)\.google\.com\/uc(\?|\/|$)/i;
+// Web parity (kit review LOW): only drive.google.com/uc counts as a uc link.
+const UC_LINK = /^https?:\/\/drive\.google\.com\/uc(\?|\/|$)/i;
+// Web VIDEO_FILE (kit review MEDIUM): a URL with a video file extension is
+// never drawn as an image, whatever (or whether) media_type says.
+const VIDEO_FILE = /\.(mp4|webm|mov|m4v|avi|mkv|ogv|3gp)$/i;
+
+export function isVideoFileUrl(url) {
+  const path = String(url).split(/[?#]/)[0];
+  return VIDEO_FILE.test(path);
+}
 
 export function getRemoteImageSources(url, { width } = {}) {
   if (typeof url !== 'string' || !url.trim()) {
@@ -87,10 +96,10 @@ export function isImageMediaType(type) {
 // or null (no URL, or not an image).
 export function mediaUrl(media) {
   if (typeof media === 'string') {
-    return media.trim() ? media : null;
+    return media.trim() && !isVideoFileUrl(media) ? media : null;
   }
   const url = typeof media?.url === 'string' ? media.url : '';
-  if (!url.trim() || !isImageMediaType(media.media_type)) {
+  if (!url.trim() || !isImageMediaType(media.media_type) || isVideoFileUrl(url)) {
     return null;
   }
   return url;

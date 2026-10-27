@@ -1,6 +1,7 @@
 // Step, validation, payload and display logic for the plan generator
 // (RN-SPEC-PLAN-GENERATOR §G1–§G2). Pure, so it can be tested.
 
+import { mediaUrl } from '../../shared/images/remoteImageSources';
 import { breakpoints } from '../../shared/theme/tokens';
 import { TAB_BAR_CLEARANCE } from '../shell/tabBarMetrics';
 import { formatLocalDateForInput } from '../../shared/time/format';
@@ -448,14 +449,9 @@ export function reviewDetails(answers, options) {
 
 // Dated change 27 Oct (images): a thumbnail whose `media_type` is not an
 // image (a video) is not drawn as one; no URL → the §8.1 tile.
+// (The shared media rule: media_type AND web's video file extensions.)
 export function imageUrlOf(exercise) {
-  const thumb = exercise?.thumbnail ?? exercise?.image ?? null;
-  const url = typeof thumb === 'string' ? thumb : thumb?.url;
-  const type = typeof thumb === 'object' && thumb ? thumb.media_type : undefined;
-  if (!url || (type && !String(type).toLowerCase().startsWith('image'))) {
-    return null;
-  }
-  return url;
+  return mediaUrl(exercise?.thumbnail ?? exercise?.image ?? null);
 }
 
 // UX N4: the exercises already loaded on the client (search results this
