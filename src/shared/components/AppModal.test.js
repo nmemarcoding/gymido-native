@@ -466,11 +466,29 @@ describe('Guard: footer dismiss ⇒ footerDismiss (FINAL-AUDIT batch 1)', () => 
     expect(callers.length).toBeGreaterThanOrEqual(14);
   });
 
-  it('every caller with a footer dismiss passes footerDismiss; callers without one do not', () => {
+  // UX refinement (28 Oct, web + native): a sheet shows the × when its BOARD
+  // draws one, so these keep BOTH the pinned × and their footer Close/Cancel.
+  const BOARD_DRAWS_CLOSE = [
+    'features/home/WeightLogModal.js',
+    'features/trainer/clients/components/WeightHistoryModal.js',
+    'features/trainer/clients/components/WorkoutDetailModal.js',
+  ];
+
+  it('every caller with a footer dismiss passes footerDismiss (except where the board draws a ×); callers without one do not', () => {
     const wrong = callers
+      .filter(({ file }) => !BOARD_DRAWS_CLOSE.includes(file))
       .filter(({ text }) => DISMISS.test(text) !== /\bfooterDismiss\b/.test(text))
       .map(({ file }) => file);
     expect(wrong).toEqual([]);
+  });
+
+  it('the sheets whose board draws a × keep it next to their footer dismiss (no footerDismiss)', () => {
+    BOARD_DRAWS_CLOSE.forEach((file) => {
+      const caller = callers.find((entry) => entry.file === file);
+      expect(caller).toBeTruthy();
+      expect(DISMISS.test(caller.text)).toBe(true);
+      expect(/\bfooterDismiss\b/.test(caller.text)).toBe(false);
+    });
   });
 
   it('PlanOverflowSheet (no footer) keeps the ×', () => {

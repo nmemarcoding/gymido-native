@@ -73,8 +73,7 @@ export default function WeightLogModal({ isOpen, onClose, onSuccess, defaultUnit
       size="md"
       title="Add today's weight"
       description="Enter your current weight to update the dashboard and progress summary."
-      // FINAL-AUDIT batch 1 (5): the footer has the dismiss, so no phone ×.
-      footerDismiss
+      // The board draws the × as well as the footer dismiss (UX, 28 Oct).
       footer={
         <ModalActions>
           <PillButton testID="weight-log-cancel" title="Cancel" variant="secondary" onPress={onClose} />
