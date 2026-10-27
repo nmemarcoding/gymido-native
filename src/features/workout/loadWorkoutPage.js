@@ -2,6 +2,7 @@ import { getStatus } from '../../shared/api/apiError';
 import { getCurrentPlan, listPlanDays } from '../plans/api/libraryApi';
 import { getCurrentWorkout, getTodayStatus, listCompletedWorkouts, listExerciseStats } from './api/workoutApi';
 import { buildExerciseStatsMap, completedDayIds, currentWeekRange } from './workoutFormat';
+import { reconcileSessionState } from './runtime/workoutSessionStore';
 
 const DEFAULT_API = { getCurrentWorkout, getCurrentPlan, getTodayStatus, listExerciseStats, listCompletedWorkouts, listPlanDays };
 
@@ -27,6 +28,8 @@ export async function loadWorkoutPage({ api = DEFAULT_API, now = new Date() } = 
       nullOnAny(api.listExerciseStats()),
       nullOnAny(api.listCompletedWorkouts(currentWeekRange(now))),
     ]);
+    // T-59: a session that ended elsewhere drops its stored rest + alert.
+    reconcileSessionState(session?.id ?? null);
     const planId = currentPlan?.enrollment?.plan?.id;
     const planDays = planId ? await api.listPlanDays(planId) : [];
     return {

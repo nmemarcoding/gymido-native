@@ -50,6 +50,15 @@ export function endSessionState() {
   ended?.controller?.dispose();
 }
 
+// Reviewer (T-59): the server's view wins. A load that finds no active
+// session, or another one, ends the stored one, so its scheduled rest alert
+// (ended on web or another device, auto-ended) never fires late.
+export function reconcileSessionState(activeSessionId) {
+  if (entry && String(entry.sessionId) !== String(activeSessionId ?? '')) {
+    endSessionState();
+  }
+}
+
 // useState whose value lives in the session entry (e.g. the set drafts).
 export function useSessionValue(sessionId, key, initial) {
   const [value, setLocal] = useState(() => {

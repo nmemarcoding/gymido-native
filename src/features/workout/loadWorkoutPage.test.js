@@ -47,3 +47,39 @@ describe('loadWorkoutPage (§6.1)', () => {
     }
   });
 });
+
+// Reviewer LOW on T-59 e56b591: a session that ended while its screen wasn't
+// mounted (finished on web or another device, auto-ended) kept its store
+// entry and its scheduled rest alert, so a stale "rest over" could fire.
+// A load that finds no active session, or another one, ends the stored one
+// (disposing the controller cancels its alert); a failed load changes nothing.
+describe('loadWorkoutPage reconciles the stored session (T-59)', () => {
+  jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn(() => Promise.resolve()) }));
+  const { endSessionState, peekSession, sessionEntry } = require('./runtime/workoutSessionStore');
+  let controller;
+  beforeEach(() => {
+    controller = { dispose: jest.fn() };
+    sessionEntry(5).controller = controller;
+  });
+  afterEach(() => endSessionState());
+
+  it.each([
+    ['no active session (ended elsewhere)', null],
+    ['another session', { id: 6, exercises: [] }],
+  ])('%s → the entry ends and its alert is cancelled', async (_name, current) => {
+    await loadWorkoutPage({ api: api({ getCurrentWorkout: jest.fn(() => Promise.resolve(current)) }) });
+    expect(peekSession(5)).toBeNull();
+    expect(controller.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('the same session keeps it', async () => {
+    await loadWorkoutPage({ api: api({ getCurrentWorkout: jest.fn(() => Promise.resolve({ id: 5, exercises: [] })) }) });
+    expect(peekSession(5)).not.toBeNull();
+    expect(controller.dispose).not.toHaveBeenCalled();
+  });
+
+  it('a failed load keeps it (no proof the session ended)', async () => {
+    await loadWorkoutPage({ api: api({ getCurrentWorkout: jest.fn(() => fail(500)) }) });
+    expect(peekSession(5)).not.toBeNull();
+  });
+});
