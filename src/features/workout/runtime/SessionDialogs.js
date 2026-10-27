@@ -15,8 +15,9 @@ import useForegroundBlur from './useForegroundBlur';
 
 // F1 "Leave workout?" (phone sheet, tablet card). Discard moved to the
 // AlertSheet DiscardDialog (RuntimeOverlays; review M4: one Discard shell).
-// Phone: a floating sheet 10 from the edges (+ safe area), radius 32, the
-// verb first (ND6). Tablet (≥ 768): a centred card 520 wide, radius 32, the
+// Phone: the ONE attached bottom sheet (UX batch-1 ruling 2, as AppModal's:
+// flush to the sides and bottom, top radius 28, handle, the safe area inside),
+// the verb first (ND6). Tablet (≥ 768): a centred card 520 wide, radius 32, the
 // verb on the right (Stay · Leave, Keep going · Discard); past 1.3× text the
 // pair stacks, the verb on top (UX §9 rule 4). Reduced motion: fade only.
 export const SESSION_DIALOG_TABLET_WIDTH = 520;
@@ -77,7 +78,7 @@ function SessionDialog({ open, onDismiss, dismissOnScrim, tone, title, body, ver
   );
   return (
     <Modal transparent visible={open} animationType="none" onRequestClose={onDismiss} statusBarTranslucent>
-      <View style={[styles.host, tablet ? styles.hostTablet : styles.hostPhone, { paddingBottom: tablet ? spacing[6] : 10 + insets.bottom, paddingTop: insets.top + spacing[4] }]}>
+      <View style={[styles.host, tablet ? styles.hostTablet : styles.hostPhone, { paddingBottom: tablet ? spacing[6] : 0, paddingTop: insets.top + spacing[4] }]}>
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: progress }]}>
           {/* M5: the one prompt blur (8), drawn only in the foreground and
               remounted on return (useForegroundBlur, the A2 Android fix). */}
@@ -94,7 +95,12 @@ function SessionDialog({ open, onDismiss, dismissOnScrim, tone, title, body, ver
           testID={testID}
           accessibilityViewIsModal
           accessibilityLabel={title}
-          style={[styles.card, tablet ? styles.cardTablet : styles.cardPhone, tablet && danger && styles.cardTabletDanger, motionStyle]}
+          style={[
+            styles.card,
+            tablet ? styles.cardTablet : [styles.cardPhone, { paddingBottom: spacing['5_5'] + insets.bottom }],
+            tablet && danger && styles.cardTabletDanger,
+            motionStyle,
+          ]}
         >
           {tablet ? (
             <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.cardClip]}>
@@ -159,7 +165,6 @@ const styles = StyleSheet.create({
   },
   hostPhone: {
     justifyContent: 'flex-end',
-    paddingHorizontal: 10,
   },
   hostTablet: {
     justifyContent: 'center',
@@ -170,18 +175,23 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%',
-    borderRadius: radii.xxxl,
-    borderWidth: 1,
     borderColor: colors.hairlineStrong,
   },
+  // Ruling 2: attached (AppModal's phone sheet): radius 28 28 0 0, a 1 px top
+  // hairline, no side or bottom margin.
   cardPhone: {
+    borderTopWidth: 1,
+    borderTopLeftRadius: radii.xxl,
+    borderTopRightRadius: radii.xxl,
     backgroundColor: colors.surfaceCard2,
     paddingTop: 10,
     paddingHorizontal: spacing[5],
-    paddingBottom: spacing['5_5'],
+    // paddingBottom: 22 + the safe area, set inline.
     boxShadow: shadows.sheetUp,
   },
   cardTablet: {
+    borderRadius: radii.xxxl,
+    borderWidth: 1,
     maxWidth: SESSION_DIALOG_TABLET_WIDTH,
     padding: 36,
     boxShadow: shadows.sheet,

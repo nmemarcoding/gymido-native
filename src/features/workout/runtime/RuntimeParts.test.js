@@ -274,6 +274,25 @@ describe('SetEditor (single editor + strip)', () => {
 describe('DidItButton', () => {
   const set = { id: 12 };
 
+  // QA LOW swipe-press (the dock sits outside the scroll): a swipe that starts on "Did it" never logs the set.
+  it('a 40 px swipe that starts on Did it does not fire; a tap still does', () => {
+    const touch = (x, y) => ({
+      persist() {},
+      currentTarget: { measure: jest.fn() },
+      nativeEvent: { pageX: x, pageY: y, locationX: x, locationY: y, timestamp: Date.now(), touches: [], changedTouches: [] },
+    });
+    const onPress = jest.fn();
+    const tree = render(<DidItButton set={set} onPress={onPress} />);
+    const host = tree.root.find((node) => typeof node.type === 'string' && typeof node.props.onResponderGrant === 'function');
+    act(() => host.props.onResponderGrant(touch(100, 200)));
+    act(() => host.props.onResponderMove(touch(100, 160)));
+    act(() => host.props.onResponderRelease(touch(100, 160)));
+    expect(onPress).not.toHaveBeenCalled();
+    act(() => host.props.onResponderGrant(touch(100, 200)));
+    act(() => host.props.onResponderRelease(touch(102, 204)));
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
   it('"Did it", 64 tall, gold with the large glow; pressed adds the ink overlay', () => {
     const onPress = jest.fn();
     const tree = render(<DidItButton set={set} onPress={onPress} />);

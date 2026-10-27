@@ -371,3 +371,29 @@ describe('§E1.2 step 1: a search reload keeps the list (T-12 F2)', () => {
     expect(spinners(tree)).toHaveLength(0);
   });
 });
+
+// ⚠E-6 (web audit batch 1; RN-SPEC-exercises ⚠E-6 being updated): was a blank grid under the bar.
+describe('⚠E-6: a muscle filter + a search with no match in that group', () => {
+  const input = (tree) => tree.root.find((node) => node.props.placeholder === 'Search exercises' && node.props.onChangeText);
+  const back = (id) => ({ id, name: `Row ${id}`, primary_muscle_group: { name: 'Back' } });
+  const pressChip = (tree, value) =>
+    act(() => tree.root.find((node) => node.props.testID === `exercises-chip-${value}` && typeof node.props.onPress === 'function').props.onPress());
+
+  it('shows "No exercises found" / "Try a different search term." instead of a blank grid', async () => {
+    listExercisesPage.mockImplementation(() => Promise.resolve(page([ex(1), back(2)], 1)));
+    const tree = await render();
+    pressChip(tree, 'Chest');
+    expect(texts(tree.root)).toContain('Ex 1');
+    expect(texts(tree.root)).not.toContain('No exercises found');
+
+    listExercisesPage.mockImplementation(() => Promise.resolve(page([back(3)], 1)));
+    act(() => input(tree).props.onChangeText('row'));
+    await act(async () => {
+      input(tree).props.onSubmitEditing();
+    });
+    const shown = texts(tree.root);
+    expect(shown).toEqual(expect.arrayContaining(['No exercises found', 'Try a different search term.']));
+    expect(shown).not.toContain('Row 3');
+    expect(shown).not.toContain('Ex 1');
+  });
+});

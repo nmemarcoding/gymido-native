@@ -17,6 +17,9 @@ import { useShellUiStore } from './shellUiStore';
 // Large text (UX §9): page titles scale at most 1.3×, wrap by word (max 3
 // lines), and a single word too long for the line shrinks the title (down to
 // 0.7×) instead of breaking inside it.
+// `headerActions` (optional, FE batch 1 ruling): a page's own controls,
+// right-aligned on the title row before the mode switch and the bell (the
+// tablet Progress Body/Activity switch). The page still draws no title.
 const TITLE_TEXT = Object.freeze({
   textBreakStrategy: 'simple',
   maxFontSizeMultiplier: textScale.display,
@@ -25,7 +28,7 @@ const TITLE_TEXT = Object.freeze({
   minimumFontScale: 0.7,
 });
 
-export default function AppHeader({ path, query = '', mode }) {
+export default function AppHeader({ path, query = '', mode, headerActions = null }) {
   const { width } = useWindowDimensions();
   const isFocused = useIsFocused();
   const compact = isCompactHeader(path, query);
@@ -42,7 +45,12 @@ export default function AppHeader({ path, query = '', mode }) {
   }, [isFocused, compact]);
 
   const actions = (
-    <View style={styles.actions}>
+    <View style={[styles.actions, headerActions && styles.actionsWithSlot]}>
+      {headerActions ? (
+        <View testID="header-actions" style={styles.slot}>
+          {headerActions}
+        </View>
+      ) : null}
       {tablet ? <ModeSwitch mode={mode} /> : null}
       <NotificationBell />
     </View>
@@ -158,5 +166,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+  },
+  // With a page slot the cluster may give up width (the slot shrinks before
+  // the title has to); the bell keeps its size.
+  actionsWithSlot: {
+    flexShrink: 1,
+    gap: 16,
+  },
+  slot: {
+    flexShrink: 1,
   },
 });

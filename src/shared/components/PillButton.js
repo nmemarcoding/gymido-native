@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, font, motion, radii, shadows, spacing, typography } from '../theme/tokens';
@@ -77,6 +77,48 @@ const SIZE_ALIASES = {
 export const BUTTON_VARIANTS = Object.freeze(Object.keys(VARIANTS));
 export const BUTTON_SIZES = Object.freeze(['default', 'compact', 'cta']);
 
+// QA LOW (Create profile): the sticky CTA bars sit OUTSIDE the ScrollView, so
+// a scroll swipe that starts on the button isn't taken by the scroll and
+// Pressable fires onPress on release (still inside the hit rect + retention).
+// A touch that travels more than this from where it went down is a swipe,
+// never a press. Accessibility activation (no touch) is unaffected.
+export const TAP_MOVE_LIMIT = 10;
+
+const touchPoint = (event) => {
+  const native = event?.nativeEvent ?? {};
+  const touch = native.touches?.[0] ?? native.changedTouches?.[0] ?? native;
+  return typeof touch.pageX === 'number' && typeof touch.pageY === 'number' ? { x: touch.pageX, y: touch.pageY } : null;
+};
+
+/**
+ * The swipe guard for any Pressable that sits outside a scroll view: spread
+ * the handlers onto the Pressable and wrap its onPress with `guard`.
+ */
+export function useSwipeGuard() {
+  const start = useRef(null);
+  const moved = useRef(false);
+  return {
+    onPressIn: (event) => {
+      start.current = touchPoint(event);
+      moved.current = false;
+    },
+    onPressMove: (event) => {
+      const at = touchPoint(event);
+      if (start.current && at && Math.hypot(at.x - start.current.x, at.y - start.current.y) > TAP_MOVE_LIMIT) {
+        moved.current = true;
+      }
+    },
+    guard: (handler) => (event) => {
+      const swiped = moved.current;
+      start.current = null;
+      moved.current = false;
+      if (!swiped && handler) {
+        handler(event);
+      }
+    },
+  };
+}
+
 export function resolveVariant(variant) {
   const name = VARIANT_ALIASES[variant] ?? variant;
   return VARIANTS[name] ? name : 'primary';
@@ -113,6 +155,7 @@ export default function PillButton({
   // for any real label) and the pill grows from a 52 minimum, padding
   // unchanged. A compact pill that wraps also takes the 52 minimum.
   const [wrapped, setWrapped] = useState(false);
+  const swipe = useSwipeGuard();
   const onTextLayout = (event) => {
     const next = (event?.nativeEvent?.lines?.length ?? 1) > 1;
     if (next !== wrapped) {
@@ -128,7 +171,9 @@ export default function PillButton({
       accessibilityLabel={accessibilityLabel ?? title}
       accessibilityState={{ disabled: inactive, busy: loading }}
       disabled={inactive}
-      onPress={onPress}
+      onPressIn={swipe.onPressIn}
+      onPressMove={swipe.onPressMove}
+      onPress={swipe.guard(onPress)}
       style={({ pressed }) => [
         styles.base,
         styles[sizeName],

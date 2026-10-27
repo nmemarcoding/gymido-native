@@ -277,10 +277,11 @@ function ExercisesCatalog() {
       if (load.partial?.error) {
         rows.push({ type: 'partialError', key: 'partialError' });
       }
-      if (load.items.length === 0) {
+      // ⚠E-6 (web audit batch 1): a muscle filter whose group has no match
+      // in the results shows the same empty state, never a blank grid.
+      if (load.items.length === 0 || catalog.groups.length === 0) {
         rows.push({ type: 'empty', key: 'empty' });
       } else {
-        // ⚠E-6: a filter with no matches renders no groups and no empty state.
         // ND-3: flat grid, v1 order.
         rows.push(...flatGridRows(catalog.groups, columns));
       }

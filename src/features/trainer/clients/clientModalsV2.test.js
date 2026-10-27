@@ -5,7 +5,7 @@ import AppModal from '../../../shared/components/AppModal';
 import ExerciseImage from '../../../shared/components/ExerciseImage';
 import PillButton from '../../../shared/components/PillButton';
 import StatusPill from '../../../shared/components/StatusPill';
-import { colors, radii, textScale } from '../../../shared/theme/tokens';
+import { colors, font, radii, textScale } from '../../../shared/theme/tokens';
 import { getClientWorkout, inviteClient, listClientWeightLogs, searchMembers } from './api/clientsApi';
 import InviteClientModal from './components/InviteClientModal';
 import WeightHistoryModal, { goalLabel, splitWeight } from './components/WeightHistoryModal';
@@ -242,7 +242,15 @@ describe('Client weight modal (UX M)', () => {
     setWindow(834);
     listClientWeightLogs.mockResolvedValue(LOGS);
     const tree = await render(<WeightHistoryModal isOpen clientUserId={7} profile={PROFILE} onClose={jest.fn()} clientName="Sara Lopez" />);
-    expect(tree.root.findByType(AppModal).props.eyebrow).toBe('Sara Lopez');
+    // DECLARED change (FE batch 1 ruling, client weight modal ≥768): was
+    // expect(tree.root.findByType(AppModal).props.eyebrow).toBe('Sara Lopez') (the gold 12/600 string eyebrow).
+    // Now the client-name eyebrow is 13/600 secondary, ONE line + tail ellipsis, above "Weight history".
+    const eyebrow = host(tree, 'weight-history-eyebrow');
+    expect(deepText(eyebrow)).toBe('Sara Lopez');
+    expect(eyebrow.props).toMatchObject({ numberOfLines: 1, ellipsizeMode: 'tail' });
+    expect(flat(eyebrow)).toMatchObject({ fontSize: 13, fontFamily: font(600).fontFamily, color: colors.textSecondary });
+    const modalTexts = tree.root.findAll((node) => node.type === 'Text').map(deepText);
+    expect(modalTexts.indexOf('Sara Lopez')).toBeLessThan(modalTexts.indexOf('Weight history'));
     const current = host(tree, 'weight-history-current');
     expect(current.findAll((node) => node.type === 'Text' && flat(node).fontSize === 72)).toHaveLength(1);
     expect(flat(host(tree, 'weight-history-total'))).toMatchObject({ flexDirection: 'row', justifyContent: 'space-between' });

@@ -157,4 +157,31 @@ describe('AppHeader v2 look (§7.4)', () => {
     render({ path: '/exercises' });
     expect(mountBell).toHaveBeenLastCalledWith('compact');
   });
+
+  // FE batch 1 ruling (FINAL-AUDIT "Rulings for FE batch 1"): a header-actions slot, right-aligned in the title row.
+  it('header-actions slot: the page actions sit right-aligned on the title row (before the bell), one title', () => {
+    const { View } = require('react-native');
+    const tree = render({ path: '/progress', headerActions: <View testID="page-actions" /> }, 834);
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'header' && typeof node.type === 'string')).toHaveLength(1);
+    const [slot] = byTestId(tree, 'header-actions');
+    expect(byTestId(tree, 'page-actions')).toHaveLength(1);
+    expect(slot.findAll((node) => node.props.testID === 'page-actions' && typeof node.type === 'string')).toHaveLength(1);
+    const hostParent = (node) => {
+      let up = node.parent;
+      while (up && typeof up.type !== 'string') up = up.parent;
+      return up;
+    };
+    // The slot lives in the actions cluster of the title row, before the bell.
+    const cluster = hostParent(slot);
+    const row = hostParent(cluster);
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: 'row', justifyContent: 'space-between' });
+    expect(row.findAll((node) => node.props.accessibilityRole === 'header' && typeof node.type === 'string')).toHaveLength(1);
+    const ids = cluster.findAll((node) => typeof node.type === 'string' && ['header-actions', 'notification-bell'].includes(node.props.testID)).map((node) => node.props.testID);
+    expect(ids).toEqual(['header-actions', 'notification-bell']);
+  });
+
+  it('header-actions slot: nothing drawn when a page passes none (phone and tablet unchanged)', () => {
+    expect(byTestId(render({ path: '/progress' }), 'header-actions')).toHaveLength(0);
+    expect(byTestId(render({ path: '/progress' }, 834), 'header-actions')).toHaveLength(0);
+  });
 });

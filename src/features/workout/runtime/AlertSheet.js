@@ -9,16 +9,18 @@ import { CAP_BODY, DISPLAY_TITLE_TEXT, TITLE_TEXT } from '../../../shared/compon
 import { colors, font, gradients, radii, shadows, spacing, typography } from '../../../shared/theme/tokens';
 
 // The v2 workout prompt shell (UX F1 Discard, F2 Exact alarm / Hear your
-// rest timer): a floating bottom sheet on phones (left/right/bottom 10, grab
-// handle, icon tile, centred title and body, actions) and a centred card on
+// rest timer): the ONE attached bottom sheet on phones (UX batch-1 ruling 2,
+// as AppModal's: flush to the sides and the bottom edge, top radius 28, grab
+// handle, the safe area inside; icon tile, centred title and body, actions)
+// and a centred card on
 // tablets (≥ 768, no handle). Look only: every caller keeps its own
 // dismiss rules, focus and copy.
 //
 // `onScrim`: the scrim tap (null = the scrim does nothing).
 // `onRequestClose`: Android back.
 // `tone`: 'gold' | 'teal' | 'danger' (icon tile + the tablet card glow).
-// `icon`: ({ size }) => node.  `variant`: 'prompt' (A2/A3 sheets, radius 36)
-// or 'confirm' (Discard: radius 32, danger card on tablet).
+// `icon`: ({ size }) => node.  `variant`: 'prompt' (A2/A3, tablet radius 36)
+// or 'confirm' (Discard: tablet radius 32, danger card on tablet).
 // The prompts' backdrop blur (px), as drawn on the Rest alert / Discard
 // boards (and v1's dialogs). No blur token holds 8 (blur.scrim 4 /
 // scrimTablet 6 are U12's AppModal values): reported to the lead.
@@ -53,11 +55,7 @@ export default function AlertSheet({
   const iconSize = tablet ? (confirm ? 32 : 40) : confirm ? 26 : 34;
   const card = tablet
     ? [styles.card, confirm ? styles.cardConfirm : styles.cardPrompt, { maxHeight: height - 2 * spacing[6] - insets.top - insets.bottom }]
-    : [
-        styles.sheet,
-        confirm ? styles.sheetConfirm : styles.sheetPrompt,
-        { bottom: spacing['2_5'] + insets.bottom, maxHeight: height - spacing['2_5'] * 2 - insets.top - insets.bottom },
-      ];
+    : [styles.sheet, { maxHeight: height - spacing['2_5'] - insets.top }];
   return (
     <Modal transparent visible={open} animationType="fade" onRequestClose={onRequestClose} statusBarTranslucent>
       <View style={[styles.host, tablet && styles.hostTablet]}>
@@ -82,7 +80,7 @@ export default function AlertSheet({
               />
             </View>
           ) : null}
-          <ScrollView bounces={false} contentContainerStyle={[styles.content, tablet && styles.contentTablet]}>
+          <ScrollView bounces={false} contentContainerStyle={[styles.content, tablet ? styles.contentTablet : { paddingBottom: spacing[6] + insets.bottom }]}>
             {tablet ? null : <View testID={testID ? `${testID}-handle` : undefined} accessibilityElementsHidden importantForAccessibility="no" style={styles.handle} />}
             <View
               testID={testID ? `${testID}-tile` : undefined}
@@ -140,20 +138,19 @@ const styles = StyleSheet.create({
   scrim: {
     backgroundColor: colors.scrim,
   },
+  // Ruling 2: attached (AppModal's phone sheet): radius 28 28 0 0, a 1 px top
+  // hairline, no side or bottom margin.
   sheet: {
     position: 'absolute',
-    left: spacing['2_5'],
-    right: spacing['2_5'],
-    borderWidth: 1,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopWidth: 1,
     borderColor: colors.hairlineStrong,
+    borderTopLeftRadius: radii.xxl,
+    borderTopRightRadius: radii.xxl,
     backgroundColor: colors.surfaceCard2,
     boxShadow: shadows.sheetUp,
-  },
-  sheetPrompt: {
-    borderRadius: radii.xxxxl,
-  },
-  sheetConfirm: {
-    borderRadius: radii.xxxl,
   },
   card: {
     width: '100%',

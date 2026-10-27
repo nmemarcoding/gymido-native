@@ -60,13 +60,11 @@ const TABS = [
 // (Body/Activity, Goal progress, Goal / To goal, Streak, Workouts, Avg time,
 // the 12-week bars), plus the approved N1 ranges (phone), U9 goal line, #23
 // bars + Consistency and U8 Recent workouts with Missed rows (phone).
+// FE batch 1: the page owns its ShellPage, so the tablet switch can go into
+// the shell header's actions slot (the focus remount now includes the shell).
 export default function ProgressScreen() {
   const remountKey = useFocusRemountKey();
-  return (
-    <ShellPage>
-      <Progress key={remountKey} />
-    </ShellPage>
-  );
+  return <Progress key={remountKey} />;
 }
 
 function Progress() {
@@ -129,17 +127,21 @@ function Progress() {
 
   if (load.status === 'loading') {
     return (
-      <StateSlot loader>
-        <Loader label="Loading progress" />
-      </StateSlot>
+      <ShellPage>
+        <StateSlot loader>
+          <Loader label="Loading progress" />
+        </StateSlot>
+      </ShellPage>
     );
   }
   if (load.status === 'error') {
     // ⚠PR-1: the transport text, no retry.
     return (
-      <StateSlot>
-        <InlineError testID="progress-error" title="Progress unavailable" message={load.error?.message || 'Please try again.'} />
-      </StateSlot>
+      <ShellPage>
+        <StateSlot>
+          <InlineError testID="progress-error" title="Progress unavailable" message={load.error?.message || 'Please try again.'} />
+        </StateSlot>
+      </ShellPage>
     );
   }
 
@@ -158,56 +160,62 @@ function Progress() {
       : fallbackFor(range);
 
   const tabs = <ViewSwitch tab={tab} onChange={setTab} tablet={tablet} />;
+  // FE batch 1 ruling: on tablet the switch sits right-aligned in the shell
+  // header's title row (header-actions slot); past the reflow scale the row
+  // can't hold the title, the switch and the bell, so it keeps its own row.
+  const switchInHeader = tablet && !reflow;
 
   return (
-    <View style={[styles.page, tablet && styles.pageTablet]}>
-      {successMessage ? <InlineToast testID="progress-saved-toast" tone={ToastTone.success} title="Saved" message={successMessage} /> : null}
+    <ShellPage headerActions={switchInHeader ? tabs : undefined}>
+      <View style={[styles.page, tablet && styles.pageTablet]}>
+        {successMessage ? <InlineToast testID="progress-saved-toast" tone={ToastTone.success} title="Saved" message={successMessage} /> : null}
 
-      {/* UX verdict I1 (iPad, 15e819a): ONE page title. The shell header
-          already draws the tablet 52 "Progress" (as on every tablet page), so
-          the page draws no second H1; the switch has its own row. */}
-      {tabs}
+        {/* UX verdict I1 (iPad, 15e819a): ONE page title. The shell header
+            already draws the tablet 52 "Progress" (as on every tablet page), so
+            the page draws no second H1. */}
+        {switchInHeader ? null : tabs}
 
-      {tab === 'body' ? (
-        <BodyTab
-          weightProgress={weightProgress}
-          weightLogs={weightLogs}
-          rangeLogs={shownRangeLogs}
-          rangeLoading={rangeLoading}
-          range={range}
-          onRange={setRange}
-          tablet={tablet}
-          reflow={reflow}
-          onAddWeight={() => setModalOpen(true)}
+        {tab === 'body' ? (
+          <BodyTab
+            weightProgress={weightProgress}
+            weightLogs={weightLogs}
+            rangeLogs={shownRangeLogs}
+            rangeLoading={rangeLoading}
+            range={range}
+            onRange={setRange}
+            tablet={tablet}
+            reflow={reflow}
+            onAddWeight={() => setModalOpen(true)}
+          />
+        ) : (
+          <ActivityTab
+            overview={overview}
+            history={history}
+            frequency={frequency}
+            missed={missed}
+            week={week}
+            recentWorkouts={recentWorkouts}
+            planDaysPerWeek={planDaysPerWeek}
+            tablet={tablet}
+            reflow={reflow}
+          />
+        )}
+
+        {/* PR2: Home §H2 with Progress' unit; no defaultRecordedOn (23 Oct). */}
+        <WeightLogModal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          defaultUnit={unit}
+          onSuccess={(saved) => {
+            // T-34 F1: patch the store before the reload, so Current keeps its unit.
+            applySavedWeightLog(saved);
+            setModalOpen(false);
+            setSuccessMessage('Weight log added.');
+            setReloadCount((value) => value + 1);
+          }}
         />
-      ) : (
-        <ActivityTab
-          overview={overview}
-          history={history}
-          frequency={frequency}
-          missed={missed}
-          week={week}
-          recentWorkouts={recentWorkouts}
-          planDaysPerWeek={planDaysPerWeek}
-          tablet={tablet}
-          reflow={reflow}
-        />
-      )}
-
-      {/* PR2: Home §H2 with Progress' unit; no defaultRecordedOn (23 Oct). */}
-      <WeightLogModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        defaultUnit={unit}
-        onSuccess={(saved) => {
-          // T-34 F1: patch the store before the reload, so Current keeps its unit.
-          applySavedWeightLog(saved);
-          setModalOpen(false);
-          setSuccessMessage('Weight log added.');
-          setReloadCount((value) => value + 1);
-        }}
-      />
-    </View>
+      </View>
+    </ShellPage>
   );
 }
 
@@ -765,9 +773,11 @@ const styles = StyleSheet.create({
     borderColor: colors.hairline,
     backgroundColor: colors.surface,
   },
+  // In the header slot it may narrow (never past the row) before the title must.
   switchTablet: {
     alignSelf: 'auto',
     width: 320,
+    maxWidth: '100%',
   },
   segment: {
     flex: 1,

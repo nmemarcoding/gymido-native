@@ -70,8 +70,16 @@ export default function WeightHistoryModal({ isOpen, clientUserId, profile, onCl
       testID="weight-history-modal"
       isOpen={isOpen}
       onClose={onClose}
-      // M 3: the client-name eyebrow, tablet only (AppModal `eyebrow`).
-      eyebrow={tablet && clientName ? clientName : undefined}
+      // M 3: the client-name eyebrow, tablet only (AppModal `eyebrow`). FE
+      // batch 1 ruling: 13/600 secondary, ONE line + tail ellipsis, above
+      // "Weight history" (as the tablet board).
+      eyebrow={
+        tablet && clientName ? (
+          <Text {...CAP_BODY} testID="weight-history-eyebrow" numberOfLines={1} ellipsizeMode="tail" style={styles.eyebrow}>
+            {clientName}
+          </Text>
+        ) : undefined
+      }
       title="Weight history"
       description="Every weigh-in this client has logged, oldest first."
       size="2xl"
@@ -222,6 +230,15 @@ function Tile({ testID, label, value, change = false, tablet, wide = false }) {
 }
 
 const styles = StyleSheet.create({
+  // Clear of the tablet Close (as AppModal's own eyebrow), 6 above the title.
+  eyebrow: {
+    ...font(600),
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textSecondary,
+    marginBottom: spacing['1_5'],
+    paddingRight: 48,
+  },
   // RN-SPEC-v2-phase5 §4: phone footer buttons 56.
   phoneFooterButton: {
     minHeight: 56,

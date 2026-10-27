@@ -31,7 +31,9 @@ import { TAB_BAR_CONTENT_PADDING } from './tabBarMetrics';
 // `glow` draws the ambient gold glow where a board has one (see Screen.js).
 // `scrollRef` (optional): the page's ScrollView, for screens that scroll
 // programmatically (the generator's Review opens at the top, G1.3).
-export default function ShellPage({ children, nestable = false, glow = false, testID = 'app-root', scrollRef }) {
+// `headerActions` (optional): drawn right-aligned on the shell header's title
+// row (AppHeader); tablet Progress puts its Body/Activity switch there.
+export default function ShellPage({ children, nestable = false, glow = false, testID = 'app-root', scrollRef, headerActions }) {
   const route = useRoute();
   const path = getScreenPath(route.name, route.params);
   const { width, fontScale } = useWindowDimensions();
@@ -56,7 +58,7 @@ export default function ShellPage({ children, nestable = false, glow = false, te
           scale; state kept above ShellPage (the screen component) survives.
           The active workout renders outside ShellPage and is not remounted.
           Details: ~/gymido-mobile-work/v2/phase1-qa-fixes.md. */}
-      <AppHeader key={`header-scale-${fontScale}`} path={path} mode={mode} />
+      <AppHeader key={`header-scale-${fontScale}`} path={path} mode={mode} headerActions={headerActions} />
       {!tablet && showsMobileModeSwitch({ user, path }) ? (
         <View style={styles.mobileSwitch}>
           <Text style={styles.mobileSwitchLabel}>Workspace</Text>

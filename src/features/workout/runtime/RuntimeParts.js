@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import ExerciseImage, { TILE_ALPHA, muscleColor, muscleTextColor } from '../../../shared/components/ExerciseImage';
 import GlassSurface from '../../../shared/components/GlassSurface';
 import GradientFill from '../../../shared/components/GradientFill';
-import PillButton from '../../../shared/components/PillButton';
+import PillButton, { useSwipeGuard } from '../../../shared/components/PillButton';
 import Select from '../../../shared/components/Select';
 import { CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT, TITLE_TEXT, useLargeTextReflow } from '../../../shared/components/largeText';
 import { colors, font, gradients, layout, radii, shadows, spacing, textInputColors, textScale, typography } from '../../../shared/theme/tokens';
@@ -633,6 +633,8 @@ export function DidItButton({ set, isPending, isLocked, lockReason, onPress }) {
   const disabled = isPending || isLocked;
   const label = isPending ? 'Saving…' : 'Did it';
   const ink = disabled ? colors.textFaint : colors.onGold;
+  // QA LOW: the dock sits outside the scroll; a swipe from here is no press.
+  const swipe = useSwipeGuard();
   return (
     <Pressable
       testID={`set-action-${set.id}`}
@@ -641,7 +643,9 @@ export function DidItButton({ set, isPending, isLocked, lockReason, onPress }) {
       accessibilityHint={isLocked ? lockReason : undefined}
       accessibilityState={{ disabled }}
       disabled={disabled}
-      onPress={onPress}
+      onPressIn={swipe.onPressIn}
+      onPressMove={swipe.onPressMove}
+      onPress={swipe.guard(onPress)}
       style={[styles.didIt, disabled && styles.didItDisabled]}
     >
       {({ pressed }) => (

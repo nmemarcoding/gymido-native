@@ -29,7 +29,18 @@ jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   default: () => ({ width: mockWidth, height: 900, scale: 2, fontScale: mockFontScale }),
 }));
 jest.mock('../../shared/api/client', () => ({ apiClient: { get: jest.fn(), post: jest.fn() } }));
-jest.mock('../shell/ShellPage', () => ({ children }) => children);
+// The shell page draws the header-actions slot (FE batch 1) above the page, as the header does.
+jest.mock('../shell/ShellPage', () => {
+  const { View } = require('react-native');
+  return function MockShellPage({ children, headerActions }) {
+    return (
+      <>
+        {headerActions ? <View testID="shell-header-actions">{headerActions}</View> : null}
+        {children}
+      </>
+    );
+  };
+});
 jest.mock('../../shared/hooks/useFocusRemountKey', () => ({ useFocusRemountKey: () => 0 }));
 jest.mock('../../shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
@@ -428,17 +439,43 @@ describe('Progress tablet', () => {
 
   // UX verdict I1 (iPad, 15e819a): the title showed TWICE (the shell's "Progress", then the page's 60 H1 squeezed
   // beside the switch into "Progr / ess"). ONE title: the shell header's tablet 52, as on every other tablet page.
-  it.each([1, 3.1])('I1 at %s: one page title (the shell header\'s); the page draws no "Progress" H1; the switch is on its own row', async (scale) => {
+  // DECLARED change (FE batch 1 ruling, header-actions slot): was "the switch is on its own row" at 1 and 3.1. Now at
+  // 1 the switch sits right-aligned in the shell header's title row (the slot); past the reflow scale (3.1) it keeps
+  // its own row under the title (the title row cannot hold the 52 title + the switch + the bell).
+  it.each([1, 3.1])('I1 at %s: one page title (the shell header\'s); the page draws no "Progress" H1', async (scale) => {
     mockWidth = 834;
     mockFontScale = scale;
     expect(getHeaderTitle('/progress')).toBe('Progress');
     const tree = await render();
     const isProgressText = (node) => node.type === 'Text' && textOf(node) === 'Progress';
     expect(tree.root.findAll(isProgressText)).toHaveLength(0);
-    // The switch's row holds the switch only (no title beside it to squeeze).
     const tabs = host(tree.root, 'progress-tabs');
     expect(tabs.parent.findAll(isProgressText)).toHaveLength(0);
     expect(flat(tabs).width).toBe(320);
+  });
+
+  it('header-actions slot: at 1 the Body/Activity switch is in the shell title row (one switch, still works)', async () => {
+    mockWidth = 834;
+    const tree = await render();
+    expect(queryHost(tree.root, 'progress-tabs')).toHaveLength(1);
+    const slot = host(tree.root, 'shell-header-actions');
+    expect(queryHost(slot, 'progress-tabs')).toHaveLength(1);
+    press(tree.root, 'progress-tab-activity');
+    expect(host(slot, 'progress-tab-activity').props.accessibilityState).toEqual({ selected: true });
+    expect(queryHost(tree.root, 'progress-consistency')).toHaveLength(1);
+  });
+
+  it('header-actions slot: past the reflow scale the switch keeps its own row; phone never uses the slot', async () => {
+    mockWidth = 834;
+    mockFontScale = 3.1;
+    const large = await render();
+    expect(queryHost(large.root, 'shell-header-actions')).toHaveLength(0);
+    expect(queryHost(large.root, 'progress-tabs')).toHaveLength(1);
+    mockWidth = 390;
+    mockFontScale = 1;
+    const phone = await render();
+    expect(queryHost(phone.root, 'shell-header-actions')).toHaveLength(0);
+    expect(queryHost(phone.root, 'progress-tabs')).toHaveLength(1);
   });
 
   it('Activity on tablet: no Recent workouts (not drawn)', async () => {

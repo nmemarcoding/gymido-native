@@ -282,3 +282,59 @@ describe('pressed: the §8.6 STATE RULE on every variant', () => {
     expect(inner.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'pill-pressed-overlay')).toHaveLength(1);
   });
 });
+
+// QA LOW (Create profile): a scroll swipe that STARTED on a sticky CTA (outside the ScrollView, so nothing took
+// the touch away) fired onPress on release. A touch that travels more than ~10 px is a swipe, not a tap.
+describe('swipe is not a press', () => {
+  const touch = (x, y) => ({
+    persist() {},
+    currentTarget: { measure: jest.fn() },
+    nativeEvent: { pageX: x, pageY: y, locationX: x, locationY: y, timestamp: Date.now(), touches: [], changedTouches: [] },
+  });
+  const hostOf = (tree) => tree.root.find((node) => typeof node.type === 'string' && typeof node.props.onResponderGrant === 'function');
+  function gesture(tree, moves) {
+    const host = hostOf(tree);
+    act(() => {
+      host.props.onResponderGrant(touch(100, 200));
+    });
+    moves.forEach(([x, y]) => act(() => host.props.onResponderMove(touch(x, y))));
+    const [endX, endY] = moves.length ? moves[moves.length - 1] : [100, 200];
+    act(() => {
+      host.props.onResponderRelease(touch(endX, endY));
+    });
+  }
+
+  it('press-in, a 40 px vertical move, release: onPress does NOT fire', () => {
+    const onPress = jest.fn();
+    const tree = button({ onPress });
+    gesture(tree, [[100, 180], [100, 160]]);
+    expect(onPress).not.toHaveBeenCalled();
+  });
+
+  it('a 40 px sideways move does not fire either', () => {
+    const onPress = jest.fn();
+    gesture(button({ onPress }), [[140, 200]]);
+    expect(onPress).not.toHaveBeenCalled();
+  });
+
+  it('a tap (no move, or ≤ 10 px of jitter) still fires once', () => {
+    const still = jest.fn();
+    gesture(button({ onPress: still }), []);
+    expect(still).toHaveBeenCalledTimes(1);
+    const jitter = jest.fn();
+    gesture(button({ onPress: jitter }), [[104, 206], [106, 208]]);
+    expect(jitter).toHaveBeenCalledTimes(1);
+  });
+
+  it('after a cancelled swipe the next tap fires, and a11y activation (no touch) still fires', () => {
+    const onPress = jest.fn();
+    const tree = button({ onPress });
+    gesture(tree, [[100, 150]]);
+    expect(onPress).not.toHaveBeenCalled();
+    gesture(tree, []);
+    expect(onPress).toHaveBeenCalledTimes(1);
+    gesture(tree, [[100, 150]]);
+    act(() => pressableOf(tree).props.onPress());
+    expect(onPress).toHaveBeenCalledTimes(2);
+  });
+});

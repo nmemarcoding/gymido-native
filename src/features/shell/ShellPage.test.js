@@ -7,9 +7,11 @@ jest.mock('@react-navigation/native', () => ({ useRoute: () => ({ name: 'EditPro
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }) }));
 jest.mock('react-native-draggable-flatlist', () => ({ NestableScrollContainer: 'NestableScrollContainer' }));
 const mockHeaderMounts = [];
+const mockHeaderProps = [];
 jest.mock('./AppHeader', () => {
   const { useEffect } = require('react');
-  return function MockAppHeader() {
+  return function MockAppHeader(props) {
+    mockHeaderProps.push(props);
     useEffect(() => {
       mockHeaderMounts.push(1);
     }, []);
@@ -158,5 +160,17 @@ describe('live text-size change (QA F1)', () => {
     } finally {
       errors.mockRestore();
     }
+  });
+});
+
+describe('ShellPage header-actions slot (FE batch 1)', () => {
+  it('passes the page headerActions to the shell header; none by default', () => {
+    const actions = <></>;
+    mockHeaderProps.length = 0;
+    render({ headerActions: actions });
+    expect(mockHeaderProps[mockHeaderProps.length - 1].headerActions).toBe(actions);
+    mockHeaderProps.length = 0;
+    render();
+    expect(mockHeaderProps[mockHeaderProps.length - 1].headerActions).toBeUndefined();
   });
 });

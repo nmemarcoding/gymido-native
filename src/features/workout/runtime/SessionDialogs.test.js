@@ -76,10 +76,14 @@ describe('Discard workout? (F1, ND6)', () => {
     expect(onKeep).toHaveBeenCalledTimes(1);
   });
 
-  it('phone sheet: floating, radius 32, surface-card-2, the grab handle and the phone scrim blur', () => {
+  // DECLARED change (UX batch-1 ruling 2: ONE attached phone sheet, no floating variant): was "phone sheet: floating,
+  // radius 32" with expect(card).toMatchObject({ borderRadius: 32, backgroundColor: colors.surfaceCard2 }) (10 from the
+  // edges + safe area). Now bottom-attached as AppModal's phone sheet: top radius 28, square bottom, no side or bottom
+  // margin, the safe area inside the sheet (attachedPhoneSheet below).
+  it('phone sheet: attached, surface-card-2, the grab handle and the phone scrim blur', () => {
     const tree = render(<DiscardWorkoutDialog open onKeep={jest.fn()} onDiscard={jest.fn()} />);
     const card = StyleSheet.flatten(host(tree, 'discard-dialog').props.style);
-    expect(card).toMatchObject({ borderRadius: 32, backgroundColor: colors.surfaceCard2 });
+    expect(card).toMatchObject({ backgroundColor: colors.surfaceCard2 });
     expect(host(tree, 'discard-dialog-handle')).toBeDefined();
     // DECLARED: was 4 (blur.scrim); the one prompt blur is 8 (F1:337 "one blur across dialogs", F2).
     expect(tree.root.findAll((node) => node.props.testID === 'blur-layer')[0].props.blurPx).toBe(PROMPT_SCRIM_BLUR);
@@ -119,6 +123,58 @@ describe('Discard workout? (F1, ND6)', () => {
 
 // Review M5: the Leave sheet drops its backdrop blur while the app is away and starts a fresh one on return (the
 // A2 "solid backdrop after backgrounding" fix, useForegroundBlur), and uses the one prompt blur (8).
+// UX batch-1 ruling 2 (2026-10-27): phone = ONE attached bottom sheet (handle, top r28, safe area); no floating variant.
+describe('attached phone sheet (ruling 2)', () => {
+  const attached = (card) => {
+    expect(card).toMatchObject({ borderTopLeftRadius: 28, borderTopRightRadius: 28 });
+    expect(card.borderRadius ?? 0).toBe(0);
+    expect(card.borderBottomLeftRadius ?? 0).toBe(0);
+    expect(card.borderBottomRightRadius ?? 0).toBe(0);
+    expect(card.marginHorizontal ?? 0).toBe(0);
+    expect(card.marginBottom ?? 0).toBe(0);
+  };
+
+  it.each(['confirm', 'prompt'])('AlertSheet (%s): bottom 0, full width, top r28, the handle; the safe area pads the content', (variant) => {
+    const AlertSheet = require('./AlertSheet').default;
+    const tree = render(<AlertSheet open testID="sheet" title="T" variant={variant} actions={null} onRequestClose={jest.fn()} />);
+    const card = StyleSheet.flatten(host(tree, 'sheet').props.style);
+    attached(card);
+    expect(card).toMatchObject({ position: 'absolute', left: 0, right: 0, bottom: 0 });
+    expect(host(tree, 'sheet-handle')).toBeDefined();
+    const scroll = tree.root.findAll((node) => node.props.contentContainerStyle && node.props.bounces === false)[0];
+    expect(StyleSheet.flatten(scroll.props.contentContainerStyle).paddingBottom).toBe(24 + 34);
+  });
+
+  it('AlertSheet tablet: still the centred card (radius kept, no handle)', () => {
+    mockWidth = 834;
+    const AlertSheet = require('./AlertSheet').default;
+    const tree = render(<AlertSheet open testID="sheet" title="T" variant="confirm" actions={null} onRequestClose={jest.fn()} />);
+    expect(StyleSheet.flatten(host(tree, 'sheet').props.style).borderRadius).toBe(32);
+    expect(host(tree, 'sheet-handle')).toBeUndefined();
+  });
+
+  it('Leave workout? phone: attached at the bottom edge (no host side/bottom padding), top r28, safe area inside', () => {
+    const tree = render(<LeaveWorkoutDialog open onStay={jest.fn()} onLeave={jest.fn()} />);
+    const card = StyleSheet.flatten(host(tree, 'leave-workout-dialog').props.style);
+    attached(card);
+    expect(card.paddingBottom).toBe(22 + 34);
+    const hostView = host(tree, 'leave-workout-dialog').parent;
+    let up = hostView;
+    while (up && !(typeof up.type === 'string' && StyleSheet.flatten(up.props.style)?.flex === 1)) up = up.parent;
+    const hostStyle = StyleSheet.flatten(up.props.style);
+    expect(hostStyle.paddingHorizontal ?? 0).toBe(0);
+    expect(hostStyle.paddingBottom ?? 0).toBe(0);
+    expect(hostStyle.justifyContent).toBe('flex-end');
+    expect(host(tree, 'leave-workout-dialog-handle')).toBeDefined();
+  });
+
+  it('Leave workout? tablet: still the 520 centred card with radius 32', () => {
+    mockWidth = 834;
+    const tree = render(<LeaveWorkoutDialog open onStay={jest.fn()} onLeave={jest.fn()} />);
+    expect(StyleSheet.flatten(host(tree, 'leave-workout-dialog').props.style)).toMatchObject({ borderRadius: 32, maxWidth: 520 });
+  });
+});
+
 describe('Leave workout? backdrop (M5)', () => {
   it('the blur only in the foreground, a fresh one on return; 8 px on phone and tablet', () => {
     let listener;
