@@ -103,13 +103,139 @@ describe('Select (v2 look)', () => {
     expect(box(sized).height).toBe(48);
   });
 
-  it('Android: the platform dialog picker over the styled box, with the chevron', () => {
+  // UX NATIVE-P4 N1 (a352a2d): Android no longer opens the white system
+  // dialog; it uses the app's dark select sheet (see "Select sheet (Android)").
+  it('Android: the app select sheet over the styled box, with the chevron (no dialog-mode Picker)', () => {
     Platform.OS = 'android';
     const tree = render({ disabled: true });
     expect(tree.root.findAllByType(SelectChevron)).toHaveLength(1);
-    const picker = tree.root.findAll((node) => node.props.testID === 'difficulty' && node.props.mode === 'dialog')[0];
-    expect(picker.props.enabled).toBe(false);
-    expect(picker.props.prompt).toBe('Difficulty (optional)');
+    expect(tree.root.findAll((node) => node.props.mode === 'dialog')).toHaveLength(0);
+    expect(opener(tree).props.disabled).toBe(true);
+    expect(opener(tree).props.accessibilityState).toEqual({ disabled: true });
+    expect(opener(tree).props.accessibilityLabel).toBe('Difficulty (optional)');
+  });
+});
+
+// UX NATIVE-P4 N1: every Android select opens the app's dark select sheet
+// (surface-raised, hairline, 52 rows, gold check on the selected one, scrim
+// 0.6), never the light system dialog.
+describe('Select sheet (Android)', () => {
+  const realOS = Platform.OS;
+  beforeEach(() => {
+    Platform.OS = 'android';
+  });
+  afterEach(() => {
+    Platform.OS = realOS;
+  });
+
+  const OPTIONS = [
+    { value: '', label: 'Select a category' },
+    { value: 'strength', label: 'Strength' },
+    { value: 'cardio', label: 'Cardio' },
+  ];
+  const flat = (style) => StyleSheet.flatten(style) ?? {};
+  const modal = (tree) => tree.root.findAll((node) => node.props.testID === 'category-modal' && typeof node.props.onRequestClose === 'function')[0];
+  const opener = (tree) => tree.root.findAll((node) => node.props.testID === 'category' && typeof node.props.onPress === 'function')[0];
+  const sheet = (tree) => tree.root.findAll((node) => node.props.testID === 'category-sheet' && node.props.style);
+  const scrimOf = (tree) => tree.root.findAll((node) => node.props.testID === 'category-scrim' && typeof node.props.onPress === 'function')[0];
+  const row = (tree, value) =>
+    tree.root.findAll((node) => node.props.testID === `category-option-${value}` && typeof node.props.onPress === 'function')[0];
+
+  function render(props = {}) {
+    let tree;
+    act(() => {
+      tree = create(<Select testID="category" label="Category" value="strength" options={OPTIONS} onChange={() => {}} {...props} />);
+    });
+    return tree;
+  }
+
+  it('renders no native Picker at all on Android', () => {
+    const { Picker } = jest.requireMock('@react-native-picker/picker');
+    const tree = render();
+    act(() => opener(tree).props.onPress());
+    expect(tree.root.findAllByType(Picker)).toHaveLength(0);
+    expect(tree.root.findAll((node) => node.props.mode === 'dialog')).toHaveLength(0);
+  });
+
+  it('closed by default; the tap opens the kit sheet (testID) and closes the keyboard', () => {
+    const dismiss = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+    const tree = render();
+    expect(modal(tree).props.visible).toBe(false);
+    act(() => opener(tree).props.onPress());
+    expect(dismiss).toHaveBeenCalledTimes(1);
+    expect(modal(tree).props.visible).toBe(true);
+    expect(sheet(tree).length).toBeGreaterThan(0);
+    dismiss.mockRestore();
+  });
+
+  it('the sheet look: surface-raised, hairline edge, scrim 0.6, the label as its title', () => {
+    const tree = render();
+    act(() => opener(tree).props.onPress());
+    const s = flat(sheet(tree)[0].props.style);
+    expect(s.backgroundColor).toBe(colors.surfaceRaised);
+    expect(s.borderColor).toBe(colors.hairline);
+    expect(flat(scrimOf(tree).props.style).backgroundColor).toBe(colors.scrim);
+    const title = sheet(tree)[0].findAll((node) => node.type === Text && node.props.children === 'Category')[0];
+    expect(title.props.accessibilityRole).toBe('header');
+  });
+
+  it('a11y: a radiogroup named by the label; each row a radio with checked state; 52 tall rows', () => {
+    const tree = render();
+    act(() => opener(tree).props.onPress());
+    const group = tree.root.findAll((node) => node.props.accessibilityRole === 'radiogroup')[0];
+    expect(group.props.accessibilityLabel).toBe('Category');
+    OPTIONS.forEach((option) => {
+      const r = row(tree, option.value);
+      expect(r.props.accessibilityRole).toBe('radio');
+      expect(r.props.accessibilityLabel).toBe(option.label);
+      expect(r.props.accessibilityState).toEqual({ checked: option.value === 'strength' });
+      expect(flat(typeof r.props.style === 'function' ? r.props.style({ pressed: false }) : r.props.style).minHeight).toBe(52);
+    });
+  });
+
+  it('the selected row shows the gold check and gold text; others show none', () => {
+    const tree = render();
+    act(() => opener(tree).props.onPress());
+    expect(tree.root.findAll((node) => node.props.testID === 'category-check-strength')).not.toHaveLength(0);
+    expect(tree.root.findAll((node) => node.props.testID === 'category-check-cardio')).toHaveLength(0);
+    const selectedText = row(tree, 'strength').findAll((node) => node.type === Text && node.props.children === 'Strength')[0];
+    expect(flat(selectedText.props.style).color).toBe(colors.gold);
+    expect(selectedText.props.maxFontSizeMultiplier).toBe(2);
+    const otherText = row(tree, 'cardio').findAll((node) => node.type === Text && node.props.children === 'Cardio')[0];
+    expect(flat(otherText.props.style).color).toBe(colors.textPrimary);
+  });
+
+  it('selecting an option calls onChange with its value and closes the sheet', () => {
+    const onChange = jest.fn();
+    const tree = render({ onChange });
+    act(() => opener(tree).props.onPress());
+    act(() => row(tree, 'cardio').props.onPress());
+    expect(onChange).toHaveBeenCalledWith('cardio');
+    expect(modal(tree).props.visible).toBe(false);
+  });
+
+  it('the scrim and Android back close it without a change', () => {
+    const onChange = jest.fn();
+    const tree = render({ onChange });
+    act(() => opener(tree).props.onPress());
+    act(() => scrimOf(tree).props.onPress());
+    expect(modal(tree).props.visible).toBe(false);
+    act(() => opener(tree).props.onPress());
+    act(() => modal(tree).props.onRequestClose());
+    expect(modal(tree).props.visible).toBe(false);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('a value matching no option checks the first, like a browser <select>', () => {
+    const tree = render({ value: 'nope' });
+    act(() => opener(tree).props.onPress());
+    expect(row(tree, '').props.accessibilityState).toEqual({ checked: true });
+  });
+
+  it('disabled: the opener is disabled and the sheet stays closed', () => {
+    const tree = render({ disabled: true });
+    expect(opener(tree).props.disabled).toBe(true);
+    expect(modal(tree).props.visible).toBe(false);
   });
 });
 

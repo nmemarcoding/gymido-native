@@ -20,6 +20,11 @@ const HIDDEN = { accessibilityElementsHidden: true, importantForAccessibility: '
 // days fold into one summary card. Rest days have no card. Phone: a column
 // (gap 12); tablet (N5): a 2-column grid under the hero.
 // `cards` = thisWeekCards(...) (never null here).
+// UX NATIVE-P4 N3 + app-shell §1.1: only the day NAME gets a second line;
+// every secondary line (meta, Done label, strip captions) is one line with
+// an ellipsis at the tail.
+const ONE_LINE = Object.freeze({ numberOfLines: 1, ellipsizeMode: 'tail' });
+
 export default function ThisWeek({ cards, tablet = false, onStart, onOpenExercise }) {
   const reflow = useReflow();
   const items = [];
@@ -100,7 +105,7 @@ function TodayCard({ card, onStart, onOpenExercise, reflow }) {
                   Today
                 </Text>
               </View>
-              <Text {...CAP_BODY} style={styles.meta}>
+              <Text {...CAP_BODY} {...ONE_LINE} style={styles.meta}>
                 {card.meta}
               </Text>
             </View>
@@ -138,7 +143,7 @@ function TodayCard({ card, onStart, onOpenExercise, reflow }) {
                     </View>
                   ) : null}
                 </View>
-                <Text {...CAP_BODY} numberOfLines={2} style={styles.stripCaption}>
+                <Text {...CAP_BODY} {...ONE_LINE} style={styles.stripCaption}>
                   {`${name} · ${compactSetSummary(item)}`}
                 </Text>
               </Pressable>
@@ -165,7 +170,7 @@ function UpcomingCard({ card }) {
         <Text {...CAP_BODY} style={styles.cardTitle}>
           {card.title}
         </Text>
-        <Text {...CAP_BODY} style={styles.meta}>
+        <Text {...CAP_BODY} {...ONE_LINE} style={styles.meta}>
           {card.meta}
         </Text>
         {missed ? <StatusPill testID="plan-week-missed-pill" label="Missed" tone="missed" style={styles.missedPill} /> : null}
@@ -198,7 +203,7 @@ function DoneCard({ done }) {
         <Text {...CAP_BODY} style={styles.cardTitle}>
           {done.titles}
         </Text>
-        <Text {...CAP_BODY} style={styles.meta}>
+        <Text {...CAP_BODY} {...ONE_LINE} style={styles.meta}>
           {done.label}
         </Text>
       </View>

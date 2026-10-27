@@ -403,3 +403,37 @@ describe('Plan detail large text (§9)', () => {
     expect(cta.props.numberOfLines).toBeUndefined();
   });
 });
+
+// UX NATIVE-P4 N2 (a352a2d): stat values wrap at words only; one word that
+// doesn't fit shrinks (minimumFontScale 0.75), never breaks inside the word.
+describe('Plan detail stat tiles: no mid-word break (UX N2)', () => {
+  const valueText = (tree, key, value) =>
+    host(tree, `plan-stat-${key}`).findAll((node) => node.type === 'Text' && textOf(node) === value)[0];
+
+  it.each([
+    ['phone', { width: 390, height: 844, fontScale: 1 }],
+    ['iPad', { width: 834, height: 1194, fontScale: 1 }],
+    ['Android tablet', { width: 1280, height: 800, fontScale: 1 }],
+  ])('%s: the one-word "Intermediate" is one line and shrinks to fit (never splits)', async (_, size) => {
+    mockWindow = size;
+    const tree = await render();
+    expect(valueText(tree, 'level', 'Intermediate').props).toMatchObject({
+      numberOfLines: 1,
+      adjustsFontSizeToFit: true,
+      minimumFontScale: 0.75,
+      textBreakStrategy: 'simple',
+    });
+  });
+
+  it('a two-word value may wrap to 2 lines (at the word boundary), still shrink-to-fit 0.75', async () => {
+    getPlan.mockResolvedValue({ plan: { ...PLAN, difficulty_level: { name: 'Very Advanced' } } });
+    const tree = await render();
+    expect(valueText(tree, 'level', 'Very Advanced').props).toMatchObject({ numberOfLines: 2, adjustsFontSizeToFit: true, minimumFontScale: 0.75 });
+  });
+
+  it('the number tiles stay one line, shrink 0.75', async () => {
+    const tree = await render();
+    expect(valueText(tree, 'days', '3').props).toMatchObject({ numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 0.75 });
+    expect(valueText(tree, 'exercises', '6').props).toMatchObject({ numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 0.75 });
+  });
+});

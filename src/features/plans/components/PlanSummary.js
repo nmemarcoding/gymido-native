@@ -46,6 +46,16 @@ function statItems(plan, dayCount, totalExercises) {
   ];
 }
 
+// UX NATIVE-P4 N2: the stat-tile shrink floor.
+export const STAT_VALUE_MIN_SCALE = 0.75;
+
+// One line per word, at most 2: a single word is one line (adjustsFontSizeToFit
+// shrinks it) so iOS never char-wraps it ("Intermediat/e").
+export function statValueLines(value) {
+  const words = String(value ?? '').trim().split(/\s+/).filter(Boolean).length;
+  return Math.min(Math.max(words, 1), 2);
+}
+
 // 3 tiles (radius 20, padding 12): value 22/26/700 + a 12 muted label; the
 // Level value 16/26. Past 1.3× text: stacked label → value rows (§9 rule 4).
 function StatRow({ plan, dayCount, totalExercises, hero = false }) {
@@ -73,9 +83,11 @@ function StatRow({ plan, dayCount, totalExercises, hero = false }) {
         <View key={item.key} testID={`plan-stat-${item.key}`} style={[styles.statTile, hero && styles.heroStatTile]}>
           <Text
             maxFontSizeMultiplier={hero ? textScale.display : textScale.title}
-            numberOfLines={item.text ? 2 : 1}
+            // UX NATIVE-P4 N2: wrap at words only. A line per word (max 2),
+            // so one word that doesn't fit shrinks (0.75) and never splits.
+            numberOfLines={statValueLines(item.value)}
             adjustsFontSizeToFit
-            minimumFontScale={0.7}
+            minimumFontScale={STAT_VALUE_MIN_SCALE}
             textBreakStrategy="simple"
             style={[
               hero ? (item.text ? styles.heroLevelValue : styles.heroStatValue) : item.text ? styles.levelValue : styles.statValue,

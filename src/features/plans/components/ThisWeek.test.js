@@ -67,3 +67,45 @@ describe('This week order (review M6)', () => {
     expect(label('plan-week-done')).toBe('Upper A, Done Mon');
   });
 });
+
+// UX NATIVE-P4 N3 (a352a2d) + app-shell §1.1: only the NAME gets a second
+// line; every secondary line (the meta "5 exercises · Quads, Chest, Back",
+// the Done label and the Today strip captions) stays ONE line with an
+// ellipsis at the tail.
+describe('This week secondary lines: one line + ellipsis (UX N3)', () => {
+  const ex = (id, name, muscle) => ({ id, exercise: { id: id + 100, name, muscle_group: { name: muscle } }, sets: [{ reps: 8 }] });
+  const BY_DAY = {
+    12: [ex(1, 'Back Squat', 'Quads'), ex(2, 'Bench Press', 'Chest'), ex(3, 'Barbell Row', 'Back')],
+    13: [ex(4, 'Romanian Deadlift', 'Hamstrings'), ex(5, 'Overhead Press', 'Shoulders')],
+    14: [ex(6, 'Lat Pulldown', 'Back')],
+  };
+  const textIn = (tree, id, value) =>
+    tree.root
+      .find((node) => typeof node.type === 'string' && node.props.testID === id)
+      .findAll((node) => node.type === 'Text' && [].concat(node.props.children).join('') === value)[0];
+  const ONE_LINE = { numberOfLines: 1, ellipsizeMode: 'tail' };
+
+  it.each([false, true])('meta lines on Today, missed, upcoming and Done cards (tablet=%s)', (tablet) => {
+    const tree = render(<ThisWeek cards={thisWeekCards(WEEK, BY_DAY)} tablet={tablet} onStart={jest.fn()} onOpenExercise={jest.fn()} />);
+    // Missed Tue (3 exercises), Today Wed (2), upcoming Fri (1).
+    const metaOf = (prefix) =>
+      tree.root.findAll((node) => node.type === 'Text' && [].concat(node.props.children).join('').startsWith(prefix))[0];
+    ['3 exercises', '2 exercises', '1 exercise'].forEach((prefix) => expect(metaOf(prefix).props).toMatchObject(ONE_LINE));
+    expect(textIn(tree, 'plan-week-done', 'Done Mon').props).toMatchObject(ONE_LINE);
+  });
+
+  it('the Today strip captions are one line each with an ellipsis', () => {
+    const tree = render(<ThisWeek cards={thisWeekCards(WEEK, BY_DAY)} tablet onStart={jest.fn()} onOpenExercise={jest.fn()} />);
+    [4, 5].forEach((id) => {
+      const cell = tree.root.find((node) => typeof node.props.onPress === 'function' && node.props.testID === `plan-week-exercise-${id}`);
+      const caption = cell.findAll((node) => node.type === 'Text' && [].concat(node.props.children).join('').includes(' · '))[0];
+      expect(caption.props).toMatchObject(ONE_LINE);
+    });
+  });
+
+  it('the day NAME is not capped to one line', () => {
+    const tree = render(<ThisWeek cards={thisWeekCards(WEEK, BY_DAY)} onStart={jest.fn()} onOpenExercise={jest.fn()} />);
+    const name = textIn(tree, 'plan-week-upcoming-5-14', 'Lower B');
+    expect(name.props.numberOfLines).not.toBe(1);
+  });
+});

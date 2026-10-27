@@ -161,6 +161,12 @@ describe('G1 generator unavailable (page card)', () => {
     expect(flat(title)).toMatchObject({ fontFamily: 'Geist-Bold', fontSize: 30, color: colors.textPrimary });
     expect(title.props.accessibilityRole).toBe('header');
   });
+
+  it('G1 loads its profile with { screen: true } (read only by the DEV-only stub, devMock.js)', async () => {
+    getGeneratorProfile.mockResolvedValue({ available: false });
+    await render(<PlanGeneratorScreen />);
+    expect(getGeneratorProfile).toHaveBeenCalledWith({ screen: true });
+  });
 });
 
 describe('G2 load failed / G5 build failed: generator ErrorAlert, Retry except on 403', () => {
