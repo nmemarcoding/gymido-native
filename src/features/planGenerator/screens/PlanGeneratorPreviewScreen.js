@@ -12,13 +12,15 @@ import PillButton from '../../../shared/components/PillButton';
 import Select from '../../../shared/components/Select';
 import { ToastTone, addToast } from '../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
-import { breakpoints, colors, font, radii, typography } from '../../../shared/theme/tokens';
+import GradientFill from '../../../shared/components/GradientFill';
+import { blur, breakpoints, colors, font, gradients, radii, spacing, textScale, typography } from '../../../shared/theme/tokens';
 import { Eyebrow, planStyles } from '../../plans/components/PlanBits';
 import ShellPage from '../../shell/ShellPage';
 import { handOffToWorkout, openShellPath } from '../../shell/shellLinks';
 import { acceptGeneratedPlan, getGeneratorProfile, previewGeneratedPlan, saveGeneratorProfile } from '../api/generatorApi';
 import { Callout, WhyLine } from '../components/GeneratorControls';
 import { GeneratorUnavailable } from '../components/GeneratorStates';
+import { isReflow } from './PlanGeneratorScreen';
 import {
   COPY,
   activeNotice,
@@ -187,6 +189,9 @@ function PlanGeneratorPreview() {
   const preview = view.preview;
   const notice = view.status === 'feasible' ? planNotice(preview, lockedAfter409) : null;
   const locked = notice?.kind === 'locked';
+  // The sticky bar's live height (re-measured on every layout, never cached):
+  // at large text its stacked buttons grow, so the list clears it.
+  const [barHeight, setBarHeight] = useState(0);
 
   return (
     <View style={styles.screen}>
@@ -215,6 +220,7 @@ function PlanGeneratorPreview() {
               changingSplit={changingSplit}
               onSplitChange={handleSplitChange}
               onOpenExercise={(id) => navigation.push(routes.ExerciseDetail, { exerciseId: String(id) })}
+              barHeight={barHeight}
             />
           ) : null}
         </View>
@@ -225,6 +231,7 @@ function PlanGeneratorPreview() {
           starting={accepting && !confirmOpen}
           onChange={openAnswers}
           onStart={handleStart}
+          onHeight={setBarHeight}
         />
       ) : null}
       <ConfirmDialog
@@ -244,17 +251,21 @@ function PlanGeneratorPreview() {
 }
 
 // §G2.2
-function Feasible({ preview, notice, changingSplit, onSplitChange, onOpenExercise }) {
+function Feasible({ preview, notice, changingSplit, onSplitChange, onOpenExercise, barHeight = 0 }) {
   const splitOptions = preview.split_options ?? [];
   const weekly = weeklyVolumeRows(preview);
   return (
-    <View style={styles.feasible}>
+    <View testID="generator-feasible" style={[styles.feasible, { paddingBottom: Math.max(FEASIBLE_PAD, barHeight + spacing[4]) }]}>
       <View>
         <Eyebrow>{COPY.yourPlan}</Eyebrow>
-        <Text textBreakStrategy="simple" accessibilityRole="header" style={styles.planName}>
+        <Text {...PAGE_TITLE_TEXT} accessibilityRole="header" style={styles.planName}>
           {preview.plan_name}
         </Text>
-        {preview.split?.name ? <Text style={styles.splitName}>{preview.split.name}</Text> : null}
+        {preview.split?.name ? (
+          <Text {...BODY_TEXT} style={styles.splitName}>
+            {preview.split.name}
+          </Text>
+        ) : null}
       </View>
       {splitOptions.length > 1 ? (
         <Select
@@ -296,12 +307,19 @@ function Feasible({ preview, notice, changingSplit, onSplitChange, onOpenExercis
       ))}
       {weekly.length ? (
         <View testID="generator-weekly" style={[planStyles.card, styles.dayCard]}>
-          <Text style={styles.weeklyTitle}>{COPY.weeklySets}</Text>
+          <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
+          <Text {...BODY_TEXT} style={styles.weeklyTitle}>
+            {COPY.weeklySets}
+          </Text>
           <View style={styles.weeklyRows}>
             {weekly.map((row) => (
               <View key={row.key} style={styles.weeklyRow}>
-                <Text style={styles.weeklyName}>{row.name}</Text>
-                <Text style={styles.weeklySets}>{row.sets}</Text>
+                <Text {...BODY_TEXT} style={styles.weeklyName}>
+                  {row.name}
+                </Text>
+                <Text {...BODY_TEXT} style={styles.weeklySets}>
+                  {row.sets}
+                </Text>
               </View>
             ))}
           </View>
@@ -319,18 +337,27 @@ function DayCard({ day, onOpenExercise }) {
     ...exercises.map((item, index) => ({ kind: 'exercise', item, key: `e-${index}` })),
     ...skipped.map((item, index) => ({ kind: 'skipped', item, key: `s-${index}` })),
   ];
+  const { fontScale } = useWindowDimensions();
   return (
     <View testID={`generator-day-${day.day_number}`} style={[planStyles.card, styles.dayCard]}>
-      <View style={styles.dayHeader}>
-        <Text textBreakStrategy="simple" style={[planStyles.titleLg, styles.flexShrink]}>{dayTitle(day)}</Text>
-        {day.estimated_minutes ? <Text style={styles.dayMinutes}>{dayMinutes(day.estimated_minutes)}</Text> : null}
+      {/* GeneratorPreview board: gradient-card (mounted with the card). */}
+      <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
+      <View testID="generator-day-header" style={[styles.dayHeader, isReflow(fontScale) && styles.dayHeaderStacked]}>
+        <Text {...CARD_TITLE_TEXT} style={[styles.dayTitle, styles.flexShrink]}>
+          {dayTitle(day)}
+        </Text>
+        {day.estimated_minutes ? (
+          <Text {...BODY_TEXT} style={styles.dayMinutes}>
+            {dayMinutes(day.estimated_minutes)}
+          </Text>
+        ) : null}
       </View>
       <View style={styles.dayList}>
         {rows.map((row, index) =>
           row.kind === 'exercise' ? (
             <ExerciseLine key={row.key} item={row.item} first={index === 0} onOpenExercise={onOpenExercise} />
           ) : (
-            <Text key={row.key} style={[styles.skipped, index > 0 && styles.divider]}>
+            <Text key={row.key} {...BODY_TEXT} style={[styles.skipped, index > 0 && styles.divider]}>
               {row.item.text}
             </Text>
           )
@@ -346,7 +373,7 @@ function ExerciseLine({ item, first, onOpenExercise }) {
   const muscle = exercise.primary_muscle_group?.name;
   return (
     <View style={[styles.exerciseRow, !first && styles.divider]}>
-      <Text style={styles.nameLine}>
+      <Text {...BODY_TEXT} style={styles.nameLine}>
         <Text
           testID={`generator-exercise-${id}`}
           accessibilityRole="link"
@@ -357,8 +384,14 @@ function ExerciseLine({ item, first, onOpenExercise }) {
         </Text>
         {muscle ? <Text style={styles.muscle}>{`  ${muscle}`}</Text> : null}
       </Text>
-      <Text style={styles.prescription}>{formatPrescription(item)}</Text>
-      {item.effort ? <Text style={styles.effort}>{item.effort}</Text> : null}
+      <Text {...BODY_TEXT} style={styles.prescription}>
+        {formatPrescription(item)}
+      </Text>
+      {item.effort ? (
+        <Text {...BODY_TEXT} style={styles.effort}>
+          {item.effort}
+        </Text>
+      ) : null}
       {item.why ? <WhyLine text={item.why} style={styles.mt4} /> : null}
     </View>
   );
@@ -368,8 +401,9 @@ function ExerciseLine({ item, first, onOpenExercise }) {
 function NotFeasible({ reason, onChange, onOpenStep }) {
   const goEasy = refusalActions(reason);
   const titleRef = useRef(null);
-  const { width } = useWindowDimensions();
-  const wide = width >= breakpoints.sm;
+  const { width, fontScale } = useWindowDimensions();
+  // §9: at large text the actions stack (primary on top) at every width.
+  const wide = width >= breakpoints.sm && !isReflow(fontScale);
 
   // T-18: when the go-easy refusal renders, focus moves to its title.
   const isGoEasy = goEasy !== null;
@@ -388,10 +422,14 @@ function NotFeasible({ reason, onChange, onOpenStep }) {
 
   return (
     <View testID="generator-not-feasible" style={styles.notFeasibleCard}>
-      <Text ref={titleRef} testID="generator-not-feasible-title" textBreakStrategy="simple" style={styles.refusalTitle}>
+      <Text ref={titleRef} testID="generator-not-feasible-title" {...CARD_TITLE_TEXT} style={styles.refusalTitle}>
         {COPY.notFeasibleTitle}
       </Text>
-      {reason?.message ? <Text style={[styles.refusalReason, styles.mt8]}>{reason.message}</Text> : null}
+      {reason?.message ? (
+        <Text {...BODY_TEXT} style={[styles.refusalReason, styles.mt8]}>
+          {reason.message}
+        </Text>
+      ) : null}
       {reason?.what_to_change ? (
         <Callout testID="generator-refusal-callout" tone="teal" role="note" style={styles.refusalCallout}>
           {reason.what_to_change}
@@ -441,23 +479,41 @@ function GoEasyRefusalActions({ equipmentFix, wide, onOpenStep }) {
 // §G2.2 item 7 + the dated fix: pinned above the tab bar and the safe area.
 // <640: stacked full-width buttons ("Change my answers" first), gap 12;
 // ≥640: a right-aligned row.
-function StickyBar({ showStart, starting, onChange, onStart }) {
+// UX §9: above 1.3× text the pair stacks at every width with the primary
+// ("Start this plan") on top.
+function StickyBar({ showStart, starting, onChange, onStart, onHeight }) {
   const bottom = useTabBarClearance();
-  const { width } = useWindowDimensions();
-  const wide = width >= breakpoints.sm;
+  const { width, fontScale } = useWindowDimensions();
+  const reflow = isReflow(fontScale);
+  const wide = width >= breakpoints.sm && !reflow;
+  const change = (
+    <PillButton key="change" testID="generator-bar-change" title={COPY.changeAnswers} variant="secondary" fullWidth={!wide} onPress={onChange} />
+  );
+  const start = showStart ? (
+    <PillButton key="start" testID="generator-start" title={COPY.startPlan} fullWidth={!wide} loading={starting} onPress={onStart} />
+  ) : null;
   return (
-    <View testID="generator-sticky-bar" style={[styles.bar, { bottom }]}>
-      <BlurLayer blurPx={8} />
+    <View testID="generator-sticky-bar" style={[styles.bar, { bottom }]} onLayout={(event) => onHeight?.(event.nativeEvent.layout.height)}>
+      {/* UX §8.6: a sticky bar on the ground = ground-bar 0.88 + blur 24. */}
+      <BlurLayer blurPx={blur.groundBar} />
       <View style={styles.barVeil} />
       <View testID="generator-sticky-row" style={[styles.barRow, wide ? styles.barRowWide : styles.barStack]}>
-        <PillButton testID="generator-bar-change" title={COPY.changeAnswers} variant="secondary" fullWidth={!wide} onPress={onChange} />
-        {showStart ? (
-          <PillButton testID="generator-start" title={COPY.startPlan} fullWidth={!wide} loading={starting} onPress={onStart} />
-        ) : null}
+        {reflow ? [start, change] : [change, start]}
       </View>
     </View>
   );
 }
+
+// UX §9 large text: the plan name is the page title (1.3×), card titles are
+// title-* (1.6×); both wrap by word (max 3 lines) and shrink a single
+// over-long word (to 0.7×). Body text scales to 2× and is never truncated.
+const titleText = (cap) =>
+  Object.freeze({ textBreakStrategy: 'simple', maxFontSizeMultiplier: cap, numberOfLines: 3, adjustsFontSizeToFit: true, minimumFontScale: 0.7 });
+const PAGE_TITLE_TEXT = titleText(textScale.display);
+const CARD_TITLE_TEXT = titleText(textScale.title);
+const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
+// The list's bottom room under the sticky bar (its 1× height + 16).
+const FEASIBLE_PAD = 112;
 
 const styles = StyleSheet.create({
   screen: {
@@ -473,26 +529,34 @@ const styles = StyleSheet.create({
   },
   feasible: {
     gap: 20,
-    paddingBottom: 112,
   },
   flexShrink: {
     flexShrink: 1,
   },
   planName: {
+    ...font(700),
     marginTop: 4,
     fontSize: 30,
     lineHeight: 36,
-    fontWeight: '900',
     color: colors.textPrimary,
   },
   splitName: {
+    ...font(400),
     marginTop: 4,
     fontSize: 14,
     lineHeight: 20,
     color: colors.textSecondary,
   },
+  // GeneratorPreview board: gradient-card, white 0.08 edge, radius 28.
   dayCard: {
     padding: 20,
+    borderColor: colors.choiceBorder,
+    overflow: 'hidden',
+  },
+  // The board's 22/700 day title (title-sm).
+  dayTitle: {
+    ...typography.titleSm,
+    color: colors.textPrimary,
   },
   // G6 (UX D): radius 26 drawn (→ radius-2xl 28), padding 22 20, surface,
   // hairline; title-sm, reason 14/22 secondary, teal callout, action mt 18.
@@ -523,10 +587,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
+  // §9 reflow: the minutes drop below the title.
+  dayHeaderStacked: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 4,
+  },
   dayMinutes: {
+    ...font(600),
     fontSize: 12,
     lineHeight: 16,
-    fontWeight: '600',
     color: colors.textMuted,
   },
   dayList: {
@@ -534,40 +604,44 @@ const styles = StyleSheet.create({
   },
   divider: {
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.hairline,
   },
   exerciseRow: {
     paddingVertical: 12,
   },
   nameLine: {
+    ...font(400),
     fontSize: 14,
     lineHeight: 20,
   },
   exerciseName: {
+    ...font(700),
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '700',
     color: colors.textPrimary,
   },
   muscle: {
+    ...font(400),
     fontSize: 12,
     lineHeight: 16,
     color: colors.textMuted,
   },
   prescription: {
+    ...font(600),
     marginTop: 2,
     fontSize: 12,
     lineHeight: 16,
-    fontWeight: '600',
     color: colors.textSecondary,
   },
   effort: {
+    ...font(400),
     marginTop: 4,
     fontSize: 14,
     lineHeight: 24,
     color: colors.textSecondary,
   },
   skipped: {
+    ...font(400),
     paddingVertical: 12,
     fontSize: 14,
     lineHeight: 20,
@@ -575,9 +649,9 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   weeklyTitle: {
+    ...font(700),
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '700',
     textTransform: 'uppercase',
     color: colors.textMuted,
   },
@@ -591,13 +665,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   weeklyName: {
+    ...font(700),
     flexShrink: 1,
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '700',
     color: colors.textPrimary,
   },
   weeklySets: {
+    ...font(400),
     fontSize: 14,
     lineHeight: 20,
     color: colors.textSecondary,
@@ -621,7 +696,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: colors.stickyHeaderFill,
+    backgroundColor: colors.groundBar,
   },
   barRow: {
     width: '100%',

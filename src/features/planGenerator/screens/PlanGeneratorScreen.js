@@ -18,7 +18,7 @@ import { InlineError } from '../../../shared/components/FeedbackBox';
 import Loader from '../../../shared/components/Loader';
 import PillButton from '../../../shared/components/PillButton';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
-import { breakpoints, colors, radii, shadows, textInputColors } from '../../../shared/theme/tokens';
+import { breakpoints, colors, font, radii, textInputColors, textScale } from '../../../shared/theme/tokens';
 import { Eyebrow } from '../../../shared/components/Typography';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
@@ -74,6 +74,31 @@ const SEARCH_DELAY_MS = 300;
 // As the app's other focus moves: give the screen time to lay out first.
 const FOCUS_DELAY_MS = 300;
 
+// UX §9 large text. The step/review question is the page title: it scales at
+// most 1.3×, wraps by word (max 3 lines) and shrinks a single over-long word
+// (to 0.7×). Every other text is body/label text (2×) and never truncated.
+const TITLE_TEXT = Object.freeze({
+  textBreakStrategy: 'simple',
+  maxFontSizeMultiplier: textScale.display,
+  numberOfLines: 3,
+  adjustsFontSizeToFit: true,
+  minimumFontScale: 0.7,
+});
+const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
+// §9 rule 4: above 1.3× text, button pairs stack (primary on top, full width)
+// and trailing row actions drop below the text.
+export const isReflow = (fontScale) => fontScale > textScale.reflowAbove;
+
+// The review "Change" pill: 34 visual, 44 hit.
+const CHANGE_PILL_HEIGHT = 34;
+const CHANGE_SLOP = (44 - CHANGE_PILL_HEIGHT) / 2;
+const CHANGE_HIT_SLOP = Object.freeze({ top: CHANGE_SLOP, bottom: CHANGE_SLOP, left: 4, right: 4 });
+
+// The §8.6 press overlay (rest colour + white 4 %).
+function PressOverlay({ pressed }) {
+  return pressed ? <View testID="press-overlay" pointerEvents="none" style={[StyleSheet.absoluteFill, styles.pressOverlay]} /> : null;
+}
+
 // The preview's 422 field errors ({ [step]: message }) from the route; any
 // other shape → none.
 export function initialStepErrors(param) {
@@ -103,8 +128,10 @@ export default function PlanGeneratorScreen() {
 function PlanGenerator() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { width } = useWindowDimensions();
-  const wide = width >= breakpoints.sm;
+  const { width, fontScale } = useWindowDimensions();
+  const reflow = isReflow(fontScale);
+  // §9: at large text the pair stacks whatever the width.
+  const wide = width >= breakpoints.sm && !reflow;
   const [load, setLoad] = useState({ status: 'loading' });
   const [reloadKey, setReloadKey] = useState(0);
   const [options, setOptions] = useState(null);
@@ -227,6 +254,8 @@ function PlanGenerator() {
   }
 
   const buttonRow = [styles.buttons, wide && styles.buttonsWide];
+  // §9 reflow: primary on top of a stacked pair.
+  const pair = (secondary, primary) => (reflow ? [primary, secondary] : [secondary, primary]);
 
   if (step === REVIEW) {
     const rows = reviewSummaries(answers, options);
@@ -234,38 +263,62 @@ function PlanGenerator() {
       <View style={styles.column}>
         <View>
           <Eyebrow style={styles.eyebrow}>{COPY.reviewEyebrow}</Eyebrow>
-          <Text textBreakStrategy="simple" accessibilityRole="header" style={styles.title}>
+          <Text {...TITLE_TEXT} accessibilityRole="header" style={styles.title}>
             {COPY.reviewTitle}
           </Text>
         </View>
         {saveError ? <InlineError testID="generator-save-error" title={COPY.saveError} message={saveError} /> : null}
         <View style={styles.reviewCard}>
           {rows.map((row, index) => (
-            <View key={row.step} testID={`generator-review-${row.step}`} style={[styles.reviewRow, index > 0 && styles.divider]}>
-              <View style={styles.flex}>
-                <Text style={styles.reviewQuestion}>{row.question}</Text>
-                <Text style={styles.reviewSummary}>{row.summary}</Text>
-                {stepErrors[row.step] ? <Text style={styles.reviewError}>{stepErrors[row.step]}</Text> : null}
+            <View
+              key={row.step}
+              testID={`generator-review-${row.step}`}
+              style={[styles.reviewRow, reflow && styles.reviewRowStacked, index > 0 && styles.divider]}
+            >
+              <View style={reflow ? null : styles.flex}>
+                <Text {...BODY_TEXT} style={styles.reviewQuestion}>
+                  {row.question}
+                </Text>
+                <Text {...BODY_TEXT} style={styles.reviewSummary}>
+                  {row.summary}
+                </Text>
+                {stepErrors[row.step] ? (
+                  <Text {...BODY_TEXT} style={styles.reviewError}>
+                    {stepErrors[row.step]}
+                  </Text>
+                ) : null}
               </View>
+              {/* GeneratorReview board: the 34 glass "Change" pill (44 hit). */}
               <Pressable
                 testID={`generator-review-change-${row.step}`}
                 accessibilityRole="button"
                 accessibilityLabel={changeLabel(row.question)}
-                hitSlop={12}
+                hitSlop={CHANGE_HIT_SLOP}
                 onPress={() => goTo(row.step)}
-                style={styles.textButton}
+                style={styles.changePill}
               >
-                <Text style={styles.textButtonLabel}>{COPY.change}</Text>
+                {({ pressed }) => (
+                  <>
+                    <PressOverlay pressed={pressed} />
+                    <Text {...BODY_TEXT} style={styles.changeLabel}>
+                      {COPY.change}
+                    </Text>
+                  </>
+                )}
               </Pressable>
             </View>
           ))}
         </View>
         <View style={styles.disclaimer}>
-          <Text style={styles.disclaimerText}>{COPY.disclaimer}</Text>
+          <Text {...BODY_TEXT} style={styles.disclaimerText}>
+            {COPY.disclaimer}
+          </Text>
         </View>
-        <View style={buttonRow}>
-          <PillButton testID="generator-back" title={COPY.back} variant="secondary" fullWidth={!wide} onPress={() => goTo(STEP_COUNT)} />
-          <PillButton testID="generator-see-plan" title={COPY.seeMyPlan} fullWidth={!wide} loading={saving} onPress={handleSave} />
+        <View testID="generator-buttons" style={buttonRow}>
+          {pair(
+            <PillButton key="back" testID="generator-back" title={COPY.back} variant="secondary" fullWidth={!wide} onPress={() => goTo(STEP_COUNT)} />,
+            <PillButton key="see" testID="generator-see-plan" title={COPY.seeMyPlan} fullWidth={!wide} loading={saving} onPress={handleSave} />
+          )}
         </View>
       </View>
     );
@@ -281,10 +334,14 @@ function PlanGenerator() {
       ) : null}
       <View>
         <Eyebrow style={styles.eyebrow}>{stepEyebrow(step)}</Eyebrow>
-        <Text ref={headingRef} testID="generator-step-title" textBreakStrategy="simple" accessibilityRole="header" style={styles.title}>
+        <Text ref={headingRef} testID="generator-step-title" {...TITLE_TEXT} accessibilityRole="header" style={styles.title}>
           {QUESTIONS[step - 1]}
         </Text>
-        {step === STEP_COUNT ? <Text style={styles.optional}>{COPY.optional}</Text> : null}
+        {step === STEP_COUNT ? (
+          <Text {...BODY_TEXT} style={styles.optional}>
+            {COPY.optional}
+          </Text>
+        ) : null}
       </View>
       <StepBody
         step={step}
@@ -295,19 +352,22 @@ function PlanGenerator() {
         editingEquipment={editingEquipment}
         setEditingEquipment={setEditingEquipment}
       />
-      <View style={buttonRow}>
-        {step === 1 ? (
-          <PillButton testID="generator-cancel" title={COPY.cancel} variant="secondary" fullWidth={!wide} onPress={() => navigation.goBack()} />
-        ) : (
-          <PillButton testID="generator-back" title={COPY.back} variant="secondary" fullWidth={!wide} onPress={() => goTo(step - 1)} />
+      <View testID="generator-buttons" style={buttonRow}>
+        {pair(
+          step === 1 ? (
+            <PillButton key="cancel" testID="generator-cancel" title={COPY.cancel} variant="secondary" fullWidth={!wide} onPress={() => navigation.goBack()} />
+          ) : (
+            <PillButton key="back" testID="generator-back" title={COPY.back} variant="secondary" fullWidth={!wide} onPress={() => goTo(step - 1)} />
+          ),
+          <PillButton
+            key="next"
+            testID="generator-next"
+            title={nextLabel}
+            fullWidth={!wide}
+            disabled={!isStepAnswered(answers, step)}
+            onPress={() => goTo(step + 1)}
+          />
         )}
-        <PillButton
-          testID="generator-next"
-          title={nextLabel}
-          fullWidth={!wide}
-          disabled={!isStepAnswered(answers, step)}
-          onPress={() => goTo(step + 1)}
-        />
       </View>
     </View>
   );
@@ -420,13 +480,19 @@ function EquipmentStep({ answers, options, setAnswers, editing, setEditing }) {
             onPress={() => setEditing(!editing)}
             style={styles.textButton}
           >
-            <Text style={styles.textButtonLabel}>{editing ? COPY.doneEditing : COPY.editEquipment}</Text>
+            <Text {...BODY_TEXT} style={styles.textButtonLabel}>
+              {editing ? COPY.doneEditing : COPY.editEquipment}
+            </Text>
           </Pressable>
           {editing ? (
             <View testID="generator-equipment-list" style={[styles.listCard, styles.mt8]}>
               <View style={styles.listRow}>
-                <Text style={styles.listRowText}>{COPY.bodyweight}</Text>
-                <Text style={styles.alwaysIncluded}>{COPY.alwaysIncluded}</Text>
+                <Text {...BODY_TEXT} style={[styles.listRowText, styles.flex]}>
+                  {COPY.bodyweight}
+                </Text>
+                <Text {...BODY_TEXT} style={styles.alwaysIncluded}>
+                  {COPY.alwaysIncluded}
+                </Text>
               </View>
               {equipment.map((item) => {
                 const checked = answers.equipment_type_ids.includes(item.id);
@@ -442,7 +508,9 @@ function EquipmentStep({ answers, options, setAnswers, editing, setEditing }) {
                     }
                     style={[styles.listRow, styles.divider]}
                   >
-                    <Text style={[styles.listRowText, styles.flex]}>{item.name}</Text>
+                    <Text {...BODY_TEXT} style={[styles.listRowText, styles.flex]}>
+                      {item.name}
+                    </Text>
                     <Checkbox checked={checked} />
                   </Pressable>
                 );
@@ -468,12 +536,18 @@ function FocusAvoidStep({ answers, options, setAnswers }) {
   const hasAreas = areas.length > 0;
   const focusBlockHint = hasAreas ? focusHint(answers, areas, focusMuscles) : '';
   const areaBlockHint = hasAreas ? goEasyHint(answers, areas) : '';
+  const { fontScale } = useWindowDimensions();
+  const reflow = isReflow(fontScale);
 
   return (
     <View testID="generator-step6" style={[styles.stepColumn, styles.stepSixColumn]}>
       <View>
-        <Text style={styles.sectionLabel}>{COPY.focusMuscles}</Text>
-        <Text style={styles.sectionHint}>{pickUpTo(max)}</Text>
+        <Text {...BODY_TEXT} style={styles.sectionLabel}>
+          {COPY.focusMuscles}
+        </Text>
+        <Text {...BODY_TEXT} style={styles.sectionHint}>
+          {pickUpTo(max)}
+        </Text>
         <PillRow style={styles.mt12}>
           {focusMuscles.map((muscle) => (
             <OptionPill
@@ -497,8 +571,12 @@ function FocusAvoidStep({ answers, options, setAnswers }) {
       </View>
       {hasAreas ? (
         <View testID="generator-go-easy">
-          <Text style={styles.sectionLabel}>{COPY.goEasyLabel}</Text>
-          <Text style={[styles.sectionHint, styles.textSecondary]}>{goEasyNotice(options)}</Text>
+          <Text {...BODY_TEXT} style={styles.sectionLabel}>
+            {COPY.goEasyLabel}
+          </Text>
+          <Text {...BODY_TEXT} style={[styles.sectionHint, styles.textSecondary]}>
+            {goEasyNotice(options)}
+          </Text>
           <PillRow style={styles.mt12}>
             {areas.map((area) => {
               const blocked = isAreaBlocked(answers, area);
@@ -520,7 +598,9 @@ function FocusAvoidStep({ answers, options, setAnswers }) {
         </View>
       ) : null}
       <View>
-        <Text style={styles.sectionLabel}>{COPY.exercisesToAvoid}</Text>
+        <Text {...BODY_TEXT} style={styles.sectionLabel}>
+          {COPY.exercisesToAvoid}
+        </Text>
         <AvoidSearch
           exclusions={answers.exclusions}
           onChoose={(exercise) => setAnswers((current) => ({ ...current, exclusions: addExclusion(current.exclusions, exercise) }))}
@@ -528,8 +608,19 @@ function FocusAvoidStep({ answers, options, setAnswers }) {
         {answers.exclusions.length ? (
           <View style={[styles.avoidList, styles.mt12]}>
             {answers.exclusions.map((item) => (
-              <View key={item.exercise?.id} testID={`generator-avoid-${item.exercise?.id}`} style={styles.avoidRow}>
-                <Text numberOfLines={1} style={[styles.listRowText, styles.avoidName]}>
+              <View
+                key={item.exercise?.id}
+                testID={`generator-avoid-${item.exercise?.id}`}
+                style={[styles.avoidRow, reflow && styles.avoidRowStacked]}
+              >
+                {/* §9: a user-facing name in a dense list may clip at 2 lines;
+                    the full name stays in the accessibility label. */}
+                <Text
+                  {...BODY_TEXT}
+                  numberOfLines={2}
+                  accessibilityLabel={item.exercise?.name}
+                  style={[styles.listRowText, styles.avoidName]}
+                >
                   {item.exercise?.name}
                 </Text>
                 <PillRow>
@@ -557,7 +648,9 @@ function FocusAvoidStep({ answers, options, setAnswers }) {
                   }
                   style={styles.removeButton}
                 >
-                  <Text style={styles.removeText}>×</Text>
+                  <Text maxFontSizeMultiplier={textScale.badge} style={styles.removeText}>
+                    ×
+                  </Text>
                 </Pressable>
               </View>
             ))}
@@ -579,7 +672,7 @@ function BlockHint({ text, testID }) {
   return (
     <View accessibilityLiveRegion="polite">
       {text ? (
-        <Text testID={testID} style={[styles.blockHint, styles.mt8]}>
+        <Text testID={testID} {...BODY_TEXT} style={[styles.blockHint, styles.mt8]}>
           {text}
         </Text>
       ) : null}
@@ -643,13 +736,18 @@ function AvoidSearch({ exclusions, onChoose }) {
         value={text}
         onChangeText={setText}
         placeholder={COPY.searchPlaceholder}
-        placeholderTextColor={colors.textMuted}
+        placeholderTextColor={colors.textFaint}
+        maxFontSizeMultiplier={textScale.body}
         accessibilityLabel={COPY.searchPlaceholder}
         autoCorrect={false}
         autoCapitalize="none"
         style={styles.search}
       />
-      {searching ? <Text style={[styles.sectionHint, styles.mt8]}>{COPY.searching}</Text> : null}
+      {searching ? (
+        <Text {...BODY_TEXT} style={[styles.sectionHint, styles.mt8]}>
+          {COPY.searching}
+        </Text>
+      ) : null}
       {visible.length ? (
         <View style={[styles.listCard, styles.mt8]}>
           {visible.map((item, index) => (
@@ -662,9 +760,16 @@ function AvoidSearch({ exclusions, onChoose }) {
                 onChoose(item);
                 setText('');
               }}
-              style={({ pressed }) => [styles.listRow, index > 0 && styles.divider, pressed && styles.rowPressed]}
+              style={[styles.listRow, index > 0 && styles.divider]}
             >
-              <Text style={styles.listRowText}>{item.name}</Text>
+              {({ pressed }) => (
+                <>
+                  <PressOverlay pressed={pressed} />
+                  <Text {...BODY_TEXT} style={[styles.listRowText, styles.flex]}>
+                    {item.name}
+                  </Text>
+                </>
+              )}
             </Pressable>
           ))}
         </View>
@@ -707,13 +812,14 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   title: {
+    ...font(700),
     marginTop: 4,
     fontSize: 30,
     lineHeight: 36,
-    fontWeight: '900',
     color: colors.textPrimary,
   },
   optional: {
+    ...font(400),
     marginTop: 4,
     fontSize: 14,
     lineHeight: 20,
@@ -733,15 +839,36 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   textButtonLabel: {
+    ...font(700),
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '700',
-    color: colors.brand700,
+    color: colors.gold,
+  },
+  // GeneratorReview board: 34 tall, padding 0 12, white 0.10 fill (→
+  // hairline-strong), 13/600 text-primary; a 44 hit area.
+  changePill: {
+    alignSelf: 'flex-start',
+    minHeight: CHANGE_PILL_HEIGHT,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.full,
+    backgroundColor: colors.hairlineStrong,
+    overflow: 'hidden',
+  },
+  changeLabel: {
+    ...font(600),
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textPrimary,
+  },
+  pressOverlay: {
+    backgroundColor: colors.pressOverlay,
   },
   listCard: {
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hairline,
     backgroundColor: colors.surface,
     overflow: 'hidden',
   },
@@ -754,32 +881,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  rowPressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
   divider: {
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.hairline,
   },
   listRowText: {
+    ...font(700),
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '700',
     color: colors.textPrimary,
   },
   alwaysIncluded: {
+    ...font(600),
     fontSize: 12,
     lineHeight: 16,
-    fontWeight: '600',
     color: colors.textMuted,
   },
   sectionLabel: {
+    ...font(700),
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '700',
     color: colors.textPrimary,
   },
   sectionHint: {
+    ...font(400),
     marginTop: 2,
     fontSize: 12,
     lineHeight: 16,
@@ -789,18 +914,24 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   blockHint: {
+    ...font(400),
     fontSize: 12,
     lineHeight: 16,
     color: colors.textSecondary,
   },
+  // TabletGenerator board: the 52 search pill on surface-well, white
+  // 0.10 edge, 16/20 text; min-height so large text grows it.
   search: {
-    borderRadius: radii.lg,
+    ...font(400),
+    minHeight: 52,
+    borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: colors.hairlineStrong,
+    backgroundColor: colors.surfaceWell,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
+    lineHeight: 20,
     color: colors.textPrimary,
   },
   avoidList: {
@@ -811,12 +942,18 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: 8,
+    // TabletGenerator board: fill-subtle 0.04 + hairline 0.07, radius 20.
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: colors.hairline,
+    backgroundColor: colors.fillWell,
     paddingHorizontal: 16,
     paddingVertical: 12,
+  },
+  // §9 reflow: the reason pills and remove drop below the name.
+  avoidRowStacked: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
   },
   avoidName: {
     flexShrink: 1,
@@ -829,17 +966,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   removeText: {
+    ...font(700),
     fontSize: 20,
     lineHeight: 24,
-    fontWeight: '700',
-    color: colors.textMuted,
+    color: colors.textSecondary,
   },
+  // GeneratorReview board: surface cards on a hairline 0.07 edge.
   reviewCard: {
     borderRadius: radii.xxl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hairline,
     backgroundColor: colors.surface,
-    boxShadow: shadows.soft,
     overflow: 'hidden',
   },
   reviewRow: {
@@ -849,36 +986,46 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
+  // §9 reflow: "Change" drops below the answer.
+  reviewRowStacked: {
+    flexDirection: 'column',
+  },
+  // GeneratorStates/GeneratorReview boards: question 13 text-muted (sentence
+  // case, never tracked caps), answer 15/600, field error 13 danger-text.
   reviewQuestion: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '700',
-    letterSpacing: 1.44,
-    textTransform: 'uppercase',
+    ...font(400),
+    fontSize: 13,
+    lineHeight: 18,
     color: colors.textMuted,
   },
   reviewSummary: {
+    ...font(600),
     marginTop: 4,
-    fontSize: 14,
+    fontSize: 15,
     lineHeight: 20,
-    fontWeight: '700',
     color: colors.textPrimary,
   },
   reviewError: {
+    ...font(400),
     marginTop: 4,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.danger700,
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.dangerText,
   },
+  // GeneratorReview board: white 0.05 fill (→ fill-subtle 0.04) + 0.06 edge
+  // (→ hairline 0.07), radius 20, 14/22 text-secondary.
   disclaimer: {
     borderRadius: radii.lg,
-    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: colors.fillWell,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
   },
   disclaimerText: {
+    ...font(400),
     fontSize: 14,
-    lineHeight: 24,
+    lineHeight: 22,
     color: colors.textSecondary,
   },
   mt8: {

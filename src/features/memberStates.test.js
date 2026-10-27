@@ -292,7 +292,12 @@ describe('My plans (rows 13-14)', () => {
     expect(texts(tree)).toContain('No plans yet');
   });
 
+  // Jest reports fontScale 2 by default; row 14's layout is the 1× one.
+  const atFontScale = (fontScale, width = 390) =>
+    jest.spyOn(require('react-native'), 'useWindowDimensions', 'get').mockReturnValue(() => ({ width, height: 844, scale: 3, fontScale }));
+
   it('row 14: EmptyState + compact glass "Create a plan" and "Browse the catalog"; the header keeps the one gold "Create a plan"', async () => {
+    const spy = atFontScale(1);
     listMyPlans.mockResolvedValue({ items: [], currentPage: 1, totalPages: 1, totalRecords: 0 });
     const tree = await render(<MyPlansScreen />);
     const empty = expectInSlot(tree, EmptyState, {}, {});
@@ -310,6 +315,24 @@ describe('My plans (rows 13-14)', () => {
     await act(async () => create.props.onPress());
     await act(async () => browse.props.onPress());
     expect(mockNavigation.push.mock.calls.map((call) => call[0])).toEqual(['MyPlanCreate', 'PlansLibrary']);
+    spy.mockRestore();
+  });
+
+  it.each([
+    [1, 'row', false],
+    [1.3, 'row', false],
+    [2, 'column', true],
+    [3.1, 'column', true],
+  ])('row 14 §9: at fontScale %s the empty pair is a %s (full width %s), "Create a plan" first, labels never truncated', async (fontScale, direction, full) => {
+    const spy = atFontScale(fontScale);
+    listMyPlans.mockResolvedValue({ items: [], currentPage: 1, totalPages: 1, totalRecords: 0 });
+    const tree = await render(<MyPlansScreen />);
+    const row = tree.root.find((node) => node.props.testID === 'my-plans-empty-buttons' && typeof node.type === 'string');
+    expect(StyleSheet.flatten(row.props.style).flexDirection).toBe(direction);
+    const buttons = row.findAll((node) => node.type === PillButton);
+    expect(buttons.map((button) => button.props.testID)).toEqual(['my-plans-empty-create', 'my-plans-browse']);
+    expect(buttons.map((button) => Boolean(button.props.fullWidth))).toEqual([full, full]);
+    spy.mockRestore();
   });
 });
 
