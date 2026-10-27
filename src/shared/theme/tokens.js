@@ -239,6 +239,26 @@ export const gradients = Object.freeze({
     colors: Object.freeze(['rgba(255, 194, 26, 0.28)', 'rgba(255, 194, 26, 0)']),
     stops: Object.freeze([0, 1]),
   }),
+  // v2 kit: Phase 2 Group B (Create profile, Today states)
+  // Create profile phone CTA bar: transparent → ground at 35 % (UX B ND2).
+  ctaBarFade: Object.freeze({
+    angle: 180,
+    colors: Object.freeze(['rgba(10, 11, 15, 0)', '#0A0B0F']),
+    stops: Object.freeze([0, 0.35]),
+  }),
+  // Today-empty hero glow: a 260 circle of gold at 0.28 → 0 (UX B §Today, empty).
+  heroGlow: Object.freeze({
+    radial: Object.freeze({ cx: 0.5, cy: 0.5, rx: 0.5, ry: 0.5 }),
+    colors: Object.freeze(['rgba(255, 194, 26, 0.28)', 'rgba(255, 194, 26, 0)']),
+    stops: Object.freeze([0, 1]),
+  }),
+  // Today error: the danger-tinted card gradient (160deg) and its red glow.
+  dangerCard: Object.freeze({ angle: 160, colors: Object.freeze(['#2A1A1C', '#16121A']) }),
+  dangerGlow: Object.freeze({
+    radial: Object.freeze({ cx: 0.5, cy: 0.5, rx: 0.5, ry: 0.5 }),
+    colors: Object.freeze(['rgba(255, 90, 78, 0.28)', 'rgba(255, 90, 78, 0)']),
+    stops: Object.freeze([0, 1]),
+  }),
 });
 
 // Every TextInput's caret and selection are gold, never the platform blue

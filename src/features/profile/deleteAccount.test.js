@@ -227,13 +227,15 @@ describe('P1b.3 dialog', () => {
 });
 
 describe('P1b.4 Create-profile variant', () => {
-  it('sits at the end of the card content (padding-top 20) with the short subline', () => {
+  // v2 Phase 2 B1 (ND2): on a phone it sits in the sticky CTA bar, 6 under "Create profile".
+  it('sits under the Create profile CTA (phone: in the sticky bar, 6 below) with the short subline', () => {
     const tree = render(<CreateProfileScreen />);
     const shown = texts(tree.root);
     expect(shown).toEqual(expect.arrayContaining(['Delete account', "Don't want to continue? Permanently erase your sign-in."]));
     expect(shown.indexOf('Delete account')).toBeGreaterThan(shown.indexOf('Create profile'));
-    const action = tree.root.find((node) => node.props.testID === 'delete-account-action' && typeof node.type === 'string');
-    expect([].concat(action.props.style)).toEqual(expect.arrayContaining([{ paddingTop: 20 }]));
+    const bar = tree.root.find((node) => node.props.testID === 'profile-cta-bar' && typeof node.type === 'string');
+    const action = bar.find((node) => node.props.testID === 'delete-account-action' && typeof node.type === 'string');
+    expect([].concat(action.props.style)).toEqual(expect.arrayContaining([{ marginTop: 6 }]));
   });
 
   it('is hidden for admins on Create profile', () => {
