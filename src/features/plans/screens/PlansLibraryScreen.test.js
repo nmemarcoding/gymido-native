@@ -133,12 +133,14 @@ describe('Plans states', () => {
     expect(host(tree, 'plans-active-card')).toBeUndefined();
   });
 
-  it('loading on tablet: the Loader, unchanged', async () => {
+  // DECLARED change (T-60 review cf504b3): web shows PlansSkeleton at ALL
+  // widths (UX X5). Was: the tablet kept the Loader.
+  it('loading on tablet: the same skeleton (busy, "Loading plans"); no Loader', async () => {
     mockWindow = { width: 834, height: 1194, fontScale: 1 };
     listPlans.mockReturnValue(pending());
     const tree = await render();
-    expect(tree.root.findByType(Loader).props.label).toBe('Loading plans');
-    expect(host(tree, 'plans-skeleton')).toBeUndefined();
+    expect(tree.root.findAllByType(Loader)).toHaveLength(0);
+    expect(host(tree, 'plans-skeleton').props).toEqual(expect.objectContaining({ accessibilityRole: 'progressbar', accessibilityLabel: 'Loading plans', accessibilityState: { busy: true } }));
   });
 
   it('error (N2): "Plans unavailable" + the transport text + Retry, which re-runs the load', async () => {

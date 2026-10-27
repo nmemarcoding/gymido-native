@@ -8,7 +8,6 @@ import EmptyState from '../../../shared/components/EmptyState';
 import { RetryButton } from '../../../shared/components/ErrorAlert';
 import { InlineError } from '../../../shared/components/FeedbackBox';
 import { CAP_BODY, CAP_PILL } from '../../../shared/components/largeText';
-import Loader from '../../../shared/components/Loader';
 import PillButton from '../../../shared/components/PillButton';
 import StateSlot from '../../../shared/components/StateSlot';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
@@ -169,17 +168,15 @@ function PlansLibrary() {
   ) : null;
 
   if (load.status === 'loading') {
-    // T-60 (UX X5): the phone loads with the page-shaped skeleton; the
-    // tablet keeps the Loader (unchanged for now).
+    // T-60 (UX X5): the page-shaped skeleton at every width, as web's
+    // PlansSkeleton; the tablet keeps its page header above it.
     if (!tablet) {
       return <PlansSkeleton />;
     }
     return (
       <>
         {header}
-        <StateSlot loader>
-          <Loader label="Loading plans" />
-        </StateSlot>
+        <PlansSkeleton />
       </>
     );
   }
