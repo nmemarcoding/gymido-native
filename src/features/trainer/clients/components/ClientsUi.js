@@ -136,7 +136,7 @@ export const clientStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   statCard: {
-    borderRadius: radii.xxxl,
+    borderRadius: radii.xxl,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   listCard: {
-    borderRadius: radii.xxxl,
+    borderRadius: radii.xxl,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,

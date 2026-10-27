@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   card: {
-    borderRadius: radii.xxxl,
+    borderRadius: radii.xxl,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   primary: {
     flex: 1,
     alignItems: 'center',
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     backgroundColor: colors.brand400,
     paddingVertical: 12,
     boxShadow: shadows.glow,
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
     color: colors.navy,
   },
   viewPlan: {
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     alignItems: 'center',
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
   noWeight: {
     alignItems: 'center',
     marginTop: 12,
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.background,
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
   },
   smallPrimary: {
     marginTop: 12,
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     backgroundColor: colors.brand400,
     paddingHorizontal: 20,
     paddingVertical: 10,
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     padding: 16,
   },
   recentTitle: {

@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   surfaceCard: {
-    borderRadius: radii.surfaceCard,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: 'transparent',
     backgroundColor: colors.surface,
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
   activeCard: {
     flexDirection: 'row',
     overflow: 'hidden',
-    borderRadius: radii.xxxl,
+    borderRadius: radii.xxl,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,

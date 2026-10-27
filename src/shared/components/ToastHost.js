@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   },
   card: {
     flexShrink: 1,
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     paddingVertical: 12,
     paddingHorizontal: 16,

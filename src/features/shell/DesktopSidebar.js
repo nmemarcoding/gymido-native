@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   card: {
-    borderRadius: radii.surfaceCard,
+    borderRadius: radii.xl,
     backgroundColor: colors.surface,
     boxShadow: shadows.soft,
     overflow: 'hidden',
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   },
   item: {
     minHeight: 44,
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderWidth: 1,

@@ -17,7 +17,7 @@ export default function OnHoldBox({ message }) {
 // Box shared by the on-hold box and M3's "This is your current plan".
 export const statusBoxStyles = StyleSheet.create({
   box: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surfaceMuted,

@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   box: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     boxShadow: shadows.insetSoft,
   },
   boxError: {
-    borderColor: colors.danger,
+    borderColor: colors.dangerText,
   },
   focused: {
     borderColor: colors.brand500,
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     outlineStyle: 'solid',
   },
   focusedError: {
-    borderColor: colors.danger,
+    borderColor: colors.dangerText,
     outlineWidth: 2,
     outlineColor: colors.focusRingError,
     outlineStyle: 'solid',

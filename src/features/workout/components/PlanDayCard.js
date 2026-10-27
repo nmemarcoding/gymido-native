@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   clip: {
     flexGrow: 1,
     flexDirection: 'row',
-    borderRadius: radii.xxxl,
+    borderRadius: radii.xxl,
     overflow: 'hidden',
   },
   cardDone: {

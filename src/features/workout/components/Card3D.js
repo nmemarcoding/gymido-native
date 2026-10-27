@@ -18,15 +18,15 @@ export default function Card3D({ style, children, testID }) {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: radii.xxxl,
+    borderRadius: radii.xxl,
     backgroundColor: colors.surface,
     boxShadow: `${shadows.lift2}, ${shadows.ringInk}`,
   },
   highlight: {
     position: 'absolute',
     top: 0,
-    left: radii.xxxl,
-    right: radii.xxxl,
+    left: radii.xxl,
+    right: radii.xxl,
     height: 1,
   },
 });

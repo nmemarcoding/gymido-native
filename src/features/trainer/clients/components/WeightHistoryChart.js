@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   },
   tooltip: {
     position: 'absolute',
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,

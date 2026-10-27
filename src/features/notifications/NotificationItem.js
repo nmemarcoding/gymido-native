@@ -101,7 +101,7 @@ export default function NotificationItem({ item, tablet }) {
               >
                 {({ pressed: deletePressed }) => (
                   <Svg width={16} height={16} viewBox="0 0 20 20">
-                    <Path fill={deletePressed ? colors.danger : colors.textMuted} fillRule="evenodd" d={CLOSE_PATH} />
+                    <Path fill={deletePressed ? colors.dangerText : colors.textMuted} fillRule="evenodd" d={CLOSE_PATH} />
                   </Svg>
                 )}
               </Pressable>
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   iconTile: {
     width: 40,
     height: 40,
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     boxShadow: shadows.insetSoft,
     alignItems: 'center',
     justifyContent: 'center',

@@ -340,7 +340,7 @@ function EditProfileForm({ profile }) {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: radii.surfaceCard,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: 'transparent',
     backgroundColor: colors.surface,

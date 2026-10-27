@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderColor: 'transparent',
     borderWidth: 1,
-    borderRadius: radii.surfaceCard,
+    borderRadius: radii.xl,
     boxShadow: shadows.soft,
   },
   titled: {

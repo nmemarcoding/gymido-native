@@ -35,7 +35,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    borderRadius: radii.xxxl,
+    borderRadius: radii.xxl,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,

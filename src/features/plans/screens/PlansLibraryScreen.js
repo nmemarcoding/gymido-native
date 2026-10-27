@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
   primary: {
     flex: 1,
     alignItems: 'center',
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     backgroundColor: colors.brand400,
     paddingVertical: 12,
     boxShadow: shadows.glow,
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     color: colors.navy,
   },
   secondary: {
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,

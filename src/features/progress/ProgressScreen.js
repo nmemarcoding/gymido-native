@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
   segments: {
     flexDirection: 'row',
     gap: 4,
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     padding: 4,
   },
   segment: {
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 44,
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     paddingVertical: 12,
   },
   segmentActive: {
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   },
   strip: {
     flexDirection: 'row',
-    borderRadius: radii.xxxl,
+    borderRadius: radii.xxl,
     paddingVertical: 16,
   },
   stripItem: {
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
     color: colors.brand700,
   },
   bigCard: {
-    borderRadius: radii.xxxl,
+    borderRadius: radii.xxl,
     padding: 20,
   },
   goalRow: {
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     minHeight: 44,
     justifyContent: 'center',
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     backgroundColor: colors.brand400,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   logRow: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     alignItems: 'center',
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     padding: 16,
   },
   statValue: {

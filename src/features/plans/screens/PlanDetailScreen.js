@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
   stats: {
     flexDirection: 'row',
     marginTop: 16,
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     backgroundColor: colors.background,
     paddingVertical: 12,
   },
@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
   dayNumber: {
     width: 40,
     height: 40,
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   exerciseRow: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.background,
@@ -729,7 +729,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   emptyDay: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.background,
@@ -745,7 +745,7 @@ const styles = StyleSheet.create({
   },
   lockBanner: {
     marginBottom: 16,
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.trainerLockBorder,
     backgroundColor: colors.brand50,
@@ -779,7 +779,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     marginTop: 20,
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     backgroundColor: colors.brand400,
     paddingVertical: 16,
     // Batch 2 #23: soft, not the glow.

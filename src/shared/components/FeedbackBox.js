@@ -33,7 +33,7 @@ export function SuccessState({ title = 'Success', message, testID }) {
 
 const styles = StyleSheet.create({
   box: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     paddingVertical: 12,
     paddingHorizontal: 16,

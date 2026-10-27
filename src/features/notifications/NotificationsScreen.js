@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     minHeight: 44,
     justifyContent: 'center',
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     paddingVertical: 48,
   },
   listCard: {
-    borderRadius: radii.xxxl,
+    borderRadius: radii.xxl,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
   more: {
     minHeight: 44,
     justifyContent: 'center',
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,

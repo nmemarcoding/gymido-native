@@ -55,7 +55,7 @@ export function InactiveBanner({ body }) {
 
 const styles = StyleSheet.create({
   banner: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surfaceMuted,
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   noticeBox: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surfaceMuted,

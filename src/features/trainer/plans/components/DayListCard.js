@@ -91,7 +91,7 @@ function DayArticle({ day, selected, onSelect, children }) {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: radii.surfaceCard,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: 'transparent',
     backgroundColor: colors.surface,
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   empty: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     backgroundColor: colors.background,
     paddingVertical: 20,
     paddingHorizontal: 16,
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   day: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     padding: 16,
   },

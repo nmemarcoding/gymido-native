@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     paddingVertical: 12,
     minHeight: 44,
   },

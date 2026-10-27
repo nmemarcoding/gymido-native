@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   card: {
-    borderRadius: radii.xxxl,
+    borderRadius: radii.xxl,
     backgroundColor: colors.surface,
     padding: 12,
     boxShadow: `${shadows.lift2}, ${shadows.ringInk}`,
@@ -592,11 +592,11 @@ const styles = StyleSheet.create({
   cardAction: {
     height: 44,
     justifyContent: 'center',
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     paddingHorizontal: 24,
   },
   actionClip: {
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     overflow: 'hidden',
   },
   cardActionGold: {

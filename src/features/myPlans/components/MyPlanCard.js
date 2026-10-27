@@ -35,7 +35,7 @@ export default function MyPlanCard({ plan, onOpen, style }) {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: radii.xxxl,
+    borderRadius: radii.xxl,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,

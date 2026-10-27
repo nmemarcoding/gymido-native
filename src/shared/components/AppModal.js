@@ -146,11 +146,11 @@ const styles = StyleSheet.create({
     gap: 24,
   },
   cardPhone: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     padding: 24,
   },
   cardWide: {
-    borderRadius: radii.xxxl,
+    borderRadius: radii.xxl,
     padding: 32,
   },
   scroll: {

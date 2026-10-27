@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     height: 12,
   },
   row: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.background,
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
   thumbFrame: {
     width: 56,
     height: 56,
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     overflow: 'hidden',
     backgroundColor: colors.background,
     boxShadow: shadows.insetSoft,

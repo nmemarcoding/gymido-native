@@ -353,15 +353,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   sheetPhone: {
-    borderTopLeftRadius: radii.xxxl,
-    borderTopRightRadius: radii.xxxl,
-    borderBottomLeftRadius: radii.xxl,
-    borderBottomRightRadius: radii.xxl,
+    borderTopLeftRadius: radii.xxl,
+    borderTopRightRadius: radii.xxl,
+    borderBottomLeftRadius: radii.lg,
+    borderBottomRightRadius: radii.lg,
     marginBottom: 12,
   },
   sheetWide: {
     maxWidth: 660,
-    borderRadius: radii.xxxl,
+    borderRadius: radii.xxl,
   },
   grabber: {
     alignSelf: 'center',
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
   },
   searchField: {
     height: 48,
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
   filterSelect: {
     height: 48,
     minHeight: 48,
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     borderWidth: 1.5,
     paddingVertical: 0,
     paddingLeft: 12,
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   noMatch: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     backgroundColor: colors.surfaceMuted,
     paddingVertical: 20,
     paddingHorizontal: 16,

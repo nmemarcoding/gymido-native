@@ -1,132 +1,193 @@
-// Design tokens from the Login & Sign Up spec §8. Light theme only, system font.
+// Design tokens, v2 (RN-SPEC-v2-foundation §1–3; UX tokens-and-components,
+// FINAL 26 Oct 2026). Dark only. Names are UX's shared vocabulary in
+// camelCase (`color-surface-raised` → colors.surfaceRaised).
 
-export const colors = Object.freeze({
-  background: '#f7f8fa',
-  surface: '#ffffff',
-  border: '#e5e7eb',
-  textPrimary: '#111827',
-  textSecondary: '#4b5563',
-  brand400: '#f4b400',
-  brand500: '#dda000',
-  brand600: '#a07700',
-  dangerBorder: 'rgba(239, 68, 68, 0.3)',
-  errorFill: '#fef2f2',
-  errorText: '#c10007',
-  // Trainer plans spec §A2 and RN-SPEC-plans §2.1.
-  surfaceMuted: '#eff1f4',
-  textMuted: '#6b7280',
-  navy: '#111827',
-  brand50: '#fef8e7',
-  brand700: '#7e5e00',
-  danger: '#ef4444',
-  gray200: '#e5e7eb',
-  // Muscle colour for arms/biceps/triceps (design system v1: kept, named by role).
-  arms: '#7f22fe',
-  pickerBubble: 'rgba(17, 24, 39, 0.15)',
-  focusRing: 'rgba(244, 180, 0, 0.35)',
-  focusRingError: 'rgba(239, 68, 68, 0.35)',
-  pickerRowPressedBorder: 'rgba(244, 180, 0, 0.60)',
-  pickerCancelPressedBorder: 'rgba(244, 180, 0, 0.50)',
-  successBorder: 'rgba(34, 197, 94, 0.30)',
-  successFill: '#f0fdf4',
-  successText: '#008236',
-  brand300: '#f7ce4f',
-  success: '#22c55e',
-  warning: '#f59e0b',
-  successTint: 'rgba(34, 197, 94, 0.10)',
-  trainerLockBorder: 'rgba(221, 160, 0, 0.30)',
-  rowPressed: 'rgba(239, 241, 244, 0.40)',
-  rowPressedStrong: 'rgba(239, 241, 244, 0.50)',
-  // Design system v1 (24 Oct 2026) contrast fixes: text on tints/white and
-  // fills under white text meet 4.5:1; the base hues stay for dots and borders.
-  success700: '#008236',
-  warning700: '#bb4d00',
-  danger600: '#e7000b',
-  danger700: '#c10007',
-  danger800: '#991b1b',
-  // Overlay scrims (design system v1): navy/50 everywhere; navy/30 only behind
-  // the notification panel.
-  scrim: 'rgba(17, 24, 39, 0.50)',
-  scrimLight: 'rgba(17, 24, 39, 0.30)',
-  // P1-02 sweep: the literals that bypassed tokens, named by role, values unchanged.
-  // Status palettes (toasts, feedback boxes, notices, badges).
-  warningTint: 'rgba(245, 158, 11, 0.10)',
-  warningBorder: 'rgba(245, 158, 11, 0.30)',
-  warningFill: '#fffbeb',
-  warningTextStrong: '#973c00',
-  warningBorderSoft: '#fee685',
-  infoBorder: 'rgba(14, 165, 233, 0.30)',
-  infoFill: '#eff6ff',
-  infoText: '#1447e6',
-  tealFill: '#e6f7f8',
-  tealText: '#007e87',
-  emeraldFill: '#ecfdf5',
-  emeraldText: '#007a55',
-  emeraldBorder: '#a4f4cf',
-  dangerBorderSoft: '#ffc9c9',
-  neutralFill: '#f1f5f9',
-  neutralText: '#314158',
-  neutralBorder: '#e2e8f0',
-  onDanger: '#ffffff',
-  onNavy: '#ffffff',
-  // Gold accents.
-  brandTintStrong: '#fcefc4',
-  brandTextPressed: '#5c4400',
-  brandActiveBorder: 'rgba(221, 160, 0, 0.30)',
-  brandPressedBorder: 'rgba(221, 160, 0, 0.40)',
-  brandEdge: 'rgba(244, 180, 0, 0.40)',
-  setNextBorder: 'rgba(244, 180, 0, 0.70)',
-  setHighlightOutline: 'rgba(244, 180, 0, 0.60)',
-  // Ink on the gold rest disc and gold buttons.
+// §1 Colour: the canonical v2 set.
+const V2_COLORS = {
+  // §1.1 Ground and surfaces.
+  ground: '#0A0B0F',
+  groundDeep: '#0B0C10',
+  surface: '#15171D',
+  surfaceSunk: '#111318',
+  surfaceRaised: '#1E2129',
+  surfaceInput: '#1A1D24',
+  glass: 'rgba(30, 33, 41, 0.72)',
+  glassToast: 'rgba(30, 33, 41, 0.85)',
+  // Low-end Android: the tab bar draws this instead of the blur (PM, 26 Oct).
+  glassSolid: 'rgba(30, 33, 41, 0.96)',
+  hairline: 'rgba(255, 255, 255, 0.07)',
+  hairlineStrong: 'rgba(255, 255, 255, 0.10)',
+  hairlineButton: 'rgba(255, 255, 255, 0.12)',
+  fillWell: 'rgba(255, 255, 255, 0.04)',
+  fillChip: 'rgba(255, 255, 255, 0.05)',
+  fillSkeleton: 'rgba(255, 255, 255, 0.07)',
+  fillButton: 'rgba(255, 255, 255, 0.08)',
+  switchTrackOff: 'rgba(255, 255, 255, 0.14)',
+  scrim: 'rgba(10, 11, 15, 0.6)',
+  // §1.2 Text.
+  textPrimary: '#F5F6F8',
+  textStrong2: '#D4D7DD',
+  textSecondary: '#B4B9C3',
+  textMuted: '#9BA1AD',
+  textFaint: '#8B919C',
+  // Fails 4.5:1: disabled text and decoration only, never readable copy.
+  textDisabled: '#6E7480',
+  onGold: '#0A0B0F',
+  onLight: '#0A0B0F',
+  onDanger: '#FFFFFF',
+  // §1.3 Brand gold. Pressed gold = goldDeep (UX, 26 Oct).
+  gold: '#FFC21A',
+  goldLight: '#FFD45C',
+  goldDeep: '#F4A300',
+  goldTint: 'rgba(255, 194, 26, 0.14)',
+  goldTintTab: 'rgba(255, 194, 26, 0.16)',
+  goldTintWeak: 'rgba(255, 194, 26, 0.08)',
+  goldBorder: 'rgba(255, 194, 26, 0.35)',
+  goldFocus: 'rgba(255, 194, 26, 0.18)',
+  // §1.4 Status. "Active" = teal; success green = completed / done.
+  success: '#4ADE80',
+  successTint: 'rgba(74, 222, 128, 0.12)',
+  successBorder: 'rgba(74, 222, 128, 0.28)',
+  teal: '#4FD8C4',
+  tealTint: 'rgba(79, 216, 196, 0.14)',
+  warning: '#F5A524',
+  warningTint: 'rgba(245, 165, 36, 0.14)',
+  warningFill: 'rgba(245, 165, 36, 0.08)',
+  warningBorder: 'rgba(245, 165, 36, 0.28)',
+  danger: '#D93036',
+  dangerText: '#FF7A70',
+  dangerTextTint: 'rgba(255, 122, 112, 0.12)',
+  dangerFocus: 'rgba(255, 122, 112, 0.18)',
+  dangerDot: '#FF5A4E',
+  dangerDotTint: 'rgba(255, 90, 78, 0.08)',
+  dangerDotBorder: 'rgba(255, 90, 78, 0.30)',
+  // Info and chest share the hue as two tokens (UX, 26 Oct).
+  info: '#8FA8FF',
+  infoTint: 'rgba(143, 168, 255, 0.10)',
+  infoBorder: 'rgba(143, 168, 255, 0.25)',
+};
+
+// v1 names kept as ALIASES of v2 values while screens move to the v2 names
+// (Phases 2–4); each takes its dominant v1 role. A screen that uses an alias
+// in another role is fixed when it is restyled. Phase 4 deletes this block
+// (tokens.test.js lists what is left).
+const LEGACY_COLORS = {
+  background: V2_COLORS.ground,
+  border: V2_COLORS.hairline,
+  brand400: V2_COLORS.gold,
+  brand500: V2_COLORS.goldDeep,
+  brand600: V2_COLORS.gold,
+  brand300: V2_COLORS.goldLight,
+  brand50: V2_COLORS.goldTint,
+  brand700: V2_COLORS.gold,
+  dangerBorder: V2_COLORS.dangerDotBorder,
+  errorFill: V2_COLORS.dangerDotTint,
+  errorText: V2_COLORS.dangerText,
+  surfaceMuted: V2_COLORS.fillChip,
+  // v1 navy: dark text and active fills on white; on dark the same roles are
+  // the light ink (white "on" chips, titles).
+  navy: V2_COLORS.textPrimary,
+  onNavy: V2_COLORS.onLight,
+  gray200: V2_COLORS.hairlineStrong,
+  arms: '#C79BFF',
+  pickerBubble: V2_COLORS.fillSkeleton,
+  focusRing: V2_COLORS.goldFocus,
+  focusRingError: V2_COLORS.dangerFocus,
+  pickerRowPressedBorder: V2_COLORS.goldBorder,
+  pickerCancelPressedBorder: V2_COLORS.goldBorder,
+  successFill: V2_COLORS.successTint,
+  successText: V2_COLORS.success,
+  trainerLockBorder: V2_COLORS.goldBorder,
+  rowPressed: V2_COLORS.fillChip,
+  rowPressedStrong: V2_COLORS.fillSkeleton,
+  success700: V2_COLORS.success,
+  warning700: V2_COLORS.warning,
+  danger700: V2_COLORS.dangerText,
+  danger800: V2_COLORS.dangerText,
+  scrimLight: V2_COLORS.scrim,
+  warningTextStrong: V2_COLORS.warning,
+  warningBorderSoft: V2_COLORS.warningBorder,
+  infoFill: V2_COLORS.infoTint,
+  infoText: V2_COLORS.info,
+  tealFill: V2_COLORS.tealTint,
+  tealText: V2_COLORS.teal,
+  emeraldFill: V2_COLORS.successTint,
+  emeraldText: V2_COLORS.success,
+  emeraldBorder: V2_COLORS.successBorder,
+  dangerBorderSoft: V2_COLORS.dangerDotBorder,
+  neutralFill: V2_COLORS.fillChip,
+  neutralText: V2_COLORS.textStrong2,
+  neutralBorder: V2_COLORS.hairlineStrong,
+  brandTintStrong: V2_COLORS.goldTint,
+  brandTextPressed: V2_COLORS.goldDeep,
+  brandActiveBorder: V2_COLORS.goldBorder,
+  brandPressedBorder: V2_COLORS.goldBorder,
+  brandEdge: V2_COLORS.goldBorder,
+  setNextBorder: V2_COLORS.gold,
+  setHighlightOutline: V2_COLORS.gold,
+  // Ink on gold: v1's navy washes become color-on-gold washes.
   onGoldEdge: 'rgba(255, 255, 255, 0.30)',
-  onGoldWash: 'rgba(17, 24, 39, 0.10)',
-  onGoldRing: 'rgba(17, 24, 39, 0.15)',
-  onGoldSpinnerTrack: 'rgba(17, 24, 39, 0.4)',
-  onGoldTextSoft: 'rgba(17, 24, 39, 0.70)',
-  onGoldTextStrong: 'rgba(17, 24, 39, 0.80)',
-  illustrationInk: 'rgba(17, 24, 39, 0.70)',
-  ringTrack: 'rgba(17, 24, 39, 0.05)',
-  // Glass bars, dividers and sheens.
-  dividerSoft: 'rgba(229, 231, 235, 0.70)',
-  glassEdge: 'rgba(229, 231, 235, 0.80)',
-  glassFill: 'rgba(255, 255, 255, 0.80)',
-  navGlassFill: 'rgba(255, 255, 255, 0.95)',
-  stickyHeaderFill: 'rgba(247, 248, 250, 0.95)',
+  onGoldWash: 'rgba(10, 11, 15, 0.10)',
+  onGoldRing: 'rgba(10, 11, 15, 0.15)',
+  onGoldSpinnerTrack: 'rgba(10, 11, 15, 0.4)',
+  onGoldTextSoft: 'rgba(10, 11, 15, 0.70)',
+  onGoldTextStrong: 'rgba(10, 11, 15, 0.80)',
+  illustrationInk: V2_COLORS.textMuted,
+  ringTrack: V2_COLORS.fillSkeleton,
+  dividerSoft: V2_COLORS.hairline,
+  glassEdge: V2_COLORS.hairlineStrong,
+  glassFill: V2_COLORS.glass,
+  navGlassFill: V2_COLORS.glass,
+  stickyHeaderFill: 'rgba(10, 11, 15, 0.85)',
+  // v1's 3D-card sheens are retired; kept faint so the old layers stay quiet.
   sheenClear: 'rgba(255, 255, 255, 0)',
-  sheenCard: 'rgba(255, 255, 255, 0.9)',
-  sheenSkeleton: 'rgba(255, 255, 255, 0.7)',
-  // Native pickers (Select, DateInput) and the exercise picker icons.
-  fillSubtle: '#f3f4f6',
-  pickerSheet: '#d1d5db',
-  pickerToolbarBorder: '#9ca3af',
-  pickerDone: '#007aff',
-  pickerCheckInk: '#0B1D3A',
-  iconSubtle: '#9CA3AF',
-  // Client weight chart.
-  chartLine: '#009ca6',
-  chartGrid: '#e2e8f0',
+  sheenCard: 'rgba(255, 255, 255, 0.06)',
+  sheenSkeleton: 'rgba(255, 255, 255, 0.08)',
+  fillSubtle: V2_COLORS.fillChip,
+  pickerSheet: V2_COLORS.surfaceRaised,
+  pickerToolbarBorder: V2_COLORS.hairlineStrong,
+  pickerDone: V2_COLORS.gold,
+  pickerCheckInk: V2_COLORS.textPrimary,
+  iconSubtle: V2_COLORS.textFaint,
+  chartLine: V2_COLORS.teal,
+  chartGrid: V2_COLORS.hairline,
+};
+
+export const colors = Object.freeze({ ...LEGACY_COLORS, ...V2_COLORS });
+export const legacyColorKeys = Object.freeze(Object.keys(LEGACY_COLORS));
+
+// §1.5 Muscle colours, always shown with a text label. Tiles: the colour at
+// 16 % as the fill and the colour as the text.
+export const muscle = Object.freeze({
+  chest: '#8FA8FF',
+  back: '#FFC21A',
+  legs: '#9DB0CF',
+  arms: '#C79BFF',
+  core: '#FF9A57',
+  cardio: '#4FD8C4',
 });
 
-// P1-02: exercise-thumbnail tiles by primary muscle group (spec §A7.3), the
-// background hues plus the two icon inks. Values unchanged from ExerciseThumb.
+// The API's muscle groups onto the six colours (UX, 26 Oct 2026); anything
+// else is neutral. v1's per-group thumbnail hues map through this until
+// ExerciseImage replaces ExerciseThumb (Phase 2).
 export const musclePalette = Object.freeze({
-  legs: '#3A4D6A',
-  shoulders: '#009CA6',
-  abs: '#FF6A00',
-  cardio: '#009CA6',
-  quads: '#3B82F6',
-  obliques: '#8B5CF6',
-  adductors: '#06B6D4',
-  trapsNeck: '#F59E0B',
-  abductors: '#14B8A6',
-  hamstrings: '#D946EF',
-  lowerBack: '#F97316',
-  lats: '#0EA5E9',
-  glutes: '#84CC16',
-  upperBack: '#3A4D6A',
-  forearms: '#14B8A6',
-  iconLight: '#ffffff',
-  iconDark: '#000000',
+  legs: muscle.legs,
+  shoulders: muscle.arms,
+  abs: muscle.core,
+  cardio: muscle.cardio,
+  quads: muscle.legs,
+  obliques: muscle.core,
+  adductors: muscle.legs,
+  trapsNeck: muscle.back,
+  abductors: muscle.legs,
+  hamstrings: muscle.legs,
+  lowerBack: muscle.back,
+  lats: muscle.back,
+  glutes: muscle.legs,
+  upperBack: muscle.back,
+  forearms: muscle.arms,
+  iconLight: V2_COLORS.textPrimary,
+  iconDark: V2_COLORS.ground,
 });
 
 export const typography = Object.freeze({
@@ -136,7 +197,7 @@ export const typography = Object.freeze({
     fontWeight: '700',
     letterSpacing: 2.016,
     textTransform: 'uppercase',
-    color: colors.brand700,
+    color: colors.gold,
   },
   heading: {
     fontSize: 24,
@@ -160,31 +221,47 @@ export const typography = Object.freeze({
   },
 });
 
-export const shadows = Object.freeze({
-  soft: '0px 8px 24px rgba(11, 29, 58, 0.08)',
-  glow: '0px 8px 24px rgba(244, 180, 0, 0.28)',
-  lift1: '0px 1px 2px rgba(17, 24, 39, 0.04), 0px 4px 12px -2px rgba(17, 24, 39, 0.06)',
-  lift2: '0px 2px 4px rgba(17, 24, 39, 0.05), 0px 12px 28px -6px rgba(17, 24, 39, 0.10)',
-  brand: '0px 6px 16px -4px rgba(244, 180, 0, 0.45), 0px 14px 32px -12px rgba(244, 180, 0, 0.30)',
-  press: 'inset 0px 2px 6px rgba(17, 24, 39, 0.12)',
-  emboss: 'inset 0px 1px 0px rgba(255, 255, 255, 0.9), 0px 1px 2px rgba(17, 24, 39, 0.05)',
-  lift3: '0px 4px 8px rgba(17, 24, 39, 0.06), 0px 24px 48px -12px rgba(17, 24, 39, 0.16)',
-  // Design system v1 #20: modals use lift-3.
-  modal: '0px 4px 8px rgba(17, 24, 39, 0.06), 0px 24px 48px -12px rgba(17, 24, 39, 0.16)',
-  insetSoft: 'inset 0px 1px 0px rgba(255, 255, 255, 0.8)',
-  // P1-02 sweep: shadows that were written inline, values unchanged.
-  ringInk: 'inset 0px 0px 0px 1px rgba(17, 24, 39, 0.05)',
-  ringInkOuter: '0px 0px 0px 1px rgba(17, 24, 39, 0.10)',
-  sheetUp: '0px -8px 32px rgba(17, 24, 39, 0.12)',
-  dialog: '0px 20px 48px -12px rgba(17, 24, 39, 0.25), inset 0px 0px 0px 1px rgba(17, 24, 39, 0.05)',
-});
+// §3 Elevation: two shadows only. goldGlow under the ONE gold primary
+// (goldGlowLarge under a 60 px button); float for glass chrome, toasts,
+// sheets and dialogs.
+const V2_SHADOWS = {
+  goldGlow: '0px 10px 30px -8px rgba(255, 194, 26, 0.55)',
+  goldGlowLarge: '0px 14px 36px -10px rgba(255, 194, 26, 0.6)',
+  float: '0px 16px 40px rgba(0, 0, 0, 0.5)',
+};
 
+// v1 shadows as aliases: the gold glows map to goldGlow, overlay shadows to
+// float, and every other lift/press/emboss/ring is retired (`undefined`
+// draws no shadow). Deleted in Phase 4 with the colour aliases.
+const LEGACY_SHADOWS = {
+  glow: V2_SHADOWS.goldGlow,
+  brand: V2_SHADOWS.goldGlow,
+  modal: V2_SHADOWS.float,
+  dialog: V2_SHADOWS.float,
+  sheetUp: V2_SHADOWS.float,
+  soft: undefined,
+  lift1: undefined,
+  lift2: undefined,
+  lift3: undefined,
+  press: undefined,
+  emboss: undefined,
+  insetSoft: undefined,
+  ringInk: undefined,
+  ringInkOuter: undefined,
+};
+
+export const shadows = Object.freeze({ ...LEGACY_SHADOWS, ...V2_SHADOWS });
+export const legacyShadowKeys = Object.freeze(Object.keys(LEGACY_SHADOWS));
+
+// §3 Radius: one value per use (the canvas's 14 / 18 fold into 16 / 20).
+// xxl = UX's radius-2xl. Checkbox 8 is local to the checkbox.
 export const radii = Object.freeze({
-  xl: 16,
-  xxl: 20,
-  xxxl: 28,
-  surfaceCard: 23.2,
-  full: 9999,
+  sm: 12,
+  md: 16,
+  lg: 20,
+  xl: 24,
+  xxl: 28,
+  full: 999,
 });
 
 // Window-width breakpoints from the web (sm, md, lg).

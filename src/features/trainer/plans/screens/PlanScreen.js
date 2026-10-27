@@ -841,7 +841,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   notice: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surfaceMuted,

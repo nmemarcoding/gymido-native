@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     color: 'transparent',
   },
   list: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',

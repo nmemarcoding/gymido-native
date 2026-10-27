@@ -114,7 +114,7 @@ function FilterButton({ label, a11y, active, onPress }) {
 const styles = StyleSheet.create({
   panel: {
     position: 'absolute',
-    borderRadius: radii.xxxl,
+    borderRadius: radii.xxl,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   },
   more: {
     minHeight: 44,
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     paddingHorizontal: 16,
     justifyContent: 'center',
   },

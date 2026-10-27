@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   errorBox: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surfaceMuted,

@@ -25,7 +25,7 @@ export default function ErrorAlert({ title, description, onRetry, style, testID 
 
 const styles = StyleSheet.create({
   box: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.dangerBorder,
     backgroundColor: colors.errorFill,

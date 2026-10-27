@@ -33,7 +33,7 @@ export default function TrainerCard({ trainer, onPress, style }) {
 const styles = StyleSheet.create({
   card: {
     overflow: 'hidden',
-    borderRadius: radii.xxxl,
+    borderRadius: radii.xxl,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,

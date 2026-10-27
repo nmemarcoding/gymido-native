@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
   thumb: {
     width: 52,
     height: 52,
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     overflow: 'hidden',
   },
   tile: {

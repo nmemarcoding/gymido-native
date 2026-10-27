@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   card: {
-    borderRadius: radii.surfaceCard,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: 'transparent',
     backgroundColor: colors.surface,

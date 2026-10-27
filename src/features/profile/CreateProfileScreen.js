@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   card: {
-    borderRadius: radii.surfaceCard,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: 'transparent',
     backgroundColor: colors.surface,

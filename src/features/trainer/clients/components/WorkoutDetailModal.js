@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   notes: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     backgroundColor: colors.surfaceMuted,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   exercise: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     padding: 16,

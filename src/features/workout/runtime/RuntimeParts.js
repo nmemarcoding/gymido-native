@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   statTile: {
     flex: 1,
     alignItems: 'center',
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     backgroundColor: colors.surface,
     paddingHorizontal: 10,
     paddingVertical: 12,
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   staleBanner: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.trainerLockBorder,
     backgroundColor: colors.brand50,
@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   reloadBar: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.dangerBorder,
     backgroundColor: colors.errorFill,
@@ -742,7 +742,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 96,
     height: 48,
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.background,
@@ -754,7 +754,7 @@ const styles = StyleSheet.create({
     boxShadow: shadows.press,
   },
   weightError: {
-    borderColor: colors.danger,
+    borderColor: colors.dangerText,
     backgroundColor: colors.errorFill,
     color: colors.danger700,
     outlineWidth: 2,
@@ -764,7 +764,7 @@ const styles = StyleSheet.create({
   unitBox: {
     width: 40,
     height: 48,
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     backgroundColor: colors.background,
     paddingHorizontal: 0,
     paddingVertical: 0,
@@ -783,14 +783,14 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
   },
   // The gold layer clips itself. Android stops drawing a view's children when
   // its border/background change at runtime while it has overflow hidden and
   // a radius (the locked → "Did it" switch left the button blank), so the
   // pressable itself never clips.
   actionClip: {
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     overflow: 'hidden',
   },
   actionGold: {

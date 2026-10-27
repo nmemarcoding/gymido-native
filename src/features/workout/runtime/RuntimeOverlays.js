@@ -654,7 +654,7 @@ const styles = StyleSheet.create({
   dialogCard: {
     width: '100%',
     maxWidth: 384,
-    borderRadius: radii.xxxl,
+    borderRadius: radii.lg,
     backgroundColor: colors.surface,
     paddingHorizontal: 24,
     paddingVertical: 28,
@@ -703,7 +703,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
     borderRadius: radii.full,
-    backgroundColor: colors.danger600,
+    backgroundColor: colors.danger,
     boxShadow: shadows.lift2,
   },
   discardPressed: {

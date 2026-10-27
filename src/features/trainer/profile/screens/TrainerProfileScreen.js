@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   },
   // surface-card (app-shell §6.4 Card A). No clipping, so nothing here changes at runtime.
   card: {
-    borderRadius: radii.surfaceCard,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: 'transparent',
     backgroundColor: colors.surface,
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   // P1 #4's button. The column gap is 20, so mt 4 makes the 24 above it.
   logout: {
     marginTop: 4,
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,

@@ -16,7 +16,7 @@ export function WorkoutErrorState({ message, onRetry }) {
     <Card3D testID="workout-error" style={styles.errorCard}>
       <View accessibilityLiveRegion="assertive" style={styles.center}>
         <View style={styles.errorCircle}>
-          <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={colors.danger} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={colors.dangerText} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
             <Path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
           </Svg>
         </View>

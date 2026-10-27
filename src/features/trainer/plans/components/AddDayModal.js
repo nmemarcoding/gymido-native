@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   box: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.background,

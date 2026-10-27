@@ -30,13 +30,15 @@ describe('Card (design system v1 P8)', () => {
       </Card>,
     );
     const style = flat(tree.root.findByType(Text).parent);
+    // v2 P1-05 (declared look-only change): surface #15171D, radius-xl 24,
+    // and v1's shadow-soft is retired (no shadow on dark).
     expect(style).toMatchObject({
-      backgroundColor: '#ffffff',
+      backgroundColor: '#15171D',
       borderColor: 'transparent',
       borderWidth: 1,
-      borderRadius: 23.2,
+      borderRadius: 24,
       padding: 20,
-      boxShadow: '0px 8px 24px rgba(11, 29, 58, 0.08)',
+      boxShadow: undefined,
     });
     expect(style.paddingHorizontal).toBeUndefined();
   });
@@ -62,12 +64,14 @@ describe('Card (design system v1 P8)', () => {
     const [title, subtitle] = tree.root.findAllByType(Text);
     expect(title.props.accessibilityRole).toBe('header');
     expect(flat(title)).toMatchObject({ fontSize: 20, fontWeight: '700', letterSpacing: -0.5 });
-    expect(flat(subtitle)).toMatchObject({ fontSize: 14, marginTop: 4, color: '#4b5563' });
+    // v2 P1-05 (declared): text-secondary is #B4B9C3 on dark.
+    expect(flat(subtitle)).toMatchObject({ fontSize: 14, marginTop: 4, color: '#B4B9C3' });
     expect(flat(title.parent)).toMatchObject({
       paddingHorizontal: 20,
       paddingVertical: 16,
       borderBottomWidth: 1,
-      borderBottomColor: 'rgba(229, 231, 235, 0.70)',
+      // v2 P1-05 (declared): color-hairline.
+      borderBottomColor: 'rgba(255, 255, 255, 0.07)',
     });
     expect(flat(tree.root.findAllByType(Text)[2].parent)).toMatchObject({ padding: 20 });
   });

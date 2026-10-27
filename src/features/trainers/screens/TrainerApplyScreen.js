@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
     paddingVertical: 48,
   },
   surfaceCard: {
-    borderRadius: radii.surfaceCard,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: 'transparent',
     backgroundColor: colors.surface,
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
   },
   messageBox: {
     marginTop: 20,
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     backgroundColor: colors.surfaceMuted,
     paddingHorizontal: 16,
     paddingVertical: 12,

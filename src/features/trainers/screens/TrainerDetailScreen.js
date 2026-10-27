@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     overflow: 'hidden',
-    borderRadius: radii.xxxl,
+    borderRadius: radii.xxl,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,

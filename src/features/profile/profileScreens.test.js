@@ -110,15 +110,21 @@ describe('P1 Settings', () => {
     expect(row().props.accessibilityState).toEqual({ checked: true });
     // Design system v1 #17: the gold track, the off colour behind it on iOS.
     const toggle = tree.root.find((node) => node.props.testID === 'settings-vibrate-rest-alerts-switch' && node.props.onValueChange);
-    expect(toggle.props.trackColor).toEqual({ false: '#e5e7eb', true: '#f4b400' });
-    expect(toggle.props.ios_backgroundColor).toBe('#e5e7eb');
-    // QA 1.0.1: a white thumb in both states on both switches (Android's default ON thumb is teal).
-    expect(toggle.props.thumbColor).toBe('#ffffff');
-    expect(tree.root.find((node) => node.props.testID === 'settings-speak-rest-alerts-switch' && node.props.onValueChange).props.thumbColor).toBe('#ffffff');
+    // v2 §4.7 (declared look-only change, P2-08): gold track on, 14 % white
+    // track off.
+    expect(toggle.props.trackColor).toEqual({ false: 'rgba(255, 255, 255, 0.14)', true: '#FFC21A' });
+    expect(toggle.props.ios_backgroundColor).toBe('rgba(255, 255, 255, 0.14)');
+    // v2 §4.7 (declared look-only change; was QA 1.0.1's white thumb): the thumb
+    // is set in both states on both switches (Android's default ON thumb is
+    // teal): color-ground when on, #F5F6F8 when off.
+    expect(toggle.props.thumbColor).toBe('#0A0B0F');
+    const speak = tree.root.find((node) => node.props.testID === 'settings-speak-rest-alerts-switch' && node.props.onValueChange);
+    expect(speak.props.thumbColor).toBe(speak.props.value ? '#0A0B0F' : '#F5F6F8');
     act(() => {
       row().props.onPress();
     });
     expect(row().props.accessibilityState).toEqual({ checked: false });
+    expect(tree.root.find((node) => node.props.testID === 'settings-vibrate-rest-alerts-switch' && node.props.onValueChange).props.thumbColor).toBe('#F5F6F8');
     expect(AsyncStorage.setItem).toHaveBeenCalledWith('gymido.vibrateRestAlerts', '0');
     expect(AsyncStorage.setItem).not.toHaveBeenCalledWith('gymido.speakRestAlerts', expect.anything());
     act(() => {

@@ -34,7 +34,9 @@ export default function ProfileSettingsScreen() {
   );
 }
 
-const SWITCH_TRACK = { false: colors.border, true: colors.brand400 };
+// RN-SPEC-v2-foundation §4.7: on = gold track + color-ground thumb; off =
+// the 14 % white track + a text-primary thumb. The thumb position is the cue.
+const SWITCH_TRACK = { false: colors.switchTrackOff, true: colors.gold };
 
 function Settings() {
   const navigation = useNavigation();
@@ -238,12 +240,12 @@ function Settings() {
                 testID={`${row.testID}-switch`}
                 value={row.value}
                 onValueChange={row.onChange}
-                // Design system v1 #17: the gold track (no ✓ in the thumb). The
-                // thumb is white in both states, as on iOS; Android's default
-                // ON thumb is an off-palette teal.
+                // v2 §4.7: the gold track (no ✓ in the thumb); the thumb is set
+                // in both states, since Android's default ON thumb is an
+                // off-palette teal.
                 trackColor={SWITCH_TRACK}
-                thumbColor={colors.surface}
-                ios_backgroundColor={colors.border}
+                thumbColor={row.value ? colors.ground : colors.textPrimary}
+                ios_backgroundColor={colors.switchTrackOff}
                 accessibilityElementsHidden
                 importantForAccessibility="no-hide-descendants"
               />
@@ -271,7 +273,7 @@ function Settings() {
 }
 
 const card = {
-  borderRadius: radii.xxxl,
+  borderRadius: radii.xxl,
   borderWidth: 1,
   borderColor: colors.border,
   backgroundColor: colors.surface,
@@ -323,7 +325,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     minHeight: 44,
     justifyContent: 'center',
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -370,7 +372,7 @@ const styles = StyleSheet.create({
   tile: {
     width: 40,
     height: 40,
-    borderRadius: radii.xl,
+    borderRadius: radii.md,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surfaceMuted,
@@ -406,7 +408,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   logout: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
