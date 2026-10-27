@@ -142,7 +142,7 @@ export default function SessionRuntime({
   const contentHeight = useRef(0);
   const [navHeight, setNavHeight] = useState(96);
   const [chromeHeight, setChromeHeight] = useState(48);
-  const [dockHeight, setDockHeight] = useState(DID_IT_HEIGHT + 32);
+  const [measuredDock, setDockHeight] = useState(null);
   const [drafts, setDrafts] = useState({});
   const [repsDrafts, setRepsDrafts] = useState({});
   const [validation, setValidation] = useState({});
@@ -535,7 +535,10 @@ export default function SessionRuntime({
   const androidKeyboard = Platform.OS === 'android' ? keyboardHeight : 0;
   const upNext = !tablet && isActiveView && laterIncomplete !== -1 ? exercises[laterIncomplete] : null;
   const showDock = !browsing && (Boolean(didIt) || Boolean(upNext));
-  const bottomRoom = browsing ? navHeight + spacing[5] + insets.bottom : showDock ? dockHeight + spacing[7] + insets.bottom : spacing[6] + insets.bottom;
+  // P3-2: the dock is an opaque band down to the screen bottom; its measured
+  // height already holds the safe area, so the room is that height + a gap.
+  const dockHeight = measuredDock ?? DID_IT_HEIGHT + 32 + spacing[3] + (tablet ? TABLET_DOCK_BOTTOM : spacing[7]) + insets.bottom;
+  const bottomRoom = browsing ? navHeight + spacing[5] + insets.bottom : showDock ? dockHeight + spacing[4] : spacing[6] + insets.bottom;
 
   // M6: the expanded Rest is modal for TalkBack too (accessibilityViewIsModal
   // is iOS-only): hide what is behind it while it is open.
@@ -572,7 +575,7 @@ export default function SessionRuntime({
             </View>
           </ScrollView>
           {showDock && didIt ? (
-            <View onLayout={(event) => setDockHeight(event.nativeEvent.layout.height)} style={[styles.dockTablet, { bottom: TABLET_DOCK_BOTTOM + insets.bottom }]}>
+            <View testID="session-dock" onLayout={(event) => setDockHeight(event.nativeEvent.layout.height)} style={[styles.dockTablet, { paddingBottom: TABLET_DOCK_BOTTOM + insets.bottom }]}>
               {didIt}
             </View>
           ) : null}
@@ -613,7 +616,7 @@ export default function SessionRuntime({
         {body}
         {chromeOverlay ? chrome : null}
         {showDock && !tablet ? (
-          <View onLayout={(event) => setDockHeight(event.nativeEvent.layout.height)} style={[styles.dock, { bottom: spacing[7] + insets.bottom }]}>
+          <View testID="session-dock" onLayout={(event) => setDockHeight(event.nativeEvent.layout.height)} style={[styles.dock, { paddingBottom: spacing[7] + insets.bottom }]}>
             {didIt}
             {upNext ? <UpNextLink exercise={upNext} onPress={dismiss(() => setViewingIndex(laterIncomplete))} /> : null}
           </View>
@@ -723,10 +726,16 @@ const styles = StyleSheet.create({
     gap: spacing[3],
     marginTop: spacing[4],
   },
+  // UX verdict P3-2: OPAQUE (the ground token), edge to edge and down to the
+  // screen bottom, so nothing scrolls behind or shows through it.
   dock: {
     position: 'absolute',
-    left: spacing[4],
-    right: spacing[4],
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: spacing[3],
+    paddingHorizontal: spacing[4],
+    backgroundColor: colors.ground,
   },
   splitRow: {
     flex: 1,
@@ -743,7 +752,11 @@ const styles = StyleSheet.create({
   },
   dockTablet: {
     position: 'absolute',
-    left: spacing[6],
-    right: spacing[6],
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: spacing[3],
+    paddingHorizontal: spacing[6],
+    backgroundColor: colors.ground,
   },
 });

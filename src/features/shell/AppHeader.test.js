@@ -115,6 +115,17 @@ describe('AppHeader v2 look (§7.4)', () => {
     expect(byTestId(tablet, 'notification-bell')).toHaveLength(1);
   });
 
+  it('Workout hub (P3-1): the shell header shows just the bell, no "Workout" title and no "← Today" (the page draws them)', () => {
+    mockUi.isSessionActive = false;
+    const tree = render({ path: '/workout' });
+    expect(title(tree)).toBeUndefined();
+    expect(backLink(tree)).toBeUndefined();
+    expect(tree.root.findAll((node) => node.type === 'Text' && [].concat(node.props.children).join('') === '← Today')).toHaveLength(0);
+    expect(byTestId(tree, 'notification-bell')).toHaveLength(1);
+    // The other back links are unchanged.
+    expect(backLink(render({ path: '/my-trainer' }))).toBeDefined();
+  });
+
   it('running session on the workout route: no title and no back link (v1 rule)', () => {
     mockUi.isSessionActive = true;
     const tree = render({ path: '/workout' });

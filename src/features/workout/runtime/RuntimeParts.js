@@ -657,10 +657,13 @@ function SetChip({ set, isNow, tablet, pending, onPress }) {
 }
 
 // The one gold action (F1 dock): "Did it" / "Saving…" (names pinned).
-// Disabled (0.5) while the PATCH runs or the rest locks it.
+// Disabled while the PATCH runs or the rest locks it: the drawn glass look
+// (UX verdict P3-2: glass 0.05, 1px 0.08 border, text-faint), never a dimmed
+// gold that the content behind could show through.
 export function DidItButton({ set, isPending, isLocked, lockReason, onPress }) {
   const disabled = isPending || isLocked;
   const label = isPending ? 'Saving…' : 'Did it';
+  const ink = disabled ? colors.textFaint : colors.onGold;
   return (
     <Pressable
       testID={`set-action-${set.id}`}
@@ -675,8 +678,8 @@ export function DidItButton({ set, isPending, isLocked, lockReason, onPress }) {
       {({ pressed }) => (
         <>
           {pressed && !disabled ? <PressOverlay ink /> : null}
-          <CheckIcon size={20} color={colors.onGold} />
-          <Text {...CAP_BODY} textBreakStrategy="simple" style={styles.didItText}>
+          <CheckIcon size={20} color={ink} />
+          <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.didItText, disabled && styles.didItTextDisabled]}>
             {label}
           </Text>
         </>
@@ -1493,7 +1496,13 @@ const styles = StyleSheet.create({
     boxShadow: shadows.goldGlowLarge,
   },
   didItDisabled: {
-    opacity: 0.5,
+    borderWidth: 1,
+    borderColor: colors.choiceBorder,
+    backgroundColor: colors.fillChip,
+    boxShadow: 'none',
+  },
+  didItTextDisabled: {
+    color: colors.textFaint,
   },
   didItText: {
     ...font(700),

@@ -286,13 +286,38 @@ describe('DidItButton', () => {
     expect(filled(pressed, colors.pressOverlayInk)).toHaveLength(1);
   });
 
-  it('saving and locked: disabled at 0.5; locked carries the rest hint', () => {
+  // DECLARED change (UX verdict P3-2, faf7f85): disabled was a dimmed gold (was: expect(flat(button).opacity).toBe(0.5)).
+  // Now the drawn look: glass 0.05 fill, 1px 0.08 border, faint text + check, no gold, no glow, no opacity.
+  it('saving and locked: disabled = glass 0.05 + 1px 0.08 border + faint text (P3-2); locked carries the rest hint', () => {
     const saving = render(<DidItButton set={set} isPending />);
     expect(byId(saving, 'set-action-12').props).toMatchObject({ accessibilityLabel: 'Saving…', disabled: true });
     const locked = render(<DidItButton set={set} isLocked lockReason="Rest timer running — wait or skip it first" />);
     const button = byId(locked, 'set-action-12');
     expect(button.props.accessibilityHint).toBe('Rest timer running — wait or skip it first');
-    expect(flat(button).opacity).toBe(0.5);
+    for (const tree of [saving, locked]) {
+      const style = flat(byId(tree, 'set-action-12'));
+      expect(style).toMatchObject({ backgroundColor: colors.fillChip, borderWidth: 1, borderColor: colors.choiceBorder });
+      expect(colors.fillChip).toBe('rgba(255, 255, 255, 0.05)');
+      expect(colors.choiceBorder).toBe('rgba(255, 255, 255, 0.08)');
+      expect(style.opacity).toBeUndefined();
+      expect(style.boxShadow).toBe('none');
+      const label = tree.root.findAll((node) => node.type === 'Text')[0];
+      expect(flat(label).color).toBe(colors.textFaint);
+      // The check icon goes faint too (no on-gold ink on glass).
+      const icon = tree.root.findAll((node) => typeof node.type !== 'string' && node.props.color !== undefined && node.props.size === 20)[0];
+      expect(icon.props.color).toBe(colors.textFaint);
+      // No press overlay while disabled.
+      expect(filled(render(<>{byId(tree, 'set-action-12').props.children({ pressed: true })}</>), colors.pressOverlayInk)).toHaveLength(0);
+    }
+  });
+
+  it('enabled keeps the gold look: on-gold text + check, no border (P3-2)', () => {
+    const tree = render(<DidItButton set={set} />);
+    const style = flat(byId(tree, 'set-action-12'));
+    expect(style.borderWidth).toBeUndefined();
+    expect(flat(tree.root.findAll((node) => node.type === 'Text')[0]).color).toBe(colors.onGold);
+    const icon = tree.root.findAll((node) => typeof node.type !== 'string' && node.props.color !== undefined && node.props.size === 20)[0];
+    expect(icon.props.color).toBe(colors.onGold);
   });
 });
 

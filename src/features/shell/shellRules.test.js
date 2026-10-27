@@ -19,7 +19,9 @@ const member = { roles: ['member'] };
 describe('getHeaderTitle (§6.1)', () => {
   it('follows the first-match table (5-tab nav)', () => {
     expect(getHeaderTitle('/')).toBe('');
-    expect(getHeaderTitle('/workout')).toBe('Workout');
+    // DECLARED change (UX verdict P3-1, faf7f85): was expect(getHeaderTitle('/workout')).toBe('Workout'). The Workout
+    // hub draws its own "← Today" + 52 H1 (UX G / U5), so the shell header there shows just the bell (one header).
+    expect(getHeaderTitle('/workout')).toBe('');
     expect(getHeaderTitle('/exercises/3')).toBe('Exercises');
     expect(getHeaderTitle('/plansX')).toBe('Plans');
     expect(getHeaderTitle('/profile/edit')).toBe('Profile');
@@ -32,7 +34,9 @@ describe('getHeaderTitle (§6.1)', () => {
   it('drops the Workout title and back link during a session', () => {
     expect(getHeaderTitle('/workout', true)).toBe('');
     expect(getHeaderTitle('/plans', true)).toBe('Plans');
-    expect(getHeaderBackLink('/workout')).toEqual({ label: '← Today', path: '/' });
+    // DECLARED change (P3-1): was toEqual({ label: '← Today', path: '/' }); the hub's own "← Today" (always the Today
+    // root, review M1) is the only one now.
+    expect(getHeaderBackLink('/workout')).toBeNull();
     expect(getHeaderBackLink('/workout', true)).toBeNull();
     expect(getHeaderBackLink('/my-trainer')).toEqual({ label: '← Profile', path: '/profile' });
     expect(getHeaderBackLink('/trainers/3')).toBeNull();

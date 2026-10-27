@@ -105,6 +105,24 @@ describe('Workout hub page (UX G)', () => {
     expect(flat(host(tree.root, 'workout-title'))).toMatchObject({ fontSize: 52, color: colors.textPrimary });
   });
 
+  // UX verdict P3-1: ONE header. The shell header on /workout is bell-only (shellRules/AppHeader tests); the page
+  // header is the only "← Today" + "Workout", in every hub state (loaded, empty, error), and always opens Today.
+  it.each([
+    ['loaded', () => HUB],
+    ['empty (no plan)', () => ({ ok: true, data: { ...HUB.data, currentPlan: null } })],
+    ['error', () => ({ ok: false, error: { message: 'Offline' } })],
+  ])('%s: exactly one "← Today" and one "Workout" H1; "← Today" opens the Today root (P3-1, M1)', async (_name, data) => {
+    loadWorkoutPage.mockResolvedValue(data());
+    const tree = await renderScreen();
+    expect(queryHost(tree.root, 'workout-hub-header')).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.type === 'Text' && textOf(node) === '← Today')).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && textOf(node) === 'Workout')).toHaveLength(1);
+    require('../../shell/shellLinks').openShellPath.mockClear();
+    act(() => tree.root.find((node) => node.props.testID === 'workout-back-today' && node.props.onPress).props.onPress());
+    expect(require('../../shell/shellLinks').openShellPath).toHaveBeenCalledWith('/');
+    expect(mockNavigation.goBack).not.toHaveBeenCalled();
+  });
+
   it('no back stack → opens Today', async () => {
     mockNavigation.canGoBack.mockReturnValueOnce(false);
     const tree = await renderScreen();

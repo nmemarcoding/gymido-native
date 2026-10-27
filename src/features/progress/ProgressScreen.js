@@ -217,8 +217,10 @@ function Progress() {
   );
 }
 
-// "Progress view" switch (UX G tablet: gold selected). Same on phone (the
-// phone board draws none; ND-5 keeps the tabs). Starts on Body per mount.
+// "Progress view" switch. Same on phone (the phone board draws none; ND-5
+// keeps the tabs). Starts on Body per mount. UX verdict P3-3 (faf7f85): GLASS
+// like web's view switch (selected = white 0.12 + primary text 600); the gold
+// "+" Add weight stays the one gold element.
 function ViewSwitch({ tab, onChange, tablet }) {
   return (
     <View testID="progress-tabs" accessibilityRole="tablist" accessibilityLabel="Progress view" style={[styles.switch, tablet && styles.switchTablet]}>
@@ -235,7 +237,7 @@ function ViewSwitch({ tab, onChange, tablet }) {
           >
             {({ pressed }) => (
               <>
-                {pressed ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.segmentOverlay, active ? styles.inkOverlay : styles.whiteOverlay]} /> : null}
+                {pressed ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.segmentOverlay, styles.whiteOverlay]} /> : null}
                 <Text {...CAP_BODY} style={[styles.segmentText, active && styles.segmentTextActive]}>
                   {item.label}
                 </Text>
@@ -796,8 +798,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
     paddingHorizontal: 12,
   },
+  // P3-3: glass selected (white 0.12 = the hairlineButton value; no 0.12
+  // fill token exists, value exact).
   segmentActive: {
-    backgroundColor: colors.gold,
+    backgroundColor: colors.hairlineButton,
   },
   segmentOverlay: {
     borderRadius: radii.full,
@@ -816,8 +820,8 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   segmentTextActive: {
-    ...font(700),
-    color: colors.onGold,
+    ...font(600),
+    color: colors.textPrimary,
   },
   // Phone weight card
   weightCard: {

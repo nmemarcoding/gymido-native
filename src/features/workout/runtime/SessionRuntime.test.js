@@ -7,9 +7,12 @@ import { SessionChrome } from './RuntimeParts';
 import { CompleteWorkoutButton, RestTimerWidget } from './RuntimeOverlays';
 import SessionRuntime, { ENDED_ELSEWHERE, exerciseImageMap } from './SessionRuntime';
 import * as restPresentation from './restPresentation';
+import { colors, spacing } from '../../../shared/theme/tokens';
 
 jest.mock('@react-navigation/native', () => ({ useIsFocused: () => true }));
-jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 12, right: 8 }) }));
+// P3-2: the bottom inset is variable so the dock/scroll-room tests can set a safe area (default 0, as before).
+let mockInsetBottom = 0;
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: mockInsetBottom, left: 12, right: 8 }) }));
 jest.mock('react-native-svg', () => {
   const Mock = ({ children }) => children ?? null;
   return { __esModule: true, default: Mock, Circle: Mock, Path: Mock, Defs: Mock, LinearGradient: Mock, Stop: Mock };
@@ -702,5 +705,73 @@ describe('3c hand-off (lead, 27 Oct)', () => {
   it('builds the image map from library ids with a photo only', () => {
     expect(exerciseImageMap({ exercises: [{ exercise: { id: 1, thumbnail: { url: 'u' } } }, { exercise: { id: 2 } }, {}] })).toEqual({ 1: 'u' });
     expect(exerciseImageMap(null)).toEqual({});
+  });
+});
+
+// UX verdict P3-2 (android-phone 08, faf7f85): during a rest "Discard workout" drew THROUGH the dimmed "Did it".
+// The dock is OPAQUE (the ground token, edge to edge, down to the screen bottom) and the scroll keeps room for
+// the whole dock (its measured height, which includes the safe area) so nothing ends under it.
+describe('opaque dock + scroll room (P3-2)', () => {
+  afterEach(() => {
+    mockWidth = 750;
+    mockInsetBottom = 0;
+  });
+  const scrollPad = (tree) => {
+    const scroll = tree.root.findAll((node) => node.props.contentContainerStyle && typeof node.type !== 'string')[0];
+    return StyleSheet.flatten(scroll.props.contentContainerStyle).paddingBottom;
+  };
+  const layout = (node, height) => act(() => node.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 390, height } } }));
+
+  it.each([0, 34])('phone (inset %s): the dock is an opaque ground band to the screen bottom, padded by the safe area', (inset) => {
+    mockInsetBottom = inset;
+    const { tree } = render();
+    const dock = host(tree, 'session-dock');
+    const style = flat(dock);
+    expect(style).toMatchObject({ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.ground });
+    expect(style.backgroundColor).not.toMatch(/rgba/);
+    expect(style.opacity).toBeUndefined();
+    expect(style.paddingBottom).toBe(spacing[7] + inset);
+    expect(style.paddingTop).toBe(spacing[3]);
+    expect(style.paddingHorizontal).toBe(spacing[4]);
+  });
+
+  it.each([0, 34])('phone (inset %s): the scroll room = the measured dock (with the safe area) + a gap', (inset) => {
+    mockInsetBottom = inset;
+    const { tree } = render();
+    const dockHeight = 64 + 44 + spacing[3] + spacing[7] + inset;
+    layout(host(tree, 'session-dock'), dockHeight);
+    expect(scrollPad(tree)).toBe(dockHeight + spacing[4]);
+  });
+
+  it.each([0, 34])('phone (inset %s): before the dock is measured the room already covers its padding + the safe area', (inset) => {
+    mockInsetBottom = inset;
+    const { tree } = render();
+    expect(scrollPad(tree)).toBeGreaterThanOrEqual(64 + spacing[3] + spacing[7] + inset);
+  });
+
+  it('during a rest the dock stays opaque and Did it shows the disabled glass look, not a dim gold', async () => {
+    const RESTING = { ...SESSION, exercises: [{ ...SESSION.exercises[0], sets: [set(11, true), { ...set(12), rest_seconds_planned: 60 }] }, SESSION.exercises[1]] };
+    const { tree } = render({ session: RESTING });
+    await act(async () => byId(tree, 'set-action-12').props.onPress());
+    expect(flat(host(tree, 'session-dock')).backgroundColor).toBe(colors.ground);
+    const button = flat(byId(tree, 'set-action-12'));
+    expect(button).toMatchObject({ backgroundColor: colors.fillChip, borderWidth: 1, borderColor: colors.choiceBorder });
+    expect(button.opacity).toBeUndefined();
+  });
+
+  it('tablet: the logger-column dock is opaque too, to the bottom, and the logger scroll keeps room for it', () => {
+    mockWidth = 1024;
+    mockInsetBottom = 20;
+    const { tree } = render();
+    const dock = host(tree, 'session-dock');
+    expect(flat(dock)).toMatchObject({ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.ground, paddingBottom: 40 + 20, paddingHorizontal: spacing[6] });
+    layout(dock, 64 + spacing[3] + 60);
+    expect(scrollPad(tree)).toBe(64 + spacing[3] + 60 + spacing[4]);
+  });
+
+  it('browsing: no dock, the room is the bottom nav\'s (unchanged)', () => {
+    const { tree } = render();
+    act(() => tree.root.findByType(ExerciseSheet).props.onSelect(1));
+    expect(host(tree, 'session-dock')).toBeUndefined();
   });
 });

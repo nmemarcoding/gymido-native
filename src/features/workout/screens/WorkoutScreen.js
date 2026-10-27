@@ -304,13 +304,22 @@ function Hub({ status, loadError, page, width, actionError, successMessage, isSt
   if (status === 'loading') {
     return <WorkoutSkeleton />;
   }
+  // P3-1: the shell header on /workout is bell-only, so the page header is
+  // the ONE "← Today" + "Workout" in every state (the skeleton draws its own).
+  const tablet = width >= breakpoints.md;
   if (status === 'error') {
-    return <WorkoutErrorState message={loadError?.message || 'Please try again.'} onRetry={onRetry} />;
+    return (
+      <View style={[styles.page, tablet && styles.pageTablet]}>
+        <HubHeader tablet={tablet} onBack={onBackToToday} />
+        <WorkoutErrorState message={loadError?.message || 'Please try again.'} onRetry={onRetry} />
+      </View>
+    );
   }
   if (!page.currentPlan?.enrollment?.plan) {
     return (
-      <View style={styles.page}>
+      <View style={[styles.page, tablet && styles.pageTablet]}>
         {toasts}
+        <HubHeader tablet={tablet} onBack={onBackToToday} />
         <WorkoutEmptyState onBrowse={() => openShellPath('/plans')} />
       </View>
     );
@@ -319,7 +328,6 @@ function Hub({ status, loadError, page, width, actionError, successMessage, isSt
   const { currentPlan, todayStatus, planDays, completedThisWeekDayIds } = page;
   const weekdaysByDay = scheduledWeekdaysByDayId(currentPlan.schedule);
   const heroDayId = todayStatus?.plan_day?.id;
-  const tablet = width >= breakpoints.md;
   // UX G: 2 columns on phone and tablet (3 from 1280); §9: one column past 1.3.
   const columns = fontScale > textScale.reflowAbove ? 1 : width >= 1280 ? 3 : 2;
 
