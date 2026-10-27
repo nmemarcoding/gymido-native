@@ -83,6 +83,16 @@ const V2_COLORS = {
   // v2 kit: card (UX §8.1): the failed-image tile's workout icon.
   failedTileIcon: '#C9D4E6',
   choiceBorder: 'rgba(255, 255, 255, 0.08)',
+  // v2 kit: auth screens (Phase 2 A; UX A boards): the Welcome outer ring's
+  // track, the tablet Account art badge ring, the Sign-in failed icon tile
+  // and phone error card edge, the tablet Account art disc and the outline
+  // "404" numeral's stroke.
+  artTrack: 'rgba(255, 255, 255, 0.06)',
+  artEdge: 'rgba(255, 255, 255, 0.14)',
+  dangerDotTintStrong: 'rgba(255, 90, 78, 0.14)',
+  dangerDotBorderSoft: 'rgba(255, 90, 78, 0.25)',
+  goldTintDisc: 'rgba(255, 194, 26, 0.12)',
+  notFoundStroke: 'rgba(255, 194, 26, 0.55)',
 };
 
 // v1 names kept as ALIASES of v2 values while screens move to the v2 names
@@ -195,6 +205,38 @@ export const gradients = Object.freeze({
   // §4.8 the exercise hero image's 90 px bottom fade under the name
   // (color-ground at 0 → 0.9).
   imageFade: Object.freeze({ angle: 180, colors: Object.freeze(['rgba(10, 11, 15, 0)', 'rgba(10, 11, 15, 0.9)']) }),
+  // v2 kit: auth screens (Phase 2 A; UX A boards' own radial glows).
+  welcomeGlow: Object.freeze({
+    radial: Object.freeze({ cx: 0.5, cy: 0.3, rx: 0.9, ry: 0.55 }),
+    colors: Object.freeze(['rgba(255, 194, 26, 0.24)', 'rgba(255, 194, 26, 0)']),
+    stops: Object.freeze([0, 0.65]),
+  }),
+  signInFailedGlow: Object.freeze({
+    radial: Object.freeze({ cx: 0.5, cy: 0.2, rx: 0.9, ry: 0.45 }),
+    colors: Object.freeze(['rgba(255, 90, 78, 0.14)', 'rgba(255, 90, 78, 0)']),
+    stops: Object.freeze([0, 0.65]),
+  }),
+  signInFailedGlowTablet: Object.freeze({
+    radial: Object.freeze({ cx: 0.5, cy: 0.3, rx: 0.7, ry: 0.45 }),
+    colors: Object.freeze(['rgba(255, 90, 78, 0.14)', 'rgba(255, 90, 78, 0)']),
+    stops: Object.freeze([0, 0.7]),
+  }),
+  accountGlow: Object.freeze({
+    radial: Object.freeze({ cx: 0.5, cy: 0.2, rx: 0.9, ry: 0.45 }),
+    colors: Object.freeze(['rgba(255, 194, 26, 0.16)', 'rgba(255, 194, 26, 0)']),
+    stops: Object.freeze([0, 0.65]),
+  }),
+  accountGlowTablet: Object.freeze({
+    radial: Object.freeze({ cx: 0.5, cy: 0.3, rx: 0.7, ry: 0.45 }),
+    colors: Object.freeze(['rgba(255, 194, 26, 0.18)', 'rgba(255, 194, 26, 0)']),
+    stops: Object.freeze([0, 0.7]),
+  }),
+  // The tablet auth cards' gold corner glow (a circle, gold 0.28 → 0).
+  cardCornerGlow: Object.freeze({
+    radial: Object.freeze({ cx: 0.5, cy: 0.5, rx: 0.5, ry: 0.5 }),
+    colors: Object.freeze(['rgba(255, 194, 26, 0.28)', 'rgba(255, 194, 26, 0)']),
+    stops: Object.freeze([0, 1]),
+  }),
 });
 
 // §1.5 Muscle colours, always shown with a text label. Tiles: the colour at

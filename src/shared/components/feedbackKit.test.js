@@ -312,12 +312,12 @@ describe('ErrorAlert (§5)', () => {
 });
 
 describe('RouteErrorBoundary screen', () => {
-  it('fallback: ground, the error disc, the v1 copy and "Reload app"', () => {
+  it('fallback: ground, the danger icon tile, the v1 copy and "Reload app"', () => {
     const onReload = jest.fn();
     const tree = render(<RouteErrorFallback onReload={onReload} />);
     expect(flat(host(tree, 'route-error')).backgroundColor).toBe(colors.ground);
     expect(texts(tree)).toEqual(['Something went wrong', 'We hit a problem rendering this page. Reload the app to try again.', 'Reload app']);
-    expect(tree.root.findAll((node) => node.props.testID === 'empty-state-error-icon')).not.toHaveLength(0);
+    expect(tree.root.findAll((node) => node.props.testID === 'route-error-icon')).not.toHaveLength(0);
     act(() => tree.root.find((node) => node.props.testID === 'route-error-reload' && node.type === PillButton).props.onPress());
     expect(onReload).toHaveBeenCalledTimes(1);
   });
@@ -507,7 +507,7 @@ describe('Toast (§5)', () => {
 describe('RouteErrorFallback live region (review, 26 Oct)', () => {
   const { RouteErrorFallback } = require('./RouteErrorBoundary');
 
-  it('has exactly one polite live region (the EmptyState it opts in), none nested', () => {
+  it('has exactly one polite live region (the card), none nested', () => {
     const tree = render(<RouteErrorFallback onReload={jest.fn()} />);
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite')).toHaveLength(1);
   });
