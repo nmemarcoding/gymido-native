@@ -1,32 +1,37 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import BlurLayer from '../../shared/components/BlurLayer';
-import { colors, radii } from '../../shared/theme/tokens';
+import GlassSurface from '../../shared/components/GlassSurface';
+import { colors, font, typography } from '../../shared/theme/tokens';
 import GymIcon from './GymIcon';
 import { openShellPath } from './shellLinks';
 import { getTabs, isNavItemActive } from './shellRules';
 import { closePanel } from './shellUiStore';
+import { TAB_BAR } from './tabBarMetrics';
 
-// App-shell spec §6.3 (phones, < 768). Active state comes from the current
-// web path, not React Navigation's focused tab. A tab press closes the
-// notification panel and opens the tab's root.
+// App-shell spec §6.3 (phones, < 768), v2 look RN-SPEC-v2-foundation §7.1:
+// a floating glass pill inset 16 from the sides and 20 above the bottom safe
+// area (both orientations: the insets include left/right). Active state comes
+// from the current web path, not React Navigation's focused tab. A tab press
+// closes the notification panel and opens the tab's root.
 export default function BottomNav({ mode, path }) {
   const insets = useSafeAreaInsets();
   const tabs = getTabs(mode);
-  const compact = tabs.length > 4;
 
   return (
-    <View testID="bottom-nav" style={styles.bar}>
-      <BlurLayer blurPx={8} />
-      <View style={styles.veil} />
-      <View
-        style={[
-          styles.grid,
-          compact ? styles.gridCompact : styles.gridRoomy,
-          { paddingBottom: 16 + insets.bottom },
-        ]}
-      >
+    <View
+      testID="bottom-nav"
+      pointerEvents="box-none"
+      style={[
+        styles.wrap,
+        {
+          left: TAB_BAR.sideInset + insets.left,
+          right: TAB_BAR.sideInset + insets.right,
+          bottom: TAB_BAR.bottomGap + insets.bottom,
+        },
+      ]}
+    >
+      <GlassSurface testID="bottom-nav-bar" radius={TAB_BAR.radius} style={styles.bar}>
         {tabs.map((tab) => {
           const active = isNavItemActive(tab, path);
           return (
@@ -40,22 +45,17 @@ export default function BottomNav({ mode, path }) {
                 closePanel();
                 openShellPath(tab.path);
               }}
-              style={({ pressed }) => [
-                styles.item,
-                compact ? styles.itemCompact : styles.itemRoomy,
-                active && styles.itemActive,
-                !active && pressed && styles.itemPressed,
-              ]}
+              style={({ pressed }) => [styles.item, active && styles.itemActive, !active && pressed && styles.itemPressed]}
             >
               {({ pressed }) => {
-                const color = active ? colors.brand700 : pressed ? colors.textPrimary : colors.textMuted;
+                const color = active ? colors.gold : pressed ? colors.textPrimary : colors.textMuted;
                 return (
                   <>
-                    <GymIcon name={tab.icon} size={compact ? 24 : 28} color={color} />
+                    <GymIcon name={tab.icon} size={22} color={color} />
                     <Text
                       numberOfLines={1}
                       ellipsizeMode="tail"
-                      style={[styles.label, compact ? styles.labelCompact : styles.labelRoomy, { color }]}
+                      style={[styles.label, active && styles.labelActive, { color }]}
                     >
                       {tab.label}
                     </Text>
@@ -65,77 +65,44 @@ export default function BottomNav({ mode, path }) {
             </Pressable>
           );
         })}
-      </View>
+      </GlassSurface>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrap: {
+    position: 'absolute',
+    alignItems: 'center',
+  },
   bar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  veil: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: colors.navGlassFill,
-  },
-  grid: {
     width: '100%',
-    maxWidth: 430,
-    alignSelf: 'center',
+    maxWidth: TAB_BAR.maxWidth,
+    height: TAB_BAR.height,
+    padding: TAB_BAR.padding,
     flexDirection: 'row',
-    paddingTop: 12,
-  },
-  gridCompact: {
-    gap: 2,
-    paddingHorizontal: 4,
-  },
-  gridRoomy: {
-    gap: 4,
-    paddingHorizontal: 8,
+    gap: TAB_BAR.itemGap,
   },
   item: {
     flex: 1,
     minWidth: 0,
-    minHeight: 56,
-    paddingVertical: 4,
-    borderRadius: radii.lg,
+    paddingHorizontal: 2,
+    borderRadius: TAB_BAR.itemRadius,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-  },
-  itemCompact: {
-    paddingHorizontal: 2,
-  },
-  itemRoomy: {
-    paddingHorizontal: 4,
+    gap: 3,
   },
   itemActive: {
-    backgroundColor: colors.brand50,
+    backgroundColor: colors.goldTintTab,
   },
   itemPressed: {
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.fillChip,
   },
-  // Batch A (A2, 23 Oct): sentence case, weight 600, tracking 0.
+  // 11 px label (micro): 500 inactive, 600 active.
   label: {
+    ...typography.micro,
     width: '100%',
     textAlign: 'center',
-    fontWeight: '600',
   },
-  labelCompact: {
-    fontSize: 11,
-    lineHeight: 14,
-  },
-  labelRoomy: {
-    fontSize: 12,
-    lineHeight: 16,
-  },
+  labelActive: font(600),
 });

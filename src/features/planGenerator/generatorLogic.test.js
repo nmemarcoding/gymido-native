@@ -322,9 +322,9 @@ describe('accept (G2.4)', () => {
 });
 
 describe('sticky bar clearance', () => {
-  test('phone with the tab bar: 85 + inset; tablet or session: inset only', () => {
-    expect(tabBarClearance({ width: 390, insetBottom: 34 })).toBe(119);
-    expect(tabBarClearance({ width: 767, insetBottom: 0 })).toBe(85);
+  test('phone with the tab bar: 86 + inset; tablet or session: inset only', () => {
+    expect(tabBarClearance({ width: 390, insetBottom: 34 })).toBe(120);
+    expect(tabBarClearance({ width: 767, insetBottom: 0 })).toBe(86);
     expect(tabBarClearance({ width: 768, insetBottom: 0 })).toBe(0);
     expect(tabBarClearance({ width: 820, insetBottom: 20 })).toBe(20);
   });

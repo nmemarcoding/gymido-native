@@ -1,4 +1,4 @@
-import { Platform, ScrollView } from 'react-native';
+import { Platform, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import ShellPage from './ShellPage';
@@ -13,6 +13,11 @@ jest.mock('../auth/authStore', () => ({ useAuthStore: (select) => select({ user:
 jest.mock('./shellNavigation', () => ({ getScreenPath: () => '/profile/edit' }));
 jest.mock('./shellRules', () => ({ resolveMode: () => 'member', showsMobileModeSwitch: () => false }));
 jest.mock('../../shared/hooks/useKeyboardHeight', () => ({ useKeyboardHeight: () => 300 }));
+jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({ __esModule: true, default: jest.fn() }));
+
+beforeEach(() => {
+  useWindowDimensions.mockReturnValue({ width: 390, height: 844, scale: 3, fontScale: 1 });
+});
 
 const realOS = Platform.OS;
 afterEach(() => {
@@ -26,10 +31,10 @@ function bottomPadding(tree) {
   return [].concat(content.props.style).reduce((sum, part) => sum + (part?.paddingBottom ?? 0), 0);
 }
 
-function render() {
+function render(props) {
   let tree;
   act(() => {
-    tree = create(<ShellPage />);
+    tree = create(<ShellPage {...props} />);
   });
   return tree;
 }
@@ -39,12 +44,46 @@ describe('ShellPage keyboard handling (E1)', () => {
     Platform.OS = 'ios';
     const tree = render();
     expect(tree.root.findByType(ScrollView).props.automaticallyAdjustKeyboardInsets).toBe(true);
-    expect(bottomPadding(tree)).toBe(112 + 34);
+    expect(bottomPadding(tree)).toBe(104 + 34);
   });
 
   it('pads the content by the keyboard height on Android', () => {
     Platform.OS = 'android';
     const tree = render();
-    expect(bottomPadding(tree)).toBe(112 + 34 + 300);
+    expect(bottomPadding(tree)).toBe(104 + 34 + 300);
+  });
+});
+
+describe('ShellPage v2 ground, tab-bar clearance and glow', () => {
+  const root = (tree) => tree.root.findAll((node) => node.props.testID === 'app-root' && typeof node.type === 'string')[0];
+
+  it('paints the ground colour', () => {
+    expect(StyleSheet.flatten(root(render()).props.style).backgroundColor).toBe('#0A0B0F');
+  });
+
+  it('phone content clears the floating tab bar: 104 + the safe area (bar 66 + 20 above it)', () => {
+    Platform.OS = 'ios';
+    expect(bottomPadding(render())).toBe(104 + 34);
+    expect(104).toBeGreaterThan(66 + 20);
+  });
+
+  it('tablet keeps its 40 bottom padding (no tab bar)', () => {
+    Platform.OS = 'ios';
+    useWindowDimensions.mockReturnValue({ width: 1024, height: 768, scale: 2, fontScale: 1 });
+    const tree = render();
+    const row = tree.root.findByType(ScrollView).props.children;
+    const content = [].concat(row.props.children)[1];
+    const pad = [].concat(content.props.style).reduce((sum, part) => sum + (part?.paddingBottom ?? 0), 0);
+    expect(pad).toBe(40 + 34);
+  });
+
+  it('no ambient glow unless the screen asks for one', () => {
+    expect(render().root.findAll((node) => node.props.testID === 'ambient-glow')).toHaveLength(0);
+  });
+
+  it('glow draws the ambient gold glow behind the scroller from the first render', () => {
+    const tree = render({ glow: true });
+    expect(tree.root.findAll((node) => node.props.testID === 'ambient-glow' && typeof node.type === 'string')).toHaveLength(1);
+    expect(root(tree).props.children[0].props.glow).toBe(true);
   });
 });
