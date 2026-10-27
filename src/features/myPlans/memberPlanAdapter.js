@@ -1,6 +1,6 @@
 import { createPlanWrites } from '../trainer/plans/api/plansApi';
 import { getTrainerPlanCapabilities } from '../trainer/plans/trainerPlanBuilder';
-import { getMyPlan } from './api/myPlansApi';
+import { copyToMyPlans, getMyPlan } from './api/myPlansApi';
 import { myPlanRoutes } from './myPlanRoutes';
 
 // RN-SPEC-MEMBER-PLANS §M3: the member's adapter for the shared plan screen.
@@ -12,7 +12,8 @@ export const MEMBER_PLAN_TEXT = Object.freeze({
   descriptionCatalog: '',
   notFoundMessage: 'This plan isn’t one of yours.',
   notYoursCopy: 'This plan is no longer available.',
-  backLabel: '← My plans',
+  // v2 (phase4 I): the back link draws a chevron icon, so the label is the words.
+  backLabel: 'My plans',
   inactiveBannerBody: 'You can’t start its workouts until you activate it again.',
   deactivateDescription:
     'You can’t start its workouts while it’s inactive. Its history stays, and you can activate it again at any time.',
@@ -21,6 +22,10 @@ export const MEMBER_PLAN_TEXT = Object.freeze({
   editDetailsDescription: 'Changes apply from your next workout.',
   planDeleteConflict: 'This plan can’t be deleted while you’re on it, or once it has workout history.',
   dayDeleteConflict: 'This day can’t be deleted while you’re on this plan, or once it has workout history.',
+  // RN-SPEC-v2-phase4 §2 (approved 27 Oct): "Make a copy" of the member's own plan.
+  copiedMessage: 'You’re now on your copy in My plans. Give it a name.',
+  copiedFallbackMessage: 'Your copy is in My plans.',
+  copyNotYoursCopy: 'This plan can’t be copied.',
 });
 
 // `ui` brings the member's screen pieces (MyPlanScreen): `renderOnHold`
@@ -31,9 +36,14 @@ export function createMemberPlanAdapter(planId, ui = {}) {
     loadHeader: () => getMyPlan(planId),
     // Always own: this route answers only for the owner; no /plans/{id} probe.
     probeOwnership: () => Promise.resolve(true),
-    // Every T3 key true, plus copyPlan false and enrol true.
-    getCapabilities: () => ({ ...getTrainerPlanCapabilities({ isOwnPlan: true }), copyPlan: false, enrol: true }),
-    mutations: createPlanWrites(`/my-custom-plans/${planId}`),
+    // Every T3 key true, plus enrol true. copyPlan: true since v2 Phase 4 §2
+    // (approved 27 Oct, BE confirmed): members copy their own plan through
+    // the catalog copy route (POST /my-custom-plans/copies).
+    getCapabilities: () => ({ ...getTrainerPlanCapabilities({ isOwnPlan: true }), copyPlan: true, enrol: true }),
+    mutations: {
+      ...createPlanWrites(`/my-custom-plans/${planId}`),
+      copyPlan: () => copyToMyPlans(planId),
+    },
     // No affected-clients call for members: every count UI stays hidden.
     countsClients: false,
     text: MEMBER_PLAN_TEXT,
@@ -42,6 +52,10 @@ export function createMemberPlanAdapter(planId, ui = {}) {
     openBack: (navigation) => navigation.push(myPlanRoutes.MyPlans),
     openAfterDelete: (navigation) => navigation.push(myPlanRoutes.MyPlans),
     openCreate: (navigation) => navigation.push(myPlanRoutes.MyPlanCreate),
+    // §M5 / C9: the copy's builder, Edit details opening once; T-16: no id → My plans.
+    openCopy: (navigation, copyId) => navigation.push(myPlanRoutes.MyPlan, { planId: copyId, nameTheCopy: true }),
+    openCopyFallback: (navigation) => navigation.push(myPlanRoutes.MyPlans),
+    look: 'member',
     renderOnHold: ui.renderOnHold,
     useExtension: ui.useExtension,
   };

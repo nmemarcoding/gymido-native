@@ -1,0 +1,42 @@
+# Phase 4 §2 (4i): the phone overflow lists the plan actions; "Edit details"
+# opens the Plan details sheet (approved placeholder), Cancel closes it.
+# Tablet: the inline "Edit details". Nothing is saved.
+appId: com.gymido.app
+---
+- runFlow: subflows/open-first-my-plan.yaml
+- runFlow:
+    when:
+      visible:
+        id: "plan-overflow"
+    commands:
+      - tapOn:
+          id: "plan-overflow"
+      - extendedWaitUntil:
+          visible:
+            id: "plan-overflow-sheet"
+          timeout: 10000
+      - assertVisible:
+          id: "plan-overflow-make-copy"
+      - assertVisible:
+          id: "plan-overflow-delete"
+      - tapOn:
+          id: "plan-overflow-edit-details"
+- runFlow:
+    when:
+      notVisible:
+        id: "edit-plan-modal"
+    commands:
+      - tapOn:
+          id: "plan-edit-details"
+- extendedWaitUntil:
+    visible:
+      id: "edit-plan-modal"
+    timeout: 10000
+- assertVisible:
+    id: "edit-plan-days"
+- assertVisible:
+    id: "edit-plan-save"
+- tapOn:
+    id: "edit-plan-cancel"
+- assertNotVisible:
+    id: "edit-plan-modal"

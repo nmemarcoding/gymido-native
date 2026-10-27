@@ -14,7 +14,8 @@ export const TRAINER_PLAN_TEXT = Object.freeze({
     'A plan from the public catalog. You can assign it to a client, but only plans you created can be changed.',
   notFoundMessage: 'This plan isn’t yours, and isn’t public.',
   notYoursCopy: 'You can only add content to plans you created. This one is from the public catalog.',
-  backLabel: '← All plans',
+  // v2 (phase6 O): the back pill draws a chevron icon, so the label is the words.
+  backLabel: 'All plans',
   inactiveBannerBody: 'Clients on it can’t start its workouts until you activate it again.',
   deactivateDescription:
     'Clients on it can’t start its workouts while it’s inactive. Their history stays, and you can activate it again at any time.',
@@ -24,6 +25,8 @@ export const TRAINER_PLAN_TEXT = Object.freeze({
   planDeleteConflict: 'This plan can’t be deleted while clients are on it, or once it has workout history.',
   dayDeleteConflict: 'This day can’t be deleted while any client is on this plan, or once it has workout history.',
   copiedMessage: 'You’re now on your copy. Give it a name, then assign it.',
+  // T-16 (4.0.4): a 201 with no plan id.
+  copiedFallbackMessage: 'Your copy is in the plans list.',
   copyNotYoursCopy: 'This plan can’t be copied.',
 });
 
@@ -40,11 +43,16 @@ export function createTrainerPlanAdapter(planId) {
     // §B1: the trainer asks for the affected-client count.
     countsClients: true,
     text: TRAINER_PLAN_TEXT,
+    // v2: the trainer boards (phase6 O) and their "Sets" display toggle.
+    look: 'trainer',
+    setsToggle: true,
     // ⚠T3-3 / ⚠B-3: both push a fresh T1.
     openBack: (navigation) => navigation.push(routes.TrainerPlans),
     openAfterDelete: (navigation) => navigation.push(routes.TrainerPlans),
     openCreate: (navigation) => navigation.push(routes.TrainerPlanCreate),
     // §CP2 / C9: a fresh T3 for the copy that opens Edit details once.
     openCopy: (navigation, copyId) => navigation.push(routes.TrainerPlan, { planId: copyId, nameTheCopy: true }),
+    // T-16: no id in the copy response → the plans list, no name flag.
+    openCopyFallback: (navigation) => navigation.push(routes.TrainerPlans),
   };
 }

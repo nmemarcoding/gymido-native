@@ -15,11 +15,11 @@ beforeEach(() => jest.clearAllMocks());
 describe('member adapter (§M3.1)', () => {
   const adapter = createMemberPlanAdapter('9');
 
-  it('is always own, every T3 key on, no copy, enrol on, no client count', async () => {
+  it('is always own, every T3 key on, copy on (v2 Phase 4 §2), enrol on, no client count', async () => {
     await expect(adapter.probeOwnership()).resolves.toBe(true);
     const capabilities = adapter.getCapabilities({ isOwnPlan: false });
     const { copyPlan, enrol, ...t3 } = capabilities;
-    expect(copyPlan).toBe(false);
+    expect(copyPlan).toBe(true);
     expect(enrol).toBe(true);
     expect(Object.keys(t3)).toHaveLength(11);
     expect(Object.values(t3).every(Boolean)).toBe(true);
@@ -63,7 +63,7 @@ describe('member adapter (§M3.1)', () => {
   it('carries the member texts (§M3.2)', () => {
     expect(adapter.text).toBe(MEMBER_PLAN_TEXT);
     expect(MEMBER_PLAN_TEXT.eyebrowOwn).toBe('My plan');
-    expect(MEMBER_PLAN_TEXT.backLabel).toBe('← My plans');
+    expect(MEMBER_PLAN_TEXT.backLabel).toBe('My plans');
     expect(MEMBER_PLAN_TEXT.notFoundMessage).toBe('This plan isn’t one of yours.');
     expect(MEMBER_PLAN_TEXT.notYoursCopy).toBe('This plan is no longer available.');
   });

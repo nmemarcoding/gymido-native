@@ -24,6 +24,7 @@ import { useKeyboardHeight } from '../../../../shared/hooks/useKeyboardHeight';
 import { useReducedMotion } from '../../../../shared/hooks/useReducedMotion';
 import { useSheetFocus } from '../../../../shared/hooks/useSheetFocus';
 import {
+  blur,
   breakpoints,
   colors,
   font,
@@ -400,7 +401,7 @@ export default function ExercisePickerSheet({
       <Animated.View
         style={[styles.scrim, tablet ? styles.scrimTablet : styles.scrimPhone, { opacity: scrim, paddingBottom: keyboardHeight }]}
       >
-        <BlurLayer blurPx={tablet ? 6 : 4} overApp />
+        <BlurLayer blurPx={tablet ? blur.scrimTablet : blur.scrim} overApp />
         <Pressable style={[StyleSheet.absoluteFill, styles.scrimColor]} onPress={onClose} accessibilityLabel="Close" />
         <Animated.View
           testID="exercise-picker"

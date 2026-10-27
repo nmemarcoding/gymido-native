@@ -4,19 +4,23 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { routes } from '../../navigation/routes';
 import ConfirmDialog from '../../shared/components/ConfirmDialog';
+import { CAP_BODY } from '../../shared/components/largeText';
 import PillButton from '../../shared/components/PillButton';
 import { ToastTone, addToast } from '../../shared/components/toastStore';
-import { colors, radii } from '../../shared/theme/tokens';
+import { colors, font, radii, spacing } from '../../shared/theme/tokens';
+import { StatusBox, builderStyles } from '../trainer/plans/components/builderParts';
 import { handOffToWorkout } from '../shell/shellLinks';
 import { cancelEnrollment, getCurrentPlan, startPlan } from './api/myPlansApi';
-import { statusBoxStyles } from './components/OnHoldBox';
 import { canStartPlan, getStartHint, isCurrentPlan, runStartPlan } from './myPlanFormat';
 
 const START_API = { cancelEnrollment, startPlan };
 
 // §M3.4 "Start this plan": the member adapter's extension of the shared plan
 // screen. Returns the header action, the banner area and the confirm dialog.
-export function useMemberStart({ planId, plan, days }) {
+// v2 look (UX phase4 I §1-2): the gold "Start this plan" (phone 52, flex 1
+// in the action row; tablet the 44 compact pill), the neutral status box for
+// the current plan, the 14 secondary hints, the danger-tint inline error.
+export function useMemberStart({ planId, plan, days, tablet = false }) {
   const navigation = useNavigation();
   const route = useRoute();
   const mounted = useRef(true);
@@ -83,6 +87,8 @@ export function useMemberStart({ planId, plan, days }) {
     <PillButton
       testID="my-plan-start"
       title="Start this plan"
+      size={tablet ? 'compact' : 'default'}
+      fullWidth={!tablet}
       loading={starting}
       disabled={!canStartPlan(plan, days)}
       onPress={pressStart}
@@ -92,27 +98,38 @@ export function useMemberStart({ planId, plan, days }) {
   const banners = (
     <>
       {hint === 'current' ? (
-        <View testID="my-plan-current" accessibilityRole="summary" style={statusBoxStyles.box}>
-          <Text style={statusBoxStyles.title}>This is your current plan</Text>
-          <Text style={statusBoxStyles.body}>
+        <StatusBox testID="my-plan-current" accessibilityRole="summary" title="This is your current plan">
+          <Text {...CAP_BODY} style={builderStyles.statusBody}>
             Edits apply from your next workout.{' '}
             <Text
               testID="my-plan-change-days"
               accessibilityRole="link"
-              style={styles.link}
+              style={builderStyles.link}
               onPress={() => navigation.push(routes.PlanDetail, { planId: String(planId) })}
             >
               Change training days
             </Text>
           </Text>
-        </View>
+        </StatusBox>
       ) : null}
-      {hint === 'inactive' ? <Text style={styles.hint}>Activate this plan to start it.</Text> : null}
-      {hint === 'noDays' ? <Text style={styles.hint}>Add a day to start this plan.</Text> : null}
+      {hint === 'inactive' ? (
+        <Text {...CAP_BODY} style={builderStyles.hint}>
+          Activate this plan to start it.
+        </Text>
+      ) : null}
+      {hint === 'noDays' ? (
+        <Text {...CAP_BODY} style={builderStyles.hint}>
+          Add a day to start this plan.
+        </Text>
+      ) : null}
       {startError ? (
-        <View testID="my-plan-start-error" accessibilityRole="alert" style={styles.errorBox}>
-          <Text style={styles.errorTitle}>Could not start this plan</Text>
-          <Text style={styles.errorBody}>{startError}</Text>
+        <View testID="my-plan-start-error" accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.errorBox}>
+          <Text {...CAP_BODY} style={styles.errorTitle}>
+            Could not start this plan
+          </Text>
+          <Text {...CAP_BODY} style={styles.errorBody}>
+            {startError}
+          </Text>
         </View>
       ) : null}
     </>
@@ -136,33 +153,27 @@ export function useMemberStart({ planId, plan, days }) {
   return { headerActions, banners, overlays };
 }
 
+// UX phase4 I "Inline start error": radius 20, danger-dot 8 % + 30 % edge;
+// "Could not start this plan" 14/700 + the server text 14/22 danger-text.
 const styles = StyleSheet.create({
-  link: {
-    fontWeight: '700',
-    color: colors.brand700,
-  },
-  hint: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.textSecondary,
-  },
   errorBox: {
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.dangerBorder,
-    backgroundColor: colors.errorFill,
-    padding: 16,
+    borderColor: colors.dangerDotBorder,
+    backgroundColor: colors.dangerDotTint,
+    padding: spacing[4],
   },
   errorTitle: {
+    ...font(700),
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '700',
     color: colors.textPrimary,
   },
   errorBody: {
-    marginTop: 4,
+    ...font(400),
+    marginTop: spacing[1],
     fontSize: 14,
-    lineHeight: 24,
-    color: colors.errorText,
+    lineHeight: 22,
+    color: colors.dangerText,
   },
 });

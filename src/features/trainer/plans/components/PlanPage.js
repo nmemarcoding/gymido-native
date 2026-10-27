@@ -5,10 +5,12 @@ import ShellPage from '../../../shell/ShellPage';
 
 // Page column shared by T1, T2 and T3 inside the shell: centred, max-width,
 // gap 20. `nestable` hosts a draggable list (T3's sortable exercises).
-export function PlanPage({ maxWidth = 896, nestable = false, children, testID = 'app-root' }) {
+// `gap` overrides the 20 (the v2 builder draws 12 phone / 18 tablet); an
+// undefined maxWidth keeps the 896 default.
+export function PlanPage({ maxWidth = 896, gap, nestable = false, children, testID = 'app-root' }) {
   return (
     <ShellPage nestable={nestable} testID={testID}>
-      <View style={[styles.column, { maxWidth }]}>{children}</View>
+      <View style={[styles.column, { maxWidth }, gap !== undefined && { gap }]}>{children}</View>
     </ShellPage>
   );
 }

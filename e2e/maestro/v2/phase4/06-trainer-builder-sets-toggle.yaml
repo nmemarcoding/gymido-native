@@ -1,0 +1,39 @@
+# Phase 4 §2 / Phase 6 §3 (4i): the trainer builder (header card, teal chip,
+# day tabs) and the "Sets" display toggle (collapse, expand). Read-only.
+# Starts signed in as the QA trainer on the tab root.
+appId: com.gymido.app
+---
+- extendedWaitUntil:
+    visible:
+      id: "tab-Plans"
+    timeout: 60000
+- tapOn:
+    id: "tab-Plans"
+- extendedWaitUntil:
+    visible:
+      id: "plan-card-view-.*"
+      index: 0
+    timeout: 30000
+- tapOn:
+    id: "plan-card-view-.*"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: "plan-eyebrow-chip"
+    timeout: 30000
+- assertVisible:
+    id: "plan-header-card"
+- runFlow:
+    when:
+      visible:
+        id: "plan-exercise-sets-.*"
+        index: 0
+    commands:
+      - tapOn:
+          id: "plan-exercise-sets-.*"
+          index: 0
+      - tapOn:
+          id: "plan-exercise-sets-.*"
+          index: 0
+- assertVisible:
+    id: "plan-all-plans"
