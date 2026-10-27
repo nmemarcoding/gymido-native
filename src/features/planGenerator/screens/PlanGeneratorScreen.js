@@ -6,6 +6,7 @@ import { getServerMessage, getStatus } from '../../../shared/api/apiError';
 import ErrorAlert from '../../../shared/components/ErrorAlert';
 import { InlineError } from '../../../shared/components/FeedbackBox';
 import IconButton from '../../../shared/components/IconButton';
+import { NAME_TEXT } from '../../../shared/components/largeText';
 import Loader from '../../../shared/components/Loader';
 import PillButton from '../../../shared/components/PillButton';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
@@ -541,7 +542,7 @@ function EquipmentStep({ answers, options, setAnswers, editing, setEditing }) {
                     {({ pressed }) => (
                       <>
                         <PressOverlay pressed={pressed} />
-                        <Text {...BODY_TEXT} style={[styles.listRowText, styles.flex]}>
+                        <Text {...NAME_TEXT} style={[styles.listRowText, styles.flex]}>
                           {item.name}
                         </Text>
                         <Checkbox checked={checked} />

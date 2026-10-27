@@ -3,12 +3,13 @@ import { act, create } from 'react-test-renderer';
 
 import { LINE_TEXT, NAME_TITLE_TEXT } from '../../shared/components/largeText';
 import TrainerCard from '../trainers/components/TrainerCard';
-import { StatusLine } from './clients/components/ClientsUi';
+import { StatTile, StatusLine } from './clients/components/ClientsUi';
 import PlanCard from './plans/components/PlanCard';
 
 // UX final audit X7 (§1.1 long text) on the coaching cards: a name wraps by
-// word to at most 2 lines then an ellipsis, a single long word shrinks (0.75)
-// instead of breaking; secondary lines stay 1 line. Phone 390 / tablet 834.
+// word to at most 2 lines then an ellipsis (no shrink, X7 ruling 27 Oct);
+// secondary lines stay 1 line; only a stat-tile value shrinks (to 0.75).
+// Phone 390 / tablet 834.
 
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({ __esModule: true, default: jest.fn() }));
 
@@ -43,6 +44,12 @@ describe.each([
   it('TrainerCard: the trainer name 2 lines + shrink', () => {
     const tree = render(<TrainerCard tablet={tablet} trainer={{ user_id: 3, display_name: LONG, bio: null }} onPress={() => {}} />);
     expectRole(textNode(tree, LONG), NAME_TITLE_TEXT);
+  });
+
+  it('StatTile: the single-word value is the one text that shrinks to fit, down to 0.75 (X7 ruling)', () => {
+    const tree = render(<StatTile testID="tile" label="Active clients" value={128} />);
+    const value = tree.root.findAll((node) => node.type === Text && node.props.testID === 'tile-value')[0];
+    expect(value.props).toMatchObject({ numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 0.75 });
   });
 
   it('StatusLine (the client row status line): 1 line + ellipsis', () => {

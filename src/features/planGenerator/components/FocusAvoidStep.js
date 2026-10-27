@@ -3,6 +3,7 @@ import { AccessibilityInfo, Platform, Pressable, StyleSheet, Text, TextInput, Vi
 
 import ExerciseImage from '../../../shared/components/ExerciseImage';
 import GradientFill from '../../../shared/components/GradientFill';
+import { NAME_TEXT } from '../../../shared/components/largeText';
 import { colors, font, gradients, radii, spacing, textInputColors, textScale } from '../../../shared/theme/tokens';
 import { searchExercises } from '../api/generatorApi';
 import { COPY, pickUpTo, reasonLabel, removeLabel } from '../generatorCopy';
@@ -360,7 +361,7 @@ function AvoidSearch({ exclusions, onChoose, onResults, tablet }) {
                     muscleCode={item.primary_muscle_group?.code ?? null}
                     size={40}
                   />
-                  <Text {...BODY_TEXT} style={[styles.resultName, styles.flex]}>
+                  <Text {...NAME_TEXT} style={[styles.resultName, styles.flex]}>
                     {item.name}
                   </Text>
                 </>

@@ -95,3 +95,25 @@ describe('PlanHero (tablet plan photo)', () => {
     expect(tree.root.findAllByType(RemoteImage)).toHaveLength(0);
   });
 });
+
+// UX final audit X7 ruling (27 Oct 2026, §1.1): every name in a row, card or
+// list is at most 2 lines then a tail ellipsis, no font shrink.
+describe.each([false, true])('X7 DayRow names (tablet %s)', (tablet) => {
+  const expectName = (node) => {
+    expect(node.props).toMatchObject({ numberOfLines: 2, ellipsizeMode: 'tail' });
+    expect(node.props.adjustsFontSizeToFit).toBeUndefined();
+  };
+  it('the day title and the exercise card name: 2 lines + ellipsis', () => {
+    let tree;
+    act(() => {
+      tree = create(
+        <DayRow tablet={tablet} day={{ id: 1, day_number: 1, title: 'Upper Body Hypertrophy' }} exercises={[{ id: 9, exercise: { id: 4, name: 'Incline Dumbbell Press' } }]} isOpen onToggle={jest.fn()} onOpenExercise={jest.fn()} />
+      );
+    });
+    expectName(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Upper Body Hypertrophy')[0]);
+    if (tablet) {
+      expectName(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Incline Dumbbell Press')[0]);
+    }
+    act(() => tree.unmount());
+  });
+});

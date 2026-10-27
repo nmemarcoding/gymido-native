@@ -442,12 +442,14 @@ describe('My trainer large text (UX §9)', () => {
           expect(node.props.numberOfLines === undefined || node.props.numberOfLines >= 2).toBe(true);
         });
         const inviteName = ownTexts(tree.root).find((node) => node.props.children === 'Alex Kim');
+        // DECLARED change (UX X7 ruling, 27 Oct 2026): was { numberOfLines: 3, adjustsFontSizeToFit: true,
+        // minimumFontScale: 0.7 }. The invitation name is a row name: 2 lines + a tail ellipsis, no shrink.
         expect(inviteName.props).toMatchObject({
           maxFontSizeMultiplier: textScale.title,
-          numberOfLines: 3,
-          adjustsFontSizeToFit: true,
-          minimumFontScale: 0.7,
+          numberOfLines: 2,
+          ellipsizeMode: 'tail',
         });
+        expect(inviteName.props.adjustsFontSizeToFit).toBeUndefined();
       }
     },
   );
@@ -505,5 +507,21 @@ describe('My trainer large text (UX §9)', () => {
     expect(flatStyle(actions.props.style).flexDirection).toBe('column');
     expect(orderOf(actions, /trainer-hub-(contact|end)$/)).toEqual(['trainer-hub-contact', 'trainer-hub-end']);
     expect(comp(tree.root, 'trainer-hub-end').props.fullWidth).toBe(true);
+  });
+});
+
+// UX final audit X7 ruling (27 Oct 2026, §1.1): every name in a row, card or
+// list is at most 2 lines then a tail ellipsis, no font shrink.
+describe.each([390, 834])('X7 My trainer invitations (%i)', (width) => {
+  const expectName = (node) => {
+    expect(node.props).toMatchObject({ numberOfLines: 2, ellipsizeMode: 'tail' });
+    expect(node.props.adjustsFontSizeToFit).toBeUndefined();
+  };
+  it('the inviting trainer name: 2 lines + ellipsis', async () => {
+    setWidth(width, 3.1);
+    const tree = await render();
+    const nodes = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Alex Kim');
+    expect(nodes.length).toBeGreaterThan(0);
+    nodes.forEach(expectName);
   });
 });

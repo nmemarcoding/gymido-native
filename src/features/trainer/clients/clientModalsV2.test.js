@@ -311,3 +311,20 @@ describe('Invite sheet height (P5 review M6)', () => {
     expect(tree.root.findByType(AppModal).props.sheetTopGap).toBe(50);
   });
 });
+
+// UX final audit X7 ruling (27 Oct 2026, §1.1): every name in a row, card or
+// list is at most 2 lines then a tail ellipsis, no font shrink.
+describe.each([390, 834])('X7 client workout modal (%i)', (width) => {
+  const expectName = (node) => {
+    expect(node.props).toMatchObject({ numberOfLines: 2, ellipsizeMode: 'tail' });
+    expect(node.props.adjustsFontSizeToFit).toBeUndefined();
+  };
+  it('the exercise name: 2 lines + ellipsis', async () => {
+    setWindow(width, 3.1);
+    getClientWorkout.mockResolvedValue(WORKOUT);
+    const tree = await render(<WorkoutDetailModal clientUserId={7} workoutId={3} onClose={jest.fn()} />);
+    const nodes = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Back squat');
+    expect(nodes.length).toBeGreaterThan(0);
+    nodes.forEach(expectName);
+  });
+});

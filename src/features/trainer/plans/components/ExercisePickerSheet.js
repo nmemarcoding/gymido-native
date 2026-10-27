@@ -21,6 +21,7 @@ import { thumbImageProps } from '../../../plans/planImages';
 import FeedbackIcon from '../../../../shared/components/FeedbackIcon';
 import GradientFill from '../../../../shared/components/GradientFill';
 import IconButton from '../../../../shared/components/IconButton';
+import { NAME_TEXT } from '../../../../shared/components/largeText';
 import Select from '../../../../shared/components/Select';
 import { useKeyboardHeight } from '../../../../shared/hooks/useKeyboardHeight';
 import { useReducedMotion } from '../../../../shared/hooks/useReducedMotion';
@@ -526,7 +527,7 @@ function PickerRow({ exercise, isAdded, isSelected, onToggle, stacked }) {
           ) : null}
           <ExerciseImage exercise={exercise} {...thumbImageProps(exercise)} size={ROW_IMAGE.height} style={styles.rowImage} />
           <View style={styles.rowMiddle}>
-            <Text {...BODY_TEXT} style={styles.rowName}>
+            <Text {...NAME_TEXT} style={styles.rowName}>
               {exercise.name}
             </Text>
             <View style={styles.chips}>
@@ -590,7 +591,7 @@ function PickerCard({ exercise, isAdded, isSelected, onToggle }) {
             <View testID={`exercise-picker-ring-${exercise.id}`} style={[styles.cardMark, styles.cardMarkOff]} />
           )}
           <View style={styles.cardBody}>
-            <Text {...BODY_TEXT} numberOfLines={2} style={[styles.cardName, isAdded && styles.cardNameAdded]}>
+            <Text {...NAME_TEXT} style={[styles.cardName, isAdded && styles.cardNameAdded]}>
               {exercise.name}
             </Text>
             <View style={styles.cardChips}>

@@ -8,6 +8,7 @@ import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import ErrorAlert from '../../../shared/components/ErrorAlert';
 import ExerciseImage from '../../../shared/components/ExerciseImage';
 import IconButton from '../../../shared/components/IconButton';
+import { NAME_TEXT } from '../../../shared/components/largeText';
 import Loader from '../../../shared/components/Loader';
 import PillButton from '../../../shared/components/PillButton';
 import Select from '../../../shared/components/Select';
@@ -313,7 +314,7 @@ function Feasible({ preview, notice, changingSplit, onSplitChange, onOpenExercis
           {preview.plan_name}
         </Text>
         {!tablet && preview.split?.name ? (
-          <Text {...BODY_TEXT} style={styles.splitName}>
+          <Text {...NAME_TEXT} style={styles.splitName}>
             {preview.split.name}
           </Text>
         ) : null}
@@ -325,7 +326,7 @@ function Feasible({ preview, notice, changingSplit, onSplitChange, onOpenExercis
             <Text {...BODY_TEXT} style={styles.splitCardLabel}>
               {COPY.split}
             </Text>
-            <Text {...BODY_TEXT} style={styles.splitCardName}>
+            <Text {...NAME_TEXT} style={styles.splitCardName}>
               {preview.split?.name}
             </Text>
           </View>
@@ -382,7 +383,7 @@ function WeeklySets({ rows }) {
         {rows.map((row) => (
           <View key={row.key} accessible accessibilityLabel={`${row.name}, ${row.sets}`}>
             <View style={styles.weeklyRow}>
-              <Text {...BODY_TEXT} style={styles.weeklyName}>
+              <Text {...NAME_TEXT} style={styles.weeklyName}>
                 {row.name}
               </Text>
               <Text {...BODY_TEXT} style={styles.weeklySets}>
@@ -508,7 +509,7 @@ function FeaturedRow({ item, onOpenExercise }) {
         >
           <View style={styles.featuredOverlay}>
             <MuscleLabel name={data.muscleName} code={data.muscleCode} />
-            <Text {...BODY_TEXT} style={styles.featuredName}>
+            <Text {...NAME_TEXT} style={styles.featuredName}>
               {data.exercise.name}
             </Text>
             <Text {...BODY_TEXT} style={styles.featuredPrescription}>
@@ -539,7 +540,7 @@ function CompactRow({ item, onOpenExercise }) {
           style={styles.compactPhoto}
         />
         <View style={styles.flex}>
-          <Text {...BODY_TEXT} style={styles.rowName}>
+          <Text {...NAME_TEXT} style={styles.rowName}>
             {data.exercise.name}
           </Text>
           <MuscleLabel name={data.muscleName} code={data.muscleCode} />
@@ -570,7 +571,7 @@ function TabletRow({ item, onOpenExercise }) {
           style={styles.tabletPhoto}
         />
         <View style={styles.flex}>
-          <Text {...BODY_TEXT} style={styles.tabletName}>
+          <Text {...NAME_TEXT} style={styles.tabletName}>
             {data.exercise.name}
           </Text>
           <MuscleLabel name={data.muscleName} code={data.muscleCode} style={styles.tabletMuscle} />

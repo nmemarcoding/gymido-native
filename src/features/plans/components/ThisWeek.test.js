@@ -109,3 +109,20 @@ describe('This week secondary lines: one line + ellipsis (UX N3)', () => {
     expect(name.props.numberOfLines).not.toBe(1);
   });
 });
+
+// UX final audit X7 ruling (27 Oct 2026, §1.1): every name in a row, card or
+// list is at most 2 lines then a tail ellipsis, no font shrink.
+describe.each([false, true])('X7 This week card titles (tablet %s)', (tablet) => {
+  const expectName = (node) => {
+    expect(node.props).toMatchObject({ numberOfLines: 2, ellipsizeMode: 'tail' });
+    expect(node.props.adjustsFontSizeToFit).toBeUndefined();
+  };
+  it('the open cards and the Done card: the day title 2 lines + ellipsis', () => {
+    const tree = render(<ThisWeek tablet={tablet} cards={thisWeekCards(WEEK)} onStart={jest.fn()} onOpenExercise={jest.fn()} />);
+    ['Lower A', 'Upper B', 'Lower B', 'Upper A'].forEach((title) => {
+      const nodes = tree.root.findAll((node) => node.type === 'Text' && node.props.children === title);
+      expect([title, nodes.length > 0]).toEqual([title, true]);
+      nodes.forEach(expectName);
+    });
+  });
+});

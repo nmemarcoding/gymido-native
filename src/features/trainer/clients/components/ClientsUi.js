@@ -209,7 +209,7 @@ export function StatTile({
         maxFontSizeMultiplier={textScale.display}
         numberOfLines={1}
         adjustsFontSizeToFit
-        minimumFontScale={0.7}
+        minimumFontScale={0.75}
         style={valueStyle}
       >
         {value}

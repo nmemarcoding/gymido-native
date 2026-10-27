@@ -7,6 +7,7 @@ import { getServerMessage, getStatus } from '../../shared/api/apiError';
 import EmptyState from '../../shared/components/EmptyState';
 import ErrorAlert from '../../shared/components/ErrorAlert';
 import GradientFill from '../../shared/components/GradientFill';
+import { NAME_TITLE_TEXT } from '../../shared/components/largeText';
 import Loader from '../../shared/components/Loader';
 import PillButton from '../../shared/components/PillButton';
 import StatusPill from '../../shared/components/StatusPill';
@@ -258,7 +259,7 @@ function TrainerHub() {
               <View style={styles.invitationTop}>
                 <Avatar name={name} userId={request.trainer?.user_id ?? request.trainer_user_id} size={60} />
                 <View style={styles.textColumn}>
-                  <Text {...TITLE_TEXT} style={styles.invitationName}>
+                  <Text {...NAME_TITLE_TEXT} style={styles.invitationName}>
                     {name}
                   </Text>
                   <Text {...BODY_TEXT} style={styles.invitationSub}>

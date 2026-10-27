@@ -172,7 +172,9 @@ describe('PlanCard', () => {
     // DECLARED change (UX final audit X7 §1.1, 27 Oct 2026): was toBe(3). A card name wraps to at most 2 lines
     // then an ellipsis (NAME_TITLE_TEXT).
     expect(name.props.numberOfLines).toBe(2);
-    expect(name.props.adjustsFontSizeToFit).toBe(true);
+    // DECLARED change (UX X7 ruling, 27 Oct 2026): was adjustsFontSizeToFit toBe(true). Names never shrink.
+    expect(name.props.ellipsizeMode).toBe('tail');
+    expect(name.props.adjustsFontSizeToFit).toBeUndefined();
     expect(name.props.maxFontSizeMultiplier).toBe(textScale.title);
     const view = comp(tree.root, 'plan-card-view-1');
     expect(view.props.variant).toBe('secondary');

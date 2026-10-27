@@ -515,3 +515,19 @@ describe('Exercise picker large text (UX §9)', () => {
     ).toBe(2);
   });
 });
+
+// UX final audit X7 ruling (27 Oct 2026, §1.1): every name in a row, card or
+// list is at most 2 lines then a tail ellipsis, no font shrink.
+describe.each([390, 834])('X7 exercise picker rows (%i)', (width) => {
+  const expectName = (node) => {
+    expect(node.props).toMatchObject({ numberOfLines: 2, ellipsizeMode: 'tail' });
+    expect(node.props.adjustsFontSizeToFit).toBeUndefined();
+  };
+  it('the row names: 2 lines + ellipsis', () => {
+    setWidth(width, 3.1);
+    const { tree } = render();
+    const nodes = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Bench Press');
+    expect(nodes.length).toBeGreaterThan(0);
+    nodes.forEach(expectName);
+  });
+});

@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import ExerciseImage from '../../../shared/components/ExerciseImage';
 import GradientFill from '../../../shared/components/GradientFill';
-import { CAP_BODY, CAP_PILL } from '../../../shared/components/largeText';
+import { CAP_BODY, CAP_PILL, NAME_TEXT } from '../../../shared/components/largeText';
 import StatusPill from '../../../shared/components/StatusPill';
 import { colors, font, gradients, radii, spacing, typography } from '../../../shared/theme/tokens';
 import { compactSetSummary, stripCells } from '../libraryFormat';
@@ -98,7 +98,7 @@ function TodayCard({ card, onStart, onOpenExercise, reflow }) {
             <DateTile card={card} gold />
             <View style={styles.middle}>
               <View style={styles.titleRow}>
-                <Text {...CAP_BODY} style={styles.cardTitle}>
+                <Text {...NAME_TEXT} style={styles.cardTitle}>
                   {card.title}
                 </Text>
                 <Text {...CAP_PILL} style={styles.todayTag}>
@@ -167,7 +167,7 @@ function UpcomingCard({ card }) {
     >
       <DateTile card={card} />
       <View style={styles.middle}>
-        <Text {...CAP_BODY} style={styles.cardTitle}>
+        <Text {...NAME_TEXT} style={styles.cardTitle}>
           {card.title}
         </Text>
         <Text {...CAP_BODY} {...ONE_LINE} style={styles.meta}>
@@ -200,7 +200,7 @@ function DoneCard({ done }) {
         <PlanIcon name="check" size={20} color={colors.gold} strokeWidth={2.6} />
       </View>
       <View style={styles.middle}>
-        <Text {...CAP_BODY} style={styles.cardTitle}>
+        <Text {...NAME_TEXT} style={styles.cardTitle}>
           {done.titles}
         </Text>
         <Text {...CAP_BODY} {...ONE_LINE} style={styles.meta}>

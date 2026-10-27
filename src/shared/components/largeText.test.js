@@ -117,8 +117,10 @@ describe('largeText roles (UX §9)', () => {
     expect(DISPLAY_TITLE_TEXT).toMatchObject({ maxFontSizeMultiplier: textScale.display, numberOfLines: 3, adjustsFontSizeToFit: true, minimumFontScale: 0.7 });
   });
 
-  it('§1.1 long text (UX final audit X7): names 2 lines + ellipsis, shrink to 0.75, no mid-word break; lines 1 line', () => {
-    const NAME_RULE = { numberOfLines: 2, ellipsizeMode: 'tail', adjustsFontSizeToFit: true, minimumFontScale: 0.75, textBreakStrategy: 'simple' };
+  // DECLARED change (UX X7 ruling, 27 Oct 2026; this test came in 027b5fe): NAME_RULE was
+  // { ..., adjustsFontSizeToFit: true, minimumFontScale: 0.75 }. Names never shrink: 2 lines + a tail ellipsis.
+  it('§1.1 long text (UX final audit X7): names 2 lines + ellipsis, no shrink, no mid-word break; lines 1 line', () => {
+    const NAME_RULE = { numberOfLines: 2, ellipsizeMode: 'tail', textBreakStrategy: 'simple' };
     expect(NAME_TEXT).toEqual({ ...NAME_RULE, maxFontSizeMultiplier: textScale.body });
     expect(NAME_TITLE_TEXT).toEqual({ ...NAME_RULE, maxFontSizeMultiplier: textScale.title });
     expect(LINE_TEXT).toEqual({ maxFontSizeMultiplier: textScale.body, numberOfLines: 1, ellipsizeMode: 'tail' });

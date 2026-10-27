@@ -19,17 +19,15 @@ const TITLE_RULE = {
 export const TITLE_TEXT = Object.freeze({ ...TITLE_RULE, maxFontSizeMultiplier: textScale.title });
 export const DISPLAY_TITLE_TEXT = Object.freeze({ ...TITLE_RULE, maxFontSizeMultiplier: textScale.display });
 
-// §1.1 long text (UX final audit X7) for list rows and cards: a name wraps by
-// word to at most 2 lines, then an ellipsis; a single word too long for the
-// line shrinks (down to 0.75×) instead of breaking inside it. NAME_TEXT is
-// body-sized (capped like body), NAME_TITLE_TEXT title-sized (a card name).
+// §1.1 long text (UX final audit X7, ruling 27 Oct) for list rows and cards:
+// a name wraps by word to at most 2 lines, then an ellipsis; it never shrinks
+// (shrink-to-fit is only for single-word stat-tile values, at 0.75). NAME_TEXT
+// is body-sized (capped like body), NAME_TITLE_TEXT title-sized (a card name).
 // LINE_TEXT: a secondary line or caption, 1 line + an ellipsis.
 const NAME_RULE = {
   textBreakStrategy: 'simple',
   numberOfLines: 2,
   ellipsizeMode: 'tail',
-  adjustsFontSizeToFit: true,
-  minimumFontScale: 0.75,
 };
 export const NAME_TEXT = Object.freeze({ ...NAME_RULE, maxFontSizeMultiplier: textScale.body });
 export const NAME_TITLE_TEXT = Object.freeze({ ...NAME_RULE, maxFontSizeMultiplier: textScale.title });
