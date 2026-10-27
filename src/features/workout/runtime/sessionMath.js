@@ -225,8 +225,9 @@ export function buildSetPatch(set, draft, now = new Date()) {
 
 // §20.2 (T-16): after a successful "Did it" the draft becomes the saved set,
 // since a null weight on the PATCH leaves an earlier saved weight in place.
+// A saved 0 is no weight too (blank, never "0", which "Did it" would refuse).
 export function draftFromSavedSet(saved, sentUnit) {
-  return { actualWeightValue: saved.actual_weight_value ?? '', actualWeightUnit: saved.actual_weight_unit || sentUnit };
+  return { actualWeightValue: weightOrNull(saved.actual_weight_value) ?? '', actualWeightUnit: saved.actual_weight_unit || sentUnit };
 }
 
 // §19.3 reps label (EN DASH; 23 Oct: equal ends read "12 reps").

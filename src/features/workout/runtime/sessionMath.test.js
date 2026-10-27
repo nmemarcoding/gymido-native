@@ -154,6 +154,7 @@ describe('set toggle (§20.4, §21.1)', () => {
     expect(validateDraftWeight('20')).toBeNull();
   });
 
+  // The PATCH (web parity): a blank weight sends null / null ("leave it").
   it('completes with no weight when the draft is blank (T-16)', () => {
     for (const blank of ['', '   ', null, undefined]) {
       expect(validateDraftWeight(blank)).toBeNull();
@@ -168,6 +169,9 @@ describe('set toggle (§20.4, §21.1)', () => {
   it('takes the saved weight after "Did it" (T-16)', () => {
     expect(draftFromSavedSet({ actual_weight_value: 80, actual_weight_unit: 'kg' }, 'lb')).toEqual({ actualWeightValue: 80, actualWeightUnit: 'kg' });
     expect(draftFromSavedSet({ actual_weight_value: null, actual_weight_unit: null }, 'lb')).toEqual({ actualWeightValue: '', actualWeightUnit: 'lb' });
+    // A saved 0 (e.g. stored earlier) is no weight: blank, never "0".
+    expect(draftFromSavedSet({ actual_weight_value: 0, actual_weight_unit: 'kg' }, 'lb')).toEqual({ actualWeightValue: '', actualWeightUnit: 'kg' });
+    expect(draftFromSavedSet({ actual_weight_value: '0.00', actual_weight_unit: 'kg' }, 'lb')).toEqual({ actualWeightValue: '', actualWeightUnit: 'kg' });
   });
 
   it('sends target reps, the device time and a null unit without weight', () => {

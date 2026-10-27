@@ -225,6 +225,20 @@ describe('SessionRuntime', () => {
     expect(byId(tree, 'set-weight-12').props.value).toBe('70');
   });
 
+  // Final audit (PM priority): every catalog plan set stores target 0, so a
+  // bodyweight set was pre-filled "0" and "Did it" refused it.
+  it('a catalog bodyweight set (target 0): the field is blank and "Did it" logs it (the PATCH sends null / null, as web)', async () => {
+    updateSessionSet.mockResolvedValueOnce({ workout_session_exercise_set: { id: 12, actual_weight_value: 0, actual_weight_unit: 'kg' } });
+    const catalog = { ...SESSION, exercises: [{ ...SESSION.exercises[0], sets: [set(11, true), { ...set(12), target_weight_value: 0, target_weight_unit: 'kg' }] }, SESSION.exercises[1]] };
+    const { tree } = render({ session: catalog });
+    expect(byId(tree, 'set-weight-12').props.value).toBe('');
+    await act(async () => byId(tree, 'set-action-12').props.onPress());
+    expect(host(tree, 'weight-error-12')).toBeUndefined();
+    expect(updateSessionSet).toHaveBeenCalledWith(1, 1, 12, expect.objectContaining({ actual_weight_value: null, actual_weight_unit: null, is_completed: true }));
+    // A saved 0 reads back as no weight, so the next "Did it" isn't blocked.
+    expect(byId(tree, 'set-weight-12').props.value).toBe('');
+  });
+
   it('a discard clears the previous action error first (#45, O9)', async () => {
     const { tree, setActionError } = render({ actionError: 'Network Error' });
     act(() => byId(tree, 'discard-workout').props.onPress());
