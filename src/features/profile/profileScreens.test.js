@@ -110,7 +110,7 @@ describe('P1 Settings', () => {
     expect(row().props.accessibilityState).toEqual({ checked: true });
     // Design system v1 #17: the gold track, the off colour behind it on iOS.
     const toggle = tree.root.find((node) => node.props.testID === 'settings-vibrate-rest-alerts-switch' && node.props.onValueChange);
-    // v2 §4.7 (declared look-only change, P2-08): gold track on, 14 % white
+    // v2 §4.7 (declared look-only change, P1-05): gold track on, 14 % white
     // track off.
     expect(toggle.props.trackColor).toEqual({ false: 'rgba(255, 255, 255, 0.14)', true: '#FFC21A' });
     expect(toggle.props.ios_backgroundColor).toBe('rgba(255, 255, 255, 0.14)');

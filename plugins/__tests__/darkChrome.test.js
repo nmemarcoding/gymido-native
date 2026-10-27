@@ -29,4 +29,9 @@ describe('dark chrome (v2)', () => {
     expect(app).toContain('<StatusBar style="light" />');
     expect(app).not.toContain('<StatusBar style="dark" />');
   });
+
+  it('ships expo-system-ui, so Android applies the dark style and root colour (pinned)', () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+    expect(pkg.dependencies['expo-system-ui']).toMatch(/^\d+\.\d+\.\d+$/);
+  });
 });
