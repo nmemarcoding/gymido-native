@@ -21,6 +21,8 @@ import WorkoutSkeleton from '../components/WorkoutSkeleton';
 import { WorkoutEmptyState, WorkoutErrorState } from '../components/WorkoutStates';
 import { loadWorkoutPage } from '../loadWorkoutPage';
 import { CompletionPopup } from '../runtime/RuntimeOverlays';
+import restAlertPlatform from '../runtime/restAlertPlatform';
+import { requestPermissionAtWorkoutStart } from '../runtime/restAlerts';
 import SessionRuntime from '../runtime/SessionRuntime';
 import { applyOverlay, reconcileOverlay } from '../runtime/sessionMath';
 import {
@@ -184,6 +186,8 @@ function WorkoutPage() {
       const created = await startWorkout({ user_plan_enrollment_id: enrollmentId, workout_plan_day_id: dayId });
       setPage((current) => ({ ...current, session: created.session ?? current.session }));
       setSuccessMessage('Workout started.');
+      // T-50: the one notification-permission moment, before any rest.
+      requestPermissionAtWorkoutStart(restAlertPlatform).catch(() => {});
       await load({ silent: Boolean(created.session?.id) });
     } catch (error) {
       // [O7]

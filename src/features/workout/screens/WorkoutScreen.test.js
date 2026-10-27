@@ -56,6 +56,19 @@ jest.mock('../../../shared/components/ConfirmDialog', () => {
   return (props) => (props.isOpen ? <View testID={props.testID} dialog={props} /> : null);
 });
 
+// T-50: the Start tap is the one notification-permission moment.
+let mockHero = null;
+jest.mock('../components/TodayHeroCard', () => (props) => {
+  mockHero = props;
+  return null;
+});
+jest.mock('../components/PlanDayCard', () => () => null);
+jest.mock('../api/workoutApi', () => ({ startWorkout: jest.fn(() => Promise.resolve({ session: { id: 9, exercises: [] } })) }));
+jest.mock('../runtime/restAlertPlatform', () => ({
+  getPermission: jest.fn(() => Promise.resolve('undetermined')),
+  requestPermission: jest.fn(() => Promise.resolve('granted')),
+}));
+
 const withSession = { ok: true, data: { session: { id: 9, exercises: [] }, currentPlan: null, todayStatus: null, planDays: [], completedThisWeekDayIds: [], exerciseStatsMap: {} } };
 const noSession = { ok: true, data: { ...withSession.data, session: null } };
 
@@ -177,6 +190,20 @@ describe('WorkoutScreen', () => {
     const toast = tree.root.findAll((node) => node.props.testID === 'workout-action-error')[0];
     expect(toast.props.message).toBe(message);
     expect(find(tree, 'completion-popup')).toHaveLength(0);
+  });
+
+  it('the Start tap asks for notification permission once it starts; the hub alone never asks (T-50)', async () => {
+    const platform = require('../runtime/restAlertPlatform');
+    const hub = { ok: true, data: { ...noSession.data, currentPlan: { enrollment: { id: 3, plan: { name: 'Plan' } } }, planDays: [{ id: 11 }] } };
+    loadWorkoutPage.mockResolvedValue(hub);
+    const tree = await render();
+    expect(platform.requestPermission).not.toHaveBeenCalled();
+    loadWorkoutPage.mockResolvedValue(withSession);
+    await act(async () => {
+      await mockHero.onStart();
+    });
+    expect(platform.requestPermission).toHaveBeenCalledTimes(1);
+    act(() => tree.unmount());
   });
 
   it('never intercepts without a session', async () => {

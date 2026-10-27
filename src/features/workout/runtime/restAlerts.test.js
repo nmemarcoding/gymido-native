@@ -4,6 +4,7 @@ import {
   createRestNotifier,
   deliveredWhileAway,
   restNotificationBehavior,
+  requestPermissionAtWorkoutStart,
   restNotificationRequest,
   shouldOfferExactAlarm,
 } from './restAlerts';
@@ -224,8 +225,9 @@ describe('remove-then-send (A1 rules 10, 12, 14)', () => {
 });
 
 describe('rest alert controller (O4)', () => {
-  it('requests permission at the rest start when undetermined, then schedules (rule 1)', async () => {
+  it('requests permission at the workout start when undetermined, then the rest schedules (rule 1, T-50)', async () => {
     const { platform, controller } = setup({ permission: 'undetermined' });
+    await requestPermissionAtWorkoutStart(platform);
     controller.restStarted(5, 2_000_000);
     await settle();
     expect(platform.requests).toBe(1);
@@ -353,11 +355,12 @@ describe('rest alert controller (O4)', () => {
     expect(platform.spoken).toBe(1);
   });
 
-  it('offers exact alarms once, after the rest started, never in the same start as the permission prompt (A2)', async () => {
+  it('offers exact alarms once, at rest 1 after the workout start asked (A2, T-50 re-anchor)', async () => {
     const first = setup({ permission: 'undetermined', canExact: false }, { os: 'android', apiLevel: 34 });
+    await requestPermissionAtWorkoutStart(first.platform);
     first.controller.restStarted(5, 2_000_000);
     await settle();
-    expect(first.onOfferExactAlarm).not.toHaveBeenCalled();
+    expect(first.onOfferExactAlarm).toHaveBeenCalledTimes(1);
     first.controller.restStarted(6, 2_100_000);
     await settle();
     expect(first.onOfferExactAlarm).toHaveBeenCalledTimes(1);
@@ -501,19 +504,17 @@ describe('spoken cue and A3 pop-up (owner request, 23 Oct 2026)', () => {
     expect(platform.stops).toBe(2);
   });
 
-  it('fresh install: rest 1 asks for permission, the pop-up waits for rest 2 and shows once', async () => {
+  it('fresh install: the workout start asks for permission, the pop-up shows at rest 1, once (T-50 re-anchor)', async () => {
     const onSpeakIntro = jest.fn();
     const { platform, controller } = setup({ permission: 'undetermined' }, { onSpeakIntro });
     platform.introShown = false;
+    await requestPermissionAtWorkoutStart(platform);
     controller.restStarted(5, 2_000_000);
     await settle();
     expect(platform.requests).toBe(1);
-    expect(onSpeakIntro).not.toHaveBeenCalled();
-    controller.restStarted(6, 2_100_000);
-    await settle();
     expect(onSpeakIntro).toHaveBeenCalledTimes(1);
     expect(platform.introShown).toBe(true);
-    controller.restStarted(7, 2_200_000);
+    controller.restStarted(6, 2_100_000);
     await settle();
     expect(onSpeakIntro).toHaveBeenCalledTimes(1);
   });
@@ -617,5 +618,46 @@ describe('review fixes (24 Oct)', () => {
     await settle();
     await controller.restEnded(5, 2_100_000);
     expect(platform.spoken).toBe(2);
+  });
+});
+
+// T-50 (QA, 27 Oct; owner option A, 26 Oct 2026): Android's permission
+// dialog pauses the activity, and with it every JS timer, so a prompt at the
+// rest start froze the ring and delayed the rest-end buzz. The ask moves to
+// the workout start.
+describe('T-50: notification permission at the workout start (option A)', () => {
+  it('a rest start never shows the permission prompt', async () => {
+    const { platform, controller } = setup({ permission: 'undetermined' }, { os: 'android', apiLevel: 34 });
+    controller.restStarted(5, 2_000_000, 120);
+    await settle();
+    expect(platform.requests).toBe(0);
+    expect(platform.pending).toHaveLength(0);
+  });
+
+  it('the workout start asks once when undetermined; the first rest then schedules', async () => {
+    const { platform, controller } = setup({ permission: 'undetermined' }, { os: 'android', apiLevel: 34 });
+    await requestPermissionAtWorkoutStart(platform);
+    expect(platform.requests).toBe(1);
+    controller.restStarted(5, 2_000_000, 120);
+    await settle();
+    expect(platform.requests).toBe(1);
+    expect(platform.pending).toHaveLength(1);
+    expect(platform.pending[0].trigger.date).toBe(2_000_000);
+  });
+
+  it('the workout start never asks once answered (granted or denied)', async () => {
+    for (const permission of ['granted', 'denied']) {
+      const { platform, controller } = setup({ permission });
+      await requestPermissionAtWorkoutStart(platform);
+      expect(platform.requests).toBe(0);
+    }
+  });
+
+  it('a resumed session (rests only, no Start tap) never asks', async () => {
+    const { platform, controller } = setup({ permission: 'undetermined' }, { os: 'android', apiLevel: 34 });
+    controller.restStarted(5, 2_000_000, 120);
+    controller.restStarted(6, 2_200_000, 120);
+    await settle();
+    expect(platform.requests).toBe(0);
   });
 });

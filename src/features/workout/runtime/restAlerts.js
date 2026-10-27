@@ -55,6 +55,17 @@ export const NO_PLATFORM = {
   markOffered: async () => {},
 };
 
+// §7.2 step 3, dated change T-50 (owner, 26 Oct 2026): asked once, while
+// undetermined, at the Start tap; never at a rest start or on resume.
+// Android's dialog pauses the activity and every JS timer with it, so a
+// prompt at the rest start froze the ring and the rest-end buzz.
+export async function requestPermissionAtWorkoutStart(platform) {
+  const status = await platform.getPermission().catch(() => 'denied');
+  if (status === 'undetermined') {
+    await platform.requestPermission().catch(() => 'denied');
+  }
+}
+
 // O4 rule 4, corrected by A1: keyed on `source`, not `kind` alone.
 export function restNotificationBehavior(data, appState) {
   if (data?.kind === REST_END_KIND && data.source === 'foreground') {
@@ -242,8 +253,8 @@ export function createRestAlertController({
   }
 
   return {
-    // O4 rule 1, with the §7.2 permission request at the same moment, then
-    // A2's one-time offer after the rest has started.
+    // O4 rule 1, then A2's one-time offer after the rest has started. A rest
+    // start never asks for permission (T-50).
     // O13's countdown follows the permission answer (Android needs it) but
     // doesn't depend on it (iOS Live Activities don't).
     async restStarted(setId, endMs, totalSeconds) {
@@ -252,13 +263,7 @@ export function createRestAlertController({
       lastSpokenSetId = null;
       rest = { setId, endMs, totalSeconds };
       const mine = rest;
-      let status = await readPermission();
-      let requestedNow = false;
-      if (status === 'undetermined') {
-        requestedNow = true;
-        status = await platform.requestPermission().catch(() => 'denied');
-        lastGranted = status === 'granted';
-      }
+      const status = await readPermission();
       if (rest !== mine || disposed) {
         return;
       }
@@ -270,7 +275,7 @@ export function createRestAlertController({
           const offered = await platform.readOffered().catch(() => true);
           const canExact = await platform.canScheduleExactAlarms().catch(() => null);
           // Same rest (a ±5 s adjust replaces the object, not the rest).
-          if (rest?.setId === setId && !disposed && shouldOfferExactAlarm({ os, apiLevel, canExact, granted: true, requestedNow, offered })) {
+          if (rest?.setId === setId && !disposed && shouldOfferExactAlarm({ os, apiLevel, canExact, granted: true, requestedNow: false, offered })) {
             // A2 rule 4: recorded the moment it is shown.
             platform.markOffered().catch(() => {});
             onOfferExactAlarm();
@@ -278,9 +283,9 @@ export function createRestAlertController({
           }
         }
       }
-      // The speak pop-up never stacks: a rest that asked for permission or
-      // offered A2 leaves it for the next rest start.
-      if (!requestedNow && !offeredNow && rest?.setId === setId && !disposed && platform.speakIntroEligible()) {
+      // The speak pop-up never stacks: a rest that offered A2 leaves it for
+      // the next rest start.
+      if (!offeredNow && rest?.setId === setId && !disposed && platform.speakIntroEligible()) {
         const shown = await platform.readSpeakIntroShown().catch(() => true);
         if (!shown && rest?.setId === setId && !disposed) {
           platform.markSpeakIntroShown().catch(() => {});
