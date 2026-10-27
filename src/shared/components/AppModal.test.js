@@ -390,8 +390,10 @@ describe('Guard: no floating sheet variant (FINAL-AUDIT batch 1)', () => {
   // prompt shells below (screen-owned, outside the kit batch; flagged to the
   // PM). The list must match exactly, so a new one fails here and a fixed one
   // must be removed from it.
-  const KNOWN_FLOATING_PENDING = ['features/workout/runtime/AlertSheet.js', 'features/workout/runtime/SessionDialogs.js'];
-  it('no other file in src draws a floating sheet (known pending list is exact)', () => {
+  // Batch-1 merge: the workout AlertSheet and Leave-workout dialog are now
+  // attached too, so NO file in src may draw a floating phone sheet.
+  const KNOWN_FLOATING_PENDING = [];
+  it('no file in src draws a floating phone sheet', () => {
     const fs = require('fs');
     const path = require('path');
     const src = path.resolve(__dirname, '../..');
