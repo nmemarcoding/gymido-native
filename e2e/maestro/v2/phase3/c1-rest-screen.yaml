@@ -14,6 +14,10 @@ tags:
 - runFlow: ../subflows/signed-in-start.yaml
 - runFlow: ../subflows/start-workout.yaml
 - runFlow: ../subflows/dismiss-session-dialogs.yaml
+# A weighted set needs weight > 0 ("Weight must be greater than 0"); bodyweight sets have no field.
+- tapOn:
+    id: "set-weight-plus-.*"
+    optional: true
 - tapOn:
     id: "set-action-.*"
     enabled: true
