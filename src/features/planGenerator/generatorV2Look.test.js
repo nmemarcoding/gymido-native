@@ -612,7 +612,8 @@ describe('Preview, tablet (TabletGeneratorPreview board)', () => {
     expect(has(tree, 'generator-featured-row')).toBe(false);
     const buttons = host(tree, 'generator-sticky-row').findAll((node) => node.type === PillButton);
     expect(buttons.map((node) => node.props.size)).toEqual(['default', 'default']);
-    expect(flat(host(tree, 'generator-sticky-row'))).toMatchObject({ justifyContent: 'flex-end' });
+    // UX R2-6 (web round 2): gap 10 at every width (was 12 on tablet).
+    expect(flat(host(tree, 'generator-sticky-row'))).toMatchObject({ justifyContent: 'flex-end', gap: 10 });
   });
 });
 

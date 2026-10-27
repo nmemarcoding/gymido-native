@@ -314,6 +314,14 @@ describe('PlanOverflowSheet', () => {
     expect(run).not.toHaveBeenCalled();
     jest.useRealTimers();
   });
+
+  it('UX R2-4: a Menu, a footer Cancel that closes it and no title-row ×', async () => {
+    const onClose = jest.fn();
+    const tree = await render(<PlanOverflowSheet isOpen onClose={onClose} items={[{ key: 'edit-details', label: 'Edit details', onPress: jest.fn(), testID: 'o-edit' }]} />);
+    expect(tree.root.findAll((node) => node.props?.testID === 'app-modal-close' && typeof node.type === 'string')).toHaveLength(0);
+    pressable(tree, 'plan-overflow-cancel').props.onPress();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('builder parts', () => {

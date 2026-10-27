@@ -1129,7 +1129,8 @@ const styles = StyleSheet.create({
   barRowTablet: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: spacing[3],
+    // UX R2-6 (web round 2): gap 10 at every width.
+    gap: spacing['2_5'],
     paddingHorizontal: spacing[6],
     paddingVertical: spacing[4],
   },

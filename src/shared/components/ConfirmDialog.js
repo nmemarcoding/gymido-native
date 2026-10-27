@@ -2,7 +2,8 @@ import AppModal, { ModalActions } from './AppModal';
 import PillButton from './PillButton';
 
 // Trainer plans spec §A3.2. `dismissible` false (B4: while a request runs)
-// makes Cancel, the scrim and Android back do nothing.
+// makes Cancel, the scrim and Android back do nothing. `boardClose` keeps
+// the phone × beside Cancel where the board draws both (UX R2-2).
 export default function ConfirmDialog({
   isOpen,
   onClose,
@@ -22,6 +23,7 @@ export default function ConfirmDialog({
   confirmTestID,
   entrance,
   compact,
+  boardClose = false,
 }) {
   const close = () => {
     if (dismissible) {
@@ -40,7 +42,7 @@ export default function ConfirmDialog({
       entrance={entrance}
       compact={compact}
       // FINAL-AUDIT batch 1 (5): the footer has the dismiss, so no phone ×.
-      footerDismiss
+      footerDismiss={!boardClose}
       footer={
         <ModalActions>
           <PillButton testID={cancelTestID ?? (testID ? `${testID}-cancel` : undefined)} title={cancelLabel} variant="secondary" onPress={close} />

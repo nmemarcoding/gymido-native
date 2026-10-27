@@ -229,6 +229,15 @@ describe('Trainer detail (UX L §Trainer detail)', () => {
     expect(tree.root.findByType(ConfirmDialog).props.isOpen).toBe(false);
   });
 
+  it('UX R2-2: the phone request dialog keeps the title-row × AND the footer Cancel (the board draws both)', async () => {
+    getTrainer.mockResolvedValue(SARA);
+    const tree = await render(<TrainerDetailScreen />);
+    act(() => tree.root.find((node) => node.type === PillButton && node.props.testID === 'trainer-detail-ask').props.onPress());
+    const hostIds = (id) => tree.root.findAll((node) => node.props?.testID === id && typeof node.type === 'string');
+    expect(hostIds('app-modal-close')).toHaveLength(1);
+    expect(hostIds('trainer-detail-dialog-cancel').length).toBeGreaterThan(0);
+  });
+
   it('a failed request toasts the code copy and closes the dialog (⚠TR-9)', async () => {
     getTrainer.mockResolvedValue(SARA);
     requestCoaching.mockRejectedValue({ response: { status: 404 } });

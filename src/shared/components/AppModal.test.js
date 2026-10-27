@@ -491,10 +491,22 @@ describe('Guard: footer dismiss ⇒ footerDismiss (FINAL-AUDIT batch 1)', () => 
     });
   });
 
-  it('PlanOverflowSheet (no footer) keeps the ×', () => {
+  // UX R2-4 (web round 2): "More plan actions" is a Menu, footer Cancel, no ×.
+  it('PlanOverflowSheet is a Menu: a footer Cancel and footerDismiss (no ×)', () => {
     const overflow = callers.find(({ file }) => file.endsWith('PlanOverflowSheet.js'));
     expect(overflow).toBeTruthy();
-    expect(/footerDismiss/.test(overflow.text)).toBe(false);
+    expect(DISMISS.test(overflow.text)).toBe(true);
+    expect(/\bfooterDismiss\b/.test(overflow.text)).toBe(true);
+  });
+
+  // UX R2-2: ConfirmDialog drops the phone × unless its board draws one.
+  const CONFIRM_BOARD_DRAWS_CLOSE = ['features/trainers/screens/TrainerDetailScreen.js'];
+  it('only the ConfirmDialogs whose board draws a × pass boardClose', () => {
+    const withBoardClose = walk(src)
+      .map((file) => ({ file: path.relative(src, file).split(path.sep).join('/'), text: fs.readFileSync(file, 'utf8') }))
+      .filter(({ text }) => (text.match(/<ConfirmDialog\b[\s\S]*?\/>/g) ?? []).some((block) => /\bboardClose\b/.test(block)))
+      .map(({ file }) => file);
+    expect(withBoardClose).toEqual(CONFIRM_BOARD_DRAWS_CLOSE);
   });
 });
 

@@ -230,6 +230,8 @@ function TrainerDetail({ trainerUserId, tablet }) {
         confirmLabel="Send request"
         tone="brand"
         loading={sending}
+        // UX R2-2: the Request coaching board draws the × and Cancel.
+        boardClose
       />
     </View>
   );

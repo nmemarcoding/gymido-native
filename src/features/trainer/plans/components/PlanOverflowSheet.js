@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import AppModal from '../../../../shared/components/AppModal';
+import AppModal, { ModalActions } from '../../../../shared/components/AppModal';
+import PillButton from '../../../../shared/components/PillButton';
 import { CAP_BODY } from '../../../../shared/components/largeText';
 import Spinner from '../../../../shared/components/Spinner';
 import { colors, font, motion, radii, spacing } from '../../../../shared/theme/tokens';
@@ -11,6 +12,7 @@ import { colors, font, motion, radii, spacing } from '../../../../shared/theme/t
 // gap 8; "Delete plan" in danger text. It equals the tablet header buttons
 // (approved): Edit details, Make a copy, Deactivate / Activate, Delete plan.
 // A row closes the sheet, then runs its action (after the sheet's exit).
+// UX R2-4 (web round 2): a Menu, so a footer Cancel and no title-row ×.
 export const OVERFLOW_TITLE = 'More plan actions';
 export const OVERFLOW_HANDOFF_MS = 350;
 
@@ -24,7 +26,19 @@ export default function PlanOverflowSheet({ isOpen, onClose, items }) {
   const handoff = useRef(null);
   useEffect(() => () => clearTimeout(handoff.current), []);
   return (
-    <AppModal testID="plan-overflow-sheet" isOpen={isOpen} onClose={onClose} title={OVERFLOW_TITLE} size="md">
+    <AppModal
+      testID="plan-overflow-sheet"
+      isOpen={isOpen}
+      onClose={onClose}
+      title={OVERFLOW_TITLE}
+      size="md"
+      footerDismiss
+      footer={
+        <ModalActions>
+          <PillButton testID="plan-overflow-cancel" title="Cancel" variant="secondary" onPress={onClose} />
+        </ModalActions>
+      }
+    >
       <View accessibilityRole="menu" style={styles.list}>
         {items.map((item) => {
           const inactive = item.disabled || item.loading;
