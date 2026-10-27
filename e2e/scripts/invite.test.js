@@ -60,6 +60,19 @@ describe('invite.sh', () => {
     expect(text).toMatch(/cleanup\(\) \{[\s\S]*grep -rlF/);
   });
 
+  // QA re-check: --send exited 1 at the toast wait (the toast's title and
+  // description are one accessibility node, so an exact "Invitation sent"
+  // never matched), and the tablet failed in trainer-workspace (phone tab ids).
+  it('--send proves the invite by the Invited row AND the toast (prefix match)', () => {
+    const sendBlock = text.slice(text.indexOf('if [ "$SEND" = 1 ]'));
+    expect(sendBlock).toMatch(/id: "invite-invited-\.\*"/);
+    expect(sendBlock).toMatch(/visible: "Invitation sent\.\*"/);
+  });
+
+  it('reports the failed step instead of a bare exit code', () => {
+    expect(text).toMatch(/FAIL invite[^\n]*step/);
+  });
+
   it('taps Invite only with --send', () => {
     expect(text).toMatch(/if \[ "\$SEND" = 1 \]/);
     const sendBlock = text.slice(text.indexOf('if [ "$SEND" = 1 ]'));

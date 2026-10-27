@@ -33,3 +33,21 @@ describe('v2 flows on the QA branch', () => {
     expect(fs.readFileSync(path.join(V2, name), 'utf8')).not.toMatch(/expo-development-client|open-dev-client-link|launch-dev-client/);
   });
 });
+
+describe('trainer-workspace subflow works on phone AND tablet', () => {
+  const flow = fs.readFileSync(path.join(V2, 'subflows', 'trainer-workspace.yaml'), 'utf8');
+  it('accepts the rail (tablet) as well as the bottom tabs (phone)', () => {
+    expect(flow).toMatch(/id: "tab-TToday\|rail-TToday"/);
+    expect(flow).toMatch(/id: "rail-Today"/);
+  });
+});
+
+describe('restore-workspace subflow works on phone AND tablet', () => {
+  const flow = fs.readFileSync(path.join(V2, 'subflows', 'restore-workspace.yaml'), 'utf8');
+  it('taps the rail Profile items on a tablet and waits for either nav', () => {
+    expect(flow).toMatch(/id: "rail-Profile"/);
+    expect(flow).toMatch(/id: "rail-TProfile"/);
+    expect(flow).toMatch(/id: "tab-Today\|rail-Today"/);
+    expect(flow).toMatch(/id: "tab-TToday\|rail-TToday"/);
+  });
+});

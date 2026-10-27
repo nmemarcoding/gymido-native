@@ -85,8 +85,13 @@ if [ "$SEND" = 1 ]; then
     id: "invite-user-.*"
     index: 0
 - extendedWaitUntil:
-    visible: "Invitation sent"
+    visible:
+      id: "invite-invited-.*"
     timeout: 20000
+# The toast's title + description are one accessibility node: prefix match.
+- extendedWaitUntil:
+    visible: "Invitation sent.*"
+    timeout: 10000
 YAML
 fi
 
@@ -133,6 +138,9 @@ MPID=""
 if [ "$CODE" -eq 0 ]; then
   [ "$SEND" = 1 ] && echo "PASS invite sent ($TRAINER → $CLIENT)" || echo "PASS match row shown ($TRAINER → $CLIENT; not sent)"
 else
-  echo "FAIL invite (exit $CODE)"
+  # Name the failed step by a KNOWN id only (never echo a log line: the
+  # typed email can be in it).
+  step="$(grep -E 'FAILED' "$WORK/run.log" 2>/dev/null | grep -oE 'Invitation sent|invite-invited|invite-user|invite-results|invite-search|invite-client-modal|clients-invite|rail-TClients|tab-TClients|rail-TToday|tab-TToday|mode-switch-trainer|tab-Profile|rail-Profile' | head -1)"
+  echo "FAIL invite (exit $CODE) at step: ${step:-unknown}"
 fi
 cleanup

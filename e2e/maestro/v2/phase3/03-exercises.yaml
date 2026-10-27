@@ -14,11 +14,15 @@ appId: com.gymido.app
 - assertVisible:
     id: "exercises-chip-all"
 # The trailing "All muscle groups" chip opens the sheet; Close dismisses it.
+# QA s4: the default speed timed out on the long chip row (all muscle
+# groups); scroll faster and allow longer.
 - scrollUntilVisible:
     element:
       id: "exercises-filter"
     direction: RIGHT
     centerElement: false
+    speed: 90
+    timeout: 45000
 - tapOn:
     id: "exercises-filter"
 - extendedWaitUntil:

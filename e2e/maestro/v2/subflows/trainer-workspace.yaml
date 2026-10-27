@@ -24,7 +24,29 @@ appId: com.gymido.app
             id: "tab-TToday"
           timeout: 20000
       - evalScript: ${output.v2SwitchedToTrainer = true}
+# Tablet: the rail instead of the bottom tabs (QA re-check: invite.sh failed
+# here on the tablet). Same switch through Profile.
+- runFlow:
+    when:
+      visible:
+        id: "rail-Today"
+    commands:
+      - tapOn:
+          id: "rail-Profile"
+      - scrollUntilVisible:
+          element:
+            id: "mode-switch-trainer"
+          direction: DOWN
+          centerElement: true
+          timeout: 10000
+      - tapOn:
+          id: "mode-switch-trainer"
+      - extendedWaitUntil:
+          visible:
+            id: "rail-TToday"
+          timeout: 20000
+      - evalScript: ${output.v2SwitchedToTrainer = true}
 - extendedWaitUntil:
     visible:
-      id: "tab-TToday"
+      id: "tab-TToday|rail-TToday"
     timeout: 10000
