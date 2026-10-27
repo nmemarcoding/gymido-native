@@ -4,7 +4,6 @@ import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-na
 
 import { routes } from '../../../../navigation/routes';
 import { getServerMessage, getStatus } from '../../../../shared/api/apiError';
-import ConfirmDialog from '../../../../shared/components/ConfirmDialog';
 import EmptyState from '../../../../shared/components/EmptyState';
 import ErrorAlert from '../../../../shared/components/ErrorAlert';
 import Loader from '../../../../shared/components/Loader';
@@ -14,6 +13,7 @@ import { ToastTone, addToast } from '../../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../../shared/hooks/useFocusRemountKey';
 import { breakpoints, colors, radii, shadows } from '../../../../shared/theme/tokens';
 import ShellPage from '../../../shell/ShellPage';
+import EndCoachingDialog from '../../../trainers/components/EndCoachingDialog';
 import TrainerOnly from '../../TrainerOnly';
 import {
   endCoaching,
@@ -134,22 +134,31 @@ function ClientDetail({ clientUserId }) {
         </View>
         {renderBody()}
       </View>
-      <WorkoutDetailModal clientUserId={clientUserId} workoutId={workoutId} onClose={() => setWorkoutId(null)} />
+      {/* Review M1/M2: the client's profile (the VOLUME RULE unit: current →
+          goal → kg) and the name the page shows (the tablet eyebrow). */}
+      <WorkoutDetailModal
+        clientUserId={clientUserId}
+        workoutId={workoutId}
+        onClose={() => setWorkoutId(null)}
+        profile={profile}
+        clientName={heading}
+      />
       <WeightHistoryModal
         isOpen={weightOpen}
         clientUserId={clientUserId}
+        clientName={heading}
         profile={loaded ? state.data.profile : null}
         onClose={() => setWeightOpen(false)}
       />
-      <ConfirmDialog
+      <EndCoachingDialog
         testID="end-coaching-dialog"
+        variant="client"
         isOpen={endOpen}
         onClose={() => setEndOpen(false)}
         onConfirm={confirmEnd}
         title="End coaching with this client?"
         description="They keep their plan, schedule and history. Your assignment is released so they control their own plan again."
         confirmLabel="End coaching"
-        tone="danger"
         loading={ending}
       />
     </ShellPage>

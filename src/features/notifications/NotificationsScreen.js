@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useCallback, useEffect, useRef } from 'react';
+import { AccessibilityInfo, Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { CardHeroFill } from '../../shared/components/Card';
@@ -57,9 +57,18 @@ export default function NotificationsScreen() {
 }
 
 // N1.2 "You have {n} unread notification(s)." with the count in gold 700;
-// a polite live region so a change is announced.
+// a polite live region so a change is announced. iOS has no live region, so
+// a changed count (e.g. after Mark all as read) is announced there instead
+// (review LOW); the first render is not.
 function UnreadLine({ count, tablet }) {
   const noun = `unread notification${count === 1 ? '' : 's'}.`;
+  const previous = useRef(count);
+  useEffect(() => {
+    if (previous.current !== count && Platform.OS === 'ios') {
+      AccessibilityInfo.announceForAccessibility(`You have ${count} ${noun}`);
+    }
+    previous.current = count;
+  }, [count, noun]);
   return (
     <Text {...CAP_BODY} testID="notifications-unread" accessibilityLiveRegion="polite" style={[styles.line, tablet && styles.lineTablet]}>
       You have <Text style={styles.count}>{count}</Text> {noun}

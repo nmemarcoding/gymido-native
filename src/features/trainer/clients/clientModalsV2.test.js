@@ -303,3 +303,11 @@ describe('Invite client (UX M 4.1.0)', () => {
     expect(flat(host(tree, 'invite-results')).borderRadius).toBe(radii.xl);
   });
 });
+
+// P5 review M6: the Invite sheet's top gap is 50 (height − insets.top − 40 − 10).
+describe('Invite sheet height (P5 review M6)', () => {
+  it('asks AppModal for a 50 top gap', async () => {
+    const tree = await render(<InviteClientModal isOpen onClose={jest.fn()} onInvited={jest.fn()} />);
+    expect(tree.root.findByType(AppModal).props.sheetTopGap).toBe(50);
+  });
+});

@@ -45,9 +45,10 @@ const WEIGHT_UNITS = [
   { value: 'kg', label: 'kg' },
   { value: 'lb', label: 'lb' },
 ];
-// ⚠P-8: "Prefer not to say" twice; the first sends null.
-const SEX_OPTIONS = [
-  { value: '', label: 'Prefer not to say' },
+// Owner D2 (23 Oct, retires ⚠P-8; UX K): "Not set" (sends null) first,
+// "Prefer not to say" once, last.
+export const SEX_OPTIONS = [
+  { value: '', label: 'Not set' },
   { value: 'male', label: 'Male' },
   { value: 'female', label: 'Female' },
   { value: 'other', label: 'Other' },
@@ -630,10 +631,11 @@ const styles = StyleSheet.create({
   bigInputWithUnit: {
     paddingRight: 64,
   },
-  // The in-field unit select: 36 tall, fill-glass, 13/600. (Drawn radius
-  // 10: no token, sm 12.)
+  // The in-field unit select: fill-glass, 13/600. (Drawn radius 10: no
+  // token, sm 12.) Review M5: 44 tall (drawn 36) so the target is 44 x 44;
+  // the kit Select has no hitSlop, and it still fits the 56 field.
   unitChip: {
-    minHeight: 36,
+    minHeight: 44,
     minWidth: 44,
     paddingVertical: 0,
     paddingHorizontal: spacing['2_5'],

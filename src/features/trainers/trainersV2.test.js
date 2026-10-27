@@ -256,6 +256,24 @@ describe('Trainer detail (UX L §Trainer detail)', () => {
     spy.mockRestore();
   });
 
+  // p5fix (review LOW): like My trainer's Contact, a missing mail handler
+  // (openURL rejects) is caught, never an unhandled rejection.
+  it('tablet: the mailto link catches a rejected openURL (no mail app)', async () => {
+    setWindow(834);
+    getTrainer.mockResolvedValue(SARA);
+    let caught;
+    const spy = jest.spyOn(Linking, 'openURL').mockImplementation(() => {
+      const rejected = Promise.reject(new Error('No mail handler'));
+      caught = jest.spyOn(rejected, 'catch');
+      return rejected;
+    });
+    const tree = await render(<TrainerDetailScreen />);
+    const email = tree.root.find((node) => node.props.testID === 'trainer-detail-email' && node.props.accessibilityRole === 'link');
+    await act(async () => email.props.onPress());
+    expect(caught).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
+  });
+
   it.each([1, 2, 3.1])('large text %s×: the name follows the title rule; every text is capped', async (scale) => {
     setWindow(390, scale);
     getTrainer.mockResolvedValue(SARA);

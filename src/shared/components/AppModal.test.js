@@ -464,3 +464,15 @@ describe('ModalActions `fill` (kit 2)', () => {
     expect(flat(textNode(tree, 'Send').parent)).toEqual({ flexDirection: 'column-reverse', gap: 8 });
   });
 });
+
+// P5 review M6 (Invite sheet): a phone sheet can ask for a larger top gap.
+describe('AppModal sheetTopGap (phone sheet)', () => {
+  it('moves the scrim padding and the sheet cap; the default stays 16', () => {
+    atWidth(PHONE);
+    const tree = render(modal({ sheetTopGap: 50 }));
+    expect(flat(scrimView(tree)).paddingTop).toBe(50 + 40);
+    expect(flat(host(tree, 'dlg')).maxHeight).toBe(HEIGHT - 50 - 40);
+    const plain = render(modal());
+    expect(flat(host(plain, 'dlg')).maxHeight).toBe(HEIGHT - 16 - 40);
+  });
+});

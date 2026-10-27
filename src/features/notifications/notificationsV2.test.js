@@ -286,3 +286,30 @@ describe('the bell panel', () => {
     tree.root.findAllByType(NotificationItem).forEach((item) => expect(item.props.tablet).toBeUndefined());
   });
 });
+
+// p5fix (review LOW): the unread live region is Android-only, so iOS
+// announces the new line when the count changes (e.g. after Mark all as read).
+describe('p5fix: unread count announcement', () => {
+  const { AccessibilityInfo, Platform } = require('react-native');
+  const realOS = Platform.OS;
+  afterEach(() => {
+    Platform.OS = realOS;
+  });
+
+  it.each([
+    ['ios', 1],
+    ['android', 0],
+  ])('%s: a changed count is announced %s time(s); the first render is not', (os, times) => {
+    Platform.OS = os;
+    const spy = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {});
+    seed();
+    render(<NotificationsScreen />);
+    expect(spy).not.toHaveBeenCalled();
+    act(() => useNotificationStore.setState({ unreadCount: 0 }));
+    expect(spy).toHaveBeenCalledTimes(times);
+    if (times) {
+      expect(spy).toHaveBeenCalledWith('You have 0 unread notifications.');
+    }
+    spy.mockRestore();
+  });
+});

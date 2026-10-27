@@ -17,15 +17,21 @@ export function weightTileValue(value) {
   return hasValue(value) ? formatNumber(value, 1) : '—';
 }
 
-// Each tile's unit is that value's own unit. A goal without a unit (no goal
-// saved) falls back to the current unit, then kg, so the label still reads.
+// RN-SPEC-profile §P1.2 (web rules, PM 27 Oct; review M4): each label is
+// "{unit} now" / "{unit} goal" with that value's RAW unit, and just "Now" /
+// "Goal" when the unit is missing (no fallback to another unit or kg). The
+// unit is only ever in the label, never next to the number.
+function weightTileLabel(unit, word) {
+  return unit ? `${unit} ${word.toLowerCase()}` : word;
+}
+
 export function profileStatTiles({ profile, dashboard, status }) {
-  const currentUnit = profile?.current_weight_unit || 'kg';
-  const goalUnit = profile?.goal_weight_unit || currentUnit;
   let workouts = '—';
-  if (status === StatsStatus.ready) {
-    // Today's rule (H1.4): a missing total reads 0.
-    workouts = formatNumber(dashboard?.quick_stats?.completed_workouts_total ?? 0, 0);
+  const total = dashboard?.quick_stats?.completed_workouts_total;
+  // Review M3 (web parity, "never a made-up 0"): a missing total is "—"; a
+  // real 0 is "0".
+  if (status === StatsStatus.ready && hasValue(total)) {
+    workouts = formatNumber(total, 0);
   }
   return [
     {
@@ -35,10 +41,10 @@ export function profileStatTiles({ profile, dashboard, status }) {
       loading: status === StatsStatus.loading,
       unavailable: status === StatsStatus.error,
     },
-    { id: 'now', label: `${currentUnit} now`, value: weightTileValue(profile?.current_weight_value), loading: false },
+    { id: 'now', label: weightTileLabel(profile?.current_weight_unit, 'Now'), value: weightTileValue(profile?.current_weight_value), loading: false },
     {
       id: 'goal',
-      label: `${goalUnit} goal`,
+      label: weightTileLabel(profile?.goal_weight_unit, 'Goal'),
       value: hasValue(profile?.goal_weight_value) ? weightTileValue(profile.goal_weight_value) : '—',
       loading: false,
     },
@@ -46,7 +52,7 @@ export function profileStatTiles({ profile, dashboard, status }) {
 }
 
 // The tile's one spoken name: "37 Workouts", "82.5 kg now"; a "—" is never
-// read out ("kg goal, not set", "Workouts, unavailable").
+// read out ("kg goal, not set", "Goal, not set", "Workouts, unavailable").
 export function statTileLabel(tile) {
   if (tile.loading) {
     return `${tile.label}, loading`;

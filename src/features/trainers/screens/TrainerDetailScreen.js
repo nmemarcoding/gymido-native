@@ -245,8 +245,9 @@ function EmailLink({ email }) {
       accessibilityRole="link"
       accessibilityLabel={`Email ${email}`}
       hitSlop={{ top: 4, bottom: 4 }}
+      // Like My trainer's Contact: no mail handler → the rejection is caught.
       onPress={() => {
-        Linking.openURL(`mailto:${email}`);
+        Linking.openURL(`mailto:${email}`).catch(() => {});
       }}
       style={styles.emailChip}
     >

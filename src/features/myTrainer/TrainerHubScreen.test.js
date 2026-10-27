@@ -14,6 +14,7 @@ import {
   listPendingTrainerRequests,
   rejectTrainerRequest,
 } from './api/myTrainerApi';
+import EndCoachingDialog from '../trainers/components/EndCoachingDialog';
 import TrainerHubScreen, { goldAction, initialsOf, LINK_FILL, ORB_PHONE, ORB_TABLET, statusPill } from './TrainerHubScreen';
 
 const mockNavigation = { push: jest.fn(), addListener: jest.fn(() => () => {}) };
@@ -250,6 +251,8 @@ describe('My trainer v2 look (C5), phone', () => {
     act(() => comp(tree.root, 'trainer-hub-end').props.onPress());
     const dialog = tree.root.find((node) => node.props.testID === 'trainer-hub-end-dialog' && node.props.onConfirm);
     expect(dialog.props.isOpen).toBe(true);
+    // p5fix (review M6): the UX L End coaching look.
+    expect([dialog.type, dialog.props.variant]).toEqual([EndCoachingDialog, 'member']);
     await act(async () => dialog.props.onConfirm());
     expect(addToast).toHaveBeenCalledWith(
       'success',

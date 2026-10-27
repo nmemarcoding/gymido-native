@@ -131,9 +131,11 @@ export default function InviteClientModal({ isOpen, onClose, onInvited }) {
   return (
     <AppModal
       testID="invite-client-modal"
+      // UX M: the phone sheet stops 50 below the safe top (height − insets.top − 40 − 10).
+      sheetTopGap={50}
       isOpen={isOpen}
       onClose={onClose}
-      // KIT NEED (p5l): AppModal `eyebrow` (tablet "Clients", 12/600 gold).
+      // The tablet "Clients" eyebrow (AppModal `eyebrow`, 12/600 gold).
       eyebrow={tablet ? 'Clients' : undefined}
       title="Invite a client"
       description="Enter your client's full email address to invite them."
@@ -141,7 +143,16 @@ export default function InviteClientModal({ isOpen, onClose, onInvited }) {
       footer={
         // Full width on phone and tablet (the board's block Done).
         <ModalActions fill>
-          <PillButton testID="invite-done" title="Done" variant="secondary" size={tablet ? 'cta' : 'default'} fullWidth onPress={onClose} />
+          <PillButton
+            testID="invite-done"
+            title="Done"
+            variant="secondary"
+            size={tablet ? 'cta' : 'default'}
+            // RN-SPEC-v2-phase5 §4 / UX M: the phone Done is 56.
+            style={tablet ? undefined : styles.phoneDone}
+            fullWidth
+            onPress={onClose}
+          />
         </ModalActions>
       }
     >
@@ -234,6 +245,9 @@ export default function InviteClientModal({ isOpen, onClose, onInvited }) {
 }
 
 const styles = StyleSheet.create({
+  phoneDone: {
+    minHeight: 56,
+  },
   body: {
     gap: spacing[4],
   },

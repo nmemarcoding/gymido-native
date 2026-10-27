@@ -4,7 +4,6 @@ import { Linking, Pressable, StyleSheet, Text, View, useWindowDimensions } from 
 
 import { routes } from '../../navigation/routes';
 import { getServerMessage, getStatus } from '../../shared/api/apiError';
-import ConfirmDialog from '../../shared/components/ConfirmDialog';
 import EmptyState from '../../shared/components/EmptyState';
 import ErrorAlert from '../../shared/components/ErrorAlert';
 import GradientFill from '../../shared/components/GradientFill';
@@ -26,6 +25,7 @@ import {
   listPendingTrainerRequests,
   rejectTrainerRequest,
 } from './api/myTrainerApi';
+import EndCoachingDialog from '../trainers/components/EndCoachingDialog';
 import PersonAvatar, { personInitials } from '../trainers/personAvatar';
 import { acceptErrorMessage, deriveHub, statusPill, trainerDisplayName } from './myTrainerFormat';
 
@@ -409,15 +409,15 @@ function TrainerHub() {
   return (
     <View style={[styles.page, tablet && styles.pageTablet]}>
       {hub.blocks.map((name) => blocks[name])}
-      <ConfirmDialog
+      <EndCoachingDialog
         testID="trainer-hub-end-dialog"
+        variant="member"
         isOpen={endOpen}
         onClose={() => setEndOpen(false)}
         onConfirm={confirmEnd}
         title="End coaching?"
         description="You keep your current plan, schedule and history — you just manage them yourself again. You can ask another trainer afterwards."
         confirmLabel="End coaching"
-        tone="danger"
         loading={busy}
       />
     </View>

@@ -27,12 +27,14 @@ const TOOLTIP_GAP = 10;
 // whole-number y ticks of §C5.3 (T-38), and the first/last x labels kept inside the
 // plot (preserveStartEnd). `unit` (optional) is the chart's one unit (T-38):
 // Progress passes its currentUnit (RN-SPEC-progress §PR1.2); without it the
-// trainer rule (§C5.3) picks it.
-export default function WeightHistoryChart({ logs, profile, unit }) {
+// trainer rule (§C5.3) picks it. `showGoal` (client weight modal, UX M
+// ruling 1): a dashed teal goal line at the profile's goal (as drawn: teal
+// 0.6, dash 4 5); the axis keeps it inside.
+export default function WeightHistoryChart({ logs, profile, unit, showGoal = false }) {
   const [width, setWidth] = useState(0);
   const [activeIndex, setActiveIndex] = useState(null);
   const [tooltipWidth, setTooltipWidth] = useState(0);
-  const series = buildWeightSeries(logs, profile, unit);
+  const series = buildWeightSeries(logs, profile, unit, { withGoal: showGoal });
 
   // ⚠C-8: this empty state speaks to the member, as on the web.
   if (series.points.length < 2) {
@@ -127,6 +129,18 @@ export default function WeightHistoryChart({ logs, profile, unit }) {
                 </SvgText>
               ) : null
             )}
+            {series.goal !== null ? (
+              <Line
+                testID="weight-chart-goal-line"
+                x1={left}
+                x2={right}
+                y1={yAt(series.goal)}
+                y2={yAt(series.goal)}
+                stroke={colors.tealStrong}
+                strokeWidth={1.5}
+                strokeDasharray="4 5"
+              />
+            ) : null}
             <Path d={area} fill="url(#weightFill)" />
             <Path d={line} fill="none" stroke={TEAL} strokeWidth={2.5} />
             {active ? <Line x1={activeX} x2={activeX} y1={top} y2={bottom} stroke={GRID} strokeWidth={1} /> : null}

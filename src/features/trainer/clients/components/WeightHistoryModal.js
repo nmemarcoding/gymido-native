@@ -70,7 +70,7 @@ export default function WeightHistoryModal({ isOpen, clientUserId, profile, onCl
       testID="weight-history-modal"
       isOpen={isOpen}
       onClose={onClose}
-      // KIT NEED (p5l): AppModal `eyebrow` (tablet: 12/600 gold above the title).
+      // M 3: the client-name eyebrow, tablet only (AppModal `eyebrow`).
       eyebrow={tablet && clientName ? clientName : undefined}
       title="Weight history"
       description="Every weigh-in this client has logged, oldest first."
@@ -78,7 +78,7 @@ export default function WeightHistoryModal({ isOpen, clientUserId, profile, onCl
       footer={
         // Phone: full width; tablet: the board's Close at the right.
         <ModalActions>
-          <PillButton testID="weight-history-close" title="Close" variant="secondary" onPress={onClose} />
+          <PillButton testID="weight-history-close" title="Close" variant="secondary" style={tablet ? undefined : styles.phoneFooterButton} onPress={onClose} />
         </ModalActions>
       }
     >
@@ -135,9 +135,10 @@ export default function WeightHistoryModal({ isOpen, clientUserId, profile, onCl
           </View>
         )}
         <View testID="weight-history-chart" style={[styles.chartCard, tablet && styles.chartCardTablet]}>
-          {/* KIT NEED (6n owns the chart): the dashed goal line, the gold line
-              look and the 150 / 200 heights need WeightHistoryChart props. */}
-          <WeightHistoryChart logs={logs} profile={profile} />
+          {/* UX M ruling 1: the dashed goal line from the client's goal
+              (the label below). Still open (6n): the gold line look and the
+              150 / 200 heights. */}
+          <WeightHistoryChart logs={logs} profile={profile} showGoal />
           {goalText ? (
             <Text {...CAP_BODY} testID="weight-history-goal-label" style={[styles.goalLabel, tablet && styles.goalLabelTablet]}>
               {goalText}
@@ -221,6 +222,10 @@ function Tile({ testID, label, value, change = false, tablet, wide = false }) {
 }
 
 const styles = StyleSheet.create({
+  // RN-SPEC-v2-phase5 §4: phone footer buttons 56.
+  phoneFooterButton: {
+    minHeight: 56,
+  },
   loader: {
     paddingVertical: 40,
   },

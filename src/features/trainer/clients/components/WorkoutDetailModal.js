@@ -97,7 +97,7 @@ export default function WorkoutDetailModal({ clientUserId, workoutId, onClose, c
       testID="workout-detail-modal"
       isOpen={workoutId !== null}
       onClose={onClose}
-      // KIT NEED (p5l): AppModal `eyebrow` (tablet: 12/600 gold above the title).
+      // M 3: the client-name eyebrow, tablet only (AppModal `eyebrow`).
       eyebrow={tablet && clientName ? clientName : undefined}
       title="Workout detail"
       description={workout?.started_at ? formatTrainerDateTime(workout.started_at) : 'What your client did in this session.'}
@@ -105,7 +105,7 @@ export default function WorkoutDetailModal({ clientUserId, workoutId, onClose, c
       footer={
         // Phone: full width; tablet: the board's Close at the right.
         <ModalActions>
-          <PillButton testID="workout-detail-close" title="Close" variant="secondary" onPress={onClose} />
+          <PillButton testID="workout-detail-close" title="Close" variant="secondary" style={tablet ? undefined : styles.phoneFooterButton} onPress={onClose} />
         </ModalActions>
       }
     >
@@ -312,6 +312,10 @@ const COLS = Object.freeze({
 });
 
 const styles = StyleSheet.create({
+  // RN-SPEC-v2-phase5 §4: phone footer buttons 56.
+  phoneFooterButton: {
+    minHeight: 56,
+  },
   loader: {
     paddingVertical: 40,
   },

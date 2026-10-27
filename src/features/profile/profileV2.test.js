@@ -133,8 +133,9 @@ describe('stat tiles (K N1): pure rules', () => {
     expect(tiles.map(statTileLabel)).toEqual(['1,234 Workouts', '82.5 kg now', '78 lb goal']);
   });
 
-  it('ready without a total reads 0 (Today\'s rule)', () => {
-    expect(profileStatTiles({ profile: PROFILE, dashboard: {}, status: StatsStatus.ready })[0].value).toBe('0');
+  // p5fix (review M3, web parity): a missing total is "—", no longer "0".
+  it('ready without a total reads "—" (web: never a made-up 0)', () => {
+    expect(profileStatTiles({ profile: PROFILE, dashboard: {}, status: StatsStatus.ready })[0].value).toBe('—');
   });
 
   it('loading: the Workouts tile is loading; error: "—", announced as unavailable', () => {
@@ -146,15 +147,17 @@ describe('stat tiles (K N1): pure rules', () => {
     expect(statTileLabel(error)).toBe('Workouts, unavailable');
   });
 
-  it('a missing goal shows "—" with the current unit, read as not set; no conversion', () => {
+  // p5fix (review M4, web parity): a goal without a unit is labelled "Goal",
+  // no longer borrowing the current unit ("lb goal").
+  it('a missing goal shows "—" labelled "Goal", read as not set; no conversion', () => {
     const tiles = profileStatTiles({
       profile: { ...PROFILE, goal_weight_value: null, goal_weight_unit: null, current_weight_unit: 'lb', current_weight_value: 181.44 },
       dashboard: {},
       status: StatsStatus.ready,
     });
     expect(tiles[1]).toMatchObject({ value: '181.4', label: 'lb now' });
-    expect(tiles[2]).toMatchObject({ value: '—', label: 'lb goal' });
-    expect(statTileLabel(tiles[2])).toBe('lb goal, not set');
+    expect(tiles[2]).toMatchObject({ value: '—', label: 'Goal' });
+    expect(statTileLabel(tiles[2])).toBe('Goal, not set');
   });
 
   it('weightTileValue: one decimal at most, "—" for blank/NaN', () => {
@@ -593,5 +596,124 @@ describe('Edit profile (UX K Edit profile / Tablet: Edit profile)', () => {
     expect(title.props).toMatchObject({ maxFontSizeMultiplier: 1.6, numberOfLines: 3, adjustsFontSizeToFit: true, minimumFontScale: 0.7 });
     const actions = flat(host(tree.root, 'edit-profile-actions').props.style);
     expect(actions.flexDirection).toBe(scale > 1.3 ? 'column-reverse' : 'row');
+  });
+});
+
+// p5fix (review native-phase5-b65f8fc M3 / M4 / M5, UX K D2; RN-SPEC-profile
+// §P1.2 web rules, PM 27 Oct).
+describe('p5fix: stat tiles web parity (M3 / M4)', () => {
+  it('M3: a MISSING Workouts total shows "—" (never a made-up 0); a real 0 shows "0"', () => {
+    for (const dashboard of [{}, { quick_stats: {} }, { quick_stats: { completed_workouts_total: null } }, null]) {
+      const tile = profileStatTiles({ profile: PROFILE, dashboard, status: StatsStatus.ready })[0];
+      expect([tile.value, tile.loading, tile.unavailable]).toEqual(['—', false, false]);
+    }
+    expect(profileStatTiles({ profile: PROFILE, dashboard: { quick_stats: { completed_workouts_total: 0 } }, status: StatsStatus.ready })[0].value).toBe('0');
+  });
+
+  it('M3: ProfileStatTiles renders "—" for a dashboard without the total, the skeleton only while loading', async () => {
+    getDashboard.mockResolvedValue({ quick_stats: {} });
+    const tree = await renderAsync(<ProfileStatTiles profile={PROFILE} />);
+    expect(tree.root.findAllByType(Skeleton)).toHaveLength(0);
+    expect(texts(host(tree.root, 'profile-stat-workouts'))).toEqual(['—', 'Workouts']);
+  });
+
+  it('M4: "{unit} now" / "{unit} goal" with the RAW unit; just "Now" / "Goal" when that value has no unit (no fallback)', () => {
+    const raw = profileStatTiles({ profile: { ...PROFILE, current_weight_unit: 'lb', goal_weight_unit: 'kg' }, dashboard: {}, status: StatsStatus.ready });
+    expect(raw.slice(1).map((tile) => tile.label)).toEqual(['lb now', 'kg goal']);
+    const none = profileStatTiles({
+      profile: { ...PROFILE, current_weight_unit: null, goal_weight_unit: null, goal_weight_value: null },
+      dashboard: {},
+      status: StatsStatus.ready,
+    });
+    expect(none.slice(1).map((tile) => [tile.label, tile.value])).toEqual([
+      ['Now', '82.5'],
+      ['Goal', '—'],
+    ]);
+    expect(statTileLabel(none[2])).toBe('Goal, not set');
+    // A goal without a unit never borrows the current unit.
+    const goalOnly = profileStatTiles({ profile: { ...PROFILE, goal_weight_unit: '' }, dashboard: {}, status: StatsStatus.ready });
+    expect(goalOnly[2]).toMatchObject({ label: 'Goal', value: '78' });
+  });
+
+  it('M4: values keep at most one decimal, no conversion, and the unit is ONLY in the label', () => {
+    const tiles = profileStatTiles({
+      profile: { ...PROFILE, current_weight_value: 181.44, current_weight_unit: 'lb', goal_weight_value: 80.06, goal_weight_unit: 'kg' },
+      dashboard: {},
+      status: StatsStatus.ready,
+    });
+    expect(tiles.slice(1).map((tile) => tile.value)).toEqual(['181.4', '80.1']);
+    expect(tiles.slice(1).every((tile) => !/kg|lb/.test(tile.value))).toBe(true);
+  });
+});
+
+describe('p5fix: Edit profile weight unit chip (M5) and Sex options (D2)', () => {
+  const unitSelect = (root, key) => root.find((node) => node.props.testID === `edit-profile-${key}` && node.props.options);
+
+  it.each([390, 834])('M5 (width %s): the in-field unit chip is a ≥ 44 × 44 target (the effective box)', async (width) => {
+    mockWidth = width;
+    setStoredProfile(PROFILE);
+    const tree = await renderAsync(<EditProfileScreen />);
+    if (width >= 768) {
+      // Tablet: the unit is a full 52 kit Select, not the chip.
+      expect(unitSelect(tree.root, 'current_weight_unit').props.boxStyle).toBeUndefined();
+      return;
+    }
+    for (const key of ['current_weight_unit', 'goal_weight_unit']) {
+      const box = flat(unitSelect(tree.root, key).props.boxStyle);
+      expect(box.minHeight).toBeGreaterThanOrEqual(44);
+      expect(box.minWidth).toBeGreaterThanOrEqual(44);
+      // The pressable itself carries no smaller fixed height.
+      expect(box.height).toBeUndefined();
+    }
+  });
+
+  it('D2: "Not set" (null) first, then Male / Female / Other, then "Prefer not to say" ONCE', async () => {
+    setStoredProfile(PROFILE);
+    const tree = await renderAsync(<EditProfileScreen />);
+    const sex = unitSelect(tree.root, 'sex');
+    expect(sex.props.options.map((option) => [option.value, option.label])).toEqual([
+      ['', 'Not set'],
+      ['male', 'Male'],
+      ['female', 'Female'],
+      ['other', 'Other'],
+      ['prefer_not_to_say', 'Prefer not to say'],
+    ]);
+    expect(sex.props.options.filter((option) => option.label === 'Prefer not to say')).toHaveLength(1);
+  });
+
+  it.each([
+    ['', null],
+    ['prefer_not_to_say', 'prefer_not_to_say'],
+    ['female', 'female'],
+  ])('D2: choosing %p sends sex %p', async (choice, sent) => {
+    const { updateProfile } = require('./api/profileApi');
+    setStoredProfile({ ...PROFILE, sex: choice === '' ? 'male' : null });
+    updateProfile.mockResolvedValue({ ...PROFILE, sex: sent });
+    const tree = await renderAsync(<EditProfileScreen />);
+    act(() => unitSelect(tree.root, 'sex').props.onChange(choice));
+    const save = tree.root.find((node) => node.props.testID === 'edit-profile-save' && 'disabled' in node.props);
+    expect(save.props.disabled).toBe(false);
+    await act(async () => {
+      await save.props.onPress();
+    });
+    expect(updateProfile).toHaveBeenCalledWith(expect.objectContaining({ sex: sent }));
+  });
+});
+
+// p5fix (review LOW "untested"): a save after an in-field unit change sends
+// the new unit with the value as typed (no conversion).
+describe('p5fix: in-field unit change then save', () => {
+  it('phone: switching the current weight unit to lb sends current_weight_unit "lb" and the same value', async () => {
+    const { updateProfile } = require('./api/profileApi');
+    setStoredProfile(PROFILE);
+    updateProfile.mockResolvedValue({ ...PROFILE, current_weight_unit: 'lb' });
+    const tree = await renderAsync(<EditProfileScreen />);
+    const select = tree.root.find((node) => node.props.testID === 'edit-profile-current_weight_unit' && node.props.options);
+    act(() => select.props.onChange('lb'));
+    const save = tree.root.find((node) => node.props.testID === 'edit-profile-save' && 'disabled' in node.props);
+    await act(async () => {
+      await save.props.onPress();
+    });
+    expect(updateProfile).toHaveBeenCalledWith(expect.objectContaining({ current_weight_unit: 'lb', current_weight_value: 82.5 }));
   });
 });
