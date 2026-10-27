@@ -20,6 +20,7 @@ import {
   weeklyBars,
 } from './progressFormat';
 import { memberVolume } from '../home/homeFormat';
+import { getHeaderTitle } from '../shell/shellRules';
 
 let mockWidth = 390;
 let mockFontScale = 1;
@@ -412,14 +413,32 @@ describe('Progress phone (UX G)', () => {
 });
 
 describe('Progress tablet', () => {
-  it('H1 + switch row; Goal progress ring 190 + "Add weight" primary; Current 76; To goal gold; no ranges', async () => {
+  // DECLARED change (UX verdict I1, iPad 15e819a): was "H1 + switch row" with
+  // expect(queryHost(tree.root, 'progress-header')).toHaveLength(1). The shell header already draws the tablet 52
+  // "Progress", so the page's own title row (a second H1) is gone; the switch has its own row (I1 test below).
+  it('switch row; Goal progress ring 190 + "Add weight" primary; Current 76; To goal gold; no ranges', async () => {
     mockWidth = 834;
     const tree = await render();
-    expect(queryHost(tree.root, 'progress-header')).toHaveLength(1);
+    expect(queryHost(tree.root, 'progress-tabs')).toHaveLength(1);
     expect(getWeightLogsInRange).not.toHaveBeenCalled();
     expect(queryHost(tree.root, 'progress-ranges')).toHaveLength(0);
     expect(tree.root.find((node) => node.props.accessibilityRole === 'progressbar' && node.props.size).props.size).toBe(190);
     expect(tree.root.findAllByType(PillButton).find((button) => button.props.testID === 'progress-add-weight').props.title).toBe('Add weight');
+  });
+
+  // UX verdict I1 (iPad, 15e819a): the title showed TWICE (the shell's "Progress", then the page's 60 H1 squeezed
+  // beside the switch into "Progr / ess"). ONE title: the shell header's tablet 52, as on every other tablet page.
+  it.each([1, 3.1])('I1 at %s: one page title (the shell header\'s); the page draws no "Progress" H1; the switch is on its own row', async (scale) => {
+    mockWidth = 834;
+    mockFontScale = scale;
+    expect(getHeaderTitle('/progress')).toBe('Progress');
+    const tree = await render();
+    const isProgressText = (node) => node.type === 'Text' && textOf(node) === 'Progress';
+    expect(tree.root.findAll(isProgressText)).toHaveLength(0);
+    // The switch's row holds the switch only (no title beside it to squeeze).
+    const tabs = host(tree.root, 'progress-tabs');
+    expect(tabs.parent.findAll(isProgressText)).toHaveLength(0);
+    expect(flat(tabs).width).toBe(320);
   });
 
   it('Activity on tablet: no Recent workouts (not drawn)', async () => {
@@ -450,11 +469,15 @@ describe('§9 large text', () => {
     expect(host(tree.root, 'progress-per-week-goal').props.maxFontSizeMultiplier).toBe(host(tree.root, 'progress-per-week-label').props.maxFontSizeMultiplier);
   });
 
-  it('tablet at 3.1: the header row stacks', async () => {
+  // DECLARED change (UX verdict I1): was "tablet at 3.1: the header row stacks" with
+  // expect(flat(host(tree.root, 'progress-header')).flexDirection).toBe('column'). There is no page title row on
+  // tablet any more (the shell header holds the one title), so nothing stacks beside the switch.
+  it('tablet at 3.1: no page title row; the switch keeps its own row', async () => {
     mockWidth = 834;
     mockFontScale = 3.1;
     const tree = await render();
-    expect(flat(host(tree.root, 'progress-header')).flexDirection).toBe('column');
+    expect(queryHost(tree.root, 'progress-header')).toHaveLength(0);
+    expect(queryHost(tree.root, 'progress-tabs')).toHaveLength(1);
   });
 });
 

@@ -653,6 +653,9 @@ export default function SessionRuntime({
         })}
         position={rest.position}
         onPosition={rest.setPosition}
+        // UX verdict I2 (iPad): the tablet disc docks above the opaque dock,
+        // in the same room the scroll keeps for it (ignored on phones).
+        dockRoom={bottomRoom}
       />
       <ExerciseSheet
         open={showSheet}

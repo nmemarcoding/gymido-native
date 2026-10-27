@@ -9,10 +9,9 @@ import { formatClock } from './restEngine';
 
 // F2 shared rest rules: the ring is the motion-free cue. r136 in a 300
 // viewBox, stroke 14 (circumference 854.5); the minimised disc ring is r40,
-// stroke 6 in a 92 viewBox (251.3); tablet disc r58, stroke 7 in 132 (364.4).
+// stroke 6 in a 92 viewBox (251.3), on tablets too (UX verdict I2: 92 at 24).
 export const REST_RING = Object.freeze({ viewBox: 300, radius: 136, stroke: 14 });
 export const MINI_RING = Object.freeze({ viewBox: 92, radius: 40, stroke: 6 });
-export const MINI_RING_TABLET = Object.freeze({ viewBox: 132, radius: 58, stroke: 7 });
 
 export function ringCircumference(radius) {
   return 2 * Math.PI * radius;

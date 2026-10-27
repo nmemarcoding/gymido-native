@@ -783,6 +783,26 @@ describe('opaque dock + scroll room (P3-2)', () => {
     expect(scrollPad(tree)).toBe(64 + spacing[3] + 60 + spacing[4]);
   });
 
+  // UX verdict I2 (iPad 08, 15e819a): the minimised rest disc sat on top of "Complete workout" and the disabled Did
+  // it. It docks 24 from the right edge ABOVE the opaque logger dock (the same room the scroll keeps for it).
+  it('tablet (I2): the minimised disc sits above the measured dock, 24 from the right, never over Did it', async () => {
+    mockWidth = 1024;
+    mockInsetBottom = 20;
+    const RESTING = { ...SESSION, exercises: [{ ...SESSION.exercises[0], sets: [set(11, true), { ...set(12), rest_seconds_planned: 60 }] }, SESSION.exercises[1]] };
+    const { tree } = render({ session: RESTING });
+    const dockHeight = 64 + spacing[3] + 40 + 20;
+    layout(host(tree, 'session-dock'), dockHeight);
+    await act(async () => byId(tree, 'set-action-12').props.onPress());
+    act(() => tree.root.findByType(RestTimerWidget).props.onMinimize());
+    expect(tree.root.findByType(RestTimerWidget).props.dockRoom).toBe(dockHeight + spacing[4]);
+    expect(scrollPad(tree)).toBe(dockHeight + spacing[4]);
+    const disc = flat(host(tree, 'rest-timer'));
+    expect(disc.width).toBe(92);
+    expect(disc.left).toBe(1024 - 8 - 24 - 92);
+    // The disc's bottom edge is above the dock's top edge (window height 1334).
+    expect(disc.top + 92).toBeLessThanOrEqual(1334 - dockHeight);
+  });
+
   it('browsing: no dock, the room is the bottom nav\'s (unchanged)', () => {
     const { tree } = render();
     act(() => tree.root.findByType(ExerciseSheet).props.onSelect(1));

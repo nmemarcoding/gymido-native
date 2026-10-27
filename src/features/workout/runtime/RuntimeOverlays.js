@@ -49,7 +49,6 @@ import {
 } from './RestParts';
 import {
   MINI_RING,
-  MINI_RING_TABLET,
   REST_RING,
   SHARE_ERROR,
   completionSetsLine,
@@ -75,21 +74,25 @@ const focusLater = (ref) => {
   return () => clearTimeout(timer);
 };
 
-function clampPosition(position, size, window, insets) {
+// `bottom`: the room kept clear at the screen bottom (the safe area + 8 on
+// phones; the session's dock room on tablets, see RestTimerWidget).
+function clampPosition(position, size, window, insets, bottom = insets.bottom + MARGIN) {
   const minX = MARGIN + insets.left;
   const minY = MARGIN + insets.top;
   const maxX = Math.max(minX, window.width - insets.right - size - MARGIN);
-  const maxY = Math.max(minY, window.height - insets.bottom - size - MARGIN);
+  const maxY = Math.max(minY, window.height - bottom - size);
   return { x: Math.min(Math.max(minX, position.x), maxX), y: Math.min(Math.max(minY, position.y), maxY) };
 }
 
-// UX F2 Rest minimised: phone disc 92 at right 20 / top 112; tablet disc 132
-// at right 40 / bottom 60 (clear of the set card's "Did it" by default).
-export const DISC_SIZE = Object.freeze({ phone: 92, tablet: 132 });
+// UX F2 Rest minimised: the disc is 92 on both. Phone at right 20 / top 112.
+// Tablet (UX verdict I2, iPad 15e819a; P8: "92 at 24 (T §5)", the 132 board
+// disc is superseded): right 24, docked just ABOVE the session's opaque dock,
+// so it never covers "Complete workout" or the Did it.
+export const DISC_SIZE = 92;
 
-function defaultDiscPosition(tablet, size, window, insets) {
+function defaultDiscPosition(tablet, size, window, insets, bottom) {
   if (tablet) {
-    return { x: window.width - insets.right - 40 - size, y: window.height - insets.bottom - 60 - size };
+    return { x: window.width - insets.right - 24 - size, y: window.height - bottom - size };
   }
   return { x: window.width - insets.right - 20 - size, y: Math.max(insets.top + MARGIN, 112) };
 }
@@ -103,15 +106,18 @@ const EXPAND_ACTIONS = [{ name: 'activate', label: 'Expand rest timer' }];
 // expands). Behaviour is v1's: opens expanded at every new rest, re-expands
 // once at ≤ 10 s (useRestTimer), −5/+5/Skip as before.
 // `next`: restNextPreview() (U4); null hides the Next card.
-export function RestTimerWidget({ timer, minimized, onMinimize, onExpand, onAdjust, onSkip, position, onPosition, next = null }) {
+export function RestTimerWidget({ timer, minimized, onMinimize, onExpand, onAdjust, onSkip, position, onPosition, next = null, dockRoom = 0 }) {
   const window = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const tablet = isTabletWidth(window.width);
-  const size = tablet ? DISC_SIZE.tablet : DISC_SIZE.phone;
-  const current = clampPosition(position ?? defaultDiscPosition(tablet, size, window, insets), size, window, insets);
+  const size = DISC_SIZE;
+  // I2 (tablet only): `dockRoom` is the session's bottom room (the measured
+  // dock + its gap); the disc stays above it, by default and while dragged.
+  const bottom = tablet ? Math.max(insets.bottom + MARGIN, dockRoom) : insets.bottom + MARGIN;
+  const current = clampPosition(position ?? defaultDiscPosition(tablet, size, window, insets, bottom), size, window, insets, bottom);
   const drag = useRef({ moved: false, startX: 0, startY: 0, origin: current });
-  const latest = useRef({ current, minimized, onExpand, onPosition, size, window, insets });
-  latest.current = { current, minimized, onExpand, onPosition, size, window, insets };
+  const latest = useRef({ current, minimized, onExpand, onPosition, size, window, insets, bottom });
+  latest.current = { current, minimized, onExpand, onPosition, size, window, insets, bottom };
   const [pressed, setPressed] = useState(false);
 
   // Re-clamp on each tick, so a rotation pulls it back within about a second.
@@ -141,8 +147,8 @@ export function RestTimerWidget({ timer, minimized, onMinimize, onExpand, onAdju
             return;
           }
           drag.current.moved = true;
-          const { size: s, window: w, insets: i } = latest.current;
-          latest.current.onPosition(clampPosition({ x: drag.current.origin.x + dx, y: drag.current.origin.y + dy }, s, w, i));
+          const { size: s, window: w, insets: i, bottom: b } = latest.current;
+          latest.current.onPosition(clampPosition({ x: drag.current.origin.x + dx, y: drag.current.origin.y + dy }, s, w, i, b));
         },
         onPanResponderRelease: () => {
           setPressed(false);
@@ -178,7 +184,6 @@ export function RestTimerWidget({ timer, minimized, onMinimize, onExpand, onAdju
   }
 
   if (minimized) {
-    const ring = tablet ? MINI_RING_TABLET : MINI_RING;
     return (
       <View
         testID="rest-timer"
@@ -199,8 +204,8 @@ export function RestTimerWidget({ timer, minimized, onMinimize, onExpand, onAdju
       >
         {/* Remounted per size, so this clipping layer never changes radius. */}
         <DiscFill key={size} size={size} />
-        <RestRing size={size} geometry={ring} secondsLeft={timer.secondsLeft} totalSeconds={timer.totalSeconds} testID="rest-mini-ring" />
-        <Countdown seconds={timer.secondsLeft} style={tablet ? styles.discDigitsTablet : styles.discDigits} />
+        <RestRing size={size} geometry={MINI_RING} secondsLeft={timer.secondsLeft} totalSeconds={timer.totalSeconds} testID="rest-mini-ring" />
+        <Countdown seconds={timer.secondsLeft} style={styles.discDigits} />
       </View>
     );
   }
@@ -818,11 +823,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 28,
     letterSpacing: -0.72,
-  },
-  discDigitsTablet: {
-    fontSize: 32,
-    lineHeight: 32,
-    letterSpacing: -0.96,
   },
   // Rest: phone full screen
   full: {

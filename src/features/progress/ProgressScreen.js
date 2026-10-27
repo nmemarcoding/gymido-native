@@ -11,7 +11,7 @@ import StateSlot from '../../shared/components/StateSlot';
 import StatusPill from '../../shared/components/StatusPill';
 import { InlineToast } from '../../shared/components/ToastHost';
 import { ToastTone } from '../../shared/components/toastStore';
-import { CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT, TITLE_TEXT } from '../../shared/components/largeText';
+import { CAP_BODY, CAP_PILL, TITLE_TEXT } from '../../shared/components/largeText';
 import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
 import { formatNumber } from '../../shared/format/numbers';
 import { breakpoints, colors, font, radii, textScale, typography } from '../../shared/theme/tokens';
@@ -163,16 +163,10 @@ function Progress() {
     <View style={[styles.page, tablet && styles.pageTablet]}>
       {successMessage ? <InlineToast testID="progress-saved-toast" tone={ToastTone.success} title="Saved" message={successMessage} /> : null}
 
-      {tablet ? (
-        <View testID="progress-header" style={[styles.header, reflow && styles.stackedRow]}>
-          <Text accessibilityRole="header" {...DISPLAY_TITLE_TEXT} style={styles.title}>
-            Progress
-          </Text>
-          {tabs}
-        </View>
-      ) : (
-        tabs
-      )}
+      {/* UX verdict I1 (iPad, 15e819a): ONE page title. The shell header
+          already draws the tablet 52 "Progress" (as on every tablet page), so
+          the page draws no second H1; the switch has its own row. */}
+      {tabs}
 
       {tab === 'body' ? (
         <BodyTab
@@ -703,20 +697,6 @@ const styles = StyleSheet.create({
   },
   pageTablet: {
     gap: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 16,
-  },
-  title: {
-    ...typography.displayXl,
-    flexShrink: 1,
-    fontSize: 60,
-    lineHeight: 60,
-    letterSpacing: -3.3,
-    color: colors.textPrimary,
   },
   stackedRow: {
     flexDirection: 'column',
