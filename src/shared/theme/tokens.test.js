@@ -1,4 +1,4 @@
-import { colors, legacyColorKeys, legacyShadowKeys, muscle, musclePalette, radii, shadows } from './tokens';
+import { blur, colors, gradients, layout, legacyColorKeys, legacyShadowKeys, muscle, musclePalette, radii, shadows, textScale } from './tokens';
 
 // RN-SPEC-v2-foundation §1–3 (UX tokens-and-components FINAL, 26 Oct 2026).
 
@@ -178,7 +178,7 @@ describe('spacing, layout, breakpoints, motion (§3)', () => {
   });
 
   it('has the gutter, the 44 touch minimum, the 88 rail and the 1120 cap', () => {
-    expect(layout).toEqual({ gutter: 16, touchMin: 44, railWidth: 88, contentMax: 1120, tabBarHeight: 66, tabBarBottomGap: 20 });
+    expect(layout).toEqual({ gutter: 16, touchMin: 44, railWidth: 88, contentMax: 1120, tabBarHeight: 66, tabBarBottomGap: 20, suffixGap: 16 });
   });
 
   it('splits phone < 768, tablet 768–1279, web ≥ 1280', () => {
@@ -192,5 +192,46 @@ describe('spacing, layout, breakpoints, motion (§3)', () => {
     expect(motion.easePop).toEqual([0.34, 1.56, 0.64, 1]);
     expect(motion.spinnerLoopMs).toBe(1000);
     expect(motion.spinnerReducedLoopMs).toBe(3000);
+  });
+});
+
+describe('kit 2 tokens (UX §8.7 U1–U13, §8.6 shadow-sheet)', () => {
+  it('U8 fill-glass 0.08 (= the glass secondary button fill)', () => {
+    expect(colors.fillGlass).toBe('rgba(255, 255, 255, 0.08)');
+    expect(colors.fillGlass).toBe(colors.fillButton);
+  });
+
+  it('U7 gradient-gold-select: 150°, gold 0.22 → 0.06', () => {
+    expect(gradients.goldSelect).toEqual({ angle: 150, colors: ['rgba(255, 194, 26, 0.22)', 'rgba(255, 194, 26, 0.06)'] });
+  });
+
+  it('U3 canonical gradient-gold for the own avatar: 140°, #FFD45C → #F4A300 (2 stops); gradients.gold is unchanged', () => {
+    expect(gradients.goldAvatar).toEqual({ angle: 140, colors: ['#FFD45C', '#F4A300'] });
+    expect(gradients.gold.angle).toBe(145);
+  });
+
+  it('U11 shadow-gold-glow / -lg are goldGlow / goldGlowLarge; sheet and sheetUp', () => {
+    expect(shadows.goldGlow).toBe('0px 10px 30px -8px rgba(255, 194, 26, 0.55)');
+    expect(shadows.goldGlowLarge).toBe('0px 14px 36px -10px rgba(255, 194, 26, 0.6)');
+    expect(shadows.sheet).toBe('0px 30px 80px rgba(0, 0, 0, 0.6)');
+    expect(shadows.sheetUp).toBe('0px -10px 50px rgba(0, 0, 0, 0.6)');
+    // sheetUp is a v2 token now, no longer a v1 alias of float.
+    expect(legacyShadowKeys).not.toContain('sheetUp');
+  });
+
+  it('U12 scrim blur 4 phone / 6 tablet; U4 the dark disc blur 16; the earlier radii unchanged', () => {
+    expect(blur).toEqual({ glass: 24, glassStrong: 24, onPhoto: 12, groundBar: 24, scrim: 4, scrimTablet: 6, scrimStrong: 16 });
+  });
+
+  it('U13 the unit suffix caps at 1.6 and keeps a 16 gap', () => {
+    expect(textScale.suffix).toBe(1.6);
+    expect(layout.suffixGap).toBe(16);
+  });
+
+  it('U4 / U9 / U5 reuse existing tokens', () => {
+    expect(colors.scrimStrong).toBe('rgba(10, 11, 15, 0.72)');
+    expect(colors.textFaint).toBe('#8B919C');
+    expect(colors.infoFaint).toBe('rgba(143, 168, 255, 0.08)');
+    expect(colors.infoLine).toBe('rgba(143, 168, 255, 0.30)');
   });
 });

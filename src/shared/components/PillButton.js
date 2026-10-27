@@ -7,13 +7,16 @@ import Spinner from './Spinner';
 
 // RN-SPEC-v2-foundation §4.1 Button (pill): five variants, flat fills. Only
 // the gold primary carries the glow (one gold primary per screen); text on
-// gold is always colors.onGold. Pressed gold = colors.goldDeep (UX, 26 Oct).
-// The spec draws no pressed state for the other variants: they take the next
-// step of their own fill family (see `pressed` below).
+// gold is always colors.onGold.
+// Pressed (UX §8.6 STATE RULE): the rest colour stays and a 4 % overlay View
+// covers the pill: pressOverlayInk (ink) on the light fills (gold, light),
+// pressOverlay (white) on the dark ones (secondary, ghost). Never a new alpha
+// step and never goldDeep. The one exception (§8.6a 5): the solid danger
+// button turns colors.dangerHover.
 const VARIANTS = {
   primary: {
     rest: { backgroundColor: colors.gold },
-    pressed: { backgroundColor: colors.goldDeep },
+    overlay: colors.pressOverlayInk,
     text: colors.onGold,
     spinnerTrack: colors.onGoldSpinnerTrack,
     glow: true,
@@ -21,26 +24,26 @@ const VARIANTS = {
   // "glass": white at 8 % with a 1 px white-at-12 % edge.
   secondary: {
     rest: { backgroundColor: colors.fillButton, borderWidth: 1, borderColor: colors.hairlineButton },
-    pressed: { backgroundColor: colors.hairlineButton },
+    overlay: colors.pressOverlay,
     text: colors.textPrimary,
     spinnerTrack: colors.hairlineButton,
   },
   ghost: {
     rest: { backgroundColor: 'transparent' },
-    pressed: { backgroundColor: colors.fillButton },
+    overlay: colors.pressOverlay,
     text: colors.textPrimary,
     spinnerTrack: colors.hairlineButton,
   },
   danger: {
     rest: { backgroundColor: colors.danger },
-    pressed: { opacity: 0.85 },
+    pressed: { backgroundColor: colors.dangerHover },
     text: colors.onDanger,
     spinnerTrack: colors.hairlineButton,
   },
   // The light fill (the text-primary value) with on-light ink ("Skip rest").
   light: {
     rest: { backgroundColor: colors.textPrimary },
-    pressed: { backgroundColor: colors.textStrong2 },
+    overlay: colors.pressOverlayInk,
     text: colors.onLight,
     spinnerTrack: colors.onGoldSpinnerTrack,
   },
@@ -130,29 +133,40 @@ export default function PillButton({
         inactive && styles.inactive,
       ]}
     >
-      <View style={[styles.row, fullWidth && styles.rowFullWidth]}>
-        {loading ? (
-          <Spinner
-            size={sizeName === 'compact' ? 14 : 16}
-            thickness={2}
-            color={look.text}
-            track={look.spinnerTrack}
-            reducedMotionLoopMs={motion.spinnerReducedLoopMs}
-          />
-        ) : (
-          iconNode ?? null
-        )}
-        {/* Android's high-quality line breaking can measure a bold label slightly
-            short and clip its last word ("Add a day" → "Add a"). */}
-        <Text
-          {...CAP_BODY}
-          textBreakStrategy="simple"
-          onTextLayout={onTextLayout}
-          style={[styles[`${sizeName}Label`], styles.label, { color: look.text }]}
-        >
-          {title}
-        </Text>
-      </View>
+      {({ pressed }) => (
+        <>
+          {pressed && !inactive && look.overlay ? (
+            <View
+              testID={testID ? `${testID}-pressed` : 'pill-pressed-overlay'}
+              pointerEvents="none"
+              style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: look.overlay }]}
+            />
+          ) : null}
+          <View style={[styles.row, fullWidth && styles.rowFullWidth]}>
+            {loading ? (
+              <Spinner
+                size={sizeName === 'compact' ? 14 : 16}
+                thickness={2}
+                color={look.text}
+                track={look.spinnerTrack}
+                reducedMotionLoopMs={motion.spinnerReducedLoopMs}
+              />
+            ) : (
+              iconNode ?? null
+            )}
+            {/* Android's high-quality line breaking can measure a bold label slightly
+                short and clip its last word ("Add a day" → "Add a"). */}
+            <Text
+              {...CAP_BODY}
+              textBreakStrategy="simple"
+              onTextLayout={onTextLayout}
+              style={[styles[`${sizeName}Label`], styles.label, { color: look.text }]}
+            >
+              {title}
+            </Text>
+          </View>
+        </>
+      )}
     </Pressable>
   );
 }
@@ -225,5 +239,10 @@ const styles = StyleSheet.create({
   },
   inactive: {
     opacity: 0.5,
+  },
+  // The pressed overlay takes the pill's shape (no clipping on the pill
+  // itself: a rounded Android view that changes style must not clip).
+  overlay: {
+    borderRadius: radii.full,
   },
 });

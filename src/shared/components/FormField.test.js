@@ -1,8 +1,8 @@
 import { StyleSheet, Text } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
-import { colors, font, radii } from '../theme/tokens';
-import FormField, { FIELD_HEIGHT, fieldBoxStyle } from './FormField';
+import { colors, font, layout, radii, textScale } from '../theme/tokens';
+import FormField, { FIELD_HEIGHT, FIELD_VARIANTS, UNIT_GUTTER_FALLBACK, fieldBoxStyle, unitGutter } from './FormField';
 
 // RN-SPEC-v2-foundation §4.5 text fields (look only; behaviour is v1's).
 
@@ -176,5 +176,117 @@ describe('FormField (v2 §4.5)', () => {
 describe('FormField caret (UX Phase 1 review)', () => {
   it('draws a gold caret and selection, never the platform blue', () => {
     expect(input(render()).props).toMatchObject({ selectionColor: '#FFC21A', cursorColor: '#FFC21A' });
+  });
+});
+
+describe('FormField unit suffix gutter (UX §8.7 U13)', () => {
+  const unitText = (tree) => tree.root.findAll((node) => node.type === Text && node.props.children === 'kg')[0];
+  const layoutUnit = (tree, width) =>
+    act(() => {
+      host(tree, 'field-unit').props.onLayout({ nativeEvent: { layout: { width, height: 20, x: 0, y: 0 } } });
+    });
+
+  it('before the suffix is measured: the 1× gutter (48)', () => {
+    expect(UNIT_GUTTER_FALLBACK).toBe(48);
+    expect(flat(input(render({ unit: 'kg' })).props.style).paddingRight).toBe(48);
+  });
+
+  it.each([
+    // [text scale, the suffix width the text measures at that scale]
+    [1, 17],
+    [2, 34],
+    // AX5 (3.1): the suffix stops growing at its 1.6 cap (17 × 1.6 ≈ 27.2).
+    [3.1, 27.2],
+  ])('at fontScale %f the gutter = inset 16 + measured width + gap 16', (_scale, width) => {
+    const tree = render({ unit: 'kg' });
+    layoutUnit(tree, width);
+    expect(flat(input(tree).props.style).paddingRight).toBe(16 + Math.ceil(width) + layout.suffixGap);
+    expect(layout.suffixGap).toBe(16);
+  });
+
+  it('grows with the suffix: a wider suffix never touches the typed text', () => {
+    const tree = render({ unit: 'kg' });
+    layoutUnit(tree, 17);
+    const small = flat(input(tree).props.style).paddingRight;
+    layoutUnit(tree, 40);
+    const large = flat(input(tree).props.style).paddingRight;
+    expect(large - small).toBe(23);
+    // The suffix's left edge (inset + width) sits a full gap from the text.
+    expect(large - (16 + 40)).toBe(16);
+  });
+
+  it('the suffix text caps at 1.6× (textScale.suffix), never the 2.0 body cap', () => {
+    const tree = render({ unit: 'kg' });
+    expect(textScale.suffix).toBe(1.6);
+    expect(unitText(tree).props.maxFontSizeMultiplier).toBe(1.6);
+  });
+
+  it('unitGutter: zero/unknown widths fall back to 48', () => {
+    expect(unitGutter(0)).toBe(48);
+    expect(unitGutter(undefined)).toBe(48);
+    expect(unitGutter(20)).toBe(52);
+  });
+
+  it('re-measuring the same width keeps the gutter (no extra render loop)', () => {
+    const tree = render({ unit: 'kg' });
+    layoutUnit(tree, 20);
+    layoutUnit(tree, 20);
+    expect(flat(input(tree).props.style).paddingRight).toBe(52);
+  });
+});
+
+describe('FormField variants (kit 2: well, MyPlanCreate pill / raised)', () => {
+  it('lists the four variants', () => {
+    expect(FIELD_VARIANTS).toEqual(['default', 'well', 'pill', 'raised']);
+  });
+
+  it('default is unchanged: surface, radius 20, hairline-strong', () => {
+    expect(box(render({ variant: 'default' }))).toMatchObject({ backgroundColor: colors.surface, borderRadius: radii.lg, borderColor: colors.hairlineStrong });
+  });
+
+  it('well (TabletCreateProfile): surfaceWell, radius 16, hairline-strong edge, 52 tall', () => {
+    expect(box(render({ variant: 'well' }))).toMatchObject({ backgroundColor: colors.surfaceWell, borderRadius: radii.md, borderColor: colors.hairlineStrong, minHeight: FIELD_HEIGHT });
+  });
+
+  it('pill (MyPlanCreate phone): fill-subtle 0.04, pill radius, input padded 18', () => {
+    const tree = render({ variant: 'pill' });
+    expect(box(tree)).toMatchObject({ backgroundColor: colors.fillWell, borderRadius: radii.full });
+    expect(colors.fillWell).toBe('rgba(255, 255, 255, 0.04)');
+    expect(flat(input(tree).props.style).paddingHorizontal).toBe(18);
+  });
+
+  it('pill textarea keeps radius 16 and the textarea padding', () => {
+    const tree = render({ variant: 'pill', multiline: true });
+    expect(box(tree).borderRadius).toBe(radii.md);
+    expect(flat(input(tree).props.style).paddingHorizontal).toBe(16);
+  });
+
+  it('raised (MyPlanCreate tablet): surfaceRaised, radius 16, the 0.12 edge', () => {
+    expect(box(render({ variant: 'raised' }))).toMatchObject({ backgroundColor: colors.surfaceRaised, borderRadius: radii.md, borderColor: colors.hairlineButton });
+    expect(colors.hairlineButton).toBe('rgba(255, 255, 255, 0.12)');
+  });
+
+  it.each(['well', 'pill', 'raised'])('%s focus: gold edge + the 0.18 gold ring', (variant) => {
+    const tree = render({ variant });
+    act(() => input(tree).props.onFocus({}));
+    expect(box(tree)).toMatchObject({ borderColor: colors.gold, outlineWidth: 4, outlineColor: colors.goldFocus });
+    expect(colors.goldFocus).toBe('rgba(255, 194, 26, 0.18)');
+  });
+
+  it.each(['well', 'pill', 'raised'])('%s error: the danger-text edge', (variant) => {
+    expect(box(render({ variant, error: 'Required' })).borderColor).toBe(colors.dangerText);
+  });
+
+  it.each(['well', 'pill', 'raised'])('%s disabled: opacity 0.5', (variant) => {
+    expect(box(render({ variant, editable: false })).opacity).toBe(0.5);
+  });
+
+  it('an unknown variant draws the default box', () => {
+    expect(box(render({ variant: 'nope' }))).toMatchObject({ backgroundColor: colors.surface, borderRadius: radii.lg });
+  });
+
+  it('fieldBoxStyle takes the variant (Select / DateInput share it)', () => {
+    expect(flat(fieldBoxStyle({ variant: 'well' }))).toMatchObject({ backgroundColor: colors.surfaceWell });
+    expect(flat(fieldBoxStyle({}))).toMatchObject({ backgroundColor: colors.surface });
   });
 });

@@ -2,7 +2,10 @@ const ReactNative = require('react-native');
 import { Animated, Modal, StyleSheet, Text } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
-import { colors, motion, shadows, typography } from '../theme/tokens';
+import { useEffect } from 'react';
+
+import { blur, colors, motion, shadows, typography } from '../theme/tokens';
+import BlurLayer from './BlurLayer';
 import AppModal, { ModalActions, TABLET_WIDTHS, isTabletWidth } from './AppModal';
 
 let mockInsets;
@@ -26,8 +29,8 @@ beforeEach(() => {
 });
 afterEach(() => jest.restoreAllMocks());
 
-function atWidth(width) {
-  jest.spyOn(ReactNative, 'useWindowDimensions', 'get').mockReturnValue(() => ({ width, height: HEIGHT, scale: 2, fontScale: 1 }));
+function atWidth(width, fontScale = 1) {
+  jest.spyOn(ReactNative, 'useWindowDimensions', 'get').mockReturnValue(() => ({ width, height: HEIGHT, scale: 2, fontScale }));
 }
 
 function render(element) {
@@ -61,7 +64,7 @@ describe('isTabletWidth (phone < 768, tablet ≥ 768)', () => {
 describe('AppModal on a phone: bottom sheet (§6)', () => {
   beforeEach(() => atWidth(PHONE));
 
-  it('draws the sheet: surface-raised, radius 28 28 0 0, top hairline, padding 12 22 24 + safe area, shadow-float, full width', () => {
+  it('draws the sheet: surface-raised, radius 28 28 0 0, top hairline, padding 12 22 24 + safe area, shadow-sheet-up, full width', () => {
     const tree = render(modal({ size: '2xl' }));
     const sheet = flat(host(tree, 'dlg'));
     expect(sheet).toMatchObject({
@@ -74,7 +77,8 @@ describe('AppModal on a phone: bottom sheet (§6)', () => {
       paddingTop: 12,
       paddingHorizontal: 22,
       paddingBottom: 24 + 30,
-      boxShadow: shadows.float,
+      // UX §8.7 U11: every bottom sheet casts shadow-sheet-up.
+      boxShadow: shadows.sheetUp,
       maxHeight: HEIGHT - 16 - 40,
     });
     expect(sheet.maxWidth).toBeUndefined();
@@ -182,14 +186,15 @@ describe('AppModal on a phone: bottom sheet (§6)', () => {
 describe('AppModal on a tablet: centred card (§6 + UX ruling)', () => {
   beforeEach(() => atWidth(TABLET));
 
-  it('draws a centred card: surface-raised, radius 28, hairline border, shadow-float, side margin 24', () => {
+  it('draws a centred card: surface-raised, radius 28, hairline border, shadow-sheet, side margin 24', () => {
     const tree = render(modal());
     expect(flat(host(tree, 'dlg'))).toMatchObject({
       backgroundColor: colors.surfaceRaised,
       borderRadius: 28,
       borderWidth: 1,
       borderColor: colors.hairlineStrong,
-      boxShadow: shadows.float,
+      // §5 / §8.6: a centred dialog casts shadow-sheet.
+      boxShadow: shadows.sheet,
       padding: 32,
       maxHeight: HEIGHT - 48 - 40 - 30,
     });
@@ -343,5 +348,119 @@ describe('AppModal hideClose (review LOW, web parity)', () => {
     atWidth(TABLET);
     expect(host(render(modal({ hideClose: true })), 'app-modal-close')).toBeUndefined();
     expect(host(render(modal()), 'app-modal-close')).toBeTruthy();
+  });
+});
+
+describe('AppModal kit 2 (UX §8.7 U11/U12)', () => {
+  it('phone: the scrim blurs 4 (blur.scrim) over the app, the sheet casts sheetUp', () => {
+    atWidth(PHONE);
+    const tree = render(modal());
+    expect(tree.root.findByType(BlurLayer).props).toMatchObject({ blurPx: blur.scrim, overApp: true });
+    expect(blur.scrim).toBe(4);
+    expect(shadows.sheetUp).toBe('0px -10px 50px rgba(0, 0, 0, 0.6)');
+    expect(flat(host(tree, 'dlg')).boxShadow).toBe(shadows.sheetUp);
+  });
+
+  it('tablet: the scrim blurs 6 (blur.scrimTablet), the card casts sheet', () => {
+    atWidth(TABLET);
+    const tree = render(modal());
+    expect(tree.root.findByType(BlurLayer).props.blurPx).toBe(blur.scrimTablet);
+    expect(blur.scrimTablet).toBe(6);
+    expect(shadows.sheet).toBe('0px 30px 80px rgba(0, 0, 0, 0.6)');
+    expect(flat(host(tree, 'dlg')).boxShadow).toBe(shadows.sheet);
+  });
+});
+
+describe('AppModal remounts its content on a text-scale change (QA F1, the ShellPage fix)', () => {
+  let mounts;
+  function Probe() {
+    useEffect(() => {
+      mounts += 1;
+    }, []);
+    return <Text>probe</Text>;
+  }
+  const withProbe = (props = {}) => (
+    <AppModal testID="dlg" isOpen onClose={jest.fn()} title="Edit" footer={<Text>footer</Text>} {...props}>
+      <Probe />
+    </AppModal>
+  );
+  beforeEach(() => {
+    mounts = 0;
+  });
+
+  it.each([
+    [PHONE, 1, 2],
+    [PHONE, 2, 3.1],
+    [TABLET, 1, 3.1],
+  ])('width %i: fontScale %f → %f remounts the content once; the Modal stays open and the entrance does not replay', (width, from, to) => {
+    atWidth(width, from);
+    const tree = render(withProbe());
+    expect(mounts).toBe(1);
+    const modalBefore = tree.root.findByType(Modal);
+    const timingCalls = timing.mock.calls.length;
+    atWidth(width, to);
+    act(() => tree.update(withProbe()));
+    expect(mounts).toBe(2);
+    const modalAfter = tree.root.findByType(Modal);
+    expect(modalAfter).toBe(modalBefore);
+    expect(modalAfter.props.visible).toBe(true);
+    expect(timing.mock.calls.length).toBe(timingCalls);
+    expect(textNode(tree, 'probe')).toBeDefined();
+    expect(textNode(tree, 'footer')).toBeDefined();
+  });
+
+  it('the same text scale does not remount', () => {
+    atWidth(PHONE, 2);
+    const tree = render(withProbe());
+    act(() => tree.update(withProbe({ title: 'Edit again' })));
+    expect(mounts).toBe(1);
+  });
+
+  it('a closed modal stays closed across a text-scale change', () => {
+    atWidth(PHONE, 1);
+    const tree = render(withProbe({ isOpen: false }));
+    atWidth(PHONE, 2);
+    act(() => tree.update(withProbe({ isOpen: false })));
+    expect(tree.root.findByType(Modal).props.visible).toBe(false);
+  });
+});
+
+describe('ModalActions `fill` (kit 2)', () => {
+  const actions = (props) =>
+    render(
+      <ModalActions {...props}>
+        <Text>Cancel</Text>
+        <Text>Send</Text>
+      </ModalActions>,
+    );
+
+  it('tablet at 1×: each action shares the row (flex 1)', () => {
+    atWidth(TABLET, 1);
+    const tree = actions({ fill: true });
+    const cells = tree.root.findAll((n) => typeof n.type === 'string' && n.props.testID === 'modal-actions-fill');
+    expect(cells).toHaveLength(2);
+    cells.forEach((cell) => expect(flat(cell)).toEqual({ flex: 1 }));
+    const row = tree.root.findAll((n) => typeof n.type === 'string' && flat(n)?.flexDirection === 'row');
+    expect(row).toHaveLength(1);
+    expect(flat(row[0])).toMatchObject({ justifyContent: 'flex-end', gap: 12 });
+  });
+
+  it('tablet without fill: the actions keep their own width (no cells)', () => {
+    atWidth(TABLET, 1);
+    expect(actions({}).root.findAll((n) => n.props.testID === 'modal-actions-fill')).toHaveLength(0);
+  });
+
+  it.each([2, 3.1])('tablet at %f×: the row stacks (verb on top) and fill adds no cells', (fontScale) => {
+    atWidth(TABLET, fontScale);
+    const tree = actions({ fill: true });
+    expect(tree.root.findAll((n) => n.props.testID === 'modal-actions-fill')).toHaveLength(0);
+    expect(flat(textNode(tree, 'Cancel').parent)).toEqual({ flexDirection: 'column-reverse', gap: 8 });
+  });
+
+  it('phone: always the stacked column, fill or not', () => {
+    atWidth(PHONE, 1);
+    const tree = actions({ fill: true });
+    expect(tree.root.findAll((n) => n.props.testID === 'modal-actions-fill')).toHaveLength(0);
+    expect(flat(textNode(tree, 'Send').parent)).toEqual({ flexDirection: 'column-reverse', gap: 8 });
   });
 });

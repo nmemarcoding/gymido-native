@@ -175,10 +175,10 @@ describe('A1 Welcome', () => {
     expect(login).not.toHaveBeenCalled();
   });
 
-  it('pressed: the kit pressed fills (gold deep on Log in)', () => {
+  it('pressed: the kit pressed state (gold kept + the ink overlay on Log in)', () => {
     const tree = render(<WelcomeScreen />);
     const pressable = tree.root.find((node) => node.props.testID === 'welcome-log-in' && typeof node.props.style === 'function');
-    expect(StyleSheet.flatten(pressable.props.style({ pressed: true })).backgroundColor).toBe(colors.goldDeep);
+    expect(StyleSheet.flatten(pressable.props.style({ pressed: true })).backgroundColor).toBe(colors.gold);
   });
 
   it('tablet portrait: the ring art scaled (no photos), 64 tile, 84 title, 64 buttons in a centred 480 column', () => {

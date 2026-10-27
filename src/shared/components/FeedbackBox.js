@@ -3,6 +3,7 @@ import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
 
 import { colors, font, radii, spacing } from '../theme/tokens';
 import FeedbackIcon from './FeedbackIcon';
+import GradientFill from './GradientFill';
 import { CAP_BODY } from './largeText';
 
 // RN-SPEC-v2-foundation §5 FeedbackBox / ErrorBox (native inline result):
@@ -36,24 +37,36 @@ export function FeedbackBox({ tone, title, message, testID, accessibilityRole, a
 
 // InlineError and SuccessState (profile-create spec §6): a title (600) and
 // the message under it.
-// InlineError (RN-SPEC-v2-phase2 §D1): the title in colors.dangerText and the
-// message in textSecondary; role alert, announced when it mounts (and when
+// InlineError (RN-SPEC-v2-phase2 §D1; the State boards' colours, D's kit
+// folds): the danger card (fill dangerFaint, edge dangerLine), an icon tile
+// with the 150° dangerLine → dangerFaint gradient and a dangerLine edge, the
+// icon and title in dangerText (U1: icons take the text colour) and the
+// message in dangerTextSoft. Role alert, announced when it mounts (and when
 // its text changes), assertive on Android.
+export const INLINE_ERROR_TILE = 32;
+
 export function InlineError({ title = 'Something went wrong', message, testID, ref }) {
   useEffect(() => {
     AccessibilityInfo.announceForAccessibility([title, message].filter(Boolean).join('. '));
   }, [title, message]);
   return (
-    <FeedbackBox
+    <View
       ref={ref}
-      tone="error"
-      title={title}
-      message={message}
       testID={testID}
+      accessibilityRole="alert"
       accessibilityLiveRegion="assertive"
-      titleStyle={styles.inlineErrorTitle}
-      messageStyle={styles.inlineErrorMessage}
-    />
+      style={[styles.box, styles.inlineErrorBox]}
+    >
+      <View testID="inline-error-icon" style={styles.inlineErrorTile}>
+        {/* Mounted with the tile, never added on a state change (SVG). */}
+        <GradientFill angle={150} colors={[colors.dangerLine, colors.dangerFaint]} />
+        <FeedbackIcon name="error" size={18} color={colors.dangerText} />
+      </View>
+      <View style={styles.text}>
+        {title ? <Text {...CAP_BODY} style={[styles.title, styles.inlineErrorTitle]}>{title}</Text> : null}
+        {message ? <Text {...CAP_BODY} style={[styles.message, styles.inlineErrorMessage]}>{message}</Text> : null}
+      </View>
+    </View>
   );
 }
 
@@ -84,11 +97,25 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: colors.textPrimary,
   },
+  inlineErrorBox: {
+    backgroundColor: colors.dangerFaint,
+    borderColor: colors.dangerLine,
+  },
+  inlineErrorTile: {
+    width: INLINE_ERROR_TILE,
+    height: INLINE_ERROR_TILE,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: colors.dangerLine,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   inlineErrorTitle: {
     color: colors.dangerText,
   },
   inlineErrorMessage: {
-    color: colors.textSecondary,
+    color: colors.dangerTextSoft,
   },
   message: {
     ...font(400),

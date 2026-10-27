@@ -35,6 +35,8 @@ export default function Select({
   textStyle,
   trailing,
   labelStyle,
+  // The field box variant (FormField FIELD_VARIANTS: default | well | pill | raised).
+  variant = 'default',
   testID,
   // A spoken name for a select with no visible label (e.g. the set-row unit).
   accessibilityLabel,
@@ -50,7 +52,7 @@ export default function Select({
   const trailingContent = trailing === undefined && !boxStyle ? <SelectChevron /> : trailing;
   const box = (
     <View
-      style={[fieldBoxStyle({ focused: open, error: Boolean(error), disabled }), styles.box, !boxStyle && styles.boxHeight, trailingContent ? styles.boxWithTrailing : null, boxStyle]}
+      style={[fieldBoxStyle({ focused: open, error: Boolean(error), disabled, variant }), styles.box, !boxStyle && styles.boxHeight, trailingContent ? styles.boxWithTrailing : null, boxStyle]}
       pointerEvents="none"
     >
       {/* UX §9: the chosen option wraps at large text, never truncated. */}

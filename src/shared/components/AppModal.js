@@ -1,4 +1,4 @@
-import { Children, useEffect, useRef } from 'react';
+import { Children, Fragment, useEffect, useRef } from 'react';
 import {
   Animated,
   Easing,
@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import { breakpoints, colors, motion, radii, shadows, spacing, typography } from '../theme/tokens';
+import { blur, breakpoints, colors, motion, radii, shadows, spacing, typography } from '../theme/tokens';
 import BlurLayer from './BlurLayer';
 import FeedbackIcon from './FeedbackIcon';
 import { CAP_BODY, DISPLAY_TITLE_TEXT, TITLE_TEXT, useLargeTextReflow } from './largeText';
@@ -48,7 +48,7 @@ export function isTabletWidth(width) {
 // `hideClose` hides the tablet header Close while the dialog is busy (sending,
 // done), as on web; the scrim/Back rules stay the caller's.
 export default function AppModal({ isOpen, onClose, title, description, size = 'lg', footer, children, testID, entrance = 'slide', compact = false, hideClose = false }) {
-  const { width, height } = useWindowDimensions();
+  const { width, height, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const tablet = isTabletWidth(width);
   const reducedMotion = useReducedMotion();
@@ -119,7 +119,8 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
   return (
     <Modal transparent visible={isOpen} animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <View testID="app-modal-overlay" style={[styles.scrim, tablet ? styles.scrimTablet : styles.scrimPhone, frame.scrim]}>
-        <BlurLayer blurPx={8} overApp />
+        {/* UX §8.7 U12: the scrim blurs 4 on phones, 6 on tablets. */}
+        <BlurLayer blurPx={tablet ? blur.scrimTablet : blur.scrim} overApp />
         <Pressable style={[StyleSheet.absoluteFill, styles.scrimColor]} onPress={onClose} accessibilityLabel="Close" />
         <Animated.View
           testID={testID}
@@ -128,49 +129,56 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
           accessibilityLabel={title}
           style={[styles.card, tablet ? styles.cardTablet : styles.cardPhone, frame.card, motionStyle]}
         >
-          {tablet && !hideClose ? (
-            // §6 tablet header Close (UX, 26 Oct): a 36 glass circle with a 44
-            // hit area; the scrim and Back still close the dialog too.
-            <Pressable
-              testID="app-modal-close"
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-              hitSlop={4}
-              onPress={onClose}
-              style={({ pressed }) => [styles.close, pressed && styles.closePressed]}
-            >
-              <FeedbackIcon name="close" size={16} color={colors.textPrimary} />
-            </Pressable>
-          ) : null}
-          {tablet ? null : (
-            <View
-              testID="app-modal-grab-handle"
-              style={styles.grabHandle}
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-            />
-          )}
-          <ScrollView
-            style={styles.scroll}
-            overScrollMode="never"
-            bounces={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            {/* UX §9 title rule: the phone title is title-sm (1.6× cap), the
-                tablet one is 34 px, a page-size title (1.3× cap); both wrap by
-                word, max 3 lines, and a long word shrinks. */}
-            <Text {...(tablet ? DISPLAY_TITLE_TEXT : TITLE_TEXT)} accessibilityRole="header" style={tablet ? styles.titleTablet : styles.title}>
-              {title}
-            </Text>
-            {description ? (
-              <Text {...CAP_BODY} style={[styles.description, tablet && !compact && styles.descriptionTablet, tablet && styles.descriptionTabletGap]}>
-                {description}
-              </Text>
+          {/* QA F1, iOS (the ShellPage fix): after a live text-size change
+              React's next commit lays out unchanged texts with their old
+              measurements, so the dialog's content remounts on a new text
+              scale. The Modal, its open state and the entrance progress live
+              above this key and are kept; the caller's state is kept too. */}
+          <Fragment key={`text-scale-${fontScale}`}>
+            {tablet && !hideClose ? (
+              // §6 tablet header Close (UX, 26 Oct): a 36 glass circle with a 44
+              // hit area; the scrim and Back still close the dialog too.
+              <Pressable
+                testID="app-modal-close"
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+                hitSlop={4}
+                onPress={onClose}
+                style={({ pressed }) => [styles.close, pressed && styles.closePressed]}
+              >
+                <FeedbackIcon name="close" size={16} color={colors.textPrimary} />
+              </Pressable>
             ) : null}
-            {hasChildren ? <View style={tablet ? styles.childrenTablet : styles.children}>{children}</View> : null}
-            {footerInScroll ? footerView : null}
-          </ScrollView>
-          {footerInScroll ? null : footerView}
+            {tablet ? null : (
+              <View
+                testID="app-modal-grab-handle"
+                style={styles.grabHandle}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              />
+            )}
+            <ScrollView
+              style={styles.scroll}
+              overScrollMode="never"
+              bounces={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {/* UX §9 title rule: the phone title is title-sm (1.6× cap), the
+                  tablet one is 34 px, a page-size title (1.3× cap); both wrap by
+                  word, max 3 lines, and a long word shrinks. */}
+              <Text {...(tablet ? DISPLAY_TITLE_TEXT : TITLE_TEXT)} accessibilityRole="header" style={tablet ? styles.titleTablet : styles.title}>
+                {title}
+              </Text>
+              {description ? (
+                <Text {...CAP_BODY} style={[styles.description, tablet && !compact && styles.descriptionTablet, tablet && styles.descriptionTabletGap]}>
+                  {description}
+                </Text>
+              ) : null}
+              {hasChildren ? <View style={tablet ? styles.childrenTablet : styles.children}>{children}</View> : null}
+              {footerInScroll ? footerView : null}
+            </ScrollView>
+            {footerInScroll ? null : footerView}
+          </Fragment>
         </Animated.View>
       </View>
     </Modal>
@@ -182,10 +190,21 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
 // Cancel left, the verb right (§6).
 // UX §9 rule 4: past 1.3× the tablet row stacks too, like the phone column
 // (primary on top, both full width).
-export function ModalActions({ children }) {
+// `fill`: in the tablet row the actions share the width equally (boards that
+// draw flex:1 buttons, e.g. Change password, or one full-width Done).
+export function ModalActions({ children, fill = false }) {
   const { width } = useWindowDimensions();
   const stacked = useLargeTextReflow();
-  return <View style={isTabletWidth(width) && !stacked ? styles.actionsTablet : styles.actionsPhone}>{children}</View>;
+  const row = isTabletWidth(width) && !stacked;
+  const items =
+    row && fill
+      ? Children.toArray(children).map((child, index) => (
+          <View key={child?.key ?? index} testID="modal-actions-fill" style={styles.actionFill}>
+            {child}
+          </View>
+        ))
+      : children;
+  return <View style={row ? styles.actionsTablet : styles.actionsPhone}>{items}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -207,11 +226,12 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: colors.surfaceRaised,
     borderColor: colors.hairlineStrong,
-    boxShadow: shadows.float,
     overflow: 'hidden',
   },
   // §6 bottom sheet: radius 28 28 0 0, 1 px top hairline, padding 12 22 24.
+  // UX §8.7 U11: every bottom sheet casts shadow-sheet-up.
   cardPhone: {
+    boxShadow: shadows.sheetUp,
     borderTopLeftRadius: radii.xxl,
     borderTopRightRadius: radii.xxl,
     borderTopWidth: 1,
@@ -219,7 +239,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing['5_5'],
   },
   // §6 modal ≥ 768: radius 28, 1 px hairline all round.
+  // §5 / §8.6: a centred dialog casts shadow-sheet.
   cardTablet: {
+    boxShadow: shadows.sheet,
     borderRadius: radii.xxl,
     borderWidth: 1,
     padding: spacing[8],
@@ -302,5 +324,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: spacing[3],
+  },
+  actionFill: {
+    flex: 1,
   },
 });

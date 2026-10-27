@@ -68,10 +68,10 @@ describe('A5 Not found', () => {
     expect(onGoHome).toHaveBeenCalledTimes(1);
   });
 
-  it('Go home: pressed is the deep gold; 60 tall (≥ 44)', () => {
+  it('Go home: pressed keeps the gold (§8.6 state rule overlay); 60 tall (≥ 44)', () => {
     const tree = render(<NotFoundScreen onGoHome={jest.fn()} />);
     const pressable = tree.root.find((node) => node.props.testID === 'not-found-home' && typeof node.props.style === 'function');
-    expect(StyleSheet.flatten(pressable.props.style({ pressed: true }))).toMatchObject({ backgroundColor: colors.goldDeep, minHeight: 60 });
+    expect(StyleSheet.flatten(pressable.props.style({ pressed: true }))).toMatchObject({ backgroundColor: colors.gold, minHeight: 60 });
   });
 
   it.each([

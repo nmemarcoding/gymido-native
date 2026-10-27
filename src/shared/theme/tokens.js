@@ -144,6 +144,11 @@ const V2_COLORS = {
   // on dark surfaces, ink on gold); never a new alpha step.
   pressOverlay: 'rgba(255, 255, 255, 0.04)',
   pressOverlayInk: 'rgba(10, 11, 15, 0.04)',
+  // v2 kit: kit 2 (UX §8.7 U1–U13, 26 Oct)
+  // U8: the white 0.06 fills (the remove "×" disc, icon tiles, the
+  // Become-a-trainer button) → color-fill-glass 0.08, the glass secondary
+  // button's fill (same value as fillButton, under the ruled name).
+  fillGlass: 'rgba(255, 255, 255, 0.08)',
 };
 
 // v1 names kept as ALIASES of v2 values while screens move to the v2 names
@@ -343,6 +348,14 @@ export const gradients = Object.freeze({
     colors: GLOW.tealAmbient,
     stops: Object.freeze([0, 0.7]),
   }),
+  // v2 kit: kit 2 (UX §8.7, 26 Oct)
+  // U7 gradient-gold-select: the selected generator choice card, as drawn
+  // (with a 2 px inset colors.gold ring on the card).
+  goldSelect: Object.freeze({ angle: 150, colors: Object.freeze(['rgba(255, 194, 26, 0.22)', 'rgba(255, 194, 26, 0.06)']) }),
+  // U3 the canonical gradient-gold (140°, 2 stops): the own-user avatar only.
+  // The G tile stays SOLID gold (§7.1). `gold` above stays for its current
+  // callers until the Phase 1 re-fold.
+  goldAvatar: Object.freeze({ angle: 140, colors: Object.freeze(['#FFD45C', '#F4A300']) }),
 });
 
 // Every TextInput's caret and selection are gold, never the platform blue
@@ -386,7 +399,9 @@ export function muscleGlow(hex) {
 }
 
 // Blur radii (px): §3 blur-glass, and UX §8.4 glass-strong / on-photo.
-export const blur = Object.freeze({ glass: 24, glassStrong: 24, onPhoto: 12, groundBar: 24 });
+// v2 kit: kit 2 (UX §8.7): U12 scrim backdrops blur 4 on phones and 6 on
+// tablets; U4 the dark loading disc (colors.scrimStrong) blurs 16.
+export const blur = Object.freeze({ glass: 24, glassStrong: 24, onPhoto: 12, groundBar: 24, scrim: 4, scrimTablet: 6, scrimStrong: 16 });
 
 // The API's muscle groups onto the six colours (UX, 26 Oct 2026); anything
 // else is neutral. v1's per-group thumbnail hues map through this until
@@ -449,6 +464,8 @@ export const textScale = Object.freeze({
   timer: 1.2,
   iconsOnlyAbove: 1.3,
   reflowAbove: 1.3,
+  // v2 kit: kit 2 (UX §8.7 U13): a field's unit suffix (kg, cm …).
+  suffix: 1.6,
 });
 
 export const typography = Object.freeze({
@@ -484,6 +501,11 @@ const V2_SHADOWS = {
   goldGlow: '0px 10px 30px -8px rgba(255, 194, 26, 0.55)',
   goldGlowLarge: '0px 14px 36px -10px rgba(255, 194, 26, 0.6)',
   float: '0px 16px 40px rgba(0, 0, 0, 0.5)',
+  // v2 kit: kit 2 (UX §5 / §8.6 / §8.6a 2 / §8.7 U11). shadow-gold-glow and
+  // shadow-gold-glow-lg are goldGlow / goldGlowLarge above. sheet: centred
+  // dialogs (tablet cards); sheetUp: every bottom sheet.
+  sheet: '0px 30px 80px rgba(0, 0, 0, 0.6)',
+  sheetUp: '0px -10px 50px rgba(0, 0, 0, 0.6)',
 };
 
 // v1 shadows as aliases: the gold glows map to goldGlow, overlay shadows to
@@ -494,7 +516,6 @@ const LEGACY_SHADOWS = {
   brand: V2_SHADOWS.goldGlow,
   modal: V2_SHADOWS.float,
   dialog: V2_SHADOWS.float,
-  sheetUp: V2_SHADOWS.float,
   soft: undefined,
   lift1: undefined,
   lift2: undefined,
@@ -549,6 +570,9 @@ export const layout = Object.freeze({
   // area. The one source for the shell and the toast (86 clears it).
   tabBarHeight: 66,
   tabBarBottomGap: 20,
+  // v2 kit: kit 2 (UX §8.7 U13): the gap between typed text and a field's
+  // unit suffix (right padding = inset + measured suffix width + this).
+  suffixGap: 16,
 });
 
 // Window-width breakpoints from the web (sm, md, lg) and v2's three sizes:

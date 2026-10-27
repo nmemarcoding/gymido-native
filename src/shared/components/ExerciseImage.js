@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { colors, font, gradients, muscle, musclePalette, radii } from '../theme/tokens';
+import { colors, font, gradients, muscle, musclePalette, muscleText, radii } from '../theme/tokens';
 import GradientFill from './GradientFill';
 import RemoteImage from './RemoteImage';
 
@@ -50,6 +50,14 @@ export function muscleColor(code) {
     return null;
   }
   return muscle[name] ?? musclePalette[name] ?? null;
+}
+
+// The muscle's lighter text colour for text and icons on its 16 % tint (UX
+// §8.4 muscle-*-text), or null when the code has no muscle hue.
+export function muscleTextColor(code) {
+  const hex = muscleColor(code);
+  const name = hex ? Object.keys(muscle).find((key) => muscle[key] === hex) : null;
+  return name ? muscleText[name] : null;
 }
 
 // Two letters: the first letters of the first two words; one word → its

@@ -1,7 +1,7 @@
 import { Keyboard, Platform, StyleSheet, Text } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
-import { colors, font } from '../theme/tokens';
+import { colors, font, radii } from '../theme/tokens';
 import Select, { SelectChevron } from './Select';
 
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
@@ -110,5 +110,54 @@ describe('Select (v2 look)', () => {
     const picker = tree.root.findAll((node) => node.props.testID === 'difficulty' && node.props.mode === 'dialog')[0];
     expect(picker.props.enabled).toBe(false);
     expect(picker.props.prompt).toBe('Difficulty (optional)');
+  });
+});
+
+describe('Select variants (kit 2: FormField FIELD_VARIANTS)', () => {
+  const OPTS = [
+    { value: 'a', label: 'Strength' },
+    { value: 'b', label: 'A very long option label that wraps at large text' },
+  ];
+  const flat = (style) => StyleSheet.flatten(style) ?? {};
+  const box = (tree) => flat(tree.root.find((node) => node.type === 'View' && node.props.pointerEvents === 'none').props.style);
+  function render(props = {}) {
+    let tree;
+    act(() => {
+      tree = create(<Select testID="s" label="Goal" value="a" options={OPTS} onChange={() => {}} {...props} />);
+    });
+    return tree;
+  }
+  const realOS = Platform.OS;
+  beforeEach(() => {
+    Platform.OS = 'ios';
+  });
+  afterEach(() => {
+    Platform.OS = realOS;
+  });
+
+  it.each([
+    ['well', { backgroundColor: colors.surfaceWell, borderRadius: radii.md, borderColor: colors.hairlineStrong }],
+    ['pill', { backgroundColor: colors.fillWell, borderRadius: radii.full, borderColor: colors.hairlineStrong }],
+    ['raised', { backgroundColor: colors.surfaceRaised, borderRadius: radii.md, borderColor: colors.hairlineButton }],
+  ])('%s: the variant box, still 52 tall with the chevron', (variant, look) => {
+    const tree = render({ variant });
+    expect(box(tree)).toMatchObject({ ...look, minHeight: 52 });
+    expect(tree.root.findAllByType(SelectChevron)).toHaveLength(1);
+  });
+
+  it.each(['well', 'pill', 'raised'])('%s + error: the danger-text edge wins', (variant) => {
+    expect(box(render({ variant, error: 'Pick one' })).borderColor).toBe(colors.dangerText);
+  });
+
+  it('the value text has no line cap (wraps at large text) and the §9 body cap', () => {
+    const tree = render({ variant: 'pill', value: 'b' });
+    const value = tree.root.findAll((node) => node.type === Text && node.props.children === OPTS[1].label)[0];
+    expect(value.props.numberOfLines).toBeUndefined();
+    expect(value.props.maxFontSizeMultiplier).toBe(2);
+  });
+
+  it('Android: the variant box under the dialog picker', () => {
+    Platform.OS = 'android';
+    expect(box(render({ variant: 'raised' }))).toMatchObject({ backgroundColor: colors.surfaceRaised, borderRadius: radii.md });
   });
 });
