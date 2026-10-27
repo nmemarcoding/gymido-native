@@ -65,6 +65,9 @@ const V2_COLORS = {
   info: '#8FA8FF',
   infoTint: 'rgba(143, 168, 255, 0.10)',
   infoBorder: 'rgba(143, 168, 255, 0.25)',
+  // v2 kit: overlays
+  // §6 bottom sheet grab handle (36 × 5).
+  grabHandle: 'rgba(255, 255, 255, 0.2)',
 };
 
 // v1 names kept as ALIASES of v2 values while screens move to the v2 names
