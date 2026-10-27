@@ -532,12 +532,19 @@ export const legacyShadowKeys = Object.freeze(Object.keys(LEGACY_SHADOWS));
 
 // §3 Radius: one value per use (the canvas's 14 / 18 fold into 16 / 20).
 // xxl = UX's radius-2xl. Checkbox 8 is local to the checkbox.
+// lgPlus / xxxl / xxxxl / tile: the board radii with no UX ladder token
+// (phase2-open-items §3): 22 tablet chips and the 64 tile, 32 phone cards,
+// 36 tablet cards, 38 the 120 session tile.
 export const radii = Object.freeze({
   sm: 12,
   md: 16,
   lg: 20,
+  lgPlus: 22,
   xl: 24,
   xxl: 28,
+  xxxl: 32,
+  xxxxl: 36,
+  tile: 38,
   full: 999,
 });
 

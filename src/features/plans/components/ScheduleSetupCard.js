@@ -219,9 +219,9 @@ const styles = StyleSheet.create({
     borderColor: colors.goldLine,
     padding: spacing[5],
   },
-  // Tablet board: radius 32 (no token; the hero card's own is 28).
+  // Tablet board: radius 32 (radii.xxxl; the hero card's own is 28).
   cardTablet: {
-    borderRadius: spacing[8],
+    borderRadius: radii.xxxl,
     padding: 36,
     gap: spacing[6],
   },
@@ -317,10 +317,10 @@ const styles = StyleSheet.create({
   chipPhone: {
     minHeight: 64,
   },
-  // Tablet board: radius 22 (no token; phone keeps radius-lg 20).
+  // Tablet board: radius 22 (radii.lgPlus; phone keeps radius-lg 20).
   chipTablet: {
     minHeight: 84,
-    borderRadius: 22,
+    borderRadius: radii.lgPlus,
   },
   // ring-selected: a 2 px ground inset + a 1 px gold outer ring (phone).
   chipOn: {

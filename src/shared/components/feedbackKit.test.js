@@ -63,6 +63,11 @@ describe('FeedbackIcon', () => {
     const svg = render(<FeedbackIcon name={name} size={20} color={colors.info} />).root.findByType(Svg);
     expect(svg.props).toMatchObject({ width: 20, height: 20, stroke: colors.info, strokeLinecap: 'round', accessibilityElementsHidden: true });
   });
+
+  it('warning: the board stroke 2.0 (the kit drew 2.2)', () => {
+    const svg = render(<FeedbackIcon name="warning" size={20} color={colors.info} />).root.findByType(Svg);
+    expect(svg.props.strokeWidth).toBe(2);
+  });
 });
 
 describe('Spinner (§5: never stops)', () => {

@@ -90,7 +90,7 @@ describe('contrast (§1.2 ratios)', () => {
 
 describe('radius and elevation (§3)', () => {
   it('has one value per use', () => {
-    expect(radii).toEqual({ sm: 12, md: 16, lg: 20, xl: 24, xxl: 28, full: 999 });
+    expect(radii).toEqual({ sm: 12, md: 16, lg: 20, lgPlus: 22, xl: 24, xxl: 28, xxxl: 32, xxxxl: 36, tile: 38, full: 999 });
   });
 
   it('has two shadows: the gold glow (with its 60 px size) and float', () => {

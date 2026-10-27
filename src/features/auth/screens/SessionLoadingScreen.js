@@ -157,11 +157,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Board: 120, radius 38 (no token).
+  // Board: 120, radius 38 (radii.tile).
   tileTablet: {
     width: TABLET_TILE,
     height: TABLET_TILE,
-    borderRadius: 38,
+    borderRadius: radii.tile,
     backgroundColor: colors.gold,
     boxShadow: shadows.goldGlowLarge,
     alignItems: 'center',

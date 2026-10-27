@@ -114,13 +114,13 @@ export function WorkoutEmptyState({ onBrowse }) {
 }
 
 const styles = StyleSheet.create({
-  // Radius 32 as the board draws it (no token; owner rule: match the boards).
+  // Radius 32 as the board draws it (radii.xxxl; owner rule: match the boards).
   card: {
     width: '100%',
     maxWidth: STATE_MAX_WIDTH,
     alignSelf: 'center',
     alignItems: 'center',
-    borderRadius: spacing[8],
+    borderRadius: radii.xxxl,
     borderWidth: 1,
     overflow: 'hidden',
     paddingHorizontal: spacing[6],

@@ -538,10 +538,10 @@ const styles = StyleSheet.create({
     gap: spacing[4],
     opacity: 0.9,
   },
-  // Board: radius 36 (no token).
+  // Board: radius 36 (radii.xxxxl).
   skeletonHeroTablet: {
     height: 300,
-    borderRadius: 36,
+    borderRadius: radii.xxxxl,
   },
   skeletonTileTablet: {
     height: 150,
@@ -573,20 +573,20 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   // Error
-  // Board radii (no token; owner rule: match the boards): 32 phone, 36 tablet.
+  // Board radii (owner rule: match the boards): 32 phone, 36 tablet.
   errorCard: {
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.dangerLine,
   },
   errorCardPhone: {
-    borderRadius: spacing[8],
+    borderRadius: radii.xxxl,
     marginTop: spacing[2],
     paddingVertical: spacing[6],
     paddingHorizontal: spacing['5_5'],
   },
   errorCardTablet: {
-    borderRadius: 36,
+    borderRadius: radii.xxxxl,
     marginTop: 120,
     alignItems: 'center',
     paddingVertical: 48,
@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
   errorTile: {
     width: 64,
     height: 64,
-    borderRadius: 22,
+    borderRadius: radii.lgPlus,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.dangerTint,
@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
   errorTileTablet: {
     width: 104,
     height: 104,
-    borderRadius: spacing[8],
+    borderRadius: radii.xxxl,
   },
   // Phone: the board's light reds = danger-text-soft (the message's paler
   // red folds into it, UX §8.5). Tablet names its tokens: primary / strong-2.
@@ -658,9 +658,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing['5_5'],
     paddingBottom: spacing['5_5'],
   },
-  // Board: radius 36 (no token; the hero card's own is 28).
+  // Board: radius 36 (radii.xxxxl; the hero card's own is 28).
   heroTablet: {
-    borderRadius: 36,
+    borderRadius: radii.xxxxl,
     alignItems: 'flex-start',
     paddingVertical: 44,
     paddingHorizontal: 40,
