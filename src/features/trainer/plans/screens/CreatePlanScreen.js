@@ -26,6 +26,7 @@ import ShellPage from '../../../shell/ShellPage';
 import TrainerOnly from '../../TrainerOnly';
 import { createTrainerPlan, listDifficultyLevels, listPlanCategories } from '../api/plansApi';
 import { PageSubtitle, PageTitle, PlanPage, TextLink } from '../components/PlanPage';
+import TrainerCreatePlanLayout from '../components/TrainerCreatePlanLayout';
 import { slugify } from '../planFormat';
 import { buildCreatePlanPayload, validateCreatePlan } from '../planValidation';
 
@@ -41,6 +42,10 @@ const TRAINER_VARIANT = {
   showSlug: true,
   create: (values) => createTrainerPlan(buildCreatePlanPayload(values)),
   planRoute: routes.TrainerPlan,
+  // v2 Phase 6 O: the trainer boards' look (TrainerCreatePlanLayout); the
+  // fields take the kit "well" box (surface-well, radius 16, hairline-strong).
+  look: 'trainerV2',
+  fieldVariant: 'well',
 };
 
 // T2 (spec §A9). Remounts on every focus, so back from T3 shows an empty form.
@@ -58,6 +63,8 @@ export function CreatePlanForm({ variant }) {
   const navigation = useNavigation();
   const { width, fontScale } = useWindowDimensions();
   const wide = width >= breakpoints.sm;
+  // The kit field box per variant (FormField FIELD_VARIANTS); default for M2.
+  const fieldVariant = variant.fieldVariant ?? 'default';
   const mounted = useRef(true);
   const [categories, setCategories] = useState([]);
   const [levels, setLevels] = useState([]);
@@ -151,6 +158,7 @@ export function CreatePlanForm({ variant }) {
   const nameField = (
     <FormField
       testID="create-plan-name"
+      variant={fieldVariant}
       label="Name"
       placeholder={variant.namePlaceholder}
       value={values.name}
@@ -162,6 +170,7 @@ export function CreatePlanForm({ variant }) {
   const slugField = variant.showSlug ? (
     <FormField
       testID="create-plan-slug"
+      variant={fieldVariant}
       label="Slug"
       autoCapitalize="none"
       autoCorrect={false}
@@ -175,6 +184,7 @@ export function CreatePlanForm({ variant }) {
   const categoryField = (
     <Select
       testID="create-plan-category"
+      variant={fieldVariant}
       label="Category"
       value={values.categoryId}
       options={categoryOptions}
@@ -186,6 +196,7 @@ export function CreatePlanForm({ variant }) {
   const daysField = (
     <Select
       testID="create-plan-days"
+      variant={fieldVariant}
       label="Days per week"
       value={values.daysPerWeek}
       options={DAYS_OPTIONS}
@@ -196,6 +207,7 @@ export function CreatePlanForm({ variant }) {
   const difficultyField = (
     <Select
       testID="create-plan-difficulty"
+      variant={fieldVariant}
       label="Difficulty (optional)"
       value={values.difficultyLevelId}
       options={levelOptions}
@@ -206,6 +218,7 @@ export function CreatePlanForm({ variant }) {
   const descriptionField = (rows) => (
     <FormField
       testID="create-plan-description"
+      variant={fieldVariant}
       label="Description (optional)"
       multiline
       rows={rows}
@@ -218,6 +231,21 @@ export function CreatePlanForm({ variant }) {
     <ErrorAlert title="Could not create the plan" description={formError} style={styles.formError} />
   ) : null;
   const goBack = () => navigation.push(variant.backRoute);
+
+  if (variant.look === 'trainerV2') {
+    return (
+      <TrainerCreatePlanLayout
+        tablet={width >= breakpoints.md}
+        stacked={fontScale > textScale.reflowAbove}
+        variant={variant}
+        saving={saving}
+        onSubmit={submit}
+        onBack={goBack}
+        formErrorAlert={formErrorAlert}
+        fields={{ nameField, slugField, categoryField, daysField, difficultyField, descriptionField }}
+      />
+    );
+  }
 
   if (variant.look === 'v2') {
     return (

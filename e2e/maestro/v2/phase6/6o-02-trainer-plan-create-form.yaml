@@ -1,0 +1,102 @@
+# v2 Phase 6 O: Trainer plan create (/trainer/plans/new), form only, NOTHING
+# saved. Account: QA_TRAINER. Start: signed in.
+#
+# Checks: the form opens EMPTY with Name, the trainer-only Slug, Category,
+# Days per week, Difficulty, Description, Cancel and "Create and add days";
+# submitting with no category shows v1's client-side "Category is
+# required." and sends nothing; Cancel and the back pill return to the list.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase6
+  - trainer
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/trainer-workspace.yaml
+- tapOn:
+    id: "tab-TPlans"
+- extendedWaitUntil:
+    visible:
+      id: "plans-create"
+    timeout: 30000
+- tapOn:
+    id: "plans-create"
+- extendedWaitUntil:
+    visible:
+      id: "create-plan-screen"
+    timeout: 20000
+- assertVisible:
+    id: "create-plan-all-plans"
+- assertVisible:
+    id: "create-plan-name"
+- assertVisible:
+    id: "create-plan-slug"
+- scrollUntilVisible:
+    element:
+      id: "create-plan-description"
+    direction: DOWN
+    timeout: 10000
+- assertVisible:
+    id: "create-plan-category"
+- assertVisible:
+    id: "create-plan-days"
+- assertVisible:
+    id: "create-plan-difficulty"
+
+# Empty submit: client-side errors only (Name is empty, so no request).
+- scrollUntilVisible:
+    element:
+      id: "create-plan-submit"
+    direction: DOWN
+    centerElement: true
+    timeout: 10000
+- tapOn:
+    id: "create-plan-submit"
+- extendedWaitUntil:
+    visible: "Name is required\\."
+    timeout: 10000
+
+# With a name but no category, validation still stops it (no request).
+- scrollUntilVisible:
+    element:
+      id: "create-plan-name"
+    direction: UP
+    centerElement: true
+    timeout: 10000
+- tapOn:
+    id: "create-plan-name"
+- inputText: "QA Draft"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "create-plan-submit"
+    direction: DOWN
+    centerElement: true
+    timeout: 10000
+- tapOn:
+    id: "create-plan-submit"
+- extendedWaitUntil:
+    visible: "Category is required\\."
+    timeout: 10000
+- assertVisible:
+    id: "create-plan-screen"
+
+- tapOn:
+    id: "create-plan-cancel"
+- extendedWaitUntil:
+    visible:
+      id: "plans-create"
+    timeout: 20000
+- tapOn:
+    id: "plans-create"
+- extendedWaitUntil:
+    visible:
+      id: "create-plan-screen"
+    timeout: 20000
+- tapOn:
+    id: "create-plan-all-plans"
+- extendedWaitUntil:
+    visible:
+      id: "plans-create"
+    timeout: 20000
+- runFlow: ../subflows/restore-workspace.yaml

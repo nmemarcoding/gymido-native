@@ -1,0 +1,126 @@
+# v2 Phase 6 O: Trainer plans (/trainer/plans), browse mode, NOTHING saved.
+# Account: QA_TRAINER. Start: signed in.
+#
+# Checks: the Plans tab opens the list with the Coaching chip, the header
+# "Create a plan" and either the grid (with the phone dashed "Create a plan"
+# tile) or the "No plans yet" empty state; the tile and the header button
+# both open the create form; View opens the builder; the pager (when shown)
+# moves to the next page and back.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase6
+  - trainer
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/trainer-workspace.yaml
+- tapOn:
+    id: "tab-TPlans"
+- extendedWaitUntil:
+    visible:
+      id: "plans-create"
+    timeout: 30000
+- assertVisible:
+    id: "tab-TPlans"
+    selected: true
+- assertVisible:
+    id: "plans-eyebrow"
+- extendedWaitUntil:
+    visible:
+      id: "plans-grid|plans-create-tile|state-slot"
+    timeout: 30000
+
+# Header Create opens the form; its back pill returns to the list.
+- tapOn:
+    id: "plans-create"
+- extendedWaitUntil:
+    visible:
+      id: "create-plan-screen"
+    timeout: 20000
+- tapOn:
+    id: "create-plan-all-plans"
+- extendedWaitUntil:
+    visible:
+      id: "plans-create"
+    timeout: 20000
+
+# Phone grid: the dashed tile is the same action (tablets have no tile).
+- scrollUntilVisible:
+    element:
+      id: "plans-create-tile"
+    direction: DOWN
+    centerElement: true
+    timeout: 15000
+    optional: true
+- runFlow:
+    when:
+      visible:
+        id: "plans-create-tile"
+    commands:
+      - tapOn:
+          id: "plans-create-tile"
+      - extendedWaitUntil:
+          visible:
+            id: "create-plan-screen"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "create-plan-cancel"
+          direction: DOWN
+          centerElement: true
+          timeout: 10000
+      - tapOn:
+          id: "create-plan-cancel"
+      - extendedWaitUntil:
+          visible:
+            id: "plans-create"
+          timeout: 20000
+
+# View on the first card opens the builder (read only here).
+- runFlow:
+    when:
+      visible:
+        id: "plans-grid"
+    commands:
+      - tapOn:
+          id: "plan-card-view-.*"
+          index: 0
+      - extendedWaitUntil:
+          notVisible:
+            id: "plans-grid"
+          timeout: 20000
+      - tapOn:
+          id: "tab-TPlans"
+      - extendedWaitUntil:
+          visible:
+            id: "plans-create"
+          timeout: 30000
+
+# Pager, only when there is more than one page.
+- scrollUntilVisible:
+    element:
+      id: "plans-pager"
+    direction: DOWN
+    timeout: 8000
+    optional: true
+- runFlow:
+    when:
+      visible:
+        id: "plans-next"
+    commands:
+      - tapOn:
+          id: "plans-next"
+      - extendedWaitUntil:
+          visible: "Page 2 of .*"
+          timeout: 30000
+      - scrollUntilVisible:
+          element:
+            id: "plans-previous"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "plans-previous"
+      - extendedWaitUntil:
+          visible: "Page 1 of .*"
+          timeout: 30000
+- runFlow: ../subflows/restore-workspace.yaml
