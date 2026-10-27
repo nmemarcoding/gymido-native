@@ -2,6 +2,7 @@
 // (RN-SPEC-PLAN-GENERATOR §G1–§G2). Pure, so it can be tested.
 
 import { breakpoints } from '../../shared/theme/tokens';
+import { TAB_BAR_CLEARANCE } from '../shell/tabBarMetrics';
 import { formatLocalDateForInput } from '../../shared/time/format';
 import { COPY, QUESTIONS, bandLabel, focusBlockedHint, goEasyBlockedHint, goalLabel, humanizeCode, presetLabel } from './generatorCopy';
 
@@ -399,14 +400,13 @@ export function shouldConfirmAfterActive(preview) {
   return Boolean(preview?.feasible && preview?.active_enrollment && !preview.active_enrollment.trainer_locked);
 }
 
-// The shell's BottomNav height without the safe-area inset: 1 border + 12
-// top padding + 56 item + 16 bottom padding = 85, the web's BottomNav height
-// (§G2.2 dated fix: `bottom: 85px` below md, 0 at ≥768). The shell doesn't
-// export it, and the custom `tabBar` is an absolute overlay, so
-// useBottomTabBarHeight() can't measure it reliably.
-export const BOTTOM_NAV_HEIGHT = 85;
+// The space the shell's floating tab bar takes above the bottom safe area
+// (RN-SPEC-v2-foundation §7.1: 66 tall + 20 above the safe area = 86). The
+// custom `tabBar` is an absolute overlay, so useBottomTabBarHeight() can't
+// measure it; the shell exports the number (tabBarMetrics).
+export const BOTTOM_NAV_HEIGHT = TAB_BAR_CLEARANCE;
 
-// Spec ruling: 85 below 768 wide, 0 at ≥768, plus the bottom safe-area inset.
+// Spec ruling: the bar's clearance (86) below 768 wide, 0 at ≥768, plus the bottom safe-area inset.
 export function tabBarClearance({ width, insetBottom }) {
   return (width < breakpoints.md ? BOTTOM_NAV_HEIGHT : 0) + (insetBottom ?? 0);
 }

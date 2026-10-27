@@ -3,20 +3,25 @@ import { Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } fro
 import { NestableScrollContainer } from 'react-native-draggable-flatlist';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AmbientGlow } from '../../shared/components/Screen';
 import { useKeyboardHeight } from '../../shared/hooks/useKeyboardHeight';
-import { breakpoints, colors } from '../../shared/theme/tokens';
+import { breakpoints, colors, font, typography } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
 import AppHeader from './AppHeader';
 import DesktopSidebar from './DesktopSidebar';
 import ModeSwitch from './ModeSwitch';
 import { getScreenPath } from './shellNavigation';
 import { resolveMode, showsMobileModeSwitch } from './shellRules';
+import { TAB_BAR_CONTENT_PADDING } from './tabBarMetrics';
 
 // App-shell spec §4: every shell screen scrolls its header and content
 // together. Phone: a centred column (max 430) above the tab bar; tablet
 // (≥ 768): the sidebar beside the content. [O2] safe-area insets added.
 // `nestable` hosts a draggable list (T3's sortable exercises).
-export default function ShellPage({ children, nestable = false, testID = 'app-root' }) {
+// v2 (RN-SPEC-v2-foundation §7): the ground colour; phones keep 104 px (+ the
+// safe area) under the content so nothing ends under the floating tab bar;
+// `glow` draws the ambient gold glow where a board has one (see Screen.js).
+export default function ShellPage({ children, nestable = false, glow = false, testID = 'app-root' }) {
   const route = useRoute();
   const path = getScreenPath(route.name, route.params);
   const { width } = useWindowDimensions();
@@ -34,7 +39,7 @@ export default function ShellPage({ children, nestable = false, testID = 'app-ro
   const keyboardPad = Platform.OS === 'android' ? keyboardHeight : 0;
 
   const content = (
-    <View style={[styles.content, { paddingBottom: (tablet ? 40 : 112) + insets.bottom + keyboardPad }]}>
+    <View style={[styles.content, { paddingBottom: (tablet ? 40 : TAB_BAR_CONTENT_PADDING) + insets.bottom + keyboardPad }]}>
       <AppHeader path={path} mode={mode} />
       {!tablet && showsMobileModeSwitch({ user, path }) ? (
         <View style={styles.mobileSwitch}>
@@ -49,6 +54,7 @@ export default function ShellPage({ children, nestable = false, testID = 'app-ro
   return (
     // [O2] The status-bar band is page background; content never scrolls under it.
     <View testID={testID} style={[styles.screen, { paddingTop: insets.top }]}>
+      <AmbientGlow glow={glow} />
       <Scroller
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
@@ -74,7 +80,7 @@ export default function ShellPage({ children, nestable = false, testID = 'app-ro
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.ground,
   },
   phoneColumn: {
     width: '100%',
@@ -97,11 +103,9 @@ const styles = StyleSheet.create({
   },
   mobileSwitchLabel: {
     marginBottom: 8,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '600',
-    letterSpacing: 2.64,
-    textTransform: 'uppercase',
+    // v2: sentence case, never tracked caps (§2).
+    ...typography.caption,
+    ...font(600),
     color: colors.textMuted,
   },
 });

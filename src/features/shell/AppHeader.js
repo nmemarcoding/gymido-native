@@ -2,7 +2,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
-import { breakpoints, colors } from '../../shared/theme/tokens';
+import { breakpoints, colors, font, typography } from '../../shared/theme/tokens';
 import { mountBell } from '../notifications/bellPolling';
 import NotificationBell from '../notifications/NotificationBell';
 import ModeSwitch from './ModeSwitch';
@@ -10,7 +10,8 @@ import { openShellPath } from './shellLinks';
 import { getHeaderBackLink, getHeaderTitle, isCompactHeader } from './shellRules';
 import { useShellUiStore } from './shellUiStore';
 
-// App-shell spec §6.1. The bell lives in a different spot in the full and
+// App-shell spec §6.1; v2 look RN-SPEC-v2-foundation §7.4 (title-xl on
+// phones, display-md on tablets; gold back link; bell top-right). The bell lives in a different spot in the full and
 // compact variants, so changing variant remounts it (⚠S4): the focused
 // screen's header tells the bell controller which variant is showing.
 export default function AppHeader({ path, query = '', mode }) {
@@ -46,7 +47,7 @@ export default function AppHeader({ path, query = '', mode }) {
     return (
       <View style={[box, styles.compact, exercisesTitle && styles.compactTitled]}>
         {exercisesTitle ? (
-          <Text textBreakStrategy="simple" accessibilityRole="header" style={styles.title}>
+          <Text textBreakStrategy="simple" accessibilityRole="header" style={[styles.title, tablet && styles.titleTablet]}>
             Exercises
           </Text>
         ) : null}
@@ -61,7 +62,7 @@ export default function AppHeader({ path, query = '', mode }) {
         {title ? (
           <View style={styles.titleColumn}>
             {backLink ? <BackLink label={backLink.label} onPress={() => openShellPath(backLink.path)} /> : null}
-            <Text textBreakStrategy="simple" accessibilityRole="header" style={styles.title}>
+            <Text textBreakStrategy="simple" accessibilityRole="header" style={[styles.title, tablet && styles.titleTablet]}>
               {title}
             </Text>
           </View>
@@ -74,17 +75,21 @@ export default function AppHeader({ path, query = '', mode }) {
   );
 }
 
-// §6.1 back link (5-tab nav): above the H1, 14px / 700 brand-700, underlined
-// while pressed, 44 pt touch height (A3). Goes to that tab's root.
+// §6.1 back link (5-tab nav): above the H1, v2 §7.4: 14/600 gold, min-height
+// 32 with a 44 hit area; underlined (and the pressed gold) while pressed.
+// Goes to that tab's root.
 function BackLink({ label, onPress }) {
   return (
     <View style={styles.backBlock}>
-      <Pressable testID="header-back-link" accessibilityRole="link" onPress={onPress} hitSlop={12}>
+      <Pressable testID="header-back-link" accessibilityRole="link" onPress={onPress} hitSlop={BACK_HIT_SLOP} style={styles.backLink}>
         {({ pressed }) => <Text style={[styles.backText, pressed && styles.backPressed]}>{label}</Text>}
       </Pressable>
     </View>
   );
 }
+
+// 32 tall + 6 above and below = the 44 hit area; 12 at the sides.
+const BACK_HIT_SLOP = { top: 6, bottom: 6, left: 12, right: 12 };
 
 const styles = StyleSheet.create({
   titleColumn: {
@@ -92,23 +97,25 @@ const styles = StyleSheet.create({
   },
   backBlock: {
     alignSelf: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 4,
+  },
+  backLink: {
+    minHeight: 32,
+    justifyContent: 'center',
   },
   backText: {
+    ...font(600),
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '700',
-    color: colors.brand700,
+    color: colors.gold,
   },
   backPressed: {
+    color: colors.goldDeep,
     textDecorationLine: 'underline',
   },
   full: {
     paddingTop: 8,
-    paddingBottom: 20,
-    marginBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    marginBottom: 24,
   },
   compact: {
     paddingTop: 16,
@@ -118,24 +125,23 @@ const styles = StyleSheet.create({
   },
   compactTitled: {
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'flex-end',
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'flex-end',
     gap: 16,
   },
   title: {
+    ...typography.titleXl,
     flexShrink: 1,
-    fontSize: 44,
-    lineHeight: 44,
-    fontWeight: '900',
     color: colors.textPrimary,
   },
+  titleTablet: typography.displayMd,
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
 });
