@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { getServerMessage, getStatus } from '../../shared/api/apiError';
@@ -42,9 +42,22 @@ function Dashboard() {
   const reflow = useLargeTextReflow();
   const { clients, incoming, outgoing, loading, error, reload } = useTrainerOverview();
   const [busy, setBusy] = useState(false);
+  // `busy` re-renders a frame late: a ref drops a 2nd tap in the same frame.
+  const responding = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   // §C2.3: reload after success or failure (⚠D-1); busy clears only after it.
   async function respond(request, accept) {
+    if (responding.current) {
+      return;
+    }
+    responding.current = true;
     setBusy(true);
     try {
       if (accept) {
@@ -68,8 +81,14 @@ function Dashboard() {
         addToast(ToastTone.error, 'Could not decline', getServerMessage(failure));
       }
     }
-    await reload();
-    setBusy(false);
+    try {
+      await reload();
+    } finally {
+      responding.current = false;
+      if (mounted.current) {
+        setBusy(false);
+      }
+    }
   }
 
   return (

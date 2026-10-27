@@ -51,14 +51,12 @@ export default function PlanCard({ plan, onView, onAssign, assignLoading = false
             testID={`plan-card-assign-${plan.id}`}
             title="Assign"
             accessibilityLabel={`Assign ${name}`}
-            variant="secondary"
+            // UX O ruling 4: gold text on the 14 % gold tint, goldLine edge.
+            variant="goldTint"
             size="compact"
             loading={assignLoading}
             onPress={onAssign}
-            // KIT NEED (report): a gold-tint PillButton variant (gold text on
-            // gold 14 %). Until it exists the glass pill takes the gold-tint
-            // fill and gold edge; the label keeps the glass ink.
-            style={[styles.assign, buttonStyle]}
+            style={buttonStyle}
           />
         ) : null}
       </View>
@@ -135,9 +133,5 @@ const styles = StyleSheet.create({
   },
   buttonStacked: {
     alignSelf: 'stretch',
-  },
-  assign: {
-    backgroundColor: colors.goldTint,
-    borderColor: colors.goldLine,
   },
 });

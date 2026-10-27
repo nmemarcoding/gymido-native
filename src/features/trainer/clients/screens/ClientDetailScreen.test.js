@@ -136,6 +136,25 @@ describe('Client detail, phone', () => {
     open.mockRestore();
   });
 
+  it('Email with no mail handler: the openURL rejection is caught (silent, as v1 TrainerHub), no toast, the screen stays', async () => {
+    let caught;
+    const open = jest.spyOn(Linking, 'openURL').mockImplementation(() => {
+      const rejected = Promise.reject(new Error('No Activity found to handle Intent'));
+      caught = jest.spyOn(rejected, 'catch');
+      return rejected;
+    });
+    const tree = await render();
+    await act(async () => {
+      await expect(Promise.resolve(byTestID(tree, 'client-email').props.onPress())).resolves.toBeUndefined();
+    });
+    expect(open).toHaveBeenCalledWith('mailto:sara@example.com');
+    expect(caught).toHaveBeenCalledTimes(1);
+    expect(addToast).not.toHaveBeenCalled();
+    expect(mockNavigation.push).not.toHaveBeenCalled();
+    expect(byTestID(tree, 'client-email')).toBeTruthy();
+    open.mockRestore();
+  });
+
   it('no client_email → no Email action; no plan → "Assign a plan" + the No active plan EmptyState', async () => {
     load({ email: null, plan: null });
     const tree = await render();
@@ -274,6 +293,17 @@ describe('Client detail, phone', () => {
     expect(addToast).toHaveBeenCalledWith('error', 'Could not end coaching', 'Busy');
     expect(ConfirmDialog.mock.calls.at(-1)[0].isOpen).toBe(false);
     expect(mockNavigation.push).not.toHaveBeenCalled();
+  });
+
+  it('a non-404 failure: "Could not load this client" + the server text; Retry reloads to the page', async () => {
+    getClientPlan.mockRejectedValueOnce({ response: { status: 500, data: { message: 'Server down' } } });
+    const tree = await render();
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Could not load this client', 'Server down']));
+    expect(byTestID(tree, 'client-email')).toBeUndefined();
+    const retry = tree.root.findAll((node) => typeof node.props.onRetry === 'function')[0];
+    await act(async () => retry.props.onRetry());
+    expect(getClientPlan).toHaveBeenCalledTimes(2);
+    expect(byTestID(tree, 'client-email')).toBeTruthy();
   });
 
   it('loading keeps the heading "Client"; a 404 is Not your client', async () => {

@@ -206,7 +206,8 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
         variant="secondary"
         accessibilityLabel={`Email ${heading}`}
         icon={({ color }) => <GymIcon name="mail" size={18} color={color} />}
-        onPress={() => Linking.openURL(`mailto:${clientEmail}`)}
+        // No mail handler (e.g. no mail app) rejects: silent, as v1 TrainerHub's Email.
+        onPress={() => Linking.openURL(`mailto:${clientEmail}`).catch(() => {})}
         fullWidth={reflow}
         style={reflow ? null : styles.flexButton}
       />

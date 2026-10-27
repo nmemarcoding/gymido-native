@@ -219,6 +219,40 @@ describe('Trainer today, requests', () => {
     expect(listActiveClients).toHaveBeenCalledTimes(2);
   });
 
+  it('double tap in one frame (Accept twice, or Accept then Decline): ONE request, one toast', async () => {
+    let finish;
+    acceptRequest.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    const tree = await render();
+    const accept = byTestID(tree, 'request-accept-50').props.onPress;
+    const decline = byTestID(tree, 'request-decline-50').props.onPress;
+    act(() => {
+      accept();
+      accept();
+      decline();
+    });
+    await act(async () => finish({}));
+    expect(acceptRequest).toHaveBeenCalledTimes(1);
+    expect(rejectRequest).not.toHaveBeenCalled();
+    expect(addToast).toHaveBeenCalledTimes(1);
+    rejectRequest.mockResolvedValueOnce({});
+    await act(async () => byTestID(tree, 'request-decline-50').props.onPress());
+    expect(rejectRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('unmount while a response is pending: it settles without touching the unmounted screen', async () => {
+    let finish;
+    acceptRequest.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const tree = await render();
+    act(() => {
+      byTestID(tree, 'request-accept-50').props.onPress();
+    });
+    act(() => tree.unmount());
+    await act(async () => finish({}));
+    expect(errors).not.toHaveBeenCalled();
+    errors.mockRestore();
+  });
+
   it.each([
     [409, { response: { status: 409, data: { message: 'Already coached' } } }, 'Already coached'],
     [404, { response: { status: 404, data: {} } }, 'That request is no longer available.'],

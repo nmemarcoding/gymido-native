@@ -158,10 +158,16 @@ describe('Clients, phone', () => {
     // ND-6 search matches the plan name.
     await act(async () => host(tree, 'clients-search').props.onChangeText('upper'));
     expect(host(tree, 'clients-row-14')).toBeUndefined();
+    // Review LOW: rows kept by the plan name alone (no name contains "upper").
+    expect(host(tree, 'clients-row-11')).toBeTruthy();
+    expect(host(tree, 'clients-row-12')).toBeTruthy();
     await act(async () => host(tree, 'clients-search').props.onChangeText(''));
     await act(async () => byTestID(tree, 'clients-filter-missed').props.onPress());
     expect(host(tree, 'clients-row-12')).toBeTruthy();
     expect(host(tree, 'clients-row-11')).toBeUndefined();
+    // Review LOW: Missed keeps ONLY missed > 0 (Tom: 0 missed, inactive; Diego: no plan).
+    expect(host(tree, 'clients-row-13')).toBeUndefined();
+    expect(host(tree, 'clients-row-14')).toBeUndefined();
   });
 
   it('avatars: initials and the person colour rule on every row', async () => {

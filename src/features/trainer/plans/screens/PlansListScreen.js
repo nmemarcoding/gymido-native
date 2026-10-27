@@ -102,12 +102,21 @@ function PlansList({ assignTo }) {
 
   const retry = useCallback(() => setReloadCount((count) => count + 1), []);
 
-  // §A4.4 assign flow.
-  const [assigning, setAssigning] = useState(false);
+  // §A4.4 assign flow: one request per tap. `assigningId` is the plan whose
+  // request is in flight (its card shows busy from the first tap; the dialog
+  // shows it for a replace). A double tap lands both presses before that
+  // re-renders, so a SYNCHRONOUS ref guard, set before the POST and cleared in
+  // `finally`, drops the 2nd tap (else it 409s and opens "Replace…").
+  const [assigningId, setAssigningId] = useState(null);
   const [pendingAssign, setPendingAssign] = useState(null);
+  const assignInFlight = useRef(false);
 
   async function assign(plan, replace) {
-    setAssigning(true);
+    if (assignInFlight.current) {
+      return;
+    }
+    assignInFlight.current = true;
+    setAssigningId(plan.id);
     try {
       await assignPlan(assignTo, plan.id, replace);
       addToast(ToastTone.success, replace ? 'Plan replaced' : 'Plan assigned', `${plan.name} is now their active plan.`);
@@ -127,9 +136,11 @@ function PlansList({ assignTo }) {
         addToast(ToastTone.error, 'Could not assign', message);
         setPendingAssign(null);
       }
-    }
-    if (mounted.current) {
-      setAssigning(false);
+    } finally {
+      assignInFlight.current = false;
+      if (mounted.current) {
+        setAssigningId(null);
+      }
     }
   }
 
@@ -180,7 +191,7 @@ function PlansList({ assignTo }) {
         description={`This client already has an active plan. Assigning ${pendingAssign?.plan?.name || 'this plan'} will end the current one and start this instead. Their history is kept.`}
         confirmLabel="Replace plan"
         tone="danger"
-        loading={assigning}
+        loading={assigningId !== null}
       />
     </ShellPage>
   );
@@ -231,7 +242,7 @@ function PlansList({ assignTo }) {
                     stacked={reflow}
                     style={styles.cell}
                     // ⚠T1-3: the spinner shows only while T1a's replace runs for this plan.
-                    assignLoading={assigning && pendingAssign?.plan?.id === cell.plan.id}
+                    assignLoading={assigningId === cell.plan.id}
                     onAssign={assignTo ? () => assign(cell.plan, false) : undefined}
                     onView={() => navigation.push(routes.TrainerPlan, { planId: cell.plan.id })}
                   />

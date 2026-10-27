@@ -190,12 +190,22 @@ describe('PlanCard', () => {
     const onAssign = jest.fn();
     const tree = mount(<PlanCard plan={PLANS[1]} onView={jest.fn()} onAssign={onAssign} assignLoading />);
     const assign = comp(tree.root, 'plan-card-assign-2');
-    expect(assign.props.variant).toBe('secondary');
+    expect(assign.props.variant).toBe('goldTint');
     expect(assign.props.loading).toBe(true);
     expect(assign.props.accessibilityLabel).toBe('Assign Push / Pull / Legs');
-    expect(flat(assign.props.style)).toEqual(expect.objectContaining({ backgroundColor: colors.goldTint, borderColor: colors.goldLine }));
+    // The kit variant draws it now: no fill/edge override from the card.
+    expect(flat(assign.props.style).backgroundColor).toBeUndefined();
+    const pill = tree.root.findAll((node) => node.props.testID === 'plan-card-assign-2' && typeof node.type === 'string')[0];
+    expect(flat(pill.props.style)).toEqual(expect.objectContaining({ backgroundColor: colors.goldTint, borderWidth: 1, borderColor: colors.goldLine }));
     assign.props.onPress();
     expect(onAssign).toHaveBeenCalled();
+  });
+
+  it('assign mode: the "Assign" label is GOLD (UX O ruling 4), View keeps the glass ink', () => {
+    const tree = mount(<PlanCard plan={PLANS[1]} onView={jest.fn()} onAssign={jest.fn()} />);
+    const label = (id) => flat(comp(tree.root, id).findByType(Text).props.style).color;
+    expect(label('plan-card-assign-2')).toBe(colors.gold);
+    expect(label('plan-card-view-2')).toBe(colors.textPrimary);
   });
 
   it('tablet card: radius 28, padding 22, min height 200, name 28/30', () => {
@@ -318,6 +328,65 @@ describe('PlansListScreen (phone)', () => {
     assignPlan.mockRejectedValueOnce({ response: { status: 409, data: { message: 'Still blocked' } } });
     await act(async () => tree.root.findByType(ConfirmDialog).props.onConfirm());
     expect(addToast).toHaveBeenLastCalledWith('error', 'Could not assign', 'Still blocked');
+  });
+
+  it('double tap on Assign (PM bug fix): two quick presses send ONE POST, so no 409 → "Replace…"; the next tap works once it settles', async () => {
+    mockParams = { assignTo: 42 };
+    let settle;
+    assignPlan.mockReturnValueOnce(new Promise((resolve) => (settle = resolve)));
+    const tree = await render();
+    const assignButton = comp(tree.root, 'plan-card-assign-1');
+    await act(async () => {
+      assignButton.props.onPress();
+      assignButton.props.onPress();
+    });
+    expect(assignPlan).toHaveBeenCalledTimes(1);
+    // A4.4: busy from the FIRST tap, on the tapped card only.
+    expect(comp(tree.root, 'plan-card-assign-1').props.loading).toBe(true);
+    expect(comp(tree.root, 'plan-card-assign-2').props.loading).toBe(false);
+    await act(async () => settle({}));
+    expect(comp(tree.root, 'plan-card-assign-1').props.loading).toBe(false);
+    expect(tree.root.findByType(ConfirmDialog).props.isOpen).toBe(false);
+    expect(addToast).toHaveBeenCalledTimes(1);
+    expect(addToast).toHaveBeenCalledWith('success', 'Plan assigned', 'Upper / Lower Split is now their active plan.');
+    assignPlan.mockResolvedValueOnce({});
+    await act(async () => comp(tree.root, 'plan-card-assign-1').props.onPress());
+    expect(assignPlan).toHaveBeenCalledTimes(2);
+  });
+
+  it('the in-flight guard clears after an error too: the next tap POSTs again', async () => {
+    mockParams = { assignTo: 42 };
+    const tree = await render();
+    assignPlan.mockRejectedValueOnce({ response: { status: 500 } });
+    const first = comp(tree.root, 'plan-card-assign-1').props.onPress;
+    await act(async () => {
+      first();
+      first();
+    });
+    expect(assignPlan).toHaveBeenCalledTimes(1);
+    expect(addToast).toHaveBeenLastCalledWith('error', 'Could not assign', 'We could not assign the plan. Please try again.');
+    assignPlan.mockResolvedValueOnce({});
+    await act(async () => comp(tree.root, 'plan-card-assign-2').props.onPress());
+    expect(assignPlan).toHaveBeenCalledTimes(2);
+    expect(assignPlan).toHaveBeenLastCalledWith(42, 2, false);
+  });
+
+  it('double tap on Replace plan: ONE replace POST while it is pending', async () => {
+    mockParams = { assignTo: 42 };
+    assignPlan.mockRejectedValueOnce({ response: { status: 409 } });
+    const tree = await render();
+    await act(async () => comp(tree.root, 'plan-card-assign-1').props.onPress());
+    let settle;
+    assignPlan.mockReturnValueOnce(new Promise((resolve) => (settle = resolve)));
+    const dialog = tree.root.findByType(ConfirmDialog);
+    await act(async () => {
+      dialog.props.onConfirm();
+      dialog.props.onConfirm();
+    });
+    expect(assignPlan).toHaveBeenCalledTimes(2);
+    expect(assignPlan).toHaveBeenLastCalledWith(42, 1, true);
+    await act(async () => settle({}));
+    expect(addToast).toHaveBeenCalledWith('success', 'Plan replaced', 'Upper / Lower Split is now their active plan.');
   });
 
   it('dialog Cancel closes it', async () => {

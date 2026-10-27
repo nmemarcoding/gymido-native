@@ -1,0 +1,42 @@
+# Undoes trainer-workspace.yaml (and the h2 set's member-workspace.yaml):
+# switches back only when this run switched; an unset flag is a no-op. Leaves the app on that workspace's home.
+appId: com.gymido.app
+---
+- runFlow:
+    when:
+      true: ${output.v2SwitchedToMember === true}
+    commands:
+      - tapOn:
+          id: "tab-Profile"
+      - scrollUntilVisible:
+          element:
+            id: "mode-switch-trainer"
+          direction: DOWN
+          centerElement: true
+          timeout: 10000
+      - tapOn:
+          id: "mode-switch-trainer"
+      - extendedWaitUntil:
+          visible:
+            id: "tab-TToday"
+          timeout: 20000
+      - evalScript: ${output.v2SwitchedToMember = false}
+- runFlow:
+    when:
+      true: ${output.v2SwitchedToTrainer === true}
+    commands:
+      - tapOn:
+          id: "tab-TProfile"
+      - scrollUntilVisible:
+          element:
+            id: "mode-switch-member"
+          direction: DOWN
+          centerElement: true
+          timeout: 10000
+      - tapOn:
+          id: "mode-switch-member"
+      - extendedWaitUntil:
+          visible:
+            id: "tab-Today"
+          timeout: 20000
+      - evalScript: ${output.v2SwitchedToTrainer = false}
