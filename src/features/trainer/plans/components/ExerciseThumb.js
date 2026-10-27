@@ -1,8 +1,7 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-import RemoteImage from '../../../../shared/components/RemoteImage';
-import { colors, musclePalette, radii } from '../../../../shared/theme/tokens';
-import { DumbbellIcon } from './pickerIcons';
+import ExerciseImage from '../../../../shared/components/ExerciseImage';
+import { colors, musclePalette } from '../../../../shared/theme/tokens';
 
 const WHITE = musclePalette.iconLight;
 
@@ -35,47 +34,19 @@ export function getMuscleTileColors(code) {
   return MUSCLE_TILES[code ?? 'BACK'] ?? [colors.brand400, colors.navy];
 }
 
-// 52×52 thumbnail through the shared RemoteImage (Drive fallbacks; a cancelled
-// load retries rather than advancing).
-// `framed` false drops the picker's frame for callers that draw their own.
+// The picker / builder thumbnail (default 52) through the shared v2
+// ExerciseImage: the photo (Drive fallbacks; a cancelled load retries), the
+// initials tile when there is no URL, the muscle tile + workout icon when the
+// URL fails. `framed` (default) adds the hairline frame around it; false
+// drops it for callers that draw their own. `getMuscleTileColors` stays the
+// v1 tile palette for PlanDetailScreen until its own phase.
 export default function ExerciseThumb({ exercise, size = 52, framed = true }) {
-  const url = exercise.thumbnail?.url;
-  const box = { width: size, height: size };
-
-  if (!url) {
-    const [background, iconColor] = getMuscleTileColors(exercise.primary_muscle_group?.code);
-    return (
-      <View style={[styles.thumb, box, styles.tile, { backgroundColor: background }]}>
-        <DumbbellIcon color={iconColor} />
-      </View>
-    );
-  }
-
-  return (
-    <View style={[styles.thumb, box, framed && styles.frame]}>
-      <RemoteImage url={url} style={styles.image} />
-    </View>
-  );
+  return <ExerciseImage exercise={exercise} size={size} style={framed ? styles.frame : null} />;
 }
 
 const styles = StyleSheet.create({
-  thumb: {
-    width: 52,
-    height: 52,
-    borderRadius: radii.lg,
-    overflow: 'hidden',
-  },
-  tile: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   frame: {
-    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: colors.border,
-  },
-  image: {
-    width: '100%',
-    height: '100%',
+    borderColor: colors.hairline,
   },
 });

@@ -3,14 +3,16 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { colors } from '../../../../shared/theme/tokens';
 
 // The picker's inline SVGs (trainer plans spec §A7). Every Svg gets explicit
-// width/height props or it paints nothing on Android.
+// width/height props or it paints nothing on Android. v2 §3 icon rule: round
+// caps and joins; the dumbbell is GymIcon's `workout` glyph at its 2.6 stroke,
+// the search glass 2.2.
 
 const hidden = { accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' };
 
 export function DumbbellIcon({ color, size = 24 }) {
   return (
     <Svg {...hidden} width={size} height={size} viewBox="0 0 32 32" fill="none">
-      <Path d="M4 13v6M9 10v12M23 10v12M28 13v6M9 16h14" stroke={color} strokeWidth={2.8} strokeLinecap="round" />
+      <Path d="M4 13v6M9 10v12M23 10v12M28 13v6M9 16h14" stroke={color} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
@@ -23,10 +25,10 @@ export function CheckIcon({ color = colors.pickerCheckInk, size = 11 }) {
   );
 }
 
-// Search glass 15×15 (spec §A7.2a): viewBox 20, stroke iconSubtle (gray-400) width 2.
+// Search glass 15×15 (spec §A7.2a): viewBox 20, stroke iconSubtle, width 2.2.
 export function SearchIcon({ color = colors.iconSubtle, size = 15 }) {
   return (
-    <Svg {...hidden} width={size} height={size} viewBox="0 0 20 20" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round">
+    <Svg {...hidden} width={size} height={size} viewBox="0 0 20 20" fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
       <Circle cx={8} cy={8} r={5} />
       <Path d="M18 18l-5-5" />
     </Svg>

@@ -1,12 +1,14 @@
 import { View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
-// App-shell spec §10. viewBox 32, no fill, current colour, round caps; round
-// joins on every icon except `workout`. Unknown names render an empty box.
+// App-shell spec §10, v2 §3: viewBox 32, no fill, current colour, round caps
+// and round joins on every icon. Strokes as the v2 Components board draws
+// them (2.2–2.6 at 22 px): `workout` 2.6, the rest 2.4. The Svg always gets
+// explicit width/height. Unknown names render an empty box.
 const ICONS = {
-  workout: { width: 3, join: false, body: () => <Path d="M4 13v6M9 10v12M23 10v12M28 13v6M9 16h14" /> },
+  workout: { width: 2.6, body: () => <Path d="M4 13v6M9 10v12M23 10v12M28 13v6M9 16h14" /> },
   exercises: {
-    width: 2.8,
+    width: 2.4,
     body: () => (
       <>
         <Circle cx={9} cy={22} r={3} />
@@ -16,7 +18,7 @@ const ICONS = {
     ),
   },
   library: {
-    width: 3,
+    width: 2.4,
     body: () => (
       <>
         <Rect x={9} y={5} width={14} height={22} rx={3} />
@@ -24,9 +26,9 @@ const ICONS = {
       </>
     ),
   },
-  progress: { width: 3, body: () => <Path d="M7 25V15M16 25V9M25 25V5M7 15l9-6 9-4" /> },
+  progress: { width: 2.4, body: () => <Path d="M7 25V15M16 25V9M25 25V5M7 15l9-6 9-4" /> },
   trainer: {
-    width: 3,
+    width: 2.4,
     body: () => (
       <>
         <Circle cx={12} cy={9} r={4} />
@@ -37,7 +39,7 @@ const ICONS = {
     ),
   },
   settings: {
-    width: 3,
+    width: 2.4,
     body: () => (
       <>
         <Path d="M16 4l3 2 4-.5 1.5 3.6 3.2 2.4-1.4 3.8 1.4 3.8-3.2 2.4-1.5 3.6-4-.5-3 2-3-2-4 .5-1.5-3.6-3.2-2.4 1.4-3.8-1.4-3.8 3.2-2.4L9 5.5l4 .5 3-2z" />
@@ -46,7 +48,7 @@ const ICONS = {
     ),
   },
   dashboard: {
-    width: 3,
+    width: 2.4,
     body: () => (
       <>
         {[
@@ -61,7 +63,7 @@ const ICONS = {
     ),
   },
   users: {
-    width: 2.8,
+    width: 2.4,
     body: () => (
       <>
         <Circle cx={12} cy={11} r={4} />
@@ -71,7 +73,7 @@ const ICONS = {
     ),
   },
   plans: {
-    width: 3,
+    width: 2.4,
     body: () => (
       <>
         <Rect x={7} y={6} width={18} height={22} rx={3} />
@@ -81,7 +83,7 @@ const ICONS = {
     ),
   },
   profile: {
-    width: 2.8,
+    width: 2.4,
     body: () => (
       <>
         <Circle cx={16} cy={16} r={12} />
@@ -108,7 +110,7 @@ export default function GymIcon({ name, size = 28, color }) {
       stroke={color}
       strokeWidth={icon.width}
       strokeLinecap="round"
-      strokeLinejoin={icon.join === false ? undefined : 'round'}
+      strokeLinejoin="round"
     >
       {icon.body()}
     </Svg>
