@@ -75,7 +75,8 @@ cleanup() {
   done < <(find "$MAESTRO_LOGS" -name '*.zip' 2>/dev/null)
   hits="$(printf '%s\n' "$hits" | sed '/^$/d' | sort -u)"
   if [ -n "$hits" ]; then
-    echo "sweep: deleting $(printf '%s\n' "$hits" | wc -l | tr -d ' ') file(s) that held a credential"
+    echo "sweep: deleting $(printf '%s\n' "$hits" | wc -l | tr -d ' ') file(s) that held a credential:"
+    printf '%s\n' "$hits"
     printf '%s\n' "$hits" | while IFS= read -r file; do rm -f "$file"; done
     [ "$CODE" -eq 0 ] && CODE=3
   else

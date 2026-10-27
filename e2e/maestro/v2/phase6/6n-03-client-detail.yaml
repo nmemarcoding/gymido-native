@@ -37,13 +37,24 @@ tags:
           visible:
             id: "client-assign-plan|state-slot"
           timeout: 30000
+      # QA s7 (6n-03): a long workout list scrolls the headings away before
+      # End coaching shows, so assert each heading on the way down (page
+      # order: Recent workouts, Assignment history, End coaching).
+      - scrollUntilVisible:
+          element:
+            text: "Recent workouts"
+          direction: DOWN
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            text: "Assignment history"
+          direction: DOWN
+          timeout: 20000
       - scrollUntilVisible:
           element:
             id: "client-end-coaching"
           direction: DOWN
           timeout: 20000
-      - assertVisible: "Recent workouts"
-      - assertVisible: "Assignment history"
       - tapOn:
           id: "client-end-coaching"
       - extendedWaitUntil:

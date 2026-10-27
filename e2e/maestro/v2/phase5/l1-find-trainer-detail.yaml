@@ -1,6 +1,6 @@
 # v2 Phase 5 L (p5l): Profile → Coaching → Find a trainer → Trainer detail →
-# "← All trainers". Member QA account, starts signed in on the tab root (the
-# lead's safe runner signs in). Read-only: the request dialog is opened and
+# "← All trainers". Account: THROWAWAY3 (a member WITHOUT a trainer; QA_MEMBER
+# now has one), signed in on the tab root (android-sign-in.sh / ios-safe-sign-in.sh). Read-only: the request dialog is opened and
 # CANCELLED, never sent. IDs only.
 appId: com.gymido.app
 ---
@@ -10,9 +10,11 @@ appId: com.gymido.app
     timeout: 60000
 - tapOn:
     id: "tab-Profile"
-- extendedWaitUntil:
-    visible:
+# QA s6: Profile may be left scrolled down by an earlier flow.
+- scrollUntilVisible:
+    element:
       id: "profile-coaching-card"
+    direction: UP
     timeout: 30000
 - tapOn:
     id: "profile-coaching-card"
@@ -20,8 +22,15 @@ appId: com.gymido.app
     visible:
       id: "trainer-hub-screen"
     timeout: 30000
-# "Browse trainers" shows for a member WITHOUT a trainer (the QA member
-# account today); with a trainer this flow stops here by design.
+# QA s6 (l1): "Browse trainers" exists only for a member with NO trainer.
+- runFlow:
+    when:
+      notVisible:
+        id: "trainer-hub-browse"
+    commands:
+      - assertTrue:
+          condition: ${false}
+          label: "l1 needs a member WITHOUT a trainer: sign in as THROWAWAY3"
 - tapOn:
     id: "trainer-hub-browse"
 - extendedWaitUntil:

@@ -1,0 +1,28 @@
+# T-55 on iPad mini (744 pt portrait, below the 768 tablet width): PORTRAIT
+# is a phone layout (bottom tab bar, no rail); LANDSCAPE is wide enough for
+# the rail (no tab bar); back to PORTRAIT restores the tab bar. The ≥ 768
+# tablets run t55/02 instead. QA's Automate item (native s1, iPad mini).
+# Account: QA_MEMBER, signed in on the Today root. IDs only.
+appId: com.gymido.app
+---
+- setOrientation: PORTRAIT
+- extendedWaitUntil:
+    visible:
+      id: "bottom-nav"
+    timeout: 30000
+- assertNotVisible:
+    id: "tablet-rail"
+- setOrientation: LANDSCAPE_LEFT
+- extendedWaitUntil:
+    visible:
+      id: "tablet-rail"
+    timeout: 10000
+- assertNotVisible:
+    id: "bottom-nav"
+- setOrientation: PORTRAIT
+- extendedWaitUntil:
+    visible:
+      id: "bottom-nav"
+    timeout: 10000
+- assertNotVisible:
+    id: "tablet-rail"

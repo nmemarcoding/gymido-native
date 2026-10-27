@@ -190,6 +190,24 @@ describe('TabletRail large text (UX §9 "Rail (tablet): the same rule")', () => 
     expect(tree.root.findAll((node) => node.props.testID === 'tablet-rail-tip')).toHaveLength(0);
   });
 
+  // QA BUG-N1 (s1 T8): at font scale 2.0 the Android tip read "Plan..". The
+  // tip shows the FULL tab name: no line limit, no ellipsis, and a label that
+  // never shrinks below its text width (the chip grows instead).
+  it.each(['trainer', 'member'])('Android 2.0 (%s): every long-press tip shows the full tab name, never ellipsized', (mode) => {
+    Platform.OS = 'android';
+    mockFontScale = 2;
+    const tree = render({ mode });
+    items(tree).forEach((node) => {
+      act(() => node.props.onLongPress());
+      const text = host(tree, 'tablet-rail-tip').findByType(Text);
+      expect(text.props.children).toBe(node.props.accessibilityLabel);
+      expect(text.props.numberOfLines).toBeUndefined();
+      expect(text.props.ellipsizeMode).toBeUndefined();
+      expect(StyleSheet.flatten(text.props.style).flexShrink).toBe(0);
+      act(() => node.props.onPressOut());
+    });
+  });
+
   it('no long-press label with labels shown, nor on iOS', () => {
     Platform.OS = 'android';
     expect(item(render(), 'Today').props.onLongPress).toBeUndefined();

@@ -125,7 +125,7 @@ export default function TabletRail({ mode, path }) {
       </ScrollView>
       {iconsOnly && tipTab ? (
         <View testID="tablet-rail-tip" pointerEvents="none" style={[styles.tip, { top: tipTop, left: RAIL.width + insets.left + 8 }]}>
-          <Text maxFontSizeMultiplier={textScale.body} numberOfLines={1} style={styles.tipText}>
+          <Text maxFontSizeMultiplier={textScale.body} style={styles.tipText}>
             {tipTab.label}
           </Text>
         </View>
@@ -204,8 +204,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.hairlineStrong,
   },
+  // QA BUG-N1: the full name at any text size, never ellipsized; the label
+  // keeps its text width and the chip grows around it.
   tipText: {
     ...typography.label,
     color: colors.textPrimary,
+    flexShrink: 0,
   },
 });
