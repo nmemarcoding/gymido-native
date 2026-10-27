@@ -1,0 +1,36 @@
+# UX K Edit profile: Manage opens Edit profile with the v2 form (height unit
+# control, weight fields, Save disabled while pristine); Cancel returns to the
+# Profile root (⚠P-12). Never saves, so the account data is unchanged.
+appId: com.gymido.app
+---
+- runFlow: k-subflows/open-profile.yaml
+- tapOn:
+    id: "settings-manage"
+- extendedWaitUntil:
+    visible:
+      id: "edit-profile-first_name"
+    timeout: 30000
+- assertVisible:
+    id: "edit-profile-height-unit"
+- scrollUntilVisible:
+    element:
+      id: "edit-profile-current_weight_value"
+    direction: DOWN
+    centerElement: true
+    timeout: 15000
+- assertVisible:
+    id: "edit-profile-current_weight_unit"
+- scrollUntilVisible:
+    element:
+      id: "edit-profile-cancel"
+    direction: DOWN
+    centerElement: true
+    timeout: 15000
+- assertVisible:
+    id: "edit-profile-save"
+- tapOn:
+    id: "edit-profile-cancel"
+- extendedWaitUntil:
+    visible:
+      id: "settings-display-name"
+    timeout: 30000

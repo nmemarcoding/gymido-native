@@ -1,0 +1,29 @@
+# T-43 Delete account (v2 look): the dialog opens with the field and a
+# DISABLED Delete; Cancel closes it. NEVER types DELETE and never taps the
+# submit, so the QA account is never deleted.
+appId: com.gymido.app
+---
+- runFlow: k-subflows/open-profile.yaml
+- scrollUntilVisible:
+    element:
+      id: "delete-account-open"
+    direction: DOWN
+    centerElement: true
+    timeout: 15000
+- tapOn:
+    id: "delete-account-open"
+- extendedWaitUntil:
+    visible:
+      id: "delete-account-confirm"
+    timeout: 20000
+- assertVisible:
+    id: "delete-account-submit"
+- assertVisible:
+    id: "delete-account-bullets"
+- hideKeyboard
+- tapOn:
+    id: "delete-account-cancel"
+- assertNotVisible:
+    id: "delete-account-confirm"
+- assertVisible:
+    id: "delete-account-open"

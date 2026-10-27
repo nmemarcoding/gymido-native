@@ -1,0 +1,29 @@
+# Phase 5 K: open the member Profile tab root. Starts signed in on a tab root
+# (the lead's safe runner signs in first). A trainer account is moved to the
+# Personal workspace first, or the member Profile tab never appears.
+# IDs only; never screenshot Profile (account data).
+appId: com.gymido.app
+---
+- runFlow:
+    when:
+      visible:
+        id: "tab-TProfile"
+    commands:
+      - tapOn:
+          id: "tab-TProfile"
+      - tapOn:
+          id: "mode-switch-member"
+      - extendedWaitUntil:
+          visible:
+            id: "tab-Profile"
+          timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: "tab-Profile"
+    timeout: 60000
+- tapOn:
+    id: "tab-Profile"
+- extendedWaitUntil:
+    visible:
+      id: "settings-display-name"
+    timeout: 30000

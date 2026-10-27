@@ -1,0 +1,43 @@
+# RN-SPEC-v2-phase5 §2 / UX K Profile: the v2 Profile root shows the identity,
+# the N1 stat tiles, the Coaching card and the account actions. Read-only:
+# nothing is tapped that changes data. IDs only, no screenshots.
+appId: com.gymido.app
+---
+- runFlow: k-subflows/open-profile.yaml
+- assertVisible:
+    id: "settings-manage"
+- assertVisible:
+    id: "profile-stats"
+- extendedWaitUntil:
+    visible:
+      id: "profile-stat-workouts"
+    timeout: 20000
+- assertVisible:
+    id: "profile-stat-now"
+- assertVisible:
+    id: "profile-stat-goal"
+- assertVisible:
+    id: "profile-coaching-card"
+- assertVisible:
+    id: "settings-row-weight"
+- scrollUntilVisible:
+    element:
+      id: "settings-speak-rest-alerts"
+    direction: DOWN
+    centerElement: true
+    timeout: 15000
+- assertVisible:
+    id: "settings-vibrate-rest-alerts"
+# Centre each, or it sits under the floating tab bar.
+- scrollUntilVisible:
+    element:
+      id: "settings-sign-out"
+    direction: DOWN
+    centerElement: true
+    timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: "delete-account-open"
+    direction: DOWN
+    centerElement: true
+    timeout: 15000

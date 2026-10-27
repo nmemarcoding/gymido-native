@@ -2,6 +2,7 @@ jest.mock('../shell/ShellPage', () => ({ children }) => children);
 jest.mock('../auth/authService', () => ({ logout: jest.fn() }));
 jest.mock('../shell/shellLinks', () => ({ openShellPath: jest.fn() }));
 jest.mock('./CoachingCard', () => () => null);
+jest.mock('./ProfileStatTiles', () => () => null);
 jest.mock('./api/profileApi', () => ({ getProfile: jest.fn(), updateProfile: jest.fn(), sendPasswordResetEmail: jest.fn() }));
 jest.mock('../../shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 const mockNavigation = { push: jest.fn(), replace: jest.fn(), navigate: jest.fn() };
@@ -216,7 +217,8 @@ describe('P1a Change password: reset email (T-32 H1)', () => {
     expect(row.props.onPress).toBeUndefined();
     expect(row.findAll((node) => typeof node.props.onPress === 'function')).toHaveLength(0);
     const rowTexts = texts(row);
-    expect(rowTexts).toEqual(['◈', 'Password', "You sign in with Google, so there's no Gymido password to change."]);
+    // v2 (declared look change): the row icon is the board's SVG lock, no '◈' glyph text.
+    expect(rowTexts).toEqual(['Password', "You sign in with Google, so there's no Gymido password to change."]);
     expect(rowTexts).not.toContain('›');
     expect(texts(tree.root)).not.toContain('Change Password');
     expect(modalOpen(tree.root)).toBe(false);
@@ -263,7 +265,9 @@ describe('P1a Change password: reset email (T-32 H1)', () => {
     expect(sendPasswordResetEmail).toHaveBeenCalledTimes(1);
     const status = tree.root.find((node) => node.props.testID === 'change-password-sent' && node.props.role);
     expect(status.props.role).toBe('status');
-    expect(texts(status)).toEqual(['✓', 'Email sent', 'Check your inbox for the link. It can take a few minutes, so look in spam too.']);
+    // v2 (declared look change): the ✓ glyph is now the 40 success disc with an SVG check.
+    expect(texts(status)).toEqual(['Email sent', 'Check your inbox for the link. It can take a few minutes, so look in spam too.']);
+    expect(status.findAll((node) => node.props.testID === 'change-password-sent-disc').length).toBeGreaterThan(0);
     expect(texts(tree.root)).not.toContain('Server message not shown');
     expect(has(tree.root, 'toast')).toBe(false);
     expect(button(tree.root, 'change-password-resend').props.title).toBe('Send again in 59s');
