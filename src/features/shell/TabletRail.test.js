@@ -185,9 +185,33 @@ describe('TabletRail large text (UX §9 "Rail (tablet): the same rule")', () => 
     act(() => item(tree, 'Progress').props.onLongPress());
     const tip = host(tree, 'tablet-rail-tip');
     expect(tip.findByType(Text).props.children).toBe('Progress');
-    expect(StyleSheet.flatten(tip.props.style).left).toBe(88 + 8);
+    expect(StyleSheet.flatten(host(tree, 'tablet-rail-tip-box').props.style).left).toBe(88 + 8);
     act(() => item(tree, 'Progress').props.onPressOut());
     expect(tree.root.findAll((node) => node.props.testID === 'tablet-rail-tip')).toHaveLength(0);
+  });
+
+  // QA BUG-N1 (s1 T8): at font scale 2.0 the Android tip read "Plan..". The
+  // tip shows the FULL tab name: no line limit, no ellipsis, and a label that
+  // never shrinks below its text width (the chip grows instead).
+  it.each(['trainer', 'member'])('Android 2.0 (%s): every long-press tip shows the full tab name, never ellipsized', (mode) => {
+    Platform.OS = 'android';
+    mockFontScale = 2;
+    const tree = render({ mode });
+    items(tree).forEach((node) => {
+      act(() => node.props.onLongPress());
+      const text = host(tree, 'tablet-rail-tip').findByType(Text);
+      expect(text.props.children).toBe(node.props.accessibilityLabel);
+      expect(text.props.numberOfLines).toBeUndefined();
+      expect(text.props.ellipsizeMode).toBeUndefined();
+      expect(StyleSheet.flatten(text.props.style).flexShrink).toBe(0);
+      // Device check (emulator, 2.0): the chip was still measured inside the
+      // 88-wide rail and broke "Plan / s". Its wrapper has an explicit width,
+      // independent of the rail, and the chip hugs its text inside it.
+      const box = StyleSheet.flatten(host(tree, 'tablet-rail-tip-box').props.style);
+      expect(box).toMatchObject({ position: 'absolute', alignItems: 'flex-start' });
+      expect(box.width).toBeGreaterThanOrEqual(240);
+      act(() => node.props.onPressOut());
+    });
   });
 
   it('no long-press label with labels shown, nor on iOS', () => {

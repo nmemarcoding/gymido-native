@@ -124,10 +124,14 @@ export default function TabletRail({ mode, path }) {
         </View>
       </ScrollView>
       {iconsOnly && tipTab ? (
-        <View testID="tablet-rail-tip" pointerEvents="none" style={[styles.tip, { top: tipTop, left: RAIL.width + insets.left + 8 }]}>
-          <Text maxFontSizeMultiplier={textScale.body} numberOfLines={1} style={styles.tipText}>
-            {tipTab.label}
-          </Text>
+        // The box has its own width: an absolute child with only `left` is
+        // measured inside the 88-wide rail, which broke "Plan / s" (QA BUG-N1).
+        <View testID="tablet-rail-tip-box" pointerEvents="none" style={[styles.tipBox, { top: tipTop, left: RAIL.width + insets.left + 8 }]}>
+          <View testID="tablet-rail-tip" style={styles.tip}>
+            <Text maxFontSizeMultiplier={textScale.body} style={styles.tipText}>
+              {tipTab.label}
+            </Text>
+          </View>
         </View>
       ) : null}
     </View>
@@ -135,6 +139,8 @@ export default function TabletRail({ mode, path }) {
 }
 
 const TIP_HEIGHT = 32;
+// Room for the longest tab name at the largest text size; the chip hugs its text inside.
+const TIP_BOX_WIDTH = 320;
 
 const styles = StyleSheet.create({
   // §7.2 color-surface + a 1 px hairline; drawn as the boards' full-height
@@ -193,8 +199,12 @@ const styles = StyleSheet.create({
   },
   labelActive: font(600),
   // Android's long-press label: a chip beside the held item.
-  tip: {
+  tipBox: {
     position: 'absolute',
+    width: TIP_BOX_WIDTH,
+    alignItems: 'flex-start',
+  },
+  tip: {
     minHeight: TIP_HEIGHT,
     justifyContent: 'center',
     paddingHorizontal: 12,
@@ -204,8 +214,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.hairlineStrong,
   },
+  // QA BUG-N1: the full name at any text size, never ellipsized; the label
+  // keeps its text width and the chip grows around it.
   tipText: {
     ...typography.label,
     color: colors.textPrimary,
+    flexShrink: 0,
   },
 });
