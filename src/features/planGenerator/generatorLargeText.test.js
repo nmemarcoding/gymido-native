@@ -49,9 +49,10 @@ jest.mock('./api/generatorApi', () => ({
   searchExercises: jest.fn(() => Promise.resolve([])),
 }));
 
-const { colors, textScale, blur } = require('../../shared/theme/tokens');
+const { colors, textScale, gradients } = require('../../shared/theme/tokens');
 const { default: PillButton } = require('../../shared/components/PillButton');
 const { default: GradientFill } = require('../../shared/components/GradientFill');
+const { default: ExerciseImage } = require('../../shared/components/ExerciseImage');
 const { Eyebrow } = require('../../shared/components/Typography');
 
 const OPTIONS = {
@@ -158,7 +159,7 @@ describe('Questionnaire (PlanGenerator board)', () => {
     // kit's §9 work).
     const inKit = (node) => {
       for (let at = node.parent; at; at = at.parent) {
-        if (at.type === PillButton || at.type === Eyebrow) {
+        if (at.type === PillButton || at.type === Eyebrow || at.type === ExerciseImage) {
           return true;
         }
       }
@@ -166,18 +167,27 @@ describe('Questionnaire (PlanGenerator board)', () => {
     };
     const others = tree.root
       .findAllByType(Text)
-      .filter((node) => !inKit(node) && node.props.testID !== 'generator-step-title' && node.props.children !== '×' && node.props.children !== '✓');
+      .filter(
+        (node) =>
+          !inKit(node) &&
+          node.props.testID !== 'generator-step-title' &&
+          // The ghost numeral is display text (1.3 cap), decorative.
+          node.props.testID !== 'generator-ghost-numeral' &&
+          node.props.children !== '×' &&
+          node.props.children !== '✓'
+      );
     expect(others.length).toBeGreaterThan(5);
     const missing = others.filter((node) => node.props.maxFontSizeMultiplier !== textScale.body).map((node) => [].concat(node.props.children).join(''));
     expect(missing).toEqual([]);
   });
 
   it.each([
-    [1, 390, ['generator-back', 'generator-next'], 'column'],
+    [1, 390, ['generator-back', 'generator-next'], 'row'],
     [1, 700, ['generator-back', 'generator-next'], 'row'],
+    [1, 834, ['generator-back', 'generator-next'], 'row'],
     [2, 700, ['generator-next', 'generator-back'], 'column'],
     [3.1, 390, ['generator-next', 'generator-back'], 'column'],
-  ])('fontScale %s at %spx: buttons %j, %s', async (fontScale, width, order, direction) => {
+  ])('step 6, fontScale %s at %spx: buttons %j, %s', async (fontScale, width, order, direction) => {
     mockWindow = { width, height: 844, scale: 2, fontScale };
     const tree = await openStep6();
     expect(buttonIds(tree, 'generator-buttons')).toEqual(order);
@@ -186,34 +196,48 @@ describe('Questionnaire (PlanGenerator board)', () => {
     expect(full.every(Boolean)).toBe(direction === 'column');
   });
 
-  it('avoid row: the name wraps to 2 lines with the full name as its label; at 2× the pills drop below it', async () => {
+  it('avoid row: the name wraps to 2 lines with the full name as its label; phone stacks the pills under the name; tablet a row that stacks at 2×', async () => {
     const tree = await openStep6();
     const name = tree.root.find((node) => node.type === Text && node.props.children === 'Burpee');
     expect(name.props).toMatchObject({ numberOfLines: 2, accessibilityLabel: 'Burpee' });
-    expect(flat(host(tree, 'generator-avoid-9'))).toMatchObject({ flexDirection: 'row', backgroundColor: colors.fillWell, borderColor: colors.hairline });
-    mockWindow = { ...mockWindow, fontScale: 2 };
+    expect(flat(host(tree, 'generator-avoid-9'))).toMatchObject({ backgroundColor: colors.fillWell, borderColor: colors.hairline, borderRadius: 20 });
+    expect(flat(host(tree, 'generator-avoid-9')).flexDirection).toBeUndefined();
+    mockWindow = { width: 834, height: 1194, scale: 2, fontScale: 1 };
+    const tablet = await openStep6();
+    expect(flat(host(tablet, 'generator-avoid-9'))).toMatchObject({ flexDirection: 'row', flexWrap: 'wrap' });
+    mockWindow = { width: 834, height: 1194, scale: 2, fontScale: 2 };
     const big = await openStep6();
-    expect(flat(host(big, 'generator-avoid-9'))).toMatchObject({ flexDirection: 'column', alignItems: 'flex-start' });
+    expect(flat(host(big, 'generator-avoid-9')).flexDirection).toBeUndefined();
   });
 
-  it('search: the well pill (surface-well, hairline-strong edge, min-height 52, text-faint placeholder)', async () => {
+  it('search: phone = the 48 pill on surface; tablet = the 52 well pill (surface-well); hairline-strong edge, text-faint placeholder, search icon', async () => {
     const tree = await openStep6();
     const input = host(tree, 'generator-avoid-search');
-    expect(flat(input)).toMatchObject({ backgroundColor: colors.surfaceWell, borderColor: colors.hairlineStrong, minHeight: 52, borderRadius: 999 });
+    expect(flat(input)).toMatchObject({ backgroundColor: colors.surface, borderColor: colors.hairlineStrong, minHeight: 48, borderRadius: 999, paddingLeft: 44 });
     expect(flat(input).height).toBeUndefined();
     expect(input.props).toMatchObject({ placeholderTextColor: colors.textFaint, maxFontSizeMultiplier: textScale.body });
+    expect(byTestId(tree, 'icon-search').length).toBeGreaterThan(0);
+    mockWindow = { width: 834, height: 1194, scale: 2, fontScale: 1 };
+    const tablet = await openStep6();
+    expect(flat(host(tablet, 'generator-avoid-search'))).toMatchObject({ backgroundColor: colors.surfaceWell, minHeight: 52, paddingLeft: 46 });
   });
 });
 
 describe('Check your answers (GeneratorReview board)', () => {
-  it('rows: question 13 text-muted (sentence case), answer 15/600, the glass "Change" pill with a 44 hit area', async () => {
+  it('rows: the gold hero (question 13/600 on-gold-muted, answer 36 on-gold, dark Change); cards (question 12 text-muted, answer 26/700, glass Change, 44 hit)', async () => {
     const tree = await openReview();
-    const row = host(tree, 'generator-review-1');
+    const hero = host(tree, 'generator-review-1');
+    const [heroQuestion, heroAnswer] = hero.findAll((node) => node.type === Text);
+    expect(flat(heroQuestion)).toMatchObject({ fontSize: 13, color: colors.onGoldMuted, fontFamily: 'Geist-SemiBold' });
+    expect(flat(heroAnswer)).toMatchObject({ fontSize: 36, color: colors.onGold, fontFamily: 'Geist-Bold' });
+    const heroChange = byTestId(tree, 'generator-review-change-1').find((node) => typeof node.props.children === 'function');
+    expect(flat(heroChange)).toMatchObject({ backgroundColor: colors.onGold, minHeight: 34 });
+    const row = host(tree, 'generator-review-2');
     const [question, summary] = row.findAll((node) => node.type === Text);
-    expect(flat(question)).toMatchObject({ fontSize: 13, color: colors.textMuted });
+    expect(flat(question)).toMatchObject({ fontSize: 12, color: colors.textMuted });
     expect(flat(question).textTransform).toBeUndefined();
-    expect(flat(summary)).toMatchObject({ fontSize: 15, fontFamily: 'Geist-SemiBold', color: colors.textPrimary });
-    const change = byTestId(tree, 'generator-review-change-1').find((node) => typeof node.props.children === 'function');
+    expect(flat(summary)).toMatchObject({ fontSize: 26, fontFamily: 'Geist-Bold', color: colors.textPrimary });
+    const change = byTestId(tree, 'generator-review-change-2').find((node) => typeof node.props.children === 'function');
     expect(flat(change)).toMatchObject({ backgroundColor: colors.hairlineStrong, minHeight: 34, borderRadius: 999 });
     expect(change.props.hitSlop.top + 34 + change.props.hitSlop.bottom).toBe(44);
   });
@@ -238,10 +262,10 @@ describe('Check your answers (GeneratorReview board)', () => {
 
   it('fontScale 1: "Change" trails the text; 2: it drops below; 3.1: "See my plan" stacks on top', async () => {
     const tree = await openReview();
-    expect(flat(host(tree, 'generator-review-1')).flexDirection).toBe('row');
+    expect(flat(host(tree, 'generator-review-top-2')).flexDirection).toBe('row');
     mockWindow = { ...mockWindow, fontScale: 2 };
     const big = await openReview();
-    expect(flat(host(big, 'generator-review-1')).flexDirection).toBe('column');
+    expect(flat(host(big, 'generator-review-top-2')).flexDirection).toBe('column');
     mockWindow = { ...mockWindow, fontScale: 3.1 };
     const huge = await openReview();
     expect(buttonIds(huge, 'generator-buttons')).toEqual(['generator-see-plan', 'generator-back']);
@@ -275,17 +299,29 @@ describe('Preview (GeneratorPreview board)', () => {
     expect(fill.props.colors).toEqual(['#1E2129', '#14161C']);
   });
 
-  it('sticky bar: ground-bar veil + blur 24', async () => {
+  // UX ruling on M2-1: web's fade stays; the fade sits in a band ABOVE the
+  // buttons and the area directly behind them is opaque ground (every phone
+  // width), so no card shows through.
+  it.each([390, 431, 700])('sticky bar (phone %spx): the kit fade in a band above, opaque ground behind the buttons, no blur veil', async (width) => {
+    mockWindow = { width, height: 844, scale: 2, fontScale: 1 };
     const tree = await openPreview();
     const bar = host(tree, 'generator-sticky-bar');
-    expect(one(tree, 'blur-layer').props.blurPx).toBe(blur.groundBar);
-    const veil = bar.findAll((node) => typeof node.type === 'string' && flat(node).backgroundColor === colors.groundBar);
-    expect(veil.length).toBe(1);
+    const band = host(tree, 'generator-bar-fade');
+    const fade = band.findAllByType(GradientFill)[0];
+    expect(fade.props.colors).toEqual(gradients.ctaBarFade.colors);
+    expect(flat(band).height).toBeGreaterThan(0);
+    expect(flat(bar).backgroundColor).toBeUndefined();
+    expect(flat(host(tree, 'generator-sticky-row')).backgroundColor).toBe(colors.ground);
+    expect(byTestId(tree, 'blur-layer')).toHaveLength(0);
   });
 
   it.each([
-    [1, 390, ['generator-bar-change', 'generator-start'], 'column'],
+    // DECLARED (M2-1): 390 was a row (was: ['generator-bar-change', 'generator-start'], 'row'); below 432 it stacks.
+    [1, 390, ['generator-start', 'generator-bar-change'], 'column'],
+    [1, 431, ['generator-start', 'generator-bar-change'], 'column'],
+    [1, 432, ['generator-bar-change', 'generator-start'], 'row'],
     [1, 700, ['generator-bar-change', 'generator-start'], 'row'],
+    [1, 834, ['generator-bar-change', 'generator-start'], 'row'],
     [2, 700, ['generator-start', 'generator-bar-change'], 'column'],
     [3.1, 390, ['generator-start', 'generator-bar-change'], 'column'],
   ])('fontScale %s at %spx: bar buttons %j (%s)', async (fontScale, width, order, direction) => {

@@ -1,0 +1,80 @@
+# v2 Phase 4 §3 Generator (team 4j): walk the six steps to the review and back
+# out WITHOUT saving. Starts signed in (member QA account) on a tab root; the
+# lead's safe runner signs in first. IDs only; nothing is written.
+appId: com.gymido.app
+---
+- tapOn:
+    id: "tab-Plans"
+- scrollUntilVisible:
+    element:
+      id: "generator-entry-start"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "generator-entry-start"
+- extendedWaitUntil:
+    visible:
+      id: "generator-progress"
+    timeout: 30000
+# Step 1: the top row, the ghost numeral and the hint are the phone board.
+- assertVisible:
+    id: "generator-top-back"
+- tapOn:
+    id: "generator-goal-BUILD_MUSCLE"
+- tapOn:
+    id: "generator-next"
+# Step 2
+- tapOn:
+    id: "generator-band-2_PLUS_YEARS"
+- tapOn:
+    id: "generator-next"
+# Step 3
+- tapOn:
+    id: "generator-days-4"
+- tapOn:
+    id: "generator-next"
+# Step 4
+- tapOn:
+    id: "generator-minutes-60"
+- tapOn:
+    id: "generator-next"
+# Step 5
+- tapOn:
+    id: "generator-preset-FULL_GYM"
+- tapOn:
+    id: "generator-next"
+# Step 6 (buttons in the flow): Skip/Next goes to the review.
+- assertVisible:
+    id: "generator-step6"
+- scrollUntilVisible:
+    element:
+      id: "generator-next"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "generator-next"
+# Review: the gold hero card and the per-card Change.
+- extendedWaitUntil:
+    visible:
+      id: "generator-review-1"
+    timeout: 15000
+- tapOn:
+    id: "generator-review-change-3"
+- assertVisible:
+    id: "generator-days-4"
+# Back out with the top icon button (step 3 → 2 → 1), then Cancel (no save).
+- repeat:
+    times: 2
+    commands:
+      - tapOn:
+          id: "generator-top-back"
+- extendedWaitUntil:
+    visible:
+      id: "generator-goal-BUILD_MUSCLE"
+    timeout: 10000
+- tapOn:
+    id: "generator-cancel"
+- extendedWaitUntil:
+    visible:
+      id: "generator-entry-start"
+    timeout: 15000

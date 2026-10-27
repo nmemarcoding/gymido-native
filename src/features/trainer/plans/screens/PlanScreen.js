@@ -1,16 +1,20 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { builderMessage, getServerMessage, getStatus } from '../../../../shared/api/apiError';
 import EmptyState from '../../../../shared/components/EmptyState';
+import { CardSurface } from '../../../../shared/components/Card';
 import ErrorAlert from '../../../../shared/components/ErrorAlert';
+import GradientFill from '../../../../shared/components/GradientFill';
+import IconButton from '../../../../shared/components/IconButton';
+import { CAP_BODY, DISPLAY_TITLE_TEXT } from '../../../../shared/components/largeText';
 import Loader from '../../../../shared/components/Loader';
 import PillButton from '../../../../shared/components/PillButton';
 import StateSlot from '../../../../shared/components/StateSlot';
 import { ToastTone, addToast } from '../../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../../shared/hooks/useFocusRemountKey';
-import { breakpoints, colors, radii } from '../../../../shared/theme/tokens';
+import { colors, font, gradients, layout, radii, spacing } from '../../../../shared/theme/tokens';
 import TrainerOnly from '../../TrainerOnly';
 import {
   listDayExercises,
@@ -24,11 +28,15 @@ import {
 import AddDayModal from '../components/AddDayModal';
 import AddSetModal from '../components/AddSetModal';
 import { ClientsBanner, InactiveBanner } from '../components/AffectedClients';
+import { BackLink, DangerTintButton, EyebrowChip, StatusBox, builderStyles, useBuilderLayout } from '../components/builderParts';
 import DayListCard from '../components/DayListCard';
+import DayTabs, { DayTabPanel, SelectedDayStrip } from '../components/DayTabs';
 import EditPlanDetailsModal from '../components/EditPlanDetailsModal';
 import ExercisePickerSheet from '../components/ExercisePickerSheet';
 import PlanActionDialog, { PlanAction } from '../components/PlanActionDialog';
-import { PlanPage, TextLink } from '../components/PlanPage';
+import { PlanPage } from '../components/PlanPage';
+import PlanOverflowSheet, { overflowLabel } from '../components/PlanOverflowSheet';
+import { MoreIcon, PlusIcon } from '../components/pickerIcons';
 import SortableExerciseList from '../components/SortableExerciseList';
 import StaticExerciseList from '../components/StaticExerciseList';
 import { wait } from '../loadExerciseCatalog';
@@ -73,8 +81,9 @@ function PlanBuilder({ planId, adapter }) {
   // C9: set only by a copy landing; consumed on the first load.
   const nameTheCopy = Boolean(useRoute().params?.nameTheCopy);
   const navigation = useNavigation();
-  const { width } = useWindowDimensions();
+  const { tablet, reflow } = useBuilderLayout();
   const mounted = useRef(true);
+  const confirming = useRef(false);
 
   const [status, setStatus] = useState('loading');
   const [loadError, setLoadError] = useState('');
@@ -103,6 +112,9 @@ function PlanBuilder({ planId, adapter }) {
   const [activating, setActivating] = useState(false);
   const [action, setAction] = useState(null);
   const [copying, setCopying] = useState(false);
+  // One copy request at a time: a second tap while one runs does nothing.
+  const copyingRef = useRef(false);
+  const [overflowOpen, setOverflowOpen] = useState(false);
 
   // One day modal and one set modal each serve create and edit (⚠B-8).
   const [dayModal, setDayModal] = useState({ open: false, day: null });
@@ -112,7 +124,7 @@ function PlanBuilder({ planId, adapter }) {
   const capabilities = useMemo(() => adapter.getCapabilities({ isOwnPlan }), [adapter, isOwnPlan]);
   const canEdit = canEditPlan(capabilities);
   const { mutations } = adapter;
-  const extension = useExtension({ planId, plan, days });
+  const extension = useExtension({ planId, plan, days, tablet });
 
   const selectDay = useCallback((dayId) => {
     selectedDayRef.current = dayId;
@@ -249,17 +261,29 @@ function PlanBuilder({ planId, adapter }) {
     // openEditPlan is recreated each render; the ref keeps this to one run.
   }, [status, nameTheCopy, capabilities.editPlan]);
 
-  // Part C §CP2: one flow for both copy buttons. Lifecycle pairing: `copying`
-  // is set on press and cleared when the request settles while mounted.
+  // Part C §CP2: one flow for both copy buttons (and the member's own-plan
+  // "Make a copy", RN-SPEC-v2-phase4 §2). Lifecycle pairing: `copying` is
+  // set on press and cleared when the request settles while mounted.
+  // T-16 (4.0.4): a 201 without a plan id is still a success → the list.
   async function copyPlan() {
+    if (copyingRef.current) {
+      return;
+    }
+    copyingRef.current = true;
     setCopying(true);
     try {
       const copy = await mutations.copyPlan();
-      addToast(ToastTone.success, 'Plan copied', text.copiedMessage);
-      adapter.openCopy(navigation, copy?.id);
+      if (copy?.id !== undefined && copy?.id !== null) {
+        addToast(ToastTone.success, 'Plan copied', text.copiedMessage);
+        adapter.openCopy(navigation, copy.id);
+      } else {
+        addToast(ToastTone.success, 'Plan copied', text.copiedFallbackMessage);
+        adapter.openCopyFallback(navigation);
+      }
     } catch (error) {
       addToast(ToastTone.error, 'Could not copy the plan', builderMessage(error, undefined, text.copyNotYoursCopy));
     }
+    copyingRef.current = false;
     if (mounted.current) {
       setCopying(false);
     }
@@ -404,8 +428,21 @@ function PlanBuilder({ planId, adapter }) {
     setAction(null);
   }
 
-  // One confirmed action (§B4–§B8). Failures stay inside the dialog.
+  // Review LOW: a ref guard, so a double tap before the re-render runs once.
   async function confirmAction() {
+    if (confirming.current) {
+      return;
+    }
+    confirming.current = true;
+    try {
+      await runConfirmedAction();
+    } finally {
+      confirming.current = false;
+    }
+  }
+
+  // One confirmed action (§B4–§B8). Failures stay inside the dialog.
+  async function runConfirmedAction() {
     const current = action;
     setAction({ ...current, running: true, error: null });
     const finish = () => mounted.current && setAction(null);
@@ -556,84 +593,92 @@ function PlanBuilder({ planId, adapter }) {
     );
   }
 
-  const wide = width >= breakpoints.sm;
-  const twoColumns = width >= breakpoints.lg;
+  // v2 look (UX phase4 I §1-3, phase6 O builder): `look` picks the member
+  // or trainer boards; `tablet` (≥ 768) the two-column tablet boards.
+  const look = adapter.look ?? 'member';
+  const trainer = look === 'trainer';
+  const twoColumns = tablet && !reflow;
   const addDayContext = getAddDayContext(plan, days);
   const isInactive = plan?.is_active === false;
+  const selectedDay = days.find((day) => day.id === selectedDayId) ?? null;
   let description = text.descriptionCatalog;
   if (isOwnPlan) {
     description = canEdit ? text.descriptionOwnEdit : text.descriptionOwnAddOnly;
   }
 
-  return (
-    <PlanPage testID="plan-screen" nestable>
-      {/* ⚠T3-3: pushes a fresh list rather than going back. */}
-      <TextLink
-        testID="plan-all-plans"
-        label={text.backLabel}
-        onPress={() => adapter.openBack(navigation)}
-        style={adapter.backLinkHitArea ? styles.backLink : undefined}
+  // The plan actions: the tablet header buttons and the phone overflow.
+  const planActions = [];
+  if (capabilities.editPlan) {
+    planActions.push({ key: 'edit-details', label: 'Edit details', onPress: openEditPlan });
+  }
+  if (isOwnPlan && capabilities.copyPlan) {
+    planActions.push({ key: 'make-copy', label: 'Make a copy', loading: copying, onPress: copyPlan });
+  }
+  if (capabilities.editPlan && isInactive) {
+    planActions.push({ key: 'activate', label: 'Activate', loading: activating, onPress: activatePlan });
+  }
+  if (capabilities.editPlan && !isInactive) {
+    planActions.push({ key: 'deactivate', label: 'Deactivate', onPress: () => openAction(PlanAction.deactivatePlan) });
+  }
+  if (capabilities.deletePlan) {
+    planActions.push({ key: 'delete', label: 'Delete plan', tone: 'danger', onPress: () => openAction(PlanAction.deletePlan) });
+  }
+  const findAction = (key) => planActions.find((item) => item.key === key);
+  const actionButton = (item, extraStyle) =>
+    item.tone === 'danger' ? (
+      <DangerTintButton key={item.key} testID={`plan-${item.key}`} title={item.label} onPress={item.onPress} style={extraStyle} />
+    ) : (
+      <PillButton
+        key={item.key}
+        testID={`plan-${item.key}`}
+        title={item.label}
+        variant="secondary"
+        size="compact"
+        loading={item.loading}
+        onPress={item.onPress}
+        style={extraStyle}
       />
+    );
 
-      <View style={[styles.pageHeader, wide ? styles.pageHeaderWide : styles.pageHeaderPhone]}>
-        <View style={styles.pageHeaderText}>
-          <View style={styles.eyebrowRow}>
-            <View style={styles.eyebrowBar} />
-            <Text style={styles.eyebrow}>{isOwnPlan ? text.eyebrowOwn : text.eyebrowCatalog}</Text>
-          </View>
-          <Text accessibilityRole="header" style={styles.title}>
-            {plan?.name || 'Plan'}
-          </Text>
-          <Text style={styles.description}>{description}</Text>
-        </View>
-        {capabilities.editPlan || capabilities.deletePlan || (isOwnPlan && capabilities.copyPlan) ? (
-          <View style={[styles.headerActions, !wide && styles.headerActionsPhone]}>
-            {extension.headerActions}
-            {capabilities.editPlan ? (
-              <PillButton testID="plan-edit-details" title="Edit details" variant="secondary" onPress={openEditPlan} />
-            ) : null}
-            {isOwnPlan && capabilities.copyPlan ? (
-              <PillButton testID="plan-make-copy" title="Make a copy" variant="secondary" loading={copying} onPress={copyPlan} />
-            ) : null}
-            {capabilities.editPlan && isInactive ? (
-              <PillButton
-                testID="plan-activate"
-                title="Activate"
-                variant="secondary"
-                loading={activating}
-                onPress={activatePlan}
-              />
-            ) : null}
-            {capabilities.editPlan && !isInactive ? (
-              <PillButton
-                testID="plan-deactivate"
-                title="Deactivate"
-                variant="secondary"
-                onPress={() => openAction(PlanAction.deactivatePlan)}
-              />
-            ) : null}
-            {capabilities.deletePlan ? (
-              <PillButton
-                testID="plan-delete"
-                title="Delete plan"
-                variant="danger"
-                onPress={() => openAction(PlanAction.deletePlan)}
-              />
-            ) : null}
-          </View>
-        ) : null}
+  const backLink = (
+    <BackLink testID="plan-all-plans" label={text.backLabel} pill={trainer} onPress={() => adapter.openBack(navigation)} />
+  );
+  const overflowButton =
+    !tablet && planActions.length > 0 ? (
+      <IconButton testID="plan-overflow" accessibilityLabel={overflowLabel(planActions)} onPress={() => setOverflowOpen(true)}>
+        {({ color }) => <MoreIcon color={color} size={20} />}
+      </IconButton>
+    ) : null;
+  const title = (
+    <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={[styles.title, titleStyle(trainer, tablet)]}>
+      {plan?.name || 'Plan'}
+    </Text>
+  );
+  const descriptionText = description ? (
+    <Text {...CAP_BODY} style={[styles.description, tablet && styles.descriptionTablet, trainer && styles.descriptionTrainer]}>
+      {description}
+    </Text>
+  ) : null;
+
+  return (
+    <PlanPage testID="plan-screen" nestable maxWidth={tablet ? layout.contentMax : undefined} gap={tablet ? spacing['4_5'] : spacing[3]}>
+      <View style={styles.topRow}>
+        {/* ⚠T3-3: pushes a fresh list rather than going back. */}
+        {backLink}
+        {overflowButton}
       </View>
 
+      {trainer ? renderTrainerHeader() : renderMemberHeader()}
+
       {isOwnPlan ? null : (
-        <View accessibilityRole="summary" style={styles.notice}>
-          <Text style={styles.noticeTitle}>This is a public plan</Text>
-          <Text style={styles.noticeBody}>
+        <StatusBox testID="plan-catalog-notice" title="This is a public plan">
+          <Text {...CAP_BODY} style={builderStyles.statusBody}>
             It’s part of the shared catalog, so it can’t be changed here — but you can still assign it to a client, or
             copy it to make your own version you can change.{' '}
             <Text
               testID="plan-create-own"
               accessibilityRole="link"
-              style={styles.noticeLink}
+              style={builderStyles.link}
               onPress={() => adapter.openCreate(navigation)}
             >
               Create your own plan
@@ -642,37 +687,52 @@ function PlanBuilder({ planId, adapter }) {
           </Text>
           {capabilities.copyPlan ? (
             <View style={styles.noticeAction}>
-              <PillButton testID="plan-copy-this" title="Copy this plan" loading={copying} onPress={copyPlan} />
+              <PillButton testID="plan-copy-this" title="Copy this plan" size="compact" loading={copying} onPress={copyPlan} />
             </View>
           ) : null}
-        </View>
+        </StatusBox>
       )}
       {canEdit && isInactive ? <InactiveBanner body={text.inactiveBannerBody} /> : null}
       {canEdit ? <ClientsBanner count={affectedCount} /> : null}
       {extension.banners}
 
-      <View style={twoColumns ? styles.bodyTwo : styles.bodyOne}>
-        <View style={[styles.leftColumn, twoColumns && styles.leftColumnFixed]}>
-          <DayListCard
+      {tablet ? (
+        <View style={twoColumns ? styles.columns : styles.stack}>
+          <View style={twoColumns ? (trainer ? styles.asideTrainer : styles.aside) : null}>
+            <DayListCard
+              days={days}
+              look={look}
+              selectedDayId={selectedDayId}
+              onSelect={selectDay}
+              capabilities={capabilities}
+              onEditDay={openDayEdit}
+              onDeleteDay={(day) => openAction(PlanAction.deleteDay, { day })}
+              footer={renderTabletAddDay()}
+            />
+          </View>
+          <View style={[styles.section, twoColumns && styles.sectionFlex]}>{renderSelectedDay()}</View>
+        </View>
+      ) : (
+        <>
+          <DayTabs
             days={days}
+            look={look}
             selectedDayId={selectedDayId}
             onSelect={selectDay}
-            capabilities={capabilities}
-            onEditDay={openDayEdit}
-            onDeleteDay={(day) => openAction(PlanAction.deleteDay, { day })}
+            canAddDay={capabilities.addDay}
+            onAddDay={openAddDay}
           />
-          {capabilities.addDay ? (
-            <PillButton
-              testID="plan-add-day"
-              title="Add a day"
-              variant="secondary"
-              fullWidth
-              onPress={() => setDayModal({ open: true, day: null })}
+          <DayTabPanel day={selectedDay}>
+            <SelectedDayStrip
+              day={selectedDay}
+              capabilities={capabilities}
+              onEditDay={openDayEdit}
+              onDeleteDay={(day) => openAction(PlanAction.deleteDay, { day })}
             />
-          ) : null}
-        </View>
-        <View style={[styles.rightColumn, twoColumns && styles.rightColumnFlex]}>{renderSelectedDay()}</View>
-      </View>
+            <View style={styles.section}>{renderSelectedDay()}</View>
+          </DayTabPanel>
+        </>
+      )}
 
       <AddDayModal
         isOpen={dayModal.open}
@@ -723,17 +783,122 @@ function PlanBuilder({ planId, adapter }) {
         onClose={closeAction}
         onConfirm={confirmAction}
       />
+      {tablet ? null : (
+        <PlanOverflowSheet
+          isOpen={overflowOpen}
+          onClose={() => setOverflowOpen(false)}
+          items={planActions.map((item) => ({ ...item, testID: `plan-overflow-${item.key}` }))}
+        />
+      )}
       {extension.overlays}
     </PlanPage>
   );
 
+  function openAddDay() {
+    setDayModal({ open: true, day: null });
+  }
+
+  // Member boards: eyebrow + display title + description, then the action
+  // row: phone [Start this plan | Edit details] (the rest in the overflow),
+  // tablet every plan action inline.
+  function renderMemberHeader() {
+    const edit = findAction('edit-details');
+    const start = extension.headerActions;
+    let actions = null;
+    if (tablet) {
+      actions = start || planActions.length > 0 ? (
+        <View style={styles.actionsWrap}>
+          {start}
+          {planActions.map((item) => actionButton(item))}
+        </View>
+      ) : null;
+    } else if (start || edit) {
+      actions = (
+        <View testID="plan-header-actions" style={[styles.actionRow, reflow && styles.actionRowStacked]}>
+          {start ? <View style={reflow ? null : styles.startCell}>{start}</View> : null}
+          {edit ? actionButton(edit) : null}
+        </View>
+      );
+    }
+    return (
+      <>
+        <View style={styles.header}>
+          <Text {...CAP_BODY} style={[styles.eyebrow, tablet && styles.eyebrowTablet]}>
+            {isOwnPlan ? text.eyebrowOwn : text.eyebrowCatalog}
+          </Text>
+          {title}
+          {descriptionText}
+        </View>
+        {actions}
+      </>
+    );
+  }
+
+  // Trainer boards: the header card (teal chip, title, description) with
+  // phone [Edit details | Make a copy] or every plan action on tablet.
+  function renderTrainerHeader() {
+    let actions = null;
+    if (tablet) {
+      actions = planActions.length > 0 ? <View style={styles.cardActions}>{planActions.map((item) => actionButton(item))}</View> : null;
+    } else {
+      const inline = ['edit-details', 'make-copy'].map(findAction).filter(Boolean);
+      actions =
+        inline.length > 0 ? (
+          <View style={[styles.cardActions, reflow && styles.actionRowStacked]}>
+            {inline.map((item) => actionButton(item, reflow ? null : styles.flexCell))}
+          </View>
+        ) : null;
+    }
+    return (
+      <CardSurface hero testID="plan-header-card" style={[styles.headerCard, tablet && styles.headerCardTablet]}>
+        <View pointerEvents="none" style={styles.glow}>
+          <GradientFill radial={gradients.tealOrb.radial} colors={gradients.tealOrb.colors} stops={gradients.tealOrb.stops} />
+        </View>
+        <EyebrowChip label={isOwnPlan ? text.eyebrowOwn : text.eyebrowCatalog} tablet={tablet} />
+        <View style={styles.cardTitle}>{title}</View>
+        {descriptionText}
+        {actions}
+      </CardSurface>
+    );
+  }
+
+  function renderTabletAddDay() {
+    if (!capabilities.addDay) {
+      return null;
+    }
+    return trainer ? (
+      <PillButton
+        testID="plan-add-day"
+        title="Add a day"
+        variant="ghost"
+        size="compact"
+        fullWidth
+        icon={({ color }) => <PlusIcon color={color} size={16} />}
+        style={styles.dashedAdd}
+        onPress={openAddDay}
+      />
+    ) : (
+      <PillButton
+        testID="plan-add-day"
+        title="Add a day"
+        variant="secondary"
+        size="compact"
+        fullWidth
+        icon={({ color }) => <PlusIcon color={color} size={16} />}
+        onPress={openAddDay}
+      />
+    );
+  }
+
   function renderSelectedDay() {
     if (!selectedDayId) {
       return (
-        <EmptyState
-          title="No days yet"
-          message={capabilities.addDay ? 'Add a day to start building this plan.' : 'This plan has no days.'}
-        />
+        <View style={styles.emptyCard}>
+          <EmptyState
+            title="No days yet"
+            message={capabilities.addDay ? 'Add a day to start building this plan.' : 'This plan has no days.'}
+          />
+        </View>
       );
     }
     if (dayLoading) {
@@ -747,28 +912,47 @@ function PlanBuilder({ planId, adapter }) {
       onEditSet: (exercise, set) => openSetModal(exercise, set),
       onDeleteSet: (exercise, set) => openAction(PlanAction.deleteSet, { exercise, set }),
     };
+    // One gold action per screen: the tablet trainer's Add exercise is the
+    // gold one; the phone trainer's is light; the member's is glass.
+    let addVariant = 'secondary';
+    if (trainer) {
+      addVariant = tablet ? 'primary' : 'light';
+    }
     return (
       <>
-        <View style={styles.exercisesHeader}>
-          <Text style={styles.exercisesTitle}>Exercises</Text>
+        <View style={styles.sectionHead}>
+          <Text {...CAP_BODY} accessibilityRole="header" style={[styles.sectionTitle, tablet && !trainer && styles.sectionTitleTablet]}>
+            Exercises
+          </Text>
           {capabilities.addExercise ? (
             <PillButton
               ref={addExerciseRef}
               testID="plan-add-exercise"
               title="Add exercise"
-              variant="secondary"
+              variant={addVariant}
+              size="compact"
+              icon={({ color }) => <PlusIcon color={color} size={16} />}
               onPress={() => setPickerOpen(true)}
             />
           ) : null}
         </View>
+        {capabilities.reorderExercises && exercises.length > 0 ? (
+          <Text {...CAP_BODY} style={[styles.helper, tablet && styles.helperTablet]}>
+            Drag the grip handle to reorder exercises.
+          </Text>
+        ) : null}
         {exercises.length === 0 ? (
-          <EmptyState
-            title="No exercises yet"
-            message={capabilities.addExercise ? 'Add an exercise to this day.' : 'This day has no exercises.'}
-          />
+          <View style={styles.emptyCard}>
+            <EmptyState
+              title="No exercises yet"
+              message={capabilities.addExercise ? 'Add an exercise to this day.' : 'This day has no exercises.'}
+            />
+          </View>
         ) : capabilities.reorderExercises ? (
           <SortableExerciseList
             {...listProps}
+            look={look}
+            setsToggle={Boolean(adapter.setsToggle)}
             onMove={moveExercise}
             onDeleteExercise={(exercise) => openAction(PlanAction.deleteExercise, { exercise })}
           />
@@ -780,133 +964,193 @@ function PlanBuilder({ planId, adapter }) {
   }
 }
 
+// Title sizes as drawn: member phone 42/42, tablet 60/60; trainer phone
+// 36/38, tablet 44/46 (display cap 1.3×, word wrap, long words shrink).
+function titleStyle(trainer, tablet) {
+  if (trainer) {
+    return tablet ? styles.titleTrainerTablet : styles.titleTrainer;
+  }
+  return tablet ? styles.titleTablet : null;
+}
+
 const styles = StyleSheet.create({
-  // Batch A: M3's "← My plans" gets the 44 pt text-link hit area.
-  backLink: {
-    minHeight: 44,
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-  },
   loader: {
     paddingVertical: 48,
   },
-  pageHeader: {
-    marginBottom: 16,
-  },
-  pageHeaderPhone: {
-    flexDirection: 'column',
-    gap: 12,
-  },
-  pageHeaderWide: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 16,
-  },
-  pageHeaderText: {
-    flexShrink: 1,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  headerActionsPhone: {
-    width: '100%',
-  },
-  eyebrowRow: {
+  topRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
+    gap: spacing[3],
   },
-  eyebrowBar: {
-    width: 4,
-    height: 14,
-    borderRadius: radii.full,
-    backgroundColor: colors.brand400,
+  header: {
+    paddingHorizontal: spacing[1],
   },
   eyebrow: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '600',
-    letterSpacing: 2.64,
-    textTransform: 'uppercase',
-    color: colors.brand700,
+    ...font(600),
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.gold,
+  },
+  eyebrowTablet: {
+    fontSize: 14,
+    lineHeight: 20,
   },
   title: {
-    marginTop: 6,
-    fontSize: 30,
-    lineHeight: 36,
-    fontWeight: '700',
-    letterSpacing: -0.75,
+    ...font(700),
+    fontSize: 42,
+    lineHeight: 42,
+    letterSpacing: -2.1,
     color: colors.textPrimary,
+  },
+  titleTablet: {
+    fontSize: 60,
+    lineHeight: 60,
+    letterSpacing: -3.3,
+  },
+  titleTrainer: {
+    fontSize: 36,
+    lineHeight: 38,
+    letterSpacing: -1.62,
+  },
+  titleTrainerTablet: {
+    fontSize: 44,
+    lineHeight: 46,
+    letterSpacing: -2.2,
   },
   description: {
-    marginTop: 8,
-    maxWidth: 672,
+    ...font(400),
+    marginTop: spacing['1_5'],
     fontSize: 14,
     lineHeight: 20,
     color: colors.textSecondary,
   },
-  notice: {
-    borderRadius: radii.lg,
+  descriptionTablet: {
+    marginTop: spacing[2],
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  descriptionTrainer: {
+    marginTop: spacing['2_5'],
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  actionRowStacked: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
+  startCell: {
+    flex: 1,
+  },
+  actionsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[2],
+  },
+  headerCard: {
+    borderRadius: radii.xxl,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceMuted,
-    padding: 16,
+    borderColor: colors.choiceBorder,
+    padding: spacing[5],
+    overflow: 'hidden',
   },
-  noticeTitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
+  headerCardTablet: {
+    borderRadius: radii.xxxl,
+    padding: spacing[6],
   },
-  noticeBody: {
-    marginTop: 4,
-    fontSize: 14,
-    lineHeight: 24,
-    color: colors.textSecondary,
+  // The teal glow top-right of the header card (220, drawn at 26 %).
+  glow: {
+    position: 'absolute',
+    top: -110,
+    right: -110,
+    width: 220,
+    height: 220,
+  },
+  cardTitle: {
+    marginTop: spacing[3],
+  },
+  cardActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[2],
+    marginTop: spacing[4],
+  },
+  flexCell: {
+    flexGrow: 1,
+    flexBasis: 0,
   },
   noticeAction: {
-    marginTop: 12,
+    marginTop: spacing[3],
     alignItems: 'flex-start',
   },
-  noticeLink: {
-    fontWeight: '700',
-    color: colors.brand700,
-  },
-  bodyOne: {
-    gap: 20,
-  },
-  bodyTwo: {
+  columns: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 20,
+    gap: spacing[4],
+    marginTop: spacing[1],
   },
-  leftColumn: {
-    gap: 12,
+  stack: {
+    gap: spacing[4],
   },
-  leftColumnFixed: {
-    width: 280,
+  aside: {
+    width: 236,
   },
-  rightColumn: {
-    gap: 16,
+  asideTrainer: {
+    width: 200,
   },
-  rightColumnFlex: {
+  section: {
+    gap: spacing[3],
+  },
+  sectionFlex: {
     flex: 1,
     minWidth: 0,
   },
-  exercisesHeader: {
+  sectionHead: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: spacing[3],
+    paddingTop: spacing[1],
+    paddingHorizontal: spacing[1],
   },
-  exercisesTitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
-    letterSpacing: 2.52,
-    textTransform: 'uppercase',
+  sectionTitle: {
+    ...font(700),
+    fontSize: 22,
+    lineHeight: 28,
+    letterSpacing: -0.66,
+    color: colors.textPrimary,
+  },
+  sectionTitleTablet: {
+    fontSize: 28,
+    lineHeight: 32,
+    letterSpacing: -0.98,
+  },
+  helper: {
+    ...font(400),
+    marginTop: -spacing[1],
+    paddingHorizontal: spacing[1],
+    fontSize: 12,
+    lineHeight: 16,
     color: colors.textMuted,
+  },
+  helperTablet: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  emptyCard: {
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: colors.surface,
+  },
+  // The trainer tablet's dashed "Add a day" (46, 1.5 px dashed white 18 %).
+  dashedAdd: {
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.hairlineBright,
   },
 });

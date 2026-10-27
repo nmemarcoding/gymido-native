@@ -1,8 +1,7 @@
 import { useRoute } from '@react-navigation/native';
 import { useMemo } from 'react';
-import { StyleSheet } from 'react-native';
 
-import { TextLink } from '../trainer/plans/components/PlanPage';
+import { BackLink } from '../trainer/plans/components/builderParts';
 import { SharedPlanScreen } from '../trainer/plans/screens/PlanScreen';
 import OnHoldBox from './components/OnHoldBox';
 import { createMemberPlanAdapter } from './memberPlanAdapter';
@@ -13,12 +12,8 @@ import { useMemberStart } from './useMemberStart';
 function renderOnHold({ message, navigation }) {
   return (
     <>
-      <TextLink
-        testID="my-plan-back"
-        label="← My plans"
-        onPress={() => navigation.push(myPlanRoutes.MyPlans)}
-        style={styles.backLink}
-      />
+      {/* v2: the builder's back link (chevron + "My plans", 44 tall). */}
+      <BackLink testID="my-plan-back" label="My plans" onPress={() => navigation.push(myPlanRoutes.MyPlans)} />
       <OnHoldBox message={message} />
     </>
   );
@@ -34,12 +29,3 @@ export default function MyPlanScreen() {
   const adapter = useMemo(() => createMemberPlanAdapter(planId, MEMBER_UI), [planId]);
   return <SharedPlanScreen planId={planId} adapter={adapter} />;
 }
-
-const styles = StyleSheet.create({
-  // Batch A: the 44 pt text-link hit area.
-  backLink: {
-    minHeight: 44,
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-  },
-});

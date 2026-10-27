@@ -206,12 +206,12 @@ describe('G2 load failed / G5 build failed: generator ErrorAlert, Retry except o
 });
 
 describe('G3 step error / step eyebrow', () => {
-  it('the step eyebrow is sentence case gold 13/600 (v2 eyebrow rule)', async () => {
+  it('the step eyebrow is sentence case gold 14/600 (v2 eyebrow rule; PlanGenerator board 14)', async () => {
     mockProfile();
     const tree = await render(<PlanGeneratorScreen />);
     const eyebrow = tree.root.find((node) => node.type === 'Text' && node.props.children === 'Step 1 of 6');
     const style = flat(eyebrow);
-    expect(style).toMatchObject({ fontSize: 13, fontFamily: 'Geist-SemiBold', color: colors.gold });
+    expect(style).toMatchObject({ fontSize: 14, fontFamily: 'Geist-SemiBold', color: colors.gold });
     expect(style.textTransform).toBeUndefined();
     expect(style.letterSpacing).toBeUndefined();
     expect(style.fontWeight).toBeUndefined();
@@ -223,7 +223,7 @@ describe('G3 step error / step eyebrow', () => {
     const tree = await render(<PlanGeneratorScreen />);
     await act(async () => one(tree, 'generator-next').props.onPress());
     const eyebrow = tree.root.find((node) => node.type === 'Text' && node.props.children === 'Build me a plan');
-    expect(flat(eyebrow)).toMatchObject({ fontSize: 13, color: colors.gold });
+    expect(flat(eyebrow)).toMatchObject({ fontSize: 14, color: colors.gold });
   });
 
   it('preview 422 → step 6: the error shows ABOVE the eyebrow, is announced, and gets the focus (PM parity)', async () => {

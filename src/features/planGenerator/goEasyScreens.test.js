@@ -282,6 +282,13 @@ describe('T-18 deep link (route param step)', () => {
   });
 });
 
+const rowSixLabel = (tree) =>
+  tree.root
+    .find((node) => node.props.testID === 'generator-review-6' && typeof node.type === 'string')
+    .findAll((node) => typeof node.props.accessibilityLabel === 'string')
+    .map((node) => node.props.accessibilityLabel)
+    .join('\n');
+
 describe('T-18 G1.3 review and G1.4 / G1.5 save', () => {
   async function toReview(setup) {
     const tree = await renderStep6(setup);
@@ -292,7 +299,11 @@ describe('T-18 G1.3 review and G1.4 / G1.5 save', () => {
     const tree = await toReview({ options: { go_easy_areas: AREAS, go_easy_notice: '' }, profile: { go_easy_area_ids: [99] } });
     await press(tree, 'generator-go-easy-1');
     await press(tree, 'generator-next');
-    expect(texts(tree)).toContain('No focus · Go easy on: Knees · Nothing to avoid');
+    // v2 J: the card splits the summary into lines; readers get the one string.
+    expect(rowSixLabel(tree)).toContain('No focus · Go easy on: Knees · Nothing to avoid');
+    // Review LOW: the VISIBLE go-easy line also drops the stale id (only Knees).
+    const goEasyLine = tree.root.find((node) => node.props.testID === 'generator-review-go-easy' && typeof node.type === 'string');
+    expect(texts({ root: goEasyLine }).filter(Boolean).sort()).toEqual(['Go easy on: ', 'Knees']);
     saveGeneratorProfile.mockResolvedValue({});
     await press(tree, 'generator-see-plan');
     // The stale id 99 is dropped.
@@ -302,7 +313,7 @@ describe('T-18 G1.3 review and G1.4 / G1.5 save', () => {
   it('PUT omits go_easy_area_ids when no areas are offered', async () => {
     const tree = await toReview({ options: { go_easy_areas: [] }, profile: { go_easy_area_ids: [1] } });
     await press(tree, 'generator-next');
-    expect(texts(tree)).toContain('No focus · Nothing to avoid');
+    expect(rowSixLabel(tree)).toContain('No focus · Nothing to avoid');
     saveGeneratorProfile.mockResolvedValue({});
     await press(tree, 'generator-see-plan');
     expect(saveGeneratorProfile.mock.calls[0][0]).not.toHaveProperty('go_easy_area_ids');

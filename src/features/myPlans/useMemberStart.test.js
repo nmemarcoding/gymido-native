@@ -125,3 +125,30 @@ describe('useMemberStart (§M3.4)', () => {
     );
   });
 });
+
+describe('useMemberStart v2 look (UX phase4 I §1-2)', () => {
+  const { StyleSheet } = require('react-native');
+  const { colors } = require('../../shared/theme/tokens');
+  const host = (tree, id) => tree.root.findAll((node) => node.props.testID === id && typeof node.type === 'string')[0];
+
+  it('Start: the full-width 52 pill on phones, the compact pill on tablets', async () => {
+    getCurrentPlan.mockRejectedValue({ response: { status: 404 } });
+    let tree = await render({ planId: '7', plan, days });
+    expect(find(tree, 'my-plan-start').props).toMatchObject({ size: 'default', fullWidth: true });
+    tree = await render({ planId: '7', plan, days, tablet: true });
+    expect(find(tree, 'my-plan-start').props).toMatchObject({ size: 'compact', fullWidth: false });
+  });
+
+  it('the current-plan box is the neutral status box; the inline error is the danger tint', async () => {
+    getCurrentPlan.mockResolvedValue({ enrollment: { id: 4, workout_plan_id: 7 }, schedule: null });
+    let tree = await render({ planId: '7', plan, days });
+    expect(StyleSheet.flatten(host(tree, 'my-plan-current').props.style)).toMatchObject({ backgroundColor: colors.surface, borderColor: colors.hairline });
+    getCurrentPlan.mockRejectedValue({ response: { status: 404 } });
+    startPlan.mockRejectedValue({ response: { status: 403, data: { message: 'On hold.' } } });
+    tree = await render({ planId: '7', plan, days });
+    await act(async () => find(tree, 'my-plan-start').props.onPress());
+    const box = host(tree, 'my-plan-start-error');
+    expect(box.props.accessibilityRole).toBe('alert');
+    expect(StyleSheet.flatten(box.props.style)).toMatchObject({ backgroundColor: colors.dangerDotTint, borderColor: colors.dangerDotBorder });
+  });
+});

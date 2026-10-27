@@ -1,49 +1,36 @@
-import { StyleSheet, Text, View } from 'react-native';
-
 import Banner, { BannerText } from '../../../../shared/components/Banner';
-import { colors, font, radii, spacing } from '../../../../shared/theme/tokens';
 import { formatAffectsNotice, formatClientsOnPlan } from '../planFormat';
+import { WarningNotice } from './builderParts';
 
 // Spec §B1. Every count UI hides when the count is null (unknown/failed) or 0.
 const hasCount = (count) => typeof count === 'number' && count > 0;
 
-// v2 look (RN-SPEC-v2-foundation §5 AffectedClients): a plain card.
+// v2 look (phase6 O builder states): the amber card with the info icon,
+// a 14/700 title and the 14/22 body; a status region.
 export function ClientsBanner({ count }) {
   if (!hasCount(count)) {
     return null;
   }
   return (
-    <View testID="plan-clients-banner" accessibilityRole="summary" style={styles.banner}>
-      <Text style={styles.bannerTitle}>{formatClientsOnPlan(count)}</Text>
-      <Text style={styles.bannerBody}>
-        Your edits reach them from their next workout. Past and in-progress workouts stay as they are.
-      </Text>
-    </View>
+    <WarningNotice
+      testID="plan-clients-banner"
+      title={formatClientsOnPlan(count)}
+      body="Your edits reach them from their next workout. Past and in-progress workouts stay as they are."
+    />
   );
 }
 
-// Boxed notice at the top of the edit modals.
+// The notice at the top of the edit modals (UX §0.4): the amber card.
 export function AffectsNoticeBox({ count }) {
   if (!hasCount(count)) {
     return null;
   }
-  return (
-    <Text testID="affects-notice" style={styles.noticeBox}>
-      {formatAffectsNotice(count)}
-    </Text>
-  );
+  return <WarningNotice testID="affects-notice" body={formatAffectsNotice(count)} />;
 }
 
-// Plain notice line first in the action dialogs.
+// The same notice inside the action dialogs (UX §0.4 / PlanActionDialog).
 export function AffectsNoticeLine({ count }) {
-  if (!hasCount(count)) {
-    return null;
-  }
-  return (
-    <Text testID="affects-notice" style={styles.noticeLine}>
-      {formatAffectsNotice(count)}
-    </Text>
-  );
+  return <AffectsNoticeBox count={count} />;
 }
 
 // v2 look (§5 Banners): the warning banner, its title in warning with the icon.
@@ -54,44 +41,3 @@ export function InactiveBanner({ body }) {
     </Banner>
   );
 }
-
-const styles = StyleSheet.create({
-  banner: {
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: colors.hairline,
-    backgroundColor: colors.surface,
-    padding: spacing['4_5'],
-    gap: spacing[1],
-  },
-  bannerTitle: {
-    ...font(600),
-    fontSize: 15,
-    lineHeight: 22,
-    color: colors.textPrimary,
-  },
-  bannerBody: {
-    ...font(400),
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.textSecondary,
-  },
-  noticeBox: {
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceMuted,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    overflow: 'hidden',
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.textSecondary,
-  },
-  noticeLine: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-});

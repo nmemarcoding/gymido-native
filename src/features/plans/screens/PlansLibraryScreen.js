@@ -1,24 +1,31 @@
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { routes } from '../../../navigation/routes';
 import { getStatus } from '../../../shared/api/apiError';
 import EmptyState from '../../../shared/components/EmptyState';
+import { RetryButton } from '../../../shared/components/ErrorAlert';
 import { InlineError } from '../../../shared/components/FeedbackBox';
+import { CAP_BODY, CAP_PILL } from '../../../shared/components/largeText';
 import Loader from '../../../shared/components/Loader';
+import PillButton from '../../../shared/components/PillButton';
 import StateSlot from '../../../shared/components/StateSlot';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
-import { colors, radii, shadows } from '../../../shared/theme/tokens';
-import MyPlansEntryCard from '../../myPlans/components/MyPlansEntryCard';
-import GeneratorEntryCard from '../../planGenerator/components/GeneratorEntryCard';
+import { colors, font, radii, spacing } from '../../../shared/theme/tokens';
+import { listMyPlans } from '../../myPlans/api/myPlansApi';
+import { myPlanRoutes } from '../../myPlans/myPlanRoutes';
 import ShellPage from '../../shell/ShellPage';
-import { openShellPath } from '../../shell/shellLinks';
 import { getCurrentPlan, listPlans } from '../api/libraryApi';
-import { ActiveBadge, Eyebrow, Pill, SectionHeading, planStyles } from '../components/PlanBits';
-import { activePlanSummary, deriveLibrary, planCardDaysLabel, planCountLabel } from '../libraryFormat';
+import ActivePlanCard from '../components/ActivePlanCard';
+import PlanEntryTiles from '../components/PlanEntryTiles';
+import PlanIcon from '../components/planIcons';
+import PlanTile from '../components/PlanTile';
+import { useIsTablet, useReflow } from '../components/planUi';
+import { deriveLibrary, planCountLabel, weekChips } from '../libraryFormat';
 
-// S1 (RN-SPEC-plans §3). Every focus remounts and reloads (§8.1).
+// S1 (RN-SPEC-plans §3), v2 look per UX H (Plans #21, Tablet: Plans #88).
+// Every focus remounts and reloads (§8.1).
 export default function PlansLibraryScreen() {
   const remountKey = useFocusRemountKey();
   return (
@@ -28,20 +35,53 @@ export default function PlansLibraryScreen() {
   );
 }
 
+// §3.1: a 404 on the current plan means "no active plan"; any other error
+// fails the load.
+function loadLibrary() {
+  const current = getCurrentPlan().catch((error) => {
+    if (getStatus(error) === 404) {
+      return null;
+    }
+    throw error;
+  });
+  return Promise.all([listPlans(), current]);
+}
+
+// N1 (approved 27 Oct): tablet "New plan" (→ My plan create), hidden for a
+// member ON HOLD, the same rule as My plans' Create (GET /my-custom-plans
+// 403, chosen by status). Hidden until the check answers.
+function useCanCreatePlan(enabled) {
+  const [canCreate, setCanCreate] = useState(false);
+  useEffect(() => {
+    if (!enabled) {
+      return undefined;
+    }
+    let alive = true;
+    Promise.resolve()
+      .then(() => listMyPlans(1))
+      .then(
+        () => alive && setCanCreate(true),
+        (error) => alive && setCanCreate(getStatus(error) !== 403)
+      );
+    return () => {
+      alive = false;
+    };
+  }, [enabled]);
+  return enabled && canCreate;
+}
+
 function PlansLibrary() {
   const navigation = useNavigation();
+  const tablet = useIsTablet();
+  const reflow = useReflow();
+  const canCreate = useCanCreatePlan(tablet);
+  const [reloadCount, setReloadCount] = useState(0);
   const [load, setLoad] = useState({ status: 'loading', plans: [], currentPlan: null, error: null });
 
   useEffect(() => {
     let alive = true;
-    // §3.1: a 404 on the current plan means "no active plan"; any other error fails the load.
-    const current = getCurrentPlan().catch((error) => {
-      if (getStatus(error) === 404) {
-        return null;
-      }
-      throw error;
-    });
-    Promise.all([listPlans(), current])
+    setLoad({ status: 'loading', plans: [], currentPlan: null, error: null });
+    loadLibrary()
       .then(([plans, currentPlan]) => {
         if (alive) {
           setLoad({ status: 'loaded', plans, currentPlan, error: null });
@@ -55,275 +95,205 @@ function PlansLibrary() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [reloadCount]);
+
+  const header = canCreate ? (
+    <View testID="plans-header-actions" style={styles.headerRow}>
+      <PillButton
+        testID="plans-new-plan"
+        title="New plan"
+        variant="secondary"
+        size="compact"
+        icon={({ color }) => <PlanIcon name="plus" size={18} color={color} />}
+        onPress={() => navigation.push(myPlanRoutes.MyPlanCreate)}
+      />
+    </View>
+  ) : null;
 
   if (load.status === 'loading') {
     return (
-      <StateSlot loader>
-        <Loader label="Loading plans" />
-      </StateSlot>
+      <>
+        {header}
+        <StateSlot loader>
+          <Loader label="Loading plans" />
+        </StateSlot>
+      </>
     );
   }
   if (load.status === 'error') {
-    // ⚠4: the transport message, no retry. §D1: the 640 column under the header.
+    // N2 (approved): the transport message + the one Retry style; Retry
+    // re-runs the page load. §D1: the 640 column under the header.
     return (
-      <StateSlot>
-        <InlineError testID="plans-error" title="Plans unavailable" message={load.error?.message || 'Please try again.'} />
-      </StateSlot>
+      <>
+        {header}
+        <StateSlot>
+          <InlineError testID="plans-error" title="Plans unavailable" message={load.error?.message || 'Please try again.'} />
+          <RetryButton testID="plans-retry" style={styles.retry} onPress={() => setReloadCount((count) => count + 1)} />
+        </StateSlot>
+      </>
     );
   }
 
   const library = deriveLibrary(load.plans, load.currentPlan);
   const openPlan = (planId) => navigation.push(routes.PlanDetail, { planId: String(planId) });
+  const columns = reflow ? 1 : 2;
 
   return (
-    <View style={styles.page}>
+    <View style={[styles.page, tablet && styles.pageTablet]}>
+      {header}
       {library.hasActivePlan ? (
-        <ActivePlanCard plan={library.activePlanDetail} weekdays={library.activeWeekdays} onView={openPlan} />
+        <ActivePlanCard plan={library.activePlanDetail} chips={weekChips(load.currentPlan?.schedule)} onView={openPlan} />
       ) : null}
       {/* M4, then G-E1 right after it (RN-SPEC-MEMBER-PLANS §M4, PLAN-GENERATOR §G0). */}
-      <MyPlansEntryCard />
-      <GeneratorEntryCard />
+      <PlanEntryTiles />
       {library.noPlansAtAll ? (
         <EmptyState title="No plans available" message="No active workout plans were returned by the backend." />
       ) : null}
       {library.browseCount > 0 ? (
-        <View style={styles.section}>
-          <View style={styles.sectionRow}>
-            <SectionHeading>{library.hasActivePlan ? 'Switch your plan' : 'Choose your next plan'}</SectionHeading>
-            <Pill>{planCountLabel(library.browseCount)}</Pill>
+        <View style={[styles.section, tablet && styles.sectionTablet]}>
+          <View style={[styles.sectionRow, reflow && styles.sectionRowStacked]}>
+            <Text {...CAP_BODY} accessibilityRole="header" style={tablet ? styles.headingTablet : styles.heading}>
+              {library.hasActivePlan ? 'Switch your plan' : 'Choose your next plan'}
+            </Text>
+            {tablet ? (
+              <View style={styles.countPill}>
+                <Text {...CAP_PILL} style={styles.countPillText}>
+                  {planCountLabel(library.browseCount)}
+                </Text>
+              </View>
+            ) : (
+              <Text {...CAP_BODY} style={styles.count}>
+                {planCountLabel(library.browseCount)}
+              </Text>
+            )}
           </View>
           {library.groups.map(([category, plans]) => (
-            <View key={category} style={styles.section}>
-              {library.showCategoryHeaders ? <Text style={styles.category}>{category}</Text> : null}
-              {plans.map((plan) => (
-                <PlanCard key={plan.id} plan={plan} onPress={() => openPlan(plan.id)} />
+            <View key={category} style={[styles.section, tablet && styles.sectionTablet]}>
+              {library.showCategoryHeaders ? (
+                <Text {...CAP_BODY} style={styles.category}>
+                  {category}
+                </Text>
+              ) : null}
+              {rowsOf(plans, columns).map((row) => (
+                <View key={row.map((plan) => plan.id).join('-')} testID="plans-tile-row" style={[styles.tileRow, tablet && styles.tileRowTablet]}>
+                  {row.map((plan) => (
+                    <PlanTile key={plan.id} plan={plan} tablet={tablet} style={styles.tileCell} onPress={() => openPlan(plan.id)} />
+                  ))}
+                  {row.length < columns ? <View style={styles.tileCell} /> : null}
+                </View>
               ))}
             </View>
           ))}
         </View>
       ) : !library.hasActivePlan && !library.noPlansAtAll ? (
-        <SectionHeading style={styles.headingAlone}>Choose your next plan</SectionHeading>
-      ) : null}
-    </View>
-  );
-}
-
-// §3.4
-function ActivePlanCard({ plan, weekdays, onView }) {
-  return (
-    <View testID="plans-active-card" style={[planStyles.card, styles.activeCard]}>
-      <View style={styles.accent} accessibilityElementsHidden importantForAccessibility="no" />
-      <View style={styles.activeBody}>
-        <View style={styles.topRow}>
-          <View style={styles.textColumn}>
-            <Eyebrow>Active plan</Eyebrow>
-            <Text numberOfLines={2} textBreakStrategy="simple" style={[planStyles.title2xl, styles.mt6]}>
-              {plan?.name}
-            </Text>
-            <Text style={styles.activeSummary}>{activePlanSummary(plan)}</Text>
-          </View>
-          <ActiveBadge />
-        </View>
-        {weekdays.length ? (
-          <View style={styles.mt16}>
-            <Eyebrow color={colors.textMuted}>Your week</Eyebrow>
-            <View style={styles.weekRow}>
-              {weekdays.map((weekday) => (
-                <Pill key={weekday.id}>{weekday.name}</Pill>
-              ))}
-            </View>
-          </View>
-        ) : null}
-        <View style={styles.actions}>
-          <Pressable
-            testID="plans-go-to-workout"
-            accessibilityRole="button"
-            onPress={() => openShellPath('/workout')}
-            style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed]}
-          >
-            <Text numberOfLines={1} textBreakStrategy="simple" style={styles.primaryText}>Go to workout</Text>
-          </Pressable>
-          {plan?.id ? (
-            <Pressable
-              testID="plans-view-active"
-              accessibilityRole="button"
-              onPress={() => onView(plan.id)}
-              style={({ pressed }) => [styles.secondary, pressed && styles.secondaryPressed]}
-            >
-              <Text style={styles.secondaryText}>View plan</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      </View>
-    </View>
-  );
-}
-
-// §3.6: the whole card is one pressable; hover → pressed border (§9.1).
-function PlanCard({ plan, onPress }) {
-  return (
-    <Pressable
-      testID={`plans-card-${plan.id}`}
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [planStyles.card, styles.planCard, pressed && styles.planCardPressed]}
-    >
-      <View style={styles.topRow}>
-        <View style={styles.textColumn}>
-          {plan.category?.name ? <Eyebrow>{plan.category.name}</Eyebrow> : null}
-          <Text numberOfLines={2} textBreakStrategy="simple" style={[planStyles.titleLg, styles.mt6]}>
-            {plan.name}
-          </Text>
-          <View style={styles.pillRow}>
-            <Pill>{planCardDaysLabel(plan)}</Pill>
-          </View>
-        </View>
-        <View style={styles.cardSide}>
-          <Text style={styles.chevron} accessibilityElementsHidden importantForAccessibility="no">
-            ›
-          </Text>
-        </View>
-      </View>
-      {plan.description ? (
-        <Text numberOfLines={2} ellipsizeMode="tail" style={[planStyles.body, styles.mt12]}>
-          {plan.description}
+        <Text {...CAP_BODY} accessibilityRole="header" style={[tablet ? styles.headingTablet : styles.heading, styles.headingAlone]}>
+          Choose your next plan
         </Text>
       ) : null}
-    </Pressable>
+    </View>
   );
+}
+
+function rowsOf(items, size) {
+  const rows = [];
+  for (let index = 0; index < items.length; index += size) {
+    rows.push(items.slice(index, index + size));
+  }
+  return rows;
 }
 
 const styles = StyleSheet.create({
   page: {
-    gap: 20,
-    paddingBottom: 16,
+    gap: spacing[3],
+    paddingBottom: spacing[4],
+  },
+  pageTablet: {
+    gap: spacing[4],
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  retry: {
+    alignSelf: 'flex-start',
+    marginTop: spacing[3],
   },
   section: {
-    gap: 12,
+    gap: spacing[3],
   },
+  sectionTablet: {
+    gap: spacing[4],
+  },
+  // margin 12 4 0, baseline row.
   sectionRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    paddingHorizontal: 4,
-  },
-  headingAlone: {
-    paddingHorizontal: 4,
-  },
-  category: {
-    paddingHorizontal: 4,
-    paddingTop: 4,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '700',
-    letterSpacing: 1.92,
-    textTransform: 'uppercase',
-    color: colors.textMuted,
-  },
-  activeCard: {
-    flexDirection: 'row',
-    overflow: 'hidden',
-  },
-  accent: {
-    width: 6,
-    backgroundColor: colors.brand400,
-  },
-  activeBody: {
-    flex: 1,
-    padding: 20,
-  },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  textColumn: {
-    flex: 1,
-    minWidth: 0,
-  },
-  activeSummary: {
-    marginTop: 4,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.textSecondary,
-  },
-  weekRow: {
-    flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 8,
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: spacing[3],
+    marginTop: spacing[3],
+    paddingHorizontal: spacing[1],
   },
-  actions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 20,
+  sectionRowStacked: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: spacing[1],
   },
-  primary: {
-    flex: 1,
-    alignItems: 'center',
-    borderRadius: radii.md,
-    backgroundColor: colors.brand400,
-    paddingVertical: 12,
-    boxShadow: shadows.glow,
-  },
-  primaryPressed: {
-    backgroundColor: colors.brand500,
-  },
-  primaryText: {
-    fontSize: 14,
+  // 15/600 (phone) · 18/600 (tablet).
+  heading: {
+    ...font(600),
+    flexShrink: 1,
+    fontSize: 15,
     lineHeight: 20,
-    fontWeight: '900',
-    color: colors.navy,
-  },
-  secondary: {
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  secondaryPressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  secondaryText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
     color: colors.textPrimary,
   },
-  planCard: {
-    padding: 20,
+  headingTablet: {
+    ...font(600),
+    flexShrink: 1,
+    fontSize: 18,
+    lineHeight: 24,
+    color: colors.textPrimary,
   },
-  planCardPressed: {
-    borderColor: colors.brand300,
+  headingAlone: {
+    paddingHorizontal: spacing[1],
   },
-  pillRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 8,
-  },
-  cardSide: {
-    alignItems: 'flex-end',
-    gap: 8,
-    flexShrink: 0,
-  },
-  chevron: {
-    fontSize: 20,
-    lineHeight: 28,
+  count: {
+    ...font(400),
+    fontSize: 13,
+    lineHeight: 18,
     color: colors.textMuted,
   },
-  mt6: {
-    marginTop: 6,
+  countPill: {
+    minHeight: 28,
+    justifyContent: 'center',
+    paddingHorizontal: spacing[3],
+    borderRadius: radii.full,
+    backgroundColor: colors.fillSkeleton,
   },
-  mt12: {
-    marginTop: 12,
+  countPillText: {
+    ...font(500),
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textSecondary,
   },
-  mt16: {
-    marginTop: 16,
+  // Undrawn, kept: 13/600 secondary, padding 4 4 0.
+  category: {
+    ...font(600),
+    paddingTop: spacing[1],
+    paddingHorizontal: spacing[1],
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textSecondary,
+  },
+  tileRow: {
+    flexDirection: 'row',
+    gap: spacing[3],
+  },
+  tileRowTablet: {
+    gap: spacing[4],
+  },
+  tileCell: {
+    flex: 1,
+    minWidth: 0,
   },
 });

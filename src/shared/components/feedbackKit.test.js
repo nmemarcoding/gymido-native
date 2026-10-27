@@ -462,9 +462,9 @@ describe('Banners (§5)', () => {
     expect(flat(host(tree, 'plan-inactive-banner')).backgroundColor).toBe(colors.warningFill);
   });
 
-  it('AffectedClients: a plain card', () => {
+  it('AffectedClients: the amber notice card (phase6 O builder banner)', () => {
     const tree = render(<ClientsBanner count={3} />);
-    expect(flat(host(tree, 'plan-clients-banner'))).toMatchObject({ backgroundColor: colors.surface, borderColor: colors.hairline, borderRadius: radii.xl, padding: 18 });
+    expect(flat(host(tree, 'plan-clients-banner'))).toMatchObject({ backgroundColor: colors.warningFill, borderColor: colors.warningBorder, borderRadius: radii.lg });
     expect(render(<ClientsBanner count={0} />).toJSON()).toBeNull();
   });
 

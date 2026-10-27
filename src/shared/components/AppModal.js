@@ -47,7 +47,7 @@ export function isTabletWidth(width) {
 // Android back and the scrim both call onClose.
 // `hideClose` hides the tablet header Close while the dialog is busy (sending,
 // done), as on web; the scrim/Back rules stay the caller's.
-export default function AppModal({ isOpen, onClose, title, description, size = 'lg', footer, children, testID, entrance = 'slide', compact = false, hideClose = false }) {
+export default function AppModal({ isOpen, onClose, title, description, size = 'lg', footer, children, testID, entrance = 'slide', compact = false, hideClose = false, role }) {
   const { width, height, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const tablet = isTabletWidth(width);
@@ -126,6 +126,9 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
           testID={testID}
           accessibilityViewIsModal
           accessibilityRole="none"
+          // RN `role` (e.g. "alertdialog" for confirms; it isn't a valid
+          // accessibilityRole). Unset unless a caller asks.
+          role={role}
           accessibilityLabel={title}
           style={[styles.card, tablet ? styles.cardTablet : styles.cardPhone, frame.card, motionStyle]}
         >

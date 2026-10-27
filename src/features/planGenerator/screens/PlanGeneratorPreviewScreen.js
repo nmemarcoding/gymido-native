@@ -4,23 +4,23 @@ import { AccessibilityInfo, Pressable, StyleSheet, Text, View, findNodeHandle, u
 
 import { routes } from '../../../navigation/routes';
 import { getServerMessage } from '../../../shared/api/apiError';
-import BlurLayer from '../../../shared/components/BlurLayer';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import ErrorAlert from '../../../shared/components/ErrorAlert';
+import ExerciseImage from '../../../shared/components/ExerciseImage';
+import IconButton from '../../../shared/components/IconButton';
 import Loader from '../../../shared/components/Loader';
 import PillButton from '../../../shared/components/PillButton';
 import Select from '../../../shared/components/Select';
 import { ToastTone, addToast } from '../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
 import GradientFill from '../../../shared/components/GradientFill';
-import { blur, breakpoints, colors, font, gradients, radii, spacing, textScale, typography } from '../../../shared/theme/tokens';
-import { Eyebrow, planStyles } from '../../plans/components/PlanBits';
+import { breakpoints, colors, font, gradients, radii, spacing, typography } from '../../../shared/theme/tokens';
 import ShellPage from '../../shell/ShellPage';
 import { handOffToWorkout, openShellPath } from '../../shell/shellLinks';
 import { acceptGeneratedPlan, getGeneratorProfile, previewGeneratedPlan, saveGeneratorProfile } from '../api/generatorApi';
-import { Callout, WhyLine } from '../components/GeneratorControls';
+import { Callout, MuscleLabel, WhyLine } from '../components/GeneratorControls';
+import { ChevronLeftIcon } from '../components/GeneratorIcons';
 import { GeneratorUnavailable } from '../components/GeneratorStates';
-import { isReflow } from './PlanGeneratorScreen';
 import {
   COPY,
   activeNotice,
@@ -28,7 +28,9 @@ import {
   createdMessage,
   dayMinutes,
   dayTitle,
+  exerciseRowLabel,
 } from '../generatorCopy';
+import { BODY_TEXT, CARD_TITLE_TEXT, FOCUS_DELAY_MS, PAGE_TITLE_TEXT, PressOverlay, isReflow, isTabletWidth } from '../generatorLayout';
 import {
   answersFromProfile,
   buildAcceptBody,
@@ -36,6 +38,7 @@ import {
   classifyAcceptError,
   classifyPreviewError,
   formatPrescription,
+  imageUrlOf,
   planNotice,
   previewExercise,
   refusalActions,
@@ -43,11 +46,13 @@ import {
   shouldConfirmAfterActive,
   weeklyVolumeRows,
 } from '../generatorLogic';
+// Review M4/M5: the v2 image chain (thumbnails w400 first); imageUrlOf
+// already drops a non-image media_type.
+import { THUMB_WIDTH, imageSourceProps } from '../../plans/planImages';
 import { generatorRoutes } from '../generatorRoutes';
 import { useTabBarClearance } from '../useTabBarClearance';
 
-// As the app's other focus moves: give the screen time to lay out first.
-const FOCUS_DELAY_MS = 300;
+const THUMB = Object.freeze({ width: THUMB_WIDTH });
 
 // G2 (RN-SPEC-PLAN-GENERATOR §G2). Every focus remounts and previews again (§8.1).
 export default function PlanGeneratorPreviewScreen() {
@@ -63,6 +68,11 @@ function PlanGeneratorPreview() {
   const [changingSplit, setChangingSplit] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // The pinned bar's live height (re-measured on every layout, never cached).
+  const [barHeight, setBarHeight] = useState(0);
+  const { width, fontScale } = useWindowDimensions();
+  const tablet = isTabletWidth(width);
+  const reflow = isReflow(fontScale);
   const mounted = useRef(true);
   const runId = useRef(0);
 
@@ -189,9 +199,23 @@ function PlanGeneratorPreview() {
   const preview = view.preview;
   const notice = view.status === 'feasible' ? planNotice(preview, lockedAfter409) : null;
   const locked = notice?.kind === 'locked';
-  // The sticky bar's live height (re-measured on every layout, never cached):
-  // at large text its stacked buttons grow, so the list clears it.
-  const [barHeight, setBarHeight] = useState(0);
+  // §9 addendum: the bar is sticky only while it fits one row; at large text
+  // it scrolls with the page, at the end of the content.
+  const pinned = view.status === 'feasible' && !reflow;
+  const bar =
+    view.status === 'feasible' ? (
+      <StickyBar
+        showStart={!locked}
+        starting={accepting && !confirmOpen}
+        onChange={openAnswers}
+        onStart={handleStart}
+        onHeight={setBarHeight}
+        tablet={tablet}
+        reflow={reflow}
+        narrow={width < BAR_STACK_BELOW}
+        pinned={pinned}
+      />
+    ) : null;
 
   return (
     <View style={styles.screen}>
@@ -220,20 +244,19 @@ function PlanGeneratorPreview() {
               changingSplit={changingSplit}
               onSplitChange={handleSplitChange}
               onOpenExercise={(id) => navigation.push(routes.ExerciseDetail, { exerciseId: String(id) })}
-              barHeight={barHeight}
+              // Review M1: as web (navigate to /plans/generate), a FRESH
+              // questionnaire that refetches the profile, never goBack to the
+              // stale one (its old split would be PUT again on "See my plan").
+              onBack={openAnswers}
+              barHeight={pinned ? barHeight : null}
+              tablet={tablet}
+              reflow={reflow}
+              footer={pinned ? null : bar}
             />
           ) : null}
         </View>
       </ShellPage>
-      {view.status === 'feasible' ? (
-        <StickyBar
-          showStart={!locked}
-          starting={accepting && !confirmOpen}
-          onChange={openAnswers}
-          onStart={handleStart}
-          onHeight={setBarHeight}
-        />
-      ) : null}
+      {pinned ? bar : null}
       <ConfirmDialog
         testID="generator-confirm"
         isOpen={confirmOpen}
@@ -250,33 +273,67 @@ function PlanGeneratorPreview() {
   );
 }
 
-// §G2.2
-function Feasible({ preview, notice, changingSplit, onSplitChange, onOpenExercise, barHeight = 0 }) {
+// §G2.2. Phone = GeneratorPreview (back icon button, eyebrow gold, plan name
+// 44/42, the split name sub-line + "Change split" pill select, featured first
+// row); tablet = TabletGeneratorPreview (plan name 60/60, the split card,
+// 120 × 92 photo rows). UX N1: the plan name is ONE server string.
+function Feasible({ preview, notice, changingSplit, onSplitChange, onOpenExercise, onBack, barHeight = null, tablet, reflow, footer }) {
   const splitOptions = preview.split_options ?? [];
   const weekly = weeklyVolumeRows(preview);
+  const select =
+    splitOptions.length > 1 ? (
+      <Select
+        testID="generator-split"
+        label={COPY.changeSplit}
+        labelStyle={styles.selectLabel}
+        variant={tablet ? 'raised' : 'pill'}
+        value={preview.split?.code}
+        options={splitOptions.map((option) => ({ value: option.code, label: option.name }))}
+        onChange={onSplitChange}
+        disabled={changingSplit}
+      />
+    ) : null;
   return (
-    <View testID="generator-feasible" style={[styles.feasible, { paddingBottom: Math.max(FEASIBLE_PAD, barHeight + spacing[4]) }]}>
-      <View>
-        <Eyebrow>{COPY.yourPlan}</Eyebrow>
-        <Text {...PAGE_TITLE_TEXT} accessibilityRole="header" style={styles.planName}>
+    <View
+      testID="generator-feasible"
+      style={[styles.feasible, tablet && styles.feasibleTablet, { paddingBottom: barHeight === null ? 0 : Math.max(FEASIBLE_PAD, barHeight + spacing[4]) }]}
+    >
+      {!tablet ? (
+        <View testID="generator-preview-top-row" style={styles.topRow}>
+          <IconButton testID="generator-preview-back" accessibilityLabel={COPY.backToAnswers} onPress={onBack}>
+            {({ color }) => <ChevronLeftIcon size={20} color={color} />}
+          </IconButton>
+        </View>
+      ) : null}
+      <View style={tablet ? null : styles.headerPhone}>
+        <Text {...BODY_TEXT} testID="generator-preview-eyebrow" style={[styles.eyebrow, tablet && styles.eyebrowTablet]}>
+          {COPY.yourPlan}
+        </Text>
+        <Text {...PAGE_TITLE_TEXT} accessibilityRole="header" testID="generator-plan-name" style={[styles.planName, tablet && styles.planNameTablet]}>
           {preview.plan_name}
         </Text>
-        {preview.split?.name ? (
+        {!tablet && preview.split?.name ? (
           <Text {...BODY_TEXT} style={styles.splitName}>
             {preview.split.name}
           </Text>
         ) : null}
       </View>
-      {splitOptions.length > 1 ? (
-        <Select
-          testID="generator-split"
-          label={COPY.changeSplit}
-          value={preview.split?.code}
-          options={splitOptions.map((option) => ({ value: option.code, label: option.name }))}
-          onChange={onSplitChange}
-          disabled={changingSplit}
-        />
-      ) : null}
+      {tablet ? (
+        <View testID="generator-split-card" style={[styles.splitCard, reflow && styles.splitCardStacked]}>
+          <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
+          <View style={reflow ? null : styles.flex}>
+            <Text {...BODY_TEXT} style={styles.splitCardLabel}>
+              {COPY.split}
+            </Text>
+            <Text {...BODY_TEXT} style={styles.splitCardName}>
+              {preview.split?.name}
+            </Text>
+          </View>
+          {select ? <View style={reflow ? null : styles.splitSelect}>{select}</View> : null}
+        </View>
+      ) : (
+        select
+      )}
       {(preview.notes ?? []).map((note, index) => (
         <Callout
           key={`note-${index}`}
@@ -298,101 +355,235 @@ function Feasible({ preview, notice, changingSplit, onSplitChange, onOpenExercis
         </Callout>
       ) : null}
       {notice?.kind === 'active' ? (
-        <Callout tone="info" testID="generator-active">
+        <Callout tone="info" role="note" testID="generator-active">
           {activeNotice(notice.planName)}
         </Callout>
       ) : null}
       {(preview.days ?? []).map((day, index) => (
-        <DayCard key={day.day_number ?? index} day={day} onOpenExercise={onOpenExercise} />
+        <DayCard key={day.day_number ?? index} day={day} tablet={tablet} reflow={reflow} onOpenExercise={onOpenExercise} />
       ))}
-      {weekly.length ? (
-        <View testID="generator-weekly" style={[planStyles.card, styles.dayCard]}>
-          <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
-          <Text {...BODY_TEXT} style={styles.weeklyTitle}>
-            {COPY.weeklySets}
-          </Text>
-          <View style={styles.weeklyRows}>
-            {weekly.map((row) => (
-              <View key={row.key} style={styles.weeklyRow}>
-                <Text {...BODY_TEXT} style={styles.weeklyName}>
-                  {row.name}
-                </Text>
-                <Text {...BODY_TEXT} style={styles.weeklySets}>
-                  {row.sets}
-                </Text>
-              </View>
-            ))}
+      {weekly.length ? <WeeklySets rows={weekly} /> : null}
+      {footer}
+    </View>
+  );
+}
+
+// The drawn "Weekly sets" card (web card style, after the last day):
+// surface, radius-xl 24, padding 20, title 20/700; rows 15/600 + the sets
+// tabular; an 8-high decorative bar under each row (share of the most sets).
+function WeeklySets({ rows }) {
+  const most = Math.max(1, ...rows.map((row) => parseInt(row.sets, 10) || 0));
+  return (
+    <View testID="generator-weekly" style={styles.weeklyCard}>
+      <Text {...CARD_TITLE_TEXT} accessibilityRole="header" style={styles.weeklyTitle}>
+        {COPY.weeklySets}
+      </Text>
+      <View style={styles.weeklyRows}>
+        {rows.map((row) => (
+          <View key={row.key} accessible accessibilityLabel={`${row.name}, ${row.sets}`}>
+            <View style={styles.weeklyRow}>
+              <Text {...BODY_TEXT} style={styles.weeklyName}>
+                {row.name}
+              </Text>
+              <Text {...BODY_TEXT} style={styles.weeklySets}>
+                {row.sets}
+              </Text>
+            </View>
+            <View style={styles.weeklyTrack}>
+              <View testID="generator-weekly-bar" style={[styles.weeklyBar, { width: `${Math.round(((parseInt(row.sets, 10) || 0) / most) * 100)}%` }]} />
+            </View>
           </View>
-        </View>
-      ) : null}
+        ))}
+      </View>
     </View>
   );
 }
 
 // ⚠G-3: slot types, fallbacks, skipped reasons/patterns aren't shown.
-function DayCard({ day, onOpenExercise }) {
+// Day card: radius 28, gradient-card, 0.08 edge. Phone: the first exercise is
+// the featured photo row, the rest compact rows; tablet: every row 120 × 92.
+function DayCard({ day, tablet, reflow, onOpenExercise }) {
   const exercises = day.exercises ?? [];
   const skipped = day.skipped ?? [];
-  const rows = [
-    ...exercises.map((item, index) => ({ kind: 'exercise', item, key: `e-${index}` })),
-    ...skipped.map((item, index) => ({ kind: 'skipped', item, key: `s-${index}` })),
-  ];
-  const { fontScale } = useWindowDimensions();
   return (
-    <View testID={`generator-day-${day.day_number}`} style={[planStyles.card, styles.dayCard]}>
-      {/* GeneratorPreview board: gradient-card (mounted with the card). */}
+    <View testID={`generator-day-${day.day_number}`} accessibilityLabel={dayTitle(day)} style={styles.dayCard}>
+      {/* Mounted with the card (Android render rule). */}
       <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
-      <View testID="generator-day-header" style={[styles.dayHeader, isReflow(fontScale) && styles.dayHeaderStacked]}>
-        <Text {...CARD_TITLE_TEXT} style={[styles.dayTitle, styles.flexShrink]}>
+      <View testID="generator-day-header" style={[styles.dayHeader, tablet && styles.dayHeaderTablet, reflow && styles.dayHeaderStacked]}>
+        <Text {...CARD_TITLE_TEXT} accessibilityRole="header" style={[styles.dayTitle, tablet && styles.dayTitleTablet, styles.flexShrink]}>
           {dayTitle(day)}
         </Text>
         {day.estimated_minutes ? (
-          <Text {...BODY_TEXT} style={styles.dayMinutes}>
-            {dayMinutes(day.estimated_minutes)}
-          </Text>
+          tablet ? (
+            <Text {...BODY_TEXT} testID="generator-day-minutes" style={styles.dayMinutesTablet}>
+              {dayMinutes(day.estimated_minutes)}
+            </Text>
+          ) : (
+            <View testID="generator-day-minutes-chip" style={styles.minutesChip}>
+              <Text {...BODY_TEXT} testID="generator-day-minutes" style={styles.dayMinutes}>
+                {dayMinutes(day.estimated_minutes)}
+              </Text>
+            </View>
+          )
         ) : null}
       </View>
-      <View style={styles.dayList}>
-        {rows.map((row, index) =>
-          row.kind === 'exercise' ? (
-            <ExerciseLine key={row.key} item={row.item} first={index === 0} onOpenExercise={onOpenExercise} />
+      <View style={tablet ? null : styles.dayListPhone}>
+        {exercises.map((item, index) =>
+          tablet ? (
+            <TabletRow key={`e-${index}`} item={item} onOpenExercise={onOpenExercise} />
+          ) : index === 0 ? (
+            <FeaturedRow key={`e-${index}`} item={item} onOpenExercise={onOpenExercise} />
           ) : (
-            <Text key={row.key} {...BODY_TEXT} style={[styles.skipped, index > 0 && styles.divider]}>
-              {row.item.text}
-            </Text>
+            <CompactRow key={`e-${index}`} item={item} onOpenExercise={onOpenExercise} />
           )
         )}
+        {skipped.map((item, index) => (
+          <Text key={`s-${index}`} {...BODY_TEXT} style={[styles.skipped, tablet && styles.skippedTablet, styles.divider]}>
+            {item.text}
+          </Text>
+        ))}
       </View>
     </View>
   );
 }
 
-function ExerciseLine({ item, first, onOpenExercise }) {
+// Dated change 27 Oct: each row is a link announcing "{name}, {muscle}, {prescription}".
+function rowData(item) {
   const exercise = previewExercise(item);
   const id = exercise.id ?? item.exercise_id;
-  const muscle = exercise.primary_muscle_group?.name;
+  const muscleName = exercise.primary_muscle_group?.name;
+  const muscleCode = exercise.primary_muscle_group?.code ?? null;
+  const prescription = formatPrescription(item);
+  return { exercise, id, muscleName, muscleCode, prescription, label: exerciseRowLabel(exercise.name, muscleName, prescription) };
+}
+
+function RowLink({ data, onOpenExercise, style, children }) {
   return (
-    <View style={[styles.exerciseRow, !first && styles.divider]}>
-      <Text {...BODY_TEXT} style={styles.nameLine}>
-        <Text
-          testID={`generator-exercise-${id}`}
-          accessibilityRole="link"
-          onPress={() => onOpenExercise(id)}
-          style={styles.exerciseName}
-        >
-          {exercise.name}
-        </Text>
-        {muscle ? <Text style={styles.muscle}>{`  ${muscle}`}</Text> : null}
-      </Text>
-      <Text {...BODY_TEXT} style={styles.prescription}>
-        {formatPrescription(item)}
-      </Text>
+    <Pressable
+      testID={`generator-exercise-${data.id}`}
+      accessibilityRole="link"
+      accessibilityLabel={data.label}
+      onPress={() => onOpenExercise(data.id)}
+      style={style}
+    >
+      {({ pressed }) => (
+        <>
+          <PressOverlay pressed={pressed} />
+          {children}
+        </>
+      )}
+    </Pressable>
+  );
+}
+
+// The effort line and the Why line follow every row (code: on EVERY row).
+function RowExtras({ item, tablet = false, style }) {
+  return (
+    <>
       {item.effort ? (
-        <Text {...BODY_TEXT} style={styles.effort}>
+        <Text {...BODY_TEXT} style={[styles.effort, style]}>
           {item.effort}
         </Text>
       ) : null}
-      {item.why ? <WhyLine text={item.why} style={styles.mt4} /> : null}
+      {item.why ? <WhyLine tablet={tablet} text={item.why} style={[tablet ? styles.mt6 : styles.mt10, style]} /> : null}
+    </>
+  );
+}
+
+// Phone featured row: a 150 tall photo (radius-lg 20, margin 0 12) with the
+// photo fade; over it the muscle label, the name 20/24/700 and the
+// prescription 13 text-strong-2. Effort + Why sit UNDER the photo.
+function FeaturedRow({ item, onOpenExercise }) {
+  const data = rowData(item);
+  return (
+    <View testID="generator-featured-row">
+      <RowLink data={data} onOpenExercise={onOpenExercise} style={styles.featuredLink}>
+        <ExerciseImage
+          testID={`generator-exercise-photo-${data.id}`}
+          {...imageSourceProps(imageUrlOf(data.exercise))}
+          name={data.exercise.name}
+          muscleCode={data.muscleCode}
+          hero
+          style={styles.featuredPhoto}
+        >
+          <View style={styles.featuredOverlay}>
+            <MuscleLabel name={data.muscleName} code={data.muscleCode} />
+            <Text {...BODY_TEXT} style={styles.featuredName}>
+              {data.exercise.name}
+            </Text>
+            <Text {...BODY_TEXT} style={styles.featuredPrescription}>
+              {data.prescription}
+            </Text>
+          </View>
+        </ExerciseImage>
+      </RowLink>
+      <RowExtras item={item} style={styles.featuredExtras} />
+    </View>
+  );
+}
+
+// Phone compact row: margin 12, padding 10, radius-lg 20, fill-subtle 0.04;
+// photo 72 × 60 (radius 14 drawn → radius-sm 12); name 16/700, the muscle
+// label, the prescription 13 text-strong-2.
+function CompactRow({ item, onOpenExercise }) {
+  const data = rowData(item);
+  return (
+    <View testID="generator-compact-row" style={styles.compactWrap}>
+      <RowLink data={data} onOpenExercise={onOpenExercise} style={styles.compactRow}>
+        <ExerciseImage
+          testID={`generator-exercise-photo-${data.id}`}
+          {...imageSourceProps(imageUrlOf(data.exercise), THUMB)}
+          name={data.exercise.name}
+          muscleCode={data.muscleCode}
+          size={72}
+          style={styles.compactPhoto}
+        />
+        <View style={styles.flex}>
+          <Text {...BODY_TEXT} style={styles.rowName}>
+            {data.exercise.name}
+          </Text>
+          <MuscleLabel name={data.muscleName} code={data.muscleCode} />
+          <Text {...BODY_TEXT} style={styles.rowPrescription}>
+            {data.prescription}
+          </Text>
+        </View>
+      </RowLink>
+      <RowExtras item={item} />
+    </View>
+  );
+}
+
+// Tablet row: top hairline, padding 16 22, photo 120 × 92 (radius 18 drawn →
+// radius-lg 20), name 16/600, muscle label 13, prescription 14 secondary, the
+// tablet Why line.
+function TabletRow({ item, onOpenExercise }) {
+  const data = rowData(item);
+  return (
+    <View testID="generator-tablet-row" style={styles.divider}>
+      <RowLink data={data} onOpenExercise={onOpenExercise} style={styles.tabletRow}>
+        <ExerciseImage
+          testID={`generator-exercise-photo-${data.id}`}
+          {...imageSourceProps(imageUrlOf(data.exercise), THUMB)}
+          name={data.exercise.name}
+          muscleCode={data.muscleCode}
+          size={120}
+          style={styles.tabletPhoto}
+        />
+        <View style={styles.flex}>
+          <Text {...BODY_TEXT} style={styles.tabletName}>
+            {data.exercise.name}
+          </Text>
+          <MuscleLabel name={data.muscleName} code={data.muscleCode} style={styles.tabletMuscle} />
+          <Text {...BODY_TEXT} style={styles.tabletPrescription}>
+            {data.prescription}
+          </Text>
+        </View>
+      </RowLink>
+      {/* Outside the link so the Why line reads as its own sentence; indented
+          under the text column (22 + 120 + 16). */}
+      <View style={styles.tabletExtras}>
+        <RowExtras item={item} tablet />
+      </View>
     </View>
   );
 }
@@ -476,44 +667,67 @@ function GoEasyRefusalActions({ equipmentFix, wide, onOpenStep }) {
   );
 }
 
-// §G2.2 item 7 + the dated fix: pinned above the tab bar and the safe area.
-// <640: stacked full-width buttons ("Change my answers" first), gap 12;
-// ≥640: a right-aligned row.
-// UX §9: above 1.3× text the pair stacks at every width with the primary
-// ("Start this plan") on top.
-function StickyBar({ showStart, starting, onChange, onStart, onHeight }) {
+// §G2.2 item 7 + the dated fix. Phone (UX M2-1, web parity): below 432 the
+// pair stacks, "Start this plan" (gold) over "Change my answers" (glass), both
+// full width at 52, gap 10, pinned above the tab bar. From 432 to tablet: a
+// row of the 60 CTA (Start takes the rest). UX ruling: on every phone width
+// the kit fade sits in a band above the buttons and the area behind them is
+// opaque ground, so no card shows through.
+// Tablet: a right-aligned row of 52 buttons, sticky at the bottom. §9: past
+// 1.3× the pair stacks (primary on top) and scrolls with the page (§9 addendum).
+function StickyBar({ showStart, starting, onChange, onStart, onHeight, tablet, reflow, narrow, pinned }) {
   const bottom = useTabBarClearance();
-  const { width, fontScale } = useWindowDimensions();
-  const reflow = isReflow(fontScale);
-  const wide = width >= breakpoints.sm && !reflow;
+  const stacked = reflow || (narrow && !tablet);
+  const size = tablet || stacked ? 'default' : 'cta';
   const change = (
-    <PillButton key="change" testID="generator-bar-change" title={COPY.changeAnswers} variant="secondary" fullWidth={!wide} onPress={onChange} />
+    <PillButton key="change" testID="generator-bar-change" title={COPY.changeAnswers} variant="secondary" size={size} fullWidth={stacked} onPress={onChange} />
   );
   const start = showStart ? (
-    <PillButton key="start" testID="generator-start" title={COPY.startPlan} fullWidth={!wide} loading={starting} onPress={onStart} />
+    <PillButton
+      key="start"
+      testID="generator-start"
+      title={COPY.startPlan}
+      size={size}
+      fullWidth={stacked}
+      style={!tablet && !stacked ? styles.flex : null}
+      loading={starting}
+      onPress={onStart}
+    />
   ) : null;
+  const row = (
+    <View testID="generator-sticky-row" style={[styles.barRow, tablet ? styles.barRowTablet : [styles.barRowPhone, pinned && styles.barOpaque], stacked && styles.barStack, stacked && !reflow && styles.barStackPhone]}>
+      {stacked ? [start, change] : [change, start]}
+    </View>
+  );
+  if (!pinned) {
+    return (
+      <View testID="generator-sticky-bar" style={styles.barInFlow}>
+        {row}
+      </View>
+    );
+  }
   return (
     <View testID="generator-sticky-bar" style={[styles.bar, { bottom }]} onLayout={(event) => onHeight?.(event.nativeEvent.layout.height)}>
-      {/* UX §8.6: a sticky bar on the ground = ground-bar 0.88 + blur 24. */}
-      <BlurLayer blurPx={blur.groundBar} />
-      <View style={styles.barVeil} />
-      <View testID="generator-sticky-row" style={[styles.barRow, wide ? styles.barRowWide : styles.barStack]}>
-        {reflow ? [start, change] : [change, start]}
-      </View>
+      {/* The kit CTA fade (clear → ground at 35 %), mounted with the bar. On
+          phones it fills only a band above the opaque row. */}
+      {tablet ? (
+        <GradientFill angle={gradients.ctaBarFade.angle} colors={gradients.ctaBarFade.colors} stops={gradients.ctaBarFade.stops} />
+      ) : (
+        <View testID="generator-bar-fade" style={styles.barFade}>
+          <GradientFill angle={gradients.ctaBarFade.angle} colors={gradients.ctaBarFade.colors} stops={FADE_BAND_STOPS} />
+        </View>
+      )}
+      {row}
     </View>
   );
 }
 
-// UX §9 large text: the plan name is the page title (1.3×), card titles are
-// title-* (1.6×); both wrap by word (max 3 lines) and shrink a single
-// over-long word (to 0.7×). Body text scales to 2× and is never truncated.
-const titleText = (cap) =>
-  Object.freeze({ textBreakStrategy: 'simple', maxFontSizeMultiplier: cap, numberOfLines: 3, adjustsFontSizeToFit: true, minimumFontScale: 0.7 });
-const PAGE_TITLE_TEXT = titleText(textScale.display);
-const CARD_TITLE_TEXT = titleText(textScale.title);
-const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
-// The list's bottom room under the sticky bar (its 1× height + 16).
+// The list's bottom room under the pinned bar (its 1× height + 16).
 const FEASIBLE_PAD = 112;
+// Web stacks the bar's pair below 27rem.
+const BAR_STACK_BELOW = 432;
+// Phone: the fade's own band above the buttons, clear → ground across it.
+const FADE_BAND_STOPS = [0, 1];
 
 const styles = StyleSheet.create({
   screen: {
@@ -527,36 +741,330 @@ const styles = StyleSheet.create({
   loader: {
     paddingVertical: 48,
   },
-  feasible: {
-    gap: 20,
+  flex: {
+    flex: 1,
+    minWidth: 0,
   },
   flexShrink: {
     flexShrink: 1,
   },
+  // GeneratorPreview: column gap 12; TabletGeneratorPreview: gap 16.
+  feasible: {
+    gap: spacing[3],
+  },
+  feasibleTablet: {
+    gap: spacing[4],
+  },
+  topRow: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing[1],
+  },
+  headerPhone: {
+    paddingHorizontal: spacing[1],
+    paddingTop: spacing[1],
+  },
+  eyebrow: {
+    ...font(600),
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.gold,
+  },
+  eyebrowTablet: {
+    ...font(400),
+    color: colors.textMuted,
+  },
+  // GeneratorPreview: 44/42/700 −0.05em (UX N1: one string, text-primary).
   planName: {
     ...font(700),
-    marginTop: 4,
-    fontSize: 30,
-    lineHeight: 36,
+    marginTop: 6,
+    fontSize: 44,
+    lineHeight: 42,
+    letterSpacing: -2.2,
     color: colors.textPrimary,
   },
+  // TabletGeneratorPreview: 60/60/700 −0.055em.
+  planNameTablet: {
+    marginTop: spacing[1],
+    fontSize: 60,
+    lineHeight: 60,
+    letterSpacing: -3.3,
+  },
   splitName: {
+    ...font(400),
+    marginTop: 8,
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.textSecondary,
+  },
+  selectLabel: {
+    ...font(500),
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.textSecondary,
+  },
+  // The tablet split card: radius-xl 24, padding 20 22, gradient-card, 0.08 edge.
+  splitCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[4],
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.choiceBorder,
+    paddingVertical: spacing[5],
+    paddingHorizontal: spacing['5_5'],
+    overflow: 'hidden',
+  },
+  splitCardStacked: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
+  splitCardLabel: {
+    ...font(400),
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textMuted,
+  },
+  splitCardName: {
+    ...font(600),
+    marginTop: 2,
+    fontSize: 18,
+    lineHeight: 24,
+    color: colors.textPrimary,
+  },
+  splitSelect: {
+    minWidth: 200,
+  },
+  // Day card: radius-2xl 28, gradient-card, white 0.08 edge.
+  dayCard: {
+    borderRadius: radii.xxl,
+    borderWidth: 1,
+    borderColor: colors.choiceBorder,
+    overflow: 'hidden',
+  },
+  dayHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingTop: spacing[4],
+    paddingHorizontal: spacing['4_5'],
+    paddingBottom: spacing[3],
+  },
+  dayHeaderTablet: {
+    paddingVertical: spacing['4_5'],
+    paddingHorizontal: spacing['5_5'],
+  },
+  // §9 reflow: the minutes drop below the title.
+  dayHeaderStacked: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 4,
+  },
+  // The board's 22/28/700 day title (title-sm); tablet 26/700 drawn.
+  dayTitle: {
+    ...typography.titleSm,
+    color: colors.textPrimary,
+  },
+  dayTitleTablet: {
+    fontSize: 26,
+    lineHeight: 30,
+  },
+  // "~55 min" chip: 26 tall, padding 0 10, white 0.07 drawn → fill-glass.
+  minutesChip: {
+    minHeight: 26,
+    justifyContent: 'center',
+    paddingHorizontal: spacing['2_5'],
+    borderRadius: radii.full,
+    backgroundColor: colors.fillGlass,
+  },
+  dayMinutes: {
+    ...font(400),
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.textStrong2,
+  },
+  dayMinutesTablet: {
+    ...font(400),
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textMuted,
+  },
+  dayListPhone: {
+    paddingBottom: spacing[3],
+  },
+  divider: {
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+  },
+  featuredLink: {
+    marginHorizontal: spacing[3],
+    borderRadius: radii.lg,
+    overflow: 'hidden',
+  },
+  featuredPhoto: {
+    aspectRatio: undefined,
+    height: 150,
+    borderRadius: radii.lg,
+  },
+  featuredOverlay: {
+    position: 'absolute',
+    left: spacing['3_5'],
+    right: spacing['3_5'],
+    bottom: spacing[3],
+  },
+  featuredName: {
+    ...font(700),
+    marginTop: 2,
+    fontSize: 20,
+    lineHeight: 24,
+    letterSpacing: -0.4,
+    color: colors.textPrimary,
+  },
+  featuredPrescription: {
+    ...font(400),
+    marginTop: 2,
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textStrong2,
+  },
+  featuredExtras: {
+    marginHorizontal: spacing['4_5'],
+  },
+  compactWrap: {
+    marginTop: spacing[3],
+    marginHorizontal: spacing[3],
+  },
+  compactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    padding: spacing['2_5'],
+    borderRadius: radii.lg,
+    backgroundColor: colors.fillWell,
+    overflow: 'hidden',
+  },
+  compactPhoto: {
+    width: 72,
+    height: 60,
+    borderRadius: radii.sm,
+  },
+  rowName: {
+    ...font(700),
+    fontSize: 16,
+    lineHeight: 20,
+    color: colors.textPrimary,
+  },
+  rowPrescription: {
+    ...font(400),
+    marginTop: 2,
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textStrong2,
+  },
+  tabletRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[4],
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing['5_5'],
+  },
+  tabletPhoto: {
+    width: 120,
+    height: 92,
+    borderRadius: radii.lg,
+  },
+  tabletName: {
+    ...font(600),
+    fontSize: 16,
+    lineHeight: 22,
+    color: colors.textPrimary,
+  },
+  tabletMuscle: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  tabletPrescription: {
     ...font(400),
     marginTop: 4,
     fontSize: 14,
     lineHeight: 20,
     color: colors.textSecondary,
   },
-  // GeneratorPreview board: gradient-card, white 0.08 edge, radius 28.
-  dayCard: {
-    padding: 20,
-    borderColor: colors.choiceBorder,
+  tabletExtras: {
+    paddingLeft: 158,
+    paddingRight: spacing['5_5'],
+    paddingBottom: spacing[4],
+  },
+  // Effort: body-sm 14/20 text-secondary.
+  effort: {
+    ...typography.bodySm,
+    marginTop: 4,
+    color: colors.textSecondary,
+  },
+  skipped: {
+    ...font(400),
+    marginTop: spacing[3],
+    marginHorizontal: spacing['4_5'],
+    paddingTop: spacing[3],
+    fontSize: 14,
+    lineHeight: 20,
+    fontStyle: 'italic',
+    color: colors.textMuted,
+  },
+  skippedTablet: {
+    marginTop: 0,
+    marginHorizontal: 0,
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing['5_5'],
+  },
+  weeklyCard: {
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: colors.surface,
+    padding: spacing[5],
+  },
+  weeklyTitle: {
+    ...font(700),
+    fontSize: 20,
+    lineHeight: 24,
+    letterSpacing: -0.4,
+    color: colors.textPrimary,
+  },
+  weeklyRows: {
+    marginTop: spacing['2_5'],
+    gap: spacing['2_5'],
+  },
+  weeklyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  weeklyName: {
+    ...font(600),
+    flexShrink: 1,
+    fontSize: 15,
+    lineHeight: 20,
+    color: colors.textPrimary,
+  },
+  weeklySets: {
+    ...font(400),
+    fontSize: 15,
+    lineHeight: 20,
+    fontVariant: ['tabular-nums'],
+    color: colors.textSecondary,
+  },
+  weeklyTrack: {
+    marginTop: 6,
+    height: 8,
+    borderRadius: radii.full,
+    backgroundColor: colors.track,
     overflow: 'hidden',
   },
-  // The board's 22/700 day title (title-sm).
-  dayTitle: {
-    ...typography.titleSm,
-    color: colors.textPrimary,
+  weeklyBar: {
+    height: 8,
+    borderRadius: radii.full,
+    backgroundColor: colors.gold,
   },
   // G6 (UX D): radius 26 drawn (→ radius-2xl 28), padding 22 20, surface,
   // hairline; title-sm, reason 14/22 secondary, teal callout, action mt 18.
@@ -581,146 +1089,68 @@ const styles = StyleSheet.create({
   refusalCallout: {
     marginTop: 14,
   },
-  dayHeader: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  // §9 reflow: the minutes drop below the title.
-  dayHeaderStacked: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: 4,
-  },
-  dayMinutes: {
-    ...font(600),
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.textMuted,
-  },
-  dayList: {
-    marginTop: 4,
-  },
-  divider: {
-    borderTopWidth: 1,
-    borderTopColor: colors.hairline,
-  },
-  exerciseRow: {
-    paddingVertical: 12,
-  },
-  nameLine: {
-    ...font(400),
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  exerciseName: {
-    ...font(700),
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.textPrimary,
-  },
-  muscle: {
-    ...font(400),
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.textMuted,
-  },
-  prescription: {
-    ...font(600),
-    marginTop: 2,
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.textSecondary,
-  },
-  effort: {
-    ...font(400),
-    marginTop: 4,
-    fontSize: 14,
-    lineHeight: 24,
-    color: colors.textSecondary,
-  },
-  skipped: {
-    ...font(400),
-    paddingVertical: 12,
-    fontSize: 14,
-    lineHeight: 20,
-    fontStyle: 'italic',
-    color: colors.textMuted,
-  },
-  weeklyTitle: {
-    ...font(700),
-    fontSize: 14,
-    lineHeight: 20,
-    textTransform: 'uppercase',
-    color: colors.textMuted,
-  },
-  weeklyRows: {
-    marginTop: 12,
-    gap: 6,
-  },
-  weeklyRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  weeklyName: {
-    ...font(700),
-    flexShrink: 1,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.textPrimary,
-  },
-  weeklySets: {
-    ...font(400),
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.textSecondary,
-  },
   notFeasibleAction: {
     marginTop: 18,
     alignItems: 'flex-start',
   },
   refusalActions: {
-    marginTop: 18,
-    gap: 12,
+    marginTop: 20,
+    gap: 10,
   },
   bar: {
     position: 'absolute',
     left: 0,
     right: 0,
   },
-  barVeil: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: colors.groundBar,
+  // UX ruling M2-1: the area directly behind the phone buttons is opaque.
+  barOpaque: {
+    backgroundColor: colors.ground,
+  },
+  barFade: {
+    height: spacing[6],
+  },
+  barInFlow: {
+    marginTop: spacing[2],
   },
   barRow: {
     width: '100%',
     maxWidth: 672,
     alignSelf: 'center',
-    gap: 12,
-    paddingHorizontal: 4,
-    paddingVertical: 12,
+    gap: spacing['2_5'],
+  },
+  // GeneratorPreview: padding 12 16, row gap 10.
+  barRowPhone: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+  },
+  barRowTablet: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing[3],
+    paddingHorizontal: spacing[6],
+    paddingVertical: spacing[4],
   },
   barStack: {
     flexDirection: 'column',
     alignItems: 'stretch',
+    paddingHorizontal: 0,
+  },
+  // M2-1 (pinned, 1×): keeps the phone's 16 side padding; gap 10 (web).
+  barStackPhone: {
+    paddingHorizontal: spacing[4],
   },
   barRowWide: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
   },
-  mt4: {
-    marginTop: 4,
+  mt6: {
+    marginTop: 6,
   },
   mt8: {
     marginTop: 8,
   },
-  mt16: {
-    marginTop: 16,
+  mt10: {
+    marginTop: 10,
   },
 });
