@@ -4,7 +4,9 @@ import { act, create } from 'react-test-renderer';
 import { abandonWorkout, completeWorkout, updateSessionSet } from '../api/workoutApi';
 import { ExerciseSheet } from './ExerciseNavigation';
 import { SessionChrome } from './RuntimeParts';
-import SessionRuntime, { ENDED_ELSEWHERE } from './SessionRuntime';
+import { CompleteWorkoutButton, RestTimerWidget } from './RuntimeOverlays';
+import SessionRuntime, { ENDED_ELSEWHERE, exerciseImageMap } from './SessionRuntime';
+import * as restPresentation from './restPresentation';
 
 jest.mock('@react-navigation/native', () => ({ useIsFocused: () => true }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 12, right: 8 }) }));
@@ -23,12 +25,14 @@ jest.mock('../api/workoutApi', () => ({
   completeWorkout: jest.fn(() => Promise.resolve()),
   updateSessionSet: jest.fn(() => Promise.resolve()),
 }));
+jest.mock('../../exercises/api/exercisesApi', () => ({ getExercise: jest.fn(() => Promise.resolve({ id: 7, description: 'Lie back.' })) }));
 jest.mock('./restAlertPlatform', () => ({ __esModule: true, default: require('./restAlerts').NO_PLATFORM }));
 // Jest's own window (750 wide), with a text scale the tests can change.
 let mockFontScale = 1;
+let mockWidth = 750;
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   __esModule: true,
-  default: () => ({ width: 750, height: 1334, scale: 2, fontScale: mockFontScale }),
+  default: () => ({ width: mockWidth, height: 1334, scale: 2, fontScale: mockFontScale }),
 }));
 jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn(() => Promise.resolve()) }));
 
@@ -88,7 +92,8 @@ describe('SessionRuntime', () => {
   it('unlocks the first pending set of the VIEWED exercise, even a later one (#15)', () => {
     const { tree } = render();
     expect(byId(tree, 'set-action-12').props.disabled).toBe(false);
-    act(() => byId(tree, 'exercise-nav-segment-1').props.onPress());
+    // v2 F1 (ND3): the live state has no bottom nav; jump through All (n).
+    act(() => tree.root.findByType(ExerciseSheet).props.onSelect(1));
     expect(byId(tree, 'set-action-21').props.disabled).toBe(false);
     expect(byId(tree, 'set-action-22').props.disabled).toBe(true);
   });
@@ -174,7 +179,7 @@ describe('SessionRuntime', () => {
     const { tree } = render({ session });
     const note = () => tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Last exercise — finish strong');
     expect(note()).toHaveLength(1);
-    act(() => byId(tree, 'exercise-nav-segment-0').props.onPress());
+    act(() => tree.root.findByType(ExerciseSheet).props.onSelect(0));
     expect(note()).toHaveLength(0);
   });
 
@@ -195,9 +200,11 @@ describe('SessionRuntime', () => {
   it('creates the swipe and sheet-drag responders once, across re-renders (#33, #34)', () => {
     const spy = jest.spyOn(PanResponder, 'create');
     const { tree } = render();
+    // The exercise nav shows while browsing (v2 F1 ND3).
+    act(() => tree.root.findByType(ExerciseSheet).props.onSelect(1));
     const created = spy.mock.calls.length;
     act(() => byId(tree, 'exercise-nav-segment-1').props.onPress());
-    act(() => byId(tree, 'exercise-nav-segment-0').props.onPress());
+    act(() => tree.update(<SessionRuntime {...tree.root.findByType(SessionRuntime).props} />));
     expect(spy.mock.calls.length).toBe(created);
   });
 });
@@ -231,5 +238,325 @@ describe('live text-size change (QA F1)', () => {
     expect(host(tree, 'session-column')).not.toBe(column);
     // The open sheet is session state: still open after the rebuild.
     expect(tree.root.findByType(ExerciseSheet).props.open).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// v2 Phase 3 §3 Workout (UX F1).
+
+const text = (tree, value) => tree.root.findAll((node) => node.type === 'Text' && [].concat(node.props.children).join('') === value);
+const flat = (node) => StyleSheet.flatten(typeof node.props.style === 'function' ? node.props.style({ pressed: false }) : node.props.style) ?? {};
+const sheet = (tree) => tree.root.findByType(ExerciseSheet);
+
+describe('v2 F1 live and browsing states (ND3)', () => {
+  it('live: one chrome (Exit · plan + n/m · timer m:ss · All), segments, the set card and the dock; no nav, bar or stats', () => {
+    const { tree } = render();
+    expect(host(tree, 'session-chrome')).toBeDefined();
+    expect(text(tree, 'Exit')).toHaveLength(1);
+    expect(text(tree, 'Plan')).toHaveLength(1);
+    expect(text(tree, '1/4 sets done')).toHaveLength(1);
+    expect(text(tree, 'All (2)')).toHaveLength(1);
+    expect(byId(tree, 'session-timer').props.accessibilityRole).toBe('timer');
+    expect(text(tree, '0:00')).toHaveLength(1);
+    expect(host(tree, 'exercise-segments')).toBeDefined();
+    expect(byId(tree, 'set-action-12').props.accessibilityLabel).toBe('Did it');
+    expect(byId(tree, 'up-next').props.accessibilityLabel).toBe('Up next: Press');
+    expect(host(tree, 'exercise-nav')).toBeUndefined();
+    expect(host(tree, 'browsing-bar')).toBeUndefined();
+    expect(host(tree, 'session-stats')).toBeUndefined();
+    // Exactly one number input per live set (web tests pin it): weight + reps
+    // for the ONE editor, none for the other sets.
+    expect(byId(tree, 'set-weight-12')).toBeDefined();
+    expect(byId(tree, 'set-weight-11')).toBeUndefined();
+    expect(byId(tree, 'set-reps-12')).toBeDefined();
+  });
+
+  it('Exit always opens the Discard dialog (code wins)', () => {
+    const { tree } = render();
+    act(() => byId(tree, 'session-exit').props.onPress());
+    expect(byId(tree, 'discard-dialog')).toBeDefined();
+    expect(tree.root.findAll((node) => node.props.testID === 'discard-dialog')[0]).toBeDefined();
+  });
+
+  it('browsing: the bar, the rail, Time/Volume/Reps and the bottom nav; Did it moves into the card; Resume returns', () => {
+    const { tree } = render();
+    act(() => sheet(tree).props.onSelect(1));
+    expect(host(tree, 'browsing-bar')).toBeDefined();
+    expect(host(tree, 'session-rail')).toBeDefined();
+    expect(host(tree, 'session-stats')).toBeDefined();
+    expect(host(tree, 'exercise-nav')).toBeDefined();
+    expect(byId(tree, 'up-next')).toBeUndefined();
+    expect(text(tree, 'Exercise 2 of 2')).not.toHaveLength(0);
+    // The browsed exercise's first set stays actionable (v1 #15, code wins).
+    expect(byId(tree, 'set-action-21').props.accessibilityLabel).toBe('Did it');
+    act(() => byId(tree, 'browsing-resume').props.onPress());
+    expect(host(tree, 'browsing-bar')).toBeUndefined();
+    expect(byId(tree, 'set-action-12')).toBeDefined();
+  });
+
+  it('Up next views the next incomplete exercise', () => {
+    const { tree } = render();
+    act(() => byId(tree, 'up-next').props.onPress());
+    expect(host(tree, 'browsing-bar')).toBeDefined();
+  });
+});
+
+describe('v2 F1 steppers (ND1 / ND2) and the real reps (U3)', () => {
+  const NO_TARGET = {
+    ...SESSION,
+    exercises: [
+      { ...SESSION.exercises[0], sets: [set(11, true), { ...set(12), target_reps_min: 8, target_reps_max: 10 }, set(13)] },
+      SESSION.exercises[1],
+    ],
+  };
+
+  it('weight: empty + gives one step (lb 5, kg 2.5), − at one step clears, typing with a comma still works', () => {
+    const { tree } = render({ session: NO_TARGET });
+    act(() => byId(tree, 'set-weight-plus-12').props.onPress());
+    expect(byId(tree, 'set-weight-12').props.value).toBe('5');
+    act(() => byId(tree, 'set-weight-minus-12').props.onPress());
+    expect(byId(tree, 'set-weight-12').props.value).toBe('');
+    act(() => byId(tree, 'set-unit-12').props.onChange('kg'));
+    act(() => byId(tree, 'set-weight-plus-12').props.onPress());
+    expect(byId(tree, 'set-weight-12').props.value).toBe('2.5');
+    act(() => byId(tree, 'set-weight-12').props.onChangeText('82,5'));
+    act(() => byId(tree, 'set-weight-plus-12').props.onPress());
+    expect(byId(tree, 'set-weight-12').props.value).toBe('85');
+  });
+
+  it('a stepped weight propagates to the later sets like typing (§20.3)', async () => {
+    const { tree } = render({ session: NO_TARGET });
+    act(() => byId(tree, 'set-weight-plus-12').props.onPress());
+    act(() => byId(tree, 'set-weight-plus-12').props.onPress());
+    await act(async () => byId(tree, 'set-action-12').props.onPress());
+    expect(updateSessionSet).toHaveBeenLastCalledWith(1, 1, 12, expect.objectContaining({ actual_weight_value: 10, actual_weight_unit: 'lb' }));
+  });
+
+  it('reps: prefilled with the top of the target, digits only (1–99), ±1, and the REAL value is sent', async () => {
+    updateSessionSet.mockClear();
+    const { tree } = render({ session: NO_TARGET });
+    expect(byId(tree, 'set-reps-12').props.value).toBe('10');
+    expect(text(tree, 'Reps · target 8–10')).toHaveLength(1);
+    act(() => byId(tree, 'set-reps-12').props.onChangeText('1a2'));
+    expect(byId(tree, 'set-reps-12').props.value).toBe('12');
+    act(() => byId(tree, 'set-reps-plus-12').props.onPress());
+    expect(byId(tree, 'set-reps-12').props.value).toBe('13');
+    await act(async () => byId(tree, 'set-action-12').props.onPress());
+    expect(updateSessionSet).toHaveBeenLastCalledWith(1, 1, 12, expect.objectContaining({ actual_reps: 13 }));
+  });
+
+  it('a blank reps field logs the target as v1', async () => {
+    updateSessionSet.mockClear();
+    const { tree } = render({ session: NO_TARGET });
+    act(() => byId(tree, 'set-reps-12').props.onChangeText(''));
+    await act(async () => byId(tree, 'set-action-12').props.onPress());
+    expect(updateSessionSet).toHaveBeenLastCalledWith(1, 1, 12, expect.objectContaining({ actual_reps: 10 }));
+  });
+
+  it('validation stays on "Did it": the error shows, blocks the PATCH and clears on the next edit', async () => {
+    updateSessionSet.mockClear();
+    const { tree } = render();
+    act(() => byId(tree, 'set-weight-12').props.onChangeText('abc'));
+    await act(async () => byId(tree, 'set-action-12').props.onPress());
+    expect(updateSessionSet).not.toHaveBeenCalled();
+    expect(host(tree, 'weight-error-12').props.children).toBe('Weight must be greater than 0.');
+    act(() => byId(tree, 'set-weight-plus-12').props.onPress());
+    expect(host(tree, 'weight-error-12')).toBeUndefined();
+  });
+
+  it('the rest locks "Did it" (0.5, the rest hint) until it ends', async () => {
+    const RESTING = { ...SESSION, exercises: [{ ...SESSION.exercises[0], sets: [set(11, true), { ...set(12), rest_seconds_planned: 60 }] }, SESSION.exercises[1]] };
+    const { tree } = render({ session: RESTING });
+    await act(async () => byId(tree, 'set-action-12').props.onPress());
+    const action = byId(tree, 'set-action-12');
+    expect(action.props.disabled).toBe(true);
+    expect(action.props.accessibilityHint).toBe('Rest timer running — wait or skip it first');
+  });
+});
+
+describe('v2 F1 "Last time" (U3, per set number, no fallback)', () => {
+  const LAST = {
+    ...SESSION,
+    exercises: [
+      {
+        ...SESSION.exercises[0],
+        previous_sets: [{ set_number: 2, weight_value: 100, weight_unit: 'kg', reps: 8 }],
+        sets: [set(11, true), { ...set(12), actual_weight_unit: null, target_weight_unit: 'lb' }],
+      },
+      { ...SESSION.exercises[1], previous_sets: [{ set_number: 2, weight_value: 50, weight_unit: 'kg', reps: 5 }] },
+    ],
+  };
+
+  it('shows the same set number converted to the current unit (lb whole), and prefills reps from it', () => {
+    const { tree } = render({ session: LAST });
+    expect(host(tree, 'set-last-time-12').props.children).toBe('Last time 220 × 8');
+    expect(byId(tree, 'set-reps-12').props.value).toBe('8');
+    act(() => byId(tree, 'set-unit-12').props.onChange('kg'));
+    expect(host(tree, 'set-last-time-12').props.children).toBe('Last time 100 × 8');
+  });
+
+  it('a set number with no previous set has no line and no prefill from another set', () => {
+    const { tree } = render({ session: LAST });
+    act(() => sheet(tree).props.onSelect(1));
+    // Set 21 is set number 1: exercise 2 only has a previous set number 2.
+    expect(host(tree, 'set-last-time-21')).toBeUndefined();
+    expect(byId(tree, 'set-reps-21').props.value).toBe('8');
+  });
+
+  it('an empty weight steps from the Last time weight', () => {
+    const { tree } = render({ session: LAST });
+    act(() => byId(tree, 'set-weight-12').props.onChangeText(''));
+    act(() => byId(tree, 'set-weight-plus-12').props.onPress());
+    expect(byId(tree, 'set-weight-12').props.value).toBe('225');
+  });
+});
+
+describe('v2 F1 volume rule (PM, 27 Oct): kg sum in the member unit', () => {
+  const { useProfileStore } = require('../../profile/profileStore');
+  const MIXED = {
+    ...SESSION,
+    exercises: [
+      {
+        ...SESSION.exercises[0],
+        sets: [
+          { ...set(11, true), actual_reps: 10, actual_weight_value: 100, actual_weight_unit: 'kg' },
+          { ...set(13, true), actual_reps: 10, actual_weight_value: 100, actual_weight_unit: 'lb' },
+          set(12),
+        ],
+      },
+      SESSION.exercises[1],
+    ],
+  };
+  afterEach(() => useProfileStore.setState({ profile: null }));
+
+  it('browsing stats: Volume in the member\'s kg (1,454 kg), Reps 20', () => {
+    useProfileStore.setState({ profile: { current_weight_unit: 'kg' } });
+    const { tree } = render({ session: MIXED });
+    act(() => sheet(tree).props.onSelect(1));
+    expect(text(tree, '1,454 kg')).toHaveLength(1);
+    expect(text(tree, '20')).toHaveLength(1);
+  });
+
+  it('the completion snapshot carries the same volume and its unit', async () => {
+    useProfileStore.setState({ profile: { goal_weight_unit: 'lb' } });
+    const onCompleted = jest.fn();
+    const { tree } = render({ session: MIXED, onCompleted });
+    await act(async () => byId(tree, 'complete-workout').props.onPress());
+    const snapshot = onCompleted.mock.calls[0][0];
+    expect(snapshot.volumeUnit).toBe('lb');
+    expect(Math.round(snapshot.totalVolume)).toBe(3205);
+  });
+});
+
+describe('v2 F1 Complete / Discard (ND4)', () => {
+  it('"Complete workout" is glass while a live set is left, primary when none is', () => {
+    const { tree } = render();
+    expect(tree.root.findByType(CompleteWorkoutButton).props.primary).toBe(false);
+    act(() => mounted.unmount());
+    const allDone = { ...SESSION, exercises: [{ ...SESSION.exercises[0], sets: [set(11, true)] }] };
+    const done = render({ session: allDone }).tree;
+    expect(done.root.findByType(CompleteWorkoutButton).props.primary).toBe(true);
+    expect(text(done, 'Discard workout')).toHaveLength(1);
+  });
+});
+
+describe('v2 F1 How to (#5 / ND7)', () => {
+  const { getExercise } = require('../../exercises/api/exercisesApi');
+  const LIB = { ...SESSION, exercises: [{ ...SESSION.exercises[0], exercise: { id: 7, thumbnail: { url: 'https://example.com/a.gif' } } }, SESSION.exercises[1]] };
+
+  it('opens the sheet over the workout and closes back to the same set; the session is untouched', async () => {
+    getExercise.mockClear();
+    const { tree } = render({ session: LIB });
+    await act(async () => {});
+    expect(getExercise).toHaveBeenCalledWith(7);
+    await act(async () => byId(tree, 'how-to-open').props.onPress());
+    expect(byId(tree, 'how-to-sheet').props.isOpen).toBe(true);
+    expect(text(tree, 'Lie back.')).toHaveLength(1);
+    act(() => byId(tree, 'how-to-close').props.onPress());
+    expect(byId(tree, 'how-to-sheet').props.isOpen).toBe(false);
+    expect(byId(tree, 'set-action-12').props.accessibilityLabel).toBe('Did it');
+  });
+
+  it('hides the pill when the library has neither text nor image', async () => {
+    getExercise.mockResolvedValueOnce({ id: 8 });
+    const bare = { ...SESSION, exercises: [{ ...SESSION.exercises[0], exercise: { id: 8 } }, SESSION.exercises[1]] };
+    const { tree } = render({ session: bare });
+    await act(async () => {});
+    expect(byId(tree, 'how-to-open')).toBeUndefined();
+  });
+});
+
+describe('v2 F1 tablet (≥ 768)', () => {
+  afterEach(() => {
+    mockWidth = 750;
+  });
+
+  it('live: the stage column, the logger with the inline exercise list and the dock; no Up next', () => {
+    mockWidth = 1024;
+    const { tree } = render();
+    expect(host(tree, 'session-exercise-list')).toBeDefined();
+    expect(byId(tree, 'up-next')).toBeUndefined();
+    expect(byId(tree, 'set-action-12').props.accessibilityLabel).toBe('Did it');
+    const column = StyleSheet.flatten(host(tree, 'session-column').props.style);
+    expect(column.maxWidth).toBeUndefined();
+    act(() => byId(tree, 'session-exercise-row-1').props.onPress());
+    expect(host(tree, 'browsing-bar')).toBeDefined();
+    expect(host(tree, 'exercise-nav')).toBeDefined();
+  });
+});
+
+describe('v2 F1 large text (UX §9; QA AX5 chrome)', () => {
+  afterEach(() => {
+    mockFontScale = 1;
+  });
+
+  it.each([1, 2, 3.1])('at %sx the chrome stays usable: one row up to 1.3×, two rows (in flow) above it', (scale) => {
+    mockFontScale = scale;
+    const { tree } = render();
+    const chrome = host(tree, 'session-chrome');
+    const style = StyleSheet.flatten(chrome.props.style);
+    if (scale > 1.3) {
+      expect(style.position).toBeUndefined();
+      // Row 1 holds Exit, the timer and All; the plan pill has its own row.
+      expect(chrome.props.children.props.children).toHaveLength(2);
+    } else {
+      expect(style.position).toBe('absolute');
+    }
+    // The plan name follows the title rule (word wrap, shrink a long word).
+    const name = text(tree, 'Plan')[0];
+    expect(name.props.adjustsFontSizeToFit).toBe(true);
+    expect(name.props.textBreakStrategy).toBe('simple');
+    // "Did it" never truncates.
+    const didIt = text(tree, 'Did it')[0];
+    expect(didIt.props.numberOfLines).toBeUndefined();
+    expect(flat(byId(tree, 'set-action-12')).minHeight).toBe(64);
+  });
+});
+
+describe('3c hand-off (lead, 27 Oct)', () => {
+  it('passes restNextPreview(session, nextSetKey, drafts) to the rest widget as `next`', () => {
+    const spy = jest.spyOn(restPresentation, 'restNextPreview').mockReturnValue({ label: 'Next: set 2' });
+    const { tree } = render();
+    expect(spy).toHaveBeenLastCalledWith(SESSION, undefined, expect.any(Object));
+    expect(tree.root.findByType(RestTimerWidget).props.next).toEqual({ label: 'Next: set 2' });
+  });
+
+  it('the stub returns null', () => {
+    expect(restPresentation.restNextPreview(SESSION, '1:12', {})).toBeNull();
+  });
+
+  it('the completion snapshot carries personalRecords, volumeUnit and exerciseImages', async () => {
+    const records = [{ exercise_id: 3, previous_value: 100 }];
+    completeWorkout.mockResolvedValueOnce({ new_personal_records: records });
+    const onCompleted = jest.fn();
+    const session = { ...SESSION, exercises: [{ ...SESSION.exercises[0], exercise: { id: 3, thumbnail: { url: 'https://example.com/a.gif' } } }, SESSION.exercises[1]] };
+    const { tree } = render({ session, onCompleted });
+    await act(async () => byId(tree, 'complete-workout').props.onPress());
+    expect(onCompleted.mock.calls[0][0]).toMatchObject({ personalRecords: records, volumeUnit: 'kg', exerciseImages: { 3: 'https://example.com/a.gif' } });
+  });
+
+  it('builds the image map from library ids with a photo only', () => {
+    expect(exerciseImageMap({ exercises: [{ exercise: { id: 1, thumbnail: { url: 'u' } } }, { exercise: { id: 2 } }, {}] })).toEqual({ 1: 'u' });
+    expect(exerciseImageMap(null)).toEqual({});
   });
 });

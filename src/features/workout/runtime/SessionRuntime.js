@@ -1,28 +1,40 @@
 import { useIsFocused } from '@react-navigation/native';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Keyboard, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Keyboard, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getServerMessage, getStatus } from '../../../shared/api/apiError';
 import { formatNumber, formatWeight } from '../../../shared/format/numbers';
 import { formatDuration } from '../../../shared/time/format';
 import { InlineToast } from '../../../shared/components/ToastHost';
+import { useLargeTextReflow } from '../../../shared/components/largeText';
 import { useKeyboardHeight } from '../../../shared/hooks/useKeyboardHeight';
 import { ToastTone } from '../../../shared/components/toastStore';
-import { breakpoints, colors, shadows } from '../../../shared/theme/tokens';
+import { breakpoints, colors, spacing } from '../../../shared/theme/tokens';
+import { useProfileStore } from '../../profile/profileStore';
 import { abandonWorkout, completeWorkout, updateSessionSet } from '../api/workoutApi';
-import { ExerciseSheet, WorkoutExerciseNav } from './ExerciseNavigation';
+import { ExerciseSheet, SessionExerciseList, WorkoutExerciseNav } from './ExerciseNavigation';
+import HowToSheet, { showHowToPill, useHowToLibrary } from './HowToSheet';
 import {
   BrowsingBar,
+  DID_IT_HEIGHT,
+  DidItButton,
+  DiscardWorkoutAction,
+  ExerciseSegments,
   ExerciseStage,
+  HowToButton,
+  LastExerciseNote,
   ReloadErrorBar,
   SessionChrome,
-  SetRow,
+  SessionRail,
+  SessionStats,
+  SetEditor,
   StaleSessionBanner,
-  StatTile,
-  UpNextCard,
+  UpNextLink,
 } from './RuntimeParts';
-import { CompleteWorkoutButton, DiscardButton, DiscardDialog, ExactAlarmDialog, RestTimerWidget, SpeakIntroDialog } from './RuntimeOverlays';
+import { CompleteWorkoutButton, ExactAlarmDialog, RestTimerWidget, SpeakIntroDialog } from './RuntimeOverlays';
+import { restNextPreview } from './restPresentation';
+import { DiscardWorkoutDialog } from './SessionDialogs';
 import restAlertPlatform from './restAlertPlatform';
 import {
   buildSetPatch,
@@ -31,30 +43,69 @@ import {
   createPendingSets,
   draftFromSavedSet,
   firstPendingSetKey,
+  lastTimeLabel,
+  lastTimeWeight,
+  memberWeightUnit,
   muscleGroups,
   nextSetKeyAfter,
   orderedSets,
+  previousSetFor,
   propagateDraft,
   restSecondsFor,
+  sanitizeReps,
   seedDrafts,
+  seedRepsDrafts,
   sessionProgress,
   sessionViewState,
   setKey,
   staleSessionTitle,
+  stepReps,
+  stepWeight,
   validateDraftWeight,
+  volumeInUnit,
 } from './sessionMath';
 import useElapsedTimer from './useElapsedTimer';
 import useRestAlerts from './useRestAlerts';
 import useRestTimer from './useRestTimer';
 
+// The phone column (app-shell §"phone", §19.6); tablets use the window.
 const COLUMN_MAX_WIDTH = 430;
+// F1 tablet landscape: the logger column is clamp(320, 38vw, 480).
+const TABLET_LOGGER_MIN = 320;
+const TABLET_LOGGER_MAX = 480;
+// Tablet: Workout dock, 40 above the bottom (+ inset).
+const TABLET_DOCK_BOTTOM = 40;
+const LOCK_REST = 'Rest timer running — wait or skip it first';
 
-// The session runtime (RN-SPEC-workout Part B). `session` is already the
-// O12-overlaid view; every derived value reads it. The chrome and the bottom
-// nav sit outside the scroll (§19.0).
+// The session runtime (RN-SPEC-workout Part B, v2 Phase 3 §3 / UX F1).
+// `session` is already the O12-overlaid view; every derived value reads it.
+// Layouts: phone live (stage · segments · set card · dock), phone browsing
+// (stage + ring · rail · browsing bar · stats · set card · exercise nav),
+// tablet live (stage column | logger column + inline list, dock), tablet
+// browsing (single column, nav pill). One chrome in every state (ND3).
 // RN-SPEC-workout O9 dated change (25 Oct 2026, T-37): a 409 from the set
 // toggle or Complete means the session was already ended on another device.
 export const ENDED_ELSEWHERE = 'This workout was already ended on another device. Start a new one when you’re ready.';
+
+// { library exercise id: thumbnail url } for the completion popup.
+export function exerciseImageMap(session) {
+  const map = {};
+  for (const item of session?.exercises ?? []) {
+    const id = item.exercise?.id;
+    const url = item.exercise?.thumbnail?.url;
+    if (id != null && url) {
+      map[id] = url;
+    }
+  }
+  return map;
+}
+
+export function tabletLoggerWidth(width) {
+  if (width >= breakpoints.lg) {
+    return Math.min(TABLET_LOGGER_MAX, Math.max(TABLET_LOGGER_MIN, Math.round(width * 0.38)));
+  }
+  return Math.round(width * 0.45);
+}
 
 export default function SessionRuntime({
   session,
@@ -72,10 +123,14 @@ export default function SessionRuntime({
   retrying,
   onRetry,
   onCompleted,
+  loadHowTo,
 }) {
   const insets = useSafeAreaInsets();
   const { width, fontScale } = useWindowDimensions();
   const isFocused = useIsFocused();
+  const stacked = useLargeTextReflow();
+  const profile = useProfileStore((state) => state.profile);
+  const volumeUnit = memberWeightUnit(profile);
   const scrollRef = useRef(null);
   const contentRef = useRef(null);
   // The All (n) opener: the exercise sheet returns focus here on close.
@@ -86,7 +141,10 @@ export default function SessionRuntime({
   const visibleHeight = useRef(0);
   const contentHeight = useRef(0);
   const [navHeight, setNavHeight] = useState(96);
+  const [chromeHeight, setChromeHeight] = useState(48);
+  const [dockHeight, setDockHeight] = useState(DID_IT_HEIGHT + 32);
   const [drafts, setDrafts] = useState({});
+  const [repsDrafts, setRepsDrafts] = useState({});
   const [validation, setValidation] = useState({});
   const pendingSets = useRef(null);
   if (pendingSets.current === null) {
@@ -96,11 +154,13 @@ export default function SessionRuntime({
   const [highlightedSetKey, setHighlightedSetKey] = useState('');
   const [viewingIndex, setViewingIndex] = useState(null);
   const [showSheet, setShowSheet] = useState(false);
+  const [showHowTo, setShowHowTo] = useState(false);
   const [muscle, setMuscle] = useState('all');
   const [showDiscard, setShowDiscard] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [isAbandoning, setIsAbandoning] = useState(false);
   const elapsed = useElapsedTimer(session.started_at);
+  const howTo = useHowToLibrary(loadHowTo ? { load: loadHowTo } : undefined);
   // Edge-to-edge Android isn't resized for the keyboard (iOS uses
   // automaticallyAdjustKeyboardInsets below).
   const keyboardHeight = useKeyboardHeight();
@@ -118,9 +178,11 @@ export default function SessionRuntime({
   const groups = useMemo(() => muscleGroups(session), [session]);
   const staleTitle = staleSessionTitle(session.started_at);
 
-  // §20.2: seed drafts on every load, never overwriting existing ones.
+  // §20.2: seed drafts on every load, never overwriting existing ones (the
+  // reps drafts follow the same rule; U3 prefill).
   useEffect(() => {
     setDrafts((current) => seedDrafts(session, exerciseStatsMap, current));
+    setRepsDrafts((current) => seedRepsDrafts(session, current));
   }, [session, exerciseStatsMap]);
 
   // §26 auto-advance: follow the active exercise whenever it changes.
@@ -130,17 +192,17 @@ export default function SessionRuntime({
     }
   }, [progress.activeExerciseIndex]);
 
-  // §26.1: the sheet and the discard dialog are dismissed on blur.
+  // §26.1: the sheets and the discard dialog are dismissed on blur.
   useEffect(() => {
     if (!isFocused) {
       setShowSheet(false);
       setShowDiscard(false);
+      setShowHowTo(false);
     }
   }, [isFocused]);
 
   // §22.3: fires only when the key changes to a non-empty value, and only if
-  // its row is mounted; centred and clamped to the content (ported from the
-  // 28 Sep build).
+  // its card is mounted; centred and clamped to the content.
   useEffect(() => {
     if (!highlightedSetKey) {
       return;
@@ -193,7 +255,8 @@ export default function SessionRuntime({
     };
     setActionError('');
     setPendingSetIds(pendingSets.current.snapshot());
-    const body = buildSetPatch(set, draft);
+    // U3: the reps the member entered go with the weight draft.
+    const body = buildSetPatch(set, { ...draft, actualReps: repsDrafts[set.id] });
     try {
       const result = await updateSessionSet(session.id, exercise.id, set.id, body);
       const saved = body.is_completed ? result?.workout_session_exercise_set : null;
@@ -251,15 +314,17 @@ export default function SessionRuntime({
       return;
     }
     completingRef.current = true;
-    const snapshot = completionSnapshot(session, planName, elapsed);
+    const snapshot = completionSnapshot(session, planName, elapsed, volumeUnit);
     setActionError('');
     setIsCompleting(true);
     rest.clear();
     setHighlightedSetKey('');
     try {
-      await completeWorkout(session.id);
+      const result = await completeWorkout(session.id);
       setSuccessMessage('Workout completed.');
-      onCompleted(snapshot);
+      // #15 (3c's PB card) and the photos it can show; volumeUnit per the
+      // VOLUME RULE is already in the snapshot.
+      onCompleted({ ...snapshot, personalRecords: result?.new_personal_records, exerciseImages: exerciseImageMap(session) });
       await reload();
     } catch (error) {
       if (getStatus(error) === 409) {
@@ -297,133 +362,258 @@ export default function SessionRuntime({
     setValidation((current) => (current[set.id] ? { ...current, [set.id]: undefined } : current));
   }
 
+  // ND1 / ND2 steppers; the new value is announced (F1 a11y).
+  function step(exercise, set, field, direction) {
+    if (field === 'weight') {
+      const draft = drafts[set.id];
+      const unit = draft?.actualWeightUnit || 'lb';
+      const start = lastTimeWeight(previousSetFor(exercise, set), unit);
+      const value = stepWeight(draft?.actualWeightValue, unit, direction, start);
+      changeDraft(exercise, set, 'actualWeightValue', value);
+      if (value) {
+        AccessibilityInfo.announceForAccessibility?.(`${value} ${unit}`);
+      }
+      return;
+    }
+    const value = stepReps(repsDrafts[set.id], direction);
+    setRepsDrafts((current) => ({ ...current, [set.id]: value }));
+    if (value) {
+      AccessibilityInfo.announceForAccessibility?.(`${value} reps`);
+    }
+  }
+
   const viewing = Math.min(Math.max(viewingIndex ?? 0, 0), Math.max(exercises.length - 1, 0));
   const exercise = exercises[viewing];
   const activeIndex = progress.activeExerciseIndex;
   const { currentIndex: sheetCurrent, isActiveView, laterIncomplete, isLastIncomplete } = sessionViewState(exercises, viewing, activeIndex);
+  const browsing = !isActiveView && activeIndex >= 0;
   const firstPendingKey = firstPendingSetKey(exercise);
-  // The column is capped at 430 (§19.6), so its breakpoints follow the
-  // column's width, not the window's.
-  const columnWidth = Math.min(width - insets.left - insets.right, COLUMN_MAX_WIDTH);
-  const wide = columnWidth >= breakpoints.sm;
-  const gutter = wide ? 20 : 16;
+  const editorSet = exercise ? (exercise.sets ?? []).find((item) => setKey(exercise.id, item.id) === firstPendingKey) ?? null : null;
+  const contentWidth = width - insets.left - insets.right;
+  const tablet = contentWidth >= breakpoints.md;
+  const liveSetLeft = progress.completedSets < progress.totalSets;
+  const chromeOverlay = !stacked;
+  const chromeTop = (header ? spacing[3] : insets.top + spacing['2_5']) + (tablet ? spacing[3] : 0);
   // §17 / web parity: a button press takes focus off the weight input.
   const dismiss = (handler) => (...args) => {
     Keyboard.dismiss();
     return handler(...args);
   };
+  const openSheet = dismiss(() => setShowSheet(true));
+
+  const chrome = (
+    <SessionChrome
+      planName={planName || 'Workout'}
+      completedSets={progress.completedSets}
+      totalSets={progress.totalSets}
+      exerciseCount={exercises.length}
+      elapsed={elapsed}
+      onExit={dismiss(() => setShowDiscard(true))}
+      onAll={openSheet}
+      allRef={allRef}
+      tablet={tablet}
+      onLayout={chromeOverlay ? (event) => setChromeHeight(event.nativeEvent.layout.height) : undefined}
+      style={chromeOverlay ? [styles.chromeOverlay, { top: chromeTop }] : [styles.chromeInFlow, { paddingTop: chromeTop }]}
+    />
+  );
+  const stageTop = chromeOverlay ? chromeTop + chromeHeight + spacing[3] : 0;
+  const howToEntry = exercise?.exercise?.id ? howTo.entries[exercise.exercise.id] : null;
+  const howToButton =
+    exercise?.exercise?.id && showHowToPill(howToEntry, exercise) ? (
+      <HowToButton
+        tablet={tablet}
+        onPress={dismiss(() => {
+          howTo.fetchEntry(exercise.exercise.id);
+          setShowHowTo(true);
+        })}
+      />
+    ) : null;
+
+  // Prefetch the viewed exercise's How-to so an empty one hides its pill.
+  const viewedLibraryId = exercise?.exercise?.id;
+  const { fetchEntry } = howTo;
+  useEffect(() => {
+    if (viewedLibraryId) {
+      fetchEntry(viewedLibraryId);
+    }
+  }, [viewedLibraryId, fetchEntry]);
+
+  const messages =
+    staleTitle || reloadError || successMessage || actionError ? (
+      <View style={styles.messages}>
+        {staleTitle ? <StaleSessionBanner title={staleTitle} /> : null}
+        {reloadError ? <ReloadErrorBar retrying={retrying} onRetry={onRetry} /> : null}
+        {successMessage ? <InlineToast testID="workout-saved-toast" tone={ToastTone.success} title="Saved" message={successMessage} /> : null}
+        {actionError ? <InlineToast testID="workout-action-error" tone={ToastTone.error} title="Workout error" message={actionError} /> : null}
+      </View>
+    ) : null;
+
+  const didIt = editorSet ? (
+    <DidItButton
+      set={editorSet}
+      isPending={pendingSetIds.has(editorSet.id)}
+      isLocked={Boolean(rest.timer)}
+      lockReason={LOCK_REST}
+      onPress={dismiss(() => toggleSet(exercise, editorSet))}
+    />
+  ) : null;
+
+  const editorKey = editorSet ? setKey(exercise.id, editorSet.id) : '';
+  const setCard = exercise ? (
+    <SetEditor
+      exercise={exercise}
+      set={editorSet}
+      draft={editorSet ? drafts[editorSet.id] : undefined}
+      reps={editorSet ? repsDrafts[editorSet.id] : undefined}
+      lastTime={editorSet ? lastTimeLabel(previousSetFor(exercise, editorSet), drafts[editorSet.id]?.actualWeightUnit || 'lb') : null}
+      tablet={tablet}
+      highlighted={Boolean(editorKey) && highlightedSetKey === editorKey}
+      validationError={editorSet ? validation[editorSet.id] : undefined}
+      pendingSetIds={pendingSetIds}
+      cardRef={(node) => {
+        if (editorKey) {
+          rowRefs.current[editorKey] = node;
+        }
+      }}
+      onWeightChange={(value) => changeDraft(exercise, editorSet, 'actualWeightValue', value)}
+      onUnitChange={(value) => changeDraft(exercise, editorSet, 'actualWeightUnit', value)}
+      onRepsChange={(value) => setRepsDrafts((current) => ({ ...current, [editorSet.id]: sanitizeReps(value) }))}
+      onStep={(field, direction) => step(exercise, editorSet, field, direction)}
+      onToggleSet={dismiss((item) => toggleSet(exercise, item))}
+      // Browsing (and the large-text in-flow layout) keeps "Did it" in the
+      // card: the bottom of the screen is the exercise nav there.
+      action={browsing ? didIt : null}
+    />
+  ) : null;
+
+  const endActions = (
+    <View style={styles.endActions}>
+      {isActiveView && isLastIncomplete ? <LastExerciseNote /> : null}
+      {/* ND4: primary when no live set is left, else glass (3c's button). */}
+      <CompleteWorkoutButton primary={!liveSetLeft} completing={isCompleting} onPress={dismiss(handleComplete)} />
+      <DiscardWorkoutAction abandoning={isAbandoning} onPress={dismiss(() => setShowDiscard(true))} />
+    </View>
+  );
+
+  const volume = formatWeight(volumeInUnit(progress.volumeKg, volumeUnit), null, 0);
+  const stats = <SessionStats time={formatDuration(elapsed)} volume={volume} volumeUnit={volumeUnit} reps={formatNumber(progress.actualReps, 0)} tablet={tablet} />;
+
+  const stage = exercise ? (
+    <ExerciseStage
+      exercise={exercise}
+      index={viewing}
+      count={exercises.length}
+      isActive={isActiveView}
+      variant={browsing ? 'browse' : tablet ? 'split' : 'live'}
+      tablet={tablet}
+      top={tablet && !browsing ? (chromeOverlay ? stageTop : 0) : stageTop}
+      chrome={chromeOverlay || (tablet && !browsing) ? null : chrome}
+      completedSets={progress.completedSets}
+      totalSets={progress.totalSets}
+      howTo={howToButton}
+      segments={tablet && !browsing ? <ExerciseSegments exercises={exercises} viewingIndex={viewing} tablet /> : null}
+    />
+  ) : null;
+
+  const scrollProps = {
+    ref: scrollRef,
+    onLayout: (event) => {
+      visibleHeight.current = event.nativeEvent.layout.height;
+    },
+    onContentSizeChange: (_w, h) => {
+      contentHeight.current = h;
+    },
+    keyboardShouldPersistTaps: 'handled',
+    automaticallyAdjustKeyboardInsets: true,
+  };
+  const androidKeyboard = Platform.OS === 'android' ? keyboardHeight : 0;
+  const upNext = !tablet && isActiveView && laterIncomplete !== -1 ? exercises[laterIncomplete] : null;
+  const showDock = !browsing && (Boolean(didIt) || Boolean(upNext));
+  const bottomRoom = browsing ? navHeight + spacing[5] + insets.bottom : showDock ? dockHeight + spacing[7] + insets.bottom : spacing[6] + insets.bottom;
+
+  let body;
+  if (tablet && !browsing) {
+    // Tablet: Workout. Stage column | logger column; the dock sits under the
+    // logger column (its inner width).
+    const loggerWidth = tabletLoggerWidth(contentWidth);
+    body = (
+      <View style={styles.splitRow}>
+        <View style={styles.splitStage}>{stage}</View>
+        <View style={[styles.logger, { width: loggerWidth }]}>
+          <ScrollView
+            {...scrollProps}
+            contentContainerStyle={{ paddingTop: chromeOverlay ? stageTop : spacing[4], paddingBottom: bottomRoom + androidKeyboard, paddingHorizontal: spacing[6] }}
+          >
+            <View ref={contentRef} collapsable={false} style={styles.loggerContent}>
+              {messages}
+              {setCard}
+              <SessionExerciseList
+                title={planName || 'Workout'}
+                exercises={exercises}
+                currentIndex={sheetCurrent}
+                viewingIndex={viewing}
+                onSelect={dismiss(setViewingIndex)}
+              />
+              {endActions}
+            </View>
+          </ScrollView>
+          {showDock && didIt ? (
+            <View onLayout={(event) => setDockHeight(event.nativeEvent.layout.height)} style={[styles.dockTablet, { bottom: TABLET_DOCK_BOTTOM + insets.bottom }]}>
+              {didIt}
+            </View>
+          ) : null}
+        </View>
+      </View>
+    );
+  } else {
+    body = (
+      <ScrollView {...scrollProps} contentContainerStyle={{ paddingBottom: bottomRoom + androidKeyboard }}>
+        <View ref={contentRef} collapsable={false}>
+          {stage}
+          {browsing ? <SessionRail completedSets={progress.completedSets} totalSets={progress.totalSets} /> : <ExerciseSegments exercises={exercises} viewingIndex={viewing} />}
+          <View style={[styles.main, tablet && styles.mainTablet, browsing && styles.mainBrowsing]}>
+            {browsing ? <BrowsingBar tablet={tablet} onResume={dismiss(() => setViewingIndex(activeIndex))} /> : null}
+            {browsing ? stats : null}
+            {messages}
+            {setCard}
+            {endActions}
+          </View>
+        </View>
+      </ScrollView>
+    );
+  }
 
   return (
-    // §19.6 (tablet layout deferred): at every width the runtime uses the phone
-    // layout, so header, chrome and scroll sit in the shell's centred phone
-    // column (min(window, 430), app-shell §"phone"), with the side insets for
-    // landscape tablets (app-shell [O2]). The nav's inner is capped at 460
-    // (§19.8). (ported from the 28 Sep build)
     // QA F1, iOS: a live text-size change leaves unchanged texts with their
     // old measurements (see ShellPage), and the timer re-renders every second.
     // The frame remounts on a new text scale; the session state (sets, rest,
     // dialogs) lives in this component's hooks and is kept.
-    <View
-      key={`text-scale-${fontScale}`}
-      style={[styles.frame, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}
-    >
-      <View testID="session-column" style={styles.column}>
-        {header ? <View style={{ paddingHorizontal: gutter }}>{header}</View> : null}
-        <SessionChrome
-          planName={planName || 'Workout'}
-          completedSets={progress.completedSets}
-          totalSets={progress.totalSets}
-          exerciseCount={exercises.length}
-          onExit={dismiss(() => setShowDiscard(true))}
-          onAll={dismiss(() => setShowSheet(true))}
-          allRef={allRef}
-        />
-        <ScrollView
-          ref={scrollRef}
-          onLayout={(event) => {
-            visibleHeight.current = event.nativeEvent.layout.height;
-          }}
-          onContentSizeChange={(_w, h) => {
-            contentHeight.current = h;
-          }}
-          keyboardShouldPersistTaps="handled"
-          automaticallyAdjustKeyboardInsets
-          // §19 / §19.0: web's fixed margin-bottom 144 below the content, plus
-          // the safe area the pinned nav adds, so the last row and its error
-          // always scroll clear of the nav. On Android an open keyboard adds
-          // its height, so the last set's weight input can scroll above it.
-          contentContainerStyle={{
-            paddingBottom: Math.max(144 + insets.bottom, navHeight + 20) + (Platform.OS === 'android' ? keyboardHeight : 0),
-          }}
-        >
-          <View ref={contentRef} collapsable={false} style={styles.content}>
-            <View style={[styles.messages, { paddingHorizontal: gutter }]}>
-              {staleTitle ? <StaleSessionBanner title={staleTitle} /> : null}
-              {reloadError ? <ReloadErrorBar retrying={retrying} onRetry={onRetry} /> : null}
-              {successMessage ? <InlineToast testID="workout-saved-toast" tone={ToastTone.success} title="Saved" message={successMessage} /> : null}
-              {actionError ? <InlineToast testID="workout-action-error" tone={ToastTone.error} title="Workout error" message={actionError} /> : null}
-            </View>
-            <View style={[styles.stats, { paddingHorizontal: gutter, gap: wide ? 16 : 12, paddingVertical: wide ? 20 : 16 }]}>
-              <StatTile label="Time" value={formatDuration(elapsed)} />
-              <StatTile label="Volume" value={formatWeight(progress.liveVolume, 'lb', 0)} />
-              <StatTile label="Reps" value={formatNumber(progress.actualReps, 0)} />
-            </View>
-            <View style={[styles.main, { paddingHorizontal: gutter }]}>
-              {!isActiveView && activeIndex >= 0 ? <BrowsingBar onResume={dismiss(() => setViewingIndex(activeIndex))} /> : null}
-              {exercise ? (
-                <ExerciseStage exercise={exercise} index={viewing} count={exercises.length} isActive={isActiveView}>
-                  {(exercise.sets ?? []).map((set) => {
-                    const key = setKey(exercise.id, set.id);
-                    const completed = Boolean(set.is_completed);
-                    const isNext = key === firstPendingKey;
-                    const isLocked = !completed && (Boolean(rest.timer) || !isNext);
-                    return (
-                      <View key={set.id} ref={(node) => (rowRefs.current[key] = node)} collapsable={false}>
-                        <SetRow
-                          set={set}
-                          draft={drafts[set.id]}
-                          isNext={isNext}
-                          isLocked={isLocked}
-                          lockReason={rest.timer && isNext ? 'Rest timer running — wait or skip it first' : 'Finish the previous set first'}
-                          isPending={pendingSetIds.has(set.id)}
-                          highlighted={highlightedSetKey === key}
-                          validationError={validation[set.id]}
-                          onWeightChange={(value) => changeDraft(exercise, set, 'actualWeightValue', value)}
-                          onUnitChange={(value) => changeDraft(exercise, set, 'actualWeightUnit', value)}
-                          onToggle={dismiss(() => toggleSet(exercise, set))}
-                        />
-                      </View>
-                    );
-                  })}
-                </ExerciseStage>
-              ) : null}
-              {isActiveView && laterIncomplete !== -1 ? (
-                <UpNextCard
-                  exercise={exercises[laterIncomplete]}
-                  setsLeft={(exercises[laterIncomplete].sets ?? []).filter((set) => !set.is_completed).length}
-                  onPress={dismiss(() => setViewingIndex(laterIncomplete))}
-                />
-              ) : null}
-              {isLastIncomplete ? (
-                <View style={styles.lastNote}>
-                  <Text style={styles.lastNoteText}>Last exercise — finish strong</Text>
-                </View>
-              ) : null}
-              <CompleteWorkoutButton completing={isCompleting} onPress={dismiss(handleComplete)} />
-              <DiscardButton abandoning={isAbandoning} onPress={dismiss(() => setShowDiscard(true))} />
-            </View>
+    <View key={`text-scale-${fontScale}`} style={[styles.frame, { paddingLeft: insets.left, paddingRight: insets.right }]}>
+      {header ? <View style={[styles.header, { paddingTop: insets.top }]}>{header}</View> : null}
+      <View testID="session-column" style={[styles.column, !tablet && styles.columnPhone]}>
+        {tablet && !browsing && !chromeOverlay ? chrome : null}
+        {body}
+        {chromeOverlay ? chrome : null}
+        {showDock && !tablet ? (
+          <View onLayout={(event) => setDockHeight(event.nativeEvent.layout.height)} style={[styles.dock, { bottom: spacing[7] + insets.bottom }]}>
+            {didIt}
+            {upNext ? <UpNextLink exercise={upNext} onPress={dismiss(() => setViewingIndex(laterIncomplete))} /> : null}
           </View>
-        </ScrollView>
+        ) : null}
+        {browsing ? (
+          <WorkoutExerciseNav
+            exercises={exercises}
+            viewingIndex={viewing}
+            onView={dismiss(setViewingIndex)}
+            onOpenSheet={openSheet}
+            onHeight={setNavHeight}
+            tablet={tablet}
+          />
+        ) : null}
       </View>
-      <WorkoutExerciseNav
-        exercises={exercises}
-        viewingIndex={viewing}
-        onView={dismiss(setViewingIndex)}
-        onOpenSheet={dismiss(() => setShowSheet(true))}
-        onHeight={setNavHeight}
-      />
       <RestTimerWidget
         timer={rest.timer}
+        next={restNextPreview(session, rest.timer?.nextSetKey, drafts)}
         minimized={rest.minimized}
         onMinimize={dismiss(() => rest.setMinimized(true))}
         onExpand={dismiss(() => rest.setMinimized(false))}
@@ -450,7 +640,16 @@ export default function SessionRuntime({
         }}
         onClose={() => setShowSheet(false)}
       />
-      <DiscardDialog open={showDiscard} onKeep={() => setShowDiscard(false)} onDiscard={handleAbandon} />
+      {exercise ? (
+        <HowToSheet
+          open={showHowTo}
+          sessionExercise={exercise}
+          entry={howToEntry}
+          onRetry={() => howTo.fetchEntry(exercise.exercise?.id, true)}
+          onClose={() => setShowHowTo(false)}
+        />
+      ) : null}
+      <DiscardWorkoutDialog open={showDiscard} onKeep={() => setShowDiscard(false)} onDiscard={handleAbandon} />
       <ExactAlarmDialog open={restAlerts.offerOpen} onNotNow={restAlerts.closeOffer} onOpenSettings={restAlerts.openSettings} />
       <SpeakIntroDialog
         open={restAlerts.introOpen}
@@ -465,38 +664,68 @@ export default function SessionRuntime({
 const styles = StyleSheet.create({
   frame: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.ground,
+  },
+  header: {
+    paddingHorizontal: spacing[5],
   },
   column: {
     flex: 1,
     width: '100%',
-    maxWidth: COLUMN_MAX_WIDTH,
     alignSelf: 'center',
   },
-  content: {
-    paddingTop: 16,
+  columnPhone: {
+    maxWidth: COLUMN_MAX_WIDTH,
+  },
+  chromeOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+  },
+  chromeInFlow: {
+    paddingBottom: spacing[3],
   },
   messages: {
-    gap: 20,
-  },
-  stats: {
-    flexDirection: 'row',
+    gap: spacing[3],
   },
   main: {
-    gap: 16,
+    gap: spacing[4],
+    paddingHorizontal: spacing[4],
+    paddingTop: spacing[4],
   },
-  lastNote: {
-    alignItems: 'center',
-    borderRadius: 24,
-    backgroundColor: colors.surfaceMuted,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    boxShadow: shadows.emboss,
+  mainBrowsing: {
+    gap: spacing['2_5'],
+    paddingTop: spacing[3],
   },
-  lastNoteText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
-    color: colors.brand700,
+  mainTablet: {
+    gap: spacing[4],
+    paddingHorizontal: spacing[8],
+  },
+  endActions: {
+    gap: spacing[3],
+    marginTop: spacing[4],
+  },
+  dock: {
+    position: 'absolute',
+    left: spacing[4],
+    right: spacing[4],
+  },
+  splitRow: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  splitStage: {
+    flex: 1,
+  },
+  logger: {
+    flexShrink: 0,
+  },
+  loggerContent: {
+    gap: spacing[4],
+  },
+  dockTablet: {
+    position: 'absolute',
+    left: spacing[6],
+    right: spacing[6],
   },
 });

@@ -7,15 +7,13 @@ import BlurLayer from '../../../shared/components/BlurLayer';
 import GradientFill from '../../../shared/components/GradientFill';
 import Chip from '../../../shared/components/Chip';
 import ExerciseImage, { muscleColor, TILE_ALPHA } from '../../../shared/components/ExerciseImage';
-import { usesSolidGlass } from '../../../shared/components/GlassSurface';
+import GlassSurface, { usesSolidGlass } from '../../../shared/components/GlassSurface';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { useSheetFocus } from '../../../shared/hooks/useSheetFocus';
 import { blur, breakpoints, colors, font, gradients, radii, shadows, spacing, textScale, typography } from '../../../shared/theme/tokens';
-import { exerciseName, setsWord } from './sessionMath';
+import { exerciseName, segmentLabel, setsWord } from './sessionMath';
 
-const GOLD = [colors.brand300, colors.brand500];
 const SHEET_EASE = Easing.bezier(0.22, 1, 0.36, 1);
-const EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
 // The sheet's drawn sizes (UX C §All exercises sheet / §Tablet); radii 22,
 // 26, 32, 40 are off the 5-step scale ([no token], built as drawn).
 const SHEET_RADIUS = 32;
@@ -80,30 +78,16 @@ function useStablePanResponder(config) {
   return responder.current;
 }
 
-function SegmentFill({ ratio }) {
-  const reducedMotion = useReducedMotion();
-  const scale = useRef(new Animated.Value(ratio)).current;
-  useEffect(() => {
-    if (reducedMotion) {
-      scale.setValue(ratio);
-      return undefined;
-    }
-    const animation = Animated.timing(scale, { toValue: ratio, duration: 300, easing: EASE_OUT, useNativeDriver: true });
-    animation.start();
-    return () => animation.stop();
-  }, [ratio, reducedMotion, scale]);
-  return (
-    <View style={StyleSheet.absoluteFill}>
-      {/* §19.8: a full-width view scaled by scaleX from the left, never a width. */}
-      <Animated.View style={[StyleSheet.absoluteFill, styles.segmentFill, { transform: [{ scaleX: scale }], transformOrigin: 'left' }]}>
-        <GradientFill angle={90} colors={GOLD} />
-      </Animated.View>
-    </View>
-  );
-}
-
-// §19.8, pinned to the bottom (§19.0); it replaces the tab bar for the session.
-export function WorkoutExerciseNav({ exercises, viewingIndex, onView, onOpenSheet, onHeight }) {
+// §19.8 restyled (UX F1 Workout browsing / Tablet: Workout browsing). It
+// shows in the BROWSING state (ND3), pinned to the bottom (+ safe area).
+// Phone: a glass card (radius 24), "Exercise i of n" · "All (n)" and one
+// segment button per exercise (done gold, partial gold to its share, empty
+// white 0.10; the VIEWED one 10 px with a gold ring). Tablet: one glass pill
+// (label · segments · All (n)); done gold, partial gold 0.60, viewed white,
+// empty white 0.12. Segments are buttons (view that exercise) with a 44 hit
+// area; a swipe up on the bar opens the All sheet ("All (n)" is the
+// non-gesture path).
+export function WorkoutExerciseNav({ exercises, viewingIndex, onView, onOpenSheet, onHeight, tablet = false }) {
   const insets = useSafeAreaInsets();
   const swipe = useStablePanResponder({
     onMoveShouldSetPanResponder: (_, gesture) => gesture.dy < -10 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
@@ -113,44 +97,143 @@ export function WorkoutExerciseNav({ exercises, viewingIndex, onView, onOpenShee
       }
     },
   });
+  const label = (
+    <Text {...BODY_TEXT} textBreakStrategy="simple" style={[styles.navLabel, tablet && styles.navLabelTablet]}>
+      {`Exercise ${viewingIndex + 1} of ${exercises.length}`}
+    </Text>
+  );
+  const all = (
+    <Pressable
+      testID="exercise-nav-all"
+      accessibilityRole="button"
+      onPress={onOpenSheet}
+      hitSlop={tablet ? 0 : 6}
+      style={({ pressed }) => [tablet ? styles.navAllTablet : styles.navAllPhone, pressed && styles.navAllPressed]}
+    >
+      <Text {...BODY_TEXT} textBreakStrategy="simple" style={[styles.navAll, tablet && styles.navAllTextTablet]}>
+        {`All (${exercises.length})`}
+      </Text>
+    </Pressable>
+  );
+  const segments = (
+    <View style={[styles.segments, tablet && styles.segmentsTablet]}>
+      {exercises.map((exercise, index) => {
+        const sets = exercise.sets ?? [];
+        const done = sets.filter((set) => set.is_completed).length;
+        const ratio = sets.length > 0 ? done / sets.length : 0;
+        const viewed = index === viewingIndex;
+        return (
+          <Pressable
+            key={exercise.id}
+            testID={`exercise-nav-segment-${index}`}
+            accessibilityRole="button"
+            accessibilityLabel={segmentLabel(exercise, index)}
+            accessibilityState={{ selected: viewed }}
+            onPress={() => onView(index)}
+            hitSlop={{ top: tablet ? 19 : 11, bottom: tablet ? 19 : 11 }}
+            style={[styles.segmentButton, tablet && styles.segmentButtonTablet]}
+          >
+            {tablet ? (
+              <View
+                style={[
+                  styles.barTablet,
+                  { backgroundColor: viewed ? colors.textPrimary : ratio >= 1 ? colors.gold : ratio > 0 ? colors.goldStrong : colors.hairlineButton },
+                ]}
+              />
+            ) : (
+              <View style={[styles.bar, viewed && styles.barViewed]}>
+                <View style={[styles.barFill, { width: `${Math.round(ratio * 100)}%` }]} />
+              </View>
+            )}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
   return (
     <View
       testID="exercise-nav"
       {...swipe.panHandlers}
       onLayout={(event) => onHeight?.(event.nativeEvent.layout.height)}
-      style={[styles.nav, { paddingBottom: Math.max(12, insets.bottom) }]}
+      style={[styles.navHost, tablet ? styles.navHostTablet : styles.navHostPhone, { bottom: (tablet ? 28 : 20) + insets.bottom }]}
     >
-      <BlurLayer blurPx={24} />
-      <View style={[StyleSheet.absoluteFill, styles.glassFill]} />
-      <View style={styles.navInner}>
-        <View style={styles.navRow}>
-          <Text numberOfLines={1} textBreakStrategy="simple" style={styles.navLabel}>{`Exercise ${viewingIndex + 1} of ${exercises.length}`}</Text>
-          <Pressable testID="exercise-nav-all" accessibilityRole="button" onPress={onOpenSheet} hitSlop={12}>
-            <Text numberOfLines={1} textBreakStrategy="simple" style={styles.navAll}>{`All (${exercises.length})`}</Text>
+      <GlassSurface radius={tablet ? radii.full : radii.xl} style={tablet ? styles.navTablet : styles.navPhone} accessibilityRole="none">
+        {tablet ? (
+          <View style={styles.navTabletRow}>
+            {label}
+            {segments}
+            {all}
+          </View>
+        ) : (
+          <>
+            <View style={styles.navRow}>
+              {label}
+              {all}
+            </View>
+            {segments}
+          </>
+        )}
+      </GlassSurface>
+    </View>
+  );
+}
+
+// Tablet: Workout's inline exercise list (screen-map §G: the sheet's rows
+// shown inline; it replaces Up next). Row: status circle · thumb 40 · name ·
+// right ("3/3" / "Now" / "0/3"). The ACTIVE exercise is "Now"; the viewed row
+// is selected. Press = view that exercise (existing behaviour).
+export function SessionExerciseList({ title, exercises, currentIndex, viewingIndex, onSelect }) {
+  return (
+    <View testID="session-exercise-list" accessibilityRole="list" accessibilityLabel="Session exercises" style={styles.list}>
+      <Text {...SHEET_TITLE} numberOfLines={2} accessibilityRole="header" style={styles.listTitle}>
+        {title}
+      </Text>
+      {exercises.map((exercise, idx) => {
+        const sets = exercise.sets ?? [];
+        const done = sets.filter((set) => set.is_completed).length;
+        const complete = sets.length > 0 && done === sets.length;
+        const current = idx === currentIndex && !complete;
+        const name = exerciseName(exercise);
+        return (
+          <Pressable
+            key={exercise.id}
+            testID={`session-exercise-row-${idx}`}
+            accessibilityRole="button"
+            accessibilityLabel={`${name}, ${done} of ${sets.length} ${setsWord(sets.length)}`}
+            accessibilityState={{ selected: idx === viewingIndex }}
+            onPress={() => onSelect(idx)}
+            style={[styles.listRow, idx > 0 && styles.listRowDivider, current && styles.listRowCurrent]}
+          >
+            {({ pressed }) => (
+              <>
+                {pressed ? <PressOverlay /> : null}
+                <View style={[styles.listStatus, complete ? styles.listStatusDone : current ? styles.listStatusCurrent : styles.listStatusOther]}>
+                  {complete ? (
+                    <CheckGlyph size={14} />
+                  ) : (
+                    <Text {...BADGE_TEXT} style={[styles.listStatusText, current && styles.listStatusTextCurrent]}>
+                      {idx + 1}
+                    </Text>
+                  )}
+                </View>
+                <ExerciseImage
+                  testID={`session-exercise-thumb-${idx}`}
+                  url={exercise.exercise?.thumbnail?.url ?? null}
+                  name={name}
+                  muscleCode={exercise.exercise?.primary_muscle_group?.code}
+                  size={40}
+                />
+                <Text {...BODY_TEXT} numberOfLines={2} style={[styles.listName, complete && styles.listNameDone, current && styles.listNameCurrent]}>
+                  {name}
+                </Text>
+                <Text {...PILL_TEXT} style={[styles.listRight, current && styles.listRightCurrent]}>
+                  {current ? 'Now' : `${done}/${sets.length}`}
+                </Text>
+              </>
+            )}
           </Pressable>
-        </View>
-        <View style={styles.segments}>
-          {exercises.map((exercise, index) => {
-            const sets = exercise.sets ?? [];
-            const done = sets.filter((set) => set.is_completed).length;
-            const viewed = index === viewingIndex;
-            return (
-              <Pressable
-                key={exercise.id}
-                testID={`exercise-nav-segment-${index}`}
-                accessibilityRole="button"
-                accessibilityLabel={`Exercise ${index + 1}`}
-                accessibilityState={{ selected: viewed }}
-                onPress={() => onView(index)}
-                hitSlop={{ top: 12, bottom: 12 }}
-                style={[styles.segment, viewed && styles.segmentViewed]}
-              >
-                <SegmentFill ratio={sets.length > 0 ? done / sets.length : 0} />
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
+        );
+      })}
     </View>
   );
 }
@@ -285,7 +368,7 @@ export function ExerciseSheet({
   return (
     <Modal transparent visible={open} animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <Animated.View style={[StyleSheet.absoluteFill, { opacity: fade }]}>
-        <BlurLayer blurPx={tablet ? 6 : 8} overApp />
+        <BlurLayer blurPx={tablet ? blur.scrimTablet : blur.scrim} overApp />
         <Pressable style={[StyleSheet.absoluteFill, styles.sheetScrim]} onPress={onClose} accessibilityLabel="Close" />
       </Animated.View>
       <View pointerEvents="box-none" style={styles.sheetHost}>
@@ -708,63 +791,195 @@ function SheetPhotoCard({ exercise, idx, current, stacked = false, onSelect }) {
 }
 
 const styles = StyleSheet.create({
-  nav: {
+  navHost: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    overflow: 'hidden',
-    borderTopWidth: 1,
-    borderTopColor: colors.glassEdge,
-    paddingHorizontal: 16,
-    paddingTop: 12,
   },
-  glassFill: {
-    backgroundColor: colors.glassFill,
+  navHostPhone: {
+    left: 12,
+    right: 12,
   },
-  navInner: {
-    width: '100%',
-    maxWidth: 460,
-    alignSelf: 'center',
+  navHostTablet: {
+    left: spacing[8],
+    right: spacing[8],
+  },
+  navPhone: {
+    paddingTop: spacing[2],
+    paddingHorizontal: spacing['3_5'],
+    paddingBottom: spacing['2_5'],
+    borderColor: colors.hairlineButton,
+  },
+  navTablet: {
+    paddingVertical: spacing['3_5'],
+    paddingHorizontal: spacing[5],
+  },
+  navTabletRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: spacing[4],
   },
   navRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    gap: spacing[2],
   },
   navLabel: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '900',
-    letterSpacing: 1.92,
-    textTransform: 'uppercase',
-    color: colors.textMuted,
+    ...font(600),
+    flexShrink: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textPrimary,
+  },
+  navLabelTablet: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  navAllPhone: {
+    minHeight: 32,
+    justifyContent: 'center',
+  },
+  navAllTablet: {
+    minHeight: 44,
+    justifyContent: 'center',
+    borderRadius: radii.full,
+    backgroundColor: colors.fillButton,
+    paddingHorizontal: spacing['4_5'],
+  },
+  navAllPressed: {
+    opacity: 0.8,
   },
   navAll: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-    color: colors.brand700,
+    ...font(600),
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.gold,
+  },
+  navAllTextTablet: {
+    fontSize: 15,
+    lineHeight: 20,
+    color: colors.textPrimary,
   },
   segments: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
     gap: 6,
   },
-  segment: {
+  segmentsTablet: {
     flex: 1,
+    minWidth: 120,
+  },
+  segmentButton: {
+    flex: 1,
+    height: 22,
+    justifyContent: 'center',
+  },
+  segmentButtonTablet: {
+    height: 6,
+  },
+  bar: {
     height: 6,
     overflow: 'hidden',
     borderRadius: radii.full,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.hairlineStrong,
   },
-  segmentViewed: {
+  barViewed: {
     height: 10,
+    outlineWidth: 2,
+    outlineColor: colors.goldStrong,
+    outlineStyle: 'solid',
   },
-  segmentFill: {
+  barFill: {
+    height: '100%',
+    backgroundColor: colors.gold,
+  },
+  barTablet: {
+    height: 6,
     borderRadius: radii.full,
+  },
+  list: {
     overflow: 'hidden',
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: colors.surface,
+  },
+  listTitle: {
+    ...font(600),
+    fontSize: 15,
+    lineHeight: 20,
+    color: colors.textPrimary,
+    paddingTop: spacing[4],
+    paddingHorizontal: spacing['4_5'],
+    paddingBottom: spacing['1_5'],
+  },
+  listRow: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing['4_5'],
+  },
+  listRowDivider: {
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+  },
+  listRowCurrent: {
+    backgroundColor: colors.goldFaint,
+  },
+  listStatus: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.full,
+  },
+  listStatusDone: {
+    backgroundColor: colors.gold,
+  },
+  listStatusCurrent: {
+    borderWidth: 2,
+    borderColor: colors.gold,
+  },
+  listStatusOther: {
+    backgroundColor: colors.track,
+  },
+  listStatusText: {
+    ...font(700),
+    fontSize: 12,
+    lineHeight: 16,
+    fontVariant: ['tabular-nums'],
+    color: colors.textMuted,
+  },
+  listStatusTextCurrent: {
+    color: colors.gold,
+  },
+  listName: {
+    ...font(400),
+    flex: 1,
+    minWidth: 0,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textStrong2,
+  },
+  listNameDone: {
+    color: colors.textSecondary,
+  },
+  listNameCurrent: {
+    ...font(600),
+    color: colors.textPrimary,
+  },
+  listRight: {
+    ...font(400),
+    fontSize: 13,
+    lineHeight: 18,
+    fontVariant: ['tabular-nums'],
+    color: colors.textFaint,
+  },
+  listRightCurrent: {
+    ...font(600),
+    color: colors.gold,
   },
   sheetScrim: {
     backgroundColor: colors.scrim,

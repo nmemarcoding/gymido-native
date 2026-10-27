@@ -20,6 +20,29 @@ import {
   staleSessionTitle,
   parseWeight,
   validateDraftWeight,
+  convertWeight,
+  doneSetLabel,
+  elapsedSpokenLabel,
+  formatClock,
+  lastTimeLabel,
+  lastTimeWeight,
+  memberWeightUnit,
+  parseReps,
+  previousSetFor,
+  repsFieldLabel,
+  repsPrefill,
+  roundForUnit,
+  sanitizeReps,
+  seedRepsDrafts,
+  segmentLabel,
+  setOfLabel,
+  setVolumeKg,
+  stageEyebrow,
+  stepReps,
+  stepWeight,
+  tabletEyebrow,
+  targetRange,
+  volumeInUnit,
 } from './sessionMath';
 
 const set = (id, extra = {}) => ({ id, set_number: id, is_completed: false, ...extra });
@@ -190,7 +213,12 @@ describe('labels', () => {
   });
 
   it('snapshots the popup before completing', () => {
-    expect(completionSnapshot(session, '', 125)).toMatchObject({ planName: 'Workout', durationSeconds: 125, totalVolume: 500, totalReps: 10, completedSets: 1, totalSets: 4 });
+    // v2 VOLUME RULE (PM, 27 Oct): kg first (50 lb × 10, no saved unit → lb),
+    // shown in the member's unit (default kg).
+    const snapshot = completionSnapshot(session, '', 125);
+    expect(snapshot).toMatchObject({ planName: 'Workout', durationSeconds: 125, totalReps: 10, completedSets: 1, totalSets: 4, volumeUnit: 'kg' });
+    expect(snapshot.totalVolume).toBeCloseTo(500 / 2.20462, 5);
+    expect(completionSnapshot(session, '', 125, 'lb').totalVolume).toBeCloseTo(500, 5);
   });
 });
 
@@ -233,5 +261,163 @@ describe('centeredScrollOffset (§22.3)', () => {
 
   it('does nothing while the viewport is unmeasured', () => {
     expect(centeredScrollOffset({ rowY: 500, rowHeight: 100, visibleHeight: 0, contentHeight: 2000 })).toBeNull();
+  });
+});
+
+describe('v2 F1 weight stepper (ND1)', () => {
+  it('steps ±5 lb / ±2.5 kg, keeps decimals and never shows float noise', () => {
+    expect(stepWeight('135', 'lb', 1)).toBe('140');
+    expect(stepWeight('82,5', 'kg', 1)).toBe('85');
+    expect(stepWeight('0.1', 'kg', 1)).toBe('2.6');
+    expect(stepWeight('20', 'kg', -1)).toBe('17.5');
+  });
+
+  it('an empty field starts from the Last time weight, else 0 (first + = one step)', () => {
+    expect(stepWeight('', 'lb', 1)).toBe('5');
+    expect(stepWeight('', 'kg', 1)).toBe('2.5');
+    expect(stepWeight('', 'lb', 1, 135)).toBe('140');
+    expect(stepWeight('abc', 'lb', 1, 135)).toBe('140');
+    expect(stepWeight('', 'lb', -1, 135)).toBe('130');
+  });
+
+  it('"−" at or below one step clears the field (never 0)', () => {
+    expect(stepWeight('5', 'lb', -1)).toBe('');
+    expect(stepWeight('4', 'lb', -1)).toBe('');
+    expect(stepWeight('2.5', 'kg', -1)).toBe('');
+    expect(stepWeight('', 'kg', -1)).toBe('');
+  });
+});
+
+describe('v2 F1 reps (ND2)', () => {
+  it('typed reps keep digits only, 1–99', () => {
+    expect(sanitizeReps('1a2')).toBe('12');
+    expect(sanitizeReps('007')).toBe('7');
+    expect(sanitizeReps('0')).toBe('');
+    expect(sanitizeReps('150')).toBe('99');
+    expect(sanitizeReps('-3')).toBe('3');
+    expect(sanitizeReps(null)).toBe('');
+  });
+
+  it('parses only integers 1–99', () => {
+    expect(parseReps('10')).toBe(10);
+    expect(parseReps('')).toBeNull();
+    expect(parseReps('0')).toBeNull();
+    expect(parseReps('100')).toBeNull();
+    expect(parseReps(undefined)).toBeNull();
+  });
+
+  it('steps ±1 within 1–99; − on a blank stays blank', () => {
+    expect(stepReps('10', 1)).toBe('11');
+    expect(stepReps('99', 1)).toBe('99');
+    expect(stepReps('1', -1)).toBe('1');
+    expect(stepReps('', 1)).toBe('1');
+    expect(stepReps('', -1)).toBe('');
+  });
+
+  it('prefill: the set\'s own Last time reps, else the top of the target, else blank; a done set shows its reps', () => {
+    expect(repsPrefill({ target_reps_min: 8, target_reps_max: 10 }, { reps: 6 })).toBe('6');
+    expect(repsPrefill({ target_reps_min: 8, target_reps_max: 10 }, null)).toBe('10');
+    expect(repsPrefill({ target_reps_min: 12 }, null)).toBe('12');
+    expect(repsPrefill({}, null)).toBe('');
+    expect(repsPrefill({ is_completed: true, actual_reps: 9, target_reps_max: 10 }, { reps: 6 })).toBe('9');
+  });
+
+  it('seeds once per set and keeps typed values', () => {
+    const s = { exercises: [{ id: 1, previous_sets: [{ set_number: 1, reps: 7 }], sets: [{ id: 5, set_number: 1 }, { id: 6, set_number: 2, target_reps_max: 12 }] }] };
+    expect(seedRepsDrafts(s, {})).toEqual({ 5: '7', 6: '12' });
+    expect(seedRepsDrafts(s, { 5: '3' })).toEqual({ 5: '3', 6: '12' });
+    expect(seedRepsDrafts({ exercises: [] }, { 5: '3' })).toEqual({});
+  });
+
+  it('labels the field "Reps · target {range}" or "Reps"', () => {
+    expect(repsFieldLabel({ target_reps_min: 8, target_reps_max: 10 })).toBe('Reps · target 8–10');
+    expect(repsFieldLabel({ target_reps_min: 12, target_reps_max: 12 })).toBe('Reps · target 12');
+    expect(repsFieldLabel({})).toBe('Reps');
+    expect(targetRange({ target_reps_max: 6 })).toBe('6');
+  });
+
+  it('"Did it" sends the typed reps; blank or junk falls back to v1 (saved, else target)', () => {
+    const now = new Date('2026-10-27T10:00:00Z');
+    expect(buildSetPatch(set(12, { target_reps_max: 10 }), { actualWeightValue: '', actualReps: '13' }, now).actual_reps).toBe(13);
+    expect(buildSetPatch(set(12, { target_reps_max: 10 }), { actualWeightValue: '', actualReps: '' }, now).actual_reps).toBe(10);
+    expect(buildSetPatch(set(12, { target_reps_max: 10 }), { actualWeightValue: '', actualReps: '0' }, now).actual_reps).toBe(10);
+    // Undo keeps v1's reps.
+    expect(buildSetPatch(set(11, { is_completed: true, actual_reps: 9 }), { actualReps: '13' }, now).actual_reps).toBe(9);
+  });
+});
+
+describe('v2 F1 "Last time" (U3)', () => {
+  const exercise = {
+    previous_sets: [
+      { set_number: 1, weight_value: 60, weight_unit: 'kg', reps: 10 },
+      { set_number: 2, reps: 12 },
+      { set_number: 3, weight_value: 140, weight_unit: 'lb', reps: 8 },
+    ],
+  };
+
+  it('looks up the SAME set number only (no fallback)', () => {
+    expect(previousSetFor(exercise, { set_number: 3 })).toEqual(exercise.previous_sets[2]);
+    expect(previousSetFor(exercise, { set_number: 4 })).toBeNull();
+    expect(previousSetFor({}, { set_number: 1 })).toBeNull();
+  });
+
+  it('formats "{w} × {r}" in the current unit (kg to 0.5, lb whole) or "{r} reps"', () => {
+    expect(lastTimeLabel(exercise.previous_sets[0], 'kg')).toBe('Last time 60 × 10');
+    expect(lastTimeLabel(exercise.previous_sets[0], 'lb')).toBe('Last time 132 × 10');
+    expect(lastTimeLabel(exercise.previous_sets[2], 'kg')).toBe('Last time 63.5 × 8');
+    expect(lastTimeLabel(exercise.previous_sets[1], 'lb')).toBe('Last time 12 reps');
+    expect(lastTimeLabel(null, 'lb')).toBeNull();
+    expect(lastTimeLabel({ set_number: 1 }, 'lb')).toBeNull();
+  });
+
+  it('gives the stepper start weight in the current unit', () => {
+    expect(lastTimeWeight(exercise.previous_sets[0], 'lb')).toBe(132);
+    expect(lastTimeWeight(exercise.previous_sets[1], 'lb')).toBeNull();
+    expect(roundForUnit(61.23, 'kg')).toBe(61);
+    expect(roundForUnit(61.3, 'kg')).toBe(61.5);
+  });
+});
+
+describe('v2 volume rule (PM, 27 Oct)', () => {
+  it('sums each set in kg (saved unit, else the planned one, else lb) and shows it in the member unit', () => {
+    expect(setVolumeKg({ actual_weight_value: 100, actual_weight_unit: 'kg', actual_reps: 10 })).toBe(1000);
+    expect(setVolumeKg({ actual_weight_value: 100, actual_weight_unit: 'lb', actual_reps: 10 })).toBeCloseTo(453.59, 2);
+    expect(setVolumeKg({ actual_weight_value: 100, target_weight_unit: 'kg', actual_reps: 1 })).toBe(100);
+    expect(setVolumeKg({ actual_weight_value: null, actual_reps: 10 })).toBe(0);
+    expect(volumeInUnit(1000, 'lb')).toBeCloseTo(2204.62, 2);
+    expect(convertWeight(10, 'kg', 'kg')).toBe(10);
+    expect(Number.isNaN(convertWeight('x', 'kg', 'lb'))).toBe(true);
+    expect(sessionProgress(session).volumeKg).toBeCloseTo(500 / 2.20462, 5);
+  });
+
+  it('the member unit is current, else goal, else kg', () => {
+    expect(memberWeightUnit({ current_weight_unit: 'lb', goal_weight_unit: 'kg' })).toBe('lb');
+    expect(memberWeightUnit({ goal_weight_unit: 'lb' })).toBe('lb');
+    expect(memberWeightUnit({ current_weight_unit: 'stone' })).toBe('kg');
+    expect(memberWeightUnit(null)).toBe('kg');
+  });
+});
+
+describe('v2 F1 texts', () => {
+  it('the timer pill is m:ss and never rolls into hours; its spoken name moves every 30 s', () => {
+    expect(formatClock(0)).toBe('0:00');
+    expect(formatClock(1122)).toBe('18:42');
+    expect(formatClock(5703)).toBe('95:03');
+    expect(formatClock(-4)).toBe('0:00');
+    expect(elapsedSpokenLabel(1122)).toBe('Elapsed time 18 minutes 30 seconds');
+    expect(elapsedSpokenLabel(1139)).toBe('Elapsed time 18 minutes 30 seconds');
+    expect(elapsedSpokenLabel(60)).toBe('Elapsed time 1 minute');
+  });
+
+  it('writes the stage eyebrows, segment labels and set headers', () => {
+    expect(stageEyebrow({ isActive: true, index: 1, count: 5, muscle: 'Chest', completedSets: 4, totalSets: 15 })).toBe('Current exercise · Chest · 4/15 sets done');
+    expect(stageEyebrow({ isActive: false, index: 3, count: 5, muscle: '', completedSets: 0, totalSets: 0 })).toBe('Exercise 4 of 5');
+    const ex = { sets: [{ is_completed: true, target_reps_min: 8, target_reps_max: 10, rest_seconds_planned: 90 }, { is_completed: false }, {}] };
+    expect(tabletEyebrow({ isActive: true, index: 1, count: 5, exercise: ex })).toBe('Current exercise · 3 sets · 8–10 reps · rest 90s');
+    expect(segmentLabel(ex, 0)).toBe('Exercise 1: 1 of 3 sets done');
+    expect(setOfLabel({ rest_seconds_planned: 90 }, 3)).toBe('of 3 · rest 90s');
+    expect(setOfLabel({}, 3)).toBe('of 3');
+    expect(doneSetLabel({ actual_weight_value: 135, actual_reps: 10 })).toBe('135 × 10');
+    expect(doneSetLabel({ actual_weight_value: null, actual_reps: 10 })).toBe('10 reps');
   });
 });
