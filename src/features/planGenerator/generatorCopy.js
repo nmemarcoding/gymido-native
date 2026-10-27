@@ -114,7 +114,36 @@ export const COPY = Object.freeze({
   nothingToGoEasyOn: 'Nothing to go easy on',
   editGoEasyAreas: 'Edit go-easy areas',
   changeMyEquipment: 'Change my equipment',
+  // v2 Phase 4 J (UX N6, approved canvas copy): the phone step-1 hint.
+  step1Hint: "Next: how long you've been lifting, days a week, session length, where you train, and anything to focus on or avoid.",
+  // v2 Phase 4 J: the phone preview's back icon button; the tablet split card.
+  backToAnswers: 'Back to your answers',
+  split: 'Split',
+  // Review row 6 / 4 line labels (the code summary split for layout, J review).
+  focusPrefix: 'Focus:',
+  avoidPrefix: 'Avoid:',
+  goEasyPrefix: 'Go easy on:',
+  noFocus: 'No focus',
+  nothingToAvoid: 'Nothing to avoid',
+  daysAWeekUnit: ' days a week',
+  minUnit: ' min',
 });
+
+// v2 Phase 4 J: the radio-group names of the single-choice steps (dated
+// change 27 Oct: goal, experience, days, minutes and preset are radio groups).
+export const RADIO_GROUP_LABELS = Object.freeze({
+  1: 'Main goal',
+  2: 'Lifting experience',
+  3: 'Days a week',
+  4: 'Session length',
+  5: 'Where you train',
+});
+
+// The ghost numeral on the phone step header ("1/6"), decorative.
+export const stepFraction = (step) => `${step}/${STEP_COUNT}`;
+
+// Dated change 27 Oct: a preview exercise row announces "{name}, {muscle}, {prescription}".
+export const exerciseRowLabel = (name, muscle, prescription) => [name, muscle, prescription].filter(Boolean).join(', ');
 
 export const stepEyebrow = (step) => `Step ${step} of ${STEP_COUNT}`;
 export const daysPillLabel = (n) => `${n} days`;
