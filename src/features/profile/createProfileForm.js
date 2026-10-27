@@ -139,3 +139,46 @@ export function buildCreateProfilePayload(form) {
     sex: form.sex || null,
   };
 }
+
+// §3.2 Sex options, dated change 27 Oct 2026 (owner D2): "Not set" first
+// (sends null), "Prefer not to say" once. ⚠P5 retired.
+export const SEX_OPTIONS = Object.freeze([
+  Object.freeze({ value: '', label: 'Not set' }),
+  Object.freeze({ value: 'male', label: 'Male' }),
+  Object.freeze({ value: 'female', label: 'Female' }),
+  Object.freeze({ value: 'other', label: 'Other' }),
+  Object.freeze({ value: 'prefer_not_to_say', label: 'Prefer not to say' }),
+]);
+
+// ⚠P12 retired 27 Oct 2026: a change clears that field's error at once. Any
+// height input or the height unit clears all height errors together; the
+// shared Weight unit clears both unit errors. The same object comes back when
+// nothing changes (no re-render).
+const HEIGHT_ERROR_KEYS = ['height_unit', 'height_value', 'height_feet', 'height_inches'];
+const UNIT_ERROR_KEYS = ['current_weight_unit', 'goal_weight_unit'];
+export function clearFieldErrors(errors, field) {
+  const keys = HEIGHT_ERROR_KEYS.includes(field) ? HEIGHT_ERROR_KEYS : field === 'weight_unit' ? UNIT_ERROR_KEYS : [field];
+  if (!keys.some((key) => key in errors)) {
+    return errors;
+  }
+  const next = { ...errors };
+  keys.forEach((key) => delete next[key]);
+  return next;
+}
+
+// ⚠P8 retired 27 Oct 2026: the field that takes focus after a failed submit,
+// in form order. A height or height-unit error → Feet (ft/in) or Height;
+// inches → Inches; any unit error → the shared Weight unit. null when none.
+export function firstErrorTarget(errors, heightUnit) {
+  const has = (...keys) => keys.some((key) => Boolean(errors[key]));
+  const ftIn = heightUnit === 'ft_in';
+  if (has('first_name')) return 'first_name';
+  if (has('last_name')) return 'last_name';
+  if (has('height_value', 'height_unit', 'height_feet')) return ftIn ? 'height_feet' : 'height_value';
+  if (has('height_inches')) return ftIn ? 'height_inches' : 'height_value';
+  if (has(...UNIT_ERROR_KEYS)) return 'weight_unit';
+  for (const key of ['current_weight_value', 'goal_weight_value', 'date_of_birth', 'sex']) {
+    if (has(key)) return key;
+  }
+  return null;
+}

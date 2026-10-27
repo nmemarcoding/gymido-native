@@ -1,8 +1,11 @@
 import {
   INITIAL_PROFILE_FORM,
+  SEX_OPTIONS,
   buildCreateProfilePayload,
+  clearFieldErrors,
   convertFeetAndInchesToUnitValue,
   convertHeightValueToFeetAndInches,
+  firstErrorTarget,
   numberValue,
   updateHeightUnit,
   validateCreateProfile,
@@ -121,5 +124,83 @@ describe('comma decimal weights (T-16)', () => {
     expect(validateCreateProfile(form({ ...base, current_weight_value: '   ', goal_weight_value: ' ' }))).toEqual({});
     const payload = buildCreateProfilePayload(form({ ...base, current_weight_value: '   ', goal_weight_value: ' ' }));
     expect(payload).toEqual(expect.objectContaining({ current_weight_value: null, current_weight_unit: null, goal_weight_value: null, goal_weight_unit: null }));
+  });
+});
+
+// Dated changes 27 Oct 2026 (RN-SPEC-profile-create @ bdc7f348 §3.2, §9).
+describe('Sex options (D2, ⚠P5 retired)', () => {
+  it('"Not set" (sends null) first, then Male · Female · Other, then "Prefer not to say" once', () => {
+    expect(SEX_OPTIONS).toEqual([
+      { value: '', label: 'Not set' },
+      { value: 'male', label: 'Male' },
+      { value: 'female', label: 'Female' },
+      { value: 'other', label: 'Other' },
+      { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+    ]);
+    expect(SEX_OPTIONS.filter((option) => option.label === 'Prefer not to say')).toHaveLength(1);
+    expect(buildCreateProfilePayload(form({ sex: '' })).sex).toBeNull();
+  });
+});
+
+describe('editing clears its own error (⚠P12 retired)', () => {
+  const errors = {
+    first_name: 'a',
+    last_name: 'b',
+    height_unit: 'u',
+    height_value: 'c',
+    height_feet: 'f',
+    height_inches: 'd',
+    current_weight_unit: 'e',
+    goal_weight_unit: 'g',
+    current_weight_value: 'h',
+    goal_weight_value: 'i',
+    date_of_birth: 'j',
+    sex: 'k',
+  };
+  const without = (...keys) => Object.fromEntries(Object.entries(errors).filter(([key]) => !keys.includes(key)));
+
+  it.each(['first_name', 'last_name', 'current_weight_value', 'goal_weight_value', 'date_of_birth', 'sex'])('%s clears only itself', (key) => {
+    expect(clearFieldErrors(errors, key)).toEqual(without(key));
+  });
+
+  it.each(['height_unit', 'height_value', 'height_feet', 'height_inches'])('%s clears every height error together', (key) => {
+    expect(clearFieldErrors(errors, key)).toEqual(without('height_unit', 'height_value', 'height_feet', 'height_inches'));
+  });
+
+  it('the shared Weight unit clears both unit errors', () => {
+    expect(clearFieldErrors(errors, 'weight_unit')).toEqual(without('current_weight_unit', 'goal_weight_unit'));
+  });
+
+  it('returns the same object when there is nothing to clear', () => {
+    const only = { last_name: 'b' };
+    expect(clearFieldErrors(only, 'first_name')).toBe(only);
+  });
+});
+
+describe('first field in error (⚠P8 retired)', () => {
+  it('follows form order', () => {
+    expect(firstErrorTarget({ sex: 'x', first_name: 'x' }, 'ft_in')).toBe('first_name');
+    expect(firstErrorTarget({ goal_weight_value: 'x', last_name: 'x' }, 'ft_in')).toBe('last_name');
+    expect(firstErrorTarget({ current_weight_value: 'x', goal_weight_unit: 'x' }, 'ft_in')).toBe('weight_unit');
+    expect(firstErrorTarget({ current_weight_unit: 'x' }, 'cm')).toBe('weight_unit');
+    expect(firstErrorTarget({ goal_weight_value: 'x', current_weight_value: 'x' }, 'ft_in')).toBe('current_weight_value');
+    expect(firstErrorTarget({ date_of_birth: 'x', goal_weight_value: 'x' }, 'ft_in')).toBe('goal_weight_value');
+    expect(firstErrorTarget({ sex: 'x', date_of_birth: 'x' }, 'ft_in')).toBe('date_of_birth');
+    expect(firstErrorTarget({ sex: 'x' }, 'ft_in')).toBe('sex');
+    expect(firstErrorTarget({}, 'ft_in')).toBeNull();
+  });
+
+  it('a height or height_unit error goes to the height input (Feet in ft/in); inches to Inches', () => {
+    expect(firstErrorTarget({ height_value: 'x' }, 'ft_in')).toBe('height_feet');
+    expect(firstErrorTarget({ height_unit: 'x' }, 'ft_in')).toBe('height_feet');
+    expect(firstErrorTarget({ height_inches: 'x', height_value: 'x' }, 'ft_in')).toBe('height_feet');
+    expect(firstErrorTarget({ height_inches: 'x' }, 'ft_in')).toBe('height_inches');
+    expect(firstErrorTarget({ height_value: 'x' }, 'cm')).toBe('height_value');
+    expect(firstErrorTarget({ height_unit: 'x' }, 'in')).toBe('height_value');
+    expect(firstErrorTarget({ height_unit: 'x', current_weight_value: 'x' }, 'cm')).toBe('height_value');
+  });
+
+  it('an empty message is not an error', () => {
+    expect(firstErrorTarget({ first_name: '', sex: 'x' }, 'ft_in')).toBe('sex');
   });
 });
