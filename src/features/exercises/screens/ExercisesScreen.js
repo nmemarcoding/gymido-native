@@ -329,8 +329,11 @@ function ExercisesCatalog() {
       case 'partialError':
         return (
           <View style={[padding, styles.contentTop]}>
+            {/* UX D "Exercises, error": the compact card; Retry = ruling 2. */}
             <ErrorAlert
               testID="exercises-partial-error"
+              variant="compact"
+              retryTestID="exercises-partial-retry"
               title="Some exercises didn't load"
               description={catalogErrorMessage(load.partial.error)}
               onRetry={retryRestPages}

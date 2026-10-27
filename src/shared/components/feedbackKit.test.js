@@ -5,7 +5,7 @@ import { act, create } from 'react-test-renderer';
 import { colors, motion, radii } from '../theme/tokens';
 import Banner, { BannerText } from './Banner';
 import EmptyState, { EMPTY_STATE_DEFAULTS } from './EmptyState';
-import ErrorAlert from './ErrorAlert';
+import ErrorAlert, { RETRY_HEIGHT, RETRY_SLOP, RetryButton } from './ErrorAlert';
 import ErrorBox from './ErrorBox';
 import { FEEDBACK_TONES, InlineError, SuccessState } from './FeedbackBox';
 import FeedbackIcon, { FEEDBACK_ICON_NAMES } from './FeedbackIcon';
@@ -252,10 +252,26 @@ describe('FeedbackBox: InlineError / SuccessState / ErrorBox (§5)', () => {
     expect(tree.root.findByType(FeedbackIcon).props).toMatchObject({ name: 'error', color: colors.dangerText });
   });
 
-  it('bold title over the muted message', () => {
+  it('InlineError (§D1): danger-text title (600) over the secondary message', () => {
     const [title, message] = render(<InlineError title="Dashboard unavailable" message="m" />).root.findAllByType(Text);
-    expect(flat(title)).toMatchObject({ fontFamily: 'Geist-SemiBold', color: colors.textPrimary });
-    expect(flat(message)).toMatchObject({ color: colors.textMuted });
+    expect(flat(title)).toMatchObject({ fontFamily: 'Geist-SemiBold', color: colors.dangerText });
+    expect(flat(message)).toMatchObject({ color: colors.textSecondary });
+  });
+
+  it('InlineError is announced on mount and when its text changes, assertive on Android', () => {
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {});
+    const tree = render(<InlineError testID="err" title="Please check this answer" message="Too many days." />);
+    expect(announce).toHaveBeenCalledWith('Please check this answer. Too many days.');
+    expect(host(tree, 'err').props.accessibilityLiveRegion).toBe('assertive');
+    announce.mockClear();
+    act(() => tree.update(<InlineError testID="err" title="Please check this answer" message="Pick fewer." />));
+    expect(announce).toHaveBeenCalledWith('Please check this answer. Pick fewer.');
+  });
+
+  it('ErrorBox / SuccessState keep the primary title and muted message (only InlineError changes)', () => {
+    const [title, message] = render(<ErrorBox title="Something went wrong" message="x" />).root.findAllByType(Text);
+    expect(flat(title).color).toBe(colors.textPrimary);
+    expect(flat(message).color).toBe(colors.textMuted);
   });
 
   it('SuccessState: default "Success", teal tint and a teal check, role summary', () => {
@@ -297,17 +313,93 @@ describe('ErrorAlert (§5)', () => {
     expect(announce).toHaveBeenCalledWith("Some exercises didn't load. Please try again.");
   });
 
-  it('shows a glass Retry that calls onRetry', () => {
+  it('shows the ruling-2 Retry that calls onRetry', () => {
     const onRetry = jest.fn();
-    const tree = render(<ErrorAlert title="t" description="d" onRetry={onRetry} />);
-    const [retry] = byTitle(tree, 'Retry');
-    expect(retry.props.variant).toBe('secondary');
+    const tree = render(<ErrorAlert title="t" description="d" onRetry={onRetry} retryTestID="r" />);
+    const retry = tree.root.findByType(RetryButton);
+    expect(retry.props).toMatchObject({ title: 'Retry', testID: 'r', loading: false });
+    expect(tree.root.findAllByType(PillButton)).toHaveLength(0);
     act(() => retry.props.onPress());
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
-  it('no Retry without onRetry (save failures)', () => {
-    expect(byTitle(render(<ErrorAlert title="Could not save" />), 'Retry')).toHaveLength(0);
+  it('no Retry without onRetry (save failures, 403)', () => {
+    expect(render(<ErrorAlert title="Could not save" />).root.findAllByType(RetryButton)).toHaveLength(0);
+  });
+
+  it('`retrying` puts the Retry in its loading state (label unchanged)', () => {
+    const tree = render(<ErrorAlert title="t" onRetry={jest.fn()} retryTestID="r" retrying />);
+    const button = host(tree, 'r');
+    expect(button.props.accessibilityState).toEqual({ disabled: true, busy: true });
+    expect(texts(tree)).toContain('Retry');
+  });
+
+  it('compact variant (Exercises board): surface fill, danger-text edge, 40 tile, centred row, 15/600 + 13/18', () => {
+    const tree = render(<ErrorAlert testID="ea" variant="compact" title="Some exercises didn't load" description="Please try again." onRetry={jest.fn()} />);
+    expect(flat(host(tree, 'ea'))).toMatchObject({ padding: 16, borderRadius: 24, alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.dangerTextBorder });
+    expect(flat(host(tree, 'error-alert-icon'))).toMatchObject({ width: 40, height: 40, borderRadius: radii.sm });
+    const [title, description] = tree.root.findAllByType(Text);
+    expect(flat(title)).toMatchObject({ fontSize: 15, lineHeight: 20, fontFamily: 'Geist-SemiBold' });
+    expect(flat(description)).toMatchObject({ fontSize: 13, lineHeight: 18, color: colors.textSecondary });
+    expect(tree.root.findAllByType(GradientFill)).toHaveLength(0);
+  });
+
+  it('generator variant: the danger-tint gradient from the first render, 48 tile, overflow hidden', () => {
+    const tree = render(<ErrorAlert testID="ea" variant="generator" title="Could not load the plan generator" description="Down" />);
+    expect(flat(host(tree, 'ea'))).toMatchObject({ padding: 18, alignItems: 'center', overflow: 'hidden', backgroundColor: colors.surface });
+    expect(tree.root.findByType(GradientFill).props).toMatchObject({ angle: 160, colors: [colors.dangerTextTint, colors.dangerTextFill] });
+    expect(flat(host(tree, 'error-alert-icon'))).toMatchObject({ width: 48, height: 48, borderRadius: radii.md });
+  });
+
+  it('an unknown variant falls back to the kit card', () => {
+    const tree = render(<ErrorAlert testID="ea" variant="nope" title="t" />);
+    expect(flat(host(tree, 'ea'))).toMatchObject({ backgroundColor: colors.dangerDotTint, padding: 18 });
+  });
+});
+
+describe('RetryButton (§D1 ruling 2: one Retry everywhere)', () => {
+  // The Pressable itself (its style is a function of `pressed`).
+  const pressable = (tree) => tree.root.find((node) => node.props.testID === 'rb' && typeof node.props.style === 'function');
+  const styleOf = (tree, pressed = false) => StyleSheet.flatten(pressable(tree).props.style({ pressed }));
+
+  it('glass secondary, 40 visual with a 44 hit area, 14/600 primary text', () => {
+    const tree = render(<RetryButton testID="rb" onPress={jest.fn()} />);
+    expect(RETRY_HEIGHT).toBe(40);
+    const look = styleOf(tree);
+    expect(look).toMatchObject({ minHeight: 40, borderRadius: radii.full, borderWidth: 1, borderColor: colors.hairlineButton, backgroundColor: colors.fillButton, paddingHorizontal: 16 });
+    expect(look.minHeight + RETRY_SLOP * 2).toBe(44);
+    expect(pressable(tree).props.hitSlop).toMatchObject({ top: 2, bottom: 2 });
+    expect(flat(tree.root.findByType(Text))).toMatchObject({ fontSize: 14, lineHeight: 20, fontFamily: 'Geist-SemiBold', color: colors.textPrimary });
+    expect(flat(tree.root.findByType(Text)).fontWeight).toBeUndefined();
+    expect(texts(tree)).toEqual(['Retry']);
+  });
+
+  it('default: an enabled button labelled by its title; press calls onPress', () => {
+    const onPress = jest.fn();
+    const tree = render(<RetryButton testID="rb" title="Try again" onPress={onPress} />);
+    expect(pressable(tree).props).toMatchObject({ accessibilityRole: 'button', accessibilityLabel: 'Try again', accessibilityState: { disabled: false, busy: false } });
+    act(() => pressable(tree).props.onPress());
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('pressed: the next glass step', () => {
+    const tree = render(<RetryButton testID="rb" onPress={jest.fn()} />);
+    expect(styleOf(tree, true).backgroundColor).toBe(colors.hairlineButton);
+  });
+
+  it('loading: label unchanged, no spinner, disabled at 0.5, busy', () => {
+    const tree = render(<RetryButton testID="rb" onPress={jest.fn()} loading />);
+    expect(texts(tree)).toEqual(['Retry']);
+    expect(tree.root.findAllByType(Spinner)).toHaveLength(0);
+    expect(pressable(tree).props).toMatchObject({ disabled: true, accessibilityState: { disabled: true, busy: true } });
+    expect(styleOf(tree).opacity).toBe(0.5);
+    expect(styleOf(tree, true).backgroundColor).toBe(colors.fillButton);
+  });
+
+  it('disabled: 0.5, not busy', () => {
+    const tree = render(<RetryButton testID="rb" onPress={jest.fn()} disabled />);
+    expect(pressable(tree).props.accessibilityState).toEqual({ disabled: true, busy: false });
+    expect(styleOf(tree).opacity).toBe(0.5);
   });
 });
 

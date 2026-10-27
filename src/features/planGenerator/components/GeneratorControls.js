@@ -123,14 +123,19 @@ export function Checkbox({ checked }) {
 const CALLOUT_TONES = {
   info: { borderColor: colors.infoBorder, backgroundColor: colors.infoTint },
   warning: { borderColor: colors.warningBorder, backgroundColor: colors.warningFill },
+  // G6 refusal's "what to change" (UX D): teal 0.10 fill + 0.25 edge drawn;
+  // nearest token tealTint (0.14) for both.
+  teal: { borderColor: colors.tealTint, backgroundColor: colors.tealTint },
 };
+// The teal callout's text (a pale teal drawn, no token → textStrong2).
+const CALLOUT_TEXT = { teal: { color: colors.textStrong2 } };
 
 // `role` is passed through (T-18: the GO_EASY_AREAS note is role="note").
 export function Callout({ tone = 'info', children, testID, style, role }) {
   const look = CALLOUT_TONES[tone] ?? CALLOUT_TONES.info;
   return (
     <View testID={testID} role={role} style={[styles.callout, look, style]}>
-      <Text style={styles.calloutText}>{children}</Text>
+      <Text style={[styles.calloutText, CALLOUT_TEXT[tone]]}>{children}</Text>
     </View>
   );
 }

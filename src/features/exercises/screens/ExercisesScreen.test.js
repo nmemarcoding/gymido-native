@@ -96,6 +96,35 @@ describe('§E1.2 step 4: a later page fails (T-16)', () => {
     expect(texts(tree.root)).toEqual(expect.arrayContaining(["Some exercises didn't load", 'Ex 1']));
   });
 
+  it('v2 look (§D2): the compact ErrorAlert with the ruling-2 Retry, at the top of the list, before the rows', async () => {
+    const { colors } = require('../../../shared/theme/tokens');
+    const { RetryButton } = require('../../../shared/components/ErrorAlert');
+    const { StyleSheet } = require('react-native');
+    listExercisesPage.mockImplementation((n) => (n === 1 ? Promise.resolve(page([ex(1)], 2)) : Promise.reject(failure)));
+    const tree = await render();
+    const alert = tree.root.find((node) => node.props.testID === 'exercises-partial-error' && typeof node.type === 'string');
+    expect(alert.props.accessibilityRole).toBe('alert');
+    expect(StyleSheet.flatten(alert.props.style)).toMatchObject({ backgroundColor: colors.surface, borderColor: colors.dangerTextBorder, padding: 16, alignItems: 'center' });
+    const retry = tree.root.findByType(RetryButton);
+    expect(retry.props).toMatchObject({ title: 'Retry', testID: 'exercises-partial-retry' });
+    const shown = texts(tree.root);
+    expect(shown.indexOf("Some exercises didn't load")).toBeLessThan(shown.indexOf('Ex 1'));
+  });
+
+  it('the fallback message is "Please try again." when the failure has no text', async () => {
+    listExercisesPage.mockImplementation((n) => (n === 1 ? Promise.resolve(page([ex(1)], 2)) : Promise.reject({})));
+    const tree = await render();
+    expect(texts(tree.root)).toEqual(expect.arrayContaining(["Some exercises didn't load", 'Please try again.']));
+  });
+
+  it('the search TextInput has a gold caret and selection', async () => {
+    const { colors } = require('../../../shared/theme/tokens');
+    listExercisesPage.mockResolvedValue(page([ex(1)], 1));
+    const tree = await render();
+    const input = tree.root.find((node) => node.props.testID === 'exercises-search' && typeof node.type !== 'string');
+    expect(input.props).toMatchObject({ selectionColor: colors.gold, cursorColor: colors.gold });
+  });
+
   it('still replaces the screen when page 1 fails (⚠E-4)', async () => {
     listExercisesPage.mockRejectedValue(failure);
     const tree = await render();

@@ -13,18 +13,18 @@ import {
 } from 'react-native';
 
 import { getServerMessage, getStatus } from '../../../shared/api/apiError';
-import EmptyState from '../../../shared/components/EmptyState';
 import ErrorAlert from '../../../shared/components/ErrorAlert';
 import { InlineError } from '../../../shared/components/FeedbackBox';
 import Loader from '../../../shared/components/Loader';
 import PillButton from '../../../shared/components/PillButton';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
 import { breakpoints, colors, radii, shadows, textInputColors } from '../../../shared/theme/tokens';
-import { Eyebrow } from '../../plans/components/PlanBits';
+import { Eyebrow } from '../../../shared/components/Typography';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
 import { getGeneratorProfile, saveGeneratorProfile, searchExercises } from '../api/generatorApi';
 import { Checkbox, Choice, ChoiceList, OptionPill, PillRow } from '../components/GeneratorControls';
+import { GENERATOR_STATE_MAX_WIDTH, GeneratorUnavailable } from '../components/GeneratorStates';
 import {
   COPY,
   QUESTIONS,
@@ -74,6 +74,22 @@ const SEARCH_DELAY_MS = 300;
 // As the app's other focus moves: give the screen time to lay out first.
 const FOCUS_DELAY_MS = 300;
 
+// The preview's 422 field errors ({ [step]: message }) from the route; any
+// other shape → none.
+export function initialStepErrors(param) {
+  const result = {};
+  if (!param || typeof param !== 'object') {
+    return result;
+  }
+  for (const [key, message] of Object.entries(param)) {
+    const step = Number(key);
+    if (Number.isInteger(step) && step >= 1 && step <= STEP_COUNT && typeof message === 'string' && message) {
+      result[step] = message;
+    }
+  }
+  return result;
+}
+
 // G1 (RN-SPEC-PLAN-GENERATOR §G1). Every focus remounts and reloads (§8.1).
 export default function PlanGeneratorScreen() {
   const remountKey = useFocusRemountKey();
@@ -95,7 +111,9 @@ function PlanGenerator() {
   const [answers, setAnswers] = useState(() => answersFromProfile(null));
   const [step, setStep] = useState(1);
   const [editingEquipment, setEditingEquipment] = useState(false);
-  const [stepErrors, setStepErrors] = useState({});
+  // A preview 422 (go_easy_area_ids) hands its field errors over with the
+  // deep link (`stepErrors` route param), read once on mount.
+  const [stepErrors, setStepErrors] = useState(() => initialStepErrors(route.params?.stepErrors));
   const [saveError, setSaveError] = useState('');
   const [saving, setSaving] = useState(false);
   const mounted = useRef(true);
@@ -103,6 +121,7 @@ function PlanGenerator() {
   const deepStep = useRef(deepLinkStep(route.params?.step));
   const [focusHeading, setFocusHeading] = useState(false);
   const headingRef = useRef(null);
+  const stepErrorRef = useRef(null);
 
   useEffect(() => {
     mounted.current = true;
@@ -147,7 +166,8 @@ function PlanGenerator() {
     }
     const timer = setTimeout(() => {
       setFocusHeading(false);
-      const node = findNodeHandle(headingRef.current);
+      // PM parity (26 Oct): preview → step 6 with a 422 focuses the error.
+      const node = findNodeHandle(stepErrorRef.current ?? headingRef.current);
       if (node) {
         AccessibilityInfo.setAccessibilityFocus(node);
       }
@@ -160,20 +180,19 @@ function PlanGenerator() {
   }
   if (load.status === 'unavailable') {
     return (
-      <EmptyState
-        title={COPY.unavailableTitle}
-        message={COPY.unavailableMessage}
-        actionLabel={COPY.backToPlans}
-        actionTestID="generator-back-to-plans"
-        onAction={() => openShellPath('/plans')}
-      />
+      <GeneratorUnavailable onBack={() => openShellPath('/plans')} />
     );
   }
   if (load.status === 'error') {
+    // G2: Retry only for network/server errors; 403 (a member with a trainer) none.
     return (
       <ErrorAlert
+        testID="generator-load-error"
+        variant="generator"
+        style={styles.stateCard}
         title={COPY.loadError}
         description={load.message}
+        retryTestID="generator-load-retry"
         onRetry={load.forbidden ? undefined : () => setReloadKey((value) => value + 1)}
       />
     );
@@ -214,7 +233,7 @@ function PlanGenerator() {
     return (
       <View style={styles.column}>
         <View>
-          <Eyebrow>{COPY.reviewEyebrow}</Eyebrow>
+          <Eyebrow style={styles.eyebrow}>{COPY.reviewEyebrow}</Eyebrow>
           <Text textBreakStrategy="simple" accessibilityRole="header" style={styles.title}>
             {COPY.reviewTitle}
           </Text>
@@ -256,14 +275,17 @@ function PlanGenerator() {
 
   return (
     <View style={styles.column}>
+      {/* G3: the step error sits above the question and is read before the eyebrow. */}
+      {stepErrors[step] ? (
+        <InlineError ref={stepErrorRef} testID="generator-step-error" title={COPY.stepError} message={stepErrors[step]} />
+      ) : null}
       <View>
-        <Eyebrow>{stepEyebrow(step)}</Eyebrow>
+        <Eyebrow style={styles.eyebrow}>{stepEyebrow(step)}</Eyebrow>
         <Text ref={headingRef} testID="generator-step-title" textBreakStrategy="simple" accessibilityRole="header" style={styles.title}>
           {QUESTIONS[step - 1]}
         </Text>
         {step === STEP_COUNT ? <Text style={styles.optional}>{COPY.optional}</Text> : null}
       </View>
-      {stepErrors[step] ? <InlineError testID="generator-step-error" title={COPY.stepError} message={stepErrors[step]} /> : null}
       <StepBody
         step={step}
         answers={answers}
@@ -654,6 +676,18 @@ function AvoidSearch({ exclusions, onChoose }) {
 const styles = StyleSheet.create({
   loader: {
     paddingVertical: 48,
+  },
+  // G2: the part-failure card in the 640 content column.
+  stateCard: {
+    width: '100%',
+    maxWidth: GENERATOR_STATE_MAX_WIDTH,
+    alignSelf: 'center',
+  },
+  // v2 eyebrow rule (§D2): sentence case gold 13/600 (Typography Eyebrow is
+  // gold 12/600; the board draws 13).
+  eyebrow: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   column: {
     width: '100%',
