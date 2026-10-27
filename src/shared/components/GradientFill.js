@@ -1,6 +1,6 @@
 import { useId, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 // RN-SPEC-workout §19.10 standard remedy: every gradient is drawn with
 // react-native-svg, never a CSS background, so Android never creates a
@@ -11,6 +11,9 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 //
 // `angle` uses CSS degrees: 180 = "to bottom", 90 = "to right", 135 = the
 // ruled replacement for every corner keyword (§19.10.1).
+// `radial` ({ cx, cy, rx, ry } as fractions of the box) draws an elliptical
+// radial gradient instead, like CSS `radial-gradient(80% 45% at 50% 42%, …)`
+// (v2's ambient gold glow); the same fixed-size rules apply.
 // react-native-svg drops the alpha of an rgba stopColor and paints the stop
 // opaque, so the alpha goes to stopOpacity instead.
 export function splitStopColor(color) {
@@ -22,7 +25,7 @@ export function splitStopColor(color) {
   return { stopColor: `rgb(${r}, ${g}, ${b})`, stopOpacity: Number(a) };
 }
 
-export default function GradientFill({ colors, stops, angle = 180, style }) {
+export default function GradientFill({ colors, stops, angle = 180, radial, style }) {
   const id = useId().replace(/:/g, '');
   const [size, setSize] = useState({ width: 0, height: 0 });
   const { width, height } = size;
@@ -51,22 +54,39 @@ export default function GradientFill({ colors, stops, angle = 180, style }) {
       {width > 0 && height > 0 ? (
         <Svg width={width} height={height}>
           <Defs>
-            <LinearGradient
-              id={id}
-              gradientUnits="userSpaceOnUse"
-              x1={cx - (dx * length) / 2}
-              y1={cy - (dy * length) / 2}
-              x2={cx + (dx * length) / 2}
-              y2={cy + (dy * length) / 2}
-            >
-              {colors.map((color, index) => (
-                <Stop key={`${color}-${index}`} offset={offsets[index]} {...splitStopColor(color)} />
-              ))}
-            </LinearGradient>
+            {radial ? (
+              <RadialGradient
+                id={id}
+                gradientUnits="userSpaceOnUse"
+                cx={radial.cx * width}
+                cy={radial.cy * height}
+                fx={radial.cx * width}
+                fy={radial.cy * height}
+                rx={radial.rx * width}
+                ry={radial.ry * height}
+              >
+                {stopsOf(colors, offsets)}
+              </RadialGradient>
+            ) : (
+              <LinearGradient
+                id={id}
+                gradientUnits="userSpaceOnUse"
+                x1={cx - (dx * length) / 2}
+                y1={cy - (dy * length) / 2}
+                x2={cx + (dx * length) / 2}
+                y2={cy + (dy * length) / 2}
+              >
+                {stopsOf(colors, offsets)}
+              </LinearGradient>
+            )}
           </Defs>
           <Rect x={0} y={0} width={width} height={height} fill={`url(#${id})`} />
         </Svg>
       ) : null}
     </View>
   );
+}
+
+function stopsOf(colors, offsets) {
+  return colors.map((color, index) => <Stop key={`${color}-${index}`} offset={offsets[index]} {...splitStopColor(color)} />);
 }

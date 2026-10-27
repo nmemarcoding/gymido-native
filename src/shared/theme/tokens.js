@@ -156,6 +156,19 @@ const LEGACY_COLORS = {
 export const colors = Object.freeze({ ...LEGACY_COLORS, ...V2_COLORS });
 export const legacyColorKeys = Object.freeze(Object.keys(LEGACY_COLORS));
 
+// §1.1/§1.3 Gradients as GradientFill props (SVG, fixed size, present from
+// the first render: never added on a state change, the Android crash rule).
+// gold is for avatars, initials tiles and the logo only (buttons are flat).
+export const gradients = Object.freeze({
+  card: Object.freeze({ angle: 160, colors: Object.freeze(['#1E2129', '#14161C']) }),
+  gold: Object.freeze({ angle: 145, colors: Object.freeze(['#FFD45C', '#FFC21A', '#F29E00']), stops: Object.freeze([0, 0.45, 1]) }),
+  goldAmbient: Object.freeze({
+    radial: Object.freeze({ cx: 0.5, cy: 0.42, rx: 0.8, ry: 0.45 }),
+    colors: Object.freeze(['rgba(255, 194, 26, 0.20)', 'rgba(255, 194, 26, 0)']),
+    stops: Object.freeze([0, 0.68]),
+  }),
+});
+
 // §1.5 Muscle colours, always shown with a text label. Tiles: the colour at
 // 16 % as the fill and the colour as the text.
 export const muscle = Object.freeze({
