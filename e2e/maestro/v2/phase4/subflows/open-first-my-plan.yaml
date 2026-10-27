@@ -1,14 +1,30 @@
 # Phase 4 §2 (4i): from the signed-in tab root to the builder of the
-# member's first own plan. IDs only. Needs a QA member with at least one
-# plan in My plans that has a day with an exercise.
+# member's first own plan. IDs only. Needs a QA member WITHOUT a trainer
+# with at least one plan in My plans that has a day with an exercise.
+# QA s5-p4: a member WITH a trainer sees "Your plans are on hold"
+# (my-plans-on-hold); this subflow then FAILS FAST with a precondition
+# message (no silent skip: a skip would report a false PASS).
 appId: com.gymido.app
 ---
+# Phone bottom tabs or the tablet rail.
 - extendedWaitUntil:
     visible:
-      id: "tab-Plans"
+      id: "tab-Plans|rail-Plans"
     timeout: 60000
-- tapOn:
-    id: "tab-Plans"
+- runFlow:
+    when:
+      visible:
+        id: "tab-Plans"
+    commands:
+      - tapOn:
+          id: "tab-Plans"
+- runFlow:
+    when:
+      visible:
+        id: "rail-Plans"
+    commands:
+      - tapOn:
+          id: "rail-Plans"
 - extendedWaitUntil:
     visible:
       id: "my-plans-entry"
@@ -17,13 +33,26 @@ appId: com.gymido.app
     id: "my-plans-entry"
 - extendedWaitUntil:
     visible:
-      id: "my-plan-card-open-.*"
+      id: "my-plan-card-open-.*|my-plans-on-hold"
       index: 0
     timeout: 30000
-- tapOn:
-    id: "my-plan-card-open-.*"
-    index: 0
-- extendedWaitUntil:
-    visible:
-      id: "plan-all-plans"
-    timeout: 30000
+- runFlow:
+    when:
+      visible:
+        id: "my-plans-on-hold"
+    commands:
+      - assertTrue:
+          condition: ${false}
+          label: "Precondition: needs a member WITHOUT a trainer who owns a plan; sign in as THROWAWAY4 after CP12"
+- runFlow:
+    when:
+      notVisible:
+        id: "my-plans-on-hold"
+    commands:
+      - tapOn:
+          id: "my-plan-card-open-.*"
+          index: 0
+      - extendedWaitUntil:
+          visible:
+            id: "plan-all-plans"
+          timeout: 30000

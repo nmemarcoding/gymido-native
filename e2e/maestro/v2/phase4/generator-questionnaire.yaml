@@ -1,6 +1,10 @@
 # v2 Phase 4 §3 Generator (team 4j): walk the six steps to the review and back
 # out WITHOUT saving. Starts signed in (member QA account) on a tab root; the
 # lead's safe runner signs in first. IDs only; nothing is written.
+# QA s5-p4: before EVERY Next the flow scrolls generator-next to the middle of
+# the screen (centerElement) so it is never under the floating tab bar. The
+# review opens at its TOP ("Check your answers", G1.3), so generator-review-1
+# shows without a scroll; Change on card 3 is scrolled to before the tap.
 appId: com.gymido.app
 ---
 - tapOn:
@@ -21,26 +25,56 @@ appId: com.gymido.app
     id: "generator-top-back"
 - tapOn:
     id: "generator-goal-BUILD_MUSCLE"
+- scrollUntilVisible:
+    element:
+      id: "generator-next"
+    direction: DOWN
+    centerElement: true
+    timeout: 15000
 - tapOn:
     id: "generator-next"
 # Step 2
 - tapOn:
     id: "generator-band-2_PLUS_YEARS"
+- scrollUntilVisible:
+    element:
+      id: "generator-next"
+    direction: DOWN
+    centerElement: true
+    timeout: 15000
 - tapOn:
     id: "generator-next"
 # Step 3
 - tapOn:
     id: "generator-days-4"
+- scrollUntilVisible:
+    element:
+      id: "generator-next"
+    direction: DOWN
+    centerElement: true
+    timeout: 15000
 - tapOn:
     id: "generator-next"
 # Step 4
 - tapOn:
     id: "generator-minutes-60"
+- scrollUntilVisible:
+    element:
+      id: "generator-next"
+    direction: DOWN
+    centerElement: true
+    timeout: 15000
 - tapOn:
     id: "generator-next"
 # Step 5
 - tapOn:
     id: "generator-preset-FULL_GYM"
+- scrollUntilVisible:
+    element:
+      id: "generator-next"
+    direction: DOWN
+    centerElement: true
+    timeout: 15000
 - tapOn:
     id: "generator-next"
 # Step 6 (buttons in the flow): Skip/Next goes to the review.
@@ -50,6 +84,7 @@ appId: com.gymido.app
     element:
       id: "generator-next"
     direction: DOWN
+    centerElement: true
     timeout: 15000
 - tapOn:
     id: "generator-next"
@@ -57,6 +92,12 @@ appId: com.gymido.app
 - extendedWaitUntil:
     visible:
       id: "generator-review-1"
+    timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: "generator-review-change-3"
+    direction: DOWN
+    centerElement: true
     timeout: 15000
 - tapOn:
     id: "generator-review-change-3"

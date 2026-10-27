@@ -1,14 +1,31 @@
 # Phase 4 §2 / Phase 6 §3 (4i): the trainer builder (header card, teal chip,
 # day tabs) and the "Sets" display toggle (collapse, expand). Read-only.
-# Starts signed in as the QA trainer on the tab root.
+# Starts signed in as the QA trainer (with at least one trainer plan) on the
+# tab root. QA s5-p4: switches to the trainer workspace first
+# (subflows/trainer-workspace, like 6n/6o), opens the trainer Plans tab
+# (tab-TPlans on a phone, rail-TPlans on a tablet) and restores the
+# workspace at the end (subflows/restore-workspace).
 appId: com.gymido.app
 ---
 - extendedWaitUntil:
     visible:
-      id: "tab-Plans"
+      id: "tab-Today|rail-Today|tab-TToday|rail-TToday"
     timeout: 60000
-- tapOn:
-    id: "tab-Plans"
+- runFlow: ../subflows/trainer-workspace.yaml
+- runFlow:
+    when:
+      visible:
+        id: "tab-TPlans"
+    commands:
+      - tapOn:
+          id: "tab-TPlans"
+- runFlow:
+    when:
+      visible:
+        id: "rail-TPlans"
+    commands:
+      - tapOn:
+          id: "rail-TPlans"
 - extendedWaitUntil:
     visible:
       id: "plan-card-view-.*"
@@ -37,3 +54,4 @@ appId: com.gymido.app
           index: 0
 - assertVisible:
     id: "plan-all-plans"
+- runFlow: ../subflows/restore-workspace.yaml

@@ -1,30 +1,40 @@
 # Phase 4 §2 (4i): the set editor's per-field validation. Submits an empty
 # set (refused on the client), checks the error, cancels. Nothing is saved.
+# Account: a member WITHOUT a trainer who OWNS a plan (with a day that has an
+# exercise), e.g. THROWAWAY4 right after CP12. With a trainer, My plans shows
+# "Your plans are on hold" (my-plans-on-hold): the flow then FAILS FAST with a
+# precondition message (never a silent skip, which would be a false PASS).
 appId: com.gymido.app
 ---
 - runFlow: subflows/open-first-my-plan.yaml
-- scrollUntilVisible:
-    element:
-      id: "plan-exercise-add-set-.*"
-      index: 0
-    direction: DOWN
-    timeout: 20000
-- tapOn:
-    id: "plan-exercise-add-set-.*"
-    index: 0
-- extendedWaitUntil:
-    visible:
-      id: "add-set-modal"
-    timeout: 10000
-- assertVisible:
-    id: "set-number-box"
-- tapOn:
-    id: "set-unit-kg"
-- tapOn:
-    id: "set-modal-submit"
-- assertVisible:
-    text: "At least reps or weight must be specified."
-- tapOn:
-    id: "set-modal-cancel"
-- assertNotVisible:
-    id: "add-set-modal"
+# Precondition: a member WITHOUT a trainer who owns a plan (THROWAWAY4 after CP12).
+- runFlow:
+    when:
+      notVisible:
+        id: "my-plans-on-hold"
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "plan-exercise-add-set-.*"
+            index: 0
+          direction: DOWN
+          timeout: 20000
+      - tapOn:
+          id: "plan-exercise-add-set-.*"
+          index: 0
+      - extendedWaitUntil:
+          visible:
+            id: "add-set-modal"
+          timeout: 10000
+      - assertVisible:
+          id: "set-number-box"
+      - tapOn:
+          id: "set-unit-kg"
+      - tapOn:
+          id: "set-modal-submit"
+      - assertVisible:
+          text: "At least reps or weight must be specified."
+      - tapOn:
+          id: "set-modal-cancel"
+      - assertNotVisible:
+          id: "add-set-modal"

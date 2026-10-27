@@ -795,12 +795,54 @@ describe('opaque dock + scroll room (P3-2)', () => {
     await act(async () => byId(tree, 'set-action-12').props.onPress());
     act(() => tree.root.findByType(RestTimerWidget).props.onMinimize());
     expect(tree.root.findByType(RestTimerWidget).props.dockRoom).toBe(dockHeight + spacing[4]);
-    expect(scrollPad(tree)).toBe(dockHeight + spacing[4]);
+    // DECLARED change (I2 follow-up, iPad re-shot): was expect(scrollPad(tree)).toBe(dockHeight + spacing[4]). With
+    // the disc minimised the column also keeps the disc's 92 (see "I2 follow-up (a)" below).
+    expect(scrollPad(tree)).toBe(dockHeight + 92 + spacing[4]);
     const disc = flat(host(tree, 'rest-timer'));
     expect(disc.width).toBe(92);
     expect(disc.left).toBe(1024 - 8 - 24 - 92);
     // The disc's bottom edge is above the dock's top edge (window height 1334).
     expect(disc.top + 92).toBeLessThanOrEqual(1334 - dockHeight);
+  });
+
+  // I2 follow-up (a), iPad re-shot: scrolled to the bottom, the minimised disc (16 above the dock) still covered the
+  // right of "Complete workout". While the disc shows ON TABLET the column's room = dock + disc 92 + 16, so the last
+  // control scrolls fully clear of it; no disc → the old room; phones unchanged.
+  describe('I2 follow-up (a): the scroll room clears the minimised disc on tablet', () => {
+    const RESTING = { ...SESSION, exercises: [{ ...SESSION.exercises[0], sets: [set(11, true), { ...set(12), rest_seconds_planned: 60 }] }, SESSION.exercises[1]] };
+    it.each([
+      ['tablet', 1024, 64 + spacing[3] + 40 + 20],
+      ['phone', 750, 64 + 44 + spacing[3] + spacing[7] + 20],
+    ])('%s: no disc → dock + 16; disc minimised → tablet dock + 92 + 16, phone unchanged; expanded → dock + 16', async (kind, width, dockHeight) => {
+      mockWidth = width;
+      mockInsetBottom = 20;
+      const { tree } = render({ session: RESTING });
+      layout(host(tree, 'session-dock'), dockHeight);
+      expect(scrollPad(tree)).toBe(dockHeight + spacing[4]);
+      await act(async () => byId(tree, 'set-action-12').props.onPress());
+      expect(scrollPad(tree)).toBe(dockHeight + spacing[4]);
+      act(() => tree.root.findByType(RestTimerWidget).props.onMinimize());
+      expect(scrollPad(tree)).toBe(kind === 'tablet' ? dockHeight + 92 + spacing[4] : dockHeight + spacing[4]);
+      // The disc itself still docks just above the dock (the room it is given is unchanged).
+      expect(tree.root.findByType(RestTimerWidget).props.dockRoom).toBe(dockHeight + spacing[4]);
+    });
+  });
+
+  // I2 follow-up (b), iPad re-shot: once the logger column scrolled, its top card slid UNDER the fixed session
+  // header ("Set 1 of 4 · rest 90s" cut behind the timer pill). The column now starts below the header and clips.
+  it('tablet (I2 follow-up b): the logger column starts below the measured session header and clips its scroll', () => {
+    mockWidth = 1024;
+    const { tree } = render();
+    const chrome = tree.root.findByType(SessionChrome);
+    act(() => chrome.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 1000, height: 72 } } }));
+    const chromeStyle = StyleSheet.flatten(tree.root.findByType(SessionChrome).props.style);
+    expect(chromeStyle.position).toBe('absolute');
+    const logger = flat(host(tree, 'session-logger'));
+    expect(logger.marginTop).toBe(chromeStyle.top + 72);
+    expect(logger.overflow).toBe('hidden');
+    // The scroll lives inside the clipped column; the first card keeps its old place (header + 12 gap).
+    const scroll = host(tree, 'session-logger').findAll((node) => node.props.contentContainerStyle && typeof node.type !== 'string')[0];
+    expect(StyleSheet.flatten(scroll.props.contentContainerStyle).paddingTop).toBe(spacing[3]);
   });
 
   it('browsing: no dock, the room is the bottom nav\'s (unchanged)', () => {
