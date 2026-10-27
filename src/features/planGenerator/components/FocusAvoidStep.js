@@ -29,7 +29,7 @@ import {
 import { OptionPill, PillRow } from './GeneratorControls';
 import { CloseIcon, SearchIcon } from './GeneratorIcons';
 // Review M4: the v2 image chain (w400 first).
-import { THUMB_WIDTH, imageSourceProps } from '../../plans/planImages';
+import { THUMB_WIDTH, imageSourceProps } from '../../../shared/images/remoteImageSources';
 
 const THUMB = Object.freeze({ width: THUMB_WIDTH });
 

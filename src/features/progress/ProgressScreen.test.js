@@ -24,6 +24,12 @@ it('Body section titles use the simple Android text break', async () => {
   await act(async () => {
     tree = create(<ProgressScreen />);
   });
+  // Settle BOTH load chains (loadProgress, then the phone's range logs, which
+  // resolve a few microtasks later) before reading the tree. One flush was
+  // enough on an idle machine; a full-suite run failed this once (27 Oct).
+  // Setup/await only, no assertion changed.
+  await act(async () => {});
+  await act(async () => {});
   ['Goal progress', 'Weight history'].forEach((title) => {
     const text = tree.root.find((node) => node.type === 'Text' && node.props.children === title);
     expect(text.props.textBreakStrategy).toBe('simple');

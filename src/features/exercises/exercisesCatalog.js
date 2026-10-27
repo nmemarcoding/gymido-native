@@ -1,7 +1,7 @@
 // Logic of the Exercises screen (RN-SPEC-exercises §E1–§E2). Pure, so Jest
 // can cover it without rendering.
 
-import { cleanImageUrl, getDriveFileId, getRemoteImageSources } from '../../shared/images/remoteImageSources';
+import { getRemoteImageSources } from '../../shared/images/remoteImageSources';
 
 export const OTHER_GROUP = 'Other';
 export const PER_PAGE = 100;
@@ -153,18 +153,10 @@ export function popSearch(state) {
   return { applied: state.history[state.history.length - 1], history: state.history.slice(0, -1) };
 }
 
-// F4: a grid card tries Drive's w400 thumbnail first, then the usual chain.
-// Non-Drive URLs are unchanged.
+// F4: a grid card tries Drive's w400 thumbnail first, then the shared chain
+// (27 Oct dated chain). Non-Drive URLs are unchanged.
 export function cardThumbnailSources(url) {
-  const sources = getRemoteImageSources(url);
-  if (!url) {
-    return sources;
-  }
-  const id = getDriveFileId(cleanImageUrl(url));
-  if (!id) {
-    return sources;
-  }
-  return [...new Set([`https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w400`, ...sources])];
+  return getRemoteImageSources(url, { width: 400 });
 }
 
 // §E1.2 step 4: the transport error text, else "Please try again." (no

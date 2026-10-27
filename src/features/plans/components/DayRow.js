@@ -6,7 +6,7 @@ import { CAP_BODY, CAP_PILL } from '../../../shared/components/largeText';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { colors, font, motion, radii, spacing, typography } from '../../../shared/theme/tokens';
 // Review M4/M5: the v2 image chain (w400 first) and media_type.
-import { thumbImageProps } from '../planImages';
+import { thumbImageProps } from '../../../shared/images/remoteImageSources';
 import { dayMetaLabel, estimateMinutes, exerciseNotes, formatSetSummary, muscleFocus } from '../libraryFormat';
 import PlanIcon from './planIcons';
 import { PressOverlay } from './planUi';

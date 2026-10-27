@@ -9,7 +9,7 @@ import { COPY, STEP_COUNT, changeLabel } from '../generatorCopy';
 import { BODY_TEXT, CHANGE_HIT_SLOP, CHANGE_PILL_HEIGHT, DISPLAY_TEXT, PAGE_TITLE_TEXT, PressOverlay } from '../generatorLayout';
 import { imageUrlOf, reviewDetails, reviewSummaries } from '../generatorLogic';
 // Review M4: the v2 image chain (w400 first).
-import { THUMB_WIDTH, imageSourceProps } from '../../plans/planImages';
+import { THUMB_WIDTH, imageSourceProps } from '../../../shared/images/remoteImageSources';
 import { ArrowRightIcon } from './GeneratorIcons';
 
 // G1.3 "Check your answers" (GeneratorReview board, phone; tablet = the same

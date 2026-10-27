@@ -205,14 +205,28 @@ describe('SessionRuntime', () => {
       expect(reloadWithLoader).toHaveBeenCalledTimes(1);
     });
 
-    it("keeps Discard's 409 unchanged (the server message, no reload)", async () => {
+    // DECLARED change (RN-SPEC-workout §24, dated 27 Oct 2026): a discard 409
+    // = done. Was: the server message on the toast and no reload.
+    it('Discard 409 = done: the same reload as a success, no error, no "ended elsewhere" (§24)', async () => {
       abandonWorkout.mockRejectedValueOnce(conflict);
+      const reload = jest.fn(() => Promise.resolve());
       const reloadWithLoader = jest.fn(() => Promise.resolve());
-      const { tree, setActionError } = render({ reloadWithLoader });
+      const { tree, setActionError } = render({ reload, reloadWithLoader });
       act(() => byId(tree, 'discard-workout').props.onPress());
       await act(async () => byId(tree, 'discard-confirm').props.onPress());
-      expect(setActionError).toHaveBeenLastCalledWith('Session is not active');
+      expect(reload).toHaveBeenCalledTimes(1);
       expect(reloadWithLoader).not.toHaveBeenCalled();
+      expect(setActionError.mock.calls.filter(([message]) => message)).toEqual([]);
+    });
+
+    it('Discard: any other failure is unchanged (the server message, no reload)', async () => {
+      abandonWorkout.mockRejectedValueOnce({ response: { status: 500, data: { message: 'Server error' } } });
+      const reload = jest.fn(() => Promise.resolve());
+      const { tree, setActionError } = render({ reload });
+      act(() => byId(tree, 'discard-workout').props.onPress());
+      await act(async () => byId(tree, 'discard-confirm').props.onPress());
+      expect(setActionError).toHaveBeenLastCalledWith('Server error');
+      expect(reload).not.toHaveBeenCalled();
     });
 
     it('keeps other errors on the runtime toast', async () => {

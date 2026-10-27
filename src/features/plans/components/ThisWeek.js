@@ -6,7 +6,7 @@ import { CAP_BODY, CAP_PILL } from '../../../shared/components/largeText';
 import StatusPill from '../../../shared/components/StatusPill';
 import { colors, font, gradients, radii, spacing, typography } from '../../../shared/theme/tokens';
 import { compactSetSummary, stripCells } from '../libraryFormat';
-import { thumbImageProps } from '../planImages';
+import { thumbImageProps } from '../../../shared/images/remoteImageSources';
 import PlanIcon from './planIcons';
 import { PressOverlay, useReflow } from './planUi';
 

@@ -17,7 +17,7 @@ import BlurLayer from '../../../../shared/components/BlurLayer';
 import ErrorAlert from '../../../../shared/components/ErrorAlert';
 import ExerciseImage, { muscleColor, muscleTextColor, TILE_ALPHA } from '../../../../shared/components/ExerciseImage';
 // Review M4/M5: the v2 image chain (w400 first) and media_type.
-import { thumbImageProps } from '../../../plans/planImages';
+import { thumbImageProps } from '../../../../shared/images/remoteImageSources';
 import FeedbackIcon from '../../../../shared/components/FeedbackIcon';
 import GradientFill from '../../../../shared/components/GradientFill';
 import IconButton from '../../../../shared/components/IconButton';

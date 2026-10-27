@@ -349,7 +349,14 @@ export default function SessionRuntime({
       await abandonWorkout(session.id);
       await reload();
     } catch (error) {
-      setActionError(getServerMessage(error));
+      // RN-SPEC-workout §24 (dated 27 Oct 2026): a 409 ("not in progress")
+      // means the session already stopped (an earlier abandon's response was
+      // lost). The user wanted out: exactly like success, no error.
+      if (getStatus(error) === 409) {
+        await reload();
+      } else {
+        setActionError(getServerMessage(error));
+      }
     } finally {
       setIsAbandoning(false);
     }

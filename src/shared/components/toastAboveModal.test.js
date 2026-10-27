@@ -120,3 +120,30 @@ describe('a toast moving between hosts is silent (review LOW)', () => {
   });
 });
 
+
+// Review LOW (candidate dcd9bf3): ids are Date.now() (⚠S5 keeps that), so two
+// toasts in the same millisecond share an id; presenting is keyed per toast,
+// so the second is still announced.
+it('two toasts in the same millisecond are both announced (iOS); ⚠S5 ids still collide', () => {
+  const realOS = Platform.OS;
+  Platform.OS = 'ios';
+  jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+  const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {});
+  announce.mockClear();
+  let tree;
+  act(() => {
+    tree = create(app(false));
+  });
+  mounted.push(tree);
+  act(() => {
+    addToast(ToastTone.success, 'First', '');
+    addToast(ToastTone.success, 'Second', '');
+  });
+  const toasts = useToastStore.getState().toasts;
+  expect(new Set(toasts.map((toast) => toast.id)).size).toBe(1);
+  expect(new Set(toasts.map((toast) => toast.key)).size).toBe(2);
+  const said = announce.mock.calls.map(([text]) => text);
+  expect(said).toEqual(expect.arrayContaining(['First', 'Second']));
+  Platform.OS = realOS;
+  jest.restoreAllMocks();
+});

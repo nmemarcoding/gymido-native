@@ -84,10 +84,10 @@ export default function ToastHost({ hostId } = {}) {
 // One toast in a host. The first host to show an id plays the entrance and
 // announces it; a host it later moves to shows it as it is (review LOW).
 function PresentedToast({ toast, style, onClose }) {
-  const shown = useRef(wasToastPresented(toast.id)).current;
+  const shown = useRef(wasToastPresented(toast.key)).current;
   useEffect(() => {
-    markToastPresented(toast.id);
-  }, [toast.id]);
+    markToastPresented(toast.key);
+  }, [toast.key]);
   return (
     <SlideUp style={style} entered={shown}>
       {/* Outside the app's BlurTargetView, so it may blur the app behind it. */}

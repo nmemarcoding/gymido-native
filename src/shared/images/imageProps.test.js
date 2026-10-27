@@ -1,4 +1,4 @@
-import { exerciseImageProps, imageCandidates, imageSourceProps, isImageMediaType, mediaUrl } from './planImages';
+import { exerciseImageProps, getRemoteImageSources, imageSourceProps, isImageMediaType, mediaUrl } from './remoteImageSources';
 
 // RN-SPEC-v2-phase4 "Dated change (27 Oct 2026): image fallback chain, all
 // screens" + "Images" (review 26fc4a8 M4 / M5).
@@ -8,11 +8,11 @@ const thumb = (width) => `https://drive.google.com/thumbnail?id=${ID}&sz=w${widt
 const LH3_W = `https://lh3.googleusercontent.com/d/${ID}=w1600`;
 const LH3_S = `https://lh3.googleusercontent.com/d/${ID}=s1600`;
 
-describe('imageCandidates (the v2 chain)', () => {
+describe('getRemoteImageSources (the v2 chain)', () => {
   it('a Drive file link: (sized thumbnail) → stored URL → thumbnail w1600 → lh3 =w1600 → lh3 =s1600', () => {
     const stored = `https://drive.google.com/file/d/${ID}/view`;
-    expect(imageCandidates(stored)).toEqual([stored, thumb(1600), LH3_W, LH3_S]);
-    expect(imageCandidates(stored, { width: 400 })).toEqual([thumb(400), stored, thumb(1600), LH3_W, LH3_S]);
+    expect(getRemoteImageSources(stored)).toEqual([stored, thumb(1600), LH3_W, LH3_S]);
+    expect(getRemoteImageSources(stored, { width: 400 })).toEqual([thumb(400), stored, thumb(1600), LH3_W, LH3_S]);
   });
 
   it('a uc?export=view / export=download link is NEVER tried; its id drives the chain (not first)', () => {
@@ -21,31 +21,31 @@ describe('imageCandidates (the v2 chain)', () => {
       `https://drive.google.com/uc?export=download&id=${ID}`,
       `https://drive.google.com/uc?id=${ID}&export=view`,
     ]) {
-      const list = imageCandidates(stored);
+      const list = getRemoteImageSources(stored);
       expect(list).toEqual([thumb(1600), LH3_W, LH3_S]);
       expect(list.some((url) => /\/uc\?/.test(url))).toBe(false);
-      expect(imageCandidates(stored, { width: 400 })).toEqual([thumb(400), thumb(1600), LH3_W, LH3_S]);
+      expect(getRemoteImageSources(stored, { width: 400 })).toEqual([thumb(400), thumb(1600), LH3_W, LH3_S]);
     }
   });
 
   it('a uc link with no id, an empty or blank URL → no candidate (the tile immediately)', () => {
-    expect(imageCandidates('https://drive.google.com/uc?export=view')).toEqual([]);
-    expect(imageCandidates('')).toEqual([]);
-    expect(imageCandidates('   ')).toEqual([]);
-    expect(imageCandidates(null)).toEqual([]);
-    expect(imageCandidates(undefined)).toEqual([]);
+    expect(getRemoteImageSources('https://drive.google.com/uc?export=view')).toEqual([]);
+    expect(getRemoteImageSources('')).toEqual([]);
+    expect(getRemoteImageSources('   ')).toEqual([]);
+    expect(getRemoteImageSources(null)).toEqual([]);
+    expect(getRemoteImageSources(undefined)).toEqual([]);
   });
 
   it('stored lh3 /d/{id} and thumbnail URLs render as stored (thumbnail URL first, then the chain, no duplicates)', () => {
     const lh3 = `https://lh3.googleusercontent.com/d/${ID}`;
-    expect(imageCandidates(lh3)).toEqual([lh3]);
-    expect(imageCandidates(thumb(1600))).toEqual([thumb(1600), LH3_W, LH3_S]);
-    expect(imageCandidates(thumb(800))).toEqual([thumb(800), thumb(1600), LH3_W, LH3_S]);
+    expect(getRemoteImageSources(lh3)).toEqual([lh3]);
+    expect(getRemoteImageSources(thumb(1600))).toEqual([thumb(1600), LH3_W, LH3_S]);
+    expect(getRemoteImageSources(thumb(800))).toEqual([thumb(800), thumb(1600), LH3_W, LH3_S]);
   });
 
   it('a plain URL is tried as-is (cleaned: quotes and &amp;)', () => {
-    expect(imageCandidates(' "https://x.test/a.jpg?a=1&amp;b=2" ')).toEqual(['https://x.test/a.jpg?a=1&b=2']);
-    expect(imageCandidates('https://x.test/a.jpg', { width: 400 })).toEqual(['https://x.test/a.jpg']);
+    expect(getRemoteImageSources(' "https://x.test/a.jpg?a=1&amp;b=2" ')).toEqual(['https://x.test/a.jpg?a=1&b=2']);
+    expect(getRemoteImageSources('https://x.test/a.jpg', { width: 400 })).toEqual(['https://x.test/a.jpg']);
   });
 });
 

@@ -48,7 +48,7 @@ import {
 } from '../generatorLogic';
 // Review M4/M5: the v2 image chain (thumbnails w400 first); imageUrlOf
 // already drops a non-image media_type.
-import { THUMB_WIDTH, imageSourceProps } from '../../plans/planImages';
+import { THUMB_WIDTH, imageSourceProps } from '../../../shared/images/remoteImageSources';
 import { generatorRoutes } from '../generatorRoutes';
 import { useTabBarClearance } from '../useTabBarClearance';
 

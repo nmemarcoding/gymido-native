@@ -2,7 +2,7 @@ import { StyleSheet } from 'react-native';
 
 import ExerciseImage from '../../../../shared/components/ExerciseImage';
 // Review M4/M5: the v2 image chain (w400 first) and media_type.
-import { thumbImageProps } from '../../../plans/planImages';
+import { thumbImageProps } from '../../../../shared/images/remoteImageSources';
 import { colors, musclePalette } from '../../../../shared/theme/tokens';
 
 const WHITE = musclePalette.iconLight;

@@ -4,6 +4,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { colors, font, gradients, muscle, musclePalette, muscleText, radii } from '../theme/tokens';
 import GradientFill from './GradientFill';
+import { mediaUrl } from '../images/remoteImageSources';
 import RemoteImage from './RemoteImage';
 
 // v2 exercise image (RN-SPEC-v2-foundation §4.8, UX tokens-and-components
@@ -128,7 +129,9 @@ export default function ExerciseImage({
   children,
 }) {
   // An explicit prop (even null) wins over the exercise object.
-  const url = (urlProp !== undefined ? urlProp : exercise?.thumbnail?.url) || null;
+  // Dated change (27 Oct 2026, all screens): the thumbnail goes through the
+  // shared media rule — a non-image media_type (video) draws the tile.
+  const url = (urlProp !== undefined ? urlProp : mediaUrl(exercise?.thumbnail)) || null;
   const name = (nameProp !== undefined ? nameProp : exercise?.name) ?? '';
   const hue = muscleColor(muscleCode !== undefined ? muscleCode : exercise?.primary_muscle_group?.code);
   // The URL whose candidates all failed; a new URL starts fresh.

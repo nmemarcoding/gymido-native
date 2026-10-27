@@ -5,7 +5,7 @@ import { CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT } from '../../../shared/componen
 import RemoteImage from '../../../shared/components/RemoteImage';
 import { colors, font, gradients, radii, spacing, textScale } from '../../../shared/theme/tokens';
 import { planPhotoUrl } from '../libraryFormat';
-import { imageCandidates } from '../planImages';
+import { getRemoteImageSources } from '../../../shared/images/remoteImageSources';
 import { useReflow } from './planUi';
 
 const HIDDEN = { accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' };
@@ -110,7 +110,7 @@ function StatRow({ plan, dayCount, totalExercises, hero = false }) {
 // or gradient-card, the ambient gold glow, content at the bottom.
 export function PlanHero({ plan, dayCount, totalExercises }) {
   // Review M4: the v2 chain (no uc link; none → the gradient card at once).
-  const photoSources = imageCandidates(planPhotoUrl(plan));
+  const photoSources = getRemoteImageSources(planPhotoUrl(plan));
   const photo = photoSources.length > 0;
   return (
     <View testID="plan-hero" style={styles.hero}>

@@ -268,3 +268,21 @@ describe('muscleTextColor (kit 2: shared, was duplicated in two screens)', () =>
     [null, undefined, '', 'NOT_A_MUSCLE', 'ICON_LIGHT'].forEach((code) => expect(muscleTextColor(code)).toBeNull());
   });
 });
+
+// Dated change (27 Oct 2026, all screens): with no `url` prop, ExerciseImage
+// reads exercise.thumbnail through the shared chain and respects media_type —
+// a video thumbnail draws the tile, not an image.
+it('a video thumbnail draws the tile (no remote image), an image thumbnail loads', () => {
+  const { act: actR, create: createR } = require('react-test-renderer');
+  const RemoteImage = require('./RemoteImage').default;
+  let video;
+  actR(() => {
+    video = createR(<ExerciseImage exercise={{ name: 'Squat', thumbnail: { url: 'https://x.test/v.mp4', media_type: 'video/mp4' } }} />);
+  });
+  expect(video.root.findAll((node) => node.type === RemoteImage)).toHaveLength(0);
+  let image;
+  actR(() => {
+    image = createR(<ExerciseImage exercise={{ name: 'Squat', thumbnail: { url: 'https://x.test/a.png', media_type: 'image/png' } }} />);
+  });
+  expect(image.root.findAll((node) => node.type === RemoteImage)).toHaveLength(1);
+});

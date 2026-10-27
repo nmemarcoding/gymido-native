@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { CardHeroFill } from '../../../../shared/components/Card';
 import ExerciseImage from '../../../../shared/components/ExerciseImage';
 // Review M4/M5: the v2 image chain and media_type (thumbnails w400 first).
-import { exerciseImageProps, thumbImageProps } from '../../../plans/planImages';
+import { exerciseImageProps, thumbImageProps } from '../../../../shared/images/remoteImageSources';
 import { CAP_BODY } from '../../../../shared/components/largeText';
 import PillButton from '../../../../shared/components/PillButton';
 import { colors, font, layout, radii, shadows, spacing } from '../../../../shared/theme/tokens';
