@@ -11,7 +11,22 @@ appId: com.gymido.app
       - waitForAnimationToEnd:
           timeout: 8000
       - runFlow: subflows/dismiss-browser-interstitials.yaml
-      - runFlow: subflows/wait-for-login-form.yaml
+      # QA s3-p2: Maestro can't always read the custom tab's WEB content for a
+      # moment; on Android anchor on Chrome's native close button (always
+      # readable), on iOS on the form's text.
+      - runFlow:
+          when:
+            platform: Android
+          commands:
+            - extendedWaitUntil:
+                visible:
+                  id: "com.android.chrome:id/close_button"
+                timeout: 90000
+      - runFlow:
+          when:
+            platform: iOS
+          commands:
+            - runFlow: subflows/wait-for-login-form.yaml
       - runFlow: subflows/cancel-universal-login.yaml
       - extendedWaitUntil:
           visible: "Gymido|Sign-in failed"

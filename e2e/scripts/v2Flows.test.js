@@ -140,3 +140,14 @@ describe('preconditions fail fast, never a silent skip', () => {
     expect(read(rel)).toMatch(pattern);
   });
 });
+
+describe('generator-preview reaches the Review and checks it opens at the top (G1.3)', () => {
+  const flow = fs.readFileSync(path.join(V2, 'phase4', 'generator-preview.yaml'), 'utf8');
+  it('taps Next six times (steps 1→6, then the Review) and asserts the title with no scroll', () => {
+    expect(flow).toMatch(/- repeat:\n\s+times: 6/);
+    const afterLoop = flow.slice(flow.indexOf('times: 6'));
+    const title = afterLoop.indexOf('id: "generator-review-title"');
+    expect(title).toBeGreaterThan(-1);
+    expect(afterLoop.slice(0, title)).not.toMatch(/direction: UP/);
+  });
+});
