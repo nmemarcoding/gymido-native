@@ -299,14 +299,19 @@ describe('Preview (GeneratorPreview board)', () => {
     expect(fill.props.colors).toEqual(['#1E2129', '#14161C']);
   });
 
-  // DECLARED change (UX verdict M2-1): the phone bar was the kit CTA fade
-  // (was: fade.props.colors toEqual gradients.ctaBarFade.colors); it is now
-  // opaque like the P3-2 session dock.
-  it('sticky bar (phone): opaque ground from the first render, no fade, no blur veil', async () => {
+  // UX ruling on M2-1: web's fade stays; the fade sits in a band ABOVE the
+  // buttons and the area directly behind them is opaque ground (every phone
+  // width), so no card shows through.
+  it.each([390, 431, 700])('sticky bar (phone %spx): the kit fade in a band above, opaque ground behind the buttons, no blur veil', async (width) => {
+    mockWindow = { width, height: 844, scale: 2, fontScale: 1 };
     const tree = await openPreview();
     const bar = host(tree, 'generator-sticky-bar');
-    expect(flat(bar).backgroundColor).toBe(colors.ground);
-    expect(bar.findAllByType(GradientFill)).toHaveLength(0);
+    const band = host(tree, 'generator-bar-fade');
+    const fade = band.findAllByType(GradientFill)[0];
+    expect(fade.props.colors).toEqual(gradients.ctaBarFade.colors);
+    expect(flat(band).height).toBeGreaterThan(0);
+    expect(flat(bar).backgroundColor).toBeUndefined();
+    expect(flat(host(tree, 'generator-sticky-row')).backgroundColor).toBe(colors.ground);
     expect(byTestId(tree, 'blur-layer')).toHaveLength(0);
   });
 
