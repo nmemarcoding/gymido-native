@@ -1,10 +1,11 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../theme/tokens';
+import { colors, spacing, typography } from '../theme/tokens';
 import Spinner from './Spinner';
 
-// Trainer plans spec §A3.5: spinner + label row.
-export default function Loader({ label, style }) {
+// RN-SPEC-v2-foundation §5 (board "Loading"): an 18 px gold arc on a faint
+// track beside the label, 14 secondary. Default label "Loading".
+export default function Loader({ label = 'Loading', style }) {
   return (
     <View
       accessibilityRole="progressbar"
@@ -12,7 +13,7 @@ export default function Loader({ label, style }) {
       accessibilityState={{ busy: true }}
       style={[styles.row, style]}
     >
-      <Spinner size={20} thickness={2} />
+      <Spinner size={18} thickness={2} track={colors.hairlineButton} />
       <Text style={styles.label}>{label}</Text>
     </View>
   );
@@ -23,12 +24,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: spacing['2_5'],
   },
   label: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '500',
+    ...typography.bodySm,
     color: colors.textSecondary,
   },
 });

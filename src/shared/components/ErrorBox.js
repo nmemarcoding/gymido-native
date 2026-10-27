@@ -1,34 +1,7 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { FeedbackBox } from './FeedbackBox';
 
-import { colors } from '../theme/tokens';
-
-export default function ErrorBox({ title, message }) {
-  return (
-    <View accessibilityRole="alert" style={styles.box}>
-      {title ? <Text style={styles.title}>{title}</Text> : null}
-      {message ? <Text style={styles.message}>{message}</Text> : null}
-    </View>
-  );
+// RN-SPEC-v2-foundation §5: ErrorBox is the error FeedbackBox (danger-text
+// tint, icon, bold title + muted message). The title stays optional, as in v1.
+export default function ErrorBox({ title, message, testID }) {
+  return <FeedbackBox tone="error" title={title} message={message} testID={testID} accessibilityRole="alert" />;
 }
-
-const styles = StyleSheet.create({
-  box: {
-    backgroundColor: colors.errorFill,
-    borderColor: colors.dangerBorder,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    gap: 4,
-  },
-  title: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
-    color: colors.errorText,
-  },
-  message: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.errorText,
-  },
-});

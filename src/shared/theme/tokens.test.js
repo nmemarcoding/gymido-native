@@ -177,7 +177,7 @@ describe('spacing, layout, breakpoints, motion (§3)', () => {
   });
 
   it('has the gutter, the 44 touch minimum, the 88 rail and the 1120 cap', () => {
-    expect(layout).toEqual({ gutter: 16, touchMin: 44, railWidth: 88, contentMax: 1120 });
+    expect(layout).toEqual({ gutter: 16, touchMin: 44, railWidth: 88, contentMax: 1120, tabBarHeight: 66, tabBarBottomGap: 20 });
   });
 
   it('splits phone < 768, tablet 768–1279, web ≥ 1280', () => {

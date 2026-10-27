@@ -1,15 +1,17 @@
 // RN-SPEC-v2-foundation §7.1: the floating glass tab bar's geometry (phones,
 // < 768). Pure numbers, no React Native, so logic modules and tests can
 // import them. The bottom safe-area inset is added on top of every value.
+import { layout } from '../../shared/theme/tokens';
+
 export const TAB_BAR = Object.freeze({
-  height: 66,
+  height: layout.tabBarHeight,
   padding: 6,
   radius: 33,
   itemRadius: 27,
   itemGap: 2,
   // Inset from the left/right screen edges and the gap above the bottom safe area.
   sideInset: 16,
-  bottomGap: 20,
+  bottomGap: layout.tabBarBottomGap,
   // The phone content column (430) minus its 16 gutters, so the bar lines up with the content.
   maxWidth: 398,
 });

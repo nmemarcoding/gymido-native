@@ -68,6 +68,14 @@ const V2_COLORS = {
   // v2 kit: overlays
   // §6 bottom sheet grab handle (36 × 5).
   grabHandle: 'rgba(255, 255, 255, 0.2)',
+  // v2 kit: feedback (§5 FeedbackBox / ErrorBox: tone fill 0.08 + border 0.25).
+  tealFeedbackFill: 'rgba(79, 216, 196, 0.08)',
+  tealFeedbackBorder: 'rgba(79, 216, 196, 0.25)',
+  dangerTextFill: 'rgba(255, 122, 112, 0.08)',
+  dangerTextBorder: 'rgba(255, 122, 112, 0.25)',
+  // §5 Skeleton shimmer band: clear → faint white → clear over fillSkeleton.
+  skeletonShimmer: 'rgba(255, 255, 255, 0.08)',
+  skeletonShimmerEdge: 'rgba(255, 255, 255, 0)',
 };
 
 // v1 names kept as ALIASES of v2 values while screens move to the v2 names
@@ -330,6 +338,10 @@ export const layout = Object.freeze({
   touchMin: 44,
   railWidth: 88,
   contentMax: 1120,
+  // §7.1 the phone's floating tab bar: 66 tall, 20 above the bottom safe
+  // area. The one source for the shell and the toast (86 clears it).
+  tabBarHeight: 66,
+  tabBarBottomGap: 20,
 });
 
 // Window-width breakpoints from the web (sm, md, lg) and v2's three sizes:
@@ -354,7 +366,7 @@ export const motion = Object.freeze({
   cardEntranceMs: 240,
   cardOffsetY: 8,
   spinnerLoopMs: 1000,
-  // Reduced motion slows a spinner that opts in (`reducedMotionLoopMs`) instead of stopping it.
+  // Under reduced motion a spinner slows to this pace; it never stops (v2 §5).
   spinnerReducedLoopMs: 3000,
   fadeMs: 240,
   slideUpMs: 300,
