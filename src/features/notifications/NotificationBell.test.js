@@ -4,7 +4,7 @@ import { act, create } from 'react-test-renderer';
 import IconButton from '../../shared/components/IconButton';
 import { colors, font } from '../../shared/theme/tokens';
 import { useShellUiStore } from '../shell/shellUiStore';
-import NotificationBell from './NotificationBell';
+import NotificationBell, { bellLabel } from './NotificationBell';
 import { useNotificationStore } from './notificationStore';
 
 jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn(() => Promise.resolve()) }));
@@ -76,8 +76,25 @@ describe('NotificationBell', () => {
     expect(StyleSheet.flatten(text.props.style).fontWeight).toBeUndefined();
     const badge = StyleSheet.flatten(text.parent.props.style);
     expect(badge).toMatchObject({ backgroundColor: colors.danger, borderWidth: 2, borderColor: colors.ground, paddingHorizontal: 5 });
-    expect(badge.minWidth - 2 * badge.borderWidth).toBe(18);
-    expect(badge.height - 2 * badge.borderWidth).toBe(18);
+    // Large text (UX §9): at least 20 × 20 inside the ring, no fixed height.
+    expect(badge.minWidth - 2 * badge.borderWidth).toBe(20);
+    expect(badge.minHeight - 2 * badge.borderWidth).toBe(20);
+    expect(badge.height).toBeUndefined();
+  });
+
+  it('large text: the badge sits 4 outside the button\'s top-right corner and its count scales at most 1.2×', () => {
+    act(() => useNotificationStore.setState({ unreadCount: 3 }));
+    const tree = render();
+    const text = tree.root.findByType(Text);
+    expect(text.props.maxFontSizeMultiplier).toBe(1.2);
+    expect(StyleSheet.flatten(text.parent.props.style)).toMatchObject({ position: 'absolute', top: -4, right: -4 });
+  });
+
+  it('the label carries the unread count (web parity)', () => {
+    act(() => useNotificationStore.setState({ unreadCount: 2 }));
+    expect(pressableOf(render()).props.accessibilityLabel).toBe('Notifications, 2 unread');
+    expect(bellLabel(0)).toBe('Notifications');
+    expect(bellLabel(120)).toBe('Notifications, 120 unread');
   });
 
   it('caps the count at 99+', () => {

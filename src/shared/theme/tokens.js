@@ -415,6 +415,20 @@ function step(fontSize, lineHeight, weight, trackingEm = 0) {
 }
 
 // §2 scale. Every changing number also sets fontVariant ['tabular-nums'].
+// UX §9 large text: the most each text role scales (maxFontSizeMultiplier),
+// and the text scale above which layouts reflow (tab bar → icons only).
+export const textScale = Object.freeze({
+  display: 1.3,
+  title: 1.6,
+  body: 2.0,
+  tabLabel: 1.2,
+  badge: 1.2,
+  pill: 1.6,
+  timer: 1.2,
+  iconsOnlyAbove: 1.3,
+  reflowAbove: 1.3,
+});
+
 export const typography = Object.freeze({
   displayTimer: step(92, 92, 700, -0.06),
   displayXl: step(56, 58, 700, -0.05),

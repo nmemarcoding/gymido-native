@@ -52,6 +52,16 @@ describe('AppHeader v2 look (§7.4)', () => {
     expect(titleStyle(tree).fontWeight).toBeUndefined();
   });
 
+  it('large text (UX §9): the title scales at most 1.3×, wraps by word to 3 lines and shrinks (≥ 0.7×) rather than breaking a word', () => {
+    expect(title(render({ path: '/plans' })).props).toMatchObject({
+      maxFontSizeMultiplier: 1.3,
+      numberOfLines: 3,
+      adjustsFontSizeToFit: true,
+      minimumFontScale: 0.7,
+      textBreakStrategy: 'simple',
+    });
+  });
+
   it('tablet: the title in display-lg (52/52, UX)', () => {
     expect(titleStyle(render({ path: '/plans' }, 1024))).toMatchObject({ fontSize: 52, lineHeight: 52, fontFamily: 'Geist-Bold' });
   });
