@@ -108,6 +108,36 @@ describe('drafts (§20.2–§20.3)', () => {
     expect(seedDrafts(done, { 50: { value: 40, unit: 'kg' } }, {})[31]).toEqual({ actualWeightValue: '', actualWeightUnit: 'kg' });
   });
 
+  // Final audit (27 Oct, PM priority): a BODYWEIGHT set ("Bodyweight Squat",
+  // target weight 0) was seeded "0" (`??` keeps 0), so "Did it" said "Weight
+  // must be greater than 0." and the set could not be logged. Weight is
+  // optional on every set (T-16): a 0 or non-positive seed means no weight.
+  it('a 0 / non-positive target, saved or last weight seeds NO weight, so a bodyweight set logs', () => {
+    const bodyweight = {
+      exercises: [
+        { id: 1, exercise: { id: 60 }, sets: [set(41, { target_weight_value: 0 }), set(42, { actual_weight_value: 0, target_weight_value: 20 }), set(43, { target_weight_value: -5 })] },
+        { id: 2, exercise: { id: 61 }, sets: [set(51)] },
+      ],
+    };
+    const drafts = seedDrafts(bodyweight, { 61: { value: 0, unit: 'kg' } }, {});
+    [41, 43, 51].forEach((id) => {
+      expect(drafts[id].actualWeightValue).toBe('');
+      expect(validateDraftWeight(drafts[id].actualWeightValue)).toBeNull();
+    });
+    // A non-positive value counts as missing at each step of §20.2's chain.
+    expect(drafts[42].actualWeightValue).toBe(20);
+    // API decimals may come as strings: "0.00" is no weight, "50.00" seeds as sent.
+    const strings = seedDrafts({ exercises: [{ id: 4, exercise: { id: 63 }, sets: [set(71, { target_weight_value: '0.00' }), set(72, { target_weight_value: '50.00' })] }] }, {}, {});
+    expect(strings[71].actualWeightValue).toBe('');
+    expect(strings[72].actualWeightValue).toBe('50.00');
+    // A real target still seeds.
+    expect(seedDrafts({ exercises: [{ id: 3, exercise: { id: 62 }, sets: [set(61, { target_weight_value: 12.5 })] }] }, {}, {})[61].actualWeightValue).toBe(12.5);
+  });
+
+  it('a typed 0 is still refused (§21.1: a typed weight must be > 0)', () => {
+    expect(validateDraftWeight('0')).toBe('Weight must be greater than 0.');
+  });
+
   it('writes an edit to the set and every later set of the exercise (⚠W19)', () => {
     const exercise = session.exercises[1];
     const next = propagateDraft({ 21: { actualWeightValue: 1 }, 22: { actualWeightValue: 2 } }, exercise, 21, 'actualWeightValue', '60');

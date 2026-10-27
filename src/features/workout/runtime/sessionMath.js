@@ -119,6 +119,18 @@ export function nextSetKeyAfter(ordered, justDoneId) {
 // §20.2: seed drafts, never overwriting one that exists. Cleared entirely
 // when the session has no exercises. A completed set shows only what was
 // saved, which may be no weight (T-16, 25 Oct 2026).
+// Final audit (27 Oct): a 0 / non-positive weight is no weight (a bodyweight
+// set's target 0 seeded "0", which "Did it" refused); it counts as missing
+// at each step of §20.2's chain.
+// Numbers or API decimal strings ("50.00"); the value is kept as sent.
+const weightOrNull = (value) => {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  const number = parseWeight(value);
+  return Number.isFinite(number) && number > 0 ? value : null;
+};
+
 export function seedDrafts(session, statsMap, previous) {
   const exercises = session?.exercises ?? [];
   if (exercises.length === 0) {
@@ -130,8 +142,8 @@ export function seedDrafts(session, statsMap, previous) {
     for (const set of exercise.sets ?? []) {
       next[set.id] = next[set.id] || {
         actualWeightValue: set.is_completed
-          ? set.actual_weight_value ?? ''
-          : set.actual_weight_value ?? set.target_weight_value ?? stats?.value ?? '',
+          ? weightOrNull(set.actual_weight_value) ?? ''
+          : weightOrNull(set.actual_weight_value) ?? weightOrNull(set.target_weight_value) ?? weightOrNull(stats?.value) ?? '',
         actualWeightUnit: set.actual_weight_unit || set.target_weight_unit || stats?.unit || 'lb',
       };
     }
