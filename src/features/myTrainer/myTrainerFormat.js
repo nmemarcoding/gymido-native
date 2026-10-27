@@ -52,3 +52,12 @@ export function acceptErrorMessage(status, serverMessage) {
   }
   return 'We could not accept that request. Please try again.';
 }
+
+// The status pill: the code's status in sentence case ("pending" → "Pending");
+// Active = teal (UX ruling), Pending = warning, anything else neutral.
+export function statusPill(status) {
+  const key = String(status ?? '').trim().toLowerCase();
+  const label = key ? `${key[0].toUpperCase()}${key.slice(1)}` : '';
+  const tone = key === 'active' ? 'active' : key === 'pending' ? 'warning' : 'neutral';
+  return { label, tone };
+}

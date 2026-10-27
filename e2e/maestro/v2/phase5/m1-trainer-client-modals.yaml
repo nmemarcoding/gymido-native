@@ -1,0 +1,75 @@
+# v2 Phase 5 M (p5l): trainer pop-ups. Clients → Invite a client (type a
+# non-email, Done) → the first client → weight history (Close) → the first
+# session's workout detail (Close). TRAINER QA account, starts signed in on the
+# trainer tab root. Read-only: nobody is invited. IDs only.
+appId: com.gymido.app
+---
+- extendedWaitUntil:
+    visible:
+      id: "tab-TClients"
+    timeout: 60000
+- tapOn:
+    id: "tab-TClients"
+- extendedWaitUntil:
+    visible:
+      id: "clients-invite"
+    timeout: 30000
+- tapOn:
+    id: "clients-invite"
+- extendedWaitUntil:
+    visible:
+      id: "invite-client-modal"
+    timeout: 10000
+- tapOn:
+    id: "invite-search"
+- inputText: "not-an-email"
+- assertNotVisible:
+    id: "invite-results"
+- tapOn:
+    id: "invite-done"
+- extendedWaitUntil:
+    notVisible:
+      id: "invite-client-modal"
+    timeout: 10000
+- runFlow:
+    when:
+      visible:
+        id: "clients-row-.*"
+    commands:
+      - tapOn:
+          id: "clients-row-.*"
+          index: 0
+      - extendedWaitUntil:
+          visible:
+            id: "client-current-weight"
+          timeout: 30000
+      - tapOn:
+          id: "client-current-weight"
+      - extendedWaitUntil:
+          visible:
+            id: "weight-history-modal"
+          timeout: 10000
+      - tapOn:
+          id: "weight-history-close"
+      - extendedWaitUntil:
+          notVisible:
+            id: "weight-history-modal"
+          timeout: 10000
+      - runFlow:
+          when:
+            visible:
+              id: "client-session-.*"
+          commands:
+            - tapOn:
+                id: "client-session-.*"
+                index: 0
+            - extendedWaitUntil:
+                visible:
+                  id: "workout-detail-modal"
+                timeout: 10000
+            - tapOn:
+                id: "workout-detail-close"
+            - extendedWaitUntil:
+                notVisible:
+                  id: "workout-detail-modal"
+                timeout: 10000

@@ -154,7 +154,7 @@ describe('C1a exact-email invite (§C3.3 T-32 M1)', () => {
     expect(searchMembers).toHaveBeenCalledTimes(1);
   });
 
-  it('while a request runs: 18px in-field spinner (border ring, brand-700 arc), right padding 44, hidden "Searching…" status, no centred Loader', async () => {
+  it('while a request runs: 18px in-field spinner (hairline-button ring, gold arc; declared p5l), right padding 44, hidden "Searching…" status, no centred Loader', async () => {
     const pending = deferred();
     searchMembers.mockReturnValue(pending.promise);
     const tree = render();
@@ -163,7 +163,7 @@ describe('C1a exact-email invite (§C3.3 T-32 M1)', () => {
     await settle(300);
 
     const spinner = tree.root.findByType(Spinner);
-    expect(spinner.props).toEqual(expect.objectContaining({ size: 18, thickness: 2, color: colors.brand700, track: colors.border }));
+    expect(spinner.props).toEqual(expect.objectContaining({ size: 18, thickness: 2, color: colors.gold, track: colors.hairlineButton }));
     const trailing = StyleSheet.flatten(spinner.parent.parent.props.style);
     expect(trailing).toEqual(expect.objectContaining({ position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' }));
     expect(StyleSheet.flatten(field(tree).props.style).paddingRight).toBe(44);

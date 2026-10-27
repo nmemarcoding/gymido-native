@@ -1,28 +1,45 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
+import { CardHeroFill } from '../../shared/components/Card';
 import EmptyState from '../../shared/components/EmptyState';
+import GradientFill from '../../shared/components/GradientFill';
+import { CAP_BODY, useLargeTextReflow } from '../../shared/components/largeText';
 import Loader from '../../shared/components/Loader';
+import PillButton from '../../shared/components/PillButton';
 import StateSlot from '../../shared/components/StateSlot';
-import { breakpoints, colors, radii, shadows } from '../../shared/theme/tokens';
+import { parseTimestamp } from '../../shared/time/timestamps';
+import { breakpoints, colors, font, gradients, radii, spacing, textScale } from '../../shared/theme/tokens';
 import ShellPage from '../shell/ShellPage';
 import NotificationItem from './NotificationItem';
 import { useNotificationStore } from './notificationStore';
 import {
   EMPTY_MESSAGE,
   EMPTY_TITLE,
+  groupByLocalDay,
   loadMoreLabel,
   pageBodyState,
   showsLoadMore,
-  unreadSubtitle,
+  unreadBadge,
 } from './notificationsPageFormat';
+
+export const NOTIFICATIONS_COLUMN_MAX = 660;
+// UX L §Tablet: the gold page glow (0.18 = the gold-ambient ladder step).
+export const NOTIFICATIONS_GLOW_TABLET = Object.freeze({
+  radial: { cx: 0.85, cy: -0.08, rx: 0.7, ry: 0.4 },
+  colors: gradients.goldAmbient.colors,
+  stops: [0, 0.6],
+});
 
 // N1 (RN-SPEC-notifications). Reads the shared store, which is never reset
 // here; every focus refetches page 1, replacing the list (⚠N-2). Errors stay
 // in the store's `error`, which nothing shows (⚠N-1). No pull-to-refresh.
+// The shell title "Notifications" is the page's one h1 (no second title).
 export default function NotificationsScreen() {
   const fetchNotifications = useNotificationStore((state) => state.fetchNotifications);
+  const tablet = useWindowDimensions().width >= breakpoints.md;
 
   useFocusEffect(
     useCallback(() => {
@@ -31,38 +48,64 @@ export default function NotificationsScreen() {
   );
 
   return (
-    <ShellPage testID="notifications-screen">
+    <ShellPage testID="notifications-screen" glow={tablet ? NOTIFICATIONS_GLOW_TABLET : false}>
       <View style={styles.column}>
-        <NotificationsPage />
+        <NotificationsPage tablet={tablet} />
       </View>
     </ShellPage>
   );
 }
 
-function NotificationsPage() {
-  const { width } = useWindowDimensions();
-  const tablet = width >= breakpoints.md;
+// N1.2 "You have {n} unread notification(s)." with the count in gold 700;
+// a polite live region so a change is announced.
+function UnreadLine({ count, tablet }) {
+  const noun = `unread notification${count === 1 ? '' : 's'}.`;
+  return (
+    <Text {...CAP_BODY} testID="notifications-unread" accessibilityLiveRegion="polite" style={[styles.line, tablet && styles.lineTablet]}>
+      You have <Text style={styles.count}>{count}</Text> {noun}
+    </Text>
+  );
+}
+
+function MarkAll({ onPress, tablet }) {
+  return (
+    <PillButton
+      testID="notifications-mark-all"
+      title="Mark all as read"
+      variant="secondary"
+      size="compact"
+      style={tablet ? styles.markAllTablet : styles.markAll}
+      onPress={onPress}
+    />
+  );
+}
+
+function NotificationsPage({ tablet }) {
   const { notifications, unreadCount, isLoading, hasMore, loadMore, markAllNotificationsAsRead } = useNotificationStore();
+  const reflow = useLargeTextReflow();
   const body = pageBodyState({ isLoading, notifications });
+  const markAll = unreadCount > 0 ? <MarkAll tablet={tablet} onPress={markAllNotificationsAsRead} /> : null;
 
   return (
-    <View style={styles.page}>
-      {/* Batch A A5: the eyebrow and title are gone; one wrapping row. */}
-      <View style={styles.header}>
-        <Text testID="notifications-unread" style={styles.subtitle}>
-          {unreadSubtitle(unreadCount)}
-        </Text>
-        {unreadCount > 0 ? (
-          <Pressable
-            testID="notifications-mark-all"
-            accessibilityRole="button"
-            onPress={markAllNotificationsAsRead}
-            style={({ pressed }) => [styles.markAll, pressed && styles.pressed]}
-          >
-            <Text style={styles.buttonText}>Mark all as read</Text>
-          </Pressable>
-        ) : null}
-      </View>
+    <View style={[styles.page, tablet && styles.pageTablet]}>
+      {tablet ? (
+        <View testID="notifications-hero" style={[styles.hero, reflow && styles.heroStacked]}>
+          <CardHeroFill />
+          <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.heroGlow}>
+            <GradientFill radial={gradients.heroGlow.radial} colors={gradients.heroGlow.colors} stops={gradients.heroGlow.stops} />
+          </View>
+          <BellTile count={unreadCount} />
+          <View style={styles.heroText}>
+            <UnreadLine count={unreadCount} tablet />
+          </View>
+          {markAll}
+        </View>
+      ) : (
+        <View style={styles.header}>
+          <UnreadLine count={unreadCount} />
+          {markAll}
+        </View>
+      )}
 
       {/* §D1: whole-page states sit in the 640 column under the header. */}
       {body === 'loading' ? (
@@ -75,13 +118,28 @@ function NotificationsPage() {
           <EmptyState title={EMPTY_TITLE} message={EMPTY_MESSAGE} />
         </StateSlot>
       ) : null}
-      {body === 'list' ? (
-        // ⚠N-5: a 1px divider above every row after the first, plus each
-        // row's own bottom border → 2px lines.
-        <View testID="notifications-list" style={styles.listCard}>
-          {notifications.map((item, index) => (
-            <View key={item.id} style={index > 0 && styles.divider}>
-              <NotificationItem item={item} tablet={tablet} />
+      {body === 'list' && tablet ? (
+        // Tablet: one card per row, no day headings (ND2 is phone only).
+        <View testID="notifications-list" style={styles.cards}>
+          {notifications.map((item) => (
+            <NotificationItem key={item.id} item={item} tablet />
+          ))}
+        </View>
+      ) : null}
+      {body === 'list' && !tablet ? (
+        <View testID="notifications-list" style={styles.groups}>
+          {groupByLocalDay(notifications, new Date(), parseTimestamp).map((group) => (
+            <View key={group.key} testID={`notifications-group-${group.key}`} style={styles.group}>
+              <Text {...CAP_BODY} accessibilityRole="header" style={styles.groupLabel}>
+                {group.label}
+              </Text>
+              <View style={styles.listCard}>
+                {group.items.map((item, index) => (
+                  <View key={item.id} style={index > 0 && styles.divider}>
+                    <NotificationItem item={item} />
+                  </View>
+                ))}
+              </View>
             </View>
           ))}
         </View>
@@ -89,95 +147,190 @@ function NotificationsPage() {
 
       {showsLoadMore({ hasMore, notifications }) ? (
         <View style={styles.moreRow}>
-          <Pressable
+          <PillButton
             testID="notifications-load-more"
-            accessibilityRole="button"
-            accessibilityState={{ disabled: isLoading }}
+            title={loadMoreLabel(isLoading)}
+            variant="secondary"
             disabled={isLoading}
+            fullWidth={!tablet}
+            style={tablet && styles.moreTablet}
             onPress={loadMore}
-            style={({ pressed }) => [styles.more, pressed && styles.pressed, isLoading && styles.disabled]}
-          >
-            <Text style={styles.buttonText}>{loadMoreLabel(isLoading)}</Text>
-          </Pressable>
+          />
         </View>
       ) : null}
     </View>
   );
 }
 
+// The tablet hero's gold bell tile with the unread badge ("99+" cap; hidden
+// at 0; hidden from AT: the unread line announces the count).
+function BellTile({ count }) {
+  const badge = unreadBadge(count);
+  return (
+    <View testID="notifications-bell-tile" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.bellTile}>
+      <View style={styles.bellFill}>
+        <GradientFill angle={gradients.goldAvatar.angle} colors={gradients.goldAvatar.colors} />
+        <Svg width={40} height={40} viewBox="0 0 32 32" fill="none">
+          <Path
+            d="M16 5a7 7 0 0 0-7 7v4l-2 3h18l-2-3v-4a7 7 0 0 0-7-7zM13 26a3 3 0 0 0 6 0"
+            stroke={colors.onGold}
+            strokeWidth={2.4}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </Svg>
+      </View>
+      {badge ? (
+        <View testID="notifications-badge" style={styles.badge}>
+          <Text maxFontSizeMultiplier={textScale.badge} style={styles.badgeText}>
+            {badge}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+const BELL_TILE = 96;
+
 const styles = StyleSheet.create({
   column: {
     width: '100%',
-    maxWidth: 672,
+    maxWidth: NOTIFICATIONS_COLUMN_MAX,
     alignSelf: 'center',
   },
   page: {
-    gap: 20,
-    paddingBottom: 24,
+    gap: spacing['3_5'],
+    paddingBottom: spacing[6],
+  },
+  pageTablet: {
+    gap: spacing[4],
   },
   header: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: spacing[3],
   },
-  subtitle: {
+  line: {
+    ...font(400),
     flexShrink: 1,
     fontSize: 14,
     lineHeight: 20,
     color: colors.textSecondary,
   },
+  lineTablet: {
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  count: {
+    ...font(700),
+    color: colors.gold,
+  },
   markAll: {
     flexShrink: 0,
-    minHeight: 44,
-    justifyContent: 'center',
-    borderRadius: radii.md,
+  },
+  markAllTablet: {
+    flexShrink: 0,
+    alignSelf: 'center',
+  },
+  hero: {
+    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing['5_5'],
+    borderRadius: radii.xxxl,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    borderColor: colors.choiceBorder,
+    padding: 26,
   },
-  buttonText: {
-    fontSize: 14,
+  // UX §9 reflow: past 1.3× the hero stacks (the action drops below).
+  heroStacked: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+  heroGlow: {
+    position: 'absolute',
+    top: -130,
+    right: -130,
+    width: 260,
+    height: 260,
+  },
+  heroText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  bellTile: {
+    width: BELL_TILE,
+    height: BELL_TILE,
+  },
+  // The drawn radius 30 has no token: folded to radii.xxl 28 (reported).
+  bellFill: {
+    flex: 1,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.xxl,
+  },
+  badge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    minWidth: 34,
+    minHeight: 34,
+    paddingHorizontal: spacing['1_5'],
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.full,
+    borderWidth: 2,
+    borderColor: colors.gold,
+    backgroundColor: colors.ground,
+  },
+  badgeText: {
+    ...font(700),
+    fontSize: 15,
     lineHeight: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  pressed: {
-    backgroundColor: colors.surfaceMuted,
+    fontVariant: ['tabular-nums'],
+    color: colors.gold,
   },
   loader: {
     alignSelf: 'center',
     paddingVertical: 48,
   },
-  listCard: {
-    borderRadius: radii.xxl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    boxShadow: shadows.soft,
-    overflow: 'hidden',
+  groups: {
+    gap: spacing['3_5'],
   },
+  group: {
+    gap: spacing[2],
+  },
+  groupLabel: {
+    ...font(600),
+    marginTop: spacing[2],
+    paddingHorizontal: spacing[1],
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textMuted,
+  },
+  listCard: {
+    overflow: 'hidden',
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: colors.surface,
+  },
+  // The drawn 0.06 divider folds to the hairline step (0.07).
   divider: {
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.hairline,
+  },
+  cards: {
+    gap: spacing['2_5'],
   },
   moreRow: {
     alignItems: 'center',
   },
-  more: {
-    minHeight: 44,
-    justifyContent: 'center',
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  disabled: {
-    opacity: 0.6,
+  moreTablet: {
+    paddingHorizontal: spacing[7],
   },
 });
