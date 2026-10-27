@@ -56,16 +56,11 @@ const NO_AUTOFILL = { autoComplete: 'off', textContentType: 'none', importantFor
 // UX ruling: the caret and the selection are gold.
 const GOLD_CARET = { selectionColor: colors.gold, cursorColor: colors.gold };
 const HEIGHT_HELPER = 'Feet and inches are shown first. Switch to cm or inches if that is how you measure height.';
-// C2: every placeholder text in one map (the web's exact texts drop in here).
+// C2 (FE facts): like web, only the single Height field has a placeholder
+// (web HeightField.jsx:184); names, Feet / Inches and weights have none.
 export const PROFILE_PLACEHOLDERS = Object.freeze({
-  first_name: 'John',
-  last_name: 'Doe',
-  height_feet: '5',
-  height_inches: '9',
   height_cm: '180',
   height_in: '71',
-  current_weight_value: '82.5',
-  goal_weight_value: '78',
 });
 // Phone CTA bar (ND2): padding 16 20 30 above the safe area.
 const BAR_BOTTOM = 30;
@@ -294,8 +289,8 @@ export default function CreateProfileScreen() {
     input(key, tablet ? props : { ...props, style: shown(key) === '' ? styles.bigInputEmpty : styles.bigInput });
 
   const ftIn = form.height_unit === 'ft_in';
-  const firstName = input('first_name', { label: 'First Name', placeholder: PROFILE_PLACEHOLDERS.first_name });
-  const lastName = input('last_name', { label: 'Last Name', placeholder: PROFILE_PLACEHOLDERS.last_name });
+  const firstName = input('first_name', { label: 'First Name' });
+  const lastName = input('last_name', { label: 'Last Name' });
   const heightSwitch = (
     <FieldFrame label="Height unit" helperText={HEIGHT_HELPER} error={fieldErrors.height_unit} labelStyle={LABEL}>
       {lock(
@@ -320,7 +315,6 @@ export default function CreateProfileScreen() {
       <View style={cell}>
         {number('height_feet', {
           label: 'Feet',
-          placeholder: PROFILE_PLACEHOLDERS.height_feet,
           unit: 'ft',
           helperText: 'Whole feet only.',
           error: fieldErrors.height_value ?? fieldErrors.height_feet,
@@ -329,7 +323,6 @@ export default function CreateProfileScreen() {
       <View style={cell}>
         {number('height_inches', {
           label: 'Inches',
-          placeholder: PROFILE_PLACEHOLDERS.height_inches,
           unit: 'in',
           helperText: 'Use 0 to 11 inches. Leave blank if there are no extra inches.',
         })}
@@ -367,11 +360,10 @@ export default function CreateProfileScreen() {
   const weightHelper = `In ${form.weight_unit}.`;
   const currentWeight = number('current_weight_value', {
     label: 'Current Weight',
-    placeholder: PROFILE_PLACEHOLDERS.current_weight_value,
     unit: form.weight_unit,
     helperText: weightHelper,
   });
-  const goalWeight = number('goal_weight_value', { label: 'Goal Weight', placeholder: PROFILE_PLACEHOLDERS.goal_weight_value, unit: form.weight_unit, helperText: weightHelper });
+  const goalWeight = number('goal_weight_value', { label: 'Goal Weight', unit: form.weight_unit, helperText: weightHelper });
   // ⚠P4 narrowed 27 Oct 2026: date_of_birth and sex server errors show under
   // their fields (the unit errors still have none: the banner + focus only).
   const dateOfBirth = (

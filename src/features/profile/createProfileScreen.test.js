@@ -299,18 +299,16 @@ describe('C2 placeholders never wear the value style', () => {
     expect(flat(textInput(tablet.root, 'profile-height_feet').props.style).fontSize).toBe(typography.bodyLg.fontSize);
   });
 
-  it('the placeholder texts come from one map (PROFILE_PLACEHOLDERS)', () => {
+  it('only the single Height field has a placeholder, as on web (180 cm / 71 in)', () => {
     const tree = render();
-    expect(textInput(tree.root, 'profile-first_name').props.placeholder).toBe(PROFILE_PLACEHOLDERS.first_name);
-    expect(textInput(tree.root, 'profile-last_name').props.placeholder).toBe(PROFILE_PLACEHOLDERS.last_name);
-    expect(textInput(tree.root, 'profile-height_feet').props.placeholder).toBe(PROFILE_PLACEHOLDERS.height_feet);
-    expect(textInput(tree.root, 'profile-height_inches').props.placeholder).toBe(PROFILE_PLACEHOLDERS.height_inches);
-    expect(textInput(tree.root, 'profile-current_weight_value').props.placeholder).toBe(PROFILE_PLACEHOLDERS.current_weight_value);
-    expect(textInput(tree.root, 'profile-goal_weight_value').props.placeholder).toBe(PROFILE_PLACEHOLDERS.goal_weight_value);
+    for (const id of ['first_name', 'last_name', 'height_feet', 'height_inches', 'current_weight_value', 'goal_weight_value']) {
+      expect(textInput(tree.root, `profile-${id}`).props.placeholder).toBeUndefined();
+    }
     press(tree, 'profile-height-unit-cm');
-    expect(textInput(tree.root, 'profile-height_value').props.placeholder).toBe(PROFILE_PLACEHOLDERS.height_cm);
+    expect(textInput(tree.root, 'profile-height_value').props.placeholder).toBe('180');
+    expect(PROFILE_PLACEHOLDERS.height_cm).toBe('180');
     press(tree, 'profile-height-unit-in');
-    expect(textInput(tree.root, 'profile-height_value').props.placeholder).toBe(PROFILE_PLACEHOLDERS.height_in);
+    expect(textInput(tree.root, 'profile-height_value').props.placeholder).toBe('71');
   });
 });
 
