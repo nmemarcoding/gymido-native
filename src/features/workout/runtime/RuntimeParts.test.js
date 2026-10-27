@@ -296,9 +296,11 @@ describe('DidItButton', () => {
     expect(button.props.accessibilityHint).toBe('Rest timer running — wait or skip it first');
     for (const tree of [saving, locked]) {
       const style = flat(byId(tree, 'set-action-12'));
-      expect(style).toMatchObject({ backgroundColor: colors.fillChip, borderWidth: 1, borderColor: colors.choiceBorder });
+      // DECLARED (kit batch, reviewer LOW): the disabled border has its own alias
+      // (was the borrowed colors.choiceBorder; same value).
+      expect(style).toMatchObject({ backgroundColor: colors.fillChip, borderWidth: 1, borderColor: colors.glassDisabledBorder });
       expect(colors.fillChip).toBe('rgba(255, 255, 255, 0.05)');
-      expect(colors.choiceBorder).toBe('rgba(255, 255, 255, 0.08)');
+      expect(colors.glassDisabledBorder).toBe('rgba(255, 255, 255, 0.08)');
       expect(style.opacity).toBeUndefined();
       expect(style.boxShadow).toBe('none');
       const label = tree.root.findAll((node) => node.type === 'Text')[0];

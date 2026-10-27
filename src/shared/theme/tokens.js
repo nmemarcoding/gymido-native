@@ -83,6 +83,11 @@ const V2_COLORS = {
   // v2 kit: card (UX §8.1): the failed-image tile's workout icon.
   failedTileIcon: '#C9D4E6',
   choiceBorder: 'rgba(255, 255, 255, 0.08)',
+  // Kit batch (P3 reviewer LOW): role aliases instead of borrowed tokens.
+  // A selected glass segment's fill (the P3-3 Body/Activity switch) and a
+  // disabled glass chip's border (the P3-2 disabled Did it).
+  glassSelectedFill: 'rgba(255, 255, 255, 0.12)',
+  glassDisabledBorder: 'rgba(255, 255, 255, 0.08)',
   // UX tokens-and-components §8.3 + §8.4 (26 Oct 2026): the canvas values
   // that had no token. Build exactly these; other canvas values fold into
   // existing tokens per the §8.4 fold map.

@@ -381,8 +381,10 @@ describe('Progress phone (UX G)', () => {
   it('switch: GLASS selected segment (white 0.12 + primary 600), 44 tall; Body on mount (P3-3)', async () => {
     const tree = await render();
     expect(host(tree.root, 'progress-tab-body').props.accessibilityState).toEqual({ selected: true });
-    expect(flat(host(tree.root, 'progress-tab-body'))).toMatchObject({ backgroundColor: colors.hairlineButton, minHeight: 44 });
-    expect(colors.hairlineButton).toBe('rgba(255, 255, 255, 0.12)');
+    // DECLARED (kit batch, reviewer LOW): the selected fill has its own alias
+    // (was the borrowed border token colors.hairlineButton; same value).
+    expect(flat(host(tree.root, 'progress-tab-body'))).toMatchObject({ backgroundColor: colors.glassSelectedFill, minHeight: 44 });
+    expect(colors.glassSelectedFill).toBe('rgba(255, 255, 255, 0.12)');
     expect(flat(host(tree.root, 'progress-tab-body')).backgroundColor).not.toBe(colors.gold);
     const label = (id) => flat(host(tree.root, id).findAll((node) => node.type === 'Text')[0]);
     expect(label('progress-tab-body')).toMatchObject({ color: colors.textPrimary, fontFamily: 'Geist-SemiBold' });
@@ -404,7 +406,7 @@ describe('Progress phone (UX G)', () => {
     const tree = await render();
     press(tree.root, 'progress-tab-activity');
     expect(host(tree.root, 'progress-tab-activity').props.accessibilityState).toEqual({ selected: true });
-    expect(flat(host(tree.root, 'progress-tab-activity')).backgroundColor).toBe(colors.hairlineButton);
+    expect(flat(host(tree.root, 'progress-tab-activity')).backgroundColor).toBe(colors.glassSelectedFill);
     expect(flat(host(tree.root, 'progress-tab-body')).backgroundColor).toBeUndefined();
   });
 });

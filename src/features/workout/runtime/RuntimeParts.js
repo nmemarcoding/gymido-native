@@ -1497,7 +1497,7 @@ const styles = StyleSheet.create({
   },
   didItDisabled: {
     borderWidth: 1,
-    borderColor: colors.choiceBorder,
+    borderColor: colors.glassDisabledBorder,
     backgroundColor: colors.fillChip,
     boxShadow: 'none',
   },

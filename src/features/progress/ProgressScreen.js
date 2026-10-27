@@ -798,10 +798,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
     paddingHorizontal: 12,
   },
-  // P3-3: glass selected (white 0.12 = the hairlineButton value; no 0.12
-  // fill token exists, value exact).
+  // P3-3: glass selected (white 0.12).
   segmentActive: {
-    backgroundColor: colors.hairlineButton,
+    backgroundColor: colors.glassSelectedFill,
   },
   segmentOverlay: {
     borderRadius: radii.full,
@@ -903,7 +902,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
   },
   rangeActive: {
-    backgroundColor: colors.hairlineButton,
+    backgroundColor: colors.glassSelectedFill,
   },
   rangeText: {
     ...font(500),
