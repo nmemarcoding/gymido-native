@@ -43,13 +43,13 @@ export function RouteErrorFallback({ onReload }) {
   return (
     <SafeAreaView testID="route-error" style={styles.screen}>
       <View style={styles.region}>
-        <View accessibilityLiveRegion="polite">
-          <EmptyState
-            icon="error"
-            title="Something went wrong"
-            message="We hit a problem rendering this page. Reload the app to try again."
-          />
-        </View>
+        {/* One live region: the EmptyState's own (no nested region). */}
+        <EmptyState
+          live
+          icon="error"
+          title="Something went wrong"
+          message="We hit a problem rendering this page. Reload the app to try again."
+        />
         <View style={styles.action}>
           <PillButton testID="route-error-reload" title="Reload app" variant="secondary" onPress={onReload} />
         </View>

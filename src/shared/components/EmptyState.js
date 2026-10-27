@@ -20,11 +20,14 @@ export default function EmptyState({
   onAction,
   actionTestID,
   icon = 'empty',
+  // Opt-in polite live region (review, 26 Oct): most empty states render with
+  // the page and must not be re-announced; a state that appears later can.
+  live = false,
   style,
 }) {
   const error = icon === 'error';
   return (
-    <View accessibilityLiveRegion="polite" style={[styles.card, style]}>
+    <View accessibilityLiveRegion={live ? 'polite' : undefined} style={[styles.card, style]}>
       <View testID={error ? 'empty-state-error-icon' : 'empty-state-icon'} style={[styles.tile, error && styles.errorDisc]}>
         <FeedbackIcon name={error ? 'error' : 'empty'} size={20} color={error ? colors.dangerText : colors.textSecondary} />
       </View>

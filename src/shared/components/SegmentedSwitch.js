@@ -8,8 +8,9 @@ import { colors, font, layout, radii, spacing } from '../theme/tokens';
 // fill + on-light 600; unselected = transparent + text-secondary 500. Each
 // segment keeps a 44 hit area (hitSlop).
 //
-// `segments`: [{ value, label, testID? }]. `segmentWidth` fixes each
-// segment's width (the mode switch draws 120). Segment roles stay with the
+// `segments`: [{ value, label, testID? }]. `segmentWidth` is each segment's
+// MINIMUM width (the mode switch draws 120): at the largest Dynamic Type the
+// segment grows and its label may wrap, but is never cut off (review). Segment roles stay with the
 // caller (`segmentRole`, default "button" + selected).
 export default function SegmentedSwitch({
   segments,
@@ -39,11 +40,11 @@ export default function SegmentedSwitch({
             style={({ pressed }) => [
               styles.segment,
               { minHeight: height },
-              segmentWidth ? { width: segmentWidth } : styles.segmentFlex,
+              segmentWidth ? { minWidth: segmentWidth } : styles.segmentFlex,
               active ? styles.segmentOn : pressed && styles.segmentPressed,
             ]}
           >
-            <Text numberOfLines={1} style={[compact ? styles.labelCompact : styles.label, active ? styles.labelOn : styles.labelOff]}>
+            <Text style={[compact ? styles.labelCompact : styles.label, styles.labelCentered, active ? styles.labelOn : styles.labelOff]}>
               {segment.label}
             </Text>
           </Pressable>
@@ -54,6 +55,9 @@ export default function SegmentedSwitch({
 }
 
 const styles = StyleSheet.create({
+  labelCentered: {
+    textAlign: 'center',
+  },
   track: {
     flexDirection: 'row',
     alignItems: 'center',

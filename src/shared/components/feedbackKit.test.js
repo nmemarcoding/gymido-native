@@ -196,14 +196,20 @@ describe('EmptyState (§5)', () => {
     expect(tree.root.findByType(FeedbackIcon).props.name).toBe('empty');
   });
 
-  it('uses the screen’s copy, title 15/600 and message 13 muted, as a polite live region', () => {
+  it('uses the screen’s copy, title 15/600 and message 13 muted, with no live region by default (review)', () => {
     const tree = render(<EmptyState title="No exercises found" message="Try a different search term." />);
     expect(texts(tree)).toEqual(['No exercises found', 'Try a different search term.']);
     const [title, message] = tree.root.findAllByType(Text);
     expect(flat(title)).toMatchObject({ fontSize: 15, fontFamily: 'Geist-SemiBold', color: colors.textPrimary, textAlign: 'center' });
     expect(flat(message)).toMatchObject({ fontSize: 13, color: colors.textMuted });
-    const card = tree.root.find((node) => node.props.accessibilityLiveRegion === 'polite' && typeof node.type === 'string');
+    const card = title.parent.parent;
     expect(flat(card)).toMatchObject({ backgroundColor: colors.surface, borderColor: colors.hairline, borderRadius: radii.xl, alignItems: 'center' });
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion)).toHaveLength(0);
+  });
+
+  it('is a polite live region only when the screen opts in with `live`', () => {
+    const tree = render(<EmptyState live title="Nothing yet" message="Later." />);
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite')).toHaveLength(1);
   });
 
   it('hides the message when the screen passes null', () => {
@@ -495,5 +501,14 @@ describe('Toast (§5)', () => {
     mockReducedMotion = true;
     render(<InlineToast tone="info" title="A" />);
     expect(timing).not.toHaveBeenCalled();
+  });
+});
+
+describe('RouteErrorFallback live region (review, 26 Oct)', () => {
+  const { RouteErrorFallback } = require('./RouteErrorBoundary');
+
+  it('has exactly one polite live region (the EmptyState it opts in), none nested', () => {
+    const tree = render(<RouteErrorFallback onReload={jest.fn()} />);
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite')).toHaveLength(1);
   });
 });

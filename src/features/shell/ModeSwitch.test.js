@@ -40,13 +40,15 @@ describe('ModeSwitch', () => {
     expect(render(['member']).toJSON()).toBeNull();
   });
 
-  it('trainers: a "Workspace" group with Personal / Trainer, 120 wide, 40 tall segments, 44 hit area', () => {
+  it('trainers: a "Workspace" group with Personal / Trainer, at least 120 wide, 40 tall segments, 44 hit area', () => {
     const tree = render(['trainer']);
     expect(tree.root.findAll((node) => node.type === 'View' && node.props.accessibilityLabel === 'Workspace')).toHaveLength(1);
     expect(MODE_SEGMENT_WIDTH).toBe(120);
     ['member', 'trainer'].forEach((mode) => {
       const style = segStyle(tree, mode);
-      expect(style.width).toBe(120);
+      // Review: minWidth, so the largest Dynamic Type grows the segment.
+      expect(style.minWidth).toBe(120);
+      expect(style.width).toBeUndefined();
       expect(style.minHeight).toBe(40);
       const slop = segment(tree, mode).props.hitSlop;
       expect(slop.top + 40 + slop.bottom).toBe(44);

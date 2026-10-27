@@ -53,11 +53,12 @@ describe('SegmentedSwitch', () => {
     expect(segStyle(render(), 'unit-ft_in', true).backgroundColor).toBe(colors.fillButton);
   });
 
-  it('default size: segments 40 tall with a 44 hit area; segmentWidth fixes the width', () => {
+  it('default size: segments 40 tall with a 44 hit area; segmentWidth is a minimum width', () => {
     const tree = render({ segmentWidth: 120 });
     const style = segStyle(tree, 'unit-cm');
     expect(style.minHeight).toBe(40);
-    expect(style.width).toBe(120);
+    expect(style.minWidth).toBe(120);
+    expect(style.width).toBeUndefined();
     const slop = segment(tree, 'unit-cm').props.hitSlop;
     expect(slop.top + 40 + slop.bottom).toBe(44);
     expect(textStyle(tree, 'cm').fontSize).toBe(14);
@@ -78,5 +79,13 @@ describe('SegmentedSwitch', () => {
     const tree = render({ onChange });
     act(() => segment(tree, 'unit-ft_in').props.onPress());
     expect(onChange).toHaveBeenCalledWith('ft_in');
+  });
+
+  it('never cuts a label off at large Dynamic Type: no line cap, font scaling on, centred', () => {
+    const tree = render({ segmentWidth: 120 });
+    const label = tree.root.findAll((node) => node.type === Text && node.props.children === 'cm')[0];
+    expect(label.props.numberOfLines).toBeUndefined();
+    expect(label.props.allowFontScaling).not.toBe(false);
+    expect(textStyle(tree, 'cm').textAlign).toBe('center');
   });
 });

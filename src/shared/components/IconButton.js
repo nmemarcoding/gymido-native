@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { colors, layout, radii } from '../theme/tokens';
@@ -28,6 +29,12 @@ export default function IconButton({
   ref,
 }) {
   const color = active ? colors.onGold : colors.textPrimary;
+  // An icon-only control must be labelled (§3 icons): warn in development.
+  useEffect(() => {
+    if (__DEV__ && !accessibilityLabel) {
+      console.warn('IconButton: accessibilityLabel is required (an icon-only control needs a name).');
+    }
+  }, [accessibilityLabel]);
   return (
     <Pressable
       ref={ref}
@@ -35,7 +42,7 @@ export default function IconButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
-      accessibilityState={{ ...(disabled ? { disabled: true } : null), ...accessibilityState }}
+      accessibilityState={{ ...(active ? { selected: true } : null), ...(disabled ? { disabled: true } : null), ...accessibilityState }}
       disabled={disabled}
       hitSlop={hitSlop}
       onPress={onPress}

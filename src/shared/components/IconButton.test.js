@@ -109,3 +109,29 @@ describe('IconButton', () => {
     expect(ref.current).not.toBeNull();
   });
 });
+
+describe('IconButton accessibility (review, 26 Oct)', () => {
+  it('warns in development when it has no accessibilityLabel', () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    render(<IconButton onPress={jest.fn()}><Text>x</Text></IconButton>);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('accessibilityLabel is required'));
+    warn.mockRestore();
+  });
+
+  it('does not warn when labelled', () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    render(<IconButton accessibilityLabel="Notifications" onPress={jest.fn()}><Text>x</Text></IconButton>);
+    expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('accessibilityLabel is required'));
+    warn.mockRestore();
+  });
+
+  it('maps `active` to the selected state, keeping the caller’s state', () => {
+    const tree = render(<IconButton accessibilityLabel="Mode" active accessibilityState={{ expanded: true }} onPress={jest.fn()}><Text>x</Text></IconButton>);
+    expect(pressableOf(tree).props.accessibilityState).toEqual({ selected: true, expanded: true });
+  });
+
+  it('is not selected when inactive', () => {
+    const tree = render(<IconButton accessibilityLabel="Mode" onPress={jest.fn()}><Text>x</Text></IconButton>);
+    expect(pressableOf(tree).props.accessibilityState.selected).toBeUndefined();
+  });
+});
