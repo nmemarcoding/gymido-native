@@ -416,17 +416,12 @@ export function nextWorkout({ today, week, schedule, now = new Date() }) {
     return { when: 'Today', planDay: today.plan_day, gold: true };
   }
   if (action === 'already_completed') {
-    if (validWeek) {
-      if (firstUpcoming) {
-        return glass(firstUpcoming.weekdayId, firstUpcoming.item.plan_day);
-      }
-      // After the week's last training day: the schedule's first training
-      // day (Monday first); without one, the week's first training weekday.
-      const first = days[0] ?? weekItems.filter(({ item }) => item?.is_workout_day && item?.plan_day).map(({ item, weekdayId }) => ({ weekdayId, planDay: item.plan_day }))[0];
-      return first ? glass(first.weekdayId, first.planDay) : null;
+    // The first upcoming day in /week, else wrap to the schedule's FIRST
+    // training day (Monday first; also when /week is missing). Nothing → null.
+    if (firstUpcoming) {
+      return glass(firstUpcoming.weekdayId, firstUpcoming.item.plan_day);
     }
-    const next = nextScheduled(days);
-    return next ? glass(next.weekdayId, next.planDay) : null;
+    return days[0] ? glass(days[0].weekdayId, days[0].planDay) : null;
   }
   if (action === 'next_workout_day' && today.plan_day) {
     const id = today.plan_day.id;

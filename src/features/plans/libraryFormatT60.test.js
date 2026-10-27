@@ -142,11 +142,17 @@ describe('nextWorkout (§2a)', () => {
     expect(nextWorkout({ today: { action: 'next_workout_day', plan_day: todayDay }, week: null, schedule: repeated, now: sun }).when).toBe('Mon');
   });
 
-  it('already_completed with /week failed → the schedule’s next training weekday after today, else the first', () => {
+  it('already_completed with /week failed → the schedule’s FIRST training day, Monday first (not the next after today)', () => {
     const mon = new Date(2026, 9, 26, 9);
-    expect(nextWorkout({ today: { action: 'already_completed', plan_day: pd(11, 'Upper A') }, week: null, schedule: SCHEDULE, now: mon })).toEqual({ when: 'Thu', planDay: pd(12, 'Lower A'), gold: false });
-    const sat = new Date(2026, 9, 31, 9);
-    expect(nextWorkout({ today: { action: 'already_completed', plan_day: pd(13, 'Upper B') }, week: null, schedule: SCHEDULE, now: sat }).when).toBe('Mon');
+    expect(nextWorkout({ today: { action: 'already_completed', plan_day: pd(11, 'Upper A') }, week: null, schedule: [...SCHEDULE].reverse(), now: mon })).toEqual({ when: 'Mon', planDay: pd(11, 'Upper A'), gold: false });
+    const thu = new Date(2026, 9, 29, 9);
+    expect(nextWorkout({ today: { action: 'already_completed', plan_day: pd(12, 'Lower A') }, week: null, schedule: SCHEDULE, now: thu }).when).toBe('Mon');
+  });
+
+  it('already_completed, no upcoming in /week and no schedule day → null (nothing found; no /week-based fallback)', () => {
+    const done = week({ 4: { status: 'done' }, 6: { status: 'done' } });
+    expect(nextWorkout({ today: { action: 'already_completed', plan_day: pd(13, 'Upper B') }, week: done, schedule: [], now: THU })).toBeNull();
+    expect(nextWorkout({ today: { action: 'already_completed' }, week: null, schedule: [], now: THU })).toBeNull();
   });
 
   it('next_workout_day on Sunday with a valid /week (next week’s day) → the schedule wraps to Monday', () => {

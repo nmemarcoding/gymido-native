@@ -205,11 +205,14 @@ describe('Notifications (rows 8-9)', () => {
 });
 
 describe('Plans (rows 10-11)', () => {
-  it('loading: "Loading plans" in the column, 48 above and below', async () => {
+  // T-60 (UX X5): the phone loading state is the page-shaped skeleton.
+  it('loading: the "Loading plans" skeleton (busy), no Loader', async () => {
     listPlans.mockReturnValue(pending());
     getCurrentPlan.mockReturnValue(pending());
     const tree = await render(<PlansLibraryScreen />);
-    expectInSlot(tree, Loader, { label: 'Loading plans' }, { loader: true });
+    const skeleton = tree.root.findAll((node) => node.props.testID === 'plans-skeleton' && typeof node.type === 'string')[0];
+    expect(skeleton.props).toEqual(expect.objectContaining({ accessibilityLabel: 'Loading plans', accessibilityState: { busy: true } }));
+    expect(tree.root.findAllByType(Loader)).toHaveLength(0);
   });
 
   // v2 Phase 4 N2 (approved 27 Oct): the page error gains the one Retry style.

@@ -35,7 +35,7 @@ import { InlineError } from '../../../shared/components/FeedbackBox';
 import GradientFill from '../../../shared/components/GradientFill';
 import RemoteImage from '../../../shared/components/RemoteImage';
 import Loader from '../../../shared/components/Loader';
-import { colors, radii, textScale } from '../../../shared/theme/tokens';
+import { colors, radii, shadows, textScale } from '../../../shared/theme/tokens';
 import { listMyPlans } from '../../myPlans/api/myPlansApi';
 import { getGeneratorProfile } from '../../planGenerator/api/generatorApi';
 import { openShellPath } from '../../shell/shellLinks';
@@ -118,11 +118,27 @@ beforeEach(() => {
 });
 
 describe('Plans states', () => {
-  it('loading: "Loading plans" in the state column', async () => {
+  it('loading (phone, UX X5): the page-shaped skeleton, busy and labelled "Loading plans"; no Loader', async () => {
+    listPlans.mockReturnValue(pending());
+    const tree = await render();
+    expect(tree.root.findAllByType(Loader)).toHaveLength(0);
+    const skeleton = host(tree, 'plans-skeleton');
+    expect(skeleton.props).toEqual(expect.objectContaining({ accessibilityRole: 'progressbar', accessibilityLabel: 'Loading plans', accessibilityState: { busy: true } }));
+    expect(flat(host(tree, 'plans-skeleton-card'))).toEqual(expect.objectContaining({ borderRadius: radii.xxl, backgroundColor: colors.surface }));
+    expect(flat(host(tree, 'plans-skeleton-photo')).height).toBe(150);
+    expect(hosts(tree, 'plans-skeleton-circle')).toHaveLength(7);
+    expect(flat(host(tree, 'plans-skeleton-start')).height).toBe(54);
+    expect(hosts(tree, 'plans-skeleton-row')).toHaveLength(2);
+    expect(hosts(tree, 'plans-skeleton-plan')).toHaveLength(2);
+    expect(host(tree, 'plans-active-card')).toBeUndefined();
+  });
+
+  it('loading on tablet: the Loader, unchanged', async () => {
+    mockWindow = { width: 834, height: 1194, fontScale: 1 };
     listPlans.mockReturnValue(pending());
     const tree = await render();
     expect(tree.root.findByType(Loader).props.label).toBe('Loading plans');
-    expect(host(tree, 'plans-active-card')).toBeUndefined();
+    expect(host(tree, 'plans-skeleton')).toBeUndefined();
   });
 
   it('error (N2): "Plans unavailable" + the transport text + Retry, which re-runs the load', async () => {
@@ -169,10 +185,11 @@ describe('Plans states', () => {
 // Dated change (27 Oct 2026, owner T-60): the PHONE Plans page. "Today" is
 // Thursday 29 Oct 2026 (local); the /week fixture trains Mon + Thu.
 describe('T-60 phone: active plan card', () => {
-  it('surface card, gold 0.35 edge, radius 28, clipped; labelled "Your active plan"; the gold badge', async () => {
+  it('surface card, gold 0.35 edge, radius 28, clipped; the gold "Your active plan" badge (no label on the card View)', async () => {
     const tree = await render();
     const card = host(tree, 'plans-active-card');
-    expect(card.props.accessibilityLabel).toBe('Your active plan');
+    // No label on the non-accessible card View (dead on iOS); the visible badge text is read.
+    expect(card.props.accessibilityLabel).toBeUndefined();
     expect(flat(card)).toEqual(expect.objectContaining({ backgroundColor: colors.surface, borderColor: colors.goldBorder, borderWidth: 1, borderRadius: radii.xxl, overflow: 'hidden' }));
     expect(flat(host(tree, 'plans-active-badge'))).toEqual(expect.objectContaining({ backgroundColor: colors.gold, minHeight: 28, borderRadius: radii.full }));
     const badge = textNode(tree, 'Your active plan');
@@ -307,7 +324,7 @@ describe('T-60 phone: next workout + Start (§2a)', () => {
     expect(textOf(host(tree, 'plans-next-count'))).toBe(' · 5 exercises');
     const start = pressable(tree, 'plans-start');
     expect(start.props).toEqual(expect.objectContaining({ accessibilityRole: 'button', accessibilityLabel: 'Start Lower A' }));
-    expect(flat(start)).toEqual(expect.objectContaining({ minHeight: 54, backgroundColor: colors.gold, borderRadius: radii.full }));
+    expect(flat(start)).toEqual(expect.objectContaining({ minHeight: 54, backgroundColor: colors.gold, borderRadius: radii.full, boxShadow: shadows.goldGlow }));
     expect(texts(tree)).toContain('Start Lower A');
     await act(async () => start.props.onPress());
     expect(openShellPath).toHaveBeenCalledWith('/workout');
@@ -328,6 +345,7 @@ describe('T-60 phone: next workout + Start (§2a)', () => {
     expect(textOf(host(tree, 'plans-next-title'))).toBe('Upper B');
     expect(textOf(host(tree, 'plans-next-count'))).toBe(' · 1 exercise');
     expect(flat(pressable(tree, 'plans-start'))).toEqual(expect.objectContaining({ minHeight: 54, backgroundColor: colors.fillGlass, borderColor: colors.hairlineButton }));
+    expect(flat(pressable(tree, 'plans-start')).boxShadow).toBeUndefined();
     // Today keeps its ring + label.
     expect(textOf(host(tree, 'plans-week-label-4'))).toBe('Today');
   });
@@ -495,7 +513,36 @@ describe('T-60 phone: catalog', () => {
     const photo = tree.root.findAll((node) => node.type === ExerciseImage && node.props.testID === 'plans-card-photo-3')[0];
     expect(photo.props.url).toBeNull();
     expect(photo.props.muscleCode).toBeNull();
+    // The board's 28 px initials (ExerciseImage's shared default would be 30 at 84).
+    const initials = host(tree, 'plans-card-photo-3-initials').findAll((node) => node.type === 'Text')[0];
+    expect(textOf(initials)).toBe('FB');
+    expect(flat(initials)).toEqual(expect.objectContaining({ fontSize: 28 }));
     expect(host(tree, 'plans-card-description-3')).toBeUndefined();
+  });
+});
+
+describe('T-60 phone: pressed (§8.6 state rule)', () => {
+  it('gold Start: ink 4 % overlay; glass Start, See full plan, the own rows and a catalog card: the white 4 % overlay; rest colours kept', async () => {
+    let tree = await render();
+    const gold = pressableEl(tree, 'plans-start');
+    expect(overlayOf(gold, true).props).toEqual(expect.objectContaining({ pressed: true, ink: true }));
+    expect(overlayOf(gold, false).props.pressed).toBe(false);
+    expect(flat(gold).backgroundColor).toBe(colors.gold);
+    const see = pressableEl(tree, 'plans-see-full-plan');
+    expect(overlayOf(see, true).props).toEqual(expect.objectContaining({ pressed: true }));
+    expect(Boolean(overlayOf(see, true).props.ink)).toBe(false);
+    for (const id of ['generator-entry-start', 'my-plans-entry', 'plans-card-2']) {
+      const node = pressableEl(tree, id);
+      expect(overlayOf(node, true).props.pressed).toBe(true);
+      expect(Boolean(overlayOf(node, true).props.ink)).toBe(false);
+    }
+    expect(flat(pressableEl(tree, 'plans-card-2'), true).borderColor).toBe(colors.goldLine);
+    getCurrentToday.mockResolvedValue({ action: 'already_completed', plan_day: { id: 12, title: 'Lower A' } });
+    getCurrentWeek.mockResolvedValue(weekOf({ 4: { status: 'done' }, 6: { is_workout_day: true, plan_day: { id: 13, title: 'Upper B' }, status: 'upcoming' } }));
+    tree = await render();
+    const glass = pressableEl(tree, 'plans-start');
+    expect(Boolean(overlayOf(glass, true).props.ink)).toBe(false);
+    expect(flat(glass).backgroundColor).toBe(colors.fillGlass);
   });
 });
 

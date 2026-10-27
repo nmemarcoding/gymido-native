@@ -126,6 +126,9 @@ export default function ExerciseImage({
   accessibilityLabel,
   style,
   testID = 'exercise-image',
+  // Optional: a board-specific initials size (the T-60 catalog card's 28);
+  // unset → the shared ≈ 0.36 × the tile.
+  initialsFontSize,
   children,
 }) {
   // An explicit prop (even null) wins over the exercise object.
@@ -138,6 +141,7 @@ export default function ExerciseImage({
   const [failedUrl, setFailedUrl] = useState(null);
   const failed = Boolean(url) && failedUrl === url;
 
+  const glyph = initialsFontSize ?? initialsSize(size, hero);
   const box = hero ? styles.hero : { width: size, height: size };
   const frame = [styles.frame, box, { borderRadius: imageRadius(size, hero) }, style];
   const fade = hero ? <HeroFade /> : null;
@@ -188,7 +192,7 @@ export default function ExerciseImage({
         <Text
           allowFontScaling={false}
           numberOfLines={1}
-          style={[styles.initials, { color: ink, fontSize: initialsSize(size, hero), lineHeight: Math.round(initialsSize(size, hero) * 1.2) }]}
+          style={[styles.initials, { color: ink, fontSize: glyph, lineHeight: Math.round(glyph * 1.2) }]}
         >
           {exerciseInitials(name)}
         </Text>

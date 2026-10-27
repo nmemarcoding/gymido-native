@@ -24,6 +24,7 @@ import PlanCatalogCard from '../components/PlanCatalogCard';
 import PlanEntryTiles from '../components/PlanEntryTiles';
 import PlanIcon from '../components/planIcons';
 import PlanOwnRows from '../components/PlanOwnRows';
+import PlansSkeleton from '../components/PlansSkeleton';
 import PlanTile from '../components/PlanTile';
 import { useIsTablet, useReflow } from '../components/planUi';
 import {
@@ -168,6 +169,11 @@ function PlansLibrary() {
   ) : null;
 
   if (load.status === 'loading') {
+    // T-60 (UX X5): the phone loads with the page-shaped skeleton; the
+    // tablet keeps the Loader (unchanged for now).
+    if (!tablet) {
+      return <PlansSkeleton />;
+    }
     return (
       <>
         {header}

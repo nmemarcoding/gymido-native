@@ -6,7 +6,7 @@ import { CAP_BODY, CAP_PILL, LINE_TEXT } from '../../../shared/components/largeT
 import RemoteImage from '../../../shared/components/RemoteImage';
 import { keepUnitsTogether } from '../../../shared/format/counts';
 import { imageSourceProps, mediaUrl } from '../../../shared/images/remoteImageSources';
-import { colors, font, gradients, radii, spacing, textScale } from '../../../shared/theme/tokens';
+import { colors, font, gradients, radii, shadows, spacing, textScale } from '../../../shared/theme/tokens';
 import { weekDayLabel } from '../libraryFormat';
 import PlanIcon from './planIcons';
 import { PressOverlay } from './planUi';
@@ -29,7 +29,7 @@ export default function PhoneActivePlanCard({ plan, meta, circles, next, compact
   const showPhoto = Boolean(photo.url) && failedUrl !== photo.url;
 
   return (
-    <View testID="plans-active-card" accessibilityLabel="Your active plan" style={styles.card}>
+    <View testID="plans-active-card" style={styles.card}>
       <View testID="plans-active-photo" style={styles.photo}>
         {/* Always drawn (gradients are present from the first render): the
             photo covers it; a missing/failed photo leaves it showing. */}
@@ -417,8 +417,11 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
     overflow: 'hidden',
   },
+  // The board's gold glow (0 12 30 −12 gold 0.7) → the kit's goldGlow, the
+  // one gold primary's shadow token.
   startGold: {
     backgroundColor: colors.gold,
+    boxShadow: shadows.goldGlow,
   },
   startGlass: {
     borderWidth: 1,

@@ -9,6 +9,8 @@ import PlanIcon from './planIcons';
 import { PressOverlay } from './planUi';
 
 const PHOTO = 84;
+// The board's 28/700 initials (UX T60 §4), not the shared 0.36 × 84.
+const INITIALS = 28;
 
 // Dated change (27 Oct 2026, owner T-60; UX T60-plans-spec §4): one PHONE
 // catalog card, the whole card one link to Plan detail. The 84 photo = the
@@ -36,6 +38,7 @@ export default function PlanCatalogCard({ plan, meta, onPress }) {
             name={plan.name}
             muscleCode={null}
             size={PHOTO}
+            initialsFontSize={INITIALS}
             style={styles.photo}
           />
           <View style={styles.text}>
