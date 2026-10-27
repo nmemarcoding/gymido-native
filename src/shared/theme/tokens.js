@@ -285,14 +285,52 @@ export const radii = Object.freeze({
   full: 999,
 });
 
-// Window-width breakpoints from the web (sm, md, lg).
+// §3 Spacing: 2 px base, drawn on 4 (`space-2_5` → spacing['2_5']).
+export const spacing = Object.freeze({
+  '0_5': 2,
+  1: 4,
+  '1_5': 6,
+  2: 8,
+  '2_5': 10,
+  3: 12,
+  '3_5': 14,
+  4: 16,
+  '4_5': 18,
+  5: 20,
+  '5_5': 22,
+  6: 24,
+  7: 28,
+  8: 32,
+});
+
+// §3 Layout: the phone gutter, the 44 touch minimum (smaller controls add
+// hitSlop), the tablet icon rail and the content cap.
+export const layout = Object.freeze({
+  gutter: 16,
+  touchMin: 44,
+  railWidth: 88,
+  contentMax: 1120,
+});
+
+// Window-width breakpoints from the web (sm, md, lg) and v2's three sizes:
+// phone < md (768) · tablet md–1279 · web ≥ xl (1280). Native also uses the
+// device class: tablets keep the rail in both orientations (§3, [O2]).
 export const breakpoints = Object.freeze({
   sm: 640,
   md: 768,
   lg: 1024,
+  xl: 1280,
 });
 
+// §3 Motion (v1 values kept): durations and the two cubic-bézier curves as
+// [x1, y1, x2, y2] for Easing.bezier.
 export const motion = Object.freeze({
+  durationFast: 150,
+  durationBase: 200,
+  durationSlow: 300,
+  easeSpring: Object.freeze([0.22, 1, 0.36, 1]),
+  // Dialogs pop in (carried over from v1's RuntimeOverlays POP).
+  easePop: Object.freeze([0.34, 1.56, 0.64, 1]),
   cardEntranceMs: 240,
   cardOffsetY: 8,
   spinnerLoopMs: 1000,

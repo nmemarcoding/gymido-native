@@ -168,3 +168,28 @@ describe('type (§2)', () => {
     Object.values(typography).forEach((style) => expect(style.fontSize).toBeGreaterThanOrEqual(11));
   });
 });
+
+describe('spacing, layout, breakpoints, motion (§3)', () => {
+  const { breakpoints, layout, motion, spacing } = require('./tokens');
+
+  it('spaces on a 2 px base, drawn on 4', () => {
+    expect(spacing).toEqual({ '0_5': 2, 1: 4, '1_5': 6, 2: 8, '2_5': 10, 3: 12, '3_5': 14, 4: 16, '4_5': 18, 5: 20, '5_5': 22, 6: 24, 7: 28, 8: 32 });
+  });
+
+  it('has the gutter, the 44 touch minimum, the 88 rail and the 1120 cap', () => {
+    expect(layout).toEqual({ gutter: 16, touchMin: 44, railWidth: 88, contentMax: 1120 });
+  });
+
+  it('splits phone < 768, tablet 768–1279, web ≥ 1280', () => {
+    expect(breakpoints.md).toBe(768);
+    expect(breakpoints.xl).toBe(1280);
+  });
+
+  it('keeps the v1 durations and curves', () => {
+    expect([motion.durationFast, motion.durationBase, motion.durationSlow]).toEqual([150, 200, 300]);
+    expect(motion.easeSpring).toEqual([0.22, 1, 0.36, 1]);
+    expect(motion.easePop).toEqual([0.34, 1.56, 0.64, 1]);
+    expect(motion.spinnerLoopMs).toBe(1000);
+    expect(motion.spinnerReducedLoopMs).toBe(3000);
+  });
+});
