@@ -17,6 +17,7 @@ import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { breakpoints, colors, motion, radii, shadows, spacing, typography } from '../theme/tokens';
 import BlurLayer from './BlurLayer';
+import FeedbackIcon from './FeedbackIcon';
 
 // RN-SPEC-v2-foundation §6 + UX's dialog ruling (26 Oct).
 // Phone (< 768): every dialog is a bottom sheet that slides up 300 ms
@@ -31,7 +32,8 @@ const POP_MS = 260;
 //   md  (v1 448) → 448  confirms, WeightLogModal, DeleteAccountDialog
 //   lg  (v1 512) → 560  forms: AddDay, EditPlanDetails, ChangePassword, InviteClient (boards 540–560)
 //   2xl (v1 672) → 600  AddSet, WorkoutDetail, WeightHistory (boards 560–580; "rest" 600)
-export const TABLET_WIDTHS = Object.freeze({ md: 448, lg: 560, '2xl': 600 });
+// UX (26 Oct): tablet confirms and Weight log 520, Delete account 560 (lg).
+export const TABLET_WIDTHS = Object.freeze({ md: 520, lg: 560, '2xl': 600 });
 const TABLET_REST_WIDTH = 600;
 const TABLET_MARGIN = spacing[6];
 const SHEET_TOP_GAP = spacing[4];
@@ -118,6 +120,20 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
           accessibilityLabel={title}
           style={[styles.card, tablet ? styles.cardTablet : styles.cardPhone, frame.card, motionStyle]}
         >
+          {tablet ? (
+            // §6 tablet header Close (UX, 26 Oct): a 36 glass circle with a 44
+            // hit area; the scrim and Back still close the dialog too.
+            <Pressable
+              testID="app-modal-close"
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              hitSlop={4}
+              onPress={onClose}
+              style={({ pressed }) => [styles.close, pressed && styles.closePressed]}
+            >
+              <FeedbackIcon name="close" size={16} color={colors.textPrimary} />
+            </Pressable>
+          ) : null}
           {tablet ? null : (
             <View
               testID="app-modal-grab-handle"
@@ -209,9 +225,32 @@ const styles = StyleSheet.create({
     ...typography.titleSm,
     color: colors.textPrimary,
   },
+  // Tablet dialog title 34/38 (UX, 26 Oct: the boards' 34–40 range),
+  // clear of the Close button.
   titleTablet: {
-    ...typography.titleLg,
+    ...typography.titleXl,
+    fontSize: 34,
+    lineHeight: 38,
+    letterSpacing: -1.36,
     color: colors.textPrimary,
+    paddingRight: 48,
+  },
+  close: {
+    position: 'absolute',
+    top: spacing[6],
+    right: spacing[6],
+    zIndex: 1,
+    width: 36,
+    height: 36,
+    borderRadius: radii.full,
+    backgroundColor: colors.fillSkeleton,
+    borderWidth: 1,
+    borderColor: colors.hairlineStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closePressed: {
+    backgroundColor: colors.hairlineButton,
   },
   description: {
     ...typography.body,

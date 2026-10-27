@@ -256,10 +256,11 @@ describe('FeedbackBox: InlineError / SuccessState / ErrorBox (§5)', () => {
     const tree = render(<SuccessState testID="ok" message="Profile created." />);
     const box = host(tree, 'ok');
     expect(box.props.accessibilityRole).toBe('summary');
-    expect(flat(box)).toMatchObject({ backgroundColor: 'rgba(79, 216, 196, 0.08)', borderColor: 'rgba(79, 216, 196, 0.25)' });
+    // Success is green everywhere (UX, 26 Oct).
+    expect(flat(box)).toMatchObject({ backgroundColor: 'rgba(74, 222, 128, 0.08)', borderColor: 'rgba(74, 222, 128, 0.25)' });
     expect(texts(tree)).toEqual(['Success', 'Profile created.']);
-    expect(tree.root.findByType(FeedbackIcon).props).toMatchObject({ name: 'check', color: colors.teal });
-    expect(FEEDBACK_TONES.success.iconColor).toBe(colors.teal);
+    expect(tree.root.findByType(FeedbackIcon).props).toMatchObject({ name: 'check', color: colors.success });
+    expect(FEEDBACK_TONES.success.iconColor).toBe(colors.success);
   });
 
   it('no message: title only', () => {

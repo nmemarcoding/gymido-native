@@ -48,7 +48,7 @@ export default function NotificationBell() {
 }
 
 // §7.6 count badge: min-width 18, height 18, padding 0 5, danger fill, white
-// 11/700, a 2 px ring in the surface colour (drawn as a border outside the
+// 11/700, a 2 px ring in the ground colour (UX: the bell sits on the ground) (drawn as a border outside the
 // 18 px badge). The spec gives no position; it keeps v1's top/right 4.
 const RING = 2;
 
@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     backgroundColor: colors.danger,
     borderWidth: RING,
-    borderColor: colors.surface,
+    borderColor: colors.ground,
     alignItems: 'center',
     justifyContent: 'center',
   },

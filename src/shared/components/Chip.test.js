@@ -57,7 +57,7 @@ describe('Chip', () => {
   });
 
   it('pressed (off): a stronger glass fill; pressed (on) keeps the light fill', () => {
-    expect(styleOf(render(), true).backgroundColor).toBe(colors.fillButton);
+    expect(styleOf(render(), true).backgroundColor).toBe(colors.hairlineButton);
     expect(styleOf(render({ selected: true }), true).backgroundColor).toBe(colors.textPrimary);
   });
 

@@ -197,7 +197,7 @@ describe('AppModal on a tablet: centred card (§6 + UX ruling)', () => {
   });
 
   it.each([
-    ['md', 448],
+    ['md', 520],
     ['lg', 560],
     ['2xl', 600],
     ['unknown', 600],
@@ -216,9 +216,9 @@ describe('AppModal on a tablet: centred card (§6 + UX ruling)', () => {
     expect(hasHost(render(modal()), 'app-modal-grab-handle')).toBe(false);
   });
 
-  it('uses title-lg and body-lg; compact keeps the 15/22 body', () => {
+  it('uses the 34/38 title (UX) and body-lg; compact keeps the 15/22 body', () => {
     let tree = render(modal());
-    expect(flat(textNode(tree, 'Discard this workout?'))).toMatchObject(typography.titleLg);
+    expect(flat(textNode(tree, 'Discard this workout?'))).toMatchObject({ fontFamily: 'Geist-Bold', fontSize: 34, lineHeight: 38, paddingRight: 48 });
     expect(flat(textNode(tree, 'Logged sets will be lost.'))).toMatchObject({ ...typography.bodyLg, marginTop: 10 });
     tree = render(modal({ compact: true }));
     expect(flat(textNode(tree, 'Logged sets will be lost.'))).toMatchObject({ ...typography.body, marginTop: 10 });
@@ -269,5 +269,42 @@ describe('AppModal on a tablet: centred card (§6 + UX ruling)', () => {
       </ModalActions>,
     );
     expect(flat(textNode(tree, 'Cancel').parent)).toEqual({ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 });
+  });
+});
+
+describe('AppModal tablet header Close (UX, 26 Oct)', () => {
+  const closeButton = (tree) => host(tree, 'app-modal-close');
+
+  it('shows a 36 glass Close with a 44 hit area on tablets', () => {
+    atWidth(TABLET);
+    const tree = render(modal());
+    const close = closeButton(tree);
+    expect(close.props).toMatchObject({ accessibilityRole: 'button', accessibilityLabel: 'Close', hitSlop: 4 });
+    expect(flat(close)).toMatchObject({ width: 36, height: 36, borderRadius: 999, borderWidth: 1, position: 'absolute' });
+    expect(36 + 2 * close.props.hitSlop).toBe(44);
+  });
+
+  it('closes the dialog when pressed, and darkens while pressed', () => {
+    atWidth(TABLET);
+    const onClose = jest.fn();
+    const tree = render(modal({ onClose }));
+    const pressable = tree.root.findAll((n) => n.props.testID === 'app-modal-close' && typeof n.props.onPress === 'function')[0];
+    act(() => pressable.props.onPress());
+    expect(onClose).toHaveBeenCalledTimes(1);
+    const pressed = StyleSheet.flatten(pressable.props.style({ pressed: true }));
+    expect(pressed.backgroundColor).toBe('rgba(255, 255, 255, 0.12)');
+  });
+
+  it('keeps the scrim closing it too', () => {
+    atWidth(TABLET);
+    const onClose = jest.fn();
+    const tree = render(modal({ onClose }));
+    act(() => scrimPressable(tree).props.onPress());
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('has no Close button on phones (the sheet has its grab handle)', () => {
+    atWidth(PHONE);
+    expect(closeButton(render(modal()))).toBeUndefined();
   });
 });

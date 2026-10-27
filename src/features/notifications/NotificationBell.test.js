@@ -75,7 +75,7 @@ describe('NotificationBell', () => {
     expect(StyleSheet.flatten(text.props.style)).toMatchObject({ ...font(700), fontSize: 11, color: colors.onDanger, fontVariant: ['tabular-nums'] });
     expect(StyleSheet.flatten(text.props.style).fontWeight).toBeUndefined();
     const badge = StyleSheet.flatten(text.parent.props.style);
-    expect(badge).toMatchObject({ backgroundColor: colors.danger, borderWidth: 2, borderColor: colors.surface, paddingHorizontal: 5 });
+    expect(badge).toMatchObject({ backgroundColor: colors.danger, borderWidth: 2, borderColor: colors.ground, paddingHorizontal: 5 });
     expect(badge.minWidth - 2 * badge.borderWidth).toBe(18);
     expect(badge.height - 2 * badge.borderWidth).toBe(18);
   });

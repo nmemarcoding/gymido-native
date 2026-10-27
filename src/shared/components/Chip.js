@@ -64,7 +64,8 @@ const styles = StyleSheet.create({
     borderColor: colors.hairlineStrong,
   },
   offPressed: {
-    backgroundColor: colors.fillButton,
+    // Pressed off chip: white 12 % (UX, 26 Oct).
+    backgroundColor: colors.hairlineButton,
   },
   disabled: {
     opacity: 0.5,

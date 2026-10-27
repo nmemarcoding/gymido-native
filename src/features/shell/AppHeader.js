@@ -138,7 +138,8 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     color: colors.textPrimary,
   },
-  titleTablet: typography.displayMd,
+  // Tablet page title = display-lg 52 (UX, 26 Oct).
+  titleTablet: typography.displayLg,
   actions: {
     flexDirection: 'row',
     alignItems: 'center',

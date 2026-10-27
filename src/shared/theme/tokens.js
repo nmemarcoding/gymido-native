@@ -69,8 +69,9 @@ const V2_COLORS = {
   // §6 bottom sheet grab handle (36 × 5).
   grabHandle: 'rgba(255, 255, 255, 0.2)',
   // v2 kit: feedback (§5 FeedbackBox / ErrorBox: tone fill 0.08 + border 0.25).
-  tealFeedbackFill: 'rgba(79, 216, 196, 0.08)',
-  tealFeedbackBorder: 'rgba(79, 216, 196, 0.25)',
+  // Success is GREEN everywhere (UX, 26 Oct); teal is only "Active" and trends.
+  successFeedbackFill: 'rgba(74, 222, 128, 0.08)',
+  successFeedbackBorder: 'rgba(74, 222, 128, 0.25)',
   dangerTextFill: 'rgba(255, 122, 112, 0.08)',
   dangerTextBorder: 'rgba(255, 122, 112, 0.25)',
   // §5 Skeleton shimmer band: clear → faint white → clear over fillSkeleton.
@@ -79,6 +80,8 @@ const V2_COLORS = {
   // v2 kit: input (§4.6): the checkbox's off border and the card radio's
   // off border.
   checkboxBorder: 'rgba(255, 255, 255, 0.28)',
+  // v2 kit: card (UX §8.1): the failed-image tile's workout icon.
+  failedTileIcon: '#C9D4E6',
   choiceBorder: 'rgba(255, 255, 255, 0.08)',
 };
 

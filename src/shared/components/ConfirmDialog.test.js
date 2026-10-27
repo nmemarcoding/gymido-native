@@ -62,10 +62,10 @@ describe('ConfirmDialog (v2 §6)', () => {
     expect(actions.props.children.map((c) => c.props.testID)).toEqual(['confirm-cancel', 'confirm-confirm']);
   });
 
-  it('tablet: a centred 448 card with Cancel left and the verb right', () => {
+  it('tablet: a centred 520 card (UX) with Cancel left and the verb right', () => {
     atWidth(1024);
     const tree = render(dialog());
-    expect(flat(host(tree, 'confirm')).maxWidth).toBe(448);
+    expect(flat(host(tree, 'confirm')).maxWidth).toBe(520);
     expect(host(tree, 'app-modal-grab-handle')).toBeUndefined();
     expect(flat(button(tree, 'confirm-cancel').parent)).toMatchObject({ flexDirection: 'row', justifyContent: 'flex-end' });
   });

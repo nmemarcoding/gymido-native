@@ -20,6 +20,8 @@ import RemoteImage from './RemoteImage';
 // or nothing when the name sits right beside it).
 
 export const TILE_ALPHA = 0.16;
+// The failed-load tile follows its board: a 22 % fill and a light icon (UX).
+export const FAILED_TILE_ALPHA = 0.22;
 export const HERO_FADE_HEIGHT = 90;
 const HERO_GLYPH = 56;
 
@@ -159,8 +161,8 @@ export default function ExerciseImage({
     return (
       <View testID={`${testID}-failed`} style={tileFrame}>
         <View {...hidden} style={[StyleSheet.absoluteFill, styles.tileContent]}>
-          {tint}
-          <WorkoutGlyph color={ink} size={failedIconSize(size, hero)} />
+          {hue ? <View testID={`${testID}-tint`} style={[StyleSheet.absoluteFill, styles.failedTint, { backgroundColor: hue }]} /> : null}
+          <WorkoutGlyph color={colors.failedTileIcon} size={failedIconSize(size, hero)} />
         </View>
         {fade}
         {children}
@@ -216,6 +218,9 @@ const styles = StyleSheet.create({
   // The muscle colour at 16 % (a token hue under opacity, no literal).
   tint: {
     opacity: TILE_ALPHA,
+  },
+  failedTint: {
+    opacity: FAILED_TILE_ALPHA,
   },
   initials: {
     ...font(700),

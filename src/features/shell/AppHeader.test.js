@@ -52,8 +52,8 @@ describe('AppHeader v2 look (§7.4)', () => {
     expect(titleStyle(tree).fontWeight).toBeUndefined();
   });
 
-  it('tablet: the title in display-md (44/44)', () => {
-    expect(titleStyle(render({ path: '/' }, 1024))).toMatchObject({ fontSize: 44, lineHeight: 44, fontFamily: 'Geist-Bold' });
+  it('tablet: the title in display-lg (52/52, UX)', () => {
+    expect(titleStyle(render({ path: '/' }, 1024))).toMatchObject({ fontSize: 52, lineHeight: 52, fontFamily: 'Geist-Bold' });
   });
 
   it('back link: 14/600 gold, min-height 32 with a 44 hit area, goes to the tab root', () => {

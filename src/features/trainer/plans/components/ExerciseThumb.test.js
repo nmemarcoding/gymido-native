@@ -48,7 +48,8 @@ describe('ExerciseThumb (v2: through ExerciseImage)', () => {
       });
     }
     expect(host(tree, 'exercise-image-failed')).toBeTruthy();
-    expect(tree.root.findByType(Svg).props.stroke).toBe(muscle.chest);
+    // UX §8.1 (the board): the failed tile's icon is #C9D4E6.
+    expect(tree.root.findByType(Svg).props.stroke).toBe('#C9D4E6');
   });
 
   it('keeps the exported v1 tile palette for PlanDetailScreen', () => {

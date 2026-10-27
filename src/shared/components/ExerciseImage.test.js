@@ -166,9 +166,10 @@ describe('ExerciseImage: failed load', () => {
     failAll(tree);
     const tile = host(tree, 'exercise-image-failed');
     expect(flat(tile)).toMatchObject({ width: 56, height: 56, borderRadius: 12 });
-    expect(flat(host(tree, 'exercise-image-tint'))).toMatchObject({ backgroundColor: muscle.legs, opacity: 0.16 });
+    // UX §8.1 (the board): a 22 % fill and a #C9D4E6 icon on a failed load.
+    expect(flat(host(tree, 'exercise-image-tint'))).toMatchObject({ backgroundColor: muscle.legs, opacity: 0.22 });
     const svg = tree.root.findByType(Svg);
-    expect(svg.props).toMatchObject({ width: 25, height: 25, stroke: muscle.legs, strokeWidth: 2.6, strokeLinecap: 'round', strokeLinejoin: 'round' });
+    expect(svg.props).toMatchObject({ width: 25, height: 25, stroke: '#C9D4E6', strokeWidth: 2.6, strokeLinecap: 'round', strokeLinejoin: 'round' });
     expect(tree.root.findAllByType(Text)).toHaveLength(0);
     const hidden = tree.root.find((node) => typeof node.type === 'string' && node.props.importantForAccessibility === 'no-hide-descendants');
     expect(hidden.findByType(Svg)).toBe(svg);
@@ -178,7 +179,7 @@ describe('ExerciseImage: failed load', () => {
     const tree = render(<ExerciseImage url="https://example.com/x.jpg" name="X" />);
     failAll(tree);
     expect(flat(host(tree, 'exercise-image-failed'))).toMatchObject({ backgroundColor: colors.fillSkeleton });
-    expect(tree.root.findByType(Svg).props.stroke).toBe(colors.textSecondary);
+    expect(tree.root.findByType(Svg).props.stroke).toBe('#C9D4E6');
   });
 
   it('a new URL after a failure tries the photo again', () => {

@@ -8,7 +8,7 @@ import FeedbackIcon from './FeedbackIcon';
 // a bold title over the muted message.
 export const FEEDBACK_TONES = Object.freeze({
   error: Object.freeze({ icon: 'error', iconColor: colors.dangerText, backgroundColor: colors.dangerTextFill, borderColor: colors.dangerTextBorder }),
-  success: Object.freeze({ icon: 'check', iconColor: colors.teal, backgroundColor: colors.tealFeedbackFill, borderColor: colors.tealFeedbackBorder }),
+  success: Object.freeze({ icon: 'check', iconColor: colors.success, backgroundColor: colors.successFeedbackFill, borderColor: colors.successFeedbackBorder }),
 });
 
 export function FeedbackBox({ tone, title, message, testID, accessibilityRole }) {
