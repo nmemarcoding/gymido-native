@@ -1,32 +1,8 @@
-# Opens the app with the JS bundle loaded (see FASTEST-TEST-PLAYBOOK).
-# `launchApp` on its own stops at the Expo dev launcher screen, so open the
-# dev-client deep link instead. Metro must be running. One Metro serves both
-# devices: Android reaches it through 10.0.2.2, the iOS simulator on localhost.
-# For a release/standalone build, replace the body with `- launchApp`.
-#
-# Default = SOFT relaunch: the deep link reloads the bundle in the running app
-# (~3 s). HARD_RELAUNCH=true kills the app first (cold start, ~10 s).
 appId: com.gymido.app
 ---
-# A Custom Tab left over from an Auth0 login can swallow the deep link.
-- runFlow:
-    when:
-      platform: Android
-    commands:
-      - stopApp: "com.android.chrome"
-- runFlow:
-    when:
-      true: ${HARD_RELAUNCH == 'true'}
-    commands:
-      - stopApp
-# Wait up to 30 s for the bundle; re-opening the link while it is still
-# loading starts a second JS runtime ("runtime not ready"), so the single
-# retry only fires after that. ONE retry, no loops; free when it works.
-- retry:
-    maxRetries: 1
-    commands:
-      - runFlow: open-dev-client-link.yaml
-      - extendedWaitUntil:
-          visible:
-            id: "app-root"
-          timeout: 30000
+# Release build in this throwaway worktree: launch the installed app.
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "app-root"
+    timeout: 30000

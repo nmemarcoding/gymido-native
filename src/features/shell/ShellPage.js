@@ -1,4 +1,5 @@
 import { useRoute } from '@react-navigation/native';
+import { Fragment } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { NestableScrollContainer } from 'react-native-draggable-flatlist';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -40,9 +41,12 @@ export default function ShellPage({ children, nestable = false, glow = false, te
 
   const content = (
     <View style={[styles.content, { paddingBottom: (tablet ? 40 : TAB_BAR_CONTENT_PADDING) + insets.bottom + keyboardPad }]}>
-      {/* Keyed by the text scale: a screen that was in the background when
-          the size changed (another tab) would keep its old header layout
-          until relaunch (QA F1); a fresh header measures at the new size. */}
+      {/* QA F1, iOS: after a live text-size change, React's next commit lays
+          out unchanged texts with their old measurements (clipped until they
+          remount). So the header and the page content remount on a new text
+          scale; state kept above ShellPage (the screen component) survives.
+          The active workout renders outside ShellPage and is not remounted.
+          Details: ~/gymido-mobile-work/v2/phase1-qa-fixes.md. */}
       <AppHeader key={`text-scale-${fontScale}`} path={path} mode={mode} />
       {!tablet && showsMobileModeSwitch({ user, path }) ? (
         <View style={styles.mobileSwitch}>
@@ -50,7 +54,7 @@ export default function ShellPage({ children, nestable = false, glow = false, te
           <ModeSwitch mode={mode} />
         </View>
       ) : null}
-      {children}
+      <Fragment key={`text-scale-${fontScale}`}>{children}</Fragment>
     </View>
   );
 

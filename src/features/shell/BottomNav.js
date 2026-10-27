@@ -59,7 +59,8 @@ export default function BottomNav({ mode, path }) {
           const active = isNavItemActive(tab, path);
           return (
             <Pressable
-              key={tab.key}
+              // Remounted on a new text scale (QA F1, iOS stale text layout; see ShellPage).
+              key={`${tab.key}-${fontScale}`}
               testID={`tab-${tab.key}`}
               accessibilityRole="tab"
               accessibilityLabel={tab.label}
