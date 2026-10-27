@@ -6,18 +6,23 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AmbientGlow } from '../../shared/components/Screen';
 import { useKeyboardHeight } from '../../shared/hooks/useKeyboardHeight';
-import { breakpoints, colors, font, typography } from '../../shared/theme/tokens';
+import { usesRail } from '../../shared/hooks/useLayoutClass';
+import { breakpoints, colors, font, layout, typography } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
 import AppHeader from './AppHeader';
-import DesktopSidebar from './DesktopSidebar';
 import ModeSwitch from './ModeSwitch';
+import { RAIL } from './railMetrics';
 import { getScreenPath } from './shellNavigation';
 import { resolveMode, showsMobileModeSwitch } from './shellRules';
+import TabletFrame from './TabletFrame';
 import { TAB_BAR_CONTENT_PADDING } from './tabBarMetrics';
 
 // App-shell spec §4: every shell screen scrolls its header and content
-// together. Phone: a centred column (max 430) above the tab bar; tablet
-// (≥ 768): the sidebar beside the content. [O2] safe-area insets added.
+// together. Phone: a centred column (max 430) above the tab bar. Tablet
+// (≥ 768, portrait AND landscape; RN-SPEC-v2-foundation §3 [O2], §7.2, T-55):
+// the fixed icon rail at the left, outside the scroll, and the content
+// beside it, capped at 1120 and centred (≥ 1280 keeps the rail; native has no
+// web sidebar). [O2] safe-area insets added.
 // `nestable` hosts a draggable list (T3's sortable exercises).
 // v2 (RN-SPEC-v2-foundation §7): the ground colour; phones keep 104 px (+ the
 // safe area) under the content so nothing ends under the floating tab bar;
@@ -30,8 +35,8 @@ export default function ShellPage({ children, nestable = false, glow = false, te
   const user = useAuthStore((state) => state.user);
   const storedPreference = useAuthStore((state) => state.workspace);
   const mode = resolveMode({ user, path, storedPreference });
-  const tablet = width >= breakpoints.md;
-  const gutter = tablet ? 24 : width >= breakpoints.sm ? 20 : 16;
+  const tablet = usesRail(width);
+  const gutter = width >= breakpoints.sm ? 20 : 16;
   const Scroller = nestable ? NestableScrollContainer : ScrollView;
   // Inputs never stay under the keyboard: iOS insets the ScrollView itself
   // (automaticallyAdjustKeyboardInsets); edge-to-edge Android isn't resized,
@@ -58,27 +63,47 @@ export default function ShellPage({ children, nestable = false, glow = false, te
     </View>
   );
 
+  const scrollerProps = {
+    keyboardShouldPersistTaps: 'handled',
+    automaticallyAdjustKeyboardInsets: true,
+  };
+
+  if (tablet) {
+    // The rail takes the left inset (TabletFrame); the right gutter keeps the right one.
+    return (
+      <View testID={testID} style={styles.screen}>
+        <AmbientGlow glow={glow} />
+        <TabletFrame mode={mode} path={path}>
+          <Scroller
+            {...scrollerProps}
+            contentContainerStyle={{
+              paddingTop: 24,
+              paddingLeft: RAIL.contentGutter,
+              paddingRight: RAIL.contentGutter + insets.right,
+            }}
+          >
+            <View testID="shell-content-column" style={styles.tabletColumn}>
+              {content}
+            </View>
+          </Scroller>
+        </TabletFrame>
+      </View>
+    );
+  }
+
   return (
     // [O2] The status-bar band is page background; content never scrolls under it.
     <View testID={testID} style={[styles.screen, { paddingTop: insets.top }]}>
       <AmbientGlow glow={glow} />
       <Scroller
-        keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets
+        {...scrollerProps}
         contentContainerStyle={{
-          paddingTop: tablet ? 24 : 0,
+          paddingTop: 0,
           paddingLeft: gutter + insets.left,
           paddingRight: gutter + insets.right,
         }}
       >
-        {tablet ? (
-          <View style={styles.tabletRow}>
-            <DesktopSidebar mode={mode} path={path} />
-            {content}
-          </View>
-        ) : (
-          <View style={styles.phoneColumn}>{content}</View>
-        )}
+        <View style={styles.phoneColumn}>{content}</View>
       </Scroller>
     </View>
   );
@@ -94,12 +119,11 @@ const styles = StyleSheet.create({
     maxWidth: 430,
     alignSelf: 'center',
   },
-  tabletRow: {
+  // ≥ 1280: content max 1120, centred beside the rail (tablet-strategy §3).
+  tabletColumn: {
     width: '100%',
-    maxWidth: 1152,
+    maxWidth: layout.contentMax,
     alignSelf: 'center',
-    flexDirection: 'row',
-    gap: 32,
   },
   content: {
     flex: 1,

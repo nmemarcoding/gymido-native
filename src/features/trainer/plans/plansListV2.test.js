@@ -10,7 +10,7 @@ import PillButton from '../../../shared/components/PillButton';
 import { addToast } from '../../../shared/components/toastStore';
 import { colors, gradients, muscle, radii, textScale } from '../../../shared/theme/tokens';
 import { assignPlan } from '../clients/api/clientsApi';
-import { openClientDetail } from '../clients/clientLinks';
+import { openClientSelection } from '../clients/clientLinks';
 import { listTrainerPlans } from './api/plansApi';
 import PlanCard from './components/PlanCard';
 import { CategoryChip, CoachingChip } from './components/TrainerChips';
@@ -34,7 +34,7 @@ jest.mock('../../shell/ShellPage', () => (props) => {
   return props.children;
 });
 jest.mock('../TrainerOnly', () => ({ children }) => children);
-jest.mock('../clients/clientLinks', () => ({ openClientDetail: jest.fn() }));
+jest.mock('../clients/clientLinks', () => ({ openClientSelection: jest.fn() }));
 jest.mock('../clients/api/clientsApi', () => ({ assignPlan: jest.fn() }));
 jest.mock('./api/plansApi', () => ({ listTrainerPlans: jest.fn() }));
 jest.mock('../../../shared/components/toastStore', () => ({
@@ -283,7 +283,7 @@ describe('PlansListScreen (phone)', () => {
     const back = comp(tree.root, 'plans-back-to-client');
     expect(back.props.label).toBe('← Back to client #42');
     back.props.onPress();
-    expect(openClientDetail).toHaveBeenCalledWith(42);
+    expect(openClientSelection).toHaveBeenCalledWith(42);
   });
 
   it('assign success: "Plan assigned" toast', async () => {

@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 
-import { breakpoints, colors } from '../../shared/theme/tokens';
+import { usesRail } from '../../shared/hooks/useLayoutClass';
+import { colors } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
 import NotificationPanel from '../notifications/NotificationPanel';
 import BottomNav from './BottomNav';
@@ -27,7 +28,8 @@ export default function ShellOverlay({ state }) {
   const isSessionActive = useShellUiStore((s) => s.isSessionActive);
   const path = getTabsPath(state);
   const mode = resolveMode({ user, path, storedPreference });
-  const tablet = width >= breakpoints.md;
+  // T-55: < 768 the tab bar; ≥ 768 (both orientations) ShellPage draws the rail.
+  const tablet = usesRail(width);
 
   return (
     <View pointerEvents="box-none" style={styles.layer}>

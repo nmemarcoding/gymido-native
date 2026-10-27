@@ -18,7 +18,7 @@ import { breakpoints, colors, font, gradients, layout, radii, spacing, typograph
 import ShellPage from '../../../shell/ShellPage';
 import TrainerOnly from '../../TrainerOnly';
 import { assignPlan } from '../../clients/api/clientsApi';
-import { openClientDetail } from '../../clients/clientLinks';
+import { openClientSelection } from '../../clients/clientLinks';
 import { listTrainerPlans } from '../api/plansApi';
 import PlanCard from '../components/PlanCard';
 import { CoachingChip, PlusIcon } from '../components/TrainerChips';
@@ -178,7 +178,7 @@ function PlansList({ assignTo }) {
         {tablet ? null : <Subtitle assignTo={assignTo} />}
         {assignTo ? (
           // ⚠T1-2: the client is named by id.
-          <TextLink testID="plans-back-to-client" label={`← Back to client #${assignTo}`} onPress={() => openClientDetail(assignTo)} />
+          <TextLink testID="plans-back-to-client" label={`← Back to client #${assignTo}`} onPress={() => openClientSelection(assignTo)} />
         ) : null}
         {renderBody()}
       </View>

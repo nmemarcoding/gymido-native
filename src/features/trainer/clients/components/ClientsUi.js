@@ -73,7 +73,9 @@ export function CoachingPill({ tablet = false }) {
 // The page intro under the shell header: the Coaching pill, the page title
 // (h2; the shell title is the h1), a subline, then optional actions. `aside`
 // sits at the right of the title block (the Clients "+" button).
-export function PageIntro({ title, subtitle, tablet = false, pill = true, aside, children, testID }) {
+// `titleRef` / `titleTestID`: the title as a focus target (t55m, Clients
+// heading after the last client's coaching ends in the tablet pane).
+export function PageIntro({ title, subtitle, tablet = false, pill = true, aside, children, testID, titleRef, titleTestID }) {
   return (
     <View testID={testID} style={styles.intro}>
       <View style={styles.introRow}>
@@ -81,6 +83,8 @@ export function PageIntro({ title, subtitle, tablet = false, pill = true, aside,
           {pill ? <CoachingPill tablet={tablet} /> : null}
           <Text
             {...(tablet ? DISPLAY_TITLE_TEXT : TITLE_TEXT)}
+            ref={titleRef}
+            testID={titleTestID}
             accessibilityRole="header"
             style={[styles.introTitle, tablet && styles.introTitleTablet, pill && styles.introTitleAfterPill]}
           >
@@ -115,7 +119,8 @@ export function ListCard({ children, style, testID }) {
 
 // A row; pressable when `onPress` is set (STATE RULE: pressed = the rest
 // colour + a 4 % white overlay).
-export function ListRow({ onPress, children, testID, style, accessibilityLabel, accessibilityRole = 'button', selected }) {
+// `rowRef` (t55m): the pressable as a focus target (tablet Clients).
+export function ListRow({ onPress, children, testID, style, accessibilityLabel, accessibilityRole = 'button', selected, rowRef }) {
   if (!onPress) {
     return (
       <View testID={testID} style={[styles.row, style]}>
@@ -125,6 +130,7 @@ export function ListRow({ onPress, children, testID, style, accessibilityLabel, 
   }
   return (
     <Pressable
+      ref={rowRef}
       testID={testID}
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}

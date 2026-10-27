@@ -21,7 +21,8 @@ jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({ __esM
 jest.mock('../../../../shared/hooks/useFocusRemountKey', () => ({ useFocusRemountKey: () => 0 }));
 jest.mock('../../../../shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
-jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ push: jest.fn() }) }));
+// t55m: the screen keeps the tablet selection in the route params (setup only).
+jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ push: jest.fn(), setParams: jest.fn() }), useRoute: () => ({ params: undefined }) }));
 jest.mock('../../../shell/ShellPage', () => ({ children }) => children);
 jest.mock('../../TrainerOnly', () => ({ children }) => children);
 jest.mock('../clientLinks', () => ({ openClientDetail: jest.fn(), openAssignPlan: jest.fn() }));

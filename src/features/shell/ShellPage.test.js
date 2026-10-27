@@ -16,7 +16,7 @@ jest.mock('./AppHeader', () => {
     return null;
   };
 });
-jest.mock('./DesktopSidebar', () => () => null);
+jest.mock('./TabletRail', () => () => null);
 jest.mock('./ModeSwitch', () => () => null);
 jest.mock('../auth/authStore', () => ({ useAuthStore: (select) => select({ user: null, workspace: null }) }));
 jest.mock('./shellNavigation', () => ({ getScreenPath: () => '/profile/edit' }));
@@ -80,8 +80,8 @@ describe('ShellPage v2 ground, tab-bar clearance and glow', () => {
     Platform.OS = 'ios';
     useWindowDimensions.mockReturnValue({ width: 1024, height: 768, scale: 2, fontScale: 1 });
     const tree = render();
-    const row = tree.root.findByType(ScrollView).props.children;
-    const content = [].concat(row.props.children)[1];
+    const column = tree.root.findByType(ScrollView).props.children;
+    const content = column.props.children;
     const pad = [].concat(content.props.style).reduce((sum, part) => sum + (part?.paddingBottom ?? 0), 0);
     expect(pad).toBe(40 + 34);
   });

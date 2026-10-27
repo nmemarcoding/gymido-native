@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { AccessibilityInfo, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, StyleSheet, Text, TextInput, View, findNodeHandle, useWindowDimensions } from 'react-native';
 
 import Chip from '../../../../shared/components/Chip';
 import EmptyState from '../../../../shared/components/EmptyState';
@@ -40,7 +41,28 @@ import ClientDetailContent from './ClientDetailContent';
 // list page (a row pushes Client detail). Tablet (≥ 768): master/detail, the
 // list (320) beside the selected client's full detail (approved).
 // Every focus is a fresh mount.
+// T-55 (merged in t55m) + RN-SPEC-TRAINER-CLIENTS dated change 27 Oct
+// (07c6d708): the tablet selection is kept in the route params
+// (`navigation.setParams({ client })`, web's ?client=), so leaving from the
+// pane ("Change plan" → Plans) and coming Back, a remount or a list refresh
+// re-selects that client while it is in the shown list (else the first shown
+// row). End coaching / "Back to clients" in the pane clear it, refresh the
+// list quietly (no loader) and move focus to the newly selected row, or to the
+// "Clients" heading when none is left. Phones ignore the param (no push on a
+// resize).
 export const LIST_PANE_WIDTH = 320;
+
+// The kept id (a string, as in the route), else the first client, else none.
+export function selectedClientId(selected, clients) {
+  if (selected !== undefined && selected !== null && String(selected) !== '') {
+    return String(selected);
+  }
+  return clients[0] ? String(clients[0].client_user_id) : null;
+}
+
+function paramId(value) {
+  return value !== undefined && value !== null && String(value) !== '' ? String(value) : null;
+}
 
 export default function ClientsListScreen() {
   const remountKey = useFocusRemountKey();
@@ -52,6 +74,8 @@ export default function ClientsListScreen() {
 }
 
 function ClientsList() {
+  const navigation = useNavigation();
+  const kept = useRoute()?.params?.client;
   const { width } = useWindowDimensions();
   const tablet = width >= breakpoints.md;
   const reflow = useLargeTextReflow();
@@ -60,15 +84,32 @@ function ClientsList() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState(ClientFilter.all);
   const [focused, setFocused] = useState(false);
-  const [selectedId, setSelectedId] = useState(null);
+  // Mirrors the `client` param so a tap swaps the pane at once.
+  const [selectedId, setSelectedId] = useState(() => paramId(kept));
   const [paneKey, setPaneKey] = useState(0);
+  const [focusAfterRefresh, setFocusAfterRefresh] = useState(false);
+  const rowRefs = useRef(new Map());
+  const headingRef = useRef(null);
 
   const hasData = anyActivity(clients);
   // ND-8: Missed only once BE's weekly data exists; counts from the loaded list.
   const activeFilter = !hasData && filter === ClientFilter.missed ? ClientFilter.all : filter;
   const shown = filterClients({ clients, invited: outgoing, filter: activeFilter, query });
   const counts = filterCounts({ clients, invited: outgoing });
-  const selected = tablet ? shown.clients.find((row) => row.client_user_id === selectedId) ?? shown.clients[0] ?? null : null;
+  const selected = tablet ? shown.clients.find((row) => String(row.client_user_id) === selectedId) ?? shown.clients[0] ?? null : null;
+
+  // After a quiet refresh: focus the newly selected row, else the heading.
+  useEffect(() => {
+    if (!focusAfterRefresh) {
+      return;
+    }
+    setFocusAfterRefresh(false);
+    const target = selected ? rowRefs.current.get(selected.client_user_id) : headingRef.current;
+    const node = target ? findNodeHandle(target) : null;
+    if (node) {
+      AccessibilityInfo.setAccessibilityFocus(node);
+    }
+  }, [focusAfterRefresh, selected]);
 
   const invite = (
     <IconButton
@@ -90,7 +131,7 @@ function ClientsList() {
   );
 
   function renderIntro() {
-    return <PageIntro title="Clients" subtitle="Everyone you actively coach." pill={false} aside={invite} />;
+    return <PageIntro title="Clients" subtitle="Everyone you actively coach." pill={false} aside={invite} titleRef={headingRef} titleTestID="clients-heading" />;
   }
 
   function renderBody() {
@@ -142,7 +183,7 @@ function ClientsList() {
       return list;
     }
     return (
-      <View style={[styles.masterDetail, reflow && styles.masterDetailStacked]}>
+      <View testID="clients-master-detail" style={[styles.masterDetail, reflow && styles.masterDetailStacked]}>
         <View testID="clients-list-pane" style={[styles.listPane, reflow && styles.listPaneStacked]}>{list}</View>
         <View testID="clients-detail-pane" accessibilityLabel={selected ? clientRowLabel(selected) : undefined} style={styles.detailPane}>
           {selected ? (
@@ -162,10 +203,12 @@ function ClientsList() {
     );
   }
 
-  function afterEnded() {
+  async function afterEnded() {
     setSelectedId(null);
+    navigation.setParams({ client: undefined });
     setPaneKey((key) => key + 1);
-    reload();
+    await reload({ quiet: true });
+    setFocusAfterRefresh(true);
   }
 
   function renderSearch() {
@@ -241,11 +284,19 @@ function ClientsList() {
         key={row.id}
         testID={`clients-row-${row.client_user_id}`}
         accessibilityLabel={label}
+        rowRef={(node) => {
+          if (node) {
+            rowRefs.current.set(row.client_user_id, node);
+          } else {
+            rowRefs.current.delete(row.client_user_id);
+          }
+        }}
         selected={tablet ? isSelected : undefined}
         style={[styles.row, isSelected && styles.rowSelected]}
         onPress={() => {
           if (tablet) {
-            setSelectedId(row.client_user_id);
+            setSelectedId(String(row.client_user_id));
+            navigation.setParams({ client: String(row.client_user_id) });
             AccessibilityInfo.announceForAccessibility(`Showing ${name}`);
           } else {
             openClientDetail(row.client_user_id, row.client_activity);

@@ -1,0 +1,38 @@
+# T-55 tablet shell, member: the icon rail replaces the tab bar on tablets
+# (RN-SPEC-v2-foundation §3 [O2], §7.2). Tablet emulator/sim only (window ≥ 768).
+# Starts signed in as the QA member on the Today root (the lead's safe runner
+# signs in first). IDs only; no credentials, no coordinates, no Profile screenshots.
+appId: com.gymido.app
+---
+- extendedWaitUntil:
+    visible:
+      id: "tablet-rail"
+    timeout: 30000
+- assertNotVisible:
+    id: "bottom-nav"
+- assertVisible:
+    id: "tablet-rail-mark"
+- assertVisible:
+    id: "rail-Today"
+- tapOn:
+    id: "rail-Plans"
+- assertVisible:
+    id: "tablet-rail"
+- tapOn:
+    id: "rail-Exercises"
+- extendedWaitUntil:
+    visible:
+      id: "exercises-screen"
+    timeout: 20000
+- assertVisible:
+    id: "tablet-rail"
+- tapOn:
+    id: "rail-Progress"
+- tapOn:
+    id: "rail-Profile"
+- tapOn:
+    id: "rail-Today"
+- assertVisible:
+    id: "tablet-rail"
+- assertNotVisible:
+    id: "bottom-nav"
