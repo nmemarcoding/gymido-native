@@ -40,10 +40,14 @@ export function hasHowTo(exercise) {
 
 // One load per exercise id for the session, kept by the runtime: the pill
 // shows unless the library has nothing for the exercise (ND7: hidden when the
-// exercise has neither text nor image).
+// exercise has neither text nor image). fetchEntry never changes: the runtime
+// prefetches in an effect keyed on it, so a new identity after a failure
+// would refetch on every failure (PM sweep, 27 Oct).
 export function useHowToLibrary({ load = getExercise } = {}) {
   const [entries, setEntries] = useState({});
   const inflight = useRef({});
+  const loadRef = useRef(load);
+  loadRef.current = load;
   const fetchEntry = useCallback(
     (id, force = false) => {
       if (!id || (inflight.current[id] && !force)) {
@@ -52,7 +56,7 @@ export function useHowToLibrary({ load = getExercise } = {}) {
       inflight.current[id] = true;
       setEntries((current) => ({ ...current, [id]: { status: 'loading' } }));
       Promise.resolve()
-        .then(() => load(id))
+        .then(() => loadRef.current(id))
         .then(
           (exercise) => setEntries((current) => ({ ...current, [id]: { status: 'ready', exercise } })),
           (error) => {
@@ -61,7 +65,7 @@ export function useHowToLibrary({ load = getExercise } = {}) {
           }
         );
     },
-    [load]
+    []
   );
   return { entries, fetchEntry };
 }

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { act, create } from 'react-test-renderer';
 
 import { Linking } from 'react-native';
@@ -91,6 +92,28 @@ describe('useHowToLibrary', () => {
     await act(async () => value.fetchEntry(7));
     await act(async () => value.fetchEntry(undefined));
     expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  // PM sweep (27 Oct, after web's lookup loop): SessionRuntime prefetches in
+  // an effect keyed on fetchEntry. A failure re-renders; if fetchEntry then
+  // changed (an inline `load`), the effect would refetch on every failure.
+  it('a failing prefetch keyed on fetchEntry makes ONE request, even with a new `load` every render', async () => {
+    const request = jest.fn(() => Promise.reject(new Error('Network Error')));
+    let value;
+    function Prefetch({ id }) {
+      value = useHowToLibrary({ load: (exerciseId) => request(exerciseId) });
+      const { fetchEntry } = value;
+      useEffect(() => {
+        fetchEntry(id);
+      }, [id, fetchEntry]);
+      return null;
+    }
+    render(<Prefetch id={7} />);
+    for (let tick = 0; tick < 5; tick += 1) {
+      await act(async () => {});
+    }
+    expect(value.entries[7].status).toBe('error');
+    expect(request).toHaveBeenCalledTimes(1);
   });
 });
 

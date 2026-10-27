@@ -216,9 +216,15 @@ describe('T-60 phone: active plan card', () => {
     const meta = host(tree, 'plans-active-meta');
     expect(meta.props.accessibilityLabel).toBe('Strength · 4\u00a0days a week · Intermediate');
     const part = (id) => host(tree, id);
-    expect(textOf(part('plans-active-meta-category'))).toBe('Strength · ');
+    expect(textOf(part('plans-active-meta-category'))).toBe('Strength');
     expect(textOf(part('plans-active-meta-days'))).toBe('4\u00a0days a week');
-    expect(textOf(part('plans-active-meta-level'))).toBe(' · Intermediate');
+    expect(textOf(part('plans-active-meta-level'))).toBe('Intermediate');
+    // QA T60-1 re-check (6195d1e): a cut part kept its "·" inside itself, so a
+    // truncated level lost the dot. Each separator is its own part, never cut.
+    const separators = tree.root.findAll((node) => node.props?.testID === 'plans-active-meta-sep' && typeof node.type === 'string');
+    expect(separators.map(textOf)).toEqual([' · ', ' · ']);
+    separators.forEach((node) => expect(flat(node).flexShrink).toBe(0));
+    expect(textOf(meta)).toBe('Strength · 4\u00a0days a week · Intermediate');
     ['plans-active-meta-category', 'plans-active-meta-days', 'plans-active-meta-level'].forEach((id) => {
       expect(part(id).props).toEqual(expect.objectContaining({ numberOfLines: 1 }));
       expect(flat(part(id))).toEqual(expect.objectContaining({ fontSize: 15, color: colors.textSecondary }));

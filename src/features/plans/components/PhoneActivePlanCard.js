@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import GradientFill from '../../../shared/components/GradientFill';
@@ -69,23 +69,27 @@ export default function PhoneActivePlanCard({ plan, meta, circles, next, compact
         </Text>
         {meta?.label ? (
           // QA T60-1: one row of three parts — "{n} days a week" never cuts,
-          // the level truncates first (flexShrink), then the category.
+          // the level truncates first (flexShrink), then the category. Each
+          // "·" is its own part, so a cut part never takes its dot with it.
           <View testID="plans-active-meta" accessible accessibilityLabel={meta.label} style={styles.metaRow}>
-            {meta.category ? (
-              <Text {...LINE_TEXT} testID="plans-active-meta-category" style={[styles.meta, styles.metaCategory]}>
-                {`${meta.category}${meta.days || meta.level ? ' · ' : ''}`}
-              </Text>
-            ) : null}
-            {meta.days ? (
-              <Text {...LINE_TEXT} testID="plans-active-meta-days" style={[styles.meta, styles.metaDays]}>
-                {meta.days}
-              </Text>
-            ) : null}
-            {meta.level ? (
-              <Text {...LINE_TEXT} testID="plans-active-meta-level" style={[styles.meta, styles.metaLevel]}>
-                {`${meta.category || meta.days ? ' · ' : ''}${meta.level}`}
-              </Text>
-            ) : null}
+            {[
+              ['category', styles.metaCategory],
+              ['days', styles.metaDays],
+              ['level', styles.metaLevel],
+            ]
+              .filter(([key]) => meta[key])
+              .map(([key, style], index) => (
+                <Fragment key={key}>
+                  {index > 0 ? (
+                    <Text {...LINE_TEXT} testID="plans-active-meta-sep" style={[styles.meta, styles.metaDays]}>
+                      {' · '}
+                    </Text>
+                  ) : null}
+                  <Text {...LINE_TEXT} testID={`plans-active-meta-${key}`} style={[styles.meta, style]}>
+                    {meta[key]}
+                  </Text>
+                </Fragment>
+              ))}
           </View>
         ) : null}
 
