@@ -60,7 +60,10 @@ describe('withFontScaleConfigChange', () => {
     const body = result.slice(result.indexOf('override fun onConfigurationChanged'));
     expect(body).toMatch(/^override fun onConfigurationChanged\(newConfig: android\.content\.res\.Configuration\) \{\s+super\.onConfigurationChanged\(newConfig\)/);
     expect(body).toMatch(/\(application as com\.facebook\.react\.ReactApplication\)\.reactHost\?\.currentReactContext/);
-    expect(body).toMatch(/getNativeModule\(com\.facebook\.react\.modules\.deviceinfo\.DeviceInfoModule::class\.java\)\s*\?\.emitUpdateDimensionsEvent\(\)/);
+    // DeviceInfoModule is internal in RN 0.86 (the f6d969a Release failed to
+    // compile), so it sends RN's own Dimensions payload through public APIs.
+    expect(body).not.toMatch(/DeviceInfoModule/);
+    expect(body).toMatch(/\?\.emitDeviceEvent\(\s*"didUpdateDimensions",\s*com\.facebook\.react\.uimanager\.DisplayMetricsHolder\.getDisplayMetricsWritableMap\(newConfig\.fontScale\.toDouble\(\)\)/);
     // Still inside the class, the rest unchanged.
     expect(result.trimEnd().endsWith('}')).toBe(true);
     expect(result).toContain('override fun getMainComponentName(): String = "main"');

@@ -25,15 +25,19 @@ function addFontScaleConfigChange(manifest) {
 // T-59 device check: React Native re-sends Dimensions (with fontScale) to JS
 // only on resume, so a change while the app stays in front (Settings in split
 // screen) never reached the remount. After super (which refreshes RN's display
-// metrics) the activity sends them at once; DeviceInfoModule skips the event
-// when nothing changed.
+// metrics) the activity sends RN's own "didUpdateDimensions" payload at once.
+// DeviceInfoModule (which sends it on resume) is internal in RN 0.86, so this
+// uses the public DisplayMetricsHolder + emitDeviceEvent; with no React context
+// yet, the `?.` skips the call before its arguments are read.
 const DIMENSIONS_UPDATE = `
   // T-59 (plugins/withFontScaleConfigChange.js): send the new fontScale to JS now.
   override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
     super.onConfigurationChanged(newConfig)
     (application as com.facebook.react.ReactApplication).reactHost?.currentReactContext
-      ?.getNativeModule(com.facebook.react.modules.deviceinfo.DeviceInfoModule::class.java)
-      ?.emitUpdateDimensionsEvent()
+      ?.emitDeviceEvent(
+        "didUpdateDimensions",
+        com.facebook.react.uimanager.DisplayMetricsHolder.getDisplayMetricsWritableMap(newConfig.fontScale.toDouble()),
+      )
   }
 `;
 
