@@ -212,13 +212,14 @@ describe('Plans (rows 10-11)', () => {
     expectInSlot(tree, Loader, { label: 'Loading plans' }, { loader: true });
   });
 
-  it('row 10: Inline error with the transport text, no Retry, in the column', async () => {
+  // v2 Phase 4 N2 (approved 27 Oct): the page error gains the one Retry style.
+  it('row 10: Inline error with the transport text + Retry (N2), in the column', async () => {
     listPlans.mockRejectedValue(transportError('Network Error'));
     getCurrentPlan.mockResolvedValue(null);
     const tree = await render(<PlansLibraryScreen />);
     const box = expectInSlot(tree, InlineError, { title: 'Plans unavailable' });
     expect(box.props.message).toBe('Network Error');
-    expect(retryButtons(tree)).toHaveLength(0);
+    expect(slotOf(tree.root.findAll((node) => node.props.testID === 'plans-retry' && typeof node.props.onPress === 'function')[0])).not.toBeNull();
   });
 
   it('row 10: "Please try again." when there is no transport text', async () => {
@@ -251,7 +252,8 @@ describe('Plan detail (row 12)', () => {
     expectInSlot(tree, Loader, { label: 'Loading plan' }, { loader: true });
   });
 
-  it('row 12: an unexpected load failure = Inline error "Plan unavailable" (the error text), no Retry', async () => {
+  // v2 Phase 4 N2 (approved 27 Oct): the page error gains the one Retry style.
+  it('row 12: an unexpected load failure = Inline error "Plan unavailable" (the error text) + Retry (N2)', async () => {
     getPlan.mockResolvedValue({ plan: { id: 5, name: 'Push' } });
     // Not a list: the load throws past allSettled (the web's `error` state).
     listPlanDays.mockResolvedValue({ items: 'broken' });
@@ -259,7 +261,7 @@ describe('Plan detail (row 12)', () => {
     const tree = await render(<PlanDetailScreen />);
     const box = expectInSlot(tree, InlineError, { title: 'Plan unavailable' });
     expect(box.props.message).toMatch(/map/);
-    expect(retryButtons(tree)).toHaveLength(0);
+    expect(tree.root.findAll((node) => node.props.testID === 'plan-detail-retry' && typeof node.props.onPress === 'function')).not.toHaveLength(0);
   });
 
   it('row 12: single failures stay allSettled (⚠8: no error, the hollow page)', async () => {

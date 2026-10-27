@@ -1,61 +1,73 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { routes } from '../../../navigation/routes';
 import { getServerMessage, getStatus } from '../../../shared/api/apiError';
+import { RetryButton } from '../../../shared/components/ErrorAlert';
 import { InlineError } from '../../../shared/components/FeedbackBox';
+import { CAP_BODY } from '../../../shared/components/largeText';
 import Loader from '../../../shared/components/Loader';
-import RemoteImage from '../../../shared/components/RemoteImage';
-import Spinner from '../../../shared/components/Spinner';
 import StateSlot from '../../../shared/components/StateSlot';
+import StatusPill from '../../../shared/components/StatusPill';
 import { InlineToast } from '../../../shared/components/ToastHost';
 import { ToastTone } from '../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
-import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
-import { breakpoints, colors, radii, shadows } from '../../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, spacing } from '../../../shared/theme/tokens';
 import { formatLocalDateForInput } from '../../../shared/time/format';
 import CopyToMyPlansCard from '../../myPlans/components/CopyToMyPlansCard';
 import ShellPage from '../../shell/ShellPage';
 import { handOffToWorkout, openShellPath } from '../../shell/shellLinks';
-import { getMuscleTileColors } from '../../trainer/plans/components/ExerciseThumb';
-import { DumbbellIcon } from '../../trainer/plans/components/pickerIcons';
 import {
   cancelEnrollment,
   createSchedule,
   enrollInPlan,
   getCurrentPlan,
+  getCurrentWeek,
   getPlan,
   listDayExercises,
   listPlanDays,
   replaceSchedule,
 } from '../api/libraryApi';
-import { ActiveBadge, Eyebrow, Pill, SectionHeading, planStyles } from '../components/PlanBits';
-import WeekdayGrid from '../components/WeekdayGrid';
+import DayRow from '../components/DayRow';
+import PlanScheduleCard, { TrainerLockBanner } from '../components/PlanScheduleCard';
+import { PlanHero, PlanSummary } from '../components/PlanSummary';
+import ThisWeek from '../components/ThisWeek';
+import { BackToPlans, useIsTablet } from '../components/planUi';
 import {
   buildScheduleItems,
-  dayMetaLabel,
-  estimateMinutes,
   exerciseDetailId,
-  exerciseNotes,
-  formatSetSummary,
   initialWeekdays,
-  muscleFocus,
+  thisWeekCards,
   toggleWeekday,
   workoutDaysLabel,
 } from '../libraryFormat';
 
-const EASE = Easing.bezier(0.4, 0, 0.2, 1);
+// The phone board's page glow: radial-gradient(110% 45% at 80% −8%,
+// glow-gold-ambient 0.18, transparent 60%). The tablet hero draws its own.
+export const PLAN_DETAIL_GLOW = Object.freeze({
+  radial: Object.freeze({ cx: 0.8, cy: -0.08, rx: 1.1, ry: 0.45 }),
+  colors: gradients.accountGlow.colors,
+  stops: Object.freeze([0, 0.6]),
+});
 
-// S2 (RN-SPEC-plans §4). Every focus remounts and reloads (§8.1).
+// S2 (RN-SPEC-plans §4), v2 look per UX H (Plan detail #9, Tablet: Plan
+// detail #89). Every focus remounts and reloads (§8.1).
 export default function PlanDetailScreen() {
   const remountKey = useFocusRemountKey();
+  const { width } = useWindowDimensions();
+  // Tablets stay tablets in both orientations, so the glow never toggles.
+  const tablet = width >= breakpoints.md;
   return (
-    <ShellPage testID="plan-detail-screen">
+    <ShellPage testID="plan-detail-screen" glow={tablet ? false : PLAN_DETAIL_GLOW}>
       <PlanDetail key={remountKey} />
     </ShellPage>
   );
 }
+
+// Never throws synchronously, so a missing/broken call stays a settled
+// rejection (⚠8: allSettled, no single failure fails the page).
+const settle = (call) => Promise.resolve().then(call);
 
 function PlanDetail() {
   const navigation = useNavigation();
@@ -67,6 +79,8 @@ function PlanDetail() {
   const [activationError, setActivationError] = useState('');
   const [isActivating, setIsActivating] = useState(false);
   const [lockedEnrollmentId, setLockedEnrollmentId] = useState(null);
+  const [reloadCount, setReloadCount] = useState(0);
+  const tablet = useIsTablet();
   const mounted = useRef(true);
 
   useEffect(() => {
@@ -80,10 +94,13 @@ function PlanDetail() {
   useEffect(() => {
     let alive = true;
     (async () => {
-      const [planResult, daysResult, currentResult] = await Promise.allSettled([
+      // Approved #9: the enrolled week is read with the rest (used only when
+      // this plan is the current one; a failure just hides "This week").
+      const [planResult, daysResult, currentResult, weekResult] = await Promise.allSettled([
         getPlan(planId),
         listPlanDays(planId),
         getCurrentPlan(),
+        settle(() => getCurrentWeek()),
       ]);
       const current = currentResult.status === 'fulfilled' ? currentResult.value : null;
       const days = daysResult.status === 'fulfilled' ? daysResult.value : [];
@@ -104,7 +121,8 @@ function PlanDetail() {
       const requiredDays = days.length;
       // M5: only a plan the public endpoint returned can be copied.
       const isPublic = planResult.status === 'fulfilled';
-      setLoad({ status: 'loaded', plan, days, exercisesByDay, current, requiredDays, isPublic });
+      const week = weekResult.status === 'fulfilled' ? weekResult.value : [];
+      setLoad({ status: 'loaded', plan, days, exercisesByDay, current, requiredDays, isPublic, week });
       setSelectedDayId(days[0]?.id ?? null);
       setSelectedWeekdays(initialWeekdays({ currentPlan: current, plan, requiredDays }));
     })().catch((error) => {
@@ -117,7 +135,7 @@ function PlanDetail() {
     return () => {
       alive = false;
     };
-  }, [planId]);
+  }, [planId, reloadCount]);
 
   if (load.status === 'loading') {
     return (
@@ -127,22 +145,37 @@ function PlanDetail() {
     );
   }
   if (load.status === 'error') {
-    // UX D row 12: the transport text, else the fallback; no retry (§D1).
+    // UX D row 12: the transport text, else the fallback. N2 (approved):
+    // the one Retry style under it re-runs the page load; the back stays.
     return (
-      <StateSlot>
-        <InlineError testID="plan-detail-error" title="Plan unavailable" message={load.error?.message || 'Please try again.'} />
-      </StateSlot>
+      <View style={styles.page}>
+        <BackToPlans tablet={tablet} onPress={() => navigation.push(routes.PlansLibrary)} />
+        <StateSlot>
+          <InlineError testID="plan-detail-error" title="Plan unavailable" message={load.error?.message || 'Please try again.'} />
+          <RetryButton
+            testID="plan-detail-retry"
+            style={styles.retry}
+            onPress={() => {
+              setLoad({ status: 'loading' });
+              setReloadCount((count) => count + 1);
+            }}
+          />
+        </StateSlot>
+      </View>
     );
   }
 
-  const { plan, days, exercisesByDay, current, requiredDays, isPublic } = load;
+  const { plan, days, exercisesByDay, current, requiredDays, isPublic, week } = load;
   // ⚠8: compared literally, so no enrollment and no plan is `undefined === undefined`.
   const isCurrentPlan = current?.enrollment?.plan?.id === plan?.id;
   const currentEnrollmentId = current?.enrollment?.id;
   const isTrainerLocked = lockedEnrollmentId !== null && lockedEnrollmentId === current?.enrollment?.id;
   const totalExercises = days.reduce((sum, day) => sum + (exercisesByDay[day.id]?.length ?? 0), 0);
-  const difficulty = plan?.difficulty_level?.name;
-
+  const weekCards = isCurrentPlan ? thisWeekCards(week, exercisesByDay) : null;
+  // One gold action per page: the Today card's Start when it shows, else the
+  // schedule CTA (UX H states; N6's rule on native).
+  const scheduleGold = !weekCards?.today;
+  const openExercise = (item) => navigation.push(routes.ExerciseDetail, { exerciseId: String(exerciseDetailId(item)) });
 
   // §4.7, exactly.
   async function handleActivate() {
@@ -201,627 +234,141 @@ function PlanDetail() {
     }
   }
 
+  const topBar = (
+    <View style={styles.topBar}>
+      <BackToPlans tablet={tablet} onPress={() => navigation.push(routes.PlansLibrary)} />
+      {isCurrentPlan ? <StatusPill testID="plan-detail-current" label="Current plan" tone={tablet ? 'active' : 'gold'} /> : null}
+    </View>
+  );
+
+  const thisWeek = weekCards ? (
+    <ThisWeek cards={weekCards} tablet={tablet} onStart={() => openShellPath('/workout')} onOpenExercise={openExercise} />
+  ) : null;
+
+  const workoutDays = (
+    <View style={styles.daysSection}>
+      <Text {...CAP_BODY} accessibilityRole="header" style={[styles.daysHeading, tablet && styles.daysHeadingTablet]}>
+        Workout days
+      </Text>
+      <View style={styles.dayList}>
+        {days.map((day) => (
+          <DayRow
+            key={day.id}
+            day={day}
+            tablet={tablet}
+            exercises={exercisesByDay[day.id] ?? []}
+            isOpen={selectedDayId === day.id}
+            onToggle={() => setSelectedDayId((open) => (open === day.id ? null : day.id))}
+            onOpenExercise={openExercise}
+          />
+        ))}
+      </View>
+    </View>
+  );
+
+  const actions = (
+    <View style={styles.actions}>
+      {activationError ? (
+        <InlineToast testID="plan-activation-error" tone={ToastTone.error} title="Plan activation failed" message={activationError} />
+      ) : null}
+      {isTrainerLocked ? <TrainerLockBanner /> : null}
+      <PlanScheduleCard
+        isCurrentPlan={isCurrentPlan}
+        requiredDays={requiredDays}
+        selected={selectedWeekdays}
+        onToggle={(id) => setSelectedWeekdays((selected) => toggleWeekday(selected, id, requiredDays))}
+        isActivating={isActivating}
+        disabled={isActivating || (isTrainerLocked && !isCurrentPlan)}
+        onSubmit={handleActivate}
+        gold={scheduleGold}
+      />
+      {isPublic ? <CopyToMyPlansCard planId={planId} /> : null}
+    </View>
+  );
+
+  if (tablet) {
+    return (
+      <View style={[styles.page, styles.pageTablet]}>
+        {topBar}
+        <PlanHero plan={plan} dayCount={days.length} totalExercises={totalExercises} />
+        {thisWeek}
+        <View testID="plan-detail-columns" style={styles.columns}>
+          <View style={styles.leftColumn}>{workoutDays}</View>
+          <View style={styles.rightColumn}>{actions}</View>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.page}>
-      <View style={styles.topBar}>
-        <Pressable
-          testID="plan-detail-back"
-          accessibilityRole="link"
-          accessibilityLabel="Plans"
-          onPress={() => navigation.push(routes.PlansLibrary)}
-          style={styles.backLink}
-        >
-          {({ pressed }) => (
-            <>
-              <Text style={[styles.backGlyph, pressed && styles.backPressed]}>‹</Text>
-              <Text style={[styles.backLabel, pressed && styles.backPressed]}>Plans</Text>
-            </>
-          )}
-        </Pressable>
-        {isCurrentPlan ? <ActiveBadge testID="plan-detail-current" label="Current plan" /> : null}
-      </View>
-
-      <View style={[planStyles.card, styles.summary]}>
-        <Eyebrow>{plan?.category?.name || 'Workout plan'}</Eyebrow>
-        <Text accessibilityRole="header" textBreakStrategy="simple" style={[planStyles.title2xl, styles.mt6]}>
-          {plan?.name}
-        </Text>
-        {plan?.description ? (
-          <Text numberOfLines={3} ellipsizeMode="tail" style={[planStyles.body, styles.mt8]}>
-            {plan.description}
-          </Text>
-        ) : null}
-        <View style={styles.stats}>
-          <Stat value={days.length} label="Days" />
-          <Stat value={totalExercises} label="Exercises" divider />
-          <Stat value={difficulty || '—'} label="Level" divider text />
-        </View>
-        <View style={styles.pillRow}>
-          <Pill>{`${days.length}× / week`}</Pill>
-        </View>
-      </View>
-
-      <View>
-        <SectionHeading style={styles.daysHeading}>Workout days</SectionHeading>
-        <View style={styles.dayList}>
-          {days.map((day) => (
-            <DayRow
-              key={day.id}
-              day={day}
-              exercises={exercisesByDay[day.id] ?? []}
-              isOpen={selectedDayId === day.id}
-              onToggle={() => setSelectedDayId((open) => (open === day.id ? null : day.id))}
-              onOpenExercise={(item) => navigation.push(routes.ExerciseDetail, { exerciseId: String(exerciseDetailId(item)) })}
-            />
-          ))}
-        </View>
-      </View>
-
-      <View>
-        {activationError ? (
-          <InlineToast
-            testID="plan-activation-error"
-            tone={ToastTone.error}
-            title="Plan activation failed"
-            message={activationError}
-            style={styles.toast}
-          />
-        ) : null}
-        {isTrainerLocked ? <TrainerLockBanner /> : null}
-        <ScheduleCard
-          isCurrentPlan={isCurrentPlan}
-          requiredDays={requiredDays}
-          selected={selectedWeekdays}
-          onToggle={(id) => setSelectedWeekdays((selected) => toggleWeekday(selected, id, requiredDays))}
-          isActivating={isActivating}
-          disabled={isActivating || (isTrainerLocked && !isCurrentPlan)}
-          onSubmit={handleActivate}
-        />
-        {isPublic ? <CopyToMyPlansCard planId={planId} style={styles.copyCard} /> : null}
-      </View>
-    </View>
-  );
-}
-
-// Batch A (A4): a text value (Level) is 13px / 800 on up to 2 lines, never a
-// 1-line truncation; numeric values are unchanged.
-function Stat({ value, label, divider = false, text = false }) {
-  return (
-    <View style={[styles.stat, divider && styles.statDivider]}>
-      <Text textBreakStrategy="simple" numberOfLines={text ? 2 : undefined} style={[styles.statValue, text && styles.statValueText]}>
-        {value}
-      </Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-// §4.4: accordion row; content appears instantly, the chevron turns in 200 ms.
-function DayRow({ day, exercises, isOpen, onToggle, onOpenExercise }) {
-  const reducedMotion = useReducedMotion();
-  const turn = useRef(new Animated.Value(isOpen ? 1 : 0)).current;
-
-  useEffect(() => {
-    if (reducedMotion) {
-      turn.setValue(isOpen ? 1 : 0);
-      return undefined;
-    }
-    const animation = Animated.timing(turn, { toValue: isOpen ? 1 : 0, duration: 200, easing: EASE, useNativeDriver: true });
-    animation.start();
-    return () => animation.stop();
-  }, [isOpen, reducedMotion, turn]);
-
-  const rotate = turn.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
-  const minutes = estimateMinutes(exercises);
-  const focus = muscleFocus(exercises).slice(0, 3);
-  const title = day.title || `Day ${day.day_number}`;
-
-  return (
-    <View testID={`plan-day-${day.id}`} style={[planStyles.card, styles.dayCard]}>
-      <Pressable
-        testID={`plan-day-toggle-${day.id}`}
-        accessibilityRole="button"
-        accessibilityState={{ expanded: isOpen }}
-        onPress={onToggle}
-        style={({ pressed }) => [styles.dayHeader, pressed && styles.dayHeaderPressed]}
-      >
-        <View style={styles.dayHeaderLeft}>
-          <View style={[styles.dayNumber, isOpen ? styles.dayNumberOpen : styles.dayNumberClosed]}>
-            <Text numberOfLines={1} textBreakStrategy="simple" style={[styles.dayNumberText, { color: isOpen ? colors.navy : colors.textSecondary }]}>
-              {day.day_number || '•'}
-            </Text>
-          </View>
-          <View style={styles.textColumn}>
-            <Text numberOfLines={1} style={styles.dayTitle}>
-              {title}
-            </Text>
-            <Text style={planStyles.meta}>{dayMetaLabel(exercises.length, minutes)}</Text>
-          </View>
-        </View>
-        <Animated.Text style={[styles.chevron, { transform: [{ rotate }] }]} accessibilityElementsHidden importantForAccessibility="no">
-          ⌄
-        </Animated.Text>
-      </Pressable>
-      {isOpen ? (
-        <View style={styles.dayBody}>
-          {focus.length ? (
-            <View style={styles.focusRow}>
-              {focus.map((name) => (
-                <View key={name} style={styles.focusChip}>
-                  <Text style={styles.focusText}>{name}</Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
-          <View style={styles.exerciseList}>
-            {exercises.map((item, index) => (
-              <ExerciseRow key={item.id} item={item} position={index + 1} onPress={() => onOpenExercise(item)} />
-            ))}
-            {exercises.length === 0 ? (
-              <View style={styles.emptyDay}>
-                <Text style={styles.emptyDayText}>{`No exercises were returned for ${day.title || 'this day'}.`}</Text>
-              </View>
-            ) : null}
-          </View>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-// §4.4 ExerciseRow with the exercise photo (owner, 23 Oct; UX row spec
-// R1–R7): a thumbnail well with the order badge, or the C11 colour tile with
-// a dumbbell (no text, so nothing overflows), also once every image
-// candidate has failed (R3); notes span the full row.
-export function ExerciseRow({ item, position, onPress }) {
-  const { width } = useWindowDimensions();
-  const wide = width >= breakpoints.sm;
-  const notes = exerciseNotes(item);
-  const exercise = item.exercise ?? {};
-  const muscle = exercise.primary_muscle_group?.name;
-  const summary = formatSetSummary(item);
-  const [imageFailed, setImageFailed] = useState(false);
-  const url = imageFailed ? null : exercise.thumbnail?.url;
-  const [tileColor, iconColor] = getMuscleTileColors(exercise.primary_muscle_group?.code);
-  const well = wide ? styles.wellWide : styles.wellPhone;
-
-  return (
-    <Pressable
-      testID={`plan-exercise-${item.id}`}
-      accessibilityRole="link"
-      accessibilityLabel={[`Exercise ${position}: ${exercise.name ?? ''}`, muscle, summary].filter(Boolean).join(', ')}
-      onPress={onPress}
-      style={({ pressed }) => [styles.exerciseRow, pressed && styles.exerciseRowPressed]}
-    >
-      <View style={styles.exerciseTop}>
-        <View
-          style={[styles.well, well, !url && { backgroundColor: tileColor }]}
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-        >
-          {url ? (
-            <RemoteImage url={url} style={styles.wellImage} onExhausted={() => setImageFailed(true)} />
-          ) : (
-            <DumbbellIcon color={iconColor} size={wide ? 28 : 24} />
-          )}
-          <View style={styles.orderBadge}>
-            <Text numberOfLines={1} textBreakStrategy="simple" style={styles.orderText}>{position}</Text>
-          </View>
-        </View>
-        <View style={styles.textColumn}>
-          <Text textBreakStrategy="simple" numberOfLines={2} ellipsizeMode="tail" style={styles.exerciseName}>
-            {exercise.name}
-          </Text>
-          {muscle ? (
-            <Text numberOfLines={1} style={styles.exerciseMuscle}>
-              {muscle}
-            </Text>
-          ) : null}
-          <Text style={styles.setSummary}>{summary}</Text>
-        </View>
-        <View style={[styles.chevronBox, { height: wide ? 80 : 64 }]} accessibilityElementsHidden importantForAccessibility="no">
-          <Text style={styles.rowChevron}>›</Text>
-        </View>
-      </View>
-      {notes ? <Text style={styles.exerciseNotes}>{notes}</Text> : null}
-    </Pressable>
-  );
-}
-
-// §4.5
-function TrainerLockBanner() {
-  const [pressed, setPressed] = useState(false);
-  return (
-    <View testID="plan-trainer-lock" accessibilityRole="text" style={styles.lockBanner}>
-      <Text style={styles.lockTitle}>This plan is managed by your trainer</Text>
-      <Text style={styles.lockBody}>
-        You can’t switch plans while your trainer is coaching you. Your workouts, progress and training days all still
-        work as normal — end coaching from{' '}
-        <Text
-          testID="plan-trainer-lock-link"
-          accessibilityRole="link"
-          onPress={() => openShellPath('/my-trainer')}
-          onPressIn={() => setPressed(true)}
-          onPressOut={() => setPressed(false)}
-          style={[styles.lockLink, pressed && styles.lockLinkPressed]}
-        >
-          My trainer
-        </Text>{' '}
-        if you want your plan back.
-      </Text>
-    </View>
-  );
-}
-
-// §4.6
-function ScheduleCard({ isCurrentPlan, requiredDays, selected, onToggle, isActivating, disabled, onSubmit }) {
-  return (
-    <View testID="plan-schedule-card" style={[planStyles.card, styles.scheduleCard]}>
-      <Eyebrow>{isCurrentPlan ? 'Schedule' : 'Start this plan'}</Eyebrow>
-      <Text textBreakStrategy="simple" style={[planStyles.titleXl, styles.mt6]}>
-        {isCurrentPlan ? 'Your training days' : `Pick ${workoutDaysLabel(requiredDays)}`}
-      </Text>
-      <Text style={[planStyles.body, styles.mt6]}>
-        {isCurrentPlan
-          ? `These are the ${requiredDays} day${requiredDays === 1 ? '' : 's'} you train on. Adjust them and tap update to reschedule.`
-          : 'Choose the weekdays to train. Activating this plan replaces any current active plan.'}
-      </Text>
-      <WeekdayGrid selected={selected} onToggle={onToggle} testIDPrefix="plan-weekday" />
-      <Pressable
-        testID="plan-activate"
-        accessibilityRole="button"
-        accessibilityState={{ disabled }}
-        disabled={disabled}
-        onPress={onSubmit}
-        style={({ pressed }) => [styles.cta, pressed && !disabled && styles.ctaPressed, disabled && styles.ctaDisabled]}
-      >
-        {isActivating ? <Spinner size={20} thickness={2} color={colors.navy} track={colors.onGoldSpinnerTrack} /> : null}
-        <Text numberOfLines={1} textBreakStrategy="simple" style={styles.ctaText}>{isCurrentPlan ? 'UPDATE SCHEDULE' : 'START WORKOUT PLAN'}</Text>
-      </Pressable>
+      {topBar}
+      <PlanSummary plan={plan} dayCount={days.length} totalExercises={totalExercises} />
+      {thisWeek}
+      {workoutDays}
+      {actions}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  copyCard: {
-    marginTop: 20,
-  },
   page: {
-    gap: 20,
-    paddingBottom: 24,
+    gap: spacing[3],
+    paddingBottom: spacing[6],
+  },
+  pageTablet: {
+    gap: spacing[4],
   },
   topBar: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
-    paddingTop: 12,
+    gap: spacing[3],
   },
-  // Batch A (A3): 44 pt touch height.
-  backLink: {
-    minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    marginLeft: -8,
-    borderRadius: radii.full,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+  retry: {
+    alignSelf: 'flex-start',
+    marginTop: spacing[3],
   },
-  backGlyph: {
-    fontSize: 18,
-    lineHeight: 18,
-    color: colors.textMuted,
+  daysSection: {
+    marginTop: spacing[2],
   },
-  backLabel: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  backPressed: {
-    color: colors.textPrimary,
-  },
-  summary: {
-    padding: 20,
-  },
-  stats: {
-    flexDirection: 'row',
-    marginTop: 16,
-    borderRadius: radii.lg,
-    backgroundColor: colors.background,
-    paddingVertical: 12,
-  },
-  stat: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statDivider: {
-    borderLeftWidth: 1,
-    borderLeftColor: colors.border,
-  },
-  statValue: {
-    fontSize: 18,
-    lineHeight: 28,
-    fontWeight: '900',
-    fontVariant: ['tabular-nums'],
-    color: colors.textPrimary,
-  },
-  statValueText: {
-    paddingHorizontal: 4,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  // Batch 2 #24: the 11px minimum (tracking 0.15em).
-  statLabel: {
-    fontSize: 11,
-    lineHeight: 16.5,
-    fontWeight: '700',
-    letterSpacing: 1.65,
-    textTransform: 'uppercase',
-    color: colors.textMuted,
-  },
-  pillRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 12,
-  },
+  // 15/600 (phone) · 17/600 (tablet), padding 0 4, margin-bottom 12.
   daysHeading: {
-    marginBottom: 12,
-    paddingHorizontal: 4,
-  },
-  dayList: {
-    gap: 12,
-  },
-  dayCard: {
-    overflow: 'hidden',
-  },
-  dayHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    padding: 16,
-  },
-  dayHeaderPressed: {
-    backgroundColor: colors.rowPressed,
-  },
-  dayHeaderLeft: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  dayNumber: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayNumberOpen: {
-    backgroundColor: colors.brand400,
-  },
-  dayNumberClosed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  dayNumberText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '900',
-  },
-  textColumn: {
-    flex: 1,
-    minWidth: 0,
-  },
-  dayTitle: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  chevron: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: colors.textMuted,
-  },
-  dayBody: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 16,
-  },
-  focusRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 12,
-  },
-  focusChip: {
-    borderRadius: radii.full,
-    backgroundColor: colors.brand50,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  focusText: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '600',
-    color: colors.brand700,
-  },
-  exerciseList: {
-    gap: 8,
-  },
-  exerciseRow: {
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    padding: 12,
-  },
-  exerciseRowPressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  exerciseTop: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  well: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    backgroundColor: colors.surfaceMuted,
-  },
-  wellPhone: {
-    width: 80,
-    height: 64,
-    borderRadius: 18,
-  },
-  wellWide: {
-    width: 96,
-    height: 80,
-    borderRadius: 24,
-  },
-  wellImage: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-  },
-  orderBadge: {
-    position: 'absolute',
-    top: 4,
-    left: 4,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    boxShadow: shadows.lift1,
-  },
-  orderText: {
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
-    color: colors.textPrimary,
-  },
-  exerciseName: {
+    ...font(600),
+    marginBottom: spacing[3],
+    paddingHorizontal: spacing[1],
     fontSize: 15,
     lineHeight: 20,
-    fontWeight: '800',
     color: colors.textPrimary,
   },
-  exerciseMuscle: {
-    marginTop: 2,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '500',
-    color: colors.textSecondary,
+  daysHeadingTablet: {
+    fontSize: 17,
+    lineHeight: 22,
   },
-  setSummary: {
-    marginTop: 6,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '600',
-    color: colors.textSecondary,
+  dayList: {
+    gap: spacing[3],
   },
-  chevronBox: {
-    justifyContent: 'center',
-    flexShrink: 0,
+  actions: {
+    gap: spacing[4],
   },
-  rowChevron: {
-    fontSize: 18,
-    lineHeight: 24,
-    color: colors.textMuted,
-  },
-  exerciseNotes: {
-    marginTop: 10,
-    fontSize: 13,
-    lineHeight: 20,
-    color: colors.textSecondary,
-  },
-  emptyDay: {
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    padding: 16,
-  },
-  emptyDayText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.textSecondary,
-  },
-  toast: {
-    marginBottom: 16,
-  },
-  lockBanner: {
-    marginBottom: 16,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.trainerLockBorder,
-    backgroundColor: colors.brand50,
-    padding: 16,
-  },
-  lockTitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  lockBody: {
-    marginTop: 4,
-    fontSize: 14,
-    lineHeight: 24,
-    color: colors.textSecondary,
-  },
-  lockLink: {
-    fontWeight: '700',
-    color: colors.brand700,
-  },
-  lockLinkPressed: {
-    textDecorationLine: 'underline',
-  },
-  scheduleCard: {
-    padding: 20,
-  },
-  cta: {
+  // LEFT flex 999 1 480 · RIGHT flex 1 1 340, wrapping (portrait stacks).
+  columns: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 20,
-    borderRadius: radii.lg,
-    backgroundColor: colors.brand400,
-    paddingVertical: 16,
-    // Batch 2 #23: soft, not the glow.
-    boxShadow: shadows.soft,
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    gap: spacing[4],
   },
-  ctaPressed: {
-    backgroundColor: colors.brand500,
+  leftColumn: {
+    flexGrow: 999,
+    flexShrink: 1,
+    flexBasis: 480,
+    minWidth: 0,
   },
-  ctaDisabled: {
-    opacity: 0.6,
-  },
-  ctaText: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '900',
-    letterSpacing: 0.4,
-    color: colors.navy,
-  },
-  mt6: {
-    marginTop: 6,
-  },
-  mt8: {
-    marginTop: 8,
+  rightColumn: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 340,
+    minWidth: 0,
   },
 });

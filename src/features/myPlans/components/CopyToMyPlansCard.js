@@ -1,16 +1,26 @@
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
-import Spinner from '../../../shared/components/Spinner';
+import { CAP_BODY } from '../../../shared/components/largeText';
+import PillButton from '../../../shared/components/PillButton';
 import { ToastTone, addToast } from '../../../shared/components/toastStore';
-import { colors, radii, shadows } from '../../../shared/theme/tokens';
+import { colors, font, radii, spacing } from '../../../shared/theme/tokens';
 import { copyToMyPlans } from '../api/myPlansApi';
 import { copyErrorMessage } from '../myPlanFormat';
 import { myPlanRoutes } from '../myPlanRoutes';
 
+export const COPY_SUCCESS_TITLE = 'Plan copied';
+export const COPY_SUCCESS_MESSAGE = 'You’re now on your copy in My plans. Give it a name.';
+// UX H / RN-SPEC-v2-phase4 §2: a 201 without a plan id.
+export const COPY_NO_ID_MESSAGE = 'Your copy is in My plans.';
+
 // M5 (§M5): "Copy to my plans" on S2. The parent shows it only when S2's
 // GET /plans/{id} succeeded (⚠M-5: an admin sees it on private plans too).
+// v2 look (UX H CopyToMyPlansCard): radius 28, padding 22, the surface card;
+// "Want to change it?" 16/600, body 14/21 secondary, a full-width glass
+// button (spinner before the label and disabled while copying), the error
+// line 14 danger-text under it (role alert).
 export default function CopyToMyPlansCard({ planId, style }) {
   const navigation = useNavigation();
   const mounted = useRef(true);
@@ -29,13 +39,14 @@ export default function CopyToMyPlansCard({ planId, style }) {
     setCopyError('');
     try {
       const plan = await copyToMyPlans(planId);
-      addToast(ToastTone.success, 'Plan copied', 'You’re now on your copy in My plans. Give it a name.');
+      const hasId = !(plan?.id === undefined || plan?.id === null || plan?.id === '');
+      addToast(ToastTone.success, COPY_SUCCESS_TITLE, hasId ? COPY_SUCCESS_MESSAGE : COPY_NO_ID_MESSAGE);
       if (!mounted.current) {
         // The user left mid-request: never pull them forward.
         return;
       }
       // `copying` stays set: the screen is left. C9: M3 opens Edit details once.
-      if (plan?.id === undefined || plan?.id === null || plan?.id === '') {
+      if (!hasId) {
         // The 201 had no plan id: never open /my-custom-plans/undefined. The
         // copy exists, so open My plans, where it is listed.
         navigation.push(myPlanRoutes.MyPlans);
@@ -52,24 +63,24 @@ export default function CopyToMyPlansCard({ planId, style }) {
 
   return (
     <View testID="copy-to-my-plans" style={[styles.card, style]}>
-      <Text style={styles.title}>Want to change it?</Text>
-      <Text style={styles.body}>
+      <Text {...CAP_BODY} accessibilityRole="header" style={styles.title}>
+        Want to change it?
+      </Text>
+      <Text {...CAP_BODY} style={styles.body}>
         Copy it to My plans, then edit the copy any way you like. This plan stays as it is.
       </Text>
-      <Pressable
+      <PillButton
         testID="copy-to-my-plans-button"
-        accessibilityRole="button"
-        accessibilityLabel="Copy to my plans"
-        accessibilityState={{ disabled: copying, busy: copying }}
+        title="Copy to my plans"
+        variant="secondary"
+        fullWidth
+        loading={copying}
         disabled={copying}
         onPress={copy}
-        style={({ pressed }) => [styles.button, pressed && styles.buttonPressed, copying && styles.buttonDisabled]}
-      >
-        {copying ? <Spinner size={16} thickness={2} color={colors.textPrimary} track={colors.border} /> : null}
-        <Text style={styles.buttonLabel}>Copy to my plans</Text>
-      </Pressable>
+        style={styles.button}
+      />
       {copyError ? (
-        <Text testID="copy-to-my-plans-error" accessibilityRole="alert" style={styles.error}>
+        <Text {...CAP_BODY} testID="copy-to-my-plans-error" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>
           {copyError}
         </Text>
       ) : null}
@@ -81,53 +92,31 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: radii.xxl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hairline,
     backgroundColor: colors.surface,
-    padding: 20,
-    boxShadow: shadows.soft,
+    padding: spacing['5_5'],
   },
   title: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
+    ...font(600),
+    fontSize: 16,
+    lineHeight: 22,
     color: colors.textPrimary,
   },
   body: {
-    marginTop: 4,
+    ...font(400),
+    marginTop: spacing[1],
     fontSize: 14,
-    lineHeight: 24,
+    lineHeight: 21,
     color: colors.textSecondary,
   },
   button: {
-    marginTop: 16,
-    width: '100%',
-    minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingVertical: 12,
-  },
-  buttonPressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonLabel: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
+    marginTop: spacing[4],
   },
   error: {
-    marginTop: 12,
+    ...font(400),
+    marginTop: spacing[3],
     fontSize: 14,
     lineHeight: 20,
-    color: colors.danger700,
+    color: colors.dangerText,
   },
 });
