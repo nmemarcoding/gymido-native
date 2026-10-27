@@ -373,12 +373,16 @@ function ExercisesCatalog() {
 
   const data = useMemo(() => {
     // T-62 States: the toolbar and the active line stay in every state; the
-    // Loader and the error sit in the results area.
-    const rows = [
-      { type: 'header', key: 'header' },
-      { type: 'bar', key: 'bar' },
-      { type: 'line', key: 'line' },
-    ];
+    // Loader and the error sit in the results area. With the ≥ 1024 panel
+    // they sit ABOVE the [panel | results] row instead (web parity), so the
+    // list holds the results only.
+    const rows = panelShown
+      ? []
+      : [
+          { type: 'header', key: 'header' },
+          { type: 'bar', key: 'bar' },
+          { type: 'line', key: 'line' },
+        ];
     if (load.status === 'loading') {
       rows.push({ type: 'loader', key: 'loader' });
     } else if (load.status === 'error') {
@@ -396,7 +400,7 @@ function ExercisesCatalog() {
       }
     }
     return rows;
-  }, [load.status, load.partial, catalog.groups, columns]);
+  }, [load.status, load.partial, catalog.groups, columns, panelShown]);
 
   const renderItem = ({ item }) => {
     switch (item.type) {
@@ -534,7 +538,7 @@ function ExercisesCatalog() {
       data={data}
       renderItem={renderItem}
       keyExtractor={(item) => item.key}
-      stickyHeaderIndices={[1]}
+      stickyHeaderIndices={panelShown ? undefined : [1]}
       // Android Fabric crashes (addViewAt IndexOutOfBounds) when clipped
       // subviews meet a sticky header that appears after load.
       removeClippedSubviews={false}
@@ -552,19 +556,29 @@ function ExercisesCatalog() {
         // T-55/T-56: room for the overlay's rail (TabletFrame takes the top/left insets).
         <TabletFrame>
           <View style={[styles.tabletRow, { paddingRight: 4 + insets.right }]}>
-            <View style={[styles.tabletContent, panelShown && styles.tabletContentPanel]}>
+            <View style={styles.tabletContent}>
               {panelShown ? (
-                <ExerciseFilterPanel
-                  facets={facets}
-                  filters={applied}
-                  onSelect={selectFilter}
-                  loadingNames={firstLoad && load.items.length === 0}
-                  width={width}
-                  maxHeight={height - 48 - insets.top - insets.bottom}
-                  style={styles.panel}
-                />
-              ) : null}
-              <View style={styles.listColumn}>{list}</View>
+                <>
+                  {/* Web parity (≥ 1024): the title, toolbar and active line above a [256 | 1fr] row. */}
+                  {renderItem({ item: { type: 'header' } })}
+                  {renderItem({ item: { type: 'bar' } })}
+                  {renderItem({ item: { type: 'line' } })}
+                  <View testID="exercises-panel-row" style={styles.panelRow}>
+                    <ExerciseFilterPanel
+                      facets={facets}
+                      filters={applied}
+                      onSelect={selectFilter}
+                      loadingNames={firstLoad && load.items.length === 0}
+                      width={width}
+                      maxHeight="100%"
+                      style={styles.panel}
+                    />
+                    <View style={styles.listColumn}>{list}</View>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.listColumn}>{list}</View>
+              )}
             </View>
           </View>
         </TabletFrame>
@@ -726,8 +740,11 @@ const styles = StyleSheet.create({
   },
   // T-62 panel row: the panel 20 in (the rows' own padding) and 4 + the
   // rows' 20 padding = the 24 gap to the results.
-  tabletContentPanel: {
+  // ≥ 1024: the panel beside the results only, both under the toolbar.
+  panelRow: {
+    flex: 1,
     flexDirection: 'row',
+    minHeight: 0,
   },
   panel: {
     marginLeft: 20,

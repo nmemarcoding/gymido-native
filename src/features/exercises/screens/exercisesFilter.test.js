@@ -424,7 +424,9 @@ describe('T-62 ≥ 1024: the always-visible filter panel', () => {
   const panel = (root) => host(root, 'exercises-filter-panel');
   const listRows = (root) => root.find((node) => node.props.testID === 'exercises-list' && typeof node.type !== 'string' && Array.isArray(node.props.data)).props.data.filter((row) => row.type === 'row');
 
-  it('1024–1279: 256 wide card (radius 24, surface, hairline, padding 16 10), sticky top 24, max height window − 48; no Filter button', async () => {
+  // DECLARED change (reviewer, web parity): the panel's height is the row
+  // beside the results ('100%'), was window − 48 beside the whole page.
+  it('1024–1279: 256 wide card (radius 24, surface, hairline, padding 16 10), top 24, as tall as the results row at most; no Filter button', async () => {
     mockWidth = 1194;
     const tree = await render();
     expect(flat(panel(tree.root))).toMatchObject({
@@ -436,7 +438,7 @@ describe('T-62 ≥ 1024: the always-visible filter panel', () => {
       paddingVertical: 16,
       paddingHorizontal: 10,
       marginTop: 24,
-      maxHeight: 900 - 48,
+      maxHeight: '100%',
     });
     expect(hosts(tree.root, 'exercises-filter')).toHaveLength(0);
     // No title, no ×, no footer inside the panel; the list scrolls inside it.
@@ -445,6 +447,33 @@ describe('T-62 ≥ 1024: the always-visible filter panel', () => {
     expect(hosts(tree.root, 'exercises-filter-panel-scroll')).toHaveLength(1);
     // The results grid beside it: 2 columns.
     expect(listRows(tree.root)[0].cards).toHaveLength(2);
+  });
+
+  // Reviewer (web parity): web keeps the title, toolbar and active line ABOVE
+  // a [256 | 1fr] grid, so the panel sits beside the RESULTS only.
+  it('the title, toolbar and active line sit above a [panel | results] row; the list holds only results', async () => {
+    mockWidth = 1194;
+    const tree = await render();
+    const row = host(tree.root, 'exercises-panel-row');
+    expect(row).toBeTruthy();
+    const inRow = (id) => row.findAll((node) => node.props.testID === id && typeof node.type === 'string').length > 0;
+    expect(inRow('exercises-filter-panel')).toBe(true);
+    expect(row.findAll((node) => node.props.testID === 'exercises-list').length).toBeGreaterThan(0);
+    ['exercises-title', 'exercises-toolbar', 'exercises-active-line'].forEach((id) => {
+      expect(hosts(tree.root, id).length).toBeGreaterThan(0);
+      expect(inRow(id)).toBe(false);
+    });
+    const data = tree.root.find((node) => node.props.testID === 'exercises-list' && Array.isArray(node.props.data)).props.data;
+    expect(data.some((item) => ['header', 'bar', 'line'].includes(item.type))).toBe(false);
+    expect(flat(row)).toMatchObject({ flexDirection: 'row', flex: 1 });
+  });
+
+  it('below 1024 (and at large text) the list keeps the header, toolbar and line as its rows', async () => {
+    mockWidth = 834;
+    const tree = await render();
+    expect(hosts(tree.root, 'exercises-panel-row')).toHaveLength(0);
+    const data = tree.root.find((node) => node.props.testID === 'exercises-list' && Array.isArray(node.props.data)).props.data;
+    expect(data.slice(0, 3).map((item) => item.type)).toEqual(['header', 'bar', 'line']);
   });
 
   it('≥ 1280: 280 wide, 3 columns', async () => {
