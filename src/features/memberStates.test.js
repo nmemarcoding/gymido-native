@@ -13,7 +13,7 @@ import MyPlansScreen from './myPlans/MyPlansScreen';
 import NotificationPanel from './notifications/NotificationPanel';
 import NotificationsScreen from './notifications/NotificationsScreen';
 import { useNotificationStore } from './notifications/notificationStore';
-import { getCurrentPlan, getPlan, listDayExercises, listPlanDays, listPlans } from './plans/api/libraryApi';
+import { getCurrentPlan, getPlan, listPlanDays, listPlans } from './plans/api/libraryApi';
 import PlanDetailScreen from './plans/screens/PlanDetailScreen';
 import PlansLibraryScreen from './plans/screens/PlansLibraryScreen';
 import { resetProfileStore, useProfileStore } from './profile/profileStore';

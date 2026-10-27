@@ -20,6 +20,9 @@ module.exports = defineConfig([
       'react-hooks/immutability': 'warn',
       // An HTML rule: React Native <Text> renders ' and " as typed.
       'react/no-unescaped-entities': 'off',
+      // PM (27 Oct): every existing case triaged (lint-13-triage.md), so a
+      // NEW missing dependency (the refetch-storm family) fails the gate.
+      'react-hooks/exhaustive-deps': 'error',
     },
   },
   {

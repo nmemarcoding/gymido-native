@@ -82,7 +82,7 @@ function ExercisesCatalog() {
   const navigation = useNavigation();
   const route = useRoute();
   const path = getScreenPath(route.name, route.params);
-  const { width, height, fontScale } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const storedPreference = useAuthStore((state) => state.workspace);

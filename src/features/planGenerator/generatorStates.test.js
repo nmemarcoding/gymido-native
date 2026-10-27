@@ -90,7 +90,6 @@ const one = (tree, id) => byTestId(tree, id)[0];
 const has = (tree, id) => byTestId(tree, id).length > 0;
 // The hint's Text (BlockHint carries the same testID).
 const hintText = (tree, id) => byTestId(tree, id).find((node) => typeof node.props.children === 'string')?.props.children;
-const hasHint = (tree, id) => hintText(tree, id) !== undefined;
 
 async function render(element) {
   let tree;

@@ -647,7 +647,7 @@ describe('T-50: notification permission at the workout start (option A)', () => 
 
   it('the workout start never asks once answered (granted or denied)', async () => {
     for (const permission of ['granted', 'denied']) {
-      const { platform, controller } = setup({ permission });
+      const { platform } = setup({ permission });
       await requestPermissionAtWorkoutStart(platform);
       expect(platform.requests).toBe(0);
     }

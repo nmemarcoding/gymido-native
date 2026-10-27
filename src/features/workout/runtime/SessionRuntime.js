@@ -26,7 +26,6 @@ import {
   LastExerciseNote,
   ReloadErrorBar,
   SessionChrome,
-  SessionRail,
   SessionStats,
   SetEditor,
   StaleSessionBanner,
@@ -190,7 +189,8 @@ export default function SessionRuntime({
   useEffect(() => {
     setDrafts((current) => seedDrafts(session, exerciseStatsMap, current));
     setRepsDrafts((current) => seedRepsDrafts(session, current));
-  }, [session, exerciseStatsMap]);
+    // The setters are stable per session (useSessionValue).
+  }, [session, exerciseStatsMap, setDrafts, setRepsDrafts]);
 
   // §26 auto-advance: follow the active exercise whenever it changes.
   useEffect(() => {

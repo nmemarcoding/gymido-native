@@ -23,6 +23,8 @@ jest.mock('./TabletRail', () => {
   return function CountedRail(props) {
     useEffect(() => {
       mockRailMounts.push(props.path);
+      // Counts MOUNTS: the first path only, on purpose.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
     return <Actual {...props} />;
   };

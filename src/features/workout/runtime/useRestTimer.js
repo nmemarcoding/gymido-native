@@ -69,7 +69,8 @@ export default function useRestTimer({ onRestComplete, alerts, sessionId }) {
   const start = useCallback((setId, seconds, nextSetKey) => {
     setMinimized(true);
     setTimer({ setId, secondsLeft: seconds, totalSeconds: seconds, nextSetKey });
-  }, []);
+    // setMinimized is stable (created once, in useState).
+  }, [setMinimized]);
 
   const clear = useCallback(() => setTimer(null), []);
 
@@ -136,7 +137,7 @@ export default function useRestTimer({ onRestComplete, alerts, sessionId }) {
       setTimer((current) => (current && current.setId === timer.setId && current.secondsLeft !== remaining ? { ...current, secondsLeft: remaining } : current));
     }, TICK_MS);
     return () => clearInterval(interval);
-  }, [timer]);
+  }, [timer, setMinimized]);
 
   // The session store follows every change (after the effect above set the clock).
   useEffect(() => {

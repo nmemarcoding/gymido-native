@@ -261,6 +261,7 @@ function PlanBuilder({ planId, adapter }) {
       openEditPlan();
     }
     // openEditPlan is recreated each render; the ref keeps this to one run.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, nameTheCopy, capabilities.editPlan]);
 
   // Part C §CP2: one flow for both copy buttons (and the member's own-plan

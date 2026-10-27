@@ -62,7 +62,9 @@ export default function EditPlanDetailsModal({
       setValues(start);
       setErrors({});
     }
-    // The plan is read at the open edge only.
+    // The plan is read at the open edge only (a later plan change must not
+    // reset what the user is editing).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   const changes = getChangedPlanFields(initial, values);
