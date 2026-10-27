@@ -29,7 +29,9 @@ import { TAB_BAR_CONTENT_PADDING } from './tabBarMetrics';
 // v2 (RN-SPEC-v2-foundation §7): the ground colour; phones keep 104 px (+ the
 // safe area) under the content so nothing ends under the floating tab bar;
 // `glow` draws the ambient gold glow where a board has one (see Screen.js).
-export default function ShellPage({ children, nestable = false, glow = false, testID = 'app-root' }) {
+// `scrollRef` (optional): the page's ScrollView, for screens that scroll
+// programmatically (the generator's Review opens at the top, G1.3).
+export default function ShellPage({ children, nestable = false, glow = false, testID = 'app-root', scrollRef }) {
   const route = useRoute();
   const path = getScreenPath(route.name, route.params);
   const { width, fontScale } = useWindowDimensions();
@@ -77,6 +79,7 @@ export default function ShellPage({ children, nestable = false, glow = false, te
         <AmbientGlow glow={glow} />
         <TabletFrame>
           <Scroller
+            ref={scrollRef}
             {...scrollerProps}
             contentContainerStyle={{
               paddingTop: 24,
@@ -98,6 +101,7 @@ export default function ShellPage({ children, nestable = false, glow = false, te
     <View testID={testID} style={[styles.screen, { paddingTop: insets.top }]}>
       <AmbientGlow glow={glow} />
       <Scroller
+        ref={scrollRef}
         {...scrollerProps}
         contentContainerStyle={{
           paddingTop: 0,

@@ -112,6 +112,9 @@ function PlanGenerator() {
   // A counter: every bump moves the focus once (deep link, step change).
   const [focusHeading, setFocusHeading] = useState(0);
   const headingRef = useRef(null);
+  // G1.3 (27 Oct): the Review opens at the top with its title focused.
+  const reviewTitleRef = useRef(null);
+  const scrollRef = useRef(null);
   const stepErrorRef = useRef(null);
   // The pinned bar's live height (re-measured on every layout, never cached).
   const [barHeight, setBarHeight] = useState(0);
@@ -162,7 +165,7 @@ function PlanGenerator() {
     }
     const timer = setTimeout(() => {
       // PM parity (26 Oct): preview → step 6 with a 422 focuses the error.
-      const node = findNodeHandle(stepErrorRef.current ?? headingRef.current);
+      const node = findNodeHandle(stepErrorRef.current ?? reviewTitleRef.current ?? headingRef.current);
       if (node) {
         AccessibilityInfo.setAccessibilityFocus(node);
       }
@@ -195,6 +198,11 @@ function PlanGenerator() {
     const goTo = (next) => {
       setStep(next);
       setFocusHeading((value) => value + 1);
+      // G1.3: arriving on the Review scrolls the page to y 0 (it used to keep
+      // step 6's scroll position and could open mid-page).
+      if (next === REVIEW) {
+        scrollRef.current?.scrollTo?.({ y: 0, animated: false });
+      }
     };
 
     // §G1.5
@@ -233,6 +241,7 @@ function PlanGenerator() {
           onChange={goTo}
           onBack={goTo}
           onSave={handleSave}
+          titleRef={reviewTitleRef}
         />
       );
     } else {
@@ -333,7 +342,7 @@ function PlanGenerator() {
 
   return (
     <View style={styles.screen}>
-      <ShellPage testID="plan-generator-screen">
+      <ShellPage testID="plan-generator-screen" scrollRef={scrollRef}>
         <View style={styles.page}>{content}</View>
       </ShellPage>
       {pinnedBar}

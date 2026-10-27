@@ -16,9 +16,16 @@ jest.mock('@react-navigation/native', () => ({
   useRoute: () => ({ key: 'PlanGenerator-1', name: 'PlanGenerator', params: mockParams }),
   CommonActions: { reset: jest.fn() },
 }));
+const mockScrollTo = jest.fn();
 jest.mock('../shell/ShellPage', () => {
   const { View } = require('react-native');
-  return ({ children }) => <View>{children}</View>;
+  // G1.3 (27 Oct): the screen scrolls the page through ShellPage's scrollRef.
+  return ({ children, scrollRef }) => {
+    if (scrollRef) {
+      scrollRef.current = { scrollTo: mockScrollTo };
+    }
+    return <View>{children}</View>;
+  };
 });
 jest.mock('../shell/shellLinks', () => ({ openShellPath: jest.fn(), handOffToWorkout: jest.fn() }));
 jest.mock('./generatorRoutes', () => ({
@@ -262,6 +269,21 @@ describe('G3 step error / step eyebrow', () => {
     await act(async () => one(tree, 'generator-review-change-3').props.onPress());
     expect(texts(tree)).toContain('Too many days.');
     expect(announceSpy).toHaveBeenCalledWith('Please check this answer. Too many days.');
+  });
+
+  // RN-SPEC-PLAN-GENERATOR G1.3 dated change (27 Oct 2026): the Review opens at
+  // the TOP: scroll to y 0 and focus the "Check your answers" title.
+  it('G1.3: arriving on the Review scrolls to the top and focuses "Check your answers"', async () => {
+    mockProfile();
+    mockParams = { step: 5 }; // step 6 (as the G1.5 test)
+    const tree = await render(<PlanGeneratorScreen />);
+    await flushFocus();
+    mockScrollTo.mockClear();
+    focusSpy.mockClear();
+    await act(async () => one(tree, 'generator-next').props.onPress());
+    expect(mockScrollTo).toHaveBeenCalledWith({ y: 0, animated: false });
+    await flushFocus();
+    expect(focusSpy).toHaveBeenLastCalledWith('generator-review-title');
   });
 
   it('initialStepErrors keeps only step 1–6 string messages', () => {

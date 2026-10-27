@@ -19,7 +19,7 @@ import { ArrowRightIcon } from './GeneratorIcons';
 // focus/avoid). Each card's question + answer reads as ONE string (the code
 // summary); "Change" → that step. §9 reflow: the two small cards stack and
 // the button pair stacks, primary on top.
-export default function GeneratorReview({ answers, options, stepErrors, saveError, saving, reflow, knownExercises, onChange, onBack, onSave }) {
+export default function GeneratorReview({ answers, options, stepErrors, saveError, saving, reflow, knownExercises, onChange, onBack, onSave, titleRef }) {
   const rows = reviewSummaries(answers, options);
   const details = reviewDetails(answers, options);
   const summary = (step) => rows[step - 1];
@@ -42,7 +42,7 @@ export default function GeneratorReview({ answers, options, stepErrors, saveErro
         <Text {...BODY_TEXT} style={styles.eyebrow}>
           {COPY.reviewEyebrow}
         </Text>
-        <Text {...PAGE_TITLE_TEXT} accessibilityRole="header" style={styles.title}>
+        <Text ref={titleRef} testID="generator-review-title" {...PAGE_TITLE_TEXT} accessibilityRole="header" style={styles.title}>
           {COPY.reviewTitle}
         </Text>
       </View>
