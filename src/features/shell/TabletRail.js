@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     width: TIP_BOX_WIDTH,
     alignItems: 'flex-start',
   },
-  // UX (batch verdicts 27 Oct): the kit tooltip look — #1E2129, hairline
+  // UX (batch verdicts 27 Oct): the kit tooltip look — surfaceRaised, hairline
   // 0.10, radius 10, 13/600 — beside the item, never over it.
   tip: {
     minHeight: TIP_HEIGHT,
