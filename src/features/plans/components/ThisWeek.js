@@ -6,13 +6,15 @@ import { CAP_BODY, CAP_PILL } from '../../../shared/components/largeText';
 import StatusPill from '../../../shared/components/StatusPill';
 import { colors, font, gradients, radii, spacing, typography } from '../../../shared/theme/tokens';
 import { compactSetSummary, stripCells } from '../libraryFormat';
+import { thumbImageProps } from '../planImages';
 import PlanIcon from './planIcons';
 import { PressOverlay, useReflow } from './planUi';
 
 const HIDDEN = { accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' };
 
 // Approved #9 "This week" on Plan detail (current plan only): the week's
-// training days from GET /my-plans/current/week. Today = the gold-card with
+// training days from GET /my-plans/current/week, in week order (review M6:
+// nothing is pinned first; the Done card comes last). Today = the gold-card with
 // the ONE gold action (Start, announced "Start {day}") and a photo strip;
 // missed / upcoming = surface cards (missed adds the warning pill); the done
 // days fold into one summary card. Rest days have no card. Phone: a column
@@ -21,10 +23,16 @@ const HIDDEN = { accessibilityElementsHidden: true, importantForAccessibility: '
 export default function ThisWeek({ cards, tablet = false, onStart, onOpenExercise }) {
   const reflow = useReflow();
   const items = [];
-  if (cards.today) {
-    items.push(<TodayCard key="today" card={cards.today} onStart={onStart} onOpenExercise={onOpenExercise} reflow={reflow} />);
-  }
-  cards.others.forEach((card) => items.push(<UpcomingCard key={card.key} card={card} />));
+  // Review M6: week order (a missed Monday before today), then Done.
+  cards.open.forEach((card) =>
+    items.push(
+      card.status === 'today' ? (
+        <TodayCard key="today" card={card} onStart={onStart} onOpenExercise={onOpenExercise} reflow={reflow} />
+      ) : (
+        <UpcomingCard key={card.key} card={card} />
+      )
+    )
+  );
   if (cards.done) {
     items.push(<DoneCard key="done" done={cards.done} />);
   }
@@ -118,6 +126,7 @@ function TodayCard({ card, onStart, onOpenExercise, reflow }) {
                 <View>
                   <ExerciseImage
                     exercise={item.exercise}
+                    {...thumbImageProps(item.exercise)}
                     size={60}
                     accessibilityLabel={name}
                     testID={`plan-week-image-${item.id}`}
@@ -167,6 +176,7 @@ function UpcomingCard({ card }) {
             <ExerciseImage
               key={item.id}
               exercise={item.exercise}
+              {...thumbImageProps(item.exercise)}
               size={36}
               testID={`plan-week-thumb-${item.id}`}
               style={[styles.stackThumb, index > 0 && styles.stackOverlap]}

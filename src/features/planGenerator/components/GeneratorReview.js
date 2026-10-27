@@ -8,6 +8,8 @@ import { colors, font, gradients, muscle, radii, spacing } from '../../../shared
 import { COPY, STEP_COUNT, changeLabel } from '../generatorCopy';
 import { BODY_TEXT, CHANGE_HIT_SLOP, CHANGE_PILL_HEIGHT, DISPLAY_TEXT, PAGE_TITLE_TEXT, PressOverlay } from '../generatorLayout';
 import { imageUrlOf, reviewDetails, reviewSummaries } from '../generatorLogic';
+// Review M4: the v2 image chain (w400 first).
+import { THUMB_WIDTH, imageSourceProps } from '../../plans/planImages';
 import { ArrowRightIcon } from './GeneratorIcons';
 
 // G1.3 "Check your answers" (GeneratorReview board, phone; tablet = the same
@@ -146,7 +148,7 @@ export default function GeneratorReview({ answers, options, stepErrors, saveErro
           </View>
           {avoidedPhoto && !reflow ? (
             <View testID="generator-review-avoid-photo" style={styles.row6Photo} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-              <ExerciseImage url={avoidedPhoto} name={avoided.name} size={128} style={styles.row6Image} />
+              <ExerciseImage {...imageSourceProps(avoidedPhoto, { width: THUMB_WIDTH })} name={avoided.name} size={128} style={styles.row6Image} />
               <GradientFill angle={270} colors={gradients.surfaceFade.colors} stops={ROW6_FADE_STOPS} />
               <View style={styles.photoChip}>
                 <Text {...BODY_TEXT} numberOfLines={1} style={styles.photoChipText}>

@@ -5,6 +5,7 @@ import { CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT } from '../../../shared/componen
 import RemoteImage from '../../../shared/components/RemoteImage';
 import { colors, font, gradients, radii, spacing, textScale } from '../../../shared/theme/tokens';
 import { planPhotoUrl } from '../libraryFormat';
+import { imageCandidates } from '../planImages';
 import { useReflow } from './planUi';
 
 const HIDDEN = { accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' };
@@ -96,14 +97,16 @@ function StatRow({ plan, dayCount, totalExercises, hero = false }) {
 // photo (N3: the first exercise's photo, opacity 0.5 under the photo fade)
 // or gradient-card, the ambient gold glow, content at the bottom.
 export function PlanHero({ plan, dayCount, totalExercises }) {
-  const photo = planPhotoUrl(plan);
+  // Review M4: the v2 chain (no uc link; none → the gradient card at once).
+  const photoSources = imageCandidates(planPhotoUrl(plan));
+  const photo = photoSources.length > 0;
   return (
     <View testID="plan-hero" style={styles.hero}>
       <View {...HIDDEN} pointerEvents="none" style={StyleSheet.absoluteFill}>
         <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
         {photo ? (
           <>
-            <RemoteImage url={photo} style={[StyleSheet.absoluteFill, styles.heroPhoto]} />
+            <RemoteImage url={planPhotoUrl(plan)} sources={photoSources} style={[StyleSheet.absoluteFill, styles.heroPhoto]} />
             <GradientFill angle={gradients.photoFade.angle} colors={gradients.photoFade.colors} />
           </>
         ) : null}

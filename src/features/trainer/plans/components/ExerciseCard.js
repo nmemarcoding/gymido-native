@@ -3,6 +3,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CardHeroFill } from '../../../../shared/components/Card';
 import ExerciseImage from '../../../../shared/components/ExerciseImage';
+// Review M4/M5: the v2 image chain and media_type (thumbnails w400 first).
+import { exerciseImageProps, thumbImageProps } from '../../../plans/planImages';
 import { CAP_BODY } from '../../../../shared/components/largeText';
 import PillButton from '../../../../shared/components/PillButton';
 import { colors, font, layout, radii, shadows, spacing } from '../../../../shared/theme/tokens';
@@ -20,6 +22,8 @@ import SetList from './SetList';
 // "exercise n of N" instead (the list rule).
 const NO_ACTIONS = Object.freeze({});
 
+const ROW_GRIP_WIDTH = 28;
+const ROW_GRIP_SLOP = Object.freeze({ top: 0, bottom: 0, left: (layout.touchMin - ROW_GRIP_WIDTH) / 2, right: (layout.touchMin - ROW_GRIP_WIDTH) / 2 });
 export const HERO_HEIGHT = Object.freeze({ member: 120, trainer: 150 });
 
 export function positionLabel(name, index, count) {
@@ -86,7 +90,7 @@ export default function ExerciseCard({
         <CardHeroFill />
         <View style={styles.articleRow}>
           {grip}
-          <ExerciseImage exercise={exercise.exercise} size={96} style={styles.thumbArticle} />
+          <ExerciseImage exercise={exercise.exercise} {...thumbImageProps(exercise.exercise)} size={96} style={styles.thumbArticle} />
           <View style={styles.textColumn}>
             {nameText(styles.nameArticle)}
             <Text {...CAP_BODY} style={styles.summaryArticle}>
@@ -115,6 +119,7 @@ export default function ExerciseCard({
         {trainer ? null : <CardHeroFill />}
         <ExerciseImage
           exercise={exercise.exercise}
+          {...exerciseImageProps(exercise.exercise)}
           hero
           testID={`plan-exercise-photo-${exercise.id}`}
           style={[styles.heroImage, { height: HERO_HEIGHT[look] ?? HERO_HEIGHT.member }]}
@@ -140,7 +145,7 @@ export default function ExerciseCard({
     <View testID={`plan-exercise-${exercise.id}`} style={[trainer ? styles.compactTrainer : styles.compact, isActive && styles.active]}>
       <View style={styles.compactRow}>
         {trainer ? null : grip}
-        <ExerciseImage exercise={exercise.exercise} size={72} style={trainer ? styles.thumbTrainer : styles.thumbMember} />
+        <ExerciseImage exercise={exercise.exercise} {...thumbImageProps(exercise.exercise)} size={72} style={trainer ? styles.thumbTrainer : styles.thumbMember} />
         <View style={styles.textColumn}>
           {nameText(trainer ? styles.nameCompactTrainer : styles.nameCompact)}
           <Text {...CAP_BODY} style={trainer ? styles.summaryCompactTrainer : styles.summaryCompact}>
@@ -179,6 +184,8 @@ function Grip({ exercise, name, index, count, drag, onMove, onPhoto, trainer = f
           onMove(index, index + 1);
         }
       }}
+      // Review LOW: the 28-wide row grip reaches 44 (the photo grips are 36 × 44 / 44).
+      hitSlop={onPhoto ? undefined : ROW_GRIP_SLOP}
       style={onPhoto ? [styles.gripPhoto, trainer && styles.gripPhotoTrainer] : styles.gripRow}
     >
       <GripIcon color={onPhoto ? colors.textPrimary : colors.textFaint} size={18} />
@@ -307,7 +314,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
   },
   gripRow: {
-    width: 28,
+    width: ROW_GRIP_WIDTH,
     minHeight: layout.touchMin,
     alignItems: 'center',
     justifyContent: 'center',

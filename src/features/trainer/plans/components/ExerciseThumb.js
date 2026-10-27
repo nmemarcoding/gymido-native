@@ -1,6 +1,8 @@
 import { StyleSheet } from 'react-native';
 
 import ExerciseImage from '../../../../shared/components/ExerciseImage';
+// Review M4/M5: the v2 image chain (w400 first) and media_type.
+import { thumbImageProps } from '../../../plans/planImages';
 import { colors, musclePalette } from '../../../../shared/theme/tokens';
 
 const WHITE = musclePalette.iconLight;
@@ -41,7 +43,7 @@ export function getMuscleTileColors(code) {
 // drops it for callers that draw their own. `getMuscleTileColors` stays the
 // v1 tile palette for PlanDetailScreen until its own phase.
 export default function ExerciseThumb({ exercise, size = 52, framed = true }) {
-  return <ExerciseImage exercise={exercise} size={size} style={framed ? styles.frame : null} />;
+  return <ExerciseImage exercise={exercise} {...thumbImageProps(exercise)} size={size} style={framed ? styles.frame : null} />;
 }
 
 const styles = StyleSheet.create({

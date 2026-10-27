@@ -79,6 +79,8 @@ describe('Choice (card radio), v2 Phase 4 J', () => {
     const disc = tree.root.find((node) => node.props.testID === 'choice-check' && node.type === 'View');
     expect(flat(disc.props.style)).toMatchObject({ backgroundColor: colors.gold, width: 30 });
     expect(disc.findAll((node) => node.props.testID === 'icon-check').length).toBeGreaterThan(0);
+    // Re-added (review 26fc4a8): the ✓ is on-gold (was a Text colour, now the SVG stroke).
+    expect(disc.findAll((node) => node.props.testID === 'icon-check' && node.props.stroke !== undefined)[0].props.stroke).toBe(colors.onGold);
     expect(flat(text(tree, 'Heavier lifts').props.style).color).toBe(colors.textMuted);
   });
 
@@ -88,7 +90,7 @@ describe('Choice (card radio), v2 Phase 4 J', () => {
     const node = pressable(tree, 'goal');
     expect(node.props.accessibilityRole).toBe('radio');
     expect(node.props.accessibilityLabel).toBe('Get stronger, Heavier lifts');
-    expect(node.props.accessibilityState).toEqual({ selected: true, checked: true, disabled: false });
+    expect(node.props.accessibilityState).toEqual({ checked: true, disabled: false });
     act(() => node.props.onPress());
     expect(onPress).toHaveBeenCalledTimes(1);
   });
@@ -152,6 +154,8 @@ describe('OptionPill', () => {
     expect(styleOf(tree, 'days').boxShadow).toBeUndefined();
     expect(flat(overlayOf(contentOf(tree, 'days', true)).props.style).backgroundColor).toBe(colors.pressOverlayInk);
     expect(flat(checkSlot(tree, true).props.style).opacity).toBeUndefined();
+    // Re-added (review 26fc4a8): the selected pill's ✓ is on-gold (now the SVG stroke).
+    expect(checkSlot(tree, true).findAll((node) => node.props.testID === 'icon-check' && node.props.stroke !== undefined)[0].props.stroke).toBe(colors.onGold);
     expect(flat(text(tree, '4 days').props.style).color).toBe(colors.onGold);
   });
 
@@ -159,7 +163,7 @@ describe('OptionPill', () => {
     const tree = pill({ size: 'large', accessibilityRole: 'radio', selected: true });
     expect(styleOf(tree, 'days')).toMatchObject({ minHeight: 52, minWidth: 96, paddingHorizontal: 20 });
     expect(flat(text(tree, '4 days').props.style)).toMatchObject({ fontSize: 16 });
-    expect(pressable(tree, 'days').props.accessibilityState).toEqual({ selected: true, checked: true, disabled: false });
+    expect(pressable(tree, 'days').props.accessibilityState).toEqual({ checked: true, disabled: false });
     expect(pressable(tree, 'days').props.hitSlop.top).toBe(0);
   });
 

@@ -279,6 +279,10 @@ export function thisWeekCards(week, exercisesByDay = {}) {
   return {
     today: cards.find((card) => card.status === 'today') ?? null,
     others: cards.filter((card) => card.status === 'missed' || card.status === 'upcoming'),
+    // Review M6 (web parity, spec 75e618d9): the days not done (missed,
+    // today, upcoming) in the API's Monday-start order; nothing moves to the
+    // front. The Done card follows them.
+    open: cards.filter((card) => card.status === 'today' || card.status === 'missed' || card.status === 'upcoming'),
     done: done.length
       ? {
           titles: done.map((card) => card.title).join(' · '),

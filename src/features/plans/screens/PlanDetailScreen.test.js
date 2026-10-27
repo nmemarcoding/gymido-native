@@ -44,7 +44,8 @@ import { InlineError } from '../../../shared/components/FeedbackBox';
 import Loader from '../../../shared/components/Loader';
 import PillButton from '../../../shared/components/PillButton';
 import StatusPill from '../../../shared/components/StatusPill';
-import { colors, radii, textScale } from '../../../shared/theme/tokens';
+import GradientFill from '../../../shared/components/GradientFill';
+import { colors, gradients, radii, textScale } from '../../../shared/theme/tokens';
 import { handOffToWorkout, openShellPath } from '../../shell/shellLinks';
 import {
   cancelEnrollment,
@@ -257,6 +258,17 @@ describe('Plan detail (phone), not the current plan', () => {
     expect(handOffToWorkout).toHaveBeenCalledWith(mockNavigation, mockRoute, 'Upper / Lower Split activated.');
   });
 
+  it('review LOW: a double tap on Start workout plan runs ONE activation', async () => {
+    cancelEnrollment.mockReturnValue(pending());
+    const tree = await render();
+    const onPress = button(tree, 'plan-activate').props.onPress;
+    await act(async () => {
+      onPress();
+      onPress();
+    });
+    expect(cancelEnrollment).toHaveBeenCalledTimes(1);
+  });
+
   it('activating: the CTA is loading (spinner, disabled)', async () => {
     cancelEnrollment.mockReturnValue(pending());
     const tree = await render();
@@ -349,6 +361,23 @@ describe('Tablet: Plan detail', () => {
     const card = pressable(tree, 'plan-exercise-2');
     expect(card.props.accessibilityLabel).toBe('Exercise 2: Lat Pulldown, Chest, 3 sets × 8-10 reps');
     expect(flat(card)).toEqual(expect.objectContaining({ borderRadius: radii.xl, backgroundColor: colors.fillWell }));
+  });
+
+  it('review LOW: with the Today card on the page the tablet "Update schedule" CTA is glass', async () => {
+    const tree = await render();
+    expect(host(tree, 'plan-week-today')).toBeDefined();
+    const cta = button(tree, 'plan-activate');
+    expect([cta.props.title, cta.props.variant]).toEqual(['Update schedule', 'secondary']);
+  });
+
+  it('review LOW: a hero photo whose every candidate fails leaves only gradient-card (no Image, no empty frame)', async () => {
+    getPlan.mockResolvedValue({ plan: { ...PLAN, thumbnail: { url: 'https://example.com/a.jpg', media_type: 'image' } } });
+    const tree = await render();
+    const image = () => host(tree, 'plan-hero').findAll((node) => node.type === 'Image');
+    expect(image()).toHaveLength(1);
+    await act(async () => image()[0].props.onError({ nativeEvent: { error: 'HTTP 404' } }));
+    expect(image()).toHaveLength(0);
+    expect(host(tree, 'plan-hero').findAllByType(GradientFill)[0].props).toMatchObject({ angle: gradients.card.angle, colors: gradients.card.colors });
   });
 
   it('a non-current plan: the schedule CTA is gold', async () => {

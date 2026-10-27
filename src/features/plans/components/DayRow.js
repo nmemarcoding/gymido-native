@@ -5,6 +5,8 @@ import ExerciseImage from '../../../shared/components/ExerciseImage';
 import { CAP_BODY, CAP_PILL } from '../../../shared/components/largeText';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { colors, font, motion, radii, spacing, typography } from '../../../shared/theme/tokens';
+// Review M4/M5: the v2 image chain (w400 first) and media_type.
+import { thumbImageProps } from '../planImages';
 import { dayMetaLabel, estimateMinutes, exerciseNotes, formatSetSummary, muscleFocus } from '../libraryFormat';
 import PlanIcon from './planIcons';
 import { PressOverlay } from './planUi';
@@ -129,7 +131,7 @@ export function ExerciseRow({ item, position, onPress }) {
           <PressOverlay pressed={pressed} radius={radii.lg} />
           <View style={styles.rowTop}>
             <View {...HIDDEN}>
-              <ExerciseImage exercise={exercise} size={56} testID={`plan-exercise-image-${item.id}`} />
+              <ExerciseImage exercise={exercise} {...thumbImageProps(exercise)} size={56} testID={`plan-exercise-image-${item.id}`} />
             </View>
             <View style={styles.textColumn}>
               <Text {...CAP_BODY} numberOfLines={1} ellipsizeMode="tail" style={styles.exerciseName}>
@@ -184,7 +186,7 @@ function ExerciseCard({ item, position, width, onPress }) {
         <>
           <PressOverlay pressed={pressed} radius={radii.xl} />
           <View {...HIDDEN}>
-            <ExerciseImage exercise={exercise} size={150} testID={`plan-exercise-image-${item.id}`} style={styles.cardImage} />
+            <ExerciseImage exercise={exercise} {...thumbImageProps(exercise)} size={150} testID={`plan-exercise-image-${item.id}`} style={styles.cardImage} />
             <View style={styles.orderBadge}>
               <Text allowFontScaling={false} style={styles.orderText}>
                 {position}

@@ -464,3 +464,15 @@ describe('ModalActions `fill` (kit 2)', () => {
     expect(flat(textNode(tree, 'Send').parent)).toEqual({ flexDirection: 'column-reverse', gap: 8 });
   });
 });
+
+// Review P4 26fc4a8 M2 (27 Oct a11y ruling): confirms can be alert dialogs.
+describe('AppModal role', () => {
+  it('passes a given role to the card; without one the card has no role prop (every other dialog unchanged)', () => {
+    atWidth(TABLET);
+    const card = (tree) => tree.root.findAll((n) => n.props.accessibilityViewIsModal && typeof n.type === 'string')[0];
+    expect(card(render(modal({ role: 'alertdialog' }))).props.role).toBe('alertdialog');
+    const plain = card(render(modal()));
+    expect(plain.props.role).toBeUndefined();
+    expect(plain.props.accessibilityRole).toBe('none');
+  });
+});

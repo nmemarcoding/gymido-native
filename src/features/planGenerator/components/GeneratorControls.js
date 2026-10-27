@@ -74,7 +74,8 @@ export function Choice({ label, hint, selected, disabled = false, onPress, testI
       testID={testID}
       accessibilityRole="radio"
       accessibilityLabel={hint ? `${label}, ${hint}` : label}
-      accessibilityState={{ selected, checked: selected, disabled }}
+      // Review LOW: a radio announces checked only (selected too was read twice).
+      accessibilityState={{ checked: selected, disabled }}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
@@ -178,7 +179,7 @@ export function OptionPill({
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={accessibilityHint}
-      accessibilityState={radio ? { selected, checked: selected, disabled } : { selected, disabled }}
+      accessibilityState={radio ? { checked: selected, disabled } : { selected, disabled }}
       disabled={disabled}
       onPress={onPress}
       hitSlop={hitSlopFor(metrics.height)}

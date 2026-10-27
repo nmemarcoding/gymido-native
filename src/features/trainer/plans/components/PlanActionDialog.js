@@ -37,6 +37,9 @@ export default function PlanActionDialog({ action, text, affectedCount, onClose,
   return (
     <AppModal
       testID="plan-action-dialog"
+      // Review M2 (a11y ruling 27 Oct): an ALERT dialog. Needs the shared
+      // AppModal `role` prop (default 'none'), listed for the lead.
+      role="alertdialog"
       isOpen={open}
       onClose={close}
       title={copy.title}

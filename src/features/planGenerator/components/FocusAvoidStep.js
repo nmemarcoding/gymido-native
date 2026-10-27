@@ -28,6 +28,10 @@ import {
 } from '../generatorLogic';
 import { OptionPill, PillRow } from './GeneratorControls';
 import { CloseIcon, SearchIcon } from './GeneratorIcons';
+// Review M4: the v2 image chain (w400 first).
+import { THUMB_WIDTH, imageSourceProps } from '../../plans/planImages';
+
+const THUMB = Object.freeze({ width: THUMB_WIDTH });
 
 const SEARCH_DELAY_MS = 300;
 // The remove disc: 38 visual, 44 hit.
@@ -161,7 +165,7 @@ function AvoidedRow({ item, reasons, tablet, reflow, known, setAnswers }) {
   const photo = (
     <ExerciseImage
       testID={`generator-avoid-photo-${id}`}
-      url={imageUrlOf(known)}
+      {...imageSourceProps(imageUrlOf(known), THUMB)}
       name={name}
       muscleCode={exercise?.primary_muscle_group?.code ?? null}
       size={tablet ? 64 : 48}
@@ -351,7 +355,7 @@ function AvoidSearch({ exclusions, onChoose, onResults, tablet }) {
                   <PressOverlay pressed={pressed} />
                   <ExerciseImage
                     testID={`generator-avoid-result-photo-${item.id}`}
-                    url={imageUrlOf(item)}
+                    {...imageSourceProps(imageUrlOf(item), THUMB)}
                     name={item.name}
                     muscleCode={item.primary_muscle_group?.code ?? null}
                     size={40}

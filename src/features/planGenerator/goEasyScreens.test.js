@@ -301,6 +301,9 @@ describe('T-18 G1.3 review and G1.4 / G1.5 save', () => {
     await press(tree, 'generator-next');
     // v2 J: the card splits the summary into lines; readers get the one string.
     expect(rowSixLabel(tree)).toContain('No focus · Go easy on: Knees · Nothing to avoid');
+    // Review LOW: the VISIBLE go-easy line also drops the stale id (only Knees).
+    const goEasyLine = tree.root.find((node) => node.props.testID === 'generator-review-go-easy' && typeof node.type === 'string');
+    expect(texts({ root: goEasyLine }).filter(Boolean).sort()).toEqual(['Go easy on: ', 'Knees']);
     saveGeneratorProfile.mockResolvedValue({});
     await press(tree, 'generator-see-plan');
     // The stale id 99 is dropped.

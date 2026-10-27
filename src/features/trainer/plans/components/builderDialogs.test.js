@@ -303,6 +303,17 @@ describe('PlanOverflowSheet', () => {
     expect(run).toHaveBeenCalled();
     jest.useRealTimers();
   });
+
+  it('review LOW: leaving the screen before the hand-off cancels the queued action (no late copy POST)', async () => {
+    jest.useFakeTimers();
+    const run = jest.fn();
+    const tree = await render(<PlanOverflowSheet isOpen onClose={jest.fn()} items={[{ key: 'make-copy', label: 'Make a copy', onPress: run, testID: 'o-copy' }]} />);
+    pressable(tree, 'o-copy').props.onPress();
+    act(() => tree.unmount());
+    jest.advanceTimersByTime(OVERFLOW_HANDOFF_MS);
+    expect(run).not.toHaveBeenCalled();
+    jest.useRealTimers();
+  });
 });
 
 describe('builder parts', () => {

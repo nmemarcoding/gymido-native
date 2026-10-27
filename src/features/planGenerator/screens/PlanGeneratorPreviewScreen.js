@@ -46,8 +46,13 @@ import {
   shouldConfirmAfterActive,
   weeklyVolumeRows,
 } from '../generatorLogic';
+// Review M4/M5: the v2 image chain (thumbnails w400 first); imageUrlOf
+// already drops a non-image media_type.
+import { THUMB_WIDTH, imageSourceProps } from '../../plans/planImages';
 import { generatorRoutes } from '../generatorRoutes';
 import { useTabBarClearance } from '../useTabBarClearance';
+
+const THUMB = Object.freeze({ width: THUMB_WIDTH });
 
 // G2 (RN-SPEC-PLAN-GENERATOR §G2). Every focus remounts and previews again (§8.1).
 export default function PlanGeneratorPreviewScreen() {
@@ -238,7 +243,10 @@ function PlanGeneratorPreview() {
               changingSplit={changingSplit}
               onSplitChange={handleSplitChange}
               onOpenExercise={(id) => navigation.push(routes.ExerciseDetail, { exerciseId: String(id) })}
-              onBack={() => navigation.goBack()}
+              // Review M1: as web (navigate to /plans/generate), a FRESH
+              // questionnaire that refetches the profile, never goBack to the
+              // stale one (its old split would be PUT again on "See my plan").
+              onBack={openAnswers}
               barHeight={pinned ? barHeight : null}
               tablet={tablet}
               reflow={reflow}
@@ -491,7 +499,7 @@ function FeaturedRow({ item, onOpenExercise }) {
       <RowLink data={data} onOpenExercise={onOpenExercise} style={styles.featuredLink}>
         <ExerciseImage
           testID={`generator-exercise-photo-${data.id}`}
-          url={imageUrlOf(data.exercise)}
+          {...imageSourceProps(imageUrlOf(data.exercise))}
           name={data.exercise.name}
           muscleCode={data.muscleCode}
           hero
@@ -523,7 +531,7 @@ function CompactRow({ item, onOpenExercise }) {
       <RowLink data={data} onOpenExercise={onOpenExercise} style={styles.compactRow}>
         <ExerciseImage
           testID={`generator-exercise-photo-${data.id}`}
-          url={imageUrlOf(data.exercise)}
+          {...imageSourceProps(imageUrlOf(data.exercise), THUMB)}
           name={data.exercise.name}
           muscleCode={data.muscleCode}
           size={72}
@@ -554,7 +562,7 @@ function TabletRow({ item, onOpenExercise }) {
       <RowLink data={data} onOpenExercise={onOpenExercise} style={styles.tabletRow}>
         <ExerciseImage
           testID={`generator-exercise-photo-${data.id}`}
-          url={imageUrlOf(data.exercise)}
+          {...imageSourceProps(imageUrlOf(data.exercise), THUMB)}
           name={data.exercise.name}
           muscleCode={data.muscleCode}
           size={120}

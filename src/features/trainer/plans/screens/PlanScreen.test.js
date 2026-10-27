@@ -9,6 +9,7 @@ import { StyleSheet, Text } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { apiClient } from '../../../../shared/api/client';
+import AppModal from '../../../../shared/components/AppModal';
 import PillButton from '../../../../shared/components/PillButton';
 import { addToast } from '../../../../shared/components/toastStore';
 import { colors, textScale } from '../../../../shared/theme/tokens';
@@ -166,6 +167,23 @@ describe('member builder, phone (UX I §1)', () => {
     await press(tree, 'plan-day-2');
     expect(apiClient.get).toHaveBeenCalledWith('/plans/9/days/2/exercises');
     expect(pressable(tree, 'plan-day-2').props.accessibilityState).toEqual({ selected: true });
+  });
+
+  it('review M3: the tablist holds only the day tabs ("Add a day" is a button outside it); the content is ONE tabpanel linked to the selected tab', async () => {
+    const tree = await renderMember();
+    const tablist = tree.root.find((node) => node.props.testID === 'plan-day-tabs' && node.props.accessibilityRole === 'tablist');
+    const tabs = tablist.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'tab');
+    expect(tabs.map((node) => node.props.testID)).toEqual(['plan-day-1', 'plan-day-2']);
+    expect(tablist.findAll((node) => node.props.testID === 'plan-add-day')).toHaveLength(0);
+    expect(pressable(tree, 'plan-add-day').props.accessibilityRole).toBe('button');
+    const panels = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.role === 'tabpanel');
+    expect(panels()).toHaveLength(1);
+    expect(panels()[0].props).toMatchObject({ testID: 'plan-day-panel', accessibilityLabel: 'Day 1: Heavy A', 'aria-labelledby': 'plan-day-tab-1' });
+    expect(pressable(tree, 'plan-day-1').props.nativeID).toBe('plan-day-tab-1');
+    // The strip and the exercise list sit inside the panel.
+    expect(panels()[0].findAll((node) => node.props.testID === 'plan-day-strip').length).toBeGreaterThan(0);
+    await press(tree, 'plan-day-2');
+    expect(panels()[0].props).toMatchObject({ accessibilityLabel: 'Day 2: Heavy B', 'aria-labelledby': 'plan-day-tab-2' });
   });
 
   it('the selected-day strip carries the description and the day Edit / Delete', async () => {
@@ -438,6 +456,107 @@ describe('builder confirms (a11y ruling: alert-style, Cancel first, blocked whil
     expect(pill(tree, 'plan-action-dialog-confirm').props).toMatchObject({ title: 'Deactivate plan', variant: 'primary' });
     expect(allText(tree)).toContain('On it');
     jest.useRealTimers();
+  });
+});
+
+describe('review LOWs (builder a11y)', () => {
+  beforeEach(() => setRoutes());
+
+  it('the day "Edit" names its day, like "Delete day n" (phone strip and tablet days card)', async () => {
+    const tree = await renderMember();
+    expect(pressable(tree, 'plan-day-edit-1').props.accessibilityLabel).toBe('Edit day 1');
+    mockWidth = 834;
+    const tablet = await renderMember();
+    expect(pressable(tablet, 'plan-day-edit-1').props.accessibilityLabel).toBe('Edit day 1');
+  });
+
+  it('a double tap on a confirm runs the action ONCE', async () => {
+    apiClient.delete.mockReturnValue(new Promise(() => {}));
+    const tree = await renderMember();
+    await press(tree, 'plan-day-delete-1');
+    const onPress = pill(tree, 'plan-action-dialog-confirm').props.onPress;
+    await act(async () => {
+      onPress();
+      onPress();
+    });
+    expect(apiClient.delete).toHaveBeenCalledTimes(1);
+  });
+
+  it('the plain row grip (28 wide) reaches 44 with hitSlop', async () => {
+    const tree = await renderMember();
+    const grip = tree.root.find((node) => node.props.testID === 'plan-exercise-grip-12' && typeof node.props.onAccessibilityAction === 'function');
+    expect(StyleSheet.flatten(grip.props.style).width).toBe(28);
+    expect(grip.props.hitSlop).toEqual({ top: 0, bottom: 0, left: 8, right: 8 });
+  });
+});
+
+// Review 26fc4a8 M2: builder confirms are ALERT dialogs (role alertdialog).
+describe('review M2: the builder confirm is an alertdialog', () => {
+  beforeEach(() => setRoutes());
+
+  it('PlanActionDialog asks AppModal for role "alertdialog"', async () => {
+    const tree = await renderMember();
+    await press(tree, 'plan-day-delete-1');
+    const modal = tree.root.find((node) => node.type === AppModal && node.props.testID === 'plan-action-dialog');
+    expect(modal.props.role).toBe('alertdialog');
+  });
+
+  it('the dialog card host view carries role "alertdialog"', async () => {
+    const tree = await renderMember();
+    await press(tree, 'plan-day-delete-1');
+    expect(host(tree, 'plan-action-dialog').props.role).toBe('alertdialog');
+  });
+});
+
+// Review 26fc4a8 M7: reorder through the grip's Move up / Move down actions.
+describe('review M7: reorder (Move up / Move down)', () => {
+  beforeEach(() => setRoutes());
+
+  const names = (tree) => allText(tree).filter((value) => value === 'Back Squat' || value === 'Barbell Bench Press');
+  const moveAction = async (tree, id, actionName) => {
+    const grip = tree.root.find((node) => node.props.testID === id && typeof node.props.onAccessibilityAction === 'function');
+    await act(async () => grip.props.onAccessibilityAction({ nativeEvent: { actionName } }));
+    await flush();
+  };
+
+  it('the grip offers Move up / Move down, labelled "Drag to reorder {name}"', async () => {
+    const tree = await renderMember();
+    const grip = tree.root.find((node) => node.props.testID === 'plan-exercise-grip-11' && typeof node.props.onAccessibilityAction === 'function');
+    expect(grip.props.accessibilityLabel).toBe('Drag to reorder Back Squat');
+    expect(grip.props.accessibilityActions.map((action) => action.label)).toEqual(['Move up', 'Move down']);
+  });
+
+  it('Move down on the first row: optimistic new order + POST the whole order', async () => {
+    apiClient.post.mockResolvedValue({ data: { data: { items: [{ id: 12, order_index: 1 }, { id: 11, order_index: 2 }] } } });
+    const tree = await renderMember();
+    expect(names(tree)).toEqual(['Back Squat', 'Barbell Bench Press']);
+    await moveAction(tree, 'plan-exercise-grip-11', 'moveDown');
+    expect(apiClient.post).toHaveBeenCalledWith('/my-custom-plans/9/days/1/exercises/reorder', { order: [12, 11] });
+    expect(names(tree)).toEqual(['Barbell Bench Press', 'Back Squat']);
+  });
+
+  it('Move up on the last row moves it first', async () => {
+    apiClient.post.mockResolvedValue({ data: { data: { items: [] } } });
+    const tree = await renderMember();
+    await moveAction(tree, 'plan-exercise-grip-12', 'moveUp');
+    expect(apiClient.post).toHaveBeenCalledWith('/my-custom-plans/9/days/1/exercises/reorder', { order: [12, 11] });
+    expect(names(tree)).toEqual(['Barbell Bench Press', 'Back Squat']);
+  });
+
+  it('edges do nothing: Move up on the first row, Move down on the last', async () => {
+    const tree = await renderMember();
+    await moveAction(tree, 'plan-exercise-grip-11', 'moveUp');
+    await moveAction(tree, 'plan-exercise-grip-12', 'moveDown');
+    expect(apiClient.post).not.toHaveBeenCalled();
+    expect(names(tree)).toEqual(['Back Squat', 'Barbell Bench Press']);
+  });
+
+  it('a failed reorder snaps back to the old order with the error toast', async () => {
+    apiClient.post.mockRejectedValue({ response: { status: 500, data: { message: 'Nope' } } });
+    const tree = await renderMember();
+    await moveAction(tree, 'plan-exercise-grip-11', 'moveDown');
+    expect(names(tree)).toEqual(['Back Squat', 'Barbell Bench Press']);
+    expect(addToast).toHaveBeenCalledWith('error', 'Could not reorder the exercises', 'Nope');
   });
 });
 

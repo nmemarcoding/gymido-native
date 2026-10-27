@@ -30,7 +30,7 @@ import AddSetModal from '../components/AddSetModal';
 import { ClientsBanner, InactiveBanner } from '../components/AffectedClients';
 import { BackLink, DangerTintButton, EyebrowChip, StatusBox, builderStyles, useBuilderLayout } from '../components/builderParts';
 import DayListCard from '../components/DayListCard';
-import DayTabs, { SelectedDayStrip } from '../components/DayTabs';
+import DayTabs, { DayTabPanel, SelectedDayStrip } from '../components/DayTabs';
 import EditPlanDetailsModal from '../components/EditPlanDetailsModal';
 import ExercisePickerSheet from '../components/ExercisePickerSheet';
 import PlanActionDialog, { PlanAction } from '../components/PlanActionDialog';
@@ -83,6 +83,7 @@ function PlanBuilder({ planId, adapter }) {
   const navigation = useNavigation();
   const { tablet, reflow } = useBuilderLayout();
   const mounted = useRef(true);
+  const confirming = useRef(false);
 
   const [status, setStatus] = useState('loading');
   const [loadError, setLoadError] = useState('');
@@ -427,8 +428,21 @@ function PlanBuilder({ planId, adapter }) {
     setAction(null);
   }
 
-  // One confirmed action (§B4–§B8). Failures stay inside the dialog.
+  // Review LOW: a ref guard, so a double tap before the re-render runs once.
   async function confirmAction() {
+    if (confirming.current) {
+      return;
+    }
+    confirming.current = true;
+    try {
+      await runConfirmedAction();
+    } finally {
+      confirming.current = false;
+    }
+  }
+
+  // One confirmed action (§B4–§B8). Failures stay inside the dialog.
+  async function runConfirmedAction() {
     const current = action;
     setAction({ ...current, running: true, error: null });
     const finish = () => mounted.current && setAction(null);
@@ -708,13 +722,15 @@ function PlanBuilder({ planId, adapter }) {
             canAddDay={capabilities.addDay}
             onAddDay={openAddDay}
           />
-          <SelectedDayStrip
-            day={selectedDay}
-            capabilities={capabilities}
-            onEditDay={openDayEdit}
-            onDeleteDay={(day) => openAction(PlanAction.deleteDay, { day })}
-          />
-          <View style={styles.section}>{renderSelectedDay()}</View>
+          <DayTabPanel day={selectedDay}>
+            <SelectedDayStrip
+              day={selectedDay}
+              capabilities={capabilities}
+              onEditDay={openDayEdit}
+              onDeleteDay={(day) => openAction(PlanAction.deleteDay, { day })}
+            />
+            <View style={styles.section}>{renderSelectedDay()}</View>
+          </DayTabPanel>
         </>
       )}
 

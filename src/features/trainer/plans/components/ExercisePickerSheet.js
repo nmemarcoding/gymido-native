@@ -16,6 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BlurLayer from '../../../../shared/components/BlurLayer';
 import ErrorAlert from '../../../../shared/components/ErrorAlert';
 import ExerciseImage, { muscleColor, muscleTextColor, TILE_ALPHA } from '../../../../shared/components/ExerciseImage';
+// Review M4/M5: the v2 image chain (w400 first) and media_type.
+import { thumbImageProps } from '../../../plans/planImages';
 import FeedbackIcon from '../../../../shared/components/FeedbackIcon';
 import GradientFill from '../../../../shared/components/GradientFill';
 import IconButton from '../../../../shared/components/IconButton';
@@ -522,7 +524,7 @@ function PickerRow({ exercise, isAdded, isSelected, onToggle, stacked }) {
           {!isSelected && !isAdded && pressed ? (
             <PressOverlay radius={ROW_RADIUS} testID={`exercise-picker-row-${exercise.id}-pressed`} />
           ) : null}
-          <ExerciseImage exercise={exercise} size={ROW_IMAGE.height} style={styles.rowImage} />
+          <ExerciseImage exercise={exercise} {...thumbImageProps(exercise)} size={ROW_IMAGE.height} style={styles.rowImage} />
           <View style={styles.rowMiddle}>
             <Text {...BODY_TEXT} style={styles.rowName}>
               {exercise.name}
@@ -572,7 +574,7 @@ function PickerCard({ exercise, isAdded, isSelected, onToggle }) {
       {({ pressed }) => (
         <>
           <View style={[styles.cardPhoto, isAdded && styles.cardPhotoAdded]}>
-            <ExerciseImage exercise={exercise} size={CARD_PHOTO} style={styles.cardImage} />
+            <ExerciseImage exercise={exercise} {...thumbImageProps(exercise)} size={CARD_PHOTO} style={styles.cardImage} />
           </View>
           {isAdded ? (
             <View testID={`exercise-picker-added-${exercise.id}`} style={styles.addedPill}>

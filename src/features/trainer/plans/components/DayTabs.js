@@ -43,50 +43,69 @@ export default function DayTabs({ days, selectedDayId, onSelect, look = 'member'
           Plan days
         </Text>
       ) : null}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        testID="plan-day-tabs"
-        accessibilityRole="tablist"
-        accessibilityLabel="Plan days"
-        contentContainerStyle={styles.tabs}
-      >
-        {days.map((day) => {
-          const selected = day.id === selectedDayId;
-          return (
-            <Pressable
-              key={day.id}
-              testID={`plan-day-${day.id}`}
-              accessibilityRole="tab"
-              accessibilityState={{ selected }}
-              onPress={() => onSelect(day.id)}
-              hitSlop={trainer ? undefined : slopFor(40)}
-              style={[
-                styles.tab,
-                trainer && styles.tabTrainer,
-                selected ? (trainer ? styles.tabOnTrainer : styles.tabOn) : trainer ? styles.tabOffTrainer : styles.tabOff,
-              ]}
-            >
-              {({ pressed }) => (
-                <>
-                  {pressed && !selected ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.pressed]} /> : null}
-                  <Text
-                    {...CAP_BODY}
-                    style={[
-                      styles.tabLabel,
-                      selected ? (trainer ? styles.tabLabelOnTrainer : styles.tabLabelOn) : styles.tabLabelOff,
-                    ]}
-                  >
-                    {formatDayTitle(day)}
-                  </Text>
-                </>
-              )}
-            </Pressable>
-          );
-        })}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} testID="plan-day-tabs-scroll" contentContainerStyle={styles.tabs}>
+        {/* Review M3: the tablist holds ONLY the tabs, so "Add a day" (a
+            button after it) is not counted as a tab. */}
+        <View testID="plan-day-tabs" accessibilityRole="tablist" accessibilityLabel="Plan days" style={styles.tabs}>
+          {days.map((day) => {
+            const selected = day.id === selectedDayId;
+            return (
+              <Pressable
+                key={day.id}
+                testID={`plan-day-${day.id}`}
+                nativeID={dayTabNativeId(day.id)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected }}
+                onPress={() => onSelect(day.id)}
+                hitSlop={trainer ? undefined : slopFor(40)}
+                style={[
+                  styles.tab,
+                  trainer && styles.tabTrainer,
+                  selected ? (trainer ? styles.tabOnTrainer : styles.tabOn) : trainer ? styles.tabOffTrainer : styles.tabOff,
+                ]}
+              >
+                {({ pressed }) => (
+                  <>
+                    {pressed && !selected ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.pressed]} /> : null}
+                    <Text
+                      {...CAP_BODY}
+                      style={[
+                        styles.tabLabel,
+                        selected ? (trainer ? styles.tabLabelOnTrainer : styles.tabLabelOn) : styles.tabLabelOff,
+                      ]}
+                    >
+                      {formatDayTitle(day)}
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
         {trainer ? null : addDay}
       </ScrollView>
       {trainer ? addDay : null}
+    </View>
+  );
+}
+
+// The tab's nativeID: the tab panel names it (`aria-labelledby`).
+export function dayTabNativeId(dayId) {
+  return `plan-day-tab-${dayId}`;
+}
+
+// Review M3 (a11y ruling 27 Oct): the ONE tab panel the phone day tabs
+// control, the selected day's content, named by (and linked to) its tab.
+export function DayTabPanel({ day, children }) {
+  return (
+    <View
+      testID="plan-day-panel"
+      role="tabpanel"
+      accessibilityLabel={day ? formatDayTitle(day) : undefined}
+      aria-labelledby={day ? dayTabNativeId(day.id) : undefined}
+      style={styles.panel}
+    >
+      {children}
     </View>
   );
 }
@@ -110,7 +129,7 @@ export function SelectedDayStrip({ day, capabilities, onEditDay, onDeleteDay }) 
       ) : null}
       {hasButtons ? (
         <View style={styles.stripButtons}>
-          {capabilities.editDay ? <TextAction testID={`plan-day-edit-${day.id}`} label="Edit" onPress={() => onEditDay(day)} /> : null}
+          {capabilities.editDay ? <TextAction testID={`plan-day-edit-${day.id}`} label="Edit" accessibilityLabel={`Edit day ${day.day_number}`} onPress={() => onEditDay(day)} /> : null}
           {capabilities.deleteDay ? (
             <TextAction
               testID={`plan-day-delete-${day.id}`}
@@ -127,6 +146,10 @@ export function SelectedDayStrip({ day, capabilities, onEditDay, onDeleteDay }) 
 }
 
 const styles = StyleSheet.create({
+  panel: {
+    // The phone page gap (PlanScreen), so the strip and list keep their spacing.
+    gap: spacing[3],
+  },
   section: {
     gap: spacing[2],
     marginTop: spacing[1],

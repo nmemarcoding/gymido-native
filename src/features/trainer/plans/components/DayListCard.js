@@ -92,7 +92,7 @@ function DayItem({ day, trainer, selected, capabilities, onSelect, onEditDay, on
       </Pressable>
       {capabilities.editDay || capabilities.deleteDay ? (
         <View style={styles.footer}>
-          {capabilities.editDay ? <TextAction testID={`plan-day-edit-${day.id}`} label="Edit" onPress={() => onEditDay(day)} /> : null}
+          {capabilities.editDay ? <TextAction testID={`plan-day-edit-${day.id}`} label="Edit" accessibilityLabel={`Edit day ${day.day_number}`} onPress={() => onEditDay(day)} /> : null}
           {capabilities.deleteDay ? (
             <TextAction
               testID={`plan-day-delete-${day.id}`}

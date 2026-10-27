@@ -5,7 +5,7 @@ appId: com.gymido.app
 ---
 - runFlow: subflows/open-first-my-plan.yaml
 - assertVisible:
-    id: "plan-day-.*"
+    id: "plan-day-[0-9]+"
     index: 0
 - runFlow:
     when:
@@ -13,7 +13,7 @@ appId: com.gymido.app
         id: "plan-day-tabs"
     commands:
       - tapOn:
-          id: "plan-day-.*"
+          id: "plan-day-[0-9]+"
           index: 0
       - assertVisible:
           id: "plan-overflow"

@@ -82,6 +82,7 @@ function PlanDetail() {
   const [reloadCount, setReloadCount] = useState(0);
   const tablet = useIsTablet();
   const mounted = useRef(true);
+  const activating = useRef(false);
 
   useEffect(() => {
     mounted.current = true;
@@ -184,6 +185,11 @@ function PlanDetail() {
       setActivationError(`Select ${workoutDaysLabel(requiredDays)} to continue.`);
       return;
     }
+    // Review LOW: a ref guard, so a double tap before the re-render runs once.
+    if (activating.current) {
+      return;
+    }
+    activating.current = true;
     setIsActivating(true);
     const items = buildScheduleItems(days, selectedWeekdays, requiredDays);
     const name = plan?.name || 'Plan';
@@ -228,6 +234,7 @@ function PlanDetail() {
         setActivationError(getServerMessage(error));
       }
     } finally {
+      activating.current = false;
       if (mounted.current) {
         setIsActivating(false);
       }

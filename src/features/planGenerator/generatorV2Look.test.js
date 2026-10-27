@@ -487,12 +487,12 @@ describe('Check your answers (GeneratorReview board)', () => {
 });
 
 describe('Preview, phone (GeneratorPreview board)', () => {
-  it('back icon button "Back to your answers" → previous screen; eyebrow gold; plan name ONE string 44/42 primary (N1); split sub-line; pill select', async () => {
+  it('back icon button "Back to your answers" → a fresh questionnaire (review M1); eyebrow gold; plan name ONE string 44/42 primary (N1); split sub-line; pill select', async () => {
     const tree = await openPreview();
     const back = tree.root.find((node) => node.type === IconButton);
     expect(back.props.accessibilityLabel).toBe('Back to your answers');
     await act(async () => back.props.onPress());
-    expect(mockNavigation.goBack).toHaveBeenCalled();
+    expect(mockNavigation.push).toHaveBeenCalledWith('PlanGenerator');
     expect(flat(host(tree, 'generator-preview-eyebrow'))).toMatchObject({ color: colors.gold, fontSize: 14 });
     const name = host(tree, 'generator-plan-name');
     expect(name.props.children).toBe('Build Muscle · 4 Days');
@@ -660,5 +660,94 @@ describe('Pure helpers', () => {
     expect(stepFraction(3)).toBe('3/6');
     expect(exerciseRowLabel('Row', undefined, '3 sets')).toBe('Row, 3 sets');
     expect(COPY.backToAnswers).toBe('Back to your answers');
+  });
+});
+
+// Review 26fc4a8 M1: "Back to your answers" opens the questionnaire FRESH (as
+// web navigates to /plans/generate, which remounts and refetches), never the
+// stale instance below, so the next "See my plan" keeps the split change.
+describe('review fix M1: Back to your answers after Change split', () => {
+  it('back pushes a fresh questionnaire (no goBack to the stale one)', async () => {
+    const tree = await openPreview();
+    await act(async () => one(tree, 'generator-preview-back').props.onPress());
+    expect(mockNavigation.push).toHaveBeenCalledWith('PlanGenerator');
+    expect(mockNavigation.goBack).not.toHaveBeenCalled();
+  });
+
+  it('Change split → back → See my plan PUTs the NEW split (the fresh questionnaire refetches)', async () => {
+    let saved = { ...PROFILE, preferred_split: 'UL' };
+    getGeneratorProfile.mockImplementation(() => Promise.resolve({ available: true, profile: saved, options: OPTIONS }));
+    saveGeneratorProfile.mockImplementation((body) => {
+      saved = { ...saved, preferred_split: body.preferred_split };
+      return Promise.resolve({});
+    });
+    const preview = await openPreview();
+    await act(async () => one(preview, 'generator-split').props.onChange('FB'));
+    expect(saveGeneratorProfile).toHaveBeenLastCalledWith(expect.objectContaining({ preferred_split: 'FB' }));
+    await act(async () => one(preview, 'generator-preview-back').props.onPress());
+    expect(mockNavigation.goBack).not.toHaveBeenCalled();
+    // The pushed screen is a new questionnaire instance: it loads the profile now.
+    mockParams = { step: 5 };
+    const answers = await render(<PlanGeneratorScreen />);
+    await press(answers, 'generator-next');
+    await press(answers, 'generator-see-plan');
+    expect(saveGeneratorProfile).toHaveBeenLastCalledWith(expect.objectContaining({ preferred_split: 'FB' }));
+  });
+});
+
+// Review 26fc4a8 M4 / M5 (RN-SPEC-v2-phase4 dated change 27 Oct, image
+// fallback chain): the generator's photos use the v2 chain; a video is no image.
+describe('review fix M4/M5: generator images', () => {
+  const ID = 'G1d';
+  const UC = `https://drive.google.com/uc?export=download&id=${ID}`;
+  const tail = [`https://drive.google.com/thumbnail?id=${ID}&sz=w1600`, `https://lh3.googleusercontent.com/d/${ID}=w1600`, `https://lh3.googleusercontent.com/d/${ID}=s1600`];
+  const withThumb = (thumbnail) => ({
+    ...FEASIBLE,
+    days: [{ ...FEASIBLE.days[0], exercises: FEASIBLE.days[0].exercises.map((row) => ({ ...row, exercise: { ...row.exercise, thumbnail } })) }],
+  });
+
+  it.each([
+    ['phone', PHONE],
+    ['tablet', TABLET],
+  ])('%s preview rows: a uc link is never tried (its id drives the chain)', async (_, window) => {
+    mockWindow = { ...window };
+    const tree = await openPreview(withThumb({ url: UC, media_type: 'image' }));
+    const photos = tree.root.findAllByType(ExerciseImage);
+    expect(photos.length).toBeGreaterThan(0);
+    photos.forEach((photo) => {
+      expect(photo.props.sources.some((url) => /\/uc\?/.test(url))).toBe(false);
+      expect(photo.props.sources.slice(-3)).toEqual(tail);
+    });
+  });
+
+  it('a uc link with no id or a video → the tile (url null, nothing loaded)', async () => {
+    for (const thumbnail of [{ url: 'https://drive.google.com/uc?export=view' }, { url: 'https://x.test/a.mp4', media_type: 'video' }]) {
+      const tree = await openPreview(withThumb(thumbnail));
+      tree.root.findAllByType(ExerciseImage).forEach((photo) => expect(photo.props.url).toBeNull());
+    }
+  });
+});
+
+describe('review fix M4: avoid photos use the v2 chain', () => {
+  it('search result, avoid row and review row-6 photos: the w400 thumbnail first, never the uc link', async () => {
+    const ID = 'Av0';
+    const chain = [
+      `https://drive.google.com/thumbnail?id=${ID}&sz=w400`,
+      `https://drive.google.com/thumbnail?id=${ID}&sz=w1600`,
+      `https://lh3.googleusercontent.com/d/${ID}=w1600`,
+      `https://lh3.googleusercontent.com/d/${ID}=s1600`,
+    ];
+    searchExercises.mockResolvedValue([{ id: 12, name: 'Deadlift', thumbnail: { url: `https://drive.google.com/uc?export=view&id=${ID}` } }]);
+    const tree = await openStep(6, { profile: { ...PROFILE, exclusions: [] } });
+    await act(async () => one(tree, 'generator-avoid-search').props.onChangeText('dead'));
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+    const photoOf = (id) => tree.root.findAll((node) => node.type === ExerciseImage && node.props.testID === id)[0];
+    expect(photoOf('generator-avoid-result-photo-12').props.sources).toEqual(chain);
+    await press(tree, 'generator-avoid-result-12');
+    expect(photoOf('generator-avoid-photo-12').props.sources).toEqual(chain);
+    await press(tree, 'generator-next');
+    expect(host(tree, 'generator-review-avoid-photo').findByType(ExerciseImage).props.sources).toEqual(chain);
   });
 });

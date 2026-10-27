@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import AppModal from '../../../../shared/components/AppModal';
@@ -18,6 +19,10 @@ export function overflowLabel(items) {
 }
 
 export default function PlanOverflowSheet({ isOpen, onClose, items }) {
+  // Review LOW: the queued hand-off is cancelled when the screen goes away
+  // (no late action, e.g. a copy POST after leaving).
+  const handoff = useRef(null);
+  useEffect(() => () => clearTimeout(handoff.current), []);
   return (
     <AppModal testID="plan-overflow-sheet" isOpen={isOpen} onClose={onClose} title={OVERFLOW_TITLE} size="md">
       <View accessibilityRole="menu" style={styles.list}>
@@ -34,7 +39,8 @@ export default function PlanOverflowSheet({ isOpen, onClose, items }) {
                 onClose();
                 // iOS can't present the next dialog while this sheet is still
                 // dismissing, so the action runs once the sheet has gone.
-                setTimeout(item.onPress, OVERFLOW_HANDOFF_MS);
+                clearTimeout(handoff.current);
+                handoff.current = setTimeout(item.onPress, OVERFLOW_HANDOFF_MS);
               }}
               style={[styles.row, inactive && styles.inactive]}
             >
