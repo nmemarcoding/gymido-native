@@ -1,0 +1,151 @@
+import {
+  completionSetsLine,
+  completionVolume,
+  isFinalTen,
+  personalBestLines,
+  remainingRatio,
+  restNextPreview,
+  restTotalLabel,
+  ringCircumference,
+  ringDashOffset,
+  shareSummaryText,
+  spokenRecordLine,
+} from './restPresentation';
+
+describe('rest ring maths (UX F2 shared rest rules)', () => {
+  it('the 300 ring circumference is 854.5 and the board sample 1:00 of 1:30 → 285', () => {
+    expect(ringCircumference(136)).toBeCloseTo(854.5, 0);
+    expect(ringDashOffset(60, 90, 136)).toBeCloseTo(284.8, 0);
+  });
+
+  it('full at the start, empty at zero, never past a full turn', () => {
+    expect(ringDashOffset(90, 90, 136)).toBe(0);
+    expect(ringDashOffset(0, 90, 136)).toBeCloseTo(854.5, 0);
+    expect(remainingRatio(120, 90)).toBe(1);
+    expect(remainingRatio(-3, 90)).toBe(0);
+    expect(remainingRatio(5, 0)).toBe(0);
+    expect(remainingRatio(5, undefined)).toBe(0);
+  });
+
+  it('the mini disc sample: 47 of 90 on r40 → offset ≈ 119.6', () => {
+    expect(ringDashOffset(47, 90, 40)).toBeCloseTo(120, 0);
+  });
+
+  it('last 10 s is 0 < s ≤ 10', () => {
+    expect(isFinalTen(11)).toBe(false);
+    expect(isFinalTen(10)).toBe(true);
+    expect(isFinalTen(1)).toBe(true);
+    expect(isFinalTen(0)).toBe(false);
+  });
+
+  it('"of m:ss" = the total', () => {
+    expect(restTotalLabel(90)).toBe('of 1:30');
+    expect(restTotalLabel(95)).toBe('of 1:35');
+    expect(restTotalLabel(8)).toBe('of 0:08');
+    expect(restTotalLabel(undefined)).toBe('of 0:00');
+  });
+});
+
+describe('restNextPreview (U4)', () => {
+  const session = {
+    exercises: [
+      { id: 1, exercise_name_snapshot: 'Squat', sets: [{ id: 11, set_number: 1, target_reps_min: 5, target_reps_max: 5 }] },
+      {
+        id: 2,
+        exercise_name_snapshot: 'Barbell Bench Press',
+        exercise: { id: 9, name: 'Bench', thumbnail: { url: 'https://example.com/b.jpg' } },
+        sets: [
+          { id: 21, target_reps_min: 8, target_reps_max: 10 },
+          { id: 22, target_reps_min: 8, target_reps_max: 10, target_weight_unit: 'kg' },
+          { id: 23, set_number: 3, target_reps_min: 8, target_reps_max: 10 },
+        ],
+      },
+    ],
+  };
+
+  it('names the exercise and the set line with the draft weight', () => {
+    expect(restNextPreview(session, '2:23', { 23: { actualWeightValue: '135', actualWeightUnit: 'lb' } })).toEqual({
+      exerciseName: 'Barbell Bench Press',
+      exercise: session.exercises[1].exercise,
+      line: 'Set 3 · 8–10 reps · 135 lb',
+    });
+  });
+
+  it('numbers the set by position when set_number is missing; comma decimals read', () => {
+    expect(restNextPreview(session, '2:22', { 22: { actualWeightValue: '22,5', actualWeightUnit: '' } }).line).toBe('Set 2 · 8–10 reps · 22.5 kg');
+  });
+
+  it('drops the weight part when none is known (blank or junk)', () => {
+    expect(restNextPreview(session, '2:21', {}).line).toBe('Set 1 · 8–10 reps');
+    expect(restNextPreview(session, '2:21', { 21: { actualWeightValue: 'abc' } }).line).toBe('Set 1 · 8–10 reps');
+    expect(restNextPreview(session, '1:11', null)).toEqual({ exerciseName: 'Squat', exercise: null, line: 'Set 1 · 5 reps' });
+  });
+
+  it('no next set (the last set) or an unknown key → null', () => {
+    expect(restNextPreview(session, '', {})).toBeNull();
+    expect(restNextPreview(session, '9:99', {})).toBeNull();
+    expect(restNextPreview(null, '2:21', {})).toBeNull();
+  });
+});
+
+describe('personalBestLines (#15)', () => {
+  const weight = (id, name, value, previous, extra = {}) => ({ exercise_id: id, exercise_name: name, record_type: 'weight', value, unit: 'lb', previous_value: previous, ...extra });
+  const reps = (id, name, value, previous) => ({ exercise_id: id, exercise_name: name, record_type: 'reps', value, unit: '', previous_value: previous });
+
+  it('shows only beaten bests (previous_value != null)', () => {
+    expect(personalBestLines([weight(1, 'Bench', 145, null), reps(2, 'Push-up', 30, null)])).toEqual([]);
+    expect(personalBestLines([weight(1, 'Bench', 145, 140)]).map((l) => l.text)).toEqual(['Bench · 145 lb']);
+  });
+
+  it('one line per exercise, the weight record wins; "× r" when the record carries reps', () => {
+    const lines = personalBestLines([reps(1, 'Bench', 12, 10), weight(1, 'Bench', 145, 140, { reps: 8 })]);
+    expect(lines.map((l) => l.text)).toEqual(['Bench · 145 lb × 8']);
+  });
+
+  it('a reps-only record reads "{r} reps"; previous_value 0 counts as a previous best', () => {
+    expect(personalBestLines([reps(3, 'Pull-up', 12, 0)]).map((l) => l.text)).toEqual(['Pull-up · 12 reps']);
+  });
+
+  it('weight first, at most 3 lines', () => {
+    const lines = personalBestLines([
+      reps(1, 'A', 10, 9),
+      weight(2, 'B', 100, 90),
+      reps(3, 'C', 10, 9),
+      weight(4, 'D', 60.5, 60),
+      reps(5, 'E', 10, 9),
+    ]);
+    expect(lines.map((l) => l.text)).toEqual(['B · 100 lb', 'D · 60.5 lb', 'A · 10 reps']);
+  });
+
+  it('ignores junk and non-arrays (no card)', () => {
+    expect(personalBestLines(undefined)).toEqual([]);
+    expect(personalBestLines(null)).toEqual([]);
+    expect(personalBestLines([null, { record_type: 'volume', value: 1, previous_value: 0 }, weight(1, 'X', null, 1)])).toEqual([]);
+  });
+
+  it('spoken form: "145 pounds times 8"', () => {
+    expect(spokenRecordLine('Barbell Bench Press · 145 lb × 8')).toBe('Barbell Bench Press, 145 pounds times 8');
+    expect(spokenRecordLine('Squat · 100 kg')).toBe('Squat, 100 kilograms');
+  });
+});
+
+describe('completion text (U6, VOLUME RULE)', () => {
+  const popup = { planName: 'Upper / Lower', durationSeconds: 3130, totalVolume: 9820, totalReps: 142, completedSets: 15, totalSets: 15, completedExercises: 5, totalExercises: 5 };
+
+  it('volume in the snapshot unit, else v1 "lb"', () => {
+    expect(completionVolume(popup)).toBe('9,820 lb');
+    expect(completionVolume({ ...popup, volumeUnit: 'kg', totalVolume: 4454.4 })).toBe('4,454 kg');
+  });
+
+  it('share summary text', () => {
+    expect(shareSummaryText(popup, [{ text: 'Bench · 145 lb × 8' }])).toBe(
+      ['Workout complete: Upper / Lower', 'Time: 52m 10s', 'Volume: 9,820 lb', 'Reps: 142', 'Sets: 15/15', 'New personal best: Bench · 145 lb × 8'].join('\n')
+    );
+    expect(shareSummaryText({ ...popup, planName: '' })).toMatch(/^Workout complete: Workout\n/);
+  });
+
+  it('sets line, singular at 1', () => {
+    expect(completionSetsLine(popup)).toBe('15/15 sets done. Consistency wins.');
+    expect(completionSetsLine({ completedSets: 1, totalSets: 1 })).toBe('1/1 set done. Consistency wins.');
+  });
+});
