@@ -117,7 +117,8 @@ describe('v1 aliases (deleted in Phase 4)', () => {
   it('keep the gold, text and danger roles on their v2 values', () => {
     expect(colors.brand400).toBe(colors.gold);
     expect(colors.brand700).toBe(colors.gold);
-    expect(colors.navy).toBe(colors.textPrimary);
+    // v1 navy = the ink on gold (UX Phase 1 review).
+    expect(colors.navy).toBe(colors.onGold);
     expect(colors.errorText).toBe(colors.dangerText);
     expect(colors.background).toBe(colors.ground);
   });

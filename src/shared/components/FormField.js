@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { colors, font, radii, spacing, typography } from '../theme/tokens';
+import { colors, font, radii, spacing, textInputColors, typography } from '../theme/tokens';
 
 // RN-SPEC-v2-foundation §4.5: one member/trainer size (52, radius 20).
 export const FIELD_HEIGHT = 52;
@@ -77,6 +77,7 @@ export default function FormField({
           its left padding once a value is typed (M1 / F1). */}
       <View style={[fieldBoxStyle({ focused, error: Boolean(error), disabled: !editable }), styles.inputBox]}>
         <TextInput
+          {...textInputColors}
           testID={testID}
           accessibilityLabel={label}
           // Described by the error message (§4.5), read when the field is focused.

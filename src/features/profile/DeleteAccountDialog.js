@@ -117,6 +117,7 @@ export default function DeleteAccountDialog({ isOpen, onClose, onDeleted, profil
       onClose={close}
       title="Delete your account?"
       size="lg"
+      hideClose={sending || deleted}
       footer={
         deleted ? null : (
           <ModalActions>

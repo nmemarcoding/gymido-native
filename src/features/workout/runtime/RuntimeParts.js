@@ -7,7 +7,7 @@ import GradientFill from '../../../shared/components/GradientFill';
 import RemoteImage from '../../../shared/components/RemoteImage';
 import Select from '../../../shared/components/Select';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
-import { breakpoints, colors, radii, shadows } from '../../../shared/theme/tokens';
+import { breakpoints, colors, radii, shadows, textInputColors } from '../../../shared/theme/tokens';
 import BrandButton from '../components/BrandButton';
 import Card3D from '../components/Card3D';
 import ProgressRing from '../components/ProgressRing';
@@ -267,6 +267,7 @@ export function SetRow({
       </View>
       <View style={styles.controls}>
         <TextInput
+          {...textInputColors}
           testID={`set-weight-${set.id}`}
           accessibilityLabel={`Weight for set ${set.set_number}`}
           keyboardType="decimal-pad"

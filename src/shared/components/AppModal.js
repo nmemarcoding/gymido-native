@@ -44,7 +44,9 @@ export function isTabletWidth(width) {
 
 // Trainer plans spec §A3.1. RN <Modal> gives the paired scroll lock for free;
 // Android back and the scrim both call onClose.
-export default function AppModal({ isOpen, onClose, title, description, size = 'lg', footer, children, testID, entrance = 'slide', compact = false }) {
+// `hideClose` hides the tablet header Close while the dialog is busy (sending,
+// done), as on web; the scrim/Back rules stay the caller's.
+export default function AppModal({ isOpen, onClose, title, description, size = 'lg', footer, children, testID, entrance = 'slide', compact = false, hideClose = false }) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const tablet = isTabletWidth(width);
@@ -107,6 +109,11 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
       };
 
   const hasChildren = Children.toArray(children).length > 0;
+  // UX Phase 1 review: with the keyboard open a phone sheet has little height,
+  // and a fixed footer clipped the last field (the Unit select). The footer
+  // then scrolls with the content, so the fields keep their full height.
+  const footerInScroll = !tablet && keyboardOpen;
+  const footerView = footer ? <View style={tablet ? styles.footerTablet : styles.footer}>{footer}</View> : null;
 
   return (
     <Modal transparent visible={isOpen} animationType="none" onRequestClose={onClose} statusBarTranslucent>
@@ -120,7 +127,7 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
           accessibilityLabel={title}
           style={[styles.card, tablet ? styles.cardTablet : styles.cardPhone, frame.card, motionStyle]}
         >
-          {tablet ? (
+          {tablet && !hideClose ? (
             // §6 tablet header Close (UX, 26 Oct): a 36 glass circle with a 44
             // hit area; the scrim and Back still close the dialog too.
             <Pressable
@@ -157,8 +164,9 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
               </Text>
             ) : null}
             {hasChildren ? <View style={tablet ? styles.childrenTablet : styles.children}>{children}</View> : null}
+            {footerInScroll ? footerView : null}
           </ScrollView>
-          {footer ? <View style={tablet ? styles.footerTablet : styles.footer}>{footer}</View> : null}
+          {footerInScroll ? null : footerView}
         </Animated.View>
       </View>
     </Modal>

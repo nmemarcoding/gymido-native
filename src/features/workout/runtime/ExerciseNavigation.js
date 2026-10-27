@@ -443,7 +443,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   chipActive: {
-    backgroundColor: colors.navy,
+    // v2 "on" chip: light fill, dark ink.
+    backgroundColor: colors.textPrimary,
     boxShadow: shadows.lift2,
   },
   chipIdle: {

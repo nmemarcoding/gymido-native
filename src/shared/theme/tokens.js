@@ -102,9 +102,11 @@ const LEGACY_COLORS = {
   errorFill: V2_COLORS.dangerDotTint,
   errorText: V2_COLORS.dangerText,
   surfaceMuted: V2_COLORS.fillChip,
-  // v1 navy: dark text and active fills on white; on dark the same roles are
-  // the light ink (white "on" chips, titles).
-  navy: V2_COLORS.textPrimary,
+  // v1 navy is the ink on GOLD everywhere it is text or an icon (button labels,
+  // the rest disc, check marks): color-on-gold. Its two background uses are
+  // remapped at their call sites (UX Phase 1 review: a light label on gold
+  // failed contrast).
+  navy: V2_COLORS.onGold,
   onNavy: V2_COLORS.onLight,
   gray200: V2_COLORS.hairlineStrong,
   arms: '#C79BFF',
@@ -195,6 +197,13 @@ export const gradients = Object.freeze({
   // §4.8 the exercise hero image's 90 px bottom fade under the name
   // (color-ground at 0 → 0.9).
   imageFade: Object.freeze({ angle: 180, colors: Object.freeze(['rgba(10, 11, 15, 0)', 'rgba(10, 11, 15, 0.9)']) }),
+});
+
+// Every TextInput's caret and selection are gold, never the platform blue
+// (UX Phase 1 review). Spread onto each TextInput.
+export const textInputColors = Object.freeze({
+  selectionColor: colors.gold,
+  cursorColor: colors.gold,
 });
 
 // §1.5 Muscle colours, always shown with a text label. Tiles: the colour at

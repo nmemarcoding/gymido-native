@@ -17,7 +17,7 @@ import BlurLayer from '../../../../shared/components/BlurLayer';
 import Select from '../../../../shared/components/Select';
 import { useKeyboardHeight } from '../../../../shared/hooks/useKeyboardHeight';
 import { useReducedMotion } from '../../../../shared/hooks/useReducedMotion';
-import { breakpoints, colors, motion, radii, shadows } from '../../../../shared/theme/tokens';
+import { breakpoints, colors, motion, radii, shadows, textInputColors } from '../../../../shared/theme/tokens';
 import { ALL_EQUIPMENT, ALL_MUSCLE_GROUPS, countLabel, filterCatalog } from '../planFormat';
 import ExerciseThumb from './ExerciseThumb';
 import { CheckIcon, ChevronIcon, SearchIcon } from './pickerIcons';
@@ -169,6 +169,7 @@ export default function ExercisePickerSheet({
                   <SearchIcon />
                 </View>
                 <TextInput
+                  {...textInputColors}
                   testID="exercise-picker-search"
                   accessibilityLabel="Search"
                   placeholder="Search exercises"

@@ -171,3 +171,9 @@ describe('FormField (v2 §4.5)', () => {
     expect(flat(fieldBoxStyle({ focused: false, error: false, disabled: false })).minHeight).toBeUndefined();
   });
 });
+
+describe('FormField caret (UX Phase 1 review)', () => {
+  it('draws a gold caret and selection, never the platform blue', () => {
+    expect(input(render()).props).toMatchObject({ selectionColor: '#FFC21A', cursorColor: '#FFC21A' });
+  });
+});

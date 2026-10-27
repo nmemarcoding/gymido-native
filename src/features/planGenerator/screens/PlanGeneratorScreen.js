@@ -19,7 +19,7 @@ import { InlineError } from '../../../shared/components/FeedbackBox';
 import Loader from '../../../shared/components/Loader';
 import PillButton from '../../../shared/components/PillButton';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
-import { breakpoints, colors, radii, shadows } from '../../../shared/theme/tokens';
+import { breakpoints, colors, radii, shadows, textInputColors } from '../../../shared/theme/tokens';
 import { Eyebrow } from '../../plans/components/PlanBits';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
@@ -616,6 +616,7 @@ function AvoidSearch({ exclusions, onChoose }) {
   return (
     <View style={styles.mt8}>
       <TextInput
+        {...textInputColors}
         testID="generator-avoid-search"
         value={text}
         onChangeText={setText}

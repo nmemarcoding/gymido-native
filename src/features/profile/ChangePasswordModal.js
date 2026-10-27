@@ -100,6 +100,7 @@ export default function ChangePasswordModal({ visible, onClose, email }) {
       onClose={handleClose}
       // Web's Modal default max-w-lg (FE e7effd0a).
       size="lg"
+      hideClose={sending}
       title="Change password"
       footer={
         // ⚠P-5: the buttons sit inline, left aligned and touching.

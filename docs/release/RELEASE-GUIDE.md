@@ -65,6 +65,10 @@ What `npm run apk` does:
 
 If a **dev build** of Gymido is on the phone, the signatures differ and the install is refused. The script says so and gives the command: `adb uninstall com.gymido.app`. Uninstalling clears the app's sign-in.
 
+> **Local-test Release builds** (APP_ENV `localtest-*`, used for QA on the test stack) allow plain HTTP to reach the
+> local test API (`withLocalTestCleartext`). Never share or install a localtest APK outside the test stack; store builds
+> are always `production` (HTTPS only).
+
 ## 2. (reference) Check the APK
 
 - Signer: `~/Library/Android/sdk/build-tools/36.0.0/apksigner verify --print-certs ~/gymido-release/builds/<file>.apk`. Internal builds show `CN=Android Debug`; with your upload key it shows your name.

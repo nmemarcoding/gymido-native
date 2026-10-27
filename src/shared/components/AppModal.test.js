@@ -308,3 +308,40 @@ describe('AppModal tablet header Close (UX, 26 Oct)', () => {
     expect(closeButton(render(modal()))).toBeUndefined();
   });
 });
+
+describe('AppModal footer and the keyboard (UX Phase 1 review)', () => {
+  const footerModal = () =>
+    modal({ footer: <Text>Save weight</Text>, children: <Text>Unit</Text> });
+  const footerInScroll = (tree) => {
+    const scroll = tree.root.findByType(ReactNative.ScrollView);
+    return scroll.findAll((n) => n.type === Text && n.props.children === 'Save weight').length > 0;
+  };
+
+  it('phone, keyboard open: the footer scrolls with the content, so the last field keeps its height', () => {
+    atWidth(PHONE);
+    mockKeyboard = 320;
+    expect(footerInScroll(render(footerModal()))).toBe(true);
+  });
+
+  it('phone, keyboard closed: the footer stays fixed under the content', () => {
+    atWidth(PHONE);
+    mockKeyboard = 0;
+    const tree = render(footerModal());
+    expect(footerInScroll(tree)).toBe(false);
+    expect(tree.root.findAll((n) => n.type === Text && n.props.children === 'Save weight')).toHaveLength(1);
+  });
+
+  it('tablet: the footer stays fixed even with the keyboard open', () => {
+    atWidth(TABLET);
+    mockKeyboard = 320;
+    expect(footerInScroll(render(footerModal()))).toBe(false);
+  });
+});
+
+describe('AppModal hideClose (review LOW, web parity)', () => {
+  it('hides the tablet Close while busy and shows it otherwise', () => {
+    atWidth(TABLET);
+    expect(host(render(modal({ hideClose: true })), 'app-modal-close')).toBeUndefined();
+    expect(host(render(modal()), 'app-modal-close')).toBeTruthy();
+  });
+});

@@ -25,7 +25,7 @@ import { InlineError } from '../../../shared/components/FeedbackBox';
 import Loader from '../../../shared/components/Loader';
 import RemoteImage from '../../../shared/components/RemoteImage';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
-import { breakpoints, colors, radii, shadows } from '../../../shared/theme/tokens';
+import { breakpoints, colors, radii, shadows, textInputColors } from '../../../shared/theme/tokens';
 import { useAuthStore } from '../../auth/authStore';
 import AppHeader from '../../shell/AppHeader';
 import DesktopSidebar from '../../shell/DesktopSidebar';
@@ -425,6 +425,7 @@ function StickyBar({ padding, searchValue, onChangeSearch, onSubmitSearch, searc
       <View style={[StyleSheet.absoluteFill, styles.barFill]} />
       <View style={styles.searchBox}>
         <TextInput
+          {...textInputColors}
           testID="exercises-search"
           value={searchValue}
           onChangeText={onChangeSearch}
