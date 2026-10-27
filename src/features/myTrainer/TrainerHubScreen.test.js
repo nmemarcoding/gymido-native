@@ -29,7 +29,7 @@ jest.mock('../shell/shellRules', () => ({ isTrainerUser: () => mockIsTrainer }))
 jest.mock('../auth/authStore', () => ({ useAuthStore: (select) => select({ user: {} }) }));
 jest.mock('../../shared/components/BlurLayer', () => () => null);
 jest.mock('../../shared/components/GradientFill', () => () => null);
-jest.mock('../../shared/components/toastStore', () => ({
+jest.mock('../../shared/components/toastStore', () => ({ ...jest.requireActual('../../shared/components/toastStore'),
   ToastTone: { success: 'success', error: 'error' },
   addToast: jest.fn(),
 }));

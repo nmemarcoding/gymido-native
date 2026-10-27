@@ -58,7 +58,7 @@ jest.mock('./api/clientsApi', () => ({
   listClientWeightLogs: jest.fn(),
 }));
 jest.mock('./clientDetailApi', () => ({ getClientProfileAndEmail: jest.fn() }));
-jest.mock('../../../shared/components/toastStore', () => ({ ToastTone: { success: 'success', error: 'error' }, addToast: jest.fn() }));
+jest.mock('../../../shared/components/toastStore', () => ({ ...jest.requireActual('../../../shared/components/toastStore'), ToastTone: { success: 'success', error: 'error' }, addToast: jest.fn() }));
 
 const flat = (node) => StyleSheet.flatten(node.props.style) ?? {};
 const hostAll = (tree, id) => tree.root.findAll((node) => node.props.testID === id && typeof node.type === 'string');

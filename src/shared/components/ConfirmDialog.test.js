@@ -11,7 +11,13 @@ jest.mock('../hooks/useKeyboardHeight', () => ({ useKeyboardHeight: () => 0 }));
 jest.mock('../hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 jest.mock('./BlurLayer', () => () => null);
 
-afterEach(() => jest.restoreAllMocks());
+// Unmount every tree: an open AppModal registers in the global toast-host
+// stack (BUG-N4), so a leaked tree would re-render in later tests.
+const mounted = [];
+afterEach(() => {
+  act(() => mounted.splice(0).forEach((tree) => tree.unmount()));
+  jest.restoreAllMocks();
+});
 
 function atWidth(width) {
   jest.spyOn(ReactNative, 'useWindowDimensions', 'get').mockReturnValue(() => ({ width, height: 900, scale: 2, fontScale: 1 }));
@@ -22,6 +28,7 @@ function render(element) {
   act(() => {
     tree = create(element);
   });
+  mounted.push(tree);
   return tree;
 }
 

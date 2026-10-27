@@ -37,7 +37,7 @@ jest.mock('../trainer/plans/api/plansApi', () => ({
   listPlanCategories: jest.fn(() => Promise.resolve([{ id: 4, name: 'Strength' }])),
   listDifficultyLevels: jest.fn(() => Promise.resolve([{ id: 2, name: 'Beginner' }])),
 }));
-jest.mock('../../shared/components/toastStore', () => ({
+jest.mock('../../shared/components/toastStore', () => ({ ...jest.requireActual('../../shared/components/toastStore'),
   ToastTone: { success: 'success', error: 'error' },
   addToast: jest.fn(),
 }));

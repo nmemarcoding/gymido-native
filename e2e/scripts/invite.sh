@@ -44,20 +44,29 @@ cat > "$WORK/invite.yaml" <<YAML
 appId: com.gymido.app
 ---
 - runFlow: $ROOT/e2e/maestro/v2/subflows/trainer-workspace.yaml
-- runFlow:
-    when:
-      visible:
-        id: "tab-TClients"
+# Open Clients and PROVE it opened (QA: on the tablet a tap during the
+# workspace transition was lost 1 run in 3 and the flow stayed on Today).
+- retry:
+    maxRetries: 2
     commands:
-      - tapOn:
-          id: "tab-TClients"
-- runFlow:
-    when:
-      visible:
-        id: "rail-TClients"
-    commands:
-      - tapOn:
-          id: "rail-TClients"
+      - runFlow:
+          when:
+            visible:
+              id: "tab-TClients"
+          commands:
+            - tapOn:
+                id: "tab-TClients"
+      - runFlow:
+          when:
+            visible:
+              id: "rail-TClients"
+          commands:
+            - tapOn:
+                id: "rail-TClients"
+      - extendedWaitUntil:
+          visible:
+            id: "clients-search|clients-list|state-slot"
+          timeout: 15000
 - scrollUntilVisible:
     element:
       id: "clients-invite"

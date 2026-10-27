@@ -19,6 +19,8 @@ import { blur, breakpoints, colors, motion, radii, shadows, spacing, typography 
 import BlurLayer from './BlurLayer';
 import FeedbackIcon from './FeedbackIcon';
 import { CAP_BODY, DISPLAY_TITLE_TEXT, TITLE_TEXT, useLargeTextReflow } from './largeText';
+import ToastHost from './ToastHost';
+import { useToastHostStore } from './toastStore';
 
 // RN-SPEC-v2-foundation §6 + UX's dialog ruling (26 Oct).
 // Phone (< 768): every dialog is a bottom sheet that slides up 300 ms
@@ -61,6 +63,16 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
   // An open keyboard replaces the bottom inset so the sheet / card stays above it.
   const bottomInset = keyboardOpen ? keyboardHeight : insets.bottom;
   const progress = useRef(new Animated.Value(0)).current;
+  // BUG-N4: while open, this modal's window hosts the toasts (it sits above
+  // the app-level ToastHost); the topmost open modal wins.
+  const toastHostId = useRef(Symbol('modal-toast-host')).current;
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+    useToastHostStore.getState().pushModalHost(toastHostId);
+    return () => useToastHostStore.getState().popModalHost(toastHostId);
+  }, [isOpen, toastHostId]);
   const pop = tablet && entrance === 'pop';
 
   useEffect(() => {
@@ -191,6 +203,7 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
           </Fragment>
         </Animated.View>
       </View>
+      <ToastHost hostId={toastHostId} />
     </Modal>
   );
 }

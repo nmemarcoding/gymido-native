@@ -28,7 +28,7 @@ jest.mock('./useTabBarClearance', () => ({ useTabBarClearance: () => 0 }));
 jest.mock('../../shared/components/BlurLayer', () => () => null);
 jest.mock('../../shared/components/ConfirmDialog', () => () => null);
 jest.mock('../../shared/components/Select', () => () => null);
-jest.mock('../../shared/components/toastStore', () => ({
+jest.mock('../../shared/components/toastStore', () => ({ ...jest.requireActual('../../shared/components/toastStore'),
   ToastTone: { success: 'success', error: 'error', info: 'info' },
   addToast: jest.fn(),
 }));

@@ -55,7 +55,7 @@ jest.mock('./api/clientsApi', () => ({
   getClientWorkout: jest.fn(),
   listClientWeightLogs: jest.fn(),
 }));
-jest.mock('../../../shared/components/toastStore', () => ({ ToastTone: { success: 'success', error: 'error' }, addToast: jest.fn() }));
+jest.mock('../../../shared/components/toastStore', () => ({ ...jest.requireActual('../../../shared/components/toastStore'), ToastTone: { success: 'success', error: 'error' }, addToast: jest.fn() }));
 
 const { openAssignPlan, openClientDetail } = require('./clientLinks');
 

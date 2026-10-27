@@ -73,6 +73,10 @@ describe('invite.sh', () => {
     expect(text).toMatch(/FAIL invite[^\n]*step/);
   });
 
+  it('opening Clients is verified and retried (tablet flake)', () => {
+    expect(text).toMatch(/- retry:\n\s+maxRetries: 2[\s\S]*rail-TClients[\s\S]*clients-search\|clients-list/);
+  });
+
   it('taps Invite only with --send', () => {
     expect(text).toMatch(/if \[ "\$SEND" = 1 \]/);
     const sendBlock = text.slice(text.indexOf('if [ "$SEND" = 1 ]'));

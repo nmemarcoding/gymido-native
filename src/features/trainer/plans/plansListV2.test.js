@@ -37,7 +37,7 @@ jest.mock('../TrainerOnly', () => ({ children }) => children);
 jest.mock('../clients/clientLinks', () => ({ openClientSelection: jest.fn() }));
 jest.mock('../clients/api/clientsApi', () => ({ assignPlan: jest.fn() }));
 jest.mock('./api/plansApi', () => ({ listTrainerPlans: jest.fn() }));
-jest.mock('../../../shared/components/toastStore', () => ({
+jest.mock('../../../shared/components/toastStore', () => ({ ...jest.requireActual('../../../shared/components/toastStore'),
   ToastTone: { success: 'success', error: 'error' },
   addToast: jest.fn(),
 }));

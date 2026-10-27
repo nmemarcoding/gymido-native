@@ -12,7 +12,7 @@ let mockReducedMotion = true;
 jest.mock('../../../shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => mockReducedMotion }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('./api/clientsApi', () => ({ searchMembers: jest.fn(), inviteClient: jest.fn() }));
-jest.mock('../../../shared/components/toastStore', () => ({
+jest.mock('../../../shared/components/toastStore', () => ({ ...jest.requireActual('../../../shared/components/toastStore'),
   ToastTone: { success: 'success', error: 'error' },
   addToast: jest.fn(),
 }));

@@ -62,7 +62,7 @@ jest.mock('./shell/ShellPage', () => {
   return ({ children }) => <View>{children}</View>;
 });
 jest.mock('./shell/shellLinks', () => ({ openShellPath: jest.fn(), handOffToWorkout: jest.fn() }));
-jest.mock('../shared/components/toastStore', () => ({
+jest.mock('../shared/components/toastStore', () => ({ ...jest.requireActual('../shared/components/toastStore'),
   ToastTone: { success: 'success', error: 'error' },
   addToast: jest.fn(),
 }));
