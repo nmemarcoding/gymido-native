@@ -79,7 +79,7 @@ Never commit credentials. Pass them with `-e`, from your shell or `.env.e2e.loca
 
 On a freshly booted Android emulator, Chrome shows first-run and promo dialogs that cover the Custom Tab, so the Auth0 login form never becomes visible. `dismiss-browser-interstitials` clears them with conditional taps and is a no-op afterwards.
 
-Flows launch through `subflows/launch-dev-client.yaml`, which opens the dev-client deep link. Plain `launchApp` stops at the Expo dev launcher screen and never loads the bundle. Against a release build with JS embedded, replace that subflow's body with `- launchApp` and Metro is no longer needed.
+Flows launch through `subflows/launch-dev-client.yaml`, which opens the dev-client deep link. Plain `launchApp` stops at the Expo dev launcher screen and never loads the bundle. On a Release build (JS embedded) nothing needs editing: `maestro-guarded.sh` and `ios-safe-sign-in.sh` set `MAESTRO_GYMIDO_RELEASE` from the API guard, the subflow then uses `launchApp`, and Metro is not needed. Leave `GYMIDO_METRO_PORT` unset for a Release run: with it set the guard checks Metro instead, the switch stays off, and the run fails safe by opening the dev-client link (which a Release build doesn't have). `MAESTRO_GYMIDO_RELEASE` can't be passed by hand; the wrapper refuses it.
 
 Every flow establishes its own state — `ensure-signed-out` or `ensure-signed-in` — so they can run in any order and individually. Maestro does **not** run files alphabetically (an observed order was 04, 06, 01, 03, 02, 05), so flows must never depend on a previous one having run.
 

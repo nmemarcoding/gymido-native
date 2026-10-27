@@ -2,7 +2,8 @@
 # `launchApp` on its own stops at the Expo dev launcher screen, so open the
 # dev-client deep link instead. Metro must be running. One Metro serves both
 # devices: Android reaches it through 10.0.2.2, the iOS simulator on localhost.
-# For a release/standalone build, replace the body with `- launchApp`.
+# A guarded Release build (bundle embedded) needs no edit: the runners set
+# MAESTRO_GYMIDO_RELEASE from the API guard and this subflow uses launchApp.
 #
 # Default = SOFT relaunch: the deep link reloads the bundle in the running app
 # (~3 s). HARD_RELAUNCH=true kills the app first (cold start, ~10 s).

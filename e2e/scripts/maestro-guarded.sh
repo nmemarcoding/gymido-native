@@ -13,6 +13,12 @@ set -uo pipefail
 TARGET="${1:?usage: $0 <device | android | ios> <maestro test args…>}"
 shift
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+# The Release switch comes only from the guard's result, never from the caller.
+for arg in "$@"; do
+  case "$arg" in
+    *MAESTRO_GYMIDO_RELEASE*) echo "refusing: MAESTRO_GYMIDO_RELEASE is set from the API guard, not by hand" >&2; exit 2 ;;
+  esac
+done
 
 pick() {
   local found
