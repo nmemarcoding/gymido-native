@@ -499,8 +499,11 @@ describe('D2: Sex as S4 pills', () => {
     const labels = group.findAll((node) => node.props.accessibilityRole === 'radio' && typeof node.type === 'string').map((node) => node.props.accessibilityLabel);
     expect(labels).toEqual(['Not set', 'Male', 'Female', 'Other', 'Prefer not to say']);
     expect(texts(tree.root).filter((line) => line === 'Prefer not to say')).toHaveLength(1);
-    expect(pill(tree, '').props.accessibilityState).toMatchObject({ checked: true, selected: true });
-    expect(pill(tree, 'male').props.accessibilityState).toMatchObject({ checked: false, selected: false });
+    // Radios announce `checked` only; `selected` too would double-announce (review LOW).
+    expect(pill(tree, '').props.accessibilityState).toMatchObject({ checked: true });
+    expect(pill(tree, 'male').props.accessibilityState).toMatchObject({ checked: false });
+    expect(pill(tree, '').props.accessibilityState.selected).toBeUndefined();
+    expect(pill(tree, 'male').props.accessibilityState.selected).toBeUndefined();
   });
 
   it('is a radiogroup labelled "Sex" of radio pills, each at least 44 tall', () => {

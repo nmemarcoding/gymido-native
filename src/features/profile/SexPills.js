@@ -33,7 +33,7 @@ export default function SexPills({ label, labelStyle, options, value, onChange, 
                 accessibilityRole="radio"
                 accessibilityLabel={option.label}
                 accessibilityHint={error || undefined}
-                accessibilityState={{ checked: active, selected: active, disabled }}
+                accessibilityState={{ checked: active, disabled }}
                 disabled={disabled}
                 onPress={() => onChange(active ? '' : option.value)}
                 style={[styles.pill, active ? styles.pillOn : styles.pillOff, disabled && styles.pillDisabled]}
