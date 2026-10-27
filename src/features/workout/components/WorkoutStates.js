@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { AccessibilityInfo, StyleSheet, Text, View, findNodeHandle } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
 
-import { RetryButton } from '../../../shared/components/ErrorAlert';
 import FeedbackIcon from '../../../shared/components/FeedbackIcon';
 import GradientFill from '../../../shared/components/GradientFill';
 import PillButton from '../../../shared/components/PillButton';
@@ -40,16 +39,17 @@ export const TITLE_TEXT = Object.freeze({
 export const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
 
 // W2 / H1: the transport message, else "Please try again." (the caller
-// passes it). `role=alert`; "Try again" (ruling 2 Retry) gets the initial
-// focus (PM parity, 26 Oct) and re-runs the full load.
+// passes it). `role=alert`; the TITLE gets the initial focus (kit batch,
+// was "Try again"); "Try again" is the board's glass secondary 48 (P8 F2)
+// and re-runs the full load.
 export function WorkoutErrorState({ message, onRetry, retrying = false }) {
-  const retryRef = useRef(null);
+  const titleRef = useRef(null);
   useEffect(() => {
     AccessibilityInfo.announceForAccessibility(['Workout unavailable', message].filter(Boolean).join(' '));
   }, [message]);
   useEffect(() => {
     const timer = setTimeout(() => {
-      const node = findNodeHandle(retryRef.current);
+      const node = findNodeHandle(titleRef.current);
       if (node) {
         AccessibilityInfo.setAccessibilityFocus(node);
       }
@@ -66,7 +66,7 @@ export function WorkoutErrorState({ message, onRetry, retrying = false }) {
       <View testID="workout-error-icon" style={styles.errorTile}>
         <FeedbackIcon name="warning" size={26} color={colors.dangerText} />
       </View>
-      <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.title, styles.errorTitle]}>
+      <Text ref={titleRef} testID="workout-error-title" {...TITLE_TEXT} accessibilityRole="header" style={[styles.title, styles.errorTitle]}>
         Workout unavailable
       </Text>
       {message ? (
@@ -74,7 +74,7 @@ export function WorkoutErrorState({ message, onRetry, retrying = false }) {
           {message}
         </Text>
       ) : null}
-      <RetryButton ref={retryRef} testID="workout-error-retry" title="Try again" loading={retrying} onPress={onRetry} style={styles.retry} />
+      <PillButton testID="workout-error-retry" title="Try again" variant="secondary" loading={retrying} onPress={onRetry} style={styles.retry} />
     </View>
   );
 }
@@ -177,8 +177,10 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
   },
+  // P8 F2: the board's glass secondary is 48 tall (the kit default is 52).
   retry: {
     marginTop: spacing[5],
+    minHeight: 48,
   },
   browse: {
     marginTop: spacing['5_5'],

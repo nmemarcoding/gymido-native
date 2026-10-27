@@ -56,12 +56,15 @@ describe('W2 Workout unavailable (§D2, whole-page inline error WITH "Try again"
     expect(texts(render(<WorkoutErrorState message="Please try again." onRetry={jest.fn()} />))).toContain('Please try again.');
   });
 
-  it('"Try again" is the ruling-2 Retry (glass 40/44, 14/600) and re-runs the load', () => {
+  // DECLARED change (P8 verdict F2 + kit batch): "Try again" was the ruling-2
+  // RetryButton (40/44, gold ring); the board draws a glass SECONDARY 48.
+  it('"Try again" is the glass secondary 48 (board) and re-runs the load', () => {
     const onRetry = jest.fn();
     const tree = render(<WorkoutErrorState message="m" onRetry={onRetry} />);
-    const retry = tree.root.findByType(RetryButton);
-    expect(retry.props).toMatchObject({ title: 'Try again', testID: 'workout-error-retry', loading: false });
-    expect(tree.root.findAllByType(PillButton)).toHaveLength(0);
+    const retry = tree.root.findAll((node) => node.type === PillButton && node.props.testID === 'workout-error-retry')[0];
+    expect(retry.props).toMatchObject({ title: 'Try again', variant: 'secondary', loading: false });
+    expect(tree.root.findAllByType(RetryButton)).toHaveLength(0);
+    expect(flat(host(tree, 'workout-error-retry')).minHeight).toBe(48);
     act(() => retry.props.onPress());
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
@@ -72,11 +75,18 @@ describe('W2 Workout unavailable (§D2, whole-page inline error WITH "Try again"
     expect(texts(tree)).toContain('Try again');
   });
 
-  it('PM parity: "Try again" gets the initial focus after mount', () => {
-    render(<WorkoutErrorState message="m" onRetry={jest.fn()} />);
+  // DECLARED change (kit batch): the TITLE gets the initial focus (was:
+  // "Try again", PM parity 26 Oct).
+  it('the title "Workout unavailable" gets the initial focus after mount', () => {
+    handle.mockReturnValue((ref) => (ref?.props?.testID === 'workout-error-title' ? 21 : ref ? 11 : null));
+    let tree;
+    act(() => {
+      tree = create(<WorkoutErrorState message="m" onRetry={jest.fn()} />);
+    });
+    mounted.push(tree);
     expect(focus).not.toHaveBeenCalled();
     act(() => jest.advanceTimersByTime(FOCUS_DELAY_MS));
-    expect(focus).toHaveBeenCalledWith(11);
+    expect(focus).toHaveBeenCalledWith(21);
   });
 
   it('no focus move after unmount', () => {
