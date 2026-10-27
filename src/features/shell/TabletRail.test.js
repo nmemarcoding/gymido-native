@@ -185,7 +185,7 @@ describe('TabletRail large text (UX §9 "Rail (tablet): the same rule")', () => 
     act(() => item(tree, 'Progress').props.onLongPress());
     const tip = host(tree, 'tablet-rail-tip');
     expect(tip.findByType(Text).props.children).toBe('Progress');
-    expect(StyleSheet.flatten(tip.props.style).left).toBe(88 + 8);
+    expect(StyleSheet.flatten(host(tree, 'tablet-rail-tip-box').props.style).left).toBe(88 + 8);
     act(() => item(tree, 'Progress').props.onPressOut());
     expect(tree.root.findAll((node) => node.props.testID === 'tablet-rail-tip')).toHaveLength(0);
   });
@@ -204,6 +204,12 @@ describe('TabletRail large text (UX §9 "Rail (tablet): the same rule")', () => 
       expect(text.props.numberOfLines).toBeUndefined();
       expect(text.props.ellipsizeMode).toBeUndefined();
       expect(StyleSheet.flatten(text.props.style).flexShrink).toBe(0);
+      // Device check (emulator, 2.0): the chip was still measured inside the
+      // 88-wide rail and broke "Plan / s". Its wrapper has an explicit width,
+      // independent of the rail, and the chip hugs its text inside it.
+      const box = StyleSheet.flatten(host(tree, 'tablet-rail-tip-box').props.style);
+      expect(box).toMatchObject({ position: 'absolute', alignItems: 'flex-start' });
+      expect(box.width).toBeGreaterThanOrEqual(240);
       act(() => node.props.onPressOut());
     });
   });
