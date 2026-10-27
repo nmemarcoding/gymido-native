@@ -299,16 +299,22 @@ describe('Preview (GeneratorPreview board)', () => {
     expect(fill.props.colors).toEqual(['#1E2129', '#14161C']);
   });
 
-  it('sticky bar (phone): the kit CTA fade from the first render, no blur veil', async () => {
+  // DECLARED change (UX verdict M2-1): the phone bar was the kit CTA fade
+  // (was: fade.props.colors toEqual gradients.ctaBarFade.colors); it is now
+  // opaque like the P3-2 session dock.
+  it('sticky bar (phone): opaque ground from the first render, no fade, no blur veil', async () => {
     const tree = await openPreview();
     const bar = host(tree, 'generator-sticky-bar');
-    const fade = bar.parent.findAllByType(GradientFill)[0];
-    expect(fade.props.colors).toEqual(gradients.ctaBarFade.colors);
+    expect(flat(bar).backgroundColor).toBe(colors.ground);
+    expect(bar.findAllByType(GradientFill)).toHaveLength(0);
     expect(byTestId(tree, 'blur-layer')).toHaveLength(0);
   });
 
   it.each([
-    [1, 390, ['generator-bar-change', 'generator-start'], 'row'],
+    // DECLARED (M2-1): 390 was a row (was: ['generator-bar-change', 'generator-start'], 'row'); below 432 it stacks.
+    [1, 390, ['generator-start', 'generator-bar-change'], 'column'],
+    [1, 431, ['generator-start', 'generator-bar-change'], 'column'],
+    [1, 432, ['generator-bar-change', 'generator-start'], 'row'],
     [1, 700, ['generator-bar-change', 'generator-start'], 'row'],
     [1, 834, ['generator-bar-change', 'generator-start'], 'row'],
     [2, 700, ['generator-start', 'generator-bar-change'], 'column'],
