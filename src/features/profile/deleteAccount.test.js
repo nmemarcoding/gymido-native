@@ -2,6 +2,7 @@ jest.mock('../shell/ShellPage', () => ({ children }) => children);
 jest.mock('../auth/authService', () => ({ logout: jest.fn(), signOutDeletedAccount: jest.fn() }));
 jest.mock('../shell/shellLinks', () => ({ openShellPath: jest.fn() }));
 jest.mock('./CoachingCard', () => () => null);
+jest.mock('./ProfileStatTiles', () => () => null);
 jest.mock('./api/profileApi', () => ({ getProfile: jest.fn(), createProfile: jest.fn(), deleteAccount: jest.fn() }));
 jest.mock('../../shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 const mockNavigation = { push: jest.fn(), replace: jest.fn(), navigate: jest.fn(), reset: jest.fn() };
@@ -101,9 +102,10 @@ describe('P1b.1 who sees it', () => {
     expect(shown.indexOf('Delete account')).toBeGreaterThan(shown.indexOf('Logout'));
     const button = pressable(tree.root, 'delete-account-open');
     expect(button.props.accessibilityHint).toBe("Opens a confirmation. This can't be undone.");
-    // P1b.2: padding-top 12 on the wrapper (+ the 20 column gap = 32).
+    // P1b.2: 32 below Logout. v2 (declared look change): the phone column gap
+    // is 14 (UX K Profile), so the wrapper pads 18 (was 12 + the 20 gap).
     const action = tree.root.find((node) => node.props.testID === 'delete-account-action' && typeof node.type === 'string');
-    expect([].concat(action.props.style)).toEqual(expect.arrayContaining([{ paddingTop: 12 }]));
+    expect([].concat(action.props.style)).toEqual(expect.arrayContaining([{ paddingTop: 18 }]));
   });
 
   it('hides the button and subline for admins (P1b.1 isAdminUser: claim, role/role_code, role_id 2)', () => {
