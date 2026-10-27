@@ -1,0 +1,88 @@
+# Phase 3 batch 2 item 1 (How-to video, expo-video): How to → the sheet shows
+# the media the catalog has for the exercise: an inline player for a video
+# FILE (it replaces the image), else the image (or its failed tile), plus a
+# "Watch video" link when the video is a page URL. The link is never tapped
+# (it opens the external browser). Close → the sheet and the player are gone.
+# Ends by DISCARDING the session (nothing is logged).
+#
+# Signed-in start (the lead's safe runner). Fixture: an ACTIVE plan whose
+# first exercise has How-to content in the library (the pill hides when the
+# library has nothing); which media branch runs depends on that catalog
+# entry. Needs a dev client built with expo-video. IDs only. Uses the v2
+# subflows (e2e/maestro/v2/subflows); not run by the writer (no devices).
+appId: com.gymido.app
+tags:
+  - member
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/start-workout.yaml
+- runFlow: ../subflows/dismiss-session-dialogs.yaml
+- extendedWaitUntil:
+    visible:
+      id: "how-to-open"
+    timeout: 15000
+- tapOn:
+    id: "how-to-open"
+- extendedWaitUntil:
+    visible:
+      id: "how-to-sheet"
+    timeout: 10000
+# Ready (not the loader or the error).
+- extendedWaitUntil:
+    visible:
+      id: "how-to-content"
+    timeout: 20000
+
+- evalScript: ${output.c4Media = 'none'}
+# Inline file video: the player box, and no image beside it.
+- runFlow:
+    when:
+      visible:
+        id: "how-to-video"
+    commands:
+      - assertNotVisible:
+          id: "how-to-image|how-to-image-failed"
+      - evalScript: ${output.c4Media = 'video'}
+# No file video: the image (or the failed-image tile).
+- runFlow:
+    when:
+      visible:
+        id: "how-to-image|how-to-image-failed"
+    commands:
+      - assertNotVisible:
+          id: "how-to-video"
+      - evalScript: ${output.c4Media = 'image'}
+- assertTrue:
+    condition: ${output.c4Media !== 'none'}
+    label: "The How-to sheet shows neither the video player nor the image fallback."
+# A page-URL video: the "Watch video" link (not tapped: it leaves the app).
+- runFlow:
+    when:
+      visible:
+        id: "how-to-watch-video"
+    commands:
+      - assertVisible:
+          id: "how-to-watch-video"
+          text: "Watch video"
+          enabled: true
+      - assertNotVisible:
+          id: "how-to-video"
+
+# Close → the sheet and the player are gone; the workout is underneath.
+- tapOn:
+    id: "how-to-close"
+- extendedWaitUntil:
+    notVisible:
+      id: "how-to-sheet"
+    timeout: 5000
+- assertNotVisible:
+    id: "how-to-video"
+- assertNotVisible:
+    id: "how-to-content"
+- assertVisible:
+    id: "session-chrome"
+- assertVisible:
+    id: "set-editor"
+
+# Cleanup: discard the session this flow started.
+- runFlow: ../subflows/discard-workout.yaml

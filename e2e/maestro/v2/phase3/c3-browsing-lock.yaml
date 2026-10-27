@@ -1,0 +1,240 @@
+# Phase 3 batch 2 item 2 (browsing lock, web parity; SessionRuntime editorSet
+# is null while browsing). In a fresh session: browse exercise 2 → its pending
+# rows are locked chips (no "Did it", no weight/reps inputs); Resume → the
+# live editor is back. Then log every set of exercise 1 (exercise 2 becomes
+# active), browse exercise 1 → its DONE rows keep Undo; Undo one → exercise 1
+# is active again and the live editor returns. Ends by DISCARDING the session
+# (the set PATCHes belong to the discarded session only).
+#
+# Signed-in start (the lead's safe runner). Fixture: an ACTIVE plan whose
+# session has 2+ exercises and whose first exercise has at most 10 sets
+# (the logging loop's cap). IDs only (plus the accessible names "Did it",
+# "Undo", "Saving…" and "Exercise n of m" on id-matched nodes). Uses the v2
+# subflows (e2e/maestro/v2/subflows); not run by the writer (no devices).
+appId: com.gymido.app
+tags:
+  - member
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/start-workout.yaml
+- runFlow: ../subflows/dismiss-session-dialogs.yaml
+# Live on exercise 1 of 2+ (the segments only draw live, with 2+ exercises).
+- extendedWaitUntil:
+    visible:
+      id: "exercise-segments"
+      text: "Exercise 1 of .*"
+    timeout: 15000
+
+# --- A. Browse exercise 2 (nothing logged yet): every row is locked. -------
+- tapOn:
+    id: "session-all"
+- extendedWaitUntil:
+    visible:
+      id: "exercise-sheet"
+    timeout: 10000
+- tapOn:
+    id: "exercise-sheet-card-1"
+- extendedWaitUntil:
+    notVisible:
+      id: "exercise-sheet"
+    timeout: 5000
+- extendedWaitUntil:
+    visible:
+      id: "browsing-bar"
+    timeout: 5000
+- scrollUntilVisible:
+    element:
+      id: "set-strip"
+    direction: DOWN
+    centerElement: true
+    timeout: 10000
+# Locked chips only: disabled set rows, none enabled, no live editor.
+- assertVisible:
+    id: "set-action-.*"
+    enabled: false
+- assertNotVisible:
+    id: "set-action-.*"
+    enabled: true
+- assertNotVisible:
+    id: "set-weight-.*"
+- assertNotVisible:
+    id: "set-reps-.*"
+- assertNotVisible:
+    id: "set-action-.*"
+    text: "Did it"
+# Resume → back on the active exercise with the live editor.
+- scrollUntilVisible:
+    element:
+      id: "browsing-resume"
+    direction: UP
+    timeout: 10000
+- tapOn:
+    id: "browsing-resume"
+- extendedWaitUntil:
+    notVisible:
+      id: "browsing-bar"
+    timeout: 5000
+- scrollUntilVisible:
+    element:
+      id: "set-weight-.*"
+    direction: DOWN
+    centerElement: true
+    timeout: 10000
+- assertVisible:
+    id: "set-reps-.*"
+- assertVisible:
+    id: "set-action-.*"
+    text: "Did it"
+    enabled: true
+
+# Back to the top so the loop can read the segments.
+- scrollUntilVisible:
+    element:
+      id: "exercise-segments"
+    direction: UP
+    timeout: 10000
+
+# --- B. Log every set of exercise 1 so exercise 2 becomes active. ---------
+# The view follows the active exercise, so the loop ends when the segments
+# read "Exercise 2 of m". Each pass: Did it → wait for the PATCH → close the
+# Rest (it locks "Did it" and hides the segments while expanded).
+- repeat:
+    while:
+      visible:
+        id: "exercise-segments"
+        text: "Exercise 1 of .*"
+    times: 10
+    commands:
+      - tapOn:
+          id: "set-action-.*"
+          text: "Did it"
+          enabled: true
+      - extendedWaitUntil:
+          notVisible:
+            id: "set-action-.*"
+            text: "Saving…"
+          timeout: 15000
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - runFlow: ../subflows/dismiss-session-dialogs.yaml
+      - runFlow:
+          when:
+            visible:
+              id: "rest-timer-skip"
+          commands:
+            - tapOn:
+                id: "rest-timer-skip"
+            - extendedWaitUntil:
+                notVisible:
+                  id: "rest-timer"
+                timeout: 5000
+      # A Rest still on screen here is the minimised disc: expand, then skip.
+      - runFlow:
+          when:
+            visible:
+              id: "rest-timer"
+          commands:
+            - tapOn:
+                id: "rest-timer"
+            - extendedWaitUntil:
+                visible:
+                  id: "rest-timer-skip"
+                timeout: 5000
+            - tapOn:
+                id: "rest-timer-skip"
+      - extendedWaitUntil:
+          notVisible:
+            id: "rest-timer"
+          timeout: 5000
+      - runFlow: ../subflows/dismiss-session-dialogs.yaml
+      - scrollUntilVisible:
+          element:
+            id: "exercise-segments"
+          direction: UP
+          timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: "exercise-segments"
+      text: "Exercise 2 of .*"
+    timeout: 10000
+
+# --- C. Browse exercise 1 (all done): its done rows keep Undo. ------------
+- scrollUntilVisible:
+    element:
+      id: "session-all"
+    direction: UP
+    timeout: 10000
+- tapOn:
+    id: "session-all"
+- extendedWaitUntil:
+    visible:
+      id: "exercise-sheet"
+    timeout: 10000
+- tapOn:
+    id: "exercise-sheet-card-0"
+- extendedWaitUntil:
+    notVisible:
+      id: "exercise-sheet"
+    timeout: 5000
+- extendedWaitUntil:
+    visible:
+      id: "browsing-bar"
+    timeout: 5000
+- scrollUntilVisible:
+    element:
+      id: "set-strip"
+    direction: DOWN
+    centerElement: true
+    timeout: 10000
+- assertVisible:
+    id: "set-action-.*"
+    text: "Undo"
+    enabled: true
+- assertNotVisible:
+    id: "set-action-.*"
+    enabled: false
+- assertNotVisible:
+    id: "set-weight-.*"
+- assertNotVisible:
+    id: "set-action-.*"
+    text: "Did it"
+# Undo one done row of the browsed exercise.
+- tapOn:
+    id: "set-action-.*"
+    text: "Undo"
+    enabled: true
+    index: 0
+- extendedWaitUntil:
+    notVisible:
+      id: "set-action-.*"
+      text: "Saving…"
+    timeout: 15000
+# Exercise 1 has a pending set again, so it is the active exercise: the view
+# is live (no browsing bar) with the editor on the undone set.
+- extendedWaitUntil:
+    notVisible:
+      id: "browsing-bar"
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: "exercise-segments"
+      text: "Exercise 1 of .*"
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: "set-weight-.*"
+    direction: DOWN
+    centerElement: true
+    timeout: 10000
+- assertVisible:
+    id: "set-action-.*"
+    text: "Did it"
+    enabled: true
+
+# Cleanup: discard the session this flow started.
+- scrollUntilVisible:
+    element:
+      id: "session-exit"
+    direction: UP
+    timeout: 10000
+- runFlow: ../subflows/discard-workout.yaml

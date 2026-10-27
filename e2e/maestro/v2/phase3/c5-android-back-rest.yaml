@@ -1,0 +1,110 @@
+# Phase 3 review M6 / owner override O14 (RuntimeOverlays + restBackGate):
+# ANDROID ONLY (the whole body sits under `when: platform: Android`; on iOS
+# the flow is a no-op pass). Logs the first set so the full-screen Rest opens
+# expanded → Back minimises it to the disc, the countdown keeps running (read
+# twice, the two values differ) and NO "Leave workout?" dialog opens → Back
+# again opens "Leave workout?" → Stay closes it; the session and the disc stay.
+# Ends by skipping the rest and DISCARDING the session (nothing is recorded
+# server-side except the one set PATCH of the discarded session).
+#
+# Signed-in start (the lead's safe runner). Fixture: an ACTIVE plan whose
+# first set has a planned rest of 20 s or more (the disc must still be
+# counting after the second Back). IDs only. Uses the v2 subflows
+# (e2e/maestro/v2/subflows); not run by the writer (no devices).
+appId: com.gymido.app
+tags:
+  - member
+  - android
+---
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runFlow: ../subflows/signed-in-start.yaml
+      - runFlow: ../subflows/start-workout.yaml
+      - runFlow: ../subflows/dismiss-session-dialogs.yaml
+      # Fresh session: the only enabled set action is "Did it".
+      - tapOn:
+          id: "set-action-.*"
+          enabled: true
+      - runFlow: ../subflows/dismiss-session-dialogs.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "rest-ring-box"
+          timeout: 15000
+
+      # Back #1 on the EXPANDED Rest → minimised to the disc, consumed.
+      - pressKey: Back
+      - extendedWaitUntil:
+          notVisible:
+            id: "rest-ring-box"
+          timeout: 5000
+      - assertVisible:
+          id: "rest-timer"
+      - assertVisible:
+          id: "rest-countdown"
+      - assertNotVisible:
+          id: "leave-workout-dialog"
+      - assertVisible:
+          id: "session-chrome"
+      # The disc is still counting: read the countdown, wait for it to change,
+      # read it again.
+      - copyTextFrom:
+          id: "rest-countdown"
+      - evalScript: ${output.c5First = maestro.copiedText}
+      - extendedWaitUntil:
+          notVisible:
+            id: "rest-countdown"
+            text: ${output.c5First}
+          timeout: 5000
+      - assertVisible:
+          id: "rest-countdown"
+      - copyTextFrom:
+          id: "rest-countdown"
+      - evalScript: ${output.c5Second = maestro.copiedText}
+      - assertTrue:
+          condition: ${output.c5First !== output.c5Second}
+          label: "The minimised rest countdown did not change between two reads."
+
+      # Back #2 (Rest minimised) → "Leave workout?"; Stay keeps everything.
+      - pressKey: Back
+      - extendedWaitUntil:
+          visible:
+            id: "leave-workout-dialog"
+          timeout: 5000
+      - assertVisible:
+          id: "leave-workout-stay"
+      - assertVisible:
+          id: "leave-workout-leave"
+      - tapOn:
+          id: "leave-workout-stay"
+      - extendedWaitUntil:
+          notVisible:
+            id: "leave-workout-dialog"
+          timeout: 5000
+      - assertVisible:
+          id: "session-chrome"
+      - assertVisible:
+          id: "rest-timer"
+      - assertVisible:
+          id: "rest-countdown"
+
+      # Cleanup: expand the disc and skip the rest (c1), then discard.
+      - runFlow:
+          when:
+            visible:
+              id: "rest-timer"
+          commands:
+            - tapOn:
+                id: "rest-timer"
+            - extendedWaitUntil:
+                visible:
+                  id: "rest-timer-skip"
+                timeout: 5000
+            - tapOn:
+                id: "rest-timer-skip"
+            - extendedWaitUntil:
+                notVisible:
+                  id: "rest-timer"
+                timeout: 5000
+      - runFlow: ../subflows/discard-workout.yaml
