@@ -661,3 +661,36 @@ describe('T-50: notification permission at the workout start (option A)', () => 
     expect(platform.requests).toBe(0);
   });
 });
+
+// QA P1 F2 follow-up (27 Oct): the granted path. With exact alarms granted
+// (A2 accepted), a rest that goes to the background is scheduled once, for
+// its current end instant, on the vibrating channel; A2 is never offered
+// again. Whether Android fires it exactly is expo-notifications' native
+// AlarmManager choice (canScheduleExactAlarms), outside Jest.
+describe('A2 granted: background rest with exact alarms on', () => {
+  const { REST_CHANNEL_ID } = require('./restAlerts');
+
+  it('schedules one date trigger at endMs on rest-timer-v2 and never offers A2', async () => {
+    const { platform, controller, onOfferExactAlarm, advance } = setup({ permission: 'granted', canExact: true, offered: true }, { os: 'android', apiLevel: 34 });
+    controller.restStarted(5, 1_120_000, 120);
+    await settle();
+    advance(30_000);
+    await controller.appStateChanged('background');
+    await settle();
+    expect(platform.pending).toHaveLength(1);
+    expect(platform.pending[0].trigger).toEqual({ type: 'date', date: 1_120_000, channelId: REST_CHANNEL_ID });
+    expect(platform.presented).toHaveLength(0);
+    expect(onOfferExactAlarm).not.toHaveBeenCalled();
+  });
+
+  it('a ±5 s adjust while away moves the one trigger to the new end', async () => {
+    const { platform, controller } = setup({ permission: 'granted', canExact: true, offered: true }, { os: 'android', apiLevel: 34 });
+    controller.restStarted(5, 1_120_000, 120);
+    await settle();
+    await controller.appStateChanged('background');
+    await controller.endMoved(1_125_000, 125);
+    await settle();
+    expect(platform.pending).toHaveLength(1);
+    expect(platform.pending[0].trigger.date).toBe(1_125_000);
+  });
+});
