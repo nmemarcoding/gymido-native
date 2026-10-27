@@ -7,7 +7,7 @@ import Banner, { BannerText } from './Banner';
 import EmptyState, { EMPTY_STATE_DEFAULTS } from './EmptyState';
 import ErrorAlert, { RETRY_HEIGHT, RETRY_SLOP, RetryButton } from './ErrorAlert';
 import ErrorBox from './ErrorBox';
-import { FEEDBACK_TONES, InlineError, SuccessState } from './FeedbackBox';
+import { FEEDBACK_TONES, INLINE_ERROR_TILE, InlineError, SuccessState } from './FeedbackBox';
 import FeedbackIcon, { FEEDBACK_ICON_NAMES } from './FeedbackIcon';
 import GlassSurface from './GlassSurface';
 import GradientFill from './GradientFill';
@@ -192,7 +192,8 @@ describe('EmptyState (§5)', () => {
     expect(texts(tree)).toEqual([EMPTY_STATE_DEFAULTS.title, EMPTY_STATE_DEFAULTS.message]);
     expect(EMPTY_STATE_DEFAULTS).toEqual({ title: 'Nothing to show yet', message: 'Once data is available, it will appear here.' });
     const tile = host(tree, 'empty-state-icon');
-    expect(flat(tile)).toMatchObject({ width: 44, height: 44, borderRadius: 16, backgroundColor: colors.fillSkeleton });
+    // D's kit fold: the State boards' 0.07 ring track → track.
+    expect(flat(tile)).toMatchObject({ width: 44, height: 44, borderRadius: 16, backgroundColor: colors.track });
     expect(tree.root.findByType(FeedbackIcon).props.name).toBe('empty');
   });
 
@@ -237,7 +238,7 @@ describe('EmptyState (§5)', () => {
 });
 
 describe('FeedbackBox: InlineError / SuccessState / ErrorBox (§5)', () => {
-  it('InlineError: default title, role alert, danger-text tint at 0.08 / 0.25 with the error icon', () => {
+  it('InlineError: default title, role alert, the danger card (dangerFaint fill, dangerLine edge) with the error icon', () => {
     const tree = render(<InlineError testID="err" message="Please try again." />);
     const box = host(tree, 'err');
     expect(box.props.accessibilityRole).toBe('alert');
@@ -245,17 +246,34 @@ describe('FeedbackBox: InlineError / SuccessState / ErrorBox (§5)', () => {
       borderRadius: 16,
       paddingVertical: 12,
       paddingHorizontal: 14,
-      backgroundColor: 'rgba(255, 122, 112, 0.08)',
-      borderColor: 'rgba(255, 122, 112, 0.25)',
+      backgroundColor: colors.dangerFaint,
+      borderColor: colors.dangerLine,
     });
+    expect(colors.dangerFaint).toBe('rgba(255, 90, 78, 0.08)');
+    expect(colors.dangerLine).toBe('rgba(255, 90, 78, 0.30)');
     expect(texts(tree)).toEqual(['Something went wrong', 'Please try again.']);
     expect(tree.root.findByType(FeedbackIcon).props).toMatchObject({ name: 'error', color: colors.dangerText });
   });
 
-  it('InlineError (§D1): danger-text title (600) over the secondary message', () => {
+  it('InlineError icon tile: the 150° dangerLine → dangerFaint gradient from the first render, dangerLine edge, clipped', () => {
+    const tree = render(<InlineError testID="err" message="m" />);
+    const tile = host(tree, 'inline-error-icon');
+    expect(flat(tile)).toMatchObject({ width: INLINE_ERROR_TILE, height: INLINE_ERROR_TILE, borderRadius: radii.sm, borderWidth: 1, borderColor: colors.dangerLine, overflow: 'hidden' });
+    expect(tree.root.findByType(GradientFill).props).toMatchObject({ angle: 150, colors: [colors.dangerLine, colors.dangerFaint] });
+    // The icon sits inside the tile, in the text colour (U1).
+    expect(tree.root.findByType(FeedbackIcon).parent.props.testID).toBe('inline-error-icon');
+  });
+
+  it('InlineError (§D1 + State boards): dangerText title (600) over the dangerTextSoft message', () => {
     const [title, message] = render(<InlineError title="Dashboard unavailable" message="m" />).root.findAllByType(Text);
     expect(flat(title)).toMatchObject({ fontFamily: 'Geist-SemiBold', color: colors.dangerText });
-    expect(flat(message)).toMatchObject({ color: colors.textSecondary });
+    expect(flat(message)).toMatchObject({ color: colors.dangerTextSoft });
+  });
+
+  it('InlineError without a message: the title only, tile still drawn', () => {
+    const tree = render(<InlineError testID="err" />);
+    expect(texts(tree)).toEqual(['Something went wrong']);
+    expect(tree.root.findAllByType(GradientFill)).toHaveLength(1);
   });
 
   it('InlineError is announced on mount and when its text changes, assertive on Android', () => {
@@ -304,12 +322,13 @@ describe('ErrorAlert (§5)', () => {
     const tree = render(<ErrorAlert testID="ea" title="Some exercises didn't load" description="Please try again." />);
     const box = host(tree, 'ea');
     expect(box.props).toMatchObject({ accessibilityRole: 'alert', accessibilityLiveRegion: 'assertive' });
-    expect(flat(box)).toMatchObject({ borderRadius: 24, padding: 18, backgroundColor: colors.dangerDotTint, borderColor: colors.dangerDotBorder });
+    // D's kit folds (State boards): fill glassStrong, edge dangerLine.
+    expect(flat(box)).toMatchObject({ borderRadius: 24, padding: 18, backgroundColor: colors.glassStrong, borderColor: colors.dangerLine });
     const [title, description] = tree.root.findAllByType(Text);
     expect(flat(title)).toMatchObject({ fontSize: 15, fontFamily: 'Geist-SemiBold', color: colors.textPrimary });
     expect(flat(description)).toMatchObject({ fontSize: 14, lineHeight: 20, color: colors.textSecondary });
     const tile = tree.root.findByType(FeedbackIcon).parent;
-    expect(flat(tile)).toMatchObject({ width: 36, height: 36, borderRadius: 12, backgroundColor: colors.dangerTextTint });
+    expect(flat(tile)).toMatchObject({ width: 36, height: 36, borderRadius: 12, backgroundColor: colors.dangerTint });
     expect(announce).toHaveBeenCalledWith("Some exercises didn't load. Please try again.");
   });
 
@@ -347,13 +366,15 @@ describe('ErrorAlert (§5)', () => {
   it('generator variant: the danger-tint gradient from the first render, 48 tile, overflow hidden', () => {
     const tree = render(<ErrorAlert testID="ea" variant="generator" title="Could not load the plan generator" description="Down" />);
     expect(flat(host(tree, 'ea'))).toMatchObject({ padding: 18, alignItems: 'center', overflow: 'hidden', backgroundColor: colors.surface });
-    expect(tree.root.findByType(GradientFill).props).toMatchObject({ angle: 160, colors: [colors.dangerTextTint, colors.dangerTextFill] });
+    expect(tree.root.findByType(GradientFill).props).toMatchObject({ angle: 160, colors: [colors.dangerTint, colors.dangerFaint] });
+    expect(flat(host(tree, 'ea')).borderColor).toBe(colors.dangerLine);
+    expect(flat(host(tree, 'error-alert-icon')).backgroundColor).toBe(colors.dangerTint);
     expect(flat(host(tree, 'error-alert-icon'))).toMatchObject({ width: 48, height: 48, borderRadius: radii.md });
   });
 
   it('an unknown variant falls back to the kit card', () => {
     const tree = render(<ErrorAlert testID="ea" variant="nope" title="t" />);
-    expect(flat(host(tree, 'ea'))).toMatchObject({ backgroundColor: colors.dangerDotTint, padding: 18 });
+    expect(flat(host(tree, 'ea'))).toMatchObject({ backgroundColor: colors.glassStrong, padding: 18 });
   });
 });
 

@@ -6,7 +6,7 @@ import { routes } from '../../../navigation/routes';
 import BlurLayer from '../../../shared/components/BlurLayer';
 import EmptyState from '../../../shared/components/EmptyState';
 import ErrorAlert from '../../../shared/components/ErrorAlert';
-import ExerciseImage, { muscleColor } from '../../../shared/components/ExerciseImage';
+import ExerciseImage, { muscleColor, muscleTextColor } from '../../../shared/components/ExerciseImage';
 import { usesSolidGlass } from '../../../shared/components/GlassSurface';
 import GradientFill from '../../../shared/components/GradientFill';
 import Loader from '../../../shared/components/Loader';
@@ -17,9 +17,7 @@ import {
   colors,
   font,
   gradients,
-  muscle,
   muscleGlow,
-  muscleText,
   radii,
   spacing,
   textScale,
@@ -92,12 +90,8 @@ const TITLE_TEXT = Object.freeze({
 const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
 const PILL_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.pill });
 
-// The muscle's lighter text colour (UX §8.4 muscle-*-text), null when none.
-export function muscleTextColor(code) {
-  const hex = muscleColor(code);
-  const name = hex ? Object.keys(muscle).find((key) => muscle[key] === hex) : null;
-  return name ? muscleText[name] : null;
-}
+// The shared kit helper (ExerciseImage), re-exported for this screen's callers.
+export { muscleTextColor };
 
 // ND-4 (UX ruling): instructions with line breaks show one numbered step per
 // non-empty line; otherwise null → today's single text block. No data change.

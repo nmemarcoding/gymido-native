@@ -2,8 +2,8 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import Svg from 'react-native-svg';
 import { act, create } from 'react-test-renderer';
 
-import { colors, gradients, muscle } from '../theme/tokens';
-import ExerciseImage, { exerciseInitials, failedIconSize, imageRadius, initialsSize, muscleColor } from './ExerciseImage';
+import { colors, gradients, muscle, muscleText } from '../theme/tokens';
+import ExerciseImage, { exerciseInitials, failedIconSize, imageRadius, initialsSize, muscleColor, muscleTextColor } from './ExerciseImage';
 import GradientFill from './GradientFill';
 
 function render(element) {
@@ -240,5 +240,31 @@ describe('ExerciseImage: hero', () => {
 
   it('thumbnails draw no fade', () => {
     expect(render(<ExerciseImage exercise={plank} />).root.findAllByType(GradientFill)).toHaveLength(0);
+  });
+});
+
+describe('muscleTextColor (kit 2: shared, was duplicated in two screens)', () => {
+  it.each([
+    ['CHEST', muscleText.chest],
+    ['BACK', muscleText.back],
+    ['ARMS', muscleText.arms],
+    ['BICEPS', muscleText.arms],
+    ['triceps', muscleText.arms],
+    ['CORE', muscleText.core],
+    ['CARDIO', muscleText.cardio],
+    ['QUADS', muscleText.legs],
+  ])('%s → its lighter text colour', (code, expected) => {
+    expect(muscleTextColor(code)).toBe(expected);
+  });
+
+  it('is the text partner of muscleColor for every muscle hue', () => {
+    Object.keys(muscle).forEach((name) => {
+      expect(muscleTextColor(name.toUpperCase())).toBe(muscleText[name]);
+      expect(muscleColor(name.toUpperCase())).toBe(muscle[name]);
+    });
+  });
+
+  it('null without a muscle hue (no code, unknown code, the icon hues)', () => {
+    [null, undefined, '', 'NOT_A_MUSCLE', 'ICON_LIGHT'].forEach((code) => expect(muscleTextColor(code)).toBeNull());
   });
 });

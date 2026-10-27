@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BlurLayer from '../../../../shared/components/BlurLayer';
 import ErrorAlert from '../../../../shared/components/ErrorAlert';
-import ExerciseImage, { muscleColor, TILE_ALPHA } from '../../../../shared/components/ExerciseImage';
+import ExerciseImage, { muscleColor, muscleTextColor, TILE_ALPHA } from '../../../../shared/components/ExerciseImage';
 import FeedbackIcon from '../../../../shared/components/FeedbackIcon';
 import GradientFill from '../../../../shared/components/GradientFill';
 import IconButton from '../../../../shared/components/IconButton';
@@ -28,8 +28,6 @@ import {
   colors,
   font,
   motion,
-  muscle as muscleHues,
-  muscleText,
   radii,
   shadows,
   spacing,
@@ -70,11 +68,6 @@ const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
 const PILL_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.pill });
 const BADGE_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.badge });
 
-// Text on a 16 % muscle tint: the muscle's lighter text colour (UX §8.4).
-function muscleTextOf(hex) {
-  const name = hex ? Object.keys(muscleHues).find((key) => muscleHues[key] === hex) : null;
-  return name ? muscleText[name] : null;
-}
 
 // T5 (spec §A7.2–§A7.3). `onAddSelected(exercises)` runs the add loop; the
 // sheet closes when it settles. No in-flight guard (⚠T5-2).
@@ -560,7 +553,8 @@ function PickerRow({ exercise, isAdded, isSelected, onToggle, stacked }) {
 function PickerCard({ exercise, isAdded, isSelected, onToggle }) {
   // Added cards draw both chips neutral (the drawn 0.06 fill folds to 0.08).
   const hue = isAdded ? null : muscleColor(exercise.primary_muscle_group?.code);
-  const hueText = muscleTextOf(hue);
+  // Text on the 16 % muscle tint: the muscle's lighter text colour (UX §8.4).
+  const hueText = isAdded ? null : muscleTextColor(exercise.primary_muscle_group?.code);
   return (
     <Pressable
       testID={`exercise-picker-row-${exercise.id}`}

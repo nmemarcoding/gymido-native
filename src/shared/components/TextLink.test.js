@@ -1,7 +1,8 @@
+const ReactNative = require('react-native');
 import { StyleSheet, Text } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
-import { colors, font } from '../theme/tokens';
+import { colors, font, textScale } from '../theme/tokens';
 import TextLink from './TextLink';
 
 // RN-SPEC-v2-foundation §4.8 TextLink: 14/600 gold, min-height 44, optional "→".
@@ -66,5 +67,28 @@ describe('TextLink', () => {
   it('never sets fontWeight next to the Geist family', () => {
     const tree = render(<TextLink label="Edit" onPress={() => {}} />);
     expect(StyleSheet.flatten(tree.root.findByType(Text).props.style).fontWeight).toBeUndefined();
+  });
+});
+
+describe('TextLink large text (UX §9 rule 2: no truncation)', () => {
+  afterEach(() => jest.restoreAllMocks());
+  const LONG = 'See every plan your trainer assigned to you this month';
+
+  it.each([1, 2, 3.1])('fontScale %f: never cut to one line, wraps instead, capped at the body 2.0', (fontScale) => {
+    jest.spyOn(ReactNative, 'useWindowDimensions', 'get').mockReturnValue(() => ({ width: 390, height: 844, scale: 3, fontScale }));
+    const tree = render(<TextLink label={LONG} arrow onPress={() => {}} />);
+    [false, true].forEach((pressed) => {
+      const text = textOf(tree, pressed);
+      expect(text.props.numberOfLines).toBeUndefined();
+      expect(text.props.ellipsizeMode).toBeUndefined();
+      expect(text.props.adjustsFontSizeToFit).toBeUndefined();
+      expect(text.props.maxFontSizeMultiplier).toBe(textScale.body);
+      expect(text.props.textBreakStrategy).toBe('simple');
+      expect(text.props.children).toBe(`${LONG} →`);
+    });
+    // The pressable shrinks inside a row so the label can wrap; it grows from 44.
+    const link = StyleSheet.flatten(pressableOf(tree).props.style);
+    expect(link).toMatchObject({ flexShrink: 1, minHeight: 44 });
+    expect(link.height).toBeUndefined();
   });
 });

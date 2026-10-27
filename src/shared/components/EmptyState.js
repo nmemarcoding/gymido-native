@@ -61,7 +61,8 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: radii.md,
-    backgroundColor: colors.fillSkeleton,
+    // The State boards' white 0.07 ring track → track (D's kit folds).
+    backgroundColor: colors.track,
     alignItems: 'center',
     justifyContent: 'center',
   },

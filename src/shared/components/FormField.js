@@ -1,12 +1,29 @@
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { colors, font, radii, spacing, textInputColors, typography } from '../theme/tokens';
+import { colors, font, layout, radii, spacing, textInputColors, textScale, typography } from '../theme/tokens';
 import { CAP_BODY } from './largeText';
 
 // RN-SPEC-v2-foundation §4.5: one member/trainer size (52, radius 20).
 export const FIELD_HEIGHT = 52;
 const OPTIONAL = ' (optional)';
+// UX §8.7 U13: the unit suffix caps at 1.6× and the input keeps clear of
+// it: right padding = the suffix's inset + its measured width + the gap.
+// Before the first measurement the 1× gutter (48) is used.
+const UNIT_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.suffix });
+export const UNIT_GUTTER_FALLBACK = 48;
+export function unitGutter(unitWidth) {
+  return unitWidth > 0 ? spacing[4] + unitWidth + layout.suffixGap : UNIT_GUTTER_FALLBACK;
+}
+
+// Field box variants (the boards' field looks; focus = gold + the 0.18 ring
+// and error = the danger-text edge in every variant):
+//   default  surface, radius 20, hairline-strong edge (§4.5)
+//   well     surfaceWell, radius 16 (TabletCreateProfile)
+//   pill     fill-subtle 0.04 (fillWell; U2 folds the drawn 0.05), pill
+//            radius, inputs padded 18 (MyPlanCreate phone; textareas keep 16)
+//   raised   surfaceRaised, radius 16, the 0.12 edge (MyPlanCreate tablet)
+export const FIELD_VARIANTS = Object.freeze(['default', 'well', 'pill', 'raised']);
 
 // OptionalLabel (§4.5): a label ending in " (optional)" draws that part in
 // text-faint 400. The words are unchanged, so screen readers read the same.
@@ -42,9 +59,10 @@ export function FieldFrame({ label, helperText, error, labelStyle: labelOverride
 
 // Border and ring of a field box in its current state (§4.5): focus = 1 px
 // gold border + a 4 px gold 18 % ring; error = the danger-text border.
-export function fieldBoxStyle({ focused, error, disabled }) {
+export function fieldBoxStyle({ focused, error, disabled, variant = 'default' }) {
   return [
     styles.box,
+    VARIANT_BOX[variant] ?? null,
     error && styles.boxError,
     focused && (error ? styles.focusedError : styles.focused),
     disabled && styles.boxDisabled,
@@ -66,17 +84,20 @@ export default function FormField({
   labelStyle,
   trailing,
   unit,
+  variant = 'default',
   onFocus,
   onBlur,
   ...inputProps
 }) {
   const [focused, setFocused] = useState(false);
+  const [unitWidth, setUnitWidth] = useState(0);
+  const pill = variant === 'pill';
 
   return (
     <FieldFrame label={label} helperText={helperText} error={error} kind={multiline ? 'textarea' : 'input'} labelStyle={labelStyle}>
       {/* The border lives on a wrapper: on Android a bordered TextInput drops
           its left padding once a value is typed (M1 / F1). */}
-      <View style={[fieldBoxStyle({ focused, error: Boolean(error), disabled: !editable }), styles.inputBox]}>
+      <View style={[fieldBoxStyle({ focused, error: Boolean(error), disabled: !editable, variant }), styles.inputBox, pill && multiline && styles.pillMultiline]}>
         <TextInput
           {...textInputColors}
           {...CAP_BODY}
@@ -99,8 +120,8 @@ export default function FormField({
           style={[
             styles.text,
             focused && styles.textFocused,
-            multiline ? [styles.multiline, { minHeight: rows * 24 + 28 }] : styles.input,
-            unit ? styles.inputWithUnit : null,
+            multiline ? [styles.multiline, { minHeight: rows * 24 + 28 }] : [styles.input, pill && styles.pillInput],
+            unit ? { paddingRight: unitGutter(unitWidth) } : null,
             trailing ? styles.inputWithTrailing : null,
           ]}
           {...inputProps}
@@ -109,11 +130,17 @@ export default function FormField({
           <View
             testID={testID ? `${testID}-unit` : undefined}
             style={styles.unit}
+            onLayout={(event) => {
+              const next = Math.ceil(event?.nativeEvent?.layout?.width ?? 0);
+              if (next !== unitWidth) {
+                setUnitWidth(next);
+              }
+            }}
             pointerEvents="none"
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
           >
-            <Text {...CAP_BODY} style={styles.unitText}>{unit}</Text>
+            <Text {...UNIT_TEXT} style={styles.unitText}>{unit}</Text>
           </View>
         ) : null}
         {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
@@ -179,8 +206,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[4],
     lineHeight: typography.bodyLg.lineHeight,
   },
-  inputWithUnit: {
-    paddingRight: 48,
+  pillInput: {
+    paddingHorizontal: spacing['4_5'],
+  },
+  // A pill textarea keeps the boards' radius 16.
+  pillMultiline: {
+    borderRadius: radii.md,
   },
   inputWithTrailing: {
     paddingRight: 44,
@@ -225,5 +256,22 @@ const styles = StyleSheet.create({
     ...typography.label,
     marginTop: spacing[2],
     color: colors.dangerText,
+  },
+});
+
+const VARIANT_BOX = StyleSheet.create({
+  default: {},
+  well: {
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceWell,
+  },
+  pill: {
+    borderRadius: radii.full,
+    backgroundColor: colors.fillWell,
+  },
+  raised: {
+    borderRadius: radii.md,
+    borderColor: colors.hairlineButton,
+    backgroundColor: colors.surfaceRaised,
   },
 });

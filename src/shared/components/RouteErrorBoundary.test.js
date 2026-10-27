@@ -51,7 +51,8 @@ describe('A7 Route error (crash fallback)', () => {
     expect(reload.props.variant).toBeUndefined(); // PillButton default = primary (gold)
     const pressable = tree.root.find((node) => node.props.testID === 'route-error-reload' && typeof node.props.style === 'function');
     expect(StyleSheet.flatten(pressable.props.style({ pressed: false }))).toMatchObject({ backgroundColor: colors.gold, minHeight: 52 });
-    expect(StyleSheet.flatten(pressable.props.style({ pressed: true })).backgroundColor).toBe(colors.goldDeep);
+    // §8.6 state rule: pressed keeps the gold (the ink overlay is PillButton's).
+    expect(StyleSheet.flatten(pressable.props.style({ pressed: true })).backgroundColor).toBe(colors.gold);
     act(() => reload.props.onPress());
     expect(onReload).toHaveBeenCalledTimes(1);
   });

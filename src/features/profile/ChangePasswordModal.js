@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, Text, View, findNodeHandle } from 'react-native';
 
 import { getApiErrorMessage } from '../../shared/api/apiError';
-import AppModal from '../../shared/components/AppModal';
+import AppModal, { ModalActions } from '../../shared/components/AppModal';
 import ErrorAlert from '../../shared/components/ErrorAlert';
 import PillButton from '../../shared/components/PillButton';
 import { colors } from '../../shared/theme/tokens';
@@ -103,32 +103,34 @@ export default function ChangePasswordModal({ visible, onClose, email }) {
       hideClose={sending}
       title="Change password"
       footer={
-        // ⚠P-5: the buttons sit inline, left aligned and touching.
-        <View style={styles.actions}>
-          {sent ? (
-            <>
-              <PillButton
-                testID="change-password-resend"
-                title={seconds > 0 ? `Send again in ${seconds}s` : 'Send again'}
-                variant="secondary"
-                disabled={seconds > 0}
-                onPress={handleSend}
-              />
-              <PillButton ref={doneRef} testID="change-password-done" title="Done" onPress={handleClose} />
-            </>
-          ) : (
-            <>
-              <PillButton
-                testID="change-password-cancel"
-                title="Cancel"
-                variant="secondary"
-                disabled={sending}
-                onPress={handleClose}
-              />
-              <PillButton testID="change-password-submit" title="Send reset email" loading={sending} onPress={handleSend} />
-            </>
-          )}
-        </View>
+        // The kit dialog footer (§6): phone stacked with the verb on top; the
+        // tablet row shares the width (the board's flex:1 pair) and stacks
+        // past 1.3× text (§9 rule 4).
+        <ModalActions fill>
+          {sent
+            ? [
+                <PillButton
+                  key="resend"
+                  testID="change-password-resend"
+                  title={seconds > 0 ? `Send again in ${seconds}s` : 'Send again'}
+                  variant="secondary"
+                  disabled={seconds > 0}
+                  onPress={handleSend}
+                />,
+                <PillButton key="done" ref={doneRef} testID="change-password-done" title="Done" onPress={handleClose} />,
+              ]
+            : [
+                <PillButton
+                  key="cancel"
+                  testID="change-password-cancel"
+                  title="Cancel"
+                  variant="secondary"
+                  disabled={sending}
+                  onPress={handleClose}
+                />,
+                <PillButton key="submit" testID="change-password-submit" title="Send reset email" loading={sending} onPress={handleSend} />,
+              ]}
+        </ModalActions>
       }
     >
       {sent ? (
@@ -181,9 +183,5 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: '700',
     color: colors.success700,
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
   },
 });

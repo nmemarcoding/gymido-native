@@ -62,8 +62,9 @@ const retryStyles = StyleSheet.create({
   },
 });
 
-// RN-SPEC-v2-foundation §5 (inline; what loaded stays): a card in the danger
-// tint, an icon tile, the failed part as the title, the server text under it,
+// RN-SPEC-v2-foundation §5 (inline; what loaded stays): the State boards'
+// card (fill glassStrong, edge dangerLine; D's kit folds), a dangerTint icon
+// tile, the failed part as the title, the server text under it,
 // and the Retry (ruling 2) at the right only when `onRetry` is given (never
 // for save failures). Role alert, announced on mount.
 // `variant` (UX D component table): 'default' (the kit card), 'compact' (the
@@ -85,7 +86,7 @@ export default function ErrorAlert({ title, description, onRetry, retrying = fal
   return (
     <View ref={ref} testID={testID} accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.box, look.box, stacked && styles.boxStacked, style]}>
       {/* Mounted with the card (never added on a state change); SVG. */}
-      {name === 'generator' ? <GradientFill angle={160} colors={[colors.dangerTextTint, colors.dangerTextFill]} /> : null}
+      {name === 'generator' ? <GradientFill angle={160} colors={[colors.dangerTint, colors.dangerFaint]} /> : null}
       <View testID="error-alert-icon" style={[styles.iconTile, look.iconTile]}>
         <FeedbackIcon name="error" size={name === 'generator' ? 22 : 18} color={colors.dangerText} />
       </View>
@@ -105,15 +106,15 @@ const styles = StyleSheet.create({
     gap: spacing[3],
     borderRadius: radii.xl,
     borderWidth: 1,
-    borderColor: colors.dangerDotBorder,
-    backgroundColor: colors.dangerDotTint,
+    borderColor: colors.dangerLine,
+    backgroundColor: colors.glassStrong,
     padding: spacing['4_5'],
   },
   iconTile: {
     width: 36,
     height: 36,
     borderRadius: radii.sm,
-    backgroundColor: colors.dangerTextTint,
+    backgroundColor: colors.dangerTint,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -167,14 +168,14 @@ const VARIANT_STYLES = {
     iconTile: { width: 40, height: 40, borderRadius: radii.sm },
   }),
   // Generator board: padding 18, radius 26 (no token → radius-xl 24), the
-  // 160° danger tint (0.14 → 0.04 drawn; tokens 0.12 → 0.08) over the
-  // surface, tile 48 radius 16.
+  // 160° danger gradient (0.14 → 0.04 drawn → dangerTint → dangerFaint) over
+  // the surface, edge dangerLine, tile 48 radius 16 (0.18 → dangerTint).
   generator: StyleSheet.create({
     box: {
       alignItems: 'center',
       padding: spacing['4_5'],
       backgroundColor: colors.surface,
-      borderColor: colors.dangerDotBorder,
+      borderColor: colors.dangerLine,
       overflow: 'hidden',
     },
     iconTile: { width: 48, height: 48, borderRadius: radii.md },

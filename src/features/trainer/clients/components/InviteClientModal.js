@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Platform, StyleSheet, Text, View } from 'react-native';
 
 import { getServerMessage, getStatus } from '../../../../shared/api/apiError';
-import AppModal from '../../../../shared/components/AppModal';
+import AppModal, { ModalActions } from '../../../../shared/components/AppModal';
 import EmptyState from '../../../../shared/components/EmptyState';
 import ErrorAlert from '../../../../shared/components/ErrorAlert';
 import FormField from '../../../../shared/components/FormField';
@@ -132,7 +132,12 @@ export default function InviteClientModal({ isOpen, onClose, onInvited }) {
       title="Invite a client"
       description="Enter your client's full email address to invite them."
       size="lg"
-      footer={<PillButton testID="invite-done" title="Done" variant="secondary" fullWidth onPress={onClose} />}
+      footer={
+        // Full width on phone and tablet (the board's block Done).
+        <ModalActions fill>
+          <PillButton testID="invite-done" title="Done" variant="secondary" fullWidth onPress={onClose} />
+        </ModalActions>
+      }
     >
       <View style={styles.body}>
         <FormField

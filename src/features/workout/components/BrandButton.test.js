@@ -36,9 +36,9 @@ describe('BrandButton', () => {
     expect(StyleSheet.flatten(tree.root.findByType(Text).props.style).color).toBe(colors.onGold);
   });
 
-  it('pressed: goldDeep', () => {
+  it('pressed: gold kept (§8.6 state rule; PillButton draws the ink overlay)', () => {
     const tree = render(<BrandButton label="Resume" onPress={() => {}} />);
-    expect(styleAt(tree, true).backgroundColor).toBe(colors.goldDeep);
+    expect(styleAt(tree, true).backgroundColor).toBe(colors.gold);
   });
 
   it('a press calls onPress', () => {

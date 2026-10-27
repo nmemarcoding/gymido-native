@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { getServerMessage, getStatus } from '../../../../shared/api/apiError';
-import AppModal from '../../../../shared/components/AppModal';
+import AppModal, { ModalActions } from '../../../../shared/components/AppModal';
 import EmptyState from '../../../../shared/components/EmptyState';
 import ErrorAlert from '../../../../shared/components/ErrorAlert';
 import Loader from '../../../../shared/components/Loader';
@@ -47,7 +47,12 @@ export default function WorkoutDetailModal({ clientUserId, workoutId, onClose })
       title="Workout detail"
       description={workout?.started_at ? formatTrainerDateTime(workout.started_at) : 'What your client did in this session.'}
       size="2xl"
-      footer={<PillButton testID="workout-detail-close" title="Close" variant="secondary" fullWidth onPress={onClose} />}
+      footer={
+        // Phone: full width; tablet: the board's Close at the right.
+        <ModalActions>
+          <PillButton testID="workout-detail-close" title="Close" variant="secondary" onPress={onClose} />
+        </ModalActions>
+      }
     >
       {renderBody()}
     </AppModal>

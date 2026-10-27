@@ -20,6 +20,12 @@ function render(element) {
 const pressableOf = (tree) => tree.root.findAll((node) => typeof node.type !== 'string' && node.props.accessibilityRole && typeof node.props.style !== 'undefined' && node.props.onPress !== undefined)[0];
 const restStyle = (tree) => StyleSheet.flatten(pressableOf(tree).props.style({ pressed: false }));
 const pressedStyle = (tree) => StyleSheet.flatten(pressableOf(tree).props.style({ pressed: true }));
+// The pressed overlay the Pressable's children draw (§8.6 STATE RULE).
+const overlayOf = (tree, pressed = true) => {
+  const inner = render(<>{pressableOf(tree).props.children({ pressed })}</>);
+  const found = inner.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'btn-pressed');
+  return found.length ? StyleSheet.flatten(found[0].props.style) : null;
+};
 const labelStyle = (tree) => StyleSheet.flatten(tree.root.findByType(Text).props.style);
 
 const button = (props) => render(<PillButton testID="btn" title="Save" onPress={() => {}} {...props} />);
@@ -38,9 +44,12 @@ describe('variants (§4.1 table)', () => {
     expect(colors.onGold).toBe('#0A0B0F');
   });
 
-  it('primary pressed = goldDeep, glow kept', () => {
+  it('primary pressed (§8.6 state rule): the gold stays, an ink 4 % overlay covers the pill, glow kept, never goldDeep', () => {
     const tree = button({ variant: 'primary' });
-    expect(pressedStyle(tree)).toMatchObject({ backgroundColor: colors.goldDeep, boxShadow: shadows.goldGlow });
+    expect(pressedStyle(tree)).toMatchObject({ backgroundColor: colors.gold, boxShadow: shadows.goldGlow });
+    expect(overlayOf(tree)).toMatchObject({ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: radii.full, backgroundColor: colors.pressOverlayInk });
+    expect(colors.pressOverlayInk).toBe('rgba(10, 11, 15, 0.04)');
+    expect(overlayOf(tree, false)).toBeNull();
   });
 
   it('secondary (glass): 8 % fill, 1 px 12 % border, primary text, no shadow', () => {
@@ -50,7 +59,9 @@ describe('variants (§4.1 table)', () => {
     expect(colors.hairlineButton).toBe('rgba(255, 255, 255, 0.12)');
     expect(restStyle(tree).boxShadow).toBeUndefined();
     expect(labelStyle(tree).color).toBe(colors.textPrimary);
-    expect(pressedStyle(tree).backgroundColor).toBe(colors.hairlineButton);
+    // §8.6 state rule: the glass fill stays + the white 4 % overlay.
+    expect(pressedStyle(tree)).toMatchObject({ backgroundColor: colors.fillButton, borderColor: colors.hairlineButton });
+    expect(overlayOf(tree).backgroundColor).toBe(colors.pressOverlay);
   });
 
   it('ghost: transparent, primary text, no border or shadow', () => {
@@ -59,7 +70,8 @@ describe('variants (§4.1 table)', () => {
     expect(restStyle(tree).borderWidth).toBeUndefined();
     expect(restStyle(tree).boxShadow).toBeUndefined();
     expect(labelStyle(tree).color).toBe(colors.textPrimary);
-    expect(pressedStyle(tree).backgroundColor).toBe(colors.fillButton);
+    expect(pressedStyle(tree).backgroundColor).toBe('transparent');
+    expect(overlayOf(tree).backgroundColor).toBe(colors.pressOverlay);
   });
 
   it('danger: color-danger fill with onDanger (white) text, no shadow', () => {
@@ -67,7 +79,10 @@ describe('variants (§4.1 table)', () => {
     expect(restStyle(tree).backgroundColor).toBe(colors.danger);
     expect(restStyle(tree).boxShadow).toBeUndefined();
     expect(labelStyle(tree).color).toBe(colors.onDanger);
-    expect(pressedStyle(tree)).toMatchObject({ backgroundColor: colors.danger, opacity: 0.85 });
+    // §8.6a 5: the solid danger button's pressed = dangerHover, no overlay.
+    expect(pressedStyle(tree).backgroundColor).toBe(colors.dangerHover);
+    expect(pressedStyle(tree).opacity).toBeUndefined();
+    expect(overlayOf(tree)).toBeNull();
   });
 
   it('light: the #F5F6F8 fill with on-light text, no shadow', () => {
@@ -76,7 +91,8 @@ describe('variants (§4.1 table)', () => {
     expect(colors.textPrimary).toBe('#F5F6F8');
     expect(restStyle(tree).boxShadow).toBeUndefined();
     expect(labelStyle(tree).color).toBe(colors.onLight);
-    expect(pressedStyle(tree).backgroundColor).toBe(colors.textStrong2);
+    expect(pressedStyle(tree).backgroundColor).toBe(colors.textPrimary);
+    expect(overlayOf(tree).backgroundColor).toBe(colors.pressOverlayInk);
   });
 
   it('only the primary carries a shadow', () => {
@@ -159,6 +175,7 @@ describe('states', () => {
     expect(pressableOf(tree).props.accessibilityState).toEqual({ disabled: true, busy: false });
     expect(restStyle(tree).opacity).toBe(0.5);
     expect(pressedStyle(tree)).toMatchObject({ backgroundColor: colors.gold, opacity: 0.5 });
+    expect(overlayOf(tree)).toBeNull();
   });
 
   it('loading: opacity 0.5, busy, not pressable, the caller label stays, a spinner in the text colour', () => {
@@ -206,5 +223,42 @@ describe('states', () => {
 
   it('a layout style passes through', () => {
     expect(restStyle(button({ style: { marginTop: 20 } })).marginTop).toBe(20);
+  });
+});
+
+describe('pressed: the §8.6 STATE RULE on every variant', () => {
+  it('no variant swaps to a new fill or uses goldDeep; only danger changes colour (dangerHover)', () => {
+    BUTTON_VARIANTS.forEach((variant) => {
+      const tree = button({ variant });
+      const rest = restStyle(tree).backgroundColor;
+      const pressed = pressedStyle(tree).backgroundColor;
+      expect(pressed).not.toBe(colors.goldDeep);
+      expect(pressed).toBe(variant === 'danger' ? colors.dangerHover : rest);
+    });
+  });
+
+  it('ink overlay on the light fills, white overlay on the dark fills', () => {
+    expect(overlayOf(button({ variant: 'primary' })).backgroundColor).toBe(colors.pressOverlayInk);
+    expect(overlayOf(button({ variant: 'light' })).backgroundColor).toBe(colors.pressOverlayInk);
+    expect(overlayOf(button({ variant: 'secondary' })).backgroundColor).toBe(colors.pressOverlay);
+    expect(overlayOf(button({ variant: 'ghost' })).backgroundColor).toBe(colors.pressOverlay);
+  });
+
+  it('loading: no pressed overlay (inactive)', () => {
+    expect(overlayOf(button({ loading: true }))).toBeNull();
+  });
+
+  it('the overlay never takes touches and sits under the label', () => {
+    const inner = render(<>{pressableOf(button({})).props.children({ pressed: true })}</>);
+    const overlay = inner.root.find((node) => typeof node.type === 'string' && node.props.testID === 'btn-pressed');
+    expect(overlay.props.pointerEvents).toBe('none');
+    const order = inner.root.findAll((node) => typeof node.type === 'string' && (node.props.testID === 'btn-pressed' || node.type === 'Text'));
+    expect(order[0].props.testID).toBe('btn-pressed');
+  });
+
+  it('a button without a testID still draws the overlay', () => {
+    const tree = render(<PillButton title="Go" onPress={() => {}} />);
+    const inner = render(<>{pressableOf(tree).props.children({ pressed: true })}</>);
+    expect(inner.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'pill-pressed-overlay')).toHaveLength(1);
   });
 });
