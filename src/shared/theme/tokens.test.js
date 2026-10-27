@@ -127,3 +127,44 @@ describe('v1 aliases (deleted in Phase 4)', () => {
     expect(legacyShadowKeys).toEqual(expect.arrayContaining(['soft', 'lift1', 'glow', 'modal']));
   });
 });
+
+describe('type (§2)', () => {
+  const { FONT_FAMILY, font, typography } = require('./tokens');
+
+  it('maps each Geist weight to its bundled family, fontFamily only', () => {
+    expect(FONT_FAMILY).toEqual({ 400: 'Geist-Regular', 500: 'Geist-Medium', 600: 'Geist-SemiBold', 700: 'Geist-Bold' });
+    expect(font(600)).toEqual({ fontFamily: 'Geist-SemiBold' });
+    expect(font('500')).toEqual({ fontFamily: 'Geist-Medium' });
+    expect(font()).toEqual({ fontFamily: 'Geist-Regular' });
+  });
+
+  it('has no 900: heavier weights fall back to Bold; unknown light ones to Regular', () => {
+    expect(font(900)).toEqual({ fontFamily: 'Geist-Bold' });
+    expect(font(800)).toEqual({ fontFamily: 'Geist-Bold' });
+    expect(font(300)).toEqual({ fontFamily: 'Geist-Regular' });
+  });
+
+  it('never sets fontWeight next to the family (Android would fake bold)', () => {
+    Object.values(typography).forEach((style) => expect(style.fontWeight).toBeUndefined());
+  });
+
+  it.each([
+    ['displayTimer', 92, 92, 'Geist-Bold', -5.52],
+    ['displayXl', 56, 58, 'Geist-Bold', -2.8],
+    ['titleXl', 36, 40, 'Geist-Bold', -1.44],
+    ['titleMd', 24, 28, 'Geist-Bold', -0.72],
+    ['titleXs', 18, 24, 'Geist-Bold', -0.36],
+    ['bodyLg', 16, 24, 'Geist-Regular', 0],
+    ['body', 15, 22, 'Geist-Regular', 0],
+    ['labelLg', 16, 20, 'Geist-SemiBold', 0],
+    ['label', 13, 18, 'Geist-Medium', 0],
+    ['caption', 12, 16, 'Geist-Regular', 0],
+    ['micro', 11, 14, 'Geist-Medium', 0],
+  ])('%s = %d/%d %s, tracking %d px', (key, size, line, family, tracking) => {
+    expect(typography[key]).toEqual({ fontFamily: family, fontSize: size, lineHeight: line, letterSpacing: tracking });
+  });
+
+  it('keeps every size at the 11 px minimum', () => {
+    Object.values(typography).forEach((style) => expect(style.fontSize).toBeGreaterThanOrEqual(11));
+  });
+});

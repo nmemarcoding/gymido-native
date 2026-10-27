@@ -190,35 +190,56 @@ export const musclePalette = Object.freeze({
   iconDark: V2_COLORS.ground,
 });
 
+// §2 Type: Geist 400 / 500 / 600 / 700, bundled (assets/fonts). Each weight
+// is its own family; the file name is the family on both platforms.
+export const FONT_FAMILY = Object.freeze({
+  400: 'Geist-Regular',
+  500: 'Geist-Medium',
+  600: 'Geist-SemiBold',
+  700: 'Geist-Bold',
+});
+
+// The style for a Geist weight: fontFamily ONLY. Pairing a custom family with
+// fontWeight makes Android fake a bolder face, so callers never set both.
+// There is no 900 in v2: heavier weights fall back to Bold.
+export function font(weight = 400) {
+  const w = Number(weight);
+  if (w >= 700) {
+    return { fontFamily: FONT_FAMILY[700] };
+  }
+  return { fontFamily: FONT_FAMILY[w] ?? FONT_FAMILY[400] };
+}
+
+// One scale step: size / line height in px, tracking in em (→ px for RN).
+function step(fontSize, lineHeight, weight, trackingEm = 0) {
+  return Object.freeze({ ...font(weight), fontSize, lineHeight, letterSpacing: Math.round(trackingEm * fontSize * 100) / 100 });
+}
+
+// §2 scale. Every changing number also sets fontVariant ['tabular-nums'].
 export const typography = Object.freeze({
-  eyebrow: {
-    fontSize: 11.2,
-    lineHeight: 16.8,
-    fontWeight: '700',
-    letterSpacing: 2.016,
-    textTransform: 'uppercase',
-    color: colors.gold,
-  },
-  heading: {
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  // Design system v1: bodySm 14/20 is the default; body 14/24 only where the
-  // web uses leading-6.
-  bodySm: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '400',
-    color: colors.textSecondary,
-  },
-  body: {
-    fontSize: 14,
-    lineHeight: 24,
-    fontWeight: '400',
-    color: colors.textSecondary,
-  },
+  displayTimer: step(92, 92, 700, -0.06),
+  displayXl: step(56, 58, 700, -0.05),
+  displayLg: step(52, 52, 700, -0.045),
+  displayMd: step(44, 44, 700, -0.05),
+  titleXl: step(36, 40, 700, -0.04),
+  titleLg: step(30, 32, 700, -0.04),
+  titleMd: step(24, 28, 700, -0.03),
+  titleSm: step(22, 28, 700, -0.03),
+  titleXs: step(18, 24, 700, -0.02),
+  // Input text is 16 (it keeps iOS from zooming the field).
+  bodyLg: step(16, 24, 400),
+  body: step(15, 22, 400),
+  labelLg: step(16, 20, 600),
+  bodySm: step(14, 20, 400),
+  label: step(13, 18, 500),
+  caption: step(12, 16, 400),
+  micro: step(11, 14, 500),
+  // The three native primitives (board "Typography (native)"): Eyebrow =
+  // caption 12/600 gold, sentence case (never tracked caps); Heading =
+  // title-md; Body = body in text-secondary.
+  eyebrow: Object.freeze({ ...font(600), fontSize: 12, lineHeight: 16, color: colors.gold }),
+  heading: Object.freeze({ ...step(24, 28, 700, -0.03), color: colors.textPrimary }),
+  bodyText: Object.freeze({ ...step(15, 22, 400), color: colors.textSecondary }),
 });
 
 // §3 Elevation: two shadows only. goldGlow under the ONE gold primary
