@@ -443,15 +443,23 @@ const styles = StyleSheet.create({
     letterSpacing: -0.57,
     color: colors.textPrimary,
   },
+  // Boards (UX B): phone 48/46, tablet 60/60, both 700 −0.055em. No type
+  // step has these (display-md 44/44, display-xl 56/58).
   titlePhone: {
-    ...typography.displayMd,
+    ...font(700),
+    fontSize: 48,
+    lineHeight: 46,
+    letterSpacing: -2.64,
     color: colors.textPrimary,
   },
   titleGold: {
     color: colors.gold,
   },
   titleTablet: {
-    ...typography.displayXl,
+    ...font(700),
+    fontSize: 60,
+    lineHeight: 60,
+    letterSpacing: -3.3,
     color: colors.textPrimary,
   },
   subtitlePhone: {

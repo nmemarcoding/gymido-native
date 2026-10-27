@@ -86,7 +86,7 @@ export function TodayLoading({ tablet }) {
     return (
       <View testID="home-loading" accessibilityState={{ busy: true }} style={styles.loadingTablet}>
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.skeletonTablet}>
-          <CardSurface hero style={styles.skeletonHeroTablet} />
+          <CardSurface hero testID="home-skeleton-hero" style={styles.skeletonHeroTablet} />
           <View style={styles.grid}>
             {[0, 1, 2, 3].map((index) => (
               <View key={index} style={styles.gridCell}>
@@ -145,7 +145,7 @@ export function TodayError({ message, tablet }) {
         <GradientFill radial={gradients.dangerGlow.radial} colors={gradients.dangerGlow.colors} stops={gradients.dangerGlow.stops} />
       </View>
       <View style={[styles.errorTile, tablet && styles.errorTileTablet]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <FeedbackIcon name="error" size={tablet ? 44 : 28} color={colors.dangerText} />
+        <FeedbackIcon name="error" size={tablet ? 48 : 30} color={colors.dangerText} />
       </View>
       <Text accessibilityRole="header" {...(tablet ? LT.display : LT.title)} style={tablet ? styles.errorTitleTablet : styles.errorTitle}>
         Dashboard unavailable
@@ -398,9 +398,10 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
   },
+  // UX B §Today, empty: the initial is 17/700 (the board draws 17).
   avatarText: {
     ...font(700),
-    fontSize: 16,
+    fontSize: 17,
     lineHeight: 20,
     color: colors.onGold,
   },
@@ -537,8 +538,10 @@ const styles = StyleSheet.create({
     gap: spacing[4],
     opacity: 0.9,
   },
+  // Board: radius 36 (no token).
   skeletonHeroTablet: {
     height: 300,
+    borderRadius: 36,
   },
   skeletonTileTablet: {
     height: 150,
@@ -570,18 +573,20 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   // Error
+  // Board radii (no token; owner rule: match the boards): 32 phone, 36 tablet.
   errorCard: {
     overflow: 'hidden',
-    borderRadius: radii.xxl,
     borderWidth: 1,
     borderColor: colors.dangerLine,
   },
   errorCardPhone: {
+    borderRadius: spacing[8],
     marginTop: spacing[2],
     paddingVertical: spacing[6],
     paddingHorizontal: spacing['5_5'],
   },
   errorCardTablet: {
+    borderRadius: 36,
     marginTop: 120,
     alignItems: 'center',
     paddingVertical: 48,
@@ -617,8 +622,10 @@ const styles = StyleSheet.create({
   },
   // Phone: the board's light reds = danger-text-soft (the message's paler
   // red folds into it, UX §8.5). Tablet names its tokens: primary / strong-2.
+  // Board: 30/34 (title-lg is 30/32).
   errorTitle: {
     ...typography.titleLg,
+    lineHeight: 34,
     marginTop: spacing['4_5'],
     color: colors.dangerTextSoft,
   },
@@ -627,8 +634,12 @@ const styles = StyleSheet.create({
     marginTop: spacing[2],
     color: colors.dangerTextSoft,
   },
+  // Board: 48/50 700 −0.045em (no type step; display-md is 44/44).
   errorTitleTablet: {
-    ...typography.displayMd,
+    ...font(700),
+    fontSize: 48,
+    lineHeight: 50,
+    letterSpacing: -2.16,
     marginTop: spacing[2],
     textAlign: 'center',
     color: colors.textPrimary,
@@ -647,7 +658,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing['5_5'],
     paddingBottom: spacing['5_5'],
   },
+  // Board: radius 36 (no token; the hero card's own is 28).
   heroTablet: {
+    borderRadius: 36,
     alignItems: 'flex-start',
     paddingVertical: 44,
     paddingHorizontal: 40,
@@ -687,14 +700,18 @@ const styles = StyleSheet.create({
     height: 84,
     borderRadius: 26,
   },
+  // Board: 30/34 (title-lg is 30/32).
   heroTitle: {
     ...typography.titleLg,
+    lineHeight: 34,
     marginTop: spacing[5],
     textAlign: 'center',
     color: colors.textPrimary,
   },
+  // Board: 52/54 (display-lg is 52/52).
   heroTitleTablet: {
     ...typography.displayLg,
+    lineHeight: 54,
     maxWidth: 520,
     color: colors.textPrimary,
   },

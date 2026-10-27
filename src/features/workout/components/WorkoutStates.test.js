@@ -2,6 +2,7 @@ import { StyleSheet, Text } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { RetryButton } from '../../../shared/components/ErrorAlert';
+import FeedbackIcon from '../../../shared/components/FeedbackIcon';
 import GradientFill from '../../../shared/components/GradientFill';
 import PillButton from '../../../shared/components/PillButton';
 import { colors, gradients, radii } from '../../../shared/theme/tokens';
@@ -86,10 +87,10 @@ describe('W2 Workout unavailable (§D2, whole-page inline error WITH "Try again"
     expect(focus).not.toHaveBeenCalled();
   });
 
-  it('look: danger-edged card radius 28, 640 max centred, 72 icon tile, 32/34/700 title, 14/22 secondary body', () => {
+  it('look: danger-edged card radius 32 (board), 640 max centred, 72 icon tile, 32/34/700 title, 14/22 secondary body', () => {
     const tree = render(<WorkoutErrorState message="m" onRetry={jest.fn()} />);
     expect(flat(host(tree, 'workout-error'))).toMatchObject({
-      borderRadius: radii.xxl,
+      borderRadius: 32,
       borderColor: colors.dangerLine,
       maxWidth: STATE_MAX_WIDTH,
       alignSelf: 'center',
@@ -127,7 +128,7 @@ describe('W1 No active workout plan (§D2 EmptyState, whole tab)', () => {
 
   it('look: gradient-card + gold top glow from the first render, 132 disc, 32 title, 640 centred', () => {
     const tree = render(<WorkoutEmptyState onBrowse={jest.fn()} />);
-    expect(flat(host(tree, 'workout-empty'))).toMatchObject({ borderRadius: radii.xxl, maxWidth: 640, alignSelf: 'center', paddingVertical: 40, borderColor: colors.hairlineStrong });
+    expect(flat(host(tree, 'workout-empty'))).toMatchObject({ borderRadius: 32, maxWidth: 640, alignSelf: 'center', paddingVertical: 40, borderColor: colors.hairlineStrong });
     const fills = tree.root.findAllByType(GradientFill);
     expect(fills).toHaveLength(3);
     expect(fills[0].props.colors).toBe(gradients.card.colors);
@@ -186,5 +187,25 @@ describe('UX §9 large text', () => {
         found.forEach((node) => expect(flat(node).height).toBeUndefined());
       });
     });
+  });
+});
+
+describe('Board geometry (phase2-open-items §3 D)', () => {
+  it('error: the 26 px warning glyph inside the 72 tile (board), danger-text', () => {
+    const tree = render(<WorkoutErrorState message="m" onRetry={jest.fn()} />);
+    const icon = host(tree, 'workout-error-icon').findByType(FeedbackIcon);
+    expect(icon.props).toMatchObject({ name: 'warning', size: 26, color: colors.dangerText });
+  });
+
+  it('both cards draw the board radius 32 (no token), clipped', () => {
+    const error = render(<WorkoutErrorState message="m" onRetry={jest.fn()} />);
+    const empty = render(<WorkoutEmptyState onBrowse={jest.fn()} />);
+    expect(flat(host(error, 'workout-error'))).toMatchObject({ borderRadius: 32, overflow: 'hidden' });
+    expect(flat(host(empty, 'workout-empty'))).toMatchObject({ borderRadius: 32, overflow: 'hidden' });
+  });
+
+  it('the icon is fixed chrome: no Text, so the text scale never resizes it', () => {
+    const tree = render(<WorkoutErrorState message="m" onRetry={jest.fn()} />);
+    expect(host(tree, 'workout-error-icon').findAllByType(Text)).toHaveLength(0);
   });
 });

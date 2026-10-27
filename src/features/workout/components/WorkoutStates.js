@@ -64,7 +64,7 @@ export function WorkoutErrorState({ message, onRetry, retrying = false }) {
       <GradientFill angle={gradients.dangerCard.angle} colors={gradients.dangerCard.colors} />
       <GradientFill radial={TOP_GLOW} colors={gradients.signInFailedGlow.colors} stops={GLOW_STOPS} />
       <View testID="workout-error-icon" style={styles.errorTile}>
-        <FeedbackIcon name="warning" size={30} color={colors.dangerText} />
+        <FeedbackIcon name="warning" size={26} color={colors.dangerText} />
       </View>
       <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.title, styles.errorTitle]}>
         Workout unavailable
@@ -114,13 +114,13 @@ export function WorkoutEmptyState({ onBrowse }) {
 }
 
 const styles = StyleSheet.create({
-  // Radius 32 on the board (no token → radius-2xl 28).
+  // Radius 32 as the board draws it (no token; owner rule: match the boards).
   card: {
     width: '100%',
     maxWidth: STATE_MAX_WIDTH,
     alignSelf: 'center',
     alignItems: 'center',
-    borderRadius: radii.xxl,
+    borderRadius: spacing[8],
     borderWidth: 1,
     overflow: 'hidden',
     paddingHorizontal: spacing[6],

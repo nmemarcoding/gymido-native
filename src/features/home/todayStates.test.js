@@ -16,6 +16,7 @@ jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
 import { AccessibilityInfo, StyleSheet, View } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
+import FeedbackIcon from '../../shared/components/FeedbackIcon';
 import Spinner from '../../shared/components/Spinner';
 import TextLink from '../../shared/components/TextLink';
 import { colors } from '../../shared/theme/tokens';
@@ -549,5 +550,75 @@ describe('§9 large text: reflow past 1.3', () => {
     mockFontScale = 2;
     await act(async () => tree.update(<HomeScreen />));
     expect(styleOf(host(tree.root, 'home-stat-row')).flexDirection).toBeUndefined();
+  });
+});
+
+describe('Board geometry (phase2-open-items §3 B)', () => {
+  it('avatar initials 17/700 on phone (UX B), 24 on tablet', async () => {
+    const phone = await render();
+    expect(flatOf(host(phone.root, 'home-avatar').findByType('Text'))).toMatchObject({ fontSize: 17, fontFamily: 'Geist-Bold' });
+    mockWidth = 834;
+    const tablet = await render();
+    expect(flatOf(host(tablet.root, 'home-avatar').findByType('Text')).fontSize).toBe(24);
+  });
+
+  it('phone error card: radius 32, padding 24 22; the 64 tile (radius 22) holds a 30 icon; title 30/34', async () => {
+    const tree = await render(new Error('Network Error'));
+    const card = host(tree.root, 'home-error');
+    expect(styleOf(card)).toMatchObject({ borderRadius: 32, overflow: 'hidden', paddingVertical: 24, paddingHorizontal: 22 });
+    expect(card.findByType(FeedbackIcon).props).toMatchObject({ name: 'error', size: 30, color: colors.dangerText });
+    const tile = hosts(card, (node) => flatOf(node).width === 64 && flatOf(node).height === 64)[0];
+    expect(flatOf(tile).borderRadius).toBe(22);
+    const title = card.findAll((node) => node.type === 'Text')[0];
+    expect(flatOf(title)).toMatchObject({ fontSize: 30, lineHeight: 34, marginTop: 18 });
+  });
+
+  it('tablet error card: radius 36, padding 48 40; the 104 tile (radius 32) holds a 48 icon; title 48/50 −0.045em', async () => {
+    mockWidth = 834;
+    const tree = await render(new Error('Network Error'));
+    const card = host(tree.root, 'home-error');
+    expect(styleOf(card)).toMatchObject({ borderRadius: 36, overflow: 'hidden', paddingVertical: 48, paddingHorizontal: 40 });
+    expect(card.findByType(FeedbackIcon).props).toMatchObject({ name: 'error', size: 48 });
+    const tile = hosts(card, (node) => flatOf(node).width === 104)[0];
+    expect(flatOf(tile).borderRadius).toBe(32);
+    const title = card.findAll((node) => node.type === 'Text')[0];
+    expect(flatOf(title)).toMatchObject({ fontSize: 48, lineHeight: 50, letterSpacing: -2.16, fontFamily: 'Geist-Bold' });
+    expect(flatOf(title).fontWeight).toBeUndefined();
+  });
+
+  it('empty hero: phone 28 radius (hero card) + title 30/34; tablet radius 36 + title 52/54', async () => {
+    const phone = await render();
+    const heroPhone = host(phone.root, 'home-empty-hero');
+    expect(styleOf(heroPhone).borderRadius).toBe(28);
+    expect(flatOf(heroPhone.findAll((node) => node.type === 'Text' && textOf(node) === 'No active plan yet')[0])).toMatchObject({ fontSize: 30, lineHeight: 34 });
+    mockWidth = 834;
+    const tablet = await render();
+    const heroTablet = host(tablet.root, 'home-empty-hero');
+    expect(styleOf(heroTablet)).toMatchObject({ borderRadius: 36, overflow: 'hidden' });
+    expect(flatOf(heroTablet.findAll((node) => node.type === 'Text' && textOf(node) === 'No active plan yet')[0])).toMatchObject({ fontSize: 52, lineHeight: 54 });
+  });
+
+  it('tablet loading: the skeleton hero block is radius 36, 300 tall', async () => {
+    mockWidth = 834;
+    const tree = await render(deferred().promise);
+    expect(styleOf(host(tree.root, 'home-skeleton-hero'))).toMatchObject({ borderRadius: 36, height: 300 });
+  });
+
+  it.each([1, 2, 3.1])('fontScale %s: the radii and icons are fixed chrome (unchanged); the titles keep their caps', async (scale) => {
+    mockFontScale = scale;
+    const phone = await render(new Error('Network Error'));
+    const phoneCard = host(phone.root, 'home-error');
+    expect(styleOf(phoneCard).borderRadius).toBe(32);
+    expect(phoneCard.findByType(FeedbackIcon).props.size).toBe(30);
+    expect(phoneCard.findAll((node) => node.type === 'Text')[0].props).toMatchObject({ maxFontSizeMultiplier: 1.6, adjustsFontSizeToFit: true });
+    expect(styleOf(phoneCard).height).toBeUndefined();
+    mockWidth = 834;
+    const tablet = await render(new Error('Network Error'));
+    const tabletCard = host(tablet.root, 'home-error');
+    expect(styleOf(tabletCard).borderRadius).toBe(36);
+    expect(tabletCard.findByType(FeedbackIcon).props.size).toBe(48);
+    expect(tabletCard.findAll((node) => node.type === 'Text')[0].props).toMatchObject({ maxFontSizeMultiplier: 1.3, adjustsFontSizeToFit: true });
+    expect(styleOf(tabletCard).height).toBeUndefined();
+    expect(host(tablet.root, 'home-avatar').findByType('Text').props.maxFontSizeMultiplier).toBe(1.2);
   });
 });
