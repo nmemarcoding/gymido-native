@@ -204,13 +204,15 @@ const styles = StyleSheet.create({
     width: TIP_BOX_WIDTH,
     alignItems: 'flex-start',
   },
+  // UX (batch verdicts 27 Oct): the kit tooltip look — #1E2129, hairline
+  // 0.10, radius 10, 13/600 — beside the item, never over it.
   tip: {
     minHeight: TIP_HEIGHT,
     justifyContent: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: colors.glassSolid,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
     borderColor: colors.hairlineStrong,
   },
@@ -218,6 +220,7 @@ const styles = StyleSheet.create({
   // keeps its text width and the chip grows around it.
   tipText: {
     ...typography.label,
+    ...font(600),
     color: colors.textPrimary,
     flexShrink: 0,
   },

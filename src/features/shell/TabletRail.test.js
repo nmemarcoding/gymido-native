@@ -3,6 +3,7 @@ import { act, create } from 'react-test-renderer';
 
 import GymIcon from './GymIcon';
 import TabletRail from './TabletRail';
+import { colors } from '../../shared/theme/tokens';
 
 const mockInsets = { top: 24, bottom: 20, left: 0, right: 0 };
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => mockInsets }));
@@ -212,6 +213,23 @@ describe('TabletRail large text (UX §9 "Rail (tablet): the same rule")', () => 
       expect(box.width).toBeGreaterThanOrEqual(240);
       act(() => node.props.onPressOut());
     });
+  });
+
+  // UX nit (batch verdicts 27 Oct): the tip is the kit TOOLTIP look —
+  // #1E2129, hairline 0.10, radius 10, 13/600 — beside (never over) the item.
+  it('Android 2.0: the long-press tip uses the kit tooltip look, beside the rail', () => {
+    Platform.OS = 'android';
+    mockFontScale = 2;
+    const tree = render();
+    act(() => item(tree, 'Plans').props.onLongPress());
+    expect(StyleSheet.flatten(host(tree, 'tablet-rail-tip').props.style)).toMatchObject({
+      backgroundColor: colors.surfaceRaised,
+      borderColor: colors.hairlineStrong,
+      borderWidth: 1,
+      borderRadius: 10,
+    });
+    expect(StyleSheet.flatten(host(tree, 'tablet-rail-tip').findByType(Text).props.style)).toMatchObject({ fontSize: 13, fontFamily: 'Geist-SemiBold' });
+    expect(StyleSheet.flatten(host(tree, 'tablet-rail-tip-box').props.style).left).toBeGreaterThanOrEqual(88);
   });
 
   it('no long-press label with labels shown, nor on iOS', () => {
