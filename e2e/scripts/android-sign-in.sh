@@ -29,8 +29,7 @@ case "$DEVICE" in emulator-*) ;; *) echo "emulators only (got a non-emulator ser
 export MAESTRO_LOGIN_EMAIL MAESTRO_LOGIN_PASSWORD
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/android-sign-in.XXXXXX")"
-MARK="$WORK/.mark"
-touch "$MARK"
+MARK_SAVED="$(mktemp "${TMPDIR:-/tmp}/android-sign-in-mark.XXXXXX")"
 cat > "$WORK/sign-in.yaml" <<YAML
 appId: com.gymido.app
 ---
@@ -50,32 +49,56 @@ YAML
 # the Auth0 SSO session. The login path dismisses Chrome's first-run screens.
 adb -s "$DEVICE" shell pm clear com.gymido.app > /dev/null 2>&1
 adb -s "$DEVICE" shell pm clear com.android.chrome > /dev/null 2>&1
-"$ROOT/e2e/scripts/maestro-guarded.sh" "$DEVICE" --test-output-dir "$WORK/out" "$WORK/sign-in.yaml" > "$WORK/run.log" 2>&1
-code=$?
-if [ "$code" -eq 3 ]; then
+MAESTRO_LOGS="$HOME/Library/Logs/maestro"
+patterns() { printf '%s\n%s\n' "$MAESTRO_LOGIN_EMAIL" "$MAESTRO_LOGIN_PASSWORD"; }
+
+# Cleanup + byte sweep: runs exactly once, on a normal end AND on Ctrl-C, a
+# kill or a closed terminal. Stops Maestro first (it may still be writing),
+# deletes this run's folder and every file Maestro left that holds either
+# value (zipped logs included), and clears Chrome again so no form data
+# stays behind. Exits non-zero when it had to delete something.
+MPID=""
+CODE=1
+CLEANED=""
+cleanup() {
+  [ -n "$CLEANED" ] && return
+  CLEANED=1
+  trap - EXIT INT TERM HUP
+  [ -n "$MPID" ] && kill "$MPID" 2>/dev/null && wait "$MPID" 2>/dev/null
+  pkill -P $$ 2>/dev/null
+  rm -rf "$WORK"
+  find "$HOME/.maestro/tests" "$MAESTRO_LOGS" -newer "$MARK_SAVED" -type f \( -name 'maestro.log' -o -name 'commands*.json' -o -name '*.png' \) -delete 2>/dev/null
+  local hits zip
+  hits="$(grep -rlF -f <(patterns) "$HOME/.maestro" "$MAESTRO_LOGS" 2>/dev/null)"
+  while IFS= read -r zip; do
+    unzip -p "$zip" 2>/dev/null | grep -qF -f <(patterns) && hits="$hits"$'\n'"$zip"
+  done < <(find "$MAESTRO_LOGS" -name '*.zip' 2>/dev/null)
+  hits="$(printf '%s\n' "$hits" | sed '/^$/d' | sort -u)"
+  if [ -n "$hits" ]; then
+    echo "sweep: deleting $(printf '%s\n' "$hits" | wc -l | tr -d ' ') file(s) that held a credential"
+    printf '%s\n' "$hits" | while IFS= read -r file; do rm -f "$file"; done
+    [ "$CODE" -eq 0 ] && CODE=3
+  else
+    echo "sweep: clean"
+  fi
+  adb -s "$DEVICE" shell pm clear com.android.chrome > /dev/null 2>&1
+  rm -f "$MARK_SAVED"
+  exit "$CODE"
+}
+trap cleanup EXIT
+trap 'CODE=1; cleanup' INT TERM HUP
+
+# In the background + wait, so a signal reaches the trap at once.
+"$ROOT/e2e/scripts/maestro-guarded.sh" "$DEVICE" --test-output-dir "$WORK/out" "$WORK/sign-in.yaml" > "$WORK/run.log" 2>&1 &
+MPID=$!
+wait "$MPID"
+CODE=$?
+MPID=""
+if [ "$CODE" -eq 3 ]; then
   echo "REFUSED by the API guard"
-elif [ "$code" -eq 0 ]; then
+elif [ "$CODE" -eq 0 ]; then
   echo "PASS sign-in $ACCOUNT"
 else
-  echo "FAIL sign-in $ACCOUNT (exit $code)"
+  echo "FAIL sign-in $ACCOUNT (exit $CODE)"
 fi
-
-# Byte sweep: delete every file this run or Maestro left that holds either
-# value (zipped Maestro logs included); exit non-zero if anything was found.
-MAESTRO_LOGS="$HOME/Library/Logs/maestro"
-find "$HOME/.maestro/tests" "$MAESTRO_LOGS" -newer "$MARK" -type f \( -name 'maestro.log' -o -name 'commands*.json' -o -name '*.png' \) -delete 2>/dev/null
-patterns() { printf '%s\n%s\n' "$MAESTRO_LOGIN_EMAIL" "$MAESTRO_LOGIN_PASSWORD"; }
-hits="$(grep -rlF -f <(patterns) "$HOME/.maestro" "$MAESTRO_LOGS" 2>/dev/null)"
-while IFS= read -r zip; do
-  unzip -p "$zip" 2>/dev/null | grep -qF -f <(patterns) && hits="$hits"$'\n'"$zip"
-done < <(find "$MAESTRO_LOGS" -name '*.zip' -newer "$MARK" 2>/dev/null)
-hits="$(printf '%s\n' "$hits" | sed '/^$/d' | sort -u)"
-rm -rf "$WORK"
-if [ -n "$hits" ]; then
-  echo "sweep: deleting $(printf '%s\n' "$hits" | wc -l | tr -d ' ') file(s) that held a credential"
-  printf '%s\n' "$hits" | while IFS= read -r file; do rm -f "$file"; done
-  [ "$code" -eq 0 ] && code=3
-else
-  echo "sweep: clean"
-fi
-exit "$code"
+cleanup

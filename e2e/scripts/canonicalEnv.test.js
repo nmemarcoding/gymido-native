@@ -78,3 +78,25 @@ describe.each(['ios-safe-sign-in.sh', 'android-sign-in.sh'])('%s', (name) => {
     expect(r.stdout + r.stderr).not.toMatch(/fake\.member|Fake-Pass/);
   });
 });
+
+// Review dd729f0 MEDIUM: an interrupted Android sign-in must still sweep.
+describe('android-sign-in.sh cleans up on interrupt', () => {
+  const text = fs.readFileSync(path.join(__dirname, 'android-sign-in.sh'), 'utf8');
+
+  it('runs cleanup + the byte sweep from a trap on EXIT, INT, TERM and HUP', () => {
+    expect(text).toMatch(/trap '?cleanup[^\n]*'? EXIT/);
+    expect(text).toMatch(/trap '[^']*cleanup[^']*' INT TERM HUP|trap [^\n]*INT[^\n]*TERM[^\n]*HUP/);
+    expect(text).toMatch(/cleanup\(\) \{[\s\S]*rm -rf "\$WORK"[\s\S]*grep -rlF/);
+  });
+
+  it('runs Maestro in the background and waits, so a signal reaches the trap at once', () => {
+    expect(text).toMatch(/maestro-guarded\.sh[^\n]*&\s*\n[^\n]*MPID=\$!/);
+    expect(text).toMatch(/wait "?\$MPID"?/);
+    expect(text).toMatch(/kill[^\n]*\$MPID/);
+  });
+
+  it('clears Chrome again at the end (no saved form data left behind)', () => {
+    const cleanup = text.slice(text.indexOf('cleanup() {'));
+    expect(cleanup).toMatch(/pm clear com\.android\.chrome/);
+  });
+});
