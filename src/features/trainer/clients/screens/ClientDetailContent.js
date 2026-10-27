@@ -171,10 +171,18 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
   );
 
   function renderBody() {
-    // §6.1 (audit b1 X1): on the page, loading / not found / error draw no
-    // hero title (the header keeps "Coaching" as the one heading); the tablet
-    // Clients pane keeps its sub-heading under "Clients".
-    const stateTitle = layout === 'pane' ? <TitleOnly heading={heading} tablet={tablet} /> : null;
+    // §6.1 + §C4.2 (web parity, review f403f6f): loading / not found / error
+    // keep ONE h1 "Client". On the page it registers as the hero, so the shell
+    // header stays untitled; the tablet Clients pane keeps it as a sub-heading.
+    const stateTitle =
+      layout === 'pane' ? (
+        <TitleOnly heading={heading} tablet={tablet} />
+      ) : (
+        <>
+          <TitleOnly heading={heading} tablet={tablet} />
+          <HeroTitleMark />
+        </>
+      );
     if (state.status === 'loading') {
       return (
         <>

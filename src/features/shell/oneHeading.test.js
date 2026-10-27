@@ -138,6 +138,9 @@ const PAGES = [
     params: { clientUserId: 7 },
     Screen: ClientDetailScreen,
     hero: 'Ana Diaz',
+    // Web parity (review f403f6f): client detail keeps ONE h1 "Client" in
+    // loading / not found / error (§6.1 + §C4.2); the shell stays untitled.
+    stateHeading: 'Client',
     states: {
       loading: [[/^\/trainer\/clients\/7\/profile$/, pending]],
       error: [[/^\/trainer\/clients\/7\/profile$/, () => fail(500)]],
@@ -168,16 +171,16 @@ describe.each([390, 834])('§6.1 one heading per page state (width %i)', (width)
     mockWidth = width;
   });
 
-  describe.each(PAGES)('$name', ({ path, params, Screen, hero, states }) => {
+  describe.each(PAGES)('$name', ({ path, params, Screen, hero, states, stateHeading = 'Coaching' }) => {
     beforeEach(() => {
       mockPath = path;
       mockParams = params;
     });
 
-    it.each(['loading', 'error', 'not found'])('%s: exactly one heading, the header "Coaching"', async (state) => {
+    it.each(['loading', 'error', 'not found'])('%s: exactly one heading (the page state title, else the header "Coaching")', async (state) => {
       setRoutes(states[state]);
       const tree = await render(<Screen />);
-      expect(headings(tree)).toEqual(['Coaching']);
+      expect(headings(tree)).toEqual([stateHeading]);
     });
 
     it('loaded: the hero title is the one page heading; the header has none', async () => {

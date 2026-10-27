@@ -308,14 +308,13 @@ describe('Client detail, phone', () => {
     expect(byTestID(tree, 'client-email')).toBeTruthy();
   });
 
-  // DECLARED change (RN-SPEC-app-shell §6.1 dated 27 Oct 2026, audit b1 X1): was "loading keeps the heading
-  // 'Client'" (arrayContaining ['Client', 'Loading client']). Loading / not found / error now draw no hero title on
-  // the page; the shell header's "Coaching" is the one heading (oneHeading.test.js). The tablet pane keeps it.
-  it('loading draws no page title (the header keeps "Coaching"); a 404 is Not your client', async () => {
+  // Web parity (review f403f6f, §6.1 + §C4.2): loading / not found / error keep ONE h1 "Client" (registered as
+  // the hero, so the shell header shows no "Coaching").
+  it('loading keeps the heading "Client" (and no "Coaching"); a 404 is Not your client', async () => {
     getClientPlan.mockReturnValue(new Promise(() => {}));
     let tree = await render();
-    expect(texts(tree)).toContain('Loading client');
-    expect(texts(tree)).not.toContain('Client');
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Client', 'Loading client']));
+    expect(texts(tree)).not.toContain('Coaching');
     getClientPlan.mockRejectedValue({ response: { status: 404, data: {} } });
     tree = await render();
     expect(texts(tree)).toContain('Not your client');
