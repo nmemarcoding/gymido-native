@@ -79,7 +79,10 @@ describe('quick stats, weight and recent workouts', () => {
 
   it('writes the recent workout meta line (⚠H-6)', () => {
     const base = { completed_at: '2026-10-21T18:00:00Z' };
-    expect(recentWorkoutMeta({ ...base, duration_seconds: 725, total_volume: 0 })).toMatch(/ · 12m 5s · vol 0$/);
+    // v2 VOLUME RULE: total_volume_kg only, in the member's unit; raw total_volume never shown.
+    expect(recentWorkoutMeta({ ...base, duration_seconds: 725, total_volume_kg: 0 })).toMatch(/ · 12m 5s · vol 0 kg$/);
+    expect(recentWorkoutMeta({ ...base, duration_seconds: 725, total_volume: 900 })).toMatch(/ · 12m 5s$/);
+    expect(recentWorkoutMeta({ ...base, duration_seconds: 725, total_volume_kg: 100 }, 'lb')).toMatch(/ · vol 220 lb$/);
     expect(recentWorkoutMeta({ ...base })).toMatch(/ · —$/);
   });
 });

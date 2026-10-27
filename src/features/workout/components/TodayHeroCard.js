@@ -1,165 +1,311 @@
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
+import { CardSurface } from '../../../shared/components/Card';
 import GradientFill from '../../../shared/components/GradientFill';
-import { breakpoints, colors, shadows } from '../../../shared/theme/tokens';
+import RemoteImage from '../../../shared/components/RemoteImage';
+import Spinner from '../../../shared/components/Spinner';
+import StatusPill from '../../../shared/components/StatusPill';
+import { CAP_BODY, DISPLAY_TITLE_TEXT } from '../../../shared/components/largeText';
+import { breakpoints, colors, font, gradients, radii, shadows, spacing, textScale, typography } from '../../../shared/theme/tokens';
 import { TODAY_BADGE_LABELS } from '../workoutFormat';
-import BrandButton from './BrandButton';
-import Card3D from './Card3D';
 import ProgressRing from './ProgressRing';
 
-const BADGES = {
-  // Batch 2 #32: success-700 text on an opaque success-50 fill.
-  completed: { dot: colors.success, text: colors.success700, background: colors.successFill },
-  training: { dot: colors.brand400, text: colors.brand700, background: colors.brand50 },
-  // A1: text-secondary on the muted pill.
-  rest: { dot: colors.textMuted, text: colors.textSecondary, background: colors.surfaceMuted },
-};
+const PILL_TONE = { completed: 'completed', training: 'gold', rest: 'neutral' };
+const NUMBER_TEXT = { maxFontSizeMultiplier: textScale.display };
 
-// H3 (RN-SPEC-workout §2.2). [O11]/A4: the plan name takes 2 lines, then an
-// ellipsis; the ring keeps its size.
-export default function TodayHeroCard({ planName, dayCountLabel, state, detail, ringValue, ringTotal, showStart, starting, onStart }) {
-  const { width } = useWindowDimensions();
-  const wide = width >= breakpoints.sm;
-  const badge = BADGES[state];
+function PlayIcon({ size }) {
   return (
-    <Card3D testID="workout-hero" style={styles.card}>
-      <View style={[styles.inner, { padding: wide ? 24 : 20 }]}>
-        <GradientFill angle={135} colors={[colors.brand50, colors.surface, colors.surface]} />
-        <View style={styles.topRow}>
-          <View style={styles.textColumn}>
-            <Text style={styles.eyebrow}>Your plan</Text>
-            <Text textBreakStrategy="simple" numberOfLines={2} ellipsizeMode="tail" style={[styles.planName, wide && styles.planNameWide]}>
-              {planName}
-            </Text>
-            <Text style={styles.dayCount}>{dayCountLabel}</Text>
-            <View testID="workout-hero-badge" style={[styles.badge, { backgroundColor: badge.background }]}>
-              <View style={[styles.badgeDot, { backgroundColor: badge.dot }]} accessibilityElementsHidden importantForAccessibility="no" />
-              <Text style={[styles.badgeText, { color: badge.text }]}>{TODAY_BADGE_LABELS[state]}</Text>
-            </View>
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M8 5.5v13l10.5-6.5L8 5.5Z" fill={colors.gold} stroke={colors.gold} strokeWidth={1.5} strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+// The hub's gold Start (UX G: 60 tall, label left 16/700, a 44 ground disc
+// with a gold play icon on the right). Starting: 0.5 + a 20 spinner before
+// the label. Pressed = gold + the ink 4 % overlay (§8.6 state rule).
+function HeroStart({ tablet, starting, onPress }) {
+  return (
+    <Pressable
+      testID="workout-hero-start"
+      accessibilityRole="button"
+      accessibilityState={{ disabled: starting, busy: starting }}
+      disabled={starting}
+      onPress={onPress}
+      style={[styles.start, tablet && styles.startTablet, starting && styles.starting]}
+    >
+      {({ pressed }) => (
+        <>
+          {pressed && !starting ? <View testID="workout-hero-start-pressed" pointerEvents="none" style={[StyleSheet.absoluteFill, styles.inkOverlay]} /> : null}
+          {starting ? <Spinner size={20} thickness={2} color={colors.onGold} track={colors.inkLine} /> : null}
+          <Text {...CAP_BODY} style={[styles.startText, tablet && styles.startTextTablet]}>
+            Start today's workout
+          </Text>
+          <View style={[styles.disc, tablet && styles.discTablet]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            <PlayIcon size={16} />
           </View>
-          <ProgressRing
-            value={ringValue}
-            total={ringTotal}
-            size={84}
-            thickness={9}
-            label={`${ringValue} of ${ringTotal} training days completed this week`}
-          >
-            <Text numberOfLines={1} textBreakStrategy="simple" style={styles.ringValue}>{ringValue}</Text>
-            <Text style={styles.ringTotal}>{`of ${ringTotal}`}</Text>
-          </ProgressRing>
+        </>
+      )}
+    </Pressable>
+  );
+}
+
+// H3 (RN-SPEC-workout §2.2), v2 look per UX G "Workout hub" / "Tablet:
+// Workout hub". ND-1: the tablet hero shows today's exercise photo
+// (`imageUrl`) on the right 60 % under the surface fade; none → no photo
+// layer. The phone hero has no photo.
+export default function TodayHeroCard({ planName, dayCountLabel, state, detail, ringValue, ringTotal, showStart, starting, onStart, imageUrl }) {
+  const { width, fontScale } = useWindowDimensions();
+  const tablet = width >= breakpoints.md;
+  const reflow = fontScale > textScale.reflowAbove;
+  // Fixed per mount (Android: a gradient never appears on a later change).
+  const [photo] = useState(() => (tablet ? imageUrl || null : null));
+  const ringSize = tablet ? 132 : 104;
+  const ringStroke = tablet ? (8 * 100) / 84 : (11 * 100) / 104;
+  const pill = <StatusPill testID="workout-hero-badge" tone={PILL_TONE[state] ?? 'neutral'} label={TODAY_BADGE_LABELS[state]} />;
+  return (
+    <CardSurface hero testID="workout-hero" style={[styles.card, tablet && styles.cardTablet]}>
+      {photo ? (
+        <View testID="workout-hero-photo" pointerEvents="none" style={styles.photo} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <RemoteImage url={photo} style={[StyleSheet.absoluteFill, styles.photoImage]} />
+          <GradientFill angle={90} colors={[gradients.surfaceFade.colors[1], gradients.surfaceFade.colors[0]]} stops={[0, 1]} />
         </View>
-        <Text style={styles.detail}>{detail}</Text>
-        {showStart ? (
-          <BrandButton
-            testID="workout-hero-start"
-            label="START TODAY'S WORKOUT"
-            loading={starting}
-            onPress={onStart}
-            style={styles.cta}
-            labelStyle={styles.ctaLabel}
-          />
-        ) : null}
+      ) : null}
+      <View pointerEvents="none" style={tablet ? styles.glowTablet : styles.glow} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <GradientFill radial={gradients.heroGlow.radial} colors={gradients.heroGlow.colors} stops={[0, 0.7]} />
       </View>
-    </Card3D>
+      {tablet ? null : (
+        <View style={[styles.labelRow, reflow && styles.stacked]}>
+          <Text {...CAP_BODY} style={styles.eyebrow}>
+            Your plan
+          </Text>
+          {pill}
+        </View>
+      )}
+      <View testID="workout-hero-top" style={[styles.topRow, !tablet && styles.topRowPhone, reflow && styles.stacked]}>
+        <View style={styles.textColumn}>
+          {tablet ? (
+            <Text {...CAP_BODY} style={styles.eyebrowTablet}>
+              Your plan
+            </Text>
+          ) : null}
+          <Text testID="workout-hero-plan" accessibilityRole="header" {...DISPLAY_TITLE_TEXT} style={tablet ? styles.planNameTablet : styles.planName}>
+            {planName}
+          </Text>
+          <Text {...CAP_BODY} style={tablet ? styles.dayCountTablet : styles.dayCount}>
+            {dayCountLabel}
+          </Text>
+          {tablet ? <View style={styles.pillTablet}>{pill}</View> : null}
+        </View>
+        <ProgressRing
+          flat
+          value={ringValue}
+          total={ringTotal}
+          size={ringSize}
+          thickness={ringStroke}
+          label={`${ringValue} of ${ringTotal} training days completed this week`}
+        >
+          <Text {...NUMBER_TEXT} numberOfLines={1} textBreakStrategy="simple" style={tablet ? styles.ringValueTablet : styles.ringValue}>
+            {ringValue}
+          </Text>
+          <Text {...NUMBER_TEXT} style={tablet ? styles.ringTotalTablet : styles.ringTotal}>{`of ${ringTotal}`}</Text>
+        </ProgressRing>
+      </View>
+      <Text testID="workout-hero-detail" {...CAP_BODY} style={tablet ? styles.detailTablet : styles.detail}>
+        {detail}
+      </Text>
+      {showStart ? <HeroStart tablet={tablet} starting={starting} onPress={onStart} /> : null}
+    </CardSurface>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    overflow: 'hidden',
+    borderRadius: radii.xxxl,
+    borderColor: colors.hairlineStrong,
+    padding: spacing['5_5'],
   },
-  inner: {
-    borderRadius: 28,
-    overflow: 'hidden',
+  cardTablet: {
+    padding: spacing[8],
+  },
+  photo: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: '60%',
+  },
+  photoImage: {
+    opacity: 0.5,
+  },
+  glow: {
+    position: 'absolute',
+    top: -80,
+    right: -70,
+    width: 280,
+    height: 280,
+  },
+  glowTablet: {
+    position: 'absolute',
+    bottom: -140,
+    left: -90,
+    width: 380,
+    height: 380,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing[2],
+  },
+  stacked: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+  eyebrow: {
+    ...font(600),
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.gold,
+  },
+  eyebrowTablet: {
+    ...font(600),
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.gold,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 16,
+    gap: spacing[5],
+  },
+  topRowPhone: {
+    alignItems: 'flex-end',
+    gap: spacing[3],
+    marginTop: spacing['3_5'],
   },
   textColumn: {
     flex: 1,
     minWidth: 0,
-    flexShrink: 1,
-  },
-  eyebrow: {
-    fontSize: 11.2,
-    lineHeight: 16.8,
-    fontWeight: '700',
-    letterSpacing: 2.016,
-    textTransform: 'uppercase',
-    color: colors.brand700,
   },
   planName: {
-    marginTop: 6,
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: '900',
+    ...font(700),
+    fontSize: 40,
+    lineHeight: 40,
+    letterSpacing: -2.2,
     color: colors.textPrimary,
   },
-  planNameWide: {
-    fontSize: 30,
-    lineHeight: 37.5,
+  planNameTablet: {
+    ...font(700),
+    marginTop: spacing[2],
+    fontSize: 60,
+    lineHeight: 58,
+    letterSpacing: -3.3,
+    color: colors.textPrimary,
   },
   dayCount: {
-    marginTop: 4,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
+    marginTop: spacing['2_5'],
     color: colors.textSecondary,
   },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-    marginTop: 12,
-    borderRadius: 9999,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    boxShadow: shadows.emboss,
+  dayCountTablet: {
+    ...typography.bodyLg,
+    marginTop: spacing[2],
+    color: colors.textSecondary,
   },
-  badgeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  badgeText: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '700',
+  pillTablet: {
+    marginTop: spacing['3_5'],
   },
   ringValue: {
-    fontSize: 20,
-    lineHeight: 20,
-    fontWeight: '900',
+    ...font(700),
+    fontSize: 30,
+    lineHeight: 30,
+    letterSpacing: -1.2,
+    fontVariant: ['tabular-nums'],
+    color: colors.textPrimary,
+  },
+  ringValueTablet: {
+    ...font(700),
+    fontSize: 40,
+    lineHeight: 40,
+    letterSpacing: -1.6,
     fontVariant: ['tabular-nums'],
     color: colors.textPrimary,
   },
   ringTotal: {
-    marginTop: 2,
-    fontSize: 11,
-    lineHeight: 11,
-    fontWeight: '700',
-    letterSpacing: 1.34,
-    textTransform: 'uppercase',
+    ...typography.caption,
+    marginTop: spacing['0_5'],
     color: colors.textMuted,
   },
-  detail: {
-    marginTop: 16,
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '500',
+  ringTotalTablet: {
+    ...typography.caption,
+    marginTop: spacing['0_5'],
     color: colors.textSecondary,
   },
-  cta: {
-    marginTop: 20,
-    borderRadius: 24,
-    paddingVertical: 16,
+  detail: {
+    ...font(500),
+    marginTop: spacing['4_5'],
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.textStrong2,
   },
-  ctaLabel: {
+  detailTablet: {
+    ...font(500),
+    marginTop: spacing['4_5'],
     fontSize: 16,
     lineHeight: 24,
-    letterSpacing: 0.4,
+    color: colors.textSecondary,
+  },
+  start: {
+    minHeight: 60,
+    marginTop: spacing[4],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    overflow: 'hidden',
+    borderRadius: radii.full,
+    backgroundColor: colors.gold,
+    boxShadow: shadows.goldGlowLarge,
+    paddingLeft: spacing['5_5'],
+    paddingRight: spacing[2],
+    paddingVertical: spacing[2],
+  },
+  startTablet: {
+    minHeight: 62,
+    maxWidth: 420,
+    marginTop: spacing['5_5'],
+    paddingLeft: 26,
+  },
+  starting: {
+    opacity: 0.5,
+  },
+  inkOverlay: {
+    backgroundColor: colors.pressOverlayInk,
+  },
+  startText: {
+    ...font(700),
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 22,
+    color: colors.onGold,
+  },
+  startTextTablet: {
+    fontSize: 18,
+    lineHeight: 24,
+  },
+  disc: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.full,
+    backgroundColor: colors.ground,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  discTablet: {
+    width: 46,
+    height: 46,
   },
 });

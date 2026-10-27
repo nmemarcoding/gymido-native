@@ -115,6 +115,23 @@ export function gridRows(groups, columns) {
   return rows;
 }
 
+// v2 Phase 3 ND-3: the grid AS DRAWN, flat (no group headers); the v1 order
+// is kept (groups by localeCompare, the server order inside each group).
+export function flatGridRows(groups, columns) {
+  const cards = groups.flatMap((group) => group.exercises);
+  const rows = [];
+  for (let start = 0; start < cards.length; start += columns) {
+    rows.push({ type: 'row', key: `row:${start}`, cards: cards.slice(start, start + columns), firstInGroup: start === 0 });
+  }
+  return rows;
+}
+
+// ND-2 chip row: "All" + the RAW muscle groups from the data (v1's filter
+// values, sorted as the sheet), single select.
+export function filterChips(categories) {
+  return [{ value: '', label: 'All' }].concat((categories ?? []).map((category) => ({ value: category, label: category })));
+}
+
 // §E1.4 search submit (⚠E-5) and ⚠E-10's per-focus stack of applied
 // searches. An unchanged search returns the same state object (no reload).
 export const INITIAL_SEARCH = Object.freeze({ applied: '', history: Object.freeze([]) });

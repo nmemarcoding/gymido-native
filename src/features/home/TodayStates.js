@@ -55,7 +55,7 @@ export function TodayHeader({ initials, dateLabel, greeting, tablet }) {
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       >
-        <GradientFill angle={gradients.gold.angle} colors={gradients.gold.colors} stops={gradients.gold.stops} />
+        <GradientFill angle={gradients.goldAvatar.angle} colors={gradients.goldAvatar.colors} />
         <Text {...LT.badge} style={[styles.avatarText, tablet && styles.avatarTextTablet]}>
           {initials}
         </Text>
@@ -195,7 +195,7 @@ export function TodayEmpty({ tablet, stats, weight, weightValues, recentEmpty, r
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       >
-        <GymIcon name="library" size={tablet ? 38 : 34} color={colors.gold} />
+        <GymIcon name="library" size={tablet ? 40 : 34} color={colors.gold} />
       </View>
       <Text accessibilityRole="header" {...(tablet ? LT.display : LT.title)} style={tablet ? styles.heroTitleTablet : styles.heroTitle}>
         No active plan yet

@@ -1,0 +1,325 @@
+jest.mock('../shell/ShellPage', () => ({ children }) => children);
+jest.mock('../shell/shellLinks', () => ({ openShellPath: jest.fn(), openPlanDetailAlone: jest.fn() }));
+jest.mock('./api/homeApi', () => ({ getDashboard: jest.fn(), logWeight: jest.fn(), getCurrentWeek: jest.fn() }));
+jest.mock('../plans/api/libraryApi', () => ({ getCurrentPlan: jest.fn(() => Promise.resolve(null)), listPlanDays: jest.fn() }));
+jest.mock('../planGenerator/api/generatorApi', () => ({ getGeneratorProfile: jest.fn(() => Promise.resolve({ available: false })) }));
+jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ addListener: () => () => {} }) }));
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
+jest.mock('../../shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
+let mockWidth = 390;
+let mockFontScale = 1;
+jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
+  __esModule: true,
+  default: () => ({ width: mockWidth, height: 1194, scale: 2, fontScale: mockFontScale }),
+}));
+
+import { StyleSheet } from 'react-native';
+import { act, create } from 'react-test-renderer';
+
+import RemoteImage from '../../shared/components/RemoteImage';
+import StatusPill from '../../shared/components/StatusPill';
+import { colors, shadows } from '../../shared/theme/tokens';
+import { useAuthStore } from '../auth/authStore';
+import { resetProfileStore, setStoredProfile } from '../profile/profileStore';
+import { openPlanDetailAlone, openShellPath } from '../shell/shellLinks';
+import ProgressRing from '../workout/components/ProgressRing';
+import { getCurrentWeek, getDashboard } from './api/homeApi';
+import HomeScreen from './HomeScreen';
+import { heroImageUrl, memberVolume, weekRing, weekStrip, workoutInitials } from './homeFormat';
+
+function textOf(node) {
+  return []
+    .concat(node.props.children)
+    .map((child) => (typeof child === 'string' || typeof child === 'number' ? String(child) : child?.props ? textOf(child) : ''))
+    .join('');
+}
+const texts = (root) => root.findAll((node) => node.type === 'Text').map(textOf);
+const host = (root, id) => root.find((node) => node.props.testID === id && typeof node.type === 'string');
+const queryHost = (root, id) => root.findAll((node) => node.props.testID === id && typeof node.type === 'string');
+const pressable = (root, id) => root.find((node) => node.props.testID === id && typeof node.props.onPress === 'function');
+const styleOf = (node) => StyleSheet.flatten(typeof node.props.style === 'function' ? node.props.style({ pressed: false }) : node.props.style);
+const flush = () => act(() => new Promise((resolve) => setImmediate(resolve)));
+
+const DASH = {
+  current_plan: { enrollment: { plan: { id: 4, name: 'Upper / Lower' } } },
+  today_status: { is_workout_day: true, plan_day: { title: 'Upper A' } },
+  quick_stats: { completed_workouts_total: 37, completed_workouts_this_week: 2, planned_workouts_this_week: 4, last_workout_at: '2026-10-28T10:00:00Z' },
+  recent_workouts: [],
+};
+const WEEK = [
+  { weekday: { id: 1, name: 'Monday' }, is_workout_day: true, date: '2026-10-26', status: 'done' },
+  { weekday: { id: 2, name: 'Tuesday' }, is_workout_day: true, date: '2026-10-27', status: 'missed' },
+  { weekday: { id: 3, name: 'Wednesday' }, is_workout_day: false, date: '2026-10-28', status: 'rest' },
+  { weekday: { id: 4, name: 'Thursday' }, is_workout_day: true, date: '2026-10-29', status: 'today' },
+  { weekday: { id: 5, name: 'Friday' }, is_workout_day: true, date: '2026-10-30', status: 'upcoming' },
+  { weekday: { id: 6, name: 'Saturday' }, is_workout_day: false, date: '2026-10-31', status: 'rest' },
+  { weekday: { id: 7, name: 'Sunday' }, is_workout_day: false, date: '2026-11-01', status: 'rest' },
+];
+
+const mounted = [];
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockWidth = 390;
+  mockFontScale = 1;
+  resetProfileStore();
+  setStoredProfile({ first_name: 'Nima', last_name: 'Memar', current_weight_unit: 'kg', goal_weight_unit: 'kg' });
+  useAuthStore.setState({ user: { email: 'nima@example.com', roles: [] } });
+  getCurrentWeek.mockResolvedValue(WEEK);
+  jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] });
+  jest.setSystemTime(new Date(2026, 9, 29, 9, 0, 0));
+});
+afterEach(() => {
+  act(() => mounted.splice(0).forEach((tree) => tree.unmount()));
+  jest.useRealTimers();
+});
+
+async function render(dashboard = DASH) {
+  getDashboard.mockResolvedValue(dashboard);
+  let tree;
+  await act(async () => {
+    tree = create(<HomeScreen />);
+  });
+  await flush();
+  mounted.push(tree);
+  return tree;
+}
+
+describe('homeFormat (Phase 3 Today)', () => {
+  it('weekStrip: statuses, labels "{weekday}, {status}", the training-days line and Day n of N', () => {
+    const strip = weekStrip(WEEK, new Date(2026, 9, 29));
+    expect(strip.cells.map((cell) => cell.status)).toEqual(['done', 'missed', 'rest', 'today', 'upcoming', 'rest', 'rest']);
+    expect(strip.cells.map((cell) => cell.label)).toEqual([
+      'Monday, Done',
+      'Tuesday, Missed',
+      'Wednesday, Rest day',
+      'Thursday, Today',
+      'Friday, Workout day',
+      'Saturday, Rest day',
+      'Sunday, Rest day',
+    ]);
+    expect(strip.trainingDays).toBe('Mon, Tue, Thu, Fri');
+    expect(strip.dayOfWeek).toBe('Day 3 of 4');
+    expect(strip.cells[3].isToday).toBe(true);
+  });
+
+  it('weekStrip: an older server without status derives rest/upcoming/today; none or empty → null', () => {
+    const plain = WEEK.map(({ weekday, is_workout_day }) => ({ weekday, is_workout_day }));
+    const strip = weekStrip(plain, new Date(2026, 9, 29));
+    expect(strip.cells.map((cell) => cell.status)).toEqual(['upcoming', 'upcoming', 'rest', 'today', 'upcoming', 'rest', 'rest']);
+    expect(weekStrip(null)).toBeNull();
+    expect(weekStrip([])).toBeNull();
+  });
+
+  it('weekStrip: today on a rest day → no Day n of N', () => {
+    expect(weekStrip(WEEK, new Date(2026, 9, 28)).dayOfWeek).toBeNull();
+  });
+
+  it('workoutInitials: two words → their first letters; one word → two letters; none → ""', () => {
+    expect(workoutInitials('Upper A')).toBe('UA');
+    expect(workoutInitials('Legs')).toBe('LE');
+    expect(workoutInitials('  ')).toBe('');
+    expect(workoutInitials(undefined)).toBe('');
+  });
+
+  it('memberVolume: total_volume_kg in the member unit; absent → null', () => {
+    expect(memberVolume(1000, 'kg')).toBe('1,000 kg');
+    expect(memberVolume(100, 'lb')).toBe('220 lb');
+    expect(memberVolume(0, 'kg')).toBe('0 kg');
+    expect(memberVolume(undefined, 'kg')).toBeNull();
+    expect(memberVolume(null, 'kg')).toBeNull();
+  });
+
+  it('heroImageUrl: today_status.image.url or null', () => {
+    expect(heroImageUrl({ today_status: { image: { url: 'https://x/y.jpg' } } })).toBe('https://x/y.jpg');
+    expect(heroImageUrl({ today_status: {} })).toBeNull();
+    expect(heroImageUrl(null)).toBeNull();
+  });
+
+  it('weekRing: "{done} done · {planned} planned" and the ring label', () => {
+    expect(weekRing(DASH)).toMatchObject({ caption: '2 done · 4 planned', ringLabel: '2 of 4 planned workouts done', plannedText: '/4' });
+  });
+});
+
+describe('Today hero (UX E, all five states)', () => {
+  it('training: gold pill "Today\'s workout", the 52 headline, the plan name, Start workout → Workout, View plan → plan', async () => {
+    const tree = await render();
+    expect(tree.root.findAllByType(StatusPill)[0].props).toMatchObject({ tone: 'gold', label: "Today's workout" });
+    expect(styleOf(host(tree.root, 'home-today-headline'))).toMatchObject({ fontSize: 52, lineHeight: 52 });
+    expect(texts(host(tree.root, 'home-today-card'))).toEqual(expect.arrayContaining(['Upper A', 'Upper / Lower', 'Start workout', 'View plan']));
+    act(() => pressable(tree.root, 'home-today-primary').props.onPress());
+    expect(openShellPath).toHaveBeenCalledWith('/workout');
+    act(() => pressable(tree.root, 'home-view-plan').props.onPress());
+    expect(openPlanDetailAlone).toHaveBeenCalledWith(4);
+  });
+
+  it('completed / missed / rest / setup pills and labels', async () => {
+    const cases = [
+      [{ ...DASH, today_status: { already_completed: true, plan_day: { title: 'Upper A' } } }, 'completed', 'Completed', 'Go to workout'],
+      [{ ...DASH, today_status: {}, missed_this_week: [{ weekday: { name: 'Monday' }, plan_day: { title: 'Lower' } }, {}] }, 'warning', 'Missed', 'Do it now'],
+      [{ ...DASH, today_status: {} }, 'neutral', 'Rest day', 'Go to workout'],
+    ];
+    for (const [dash, tone, pill, primary] of cases) {
+      const tree = await render(dash);
+      expect(tree.root.findAllByType(StatusPill)[0].props).toMatchObject({ tone, label: pill });
+      expect(texts(host(tree.root, 'home-today-primary'))).toContain(primary);
+    }
+    const missed = await render(cases[1][0]);
+    expect(texts(host(missed.root, 'home-more-missed'))).toEqual(['+1 more missed this week']);
+    expect(styleOf(host(missed.root, 'home-more-missed')).color).toBe(colors.warning);
+  });
+
+  it('primary: gold, the gold glow, a ground disc; pressed adds the ink 4 % overlay (state rule)', async () => {
+    const tree = await render();
+    const primary = host(tree.root, 'home-today-primary');
+    expect(styleOf(primary)).toMatchObject({ backgroundColor: colors.gold, minHeight: 58, boxShadow: shadows.goldGlow });
+    expect(queryHost(tree.root, 'home-today-primary-pressed')).toHaveLength(0);
+    const node = tree.root.find((n) => n.props.testID === 'home-today-primary' && typeof n.props.children === 'function');
+    let pressed;
+    act(() => {
+      pressed = create(<>{node.props.children({ pressed: true })}</>);
+    });
+    mounted.push(pressed);
+    expect(StyleSheet.flatten(pressed.root.findByProps({ testID: 'home-today-primary-pressed' }).props.style).backgroundColor).toBe(colors.pressOverlayInk);
+    const glass = styleOf(host(tree.root, 'home-view-plan'));
+    expect(glass).toMatchObject({ backgroundColor: colors.fillGlass, borderColor: colors.hairlineButton, minHeight: 58 });
+  });
+
+  it('phone photo: the image at 0.35 on the right 58 % when today_status.image.url is set; none → glow only', async () => {
+    const withPhoto = await render({ ...DASH, today_status: { ...DASH.today_status, image: { url: 'https://img/a.jpg' } } });
+    expect(styleOf(host(withPhoto.root, 'home-today-photo'))).toMatchObject({ width: '58%', right: 0 });
+    expect(withPhoto.root.findByType(RemoteImage).props.url).toBe('https://img/a.jpg');
+    const none = await render();
+    expect(queryHost(none.root, 'home-today-photo')).toHaveLength(0);
+  });
+
+  it('tablet: no photo, radius 32, padding 32, 76 headline, "Day 3 of 4" on training only', async () => {
+    mockWidth = 834;
+    const tree = await render({ ...DASH, today_status: { ...DASH.today_status, image: { url: 'https://img/a.jpg' } } });
+    expect(queryHost(tree.root, 'home-today-photo')).toHaveLength(0);
+    expect(styleOf(host(tree.root, 'home-today-card'))).toMatchObject({ borderRadius: 32, padding: 32 });
+    expect(styleOf(host(tree.root, 'home-today-headline')).fontSize).toBe(76);
+    expect(texts(host(tree.root, 'home-day-of-week'))).toEqual(['Day 3 of 4']);
+    expect(styleOf(host(tree.root, 'home-today-buttons')).maxWidth).toBe(480);
+    const rest = await render({ ...DASH, today_status: {} });
+    expect(queryHost(rest.root, 'home-day-of-week')).toHaveLength(0);
+  });
+});
+
+describe('Stats, week, weight and recent', () => {
+  it('stat tiles: the 64 flat ring + "2" "/4" + "2 done · 4 planned"; Done total 37 + teal "Last workout"', async () => {
+    const tree = await render();
+    const ring = host(tree.root, 'home-stat-this-week').findByType(ProgressRing);
+    expect(ring.props).toMatchObject({ flat: true, size: 64, value: 2, total: 4, label: '2 of 4 planned workouts done' });
+    expect(texts(host(tree.root, 'home-stat-caption'))).toEqual(['2 done · 4 planned']);
+    expect(texts(host(tree.root, 'home-stat-done'))).toEqual(expect.arrayContaining(['37']));
+    expect(styleOf(host(tree.root, 'home-last-workout')).color).toBe(colors.teal);
+  });
+
+  it('tablet stat tiles: ring 96, number 52, Done 68, no caption', async () => {
+    mockWidth = 834;
+    const tree = await render();
+    expect(host(tree.root, 'home-stat-this-week').findByType(ProgressRing).props.size).toBe(96);
+    expect(queryHost(tree.root, 'home-stat-caption')).toHaveLength(0);
+  });
+
+  it('flat ring: gold arc on the 0.08 track', () => {
+    let tree;
+    act(() => {
+      tree = create(<ProgressRing flat value={1} total={2} size={64} thickness={12.5} label="x" />);
+    });
+    mounted.push(tree);
+    expect(tree.root.findByProps({ testID: 'progress-ring-track' }).props.stroke).toBe(colors.track);
+    expect(tree.root.findByProps({ testID: 'progress-ring-arc' }).props.stroke).toBe(colors.gold);
+  });
+
+  it('Your week: 7 labelled display cells; done gold, today ring, missed planned fill + amber dot, rest dashed', async () => {
+    const tree = await render();
+    expect(texts(host(tree.root, 'home-week-days'))).toEqual(['Mon, Tue, Thu, Fri']);
+    const cell = (date) => host(tree.root, `home-week-cell-${date}`);
+    expect(cell('2026-10-26').props.accessibilityLabel).toBe('Monday, Done');
+    expect(styleOf(cell('2026-10-26'))).toMatchObject({ width: 34, backgroundColor: colors.gold });
+    expect(styleOf(cell('2026-10-29'))).toMatchObject({ borderWidth: 2, borderColor: colors.gold });
+    expect(styleOf(cell('2026-10-27')).backgroundColor).toBe(colors.track);
+    expect(queryHost(cell('2026-10-27'), 'home-week-missed-dot')).toHaveLength(1);
+    expect(styleOf(cell('2026-10-28'))).toMatchObject({ borderStyle: 'dashed', borderColor: colors.hairlineStrong });
+    // Display only.
+    expect(cell('2026-10-26').props.onPress).toBeUndefined();
+  });
+
+  it('Your week is hidden when the week call fails (null)', async () => {
+    getCurrentWeek.mockResolvedValue(null);
+    const tree = await render();
+    expect(queryHost(tree.root, 'home-week')).toHaveLength(0);
+  });
+
+  it('tablet Your week: 52 cells, short names, a muted "See progress" (44) → Progress', async () => {
+    mockWidth = 834;
+    const tree = await render();
+    expect(styleOf(host(tree.root, 'home-week-cell-2026-10-26')).width).toBe(52);
+    expect(texts(host(tree.root, 'home-week-strip'))).toEqual(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
+    expect(styleOf(host(tree.root, 'home-week-see-progress')).minHeight).toBe(44);
+    act(() => pressable(tree.root, 'home-week-see-progress').props.onPress());
+    expect(openShellPath).toHaveBeenCalledWith('/progress');
+  });
+
+  it('weight card: Current big + faint unit, Goal, To goal teal; the glass 46 "Add weight log" opens the modal', async () => {
+    const tree = await render({ ...DASH, current_weight: 82.1, goal_progress: { goal_weight: 78, difference_to_goal: -4.1 } });
+    expect(texts(host(tree.root, 'home-weight-values'))).toEqual(['82.1 kg', ' kg', 'Current', '78 kg', 'Goal', '-4.1 kg', 'To goal']);
+    const add = host(tree.root, 'home-add-weight');
+    expect(styleOf(add)).toMatchObject({ minHeight: 46, backgroundColor: colors.fillGlass });
+    act(() => pressable(tree.root, 'home-add-weight').props.onPress());
+    expect(tree.root.findAll((node) => node.props.isOpen === true).length).toBeGreaterThan(0);
+  });
+
+  it('weight card without data: the prompt text', async () => {
+    const tree = await render();
+    expect(texts(host(tree.root, 'home-weight'))).toContain("Log today's weight to start tracking your trend.");
+  });
+
+  it('recent: neutral initials tile, meta with vol in the member unit (total_volume_kg), raw status pill', async () => {
+    const tree = await render({
+      ...DASH,
+      recent_workouts: [
+        { id: 9, status: 'completed', workout_plan_day: { title: 'Lower A' }, completed_at: '2026-10-28T10:00:00Z', duration_seconds: 3120, total_volume: 5, total_volume_kg: 1000 },
+      ],
+    });
+    const row = host(tree.root, 'home-recent-9');
+    expect(styleOf(host(row, 'home-recent-tile'))).toMatchObject({ backgroundColor: colors.fillSkeleton, width: 40 });
+    expect(texts(row)).toEqual(expect.arrayContaining(['LA', 'Lower A', 'completed']));
+    expect(texts(row).some((text) => / · vol 1,000 kg$/.test(text))).toBe(true);
+    expect(row.findByType(StatusPill).props.tone).toBe('completed');
+  });
+
+  it('recent empty: the v1 empty state', async () => {
+    const tree = await render();
+    expect(texts(tree.root)).toEqual(expect.arrayContaining(['No completed workouts yet']));
+  });
+});
+
+describe('§9 large text (fontScale 1 / 2 / 3.1)', () => {
+  it.each([1, 2, 3.1])('at %s: headline cap 1.3 + word fit; body 2.0; no truncated actions', async (scale) => {
+    mockFontScale = scale;
+    const tree = await render();
+    const headline = host(tree.root, 'home-today-headline');
+    expect(headline.props).toMatchObject({ maxFontSizeMultiplier: 1.3, adjustsFontSizeToFit: true, minimumFontScale: 0.7 });
+    tree.root
+      .findAll((node) => node.type === 'Text' && ['Start workout', 'View plan', 'Add weight log'].includes(textOf(node)))
+      .forEach((node) => expect(node.props.numberOfLines).toBeUndefined());
+    const buttons = styleOf(host(tree.root, 'home-today-buttons'));
+    const tiles = styleOf(host(tree.root, 'home-stats'));
+    if (scale > 1.3) {
+      expect(buttons.flexDirection).toBe('column');
+      expect(tiles.flexDirection).toBe('column');
+    } else {
+      expect(buttons.flexDirection).toBe('row');
+      expect(tiles.flexDirection).toBe('row');
+    }
+  });
+
+  it('tablet at 3.1: the pair stacks with no max width', async () => {
+    mockWidth = 834;
+    mockFontScale = 3.1;
+    const tree = await render();
+    expect(styleOf(host(tree.root, 'home-today-buttons'))).toMatchObject({ flexDirection: 'column', maxWidth: undefined });
+  });
+});

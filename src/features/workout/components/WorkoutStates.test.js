@@ -197,6 +197,17 @@ describe('Board geometry (phase2-open-items §3 D)', () => {
     expect(icon.props).toMatchObject({ name: 'warning', size: 26, color: colors.dangerText });
   });
 
+  it('tile glyph ruling (tokens §7 "Tile glyphs"): the warning glyph renders 26 px at stroke 2.0 on its 24 viewBox, inside the 72 tile', () => {
+    const tree = render(<WorkoutErrorState message="m" onRetry={jest.fn()} />);
+    const tile = host(tree, 'workout-error-icon');
+    expect(flat(tile)).toMatchObject({ width: 72, height: 72 });
+    const svg = tile.find((node) => node.props.viewBox === '0 0 24 24' && typeof node.type !== 'string');
+    expect(svg.props).toMatchObject({ width: 26, height: 26 });
+    const stroke = tile.findAll((node) => node.props.strokeWidth !== undefined).map((node) => Number(node.props.strokeWidth));
+    expect(stroke.length).toBeGreaterThan(0);
+    stroke.forEach((value) => expect(value).toBe(2));
+  });
+
   it('both cards draw the board radius 32 (no token), clipped', () => {
     const error = render(<WorkoutErrorState message="m" onRetry={jest.fn()} />);
     const empty = render(<WorkoutEmptyState onBrowse={jest.fn()} />);

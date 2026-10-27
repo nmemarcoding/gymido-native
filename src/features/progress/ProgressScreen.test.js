@@ -10,6 +10,7 @@ jest.mock('./api/progressApi', () => ({
   loadProgress: jest.fn(() =>
     Promise.resolve({ weightProgress: {}, weightLogs: [], overview: null, history: null, frequency: [] })
   ),
+  getWeightLogsInRange: jest.fn(() => Promise.resolve([])),
 }));
 
 it('exports the Progress screen component', () => {

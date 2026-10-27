@@ -1,0 +1,40 @@
+# v2 Phase 3 §5 Progress (team 3a). Read-only: never saves a weight log.
+# Starts signed in on a tab root.
+appId: com.gymido.app
+---
+- tapOn:
+    id: "tab-Progress"
+- extendedWaitUntil:
+    visible:
+      id: "progress-tabs"
+    timeout: 30000
+- assertVisible:
+    id: "progress-tab-body"
+- assertVisible:
+    id: "progress-history"
+- assertVisible:
+    id: "progress-add-weight"
+# Phone only: the N1 ranges.
+- runFlow:
+    when:
+      visible:
+        id: "progress-ranges"
+    commands:
+      - tapOn:
+          id: "progress-range-1M"
+      - assertVisible:
+          id: "progress-history"
+      - tapOn:
+          id: "progress-range-3M"
+- tapOn:
+    id: "progress-tab-activity"
+- extendedWaitUntil:
+    visible:
+      id: "progress-activity-stats"
+    timeout: 10000
+- assertVisible:
+    id: "progress-per-week"
+- scrollUntilVisible:
+    element:
+      id: "progress-consistency"
+    direction: DOWN

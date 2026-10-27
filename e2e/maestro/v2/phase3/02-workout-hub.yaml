@@ -1,0 +1,32 @@
+# v2 Phase 3 §5 Workout hub (team 3a). Read-only: never taps Start (that
+# would create a session). Starts signed in on a tab root; member with an
+# active plan and no running session.
+appId: com.gymido.app
+---
+- tapOn:
+    id: "tab-Today"
+- extendedWaitUntil:
+    visible:
+      id: "home-today-primary"
+    timeout: 30000
+- tapOn:
+    id: "home-today-primary"
+- extendedWaitUntil:
+    visible:
+      id: "workout-title"
+    timeout: 30000
+- assertVisible:
+    id: "workout-back-today"
+- assertVisible:
+    id: "workout-hero"
+- assertVisible:
+    id: "workout-hero-badge"
+- assertVisible:
+    id: "workout-hero-detail"
+# U5: "← Today" returns to Today.
+- tapOn:
+    id: "workout-back-today"
+- extendedWaitUntil:
+    visible:
+      id: "home-today-card"
+    timeout: 30000
