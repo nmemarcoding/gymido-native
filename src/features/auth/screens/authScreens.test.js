@@ -10,7 +10,7 @@ jest.mock('react-native-safe-area-context', () => {
 let mockWindow = { width: 390, height: 844 };
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   __esModule: true,
-  default: () => ({ ...mockWindow, scale: 3, fontScale: 1 }),
+  default: () => ({ scale: 3, fontScale: 1, ...mockWindow }),
 }));
 jest.mock('../authService', () => ({
   login: jest.fn(),
@@ -20,20 +20,20 @@ jest.mock('../authService', () => ({
   takeAccountDeletedNotice: jest.fn(() => false),
 }));
 
-import { AccessibilityInfo, StyleSheet } from 'react-native';
+import { AccessibilityInfo, ScrollView, StyleSheet } from 'react-native';
 import { Circle } from 'react-native-svg';
 import { act, create } from 'react-test-renderer';
 
 import ErrorAlert from '../../../shared/components/ErrorAlert';
 import PillButton from '../../../shared/components/PillButton';
 import Screen from '../../../shared/components/Screen';
-import { colors, gradients } from '../../../shared/theme/tokens';
+import { colors, gradients, textScale } from '../../../shared/theme/tokens';
 import { login, logout, retryLastAttempt, signup } from '../authService';
 import { AuthStatus, useAuthStore } from '../authStore';
-import { GTile, WelcomeRings, boardTop, isTabletWidth } from '../components/AuthArt';
+import { AccountArt, BODY_TEXT, DISPLAY_TITLE_TEXT, GTile, PadlockRing, TabletAuthCard, WelcomeRings, boardTop, isTabletWidth } from '../components/AuthArt';
 import AccountUnavailableScreen, { TITLE } from './AccountUnavailableScreen';
 import SignInFailedScreen from './SignInFailedScreen';
-import WelcomeScreen, { PHONE, TABLET, welcomeArt } from './WelcomeScreen';
+import WelcomeScreen, { PHONE, TABLET, welcomeArt, welcomeBlock } from './WelcomeScreen';
 
 const PHONE_WINDOW = { width: 390, height: 844 };
 const TABLET_PORTRAIT = { width: 834, height: 1194 };
@@ -354,6 +354,176 @@ describe('A3 Account unavailable', () => {
       const signOut = button(tree, 'account-unavailable-sign-out');
       expect(signOut.props).toMatchObject({ variant: 'primary', size: 'cta', fullWidth: false });
       expect(flat(signOut)).toMatchObject({ alignSelf: 'flex-start', paddingHorizontal: 40 });
+    }
+  });
+});
+
+// UX §8.5 ladder colours (Phase 2 tokens pass).
+describe('AuthArt colours (UX §8.5 ladder)', () => {
+  const tracks = (tree) =>
+    tree.root.findAll((node) => node.type === Circle && node.props.strokeDashoffset === undefined && node.props.fill === 'none').map((node) => node.props.stroke);
+
+  it('WelcomeRings: both ring tracks are color-track (board white 0.06 / 0.05; artTrack → color-track)', () => {
+    expect(tracks(render(<WelcomeRings />))).toEqual([colors.track, colors.track]);
+  });
+
+  it('PadlockRing: the ring track is color-track (board white 0.07); the arc is danger-text as drawn', () => {
+    const tree = render(<PadlockRing />);
+    expect(tracks(tree)[0]).toBe(colors.track);
+    expect(tree.root.find((node) => node.type === Circle && node.props.strokeDashoffset === 230).props.stroke).toBe(colors.dangerText);
+  });
+
+  it('AccountArt: gold-tint disc (board 0.12 → tint 0.14), surface badge with the hairline-strong edge', () => {
+    const tree = render(<AccountArt />);
+    const circles = tree.root.findAll((node) => node.type === Circle).map((node) => node.props);
+    expect(circles[0].fill).toBe(colors.goldTint);
+    expect(circles[2]).toMatchObject({ fill: colors.surface, stroke: colors.hairlineStrong });
+  });
+
+  it('TabletAuthCard: gradient-card with the hairline edge (board white 0.08 → hairline), radius 36, gold-orb corner glow', () => {
+    const tree = render(
+      <TabletAuthCard testID="card" width={600}>
+        {null}
+      </TabletAuthCard>
+    );
+    const surface = tree.root.findAll((node) => typeof node.type === 'string' && flat(node)?.borderRadius === 36 && flat(node)?.borderWidth === 1);
+    expect(surface).toHaveLength(1);
+    expect(flat(surface[0]).borderColor).toBe(colors.hairline);
+    expect(gradients.cardCornerGlow.colors).toEqual(['rgba(255, 194, 26, 0.26)', 'rgba(255, 194, 26, 0)']);
+  });
+});
+
+// UX §9 large text. The window mock reports the fontScale under test.
+describe('UX §9 large text', () => {
+  const header = (tree) => tree.root.find((node) => node.type === 'Text' && node.props.accessibilityRole === 'header');
+  const ownTexts = (tree) =>
+    tree.root.findAll(
+      (node) =>
+        node.type === 'Text' &&
+        node.props.allowFontScaling !== false &&
+        node.props.accessibilityRole !== 'header' &&
+        !insideKit(node)
+    );
+  const insideKit = (node) => {
+    for (let parent = node.parent; parent; parent = parent.parent) {
+      if (parent.type === PillButton || parent.type === ErrorAlert) {
+        return true;
+      }
+    }
+    return false;
+  };
+  const kitLabels = (tree) => tree.root.findAll((node) => node.type === 'Text' && insideKit(node));
+  const expectTitleRules = (title) => {
+    expect(title.props).toMatchObject({
+      maxFontSizeMultiplier: textScale.display,
+      numberOfLines: 3,
+      adjustsFontSizeToFit: true,
+      minimumFontScale: 0.7,
+      textBreakStrategy: 'simple',
+    });
+  };
+  const expectNoTruncatedActions = (tree) => {
+    for (const label of kitLabels(tree)) {
+      // Actions never truncate: no numberOfLines, or at least 2.
+      expect(label.props.numberOfLines === undefined || label.props.numberOfLines >= 2).toBe(true);
+    }
+  };
+
+  it('the shared title / body props are the §9 caps', () => {
+    expect(DISPLAY_TITLE_TEXT).toEqual({
+      maxFontSizeMultiplier: 1.3,
+      numberOfLines: 3,
+      adjustsFontSizeToFit: true,
+      minimumFontScale: 0.7,
+      textBreakStrategy: 'simple',
+    });
+    expect(BODY_TEXT).toEqual({ maxFontSizeMultiplier: 2 });
+  });
+
+  it.each([1, 2, 3.1])('Welcome phone + tablet at fontScale %p: capped, shrinkable title; both actions whole', (fontScale) => {
+    for (const window of [PHONE_WINDOW, TABLET_PORTRAIT, TABLET_LANDSCAPE]) {
+      mockWindow = { ...window, fontScale };
+      const tree = render(<WelcomeScreen />);
+      const title = header(tree);
+      expectTitleRules(title);
+      expect(flat(title).flexShrink).toBe(1);
+      expect(flat(title).height).toBeUndefined();
+      // The G glyph is fixed-geometry chrome.
+      expect(tree.root.find((node) => node.type === 'Text' && node.props.children === 'G').props.allowFontScaling).toBe(false);
+      expect(button(tree, 'welcome-log-in')).toBeTruthy();
+      expect(button(tree, 'welcome-sign-up')).toBeTruthy();
+      // The pair is already stacked (column), primary on top, full width.
+      expect(flat(host(tree, 'welcome-buttons')).flexDirection).toBeUndefined();
+      expect(button(tree, 'welcome-log-in').props.fullWidth).toBe(true);
+      expectNoTruncatedActions(tree);
+    }
+  });
+
+  it('Welcome: the bottom block grows with the capped title and button labels; the art gives way', () => {
+    expect(welcomeBlock(PHONE, 1)).toBe(PHONE.block);
+    expect(welcomeBlock(TABLET, 1)).toBe(TABLET.block);
+    // 2.0: title 48 × 1.3 (cap) = 62.4; buttons stay 60 (22 × 2 = 44 fits).
+    expect(welcomeBlock(PHONE, 2)).toBe(Math.ceil(62.4 + 36 + 120 + 12));
+    // 3.1 = the same as the caps (title 1.3, labels 2.0).
+    expect(welcomeBlock(PHONE, 3.1)).toBe(welcomeBlock(PHONE, 2));
+    const short = { tablet: false, width: 375, height: 667, insets: { top: 20, bottom: 0 } };
+    const at1 = welcomeArt({ ...short, fontScale: 1 });
+    const at2 = welcomeArt({ ...short, fontScale: 2 });
+    expect(at2.size).toBeLessThan(at1.size);
+    expect(at2.top + at2.size).toBeLessThanOrEqual(667 - 20 - PHONE.bottom - welcomeBlock(PHONE, 2) - 24);
+    // The art rendered at 2.0 is the reflowed size.
+    mockWindow = { width: 375, height: 667, fontScale: 2 };
+    const tree = render(<WelcomeScreen />);
+    expect(tree.root.find((node) => node.props.viewBox === '0 0 300 300').props.width).toBe(
+      welcomeArt({ tablet: false, width: 375, height: 667, insets: { top: 47, bottom: 34 }, fontScale: 2 }).size
+    );
+  });
+
+  it.each([1, 2, 3.1])('Sign-in failed phone + tablet at fontScale %p: title rules, body caps, scrolls, Try again whole', (fontScale) => {
+    useAuthStore.setState({ status: AuthStatus.signInFailed, signInError: 'Access denied' });
+    for (const window of [PHONE_WINDOW, TABLET_PORTRAIT, TABLET_LANDSCAPE]) {
+      mockWindow = { ...window, fontScale };
+      const tree = render(<SignInFailedScreen />);
+      expectTitleRules(host(tree, 'sign-in-failed-title'));
+      const own = ownTexts(tree);
+      expect(own.map((node) => node.props.children)).toEqual(['Sign-in', 'Auth0 rejected the login request.']);
+      for (const text of own) {
+        expect(text.props.maxFontSizeMultiplier).toBe(textScale.body);
+        expect(text.props.numberOfLines).toBeUndefined();
+      }
+      expect(tree.root.findAllByType(ScrollView)).toHaveLength(1);
+      expect(button(tree, 'sign-in-failed-try-again').props.title).toBe('Try again');
+      expectNoTruncatedActions(tree);
+    }
+  });
+
+  it.each([1, 2, 3.1])('Account unavailable phone + tablet at fontScale %p: title rules, body caps, scrolls, Sign out whole', (fontScale) => {
+    useAuthStore.setState({ status: AuthStatus.accountUnavailable });
+    for (const window of [PHONE_WINDOW, TABLET_PORTRAIT, TABLET_LANDSCAPE]) {
+      mockWindow = { ...window, fontScale };
+      const tree = render(<AccountUnavailableScreen />);
+      expectTitleRules(host(tree, 'account-unavailable-title'));
+      const own = ownTexts(tree);
+      expect(own).toHaveLength(2);
+      for (const text of own) {
+        expect(text.props.maxFontSizeMultiplier).toBe(textScale.body);
+        expect(text.props.numberOfLines).toBeUndefined();
+      }
+      expect(tree.root.findAllByType(ScrollView)).toHaveLength(1);
+      expect(button(tree, 'account-unavailable-sign-out').props.title).toBe('Sign out');
+      expectNoTruncatedActions(tree);
+    }
+  });
+
+  it('no text container on the auth screens has a fixed height (minHeight only)', () => {
+    useAuthStore.setState({ status: AuthStatus.signInFailed, signInError: 'Access denied' });
+    for (const screen of [<WelcomeScreen key="w" />, <SignInFailedScreen key="s" />, <AccountUnavailableScreen key="a" />]) {
+      mockWindow = { ...PHONE_WINDOW, fontScale: 2 };
+      const tree = render(screen);
+      for (const text of tree.root.findAll((node) => node.type === 'Text' && node.props.allowFontScaling !== false)) {
+        expect(flat(text)?.height).toBeUndefined();
+        expect(flat(text.parent)?.height).toBeUndefined();
+      }
     }
   });
 });

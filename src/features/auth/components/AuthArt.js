@@ -3,7 +3,7 @@ import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
 
 import { CardSurface } from '../../../shared/components/Card';
 import GradientFill from '../../../shared/components/GradientFill';
-import { breakpoints, colors, font, gradients, shadows } from '../../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, shadows, textScale } from '../../../shared/theme/tokens';
 
 // Shared look for the Phase 2 A auth screens (UX A boards). Everything here is
 // decorative: hidden from screen readers, no animation (reduced motion needs
@@ -15,6 +15,19 @@ const HIDDEN = { accessibilityElementsHidden: true, importantForAccessibility: '
 export function isTabletWidth(width) {
   return width >= breakpoints.md;
 }
+
+// UX §9 large text, shared by the auth screens. Page/hero titles cap at
+// textScale.display, wrap by word up to 3 lines and shrink a single long word
+// (never a mid-word break); every other text (eyebrows, body) caps at
+// textScale.body.
+export const DISPLAY_TITLE_TEXT = Object.freeze({
+  maxFontSizeMultiplier: textScale.display,
+  numberOfLines: 3,
+  adjustsFontSizeToFit: true,
+  minimumFontScale: 0.7,
+  textBreakStrategy: 'simple',
+});
+export const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
 
 // The boards are full-device frames (844 / 1194 tall) and place blocks from
 // the frame top. Native content starts under the top inset, so a board offset
@@ -40,8 +53,9 @@ export function GTile({ size = 44, style, testID = 'g-tile' }) {
   );
 }
 
-// Welcome's ring art (board 300 × 300): an outer gold arc (r130, 14) on a
-// faint track and an inner teal arc (r96, 10). `size` scales the whole art
+// Welcome's ring art (board 300 × 300): an outer gold arc (r130, 14) and an
+// inner teal arc (r96, 10), each on a ring track (board white 0.06 / 0.05 →
+// color-track, UX §8.5: artTrack → color-track). `size` scales the whole art
 // (tablet ruling ND1: the same art, larger).
 export const WELCOME_ART = 300;
 const OUTER = { r: 130, width: 14, length: 816.8, offset: 250 };
@@ -66,7 +80,7 @@ export function WelcomeRings({ size = WELCOME_ART, style }) {
           strokeDashoffset={OUTER.offset}
           transform={ROTATE_TOP}
         />
-        <Circle cx={c} cy={c} r={INNER.r} fill="none" stroke={colors.fillChip} strokeWidth={INNER.width} />
+        <Circle cx={c} cy={c} r={INNER.r} fill="none" stroke={colors.track} strokeWidth={INNER.width} />
         <Circle
           cx={c}
           cy={c}
@@ -84,13 +98,13 @@ export function WelcomeRings({ size = WELCOME_ART, style }) {
   );
 }
 
-// Tablet Sign-in failed art (120): a danger-text arc on a faint ring around a
-// padlock.
+// Tablet Sign-in failed art (120): a danger-text arc (as drawn) on a
+// ring track (board white 0.07 → color-track) around a padlock.
 export function PadlockRing() {
   return (
     <View testID="sign-in-failed-art" pointerEvents="none" {...HIDDEN}>
       <Svg width={120} height={120} viewBox="0 0 120 120">
-        <Circle cx={60} cy={60} r={52} fill="none" stroke={colors.fillSkeleton} strokeWidth={10} />
+        <Circle cx={60} cy={60} r={52} fill="none" stroke={colors.track} strokeWidth={10} />
         <Circle
           cx={60}
           cy={60}
@@ -156,7 +170,8 @@ export function IconTile({ icon, color, backgroundColor, testID }) {
 }
 
 // The tablet auth card (Sign-in failed 600, Account unavailable 620):
-// gradient-card, 1 px white 0.08, radius 36, padding 44, the float shadow on
+// gradient-card, 1 px hairline (board white 0.08, the ladder's border step:
+// CardSurface's own hairline), radius 36, padding 44, the float shadow on
 // an outer frame (overflow clips the inner one), a decorative gold corner
 // glow. The glow and the gradient are present from the first render.
 export function TabletAuthCard({ width, cornerGlow = 300, children, testID }) {
@@ -203,7 +218,6 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: CARD_RADIUS,
-    borderColor: colors.choiceBorder,
   },
   cornerGlow: {
     position: 'absolute',

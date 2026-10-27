@@ -5,31 +5,44 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PillButton from '../../../shared/components/PillButton';
 import Screen from '../../../shared/components/Screen';
 import { ToastTone, addToast } from '../../../shared/components/toastStore';
-import { colors, gradients, shadows, spacing, typography } from '../../../shared/theme/tokens';
+import { colors, gradients, shadows, spacing, textScale, typography } from '../../../shared/theme/tokens';
 import { login, signup, takeAccountDeletedNotice } from '../authService';
 import { AuthStatus, useAuthStore } from '../authStore';
-import { GTile, WelcomeRings, boardTop, isTabletWidth } from '../components/AuthArt';
+import { DISPLAY_TITLE_TEXT, GTile, WelcomeRings, boardTop, isTabletWidth } from '../components/AuthArt';
 
 // RN-SPEC-profile P1b.6 (T-43, native only): the notice after Delete account.
 const DELETED_NOTICE_MS = 6000;
 
 // UX A §Welcome / §Tablet: Welcome (ruling ND1: the phone's ring art scaled
 // up on the tablet, no photos). `block` is the bottom content's board height
-// (brand row + gap + two buttons + gap).
-export const PHONE = { art: 300, tile: 44, bottom: 40, block: 48 + 36 + 60 + 12 + 60 };
-export const TABLET = { art: 480, tile: 64, bottom: 80, block: 84 + 44 + 64 + 12 + 64 };
+// (brand row + gap + two buttons + gap); `title` is the title's line height
+// and `button` the CTA height (the parts that grow with the text size).
+export const PHONE = { art: 300, tile: 44, bottom: 40, title: 48, gap: 36, button: 60, block: 48 + 36 + 60 + 12 + 60 };
+export const TABLET = { art: 480, tile: 64, bottom: 80, title: 84, gap: 44, button: 64, block: 84 + 44 + 64 + 12 + 64 };
 const BOARD_FRAME = 844;
 const BOARD_ART_TOP = 150;
 const ART_MIN = 160;
 const ART_GAP = 24;
+const BUTTON_GAP = 12;
+// The kit CTA label's line height (PillButton cta, 17/22).
+const CTA_LABEL_LINE = 22;
+
+// UX §9: the bottom block at this text size. The title scales up to
+// textScale.display, the button labels up to textScale.body; a button grows
+// only when its label no longer fits its board height.
+export function welcomeBlock(board, fontScale = 1) {
+  const titleRow = Math.max(board.tile, board.title * Math.min(fontScale, textScale.display));
+  const button = Math.max(board.button, CTA_LABEL_LINE * Math.min(fontScale, textScale.body));
+  return Math.ceil(titleRow + board.gap + 2 * button + BUTTON_GAP);
+}
 
 // The art keeps the board's place (150 of 844 from the top) and shrinks on
-// short windows (small phones, tablet landscape) so it never runs into the
-// title.
-export function welcomeArt({ tablet, width, height, insets }) {
+// short windows (small phones, tablet landscape) and at large text sizes so
+// it never runs into the title.
+export function welcomeArt({ tablet, width, height, insets, fontScale = 1 }) {
   const board = tablet ? TABLET : PHONE;
   const top = boardTop(BOARD_ART_TOP, BOARD_FRAME, height, insets.top, 0);
-  const room = height - insets.top - insets.bottom - board.bottom - board.block - top - ART_GAP;
+  const room = height - insets.top - insets.bottom - board.bottom - welcomeBlock(board, fontScale) - top - ART_GAP;
   const size = Math.max(ART_MIN, Math.min(board.art, room, width - 2 * spacing[6]));
   return { top, size };
 }
@@ -39,7 +52,7 @@ export function welcomeArt({ tablet, width, height, insets }) {
 // its ring) → this screen, through the root stack's fade, on the same ground
 // and gold glow, with the same solid G tile beside the title.
 export default function WelcomeScreen() {
-  const { width, height } = useWindowDimensions();
+  const { width, height, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const tablet = isTabletWidth(width);
   const authenticating = useAuthStore((state) => state.status === AuthStatus.authenticating);
@@ -76,7 +89,7 @@ export default function WelcomeScreen() {
   };
 
   const busy = launching || authenticating;
-  const art = welcomeArt({ tablet, width, height, insets });
+  const art = welcomeArt({ tablet, width, height, insets, fontScale });
 
   return (
     <Screen glow={gradients.welcomeGlow} style={[styles.content, tablet ? styles.contentTablet : styles.contentPhone]}>
@@ -84,7 +97,7 @@ export default function WelcomeScreen() {
       <View testID="welcome-column" style={[styles.column, tablet && styles.columnTablet]}>
         <View style={[styles.brand, tablet && styles.brandTablet]}>
           <GTile size={tablet ? TABLET.tile : PHONE.tile} style={tablet && styles.tileTablet} />
-          <Text accessibilityRole="header" textBreakStrategy="simple" style={tablet ? styles.titleTablet : styles.title}>
+          <Text testID="welcome-title" accessibilityRole="header" {...DISPLAY_TITLE_TEXT} style={tablet ? styles.titleTablet : styles.title}>
             Gymido
           </Text>
         </View>
@@ -151,17 +164,20 @@ const styles = StyleSheet.create({
   tileTablet: {
     boxShadow: shadows.goldGlowLarge,
   },
+  // flexShrink: a long title wraps/shrinks beside the tile, never off screen.
   title: {
     ...typography.displayMd,
-    lineHeight: 48,
+    lineHeight: PHONE.title,
     color: colors.textPrimary,
+    flexShrink: 1,
   },
   titleTablet: {
     ...typography.displayMd,
     fontSize: 84,
-    lineHeight: 84,
+    lineHeight: TABLET.title,
     letterSpacing: -5.04,
     color: colors.textPrimary,
+    flexShrink: 1,
   },
   buttons: {
     marginTop: 36,

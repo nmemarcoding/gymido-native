@@ -9,16 +9,16 @@ jest.mock('react-native-safe-area-context', () => {
 let mockWindow = { width: 390, height: 844 };
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   __esModule: true,
-  default: () => ({ ...mockWindow, scale: 3, fontScale: 1 }),
+  default: () => ({ scale: 3, fontScale: 1, ...mockWindow }),
 }));
 
-import { StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import Svg, { Text as SvgText } from 'react-native-svg';
 import { act, create } from 'react-test-renderer';
 
 import PillButton from '../../shared/components/PillButton';
 import Screen from '../../shared/components/Screen';
-import { colors } from '../../shared/theme/tokens';
+import { colors, textScale } from '../../shared/theme/tokens';
 import NotFoundScreen, { NUMERAL } from './NotFoundScreen';
 
 function render(element) {
@@ -88,5 +88,42 @@ describe('A5 Not found', () => {
     const home = tree.root.find((node) => node.type === PillButton);
     expect(home.props).toMatchObject({ size: 'cta', fullWidth: false, variant: 'primary' });
     expect(readable(tree)).toEqual(['Page not found', 'The requested page does not exist. Return to the app home to keep going.', 'Go home']);
+  });
+});
+
+describe('A5 Not found: UX §9 large text', () => {
+  it.each([
+    [1, { width: 390, height: 844 }],
+    [2, { width: 390, height: 844 }],
+    [3.1, { width: 390, height: 844 }],
+    [1, { width: 834, height: 1194 }],
+    [2, { width: 1194, height: 834 }],
+    [3.1, { width: 1194, height: 834 }],
+  ])('fontScale %p (%o): title capped at display, wraps by word, shrinks a long word; body capped; scrolls; Go home whole', (fontScale, window) => {
+    mockWindow = { ...window, fontScale };
+    const tree = render(<NotFoundScreen onGoHome={jest.fn()} />);
+    expect(host(tree, 'not-found-title').props).toMatchObject({
+      maxFontSizeMultiplier: textScale.display,
+      numberOfLines: 3,
+      adjustsFontSizeToFit: true,
+      minimumFontScale: 0.7,
+      textBreakStrategy: 'simple',
+    });
+    expect(host(tree, 'not-found-body').props.maxFontSizeMultiplier).toBe(textScale.body);
+    expect(host(tree, 'not-found-body').props.numberOfLines).toBeUndefined();
+    expect(tree.root.findAllByType(ScrollView)).toHaveLength(1);
+    const label = tree.root.find((node) => node.type === 'Text' && node.props.children === 'Go home');
+    expect(label.props.numberOfLines).toBeUndefined();
+    // The decorative 404 is a fixed-size Svg: it never scales with the text.
+    expect(tree.root.find((node) => node.type === Svg).props).toMatchObject({ width: NUMERAL.width, height: NUMERAL.lineHeight });
+    for (const id of ['not-found-title', 'not-found-body', 'not-found-column']) {
+      expect(flat(host(tree, id)).height).toBeUndefined();
+    }
+  });
+
+  it('colour: the outline stroke is gold-strong 0.60 (board 0.55, UX §8.5 ruling)', () => {
+    const tree = render(<NotFoundScreen onGoHome={jest.fn()} />);
+    expect(colors.goldStrong).toBe('rgba(255, 194, 26, 0.60)');
+    expect(tree.root.find((node) => node.type === SvgText).props.stroke).toBe(colors.goldStrong);
   });
 });
