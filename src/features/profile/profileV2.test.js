@@ -31,6 +31,7 @@ import { StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { routes } from '../../navigation/routes';
+import ErrorAlert from '../../shared/components/ErrorAlert';
 import Skeleton from '../../shared/components/Skeleton';
 import { colors, gradients, radii } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
@@ -190,11 +191,41 @@ describe('ProfileStatTiles', () => {
     expect(flat(value.props.style)).toMatchObject({ fontSize: 24, lineHeight: 28, fontVariant: ['tabular-nums'] });
   });
 
-  it('error: "—" and the page keeps rendering (no throw)', async () => {
+  // Audit b1 X4 (RN-SPEC-profile, 27 Oct 2026): a failed GET /dashboard is
+  // never a silent "—": the Workouts tile is replaced by an ErrorAlert above
+  // the tiles; the now / goal tiles stay below it (2 columns).
+  it.each([1, 2])('error (text %s): "Workouts unavailable" + "Please try again." + Retry above the now / goal tiles; no Workouts tile', async (scale) => {
+    mockFontScale = scale;
     getDashboard.mockRejectedValue(new Error('boom'));
     const tree = await renderAsync(<ProfileStatTiles profile={PROFILE} />);
-    expect(host(tree.root, 'profile-stat-workouts').props.accessibilityLabel).toBe('Workouts, unavailable');
-    expect(texts(host(tree.root, 'profile-stat-workouts'))).toEqual(['—', 'Workouts']);
+    const alert = tree.root.findByType(ErrorAlert);
+    expect(alert.props).toMatchObject({ title: 'Workouts unavailable', description: 'Please try again.' });
+    expect(hosts(tree.root, 'profile-stat-workouts')).toHaveLength(0);
+    expect(hosts(tree.root, 'profile-stat-now')).toHaveLength(1);
+    expect(hosts(tree.root, 'profile-stat-goal')).toHaveLength(1);
+    const shown = texts(tree.root);
+    expect(shown.indexOf('Workouts unavailable')).toBeLessThan(shown.indexOf('82.5'));
+    expect(shown).not.toContain('—');
+  });
+
+  it('error Retry re-runs only GET /dashboard; success brings the Workouts tile back', async () => {
+    getDashboard.mockRejectedValueOnce(new Error('boom'));
+    const tree = await renderAsync(<ProfileStatTiles profile={PROFILE} />);
+    expect(getDashboard).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      tree.root.findByType(ErrorAlert).props.onRetry();
+    });
+    expect(getDashboard).toHaveBeenCalledTimes(2);
+    expect(tree.root.findAllByType(ErrorAlert)).toHaveLength(0);
+    expect(texts(host(tree.root, 'profile-stat-workouts'))).toEqual(['37', 'Workouts']);
+  });
+
+  it('while the Retry runs the alert stays with its Retry busy', async () => {
+    getDashboard.mockRejectedValueOnce(new Error('boom'));
+    const tree = await renderAsync(<ProfileStatTiles profile={PROFILE} />);
+    getDashboard.mockReturnValueOnce(new Promise(() => {}));
+    act(() => tree.root.findByType(ErrorAlert).props.onRetry());
+    expect(tree.root.findByType(ErrorAlert).props.retrying).toBe(true);
   });
 
   it('inCard (tablet hero): fill-subtle tiles, no edge, padding 14 8', async () => {
@@ -246,10 +277,27 @@ describe('CoachingCard (Q1 teal accents)', () => {
     expect(flat(title.props.style).color).toBe(colors.textPrimary);
   });
 
-  it('a failed status load leaves the line empty (min-height 16 kept); label is just "Coaching"', async () => {
-    getMyTrainer.mockRejectedValue(new Error('x'));
-    const tree = await renderAsync(<CoachingCard layout="pair" />);
-    expect(pressable(tree.root, 'profile-coaching-card').props.accessibilityLabel).toBe('Coaching');
+  // Audit b1 X4 (RN-SPEC-profile, 27 Oct 2026): a failed GET /my-trainer or
+  // pending-requests read replaces the card (every variant) in place by an
+  // ErrorAlert; Retry reloads both reads.
+  it.each([
+    ['pair', 'my-trainer'],
+    ['row', 'my-trainer'],
+    ['pair', 'pending requests'],
+    ['row', 'pending requests'],
+  ])('%s: a failed %s read → "Coaching unavailable" + "Please try again." + Retry in place of the card', async (layout, read) => {
+    (read === 'my-trainer' ? getMyTrainer : listPendingTrainerRequests).mockRejectedValueOnce(new Error('x'));
+    const tree = await renderAsync(<CoachingCard layout={layout} />);
+    expect(hosts(tree.root, 'profile-coaching-card')).toHaveLength(0);
+    const alert = tree.root.findByType(ErrorAlert);
+    expect(alert.props).toMatchObject({ title: 'Coaching unavailable', description: 'Please try again.' });
+    await act(async () => {
+      alert.props.onRetry();
+    });
+    expect(getMyTrainer).toHaveBeenCalledTimes(2);
+    expect(listPendingTrainerRequests).toHaveBeenCalledTimes(2);
+    expect(tree.root.findAllByType(ErrorAlert)).toHaveLength(0);
+    expect(pressable(tree.root, 'profile-coaching-card').props.accessibilityLabel).toBe('Coaching, No trainer yet');
   });
 
   it('pressed: the 4 % overlay (state rule)', async () => {
@@ -715,5 +763,21 @@ describe('p5fix: in-field unit change then save', () => {
       await save.props.onPress();
     });
     expect(updateProfile).toHaveBeenCalledWith(expect.objectContaining({ current_weight_unit: 'lb', current_weight_value: 82.5 }));
+  });
+});
+
+// Audit b1 X4 (RN-SPEC-profile, 27 Oct 2026): a failed SIDE read never fails
+// the page; the full-page error is only for the primary GET /profile.
+describe('audit b1 X4: Profile side reads fail in place', () => {
+  it.each([390, 834])('width %s: both side reads fail → two inline alerts; identity, lists, Logout stay; no page error', async (width) => {
+    mockWidth = width;
+    getDashboard.mockRejectedValue(new Error('500'));
+    getMyTrainer.mockRejectedValue(new Error('500'));
+    setStoredProfile(PROFILE);
+    const tree = await renderAsync(<ProfileSettingsScreen />);
+    expect(tree.root.findAllByType(ErrorAlert).map((alert) => alert.props.title).sort()).toEqual(['Coaching unavailable', 'Workouts unavailable']);
+    expect(hosts(tree.root, 'settings-error')).toHaveLength(0);
+    const shown = texts(tree.root);
+    expect(shown).toEqual(expect.arrayContaining(['Asad Khan', '82.5', '78', 'Account', 'Workout', 'Logout']));
   });
 });

@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, typography } from '../../../../shared/theme/tokens';
 import ShellPage from '../../../shell/ShellPage';
+import { HeroTitleMark } from '../../../shell/heroTitle';
 
 // Page column shared by T1, T2 and T3 inside the shell: centred, max-width,
 // gap 20. `nestable` hosts a draggable list (T3's sortable exercises).
@@ -30,9 +31,12 @@ export function PageEyebrow({ children }) {
 
 export function PageTitle({ children, style }) {
   return (
-    <Text textBreakStrategy="simple" accessibilityRole="header" style={[styles.title, style]}>
-      {children}
-    </Text>
+    <>
+      <HeroTitleMark />
+      <Text textBreakStrategy="simple" accessibilityRole="header" style={[styles.title, style]}>
+        {children}
+      </Text>
+    </>
   );
 }
 

@@ -5,6 +5,7 @@ import { CAP_BODY, DISPLAY_TITLE_TEXT } from '../../../../shared/components/larg
 import PillButton from '../../../../shared/components/PillButton';
 import { colors, font, gradients, radii, spacing, typography } from '../../../../shared/theme/tokens';
 import ShellPage from '../../../shell/ShellPage';
+import { HeroTitleMark } from '../../../shell/heroTitle';
 
 // v2 Phase 6 O "Trainer plan create" (TrainerPlanCreate / TabletTrainerPlanCreate),
 // the LOOK of the trainer variant of CreatePlanForm (the form state,
@@ -75,6 +76,7 @@ export default function TrainerCreatePlanLayout({ tablet, stacked = false, varia
           )}
         </Pressable>
         <View>
+          <HeroTitleMark />
           <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={tablet ? styles.titleTablet : styles.title}>
             Create a plan
           </Text>

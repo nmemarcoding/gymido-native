@@ -150,6 +150,37 @@ describe('Plan detail states', () => {
     expect(texts(tree)).toContain('Workout days');
   });
 
+  // Audit b1 X4 (RN-SPEC-plans §4.2 dated 27 Oct 2026): plan null AND GET /plans/{id} rejected with anything but
+  // a 404 → the error state, never the hollow page of zeros; Retry re-runs the whole load.
+  it.each([
+    ['a 500', { response: { status: 500, data: {} }, message: 'Request failed with status code 500' }],
+    ['no response', { message: 'Network Error' }],
+  ])('X4: GET /plans/{id} fails with %s and no matching enrollment → "Plan unavailable" + Retry (no hollow page)', async (_name, failure) => {
+    getPlan.mockRejectedValueOnce(failure);
+    getCurrentPlan.mockResolvedValue(null);
+    const tree = await render();
+    expect(tree.root.findByType(InlineError).props.title).toBe('Plan unavailable');
+    expect(texts(tree)).not.toContain('Workout days');
+    expect(pressable(tree, 'plan-detail-back')).toBeDefined();
+    await act(async () => pressable(tree, 'plan-detail-retry').props.onPress());
+    expect(getPlan).toHaveBeenCalledTimes(2);
+    expect(listPlanDays).toHaveBeenCalledTimes(2);
+    expect(tree.root.findAllByType(InlineError)).toHaveLength(0);
+    expect(texts(tree)).toContain('Workout days');
+  });
+
+  it('X4: a 500 on GET /plans/{id} with a matching enrollment still shows the plan (the fallback); a 404 keeps ⚠8', async () => {
+    getPlan.mockRejectedValue({ response: { status: 500, data: {} } });
+    getCurrentPlan.mockResolvedValue(CURRENT);
+    let tree = await render();
+    expect(tree.root.findAllByType(InlineError)).toHaveLength(0);
+    expect(texts(tree)).toContain('Upper / Lower Split');
+    getPlan.mockRejectedValue({ response: { status: 404 } });
+    getCurrentPlan.mockResolvedValue(null);
+    tree = await render();
+    expect(tree.root.findAllByType(InlineError)).toHaveLength(0);
+  });
+
   it('the phone page glow is the board radial (glow-gold-ambient)', async () => {
     const tree = await render();
     expect(host(tree, 'plan-detail-screen').props.glow).toBe(PLAN_DETAIL_GLOW);

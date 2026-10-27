@@ -6,13 +6,22 @@ export function unreadSubtitle(count) {
 }
 
 // N1.2 body: the first matching state. ⚠N-2: the loader only with no items.
-export function pageBodyState({ isLoading, notifications }) {
+// Audit b1 X4 (27 Oct 2026, ⚠N-1 retired): an error with no items loaded and
+// not loading is the error state; with items loaded an error changes nothing.
+export function pageBodyState({ isLoading, notifications, error = null }) {
   const count = notifications?.length ?? 0;
   if (isLoading && count === 0) {
     return 'loading';
   }
+  if (count === 0 && error) {
+    return 'error';
+  }
   return count === 0 ? 'empty' : 'list';
 }
+
+// Audit b1 X4: the page and the bell panel share this copy.
+export const ERROR_TITLE = "Couldn't load notifications";
+export const ERROR_MESSAGE = 'Please try again.';
 
 export function showsLoadMore({ hasMore, notifications }) {
   return Boolean(hasMore) && (notifications?.length ?? 0) > 0;

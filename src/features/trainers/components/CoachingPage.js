@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { CAP_BODY, DISPLAY_TITLE_TEXT } from '../../../shared/components/largeText';
 import TextLink from '../../../shared/components/TextLink';
 import { colors, font, spacing, typography } from '../../../shared/theme/tokens';
+import { HeroTitleMark } from '../../shell/heroTitle';
 
 // v2 Phase 5 L shared page parts for the coaching pages (Find a trainer,
 // Trainer detail, Trainer apply).
@@ -24,6 +25,7 @@ export function PageHeading({ title, accent, subtitle, tablet = false, size = 'l
   const look = tablet ? TABLET_SIZES[size] : PHONE_SIZES[size];
   return (
     <View testID={testID} style={styles.heading}>
+      <HeroTitleMark />
       <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={[styles.title, look.title]}>
         {title}
         {accent ? <Text style={styles.accent}>{` ${accent}`}</Text> : null}

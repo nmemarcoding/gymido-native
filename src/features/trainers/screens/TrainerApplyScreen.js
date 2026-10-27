@@ -29,6 +29,7 @@ import {
   applicationErrorMessage,
   applicationView,
 } from '../trainersFormat';
+import { HeroTitleMark } from '../../shell/heroTitle';
 
 export const APPLY_COLUMN_MAX = 620;
 // The form card's gold corner glow (a 220 circle at the top-right).
@@ -158,6 +159,7 @@ function GoldHero({ subtitle }) {
           <Path d="M62 30l5 5 11-11" stroke={colors.onGold} strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" />
         </Svg>
       </View>
+      <HeroTitleMark />
       <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.heroTitle}>
         Become a trainer
       </Text>

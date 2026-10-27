@@ -44,6 +44,7 @@ import { ChevronGlyph } from '../components/clientIcons';
 import WeightHistoryModal from '../components/WeightHistoryModal';
 import WorkoutDetailModal from '../components/WorkoutDetailModal';
 import { formatCount, keepUnitsTogether } from '../../../../shared/format/counts';
+import { HeroTitleMark } from '../../../shell/heroTitle';
 
 // C2 content (trainer clients spec §C4; v2 phase 6 §2, UX N Client detail),
 // shared by the Client detail page and the tablet Clients pane.
@@ -170,10 +171,14 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
   );
 
   function renderBody() {
+    // §6.1 (audit b1 X1): on the page, loading / not found / error draw no
+    // hero title (the header keeps "Coaching" as the one heading); the tablet
+    // Clients pane keeps its sub-heading under "Clients".
+    const stateTitle = layout === 'pane' ? <TitleOnly heading={heading} tablet={tablet} /> : null;
     if (state.status === 'loading') {
       return (
         <>
-          <TitleOnly heading={heading} tablet={tablet} />
+          {stateTitle}
           <StateSlot>
             <Loader label="Loading client" style={styles.loader} />
           </StateSlot>
@@ -183,7 +188,7 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
     if (state.status === 'notFound') {
       return (
         <>
-          <TitleOnly heading={heading} tablet={tablet} />
+          {stateTitle}
           <StateSlot>
             <EmptyState
               title="Not your client"
@@ -199,7 +204,7 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
     if (state.status === 'error') {
       return (
         <>
-          <TitleOnly heading={heading} tablet={tablet} />
+          {stateTitle}
           <StateSlot>
             <ErrorAlert title="Could not load this client" description={state.error} onRetry={load} />
           </StateSlot>
@@ -245,6 +250,7 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
         <View style={styles.identity}>
           <ClientAvatar userId={clientUserId} initials={initialsOf(profile)} size={layout === 'pane' ? 60 : 64} />
           <View style={styles.identityText}>
+            <HeroTitleMark />
             <Text {...TITLE_TEXT} accessibilityRole="header" style={styles.name}>
               {heading}
             </Text>
@@ -300,6 +306,7 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
             <Text {...CAP_BODY} style={styles.heroEyebrow}>
               Client details
             </Text>
+            <HeroTitleMark />
             <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.heroName}>
               {heading}
             </Text>

@@ -7,7 +7,7 @@ import { mountBell } from '../notifications/bellPolling';
 import NotificationBell from '../notifications/NotificationBell';
 import ModeSwitch from './ModeSwitch';
 import { openShellPath } from './shellLinks';
-import { getHeaderBackLink, getHeaderTitle, isCompactHeader } from './shellRules';
+import { getHeaderBackLink, getHeaderTitle, getHeroFallbackTitle, isCompactHeader } from './shellRules';
 import { useShellUiStore } from './shellUiStore';
 
 // App-shell spec §6.1; v2 look RN-SPEC-v2-foundation §7.4 (title-xl on
@@ -20,6 +20,9 @@ import { useShellUiStore } from './shellUiStore';
 // `headerActions` (optional, FE batch 1 ruling): a page's own controls,
 // right-aligned on the title row before the mode switch and the bell (the
 // tablet Progress Body/Activity switch). The page still draws no title.
+// `heroTitleShown` (§6.1, audit b1 X1): the page's own hero title is on
+// screen (ShellPage's HeroTitleMark registry); until it is, a coaching /
+// trainer page keeps the header title "Coaching" as its one heading.
 const TITLE_TEXT = Object.freeze({
   textBreakStrategy: 'simple',
   maxFontSizeMultiplier: textScale.display,
@@ -28,14 +31,14 @@ const TITLE_TEXT = Object.freeze({
   minimumFontScale: 0.7,
 });
 
-export default function AppHeader({ path, query = '', mode, headerActions = null }) {
+export default function AppHeader({ path, query = '', mode, headerActions = null, heroTitleShown = false }) {
   const { width } = useWindowDimensions();
   const isFocused = useIsFocused();
   const compact = isCompactHeader(path, query);
   const tablet = width >= breakpoints.md;
   const sm = width >= breakpoints.sm;
   const isSessionActive = useShellUiStore((state) => state.isSessionActive);
-  const title = getHeaderTitle(path, isSessionActive);
+  const title = getHeaderTitle(path, isSessionActive) || (heroTitleShown ? '' : getHeroFallbackTitle(path));
   const backLink = getHeaderBackLink(path, isSessionActive);
 
   useEffect(() => {

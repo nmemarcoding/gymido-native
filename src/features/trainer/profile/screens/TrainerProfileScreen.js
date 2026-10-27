@@ -28,6 +28,7 @@ import {
   ownInitials,
   trainerProfileSaveError,
 } from '../trainerProfileForm';
+import { HeroTitleMark } from '../../../shell/heroTitle';
 
 const NO_AUTOFILL = { autoComplete: 'off', textContentType: 'none', importantForAutofill: 'no' };
 
@@ -147,9 +148,12 @@ function TrainerProfileForm({ tablet }) {
   }
 
   const title = (
-    <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={tablet ? styles.titleTablet : styles.title}>
-      Trainer profile
-    </Text>
+    <>
+      <HeroTitleMark />
+      <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={tablet ? styles.titleTablet : styles.title}>
+        Trainer profile
+      </Text>
+    </>
   );
   const subtitle = (
     <Text {...CAP_BODY} style={tablet ? styles.subtitleTablet : styles.subtitle}>

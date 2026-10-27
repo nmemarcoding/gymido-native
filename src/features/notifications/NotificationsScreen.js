@@ -5,6 +5,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { CardHeroFill } from '../../shared/components/Card';
 import EmptyState from '../../shared/components/EmptyState';
+import ErrorAlert from '../../shared/components/ErrorAlert';
 import GradientFill from '../../shared/components/GradientFill';
 import { CAP_BODY, useLargeTextReflow } from '../../shared/components/largeText';
 import Loader from '../../shared/components/Loader';
@@ -18,6 +19,8 @@ import { useNotificationStore } from './notificationStore';
 import {
   EMPTY_MESSAGE,
   EMPTY_TITLE,
+  ERROR_MESSAGE,
+  ERROR_TITLE,
   groupByLocalDay,
   loadMoreLabel,
   pageBodyState,
@@ -34,8 +37,9 @@ export const NOTIFICATIONS_GLOW_TABLET = Object.freeze({
 });
 
 // N1 (RN-SPEC-notifications). Reads the shared store, which is never reset
-// here; every focus refetches page 1, replacing the list (⚠N-2). Errors stay
-// in the store's `error`, which nothing shows (⚠N-1). No pull-to-refresh.
+// here; every focus refetches page 1, replacing the list (⚠N-2). A failed
+// load with no items shows the ErrorAlert + Retry (audit b1 X4; ⚠N-1 retired);
+// with items loaded an error changes nothing. No pull-to-refresh.
 // The shell title "Notifications" is the page's one h1 (no second title).
 export default function NotificationsScreen() {
   const fetchNotifications = useNotificationStore((state) => state.fetchNotifications);
@@ -90,9 +94,10 @@ function MarkAll({ onPress, tablet }) {
 }
 
 function NotificationsPage({ tablet }) {
-  const { notifications, unreadCount, isLoading, hasMore, loadMore, markAllNotificationsAsRead } = useNotificationStore();
+  const { notifications, unreadCount, isLoading, error, hasMore, loadMore, fetchNotifications, markAllNotificationsAsRead } =
+    useNotificationStore();
   const reflow = useLargeTextReflow();
-  const body = pageBodyState({ isLoading, notifications });
+  const body = pageBodyState({ isLoading, notifications, error });
   const markAll = unreadCount > 0 ? <MarkAll tablet={tablet} onPress={markAllNotificationsAsRead} /> : null;
 
   return (
@@ -120,6 +125,17 @@ function NotificationsPage({ tablet }) {
       {body === 'loading' ? (
         <StateSlot>
           <Loader label="Loading notifications" style={styles.loader} />
+        </StateSlot>
+      ) : null}
+      {body === 'error' ? (
+        <StateSlot>
+          <ErrorAlert
+            testID="notifications-error"
+            retryTestID="notifications-retry"
+            title={ERROR_TITLE}
+            description={ERROR_MESSAGE}
+            onRetry={() => fetchNotifications(1)}
+          />
         </StateSlot>
       ) : null}
       {body === 'empty' ? (

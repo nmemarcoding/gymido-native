@@ -62,11 +62,31 @@ export function formatSigned(change) {
   return `${prefix}${oneDecimal.format(change.value)} ${change.unit ?? ''}`.trim();
 }
 
-const sameUnit = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase();
+const normUnit = (unit) => String(unit ?? '').trim().toLowerCase();
+const sameUnit = (a, b) => normUnit(a) === normUnit(b);
+const convertible = (unit) => unit === 'kg' || unit === 'lb';
+const finite = (value) => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
 
-// §C5.2 delta(a, b).
-export function weightDelta(a, b) {
-  if (!a || !b || a === b || !sameUnit(a.weight_unit, b.weight_unit)) {
+// §C5.2 delta(a, b, unit). Audit b1 PM decision (27 Oct 2026): when both
+// logs' units AND the display `unit` (the chart's, §C5.3) are kg or lb, each
+// is converted into `unit` as the chart does (convertWeight) and the change
+// is in `unit`; otherwise (an unknown unit) the old rule: same unit → b − a
+// in b's unit, different → null. Null too if either is missing, the same
+// log, or not a finite number.
+export function weightDelta(a, b, unit) {
+  if (!a || !b || a === b || !finite(a.weight_value) || !finite(b.weight_value)) {
+    return null;
+  }
+  const from = normUnit(a.weight_unit);
+  const to = normUnit(b.weight_unit);
+  const display = normUnit(unit);
+  if (convertible(from) && convertible(to) && convertible(display)) {
+    return {
+      value: convertWeight(b.weight_value, to, display) - convertWeight(a.weight_value, from, display),
+      unit: display,
+    };
+  }
+  if (!sameUnit(a.weight_unit, b.weight_unit)) {
     return null;
   }
   return { value: Number(b.weight_value) - Number(a.weight_value), unit: b.weight_unit };

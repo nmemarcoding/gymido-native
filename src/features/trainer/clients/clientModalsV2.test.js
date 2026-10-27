@@ -232,6 +232,18 @@ describe('Client weight modal (UX M)', () => {
     expect(hostAll(tree, 'weight-history-goal-label')).toHaveLength(0);
   });
 
+  // Audit b1 PM decision (§C5.2, 27 Oct 2026): mixed kg/lb logs convert into
+  // the chart unit (the profile's current unit) instead of "—".
+  it('mixed lb → kg logs: the change tiles convert into the chart unit ("-12.2 kg"), never "—"', async () => {
+    listClientWeightLogs.mockResolvedValue([
+      { ...LOGS[2], id: 11, weight_value: 190, weight_unit: 'lb' },
+      { ...LOGS[2], id: 12, weight_value: 74, weight_unit: 'kg' },
+    ]);
+    const tree = await render(<WeightHistoryModal isOpen clientUserId={7} profile={PROFILE} onClose={jest.fn()} />);
+    expect(deepText(host(tree, 'weight-history-total-value'))).toBe('-12.2 kg');
+    expect(deepText(host(tree, 'weight-history-30d-value'))).toBe('-12.2 kg');
+  });
+
   it('positive change keeps the "+" (the sign carries the meaning)', async () => {
     listClientWeightLogs.mockResolvedValue([LOGS[2], { ...LOGS[2], id: 9, weight_value: 64.6 }]);
     const tree = await render(<WeightHistoryModal isOpen clientUserId={7} profile={PROFILE} onClose={jest.fn()} />);

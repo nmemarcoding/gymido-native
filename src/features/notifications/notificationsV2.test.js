@@ -77,6 +77,7 @@ function seed(overrides = {}) {
     unreadCount: notifications.filter((item) => !item.read_at).length,
     isLoading: false,
     hasMore: false,
+    error: null,
     ...actions,
     ...overrides,
   });
@@ -324,5 +325,45 @@ describe('p5fix: unread count announcement', () => {
       expect(spy).toHaveBeenCalledWith('You have 0 unread notifications.');
     }
     spy.mockRestore();
+  });
+});
+
+// Audit b1 X4 (RN-SPEC-notifications, 27 Oct 2026): ⚠N-1 retired. An error
+// with no items loaded (and not loading) shows the kit ErrorAlert instead of
+// the empty state, on the page AND in the bell panel; Retry refetches page 1.
+describe('audit b1 X4: a failed load shows an error with Retry', () => {
+  const ErrorAlert = require('../../shared/components/ErrorAlert').default;
+  const EmptyState = require('../../shared/components/EmptyState').default;
+
+  it.each([
+    ['page, phone', 390, () => <NotificationsScreen />],
+    ['page, tablet', 834, () => <NotificationsScreen />],
+    ['bell panel', 390, () => <NotificationPanel />],
+  ])(`%s: "Couldn't load notifications" + "Please try again." + Retry (page 1); no empty state, no Load More`, (_name, width, make) => {
+    setWindow(width);
+    seed({ notifications: [], error: new Error('500'), hasMore: true });
+    const tree = render(make());
+    const alerts = tree.root.findAllByType(ErrorAlert);
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].props.title).toBe("Couldn't load notifications");
+    expect(alerts[0].props.description).toBe('Please try again.');
+    expect(tree.root.findAllByType(EmptyState)).toHaveLength(0);
+    expect(tree.root.findAll((node) => node.props.testID === 'notifications-load-more')).toHaveLength(0);
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && deepText(node).startsWith('Load More'))).toHaveLength(0);
+    act(() => alerts[0].props.onRetry());
+    expect(actions.fetchNotifications).toHaveBeenCalledWith(1);
+  });
+
+  it.each([
+    ['page', () => <NotificationsScreen />],
+    ['bell panel', () => <NotificationPanel />],
+  ])('%s: while the retry loads the loader shows; with items loaded an error changes nothing (the list stays)', (_name, make) => {
+    seed({ notifications: [], error: null, isLoading: true });
+    const tree = render(make());
+    expect(tree.root.findAllByType(ErrorAlert)).toHaveLength(0);
+    expect(tree.root.findAll((node) => node.props.label === 'Loading notifications')).not.toHaveLength(0);
+    act(() => useNotificationStore.setState({ notifications: ITEMS, isLoading: false, error: new Error('mark failed') }));
+    expect(tree.root.findAllByType(ErrorAlert)).toHaveLength(0);
+    expect(tree.root.findAllByType(NotificationItem).length).toBeGreaterThan(0);
   });
 });

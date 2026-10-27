@@ -29,6 +29,7 @@ import { PageSubtitle, PageTitle, PlanPage, TextLink } from '../components/PlanP
 import TrainerCreatePlanLayout from '../components/TrainerCreatePlanLayout';
 import { slugify } from '../planFormat';
 import { buildCreatePlanPayload, validateCreatePlan } from '../planValidation';
+import { HeroTitleMark } from '../../../shell/heroTitle';
 
 const DAYS_OPTIONS = [1, 2, 3, 4, 5, 6, 7].map((n) => ({ value: String(n), label: String(n) }));
 
@@ -357,6 +358,7 @@ function CreatePlanV2({ tablet, stacked = false, variant, saving, onSubmit, onBa
               </Text>
             )}
           </Pressable>
+          <HeroTitleMark />
           <Text {...TITLE_TEXT} accessibilityRole="header" style={tablet ? v2.titleTablet : v2.title}>
             Create a plan
           </Text>

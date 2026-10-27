@@ -120,6 +120,13 @@ function PlanDetail() {
       const enrolledPlan =
         Number(current?.enrollment?.workout_plan_id) === Number(planId) ? current.enrollment.plan : null;
       const plan = matchingPlan || enrolledPlan;
+      // Audit b1 X4 (§4.2, 27 Oct 2026): no plan AND GET /plans/{id} rejected
+      // with anything but a 404 → the error state, never the hollow page; a
+      // 404 with no matching enrollment keeps ⚠8.
+      if (!plan && planResult.status === 'rejected' && getStatus(planResult.reason) !== 404) {
+        setLoad({ status: 'error', error: planResult.reason });
+        return;
+      }
       const requiredDays = days.length;
       // M5: only a plan the public endpoint returned can be copied.
       const isPublic = planResult.status === 'fulfilled';

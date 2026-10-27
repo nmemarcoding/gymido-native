@@ -6,6 +6,7 @@ import { CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT, LINE_TEXT, TITLE_TEXT } from '.
 import TextLink from '../../../../shared/components/TextLink';
 import { colors, font, gradients, layout, radii, spacing, textScale, typography } from '../../../../shared/theme/tokens';
 import { AlertGlyph, CheckGlyph } from './clientIcons';
+import { HeroTitleMark } from '../../../shell/heroTitle';
 
 // Shared pieces of the trainer Today / Clients / Client detail pages
 // (RN-SPEC-v2-phase6 §2, UX phase6/N-trainer-home). v1 behaviour of
@@ -37,6 +38,7 @@ export function PageIntro({ title, subtitle, tablet = false, pill = true, aside,
       <View style={styles.introRow}>
         <View style={styles.introText}>
           {pill ? <CoachingPill tablet={tablet} /> : null}
+          <HeroTitleMark />
           <Text
             {...(tablet ? DISPLAY_TITLE_TEXT : TITLE_TEXT)}
             ref={titleRef}

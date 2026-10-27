@@ -3,12 +3,14 @@ import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } fr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import EmptyState from '../../shared/components/EmptyState';
+import ErrorAlert from '../../shared/components/ErrorAlert';
 import Loader from '../../shared/components/Loader';
 import { breakpoints, colors, radii, shadows, typography } from '../../shared/theme/tokens';
 import { openShellPath } from '../shell/shellLinks';
 import { closePanel, useShellUiStore } from '../shell/shellUiStore';
 import NotificationItem from './NotificationItem';
 import { useNotificationStore } from './notificationStore';
+import { ERROR_MESSAGE, ERROR_TITLE, pageBodyState } from './notificationsPageFormat';
 
 // App-shell spec §7.4: phone → fixed 72 below the top inset (⚠S13), full
 // width minus 12; tablet → anchored under the bell.
@@ -17,7 +19,9 @@ export default function NotificationPanel() {
   const insets = useSafeAreaInsets();
   const bellFrame = useShellUiStore((state) => state.bellFrame);
   const tablet = width >= breakpoints.md;
-  const { notifications, unreadCount, isLoading, hasMore, loadMore, markAllNotificationsAsRead } = useNotificationStore();
+  const { notifications, unreadCount, isLoading, error, hasMore, loadMore, fetchNotifications, markAllNotificationsAsRead } =
+    useNotificationStore();
+  const body = pageBodyState({ isLoading, notifications, error });
   const [filter, setFilter] = useState('all');
   const visible = filter === 'unread' ? notifications.filter((item) => !item.read_at) : notifications;
   const unreadLabel = unreadCount > 0 ? `Unread (${unreadCount})` : 'Unread ';
@@ -59,8 +63,19 @@ export default function NotificationPanel() {
         />
       </View>
       <ScrollView style={tablet ? styles.listTablet : styles.listPhone}>
-        {isLoading && notifications.length === 0 ? (
+        {body === 'loading' ? (
           <Loader label="Loading notifications" style={styles.loading} />
+        ) : body === 'error' ? (
+          // Audit b1 X4: a failed load with nothing loaded; Retry refetches page 1.
+          <View style={styles.empty}>
+            <ErrorAlert
+              testID="notification-panel-error"
+              retryTestID="notification-panel-retry"
+              title={ERROR_TITLE}
+              description={ERROR_MESSAGE}
+              onRetry={() => fetchNotifications(1)}
+            />
+          </View>
         ) : visible.length === 0 ? (
           <View style={styles.empty}>
             {/* UX D row 9: the text switches with the filter, so it is a

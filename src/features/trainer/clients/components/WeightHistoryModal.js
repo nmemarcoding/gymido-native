@@ -14,7 +14,7 @@ import { formatDateWithOffset } from '../../../../shared/time/format';
 import { colors, font, gradients, radii, spacing, textScale, typography } from '../../../../shared/theme/tokens';
 import { listClientWeightLogs } from '../api/clientsApi';
 import { formatSigned, formatWeight, weightDelta } from '../clientFormat';
-import { logsSince } from '../weightChartData';
+import { chartUnit, logsSince } from '../weightChartData';
 import WeightHistoryChart from './WeightHistoryChart';
 
 // The Current tile's gold corner glow (a 160 circle, top-right).
@@ -106,8 +106,10 @@ export default function WeightHistoryModal({ isOpen, clientUserId, profile, onCl
     const first = logs[0];
     const latest = logs[logs.length - 1];
     const recent = logsSince(logs, 30);
-    const thirtyDay = recent.length >= 2 ? weightDelta(recent[0], recent[recent.length - 1]) : null;
-    const total = logs.length >= 2 ? weightDelta(first, latest) : null;
+    // Audit b1 (27 Oct 2026): the changes are in the chart's one unit (§C5.3).
+    const unit = chartUnit(logs, profile);
+    const thirtyDay = recent.length >= 2 ? weightDelta(recent[0], recent[recent.length - 1], unit) : null;
+    const total = logs.length >= 2 ? weightDelta(first, latest, unit) : null;
     const current = latest
       ? formatWeight(latest.weight_value, latest.weight_unit)
       : formatWeight(profile?.current_weight_value, profile?.current_weight_unit);

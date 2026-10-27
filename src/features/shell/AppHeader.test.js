@@ -126,14 +126,22 @@ describe('AppHeader v2 look (§7.4)', () => {
     expect(backLink(render({ path: '/my-trainer' }))).toBeDefined();
   });
 
-  it.each([390, 834])('X1 one title per page (%i): a coaching page with its own hero title gets no shell title; its back link stays', (width) => {
-    const trainers = render({ path: '/trainers' }, width);
+  // DECLARED change (RN-SPEC-app-shell §6.1 dated 27 Oct 2026, audit b1 X1 "one heading per page in every
+  // state"): was `render({ path })` → no title. The header now hides its title only while the page's hero title is
+  // on screen (`heroTitleShown`, ShellPage's HeroTitleMark registry); without it (loading / error / not found) a
+  // coaching / trainer page keeps "Coaching" as its one heading.
+  it.each([390, 834])('X1 one title per page (%i): a coaching page with its hero title shown gets no shell title; its back link stays', (width) => {
+    const trainers = render({ path: '/trainers', heroTitleShown: true }, width);
     expect(title(trainers)).toBeUndefined();
     expect(backLink(trainers)).toBeDefined();
     expect(byTestId(trainers, 'notification-bell')).toHaveLength(1);
-    const clients = render({ path: '/trainer/clients' }, width);
+    const clients = render({ path: '/trainer/clients', heroTitleShown: true }, width);
     expect(title(clients)).toBeUndefined();
     expect(backLink(clients)).toBeUndefined();
+    // No hero title on screen (a loading / error / not-found state): "Coaching" is the one heading.
+    ['/trainers/9', '/trainer/clients/5', '/trainer/plans/4'].forEach((path) => {
+      expect([path, title(render({ path }, width))?.props.children]).toEqual([path, 'Coaching']);
+    });
     // The Coaching hub has no page title of its own: the shell title stays.
     expect(title(render({ path: '/my-trainer' }, width)).props.children).toBe('Coaching');
   });

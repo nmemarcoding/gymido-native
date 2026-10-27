@@ -267,11 +267,18 @@ describe('Plan detail (row 12)', () => {
     expect(tree.root.findAll((node) => node.props.testID === 'plan-detail-retry' && typeof node.props.onPress === 'function')).not.toHaveLength(0);
   });
 
-  it('row 12: single failures stay allSettled (⚠8: no error, the hollow page)', async () => {
+  // DECLARED change (RN-SPEC-plans §4.2 dated 27 Oct 2026, audit b1 X4): was "single failures stay allSettled
+  // (⚠8: no error, the hollow page)" with GET /plans/{id} 500 → no "Plan unavailable" + the hollow "Workout plan".
+  // A non-404 plan failure with no matching enrollment is now the error state; other reads stay allSettled.
+  it('row 12: a non-404 plan failure with no plan is "Plan unavailable"; other single failures stay allSettled', async () => {
     getPlan.mockRejectedValue(serverError());
     listPlanDays.mockRejectedValue(serverError());
     getCurrentPlan.mockRejectedValue(serverError());
-    const tree = await render(<PlanDetailScreen />);
+    let tree = await render(<PlanDetailScreen />);
+    expect(inlineError(tree, 'Plan unavailable')).toBeDefined();
+    expect(texts(tree)).not.toContain('Workout plan');
+    getPlan.mockRejectedValue({ response: { status: 404, data: {} } });
+    tree = await render(<PlanDetailScreen />);
     expect(inlineError(tree, 'Plan unavailable')).toBeUndefined();
     expect(texts(tree)).toContain('Workout plan');
   });

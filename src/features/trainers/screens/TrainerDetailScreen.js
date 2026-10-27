@@ -23,6 +23,7 @@ import { getTrainer, requestCoaching } from '../api/trainersApi';
 import { PageBackLink } from '../components/CoachingPage';
 import PersonAvatar, { avatarColor } from '../personAvatar';
 import { requestErrorMessage } from '../trainersFormat';
+import { HeroTitleMark } from '../../shell/heroTitle';
 
 export const DETAIL_COLUMN_MAX = 640;
 
@@ -183,6 +184,7 @@ function TrainerDetail({ trainerUserId, tablet }) {
           <Text {...CAP_BODY} style={styles.eyebrowTablet}>
             Trainer
           </Text>
+          <HeroTitleMark />
           <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.nameTablet}>
             {name}
           </Text>
@@ -192,6 +194,7 @@ function TrainerDetail({ trainerUserId, tablet }) {
         <View testID="trainer-detail-card" style={styles.identity}>
           <PersonAvatar testID="trainer-detail-avatar" userId={userId} name={name} size={104} initialsSize={38} ring={{ gap: 5, alpha: 0.45 }} />
           <StatusPill label="Trainer" tone="gold" style={styles.trainerPill} />
+          <HeroTitleMark />
           <Text {...TITLE_TEXT} accessibilityRole="header" style={styles.name}>
             {name}
           </Text>

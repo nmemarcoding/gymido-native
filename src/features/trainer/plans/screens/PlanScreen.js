@@ -45,6 +45,7 @@ import { createTrainerPlanAdapter } from '../trainerPlanAdapter';
 import { useExerciseCatalog } from '../useExerciseCatalog';
 import { canEditPlan } from '../trainerPlanBuilder';
 import { keepUnitsTogether } from '../../../../shared/format/counts';
+import { HeroTitleMark } from '../../../shell/heroTitle';
 
 const EDIT_PLAN_FIELDS = ['name', 'category_id', 'days_per_week', 'difficulty_level_id', 'description'];
 
@@ -650,10 +651,14 @@ function PlanBuilder({ planId, adapter }) {
         {({ color }) => <MoreIcon color={color} size={20} />}
       </IconButton>
     ) : null;
+  // §6.1 (audit b1 X1): the hero title registers, so the trainer header is untitled.
   const title = (
-    <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={[styles.title, titleStyle(trainer, tablet)]}>
-      {keepUnitsTogether(plan?.name) || 'Plan'}
-    </Text>
+    <>
+      <HeroTitleMark />
+      <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={[styles.title, titleStyle(trainer, tablet)]}>
+        {keepUnitsTogether(plan?.name) || 'Plan'}
+      </Text>
+    </>
   );
   const descriptionText = description ? (
     <Text {...CAP_BODY} style={[styles.description, tablet && styles.descriptionTablet, trainer && styles.descriptionTrainer]}>

@@ -23,6 +23,13 @@ const TITLES = [
 // The coaching / trainer pages (/trainers*, /trainer*) draw their own hero
 // title too (UX final audit X1, one title per page): untitled; /my-trainer
 // (no page title of its own) keeps "Coaching". Back links are unchanged.
+// §6.1 dated change (27 Oct 2026, audit b1 X1): the coaching / trainer pages'
+// header title while the page draws no hero title (loading, error, not
+// found), so no state is title-less. AppHeader shows it only then.
+export function getHeroFallbackTitle(path) {
+  return path.startsWith('/trainer') ? 'Coaching' : '';
+}
+
 export function getHeaderTitle(path, isSessionActive = false) {
   if (path === '/' || path === '/workout' || path.startsWith('/trainer')) {
     return '';

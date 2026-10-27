@@ -45,6 +45,32 @@ describe('number formats', () => {
     expect(weightDelta(a, { weight_value: 170, weight_unit: 'lb' })).toBeNull();
   });
 
+  // Audit b1 PM decision (RN-SPEC-TRAINER-CLIENTS §C5.2, 27 Oct 2026):
+  // kg↔lb convert into the chart's display unit; unknown units keep the old rule.
+  it('delta(a, b, unit): kg/lb pairs convert into the display unit (the chart conversion)', () => {
+    const lb190 = { weight_value: 190, weight_unit: 'lb' };
+    const kg74 = { weight_value: 74, weight_unit: 'kg' };
+    expect(formatSigned(weightDelta(lb190, kg74, 'kg'))).toBe('-12.2 kg');
+    const toLb = weightDelta(lb190, kg74, 'lb');
+    expect(toLb.unit).toBe('lb');
+    expect(toLb.value).toBeCloseTo(74 / 0.45359237 - 190, 6);
+    expect(formatSigned(weightDelta({ weight_value: 80, weight_unit: 'kg' }, { weight_value: 78.5, weight_unit: 'KG' }, 'kg'))).toBe('-1.5 kg');
+    expect(formatSigned(weightDelta({ weight_value: 100, weight_unit: 'lb' }, { weight_value: 110, weight_unit: 'lb' }, 'kg'))).toBe('+4.5 kg');
+  });
+
+  it('delta(a, b, unit): null when missing / the same log / non-finite; unknown units → same unit b − a, else null', () => {
+    const kg = { weight_value: 80, weight_unit: 'kg' };
+    expect(weightDelta(null, kg, 'kg')).toBeNull();
+    expect(weightDelta(kg, kg, 'kg')).toBeNull();
+    expect(weightDelta(kg, { weight_value: 'x', weight_unit: 'kg' }, 'kg')).toBeNull();
+    expect(weightDelta({ weight_value: null, weight_unit: 'kg' }, kg, 'kg')).toBeNull();
+    // An unknown unit on a log or the display: the old same-unit rule.
+    expect(weightDelta({ weight_value: 12, weight_unit: 'st' }, { weight_value: 11, weight_unit: 'st' }, 'kg')).toEqual({ value: -1, unit: 'st' });
+    expect(weightDelta({ weight_value: 12, weight_unit: 'st' }, kg, 'kg')).toBeNull();
+    expect(weightDelta({ weight_value: 190, weight_unit: 'lb' }, { weight_value: 74, weight_unit: 'kg' }, 'st')).toBeNull();
+    expect(weightDelta({ weight_value: 70, weight_unit: 'kg' }, kg, 'st')).toEqual({ value: 10, unit: 'kg' });
+  });
+
   it('formats sessions, durations and targets', () => {
     expect(formatSessionDetail({ duration_seconds: 0 })).toBe('0 min');
     // VOLUME RULE (v2 phase 3/6): total_volume_kg in the client's unit; the raw total_volume is never shown.

@@ -3,6 +3,8 @@ import {
   EMPTY_MESSAGE,
   EMPTY_TITLE,
   loadMoreLabel,
+  ERROR_MESSAGE,
+  ERROR_TITLE,
   pageBodyState,
   showsLoadMore,
   unreadSubtitle,
@@ -25,6 +27,16 @@ describe('Notifications page (N1)', () => {
     expect(pageBodyState({ isLoading: true, notifications: [{ id: 1 }] })).toBe('list');
     expect(pageBodyState({ isLoading: false, notifications: [] })).toBe('empty');
     expect(pageBodyState({ isLoading: false, notifications: [{ id: 1 }] })).toBe('list');
+  });
+
+  // Audit b1 X4: an error with no items (not loading) is the error state.
+  it('an error with no items loaded and not loading is the error state; with items or while loading it is not', () => {
+    const error = new Error('500');
+    expect(pageBodyState({ isLoading: false, notifications: [], error })).toBe('error');
+    expect(pageBodyState({ isLoading: true, notifications: [], error })).toBe('loading');
+    expect(pageBodyState({ isLoading: false, notifications: [{ id: 1 }], error })).toBe('list');
+    expect(ERROR_TITLE).toBe("Couldn't load notifications");
+    expect(ERROR_MESSAGE).toBe('Please try again.');
   });
 
   it('shows load more only with items and more pages', () => {

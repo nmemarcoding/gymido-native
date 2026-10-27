@@ -308,10 +308,14 @@ describe('Client detail, phone', () => {
     expect(byTestID(tree, 'client-email')).toBeTruthy();
   });
 
-  it('loading keeps the heading "Client"; a 404 is Not your client', async () => {
+  // DECLARED change (RN-SPEC-app-shell §6.1 dated 27 Oct 2026, audit b1 X1): was "loading keeps the heading
+  // 'Client'" (arrayContaining ['Client', 'Loading client']). Loading / not found / error now draw no hero title on
+  // the page; the shell header's "Coaching" is the one heading (oneHeading.test.js). The tablet pane keeps it.
+  it('loading draws no page title (the header keeps "Coaching"); a 404 is Not your client', async () => {
     getClientPlan.mockReturnValue(new Promise(() => {}));
     let tree = await render();
-    expect(texts(tree)).toEqual(expect.arrayContaining(['Client', 'Loading client']));
+    expect(texts(tree)).toContain('Loading client');
+    expect(texts(tree)).not.toContain('Client');
     getClientPlan.mockRejectedValue({ response: { status: 404, data: {} } });
     tree = await render();
     expect(texts(tree)).toContain('Not your client');

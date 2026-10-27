@@ -23,6 +23,7 @@ import { listTrainerPlans } from '../api/plansApi';
 import PlanCard from '../components/PlanCard';
 import { CoachingChip, PlusIcon } from '../components/TrainerChips';
 import { keepUnitsTogether } from '../../../../shared/format/counts';
+import { HeroTitleMark } from '../../../shell/heroTitle';
 
 export const BROWSE_SUBTITLE =
   'The public catalog plus your own private plans. You can edit the plans you created; to change any other plan, copy it first, then assign the copy.';
@@ -165,6 +166,7 @@ function PlansList({ assignTo }) {
         <View testID="plans-header" style={[styles.header, reflow && styles.headerStacked]}>
           <View style={[styles.headerLeft, tablet && styles.headerLeftTablet]}>
             <CoachingChip testID="plans-eyebrow" />
+            <HeroTitleMark />
             <Text
               {...(tablet ? DISPLAY_TITLE_TEXT : TITLE_TEXT)}
               accessibilityRole="header"

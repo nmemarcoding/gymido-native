@@ -1,8 +1,9 @@
 import { useNavigation } from '@react-navigation/native';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { routes } from '../../navigation/routes';
+import ErrorAlert from '../../shared/components/ErrorAlert';
 import GradientFill from '../../shared/components/GradientFill';
 import { CAP_BODY, useLargeTextReflow } from '../../shared/components/largeText';
 import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
@@ -12,8 +13,10 @@ import { coachingStatus } from '../myTrainer/myTrainerFormat';
 import ProfileIcon from './ProfileIcon';
 
 // Profile P1.3 2a (5-tab nav, 23 Oct): the door into the trainer hub, pushed
-// in the Profile stack. Renders at once; the status fills in on each focus,
-// and any failure leaves it empty.
+// in the Profile stack. Renders at once; the status fills in on each focus.
+// Audit b1 X4 (RN-SPEC-profile, 27 Oct 2026): if GET /my-trainer or the
+// pending requests fail, the card (every variant) is replaced in place by an
+// ErrorAlert "Coaching unavailable"; Retry reloads both reads.
 // v2 (UX K, Q1 teal accents as drawn):
 //   layout="pair"  phone: the left half of the Coaching · Add weight pair,
 //                  teal-line edge, teal title, the status under it.
@@ -26,23 +29,51 @@ export default function CoachingCard({ layout = 'row' }) {
 function Card({ layout }) {
   const navigation = useNavigation();
   const [status, setStatus] = useState('');
+  const [failure, setFailure] = useState({ failed: false, retrying: false });
   const reflow = useLargeTextReflow();
+  const alive = useRef(true);
 
-  useEffect(() => {
-    let alive = true;
+  const load = useCallback(() => {
     Promise.all([getMyTrainer(), listPendingTrainerRequests()])
       .then(([mine, requests]) => {
-        if (alive) {
+        if (alive.current) {
           setStatus(coachingStatus(mine, requests));
+          setFailure({ failed: false, retrying: false });
         }
       })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
+      .catch(() => {
+        if (alive.current) {
+          setFailure({ failed: true, retrying: false });
+        }
+      });
   }, []);
 
+  useEffect(() => {
+    alive.current = true;
+    load();
+    return () => {
+      alive.current = false;
+    };
+  }, [load]);
+
   const pair = layout === 'pair';
+
+  if (failure.failed) {
+    return (
+      <ErrorAlert
+        testID="profile-coaching-error"
+        retryTestID="profile-coaching-retry"
+        title="Coaching unavailable"
+        description="Please try again."
+        retrying={failure.retrying}
+        onRetry={() => {
+          setFailure({ failed: true, retrying: true });
+          load();
+        }}
+        style={pair ? styles.alertPair : null}
+      />
+    );
+  }
   // One line as drawn; past 1.3× text the status wraps instead (UX §9 rule 2).
   const statusLines = reflow ? undefined : 1;
 
@@ -84,6 +115,11 @@ function Card({ layout }) {
 }
 
 const styles = StyleSheet.create({
+  // The alert takes the card's half of the phone pair.
+  alertPair: {
+    flex: 1,
+    minWidth: 0,
+  },
   // Phone pair card: radius-lg 20, padding 14, surface, the 0.25 teal edge
   // (ladder: teal-line 0.30).
   pair: {

@@ -10,6 +10,7 @@ import { usesRail } from '../../shared/hooks/useLayoutClass';
 import { breakpoints, colors, font, layout, typography } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
 import AppHeader from './AppHeader';
+import { HeroTitleProvider, useHeroTitleRegistry } from './heroTitle';
 import ModeSwitch from './ModeSwitch';
 import { RAIL } from './railMetrics';
 import { getScreenPath } from './shellNavigation';
@@ -49,6 +50,8 @@ export default function ShellPage({ children, nestable = false, glow = false, te
   // so the content grows by the keyboard height while it is open.
   const keyboardHeight = useKeyboardHeight();
   const keyboardPad = Platform.OS === 'android' ? keyboardHeight : 0;
+  // §6.1 (audit b1 X1): the page's hero title, if any, registers here.
+  const { registry, heroTitleShown } = useHeroTitleRegistry();
 
   const content = (
     <View style={[styles.content, { paddingBottom: (tablet ? 40 : TAB_BAR_CONTENT_PADDING) + insets.bottom + keyboardPad }]}>
@@ -58,14 +61,16 @@ export default function ShellPage({ children, nestable = false, glow = false, te
           scale; state kept above ShellPage (the screen component) survives.
           The active workout renders outside ShellPage and is not remounted.
           Details: ~/gymido-mobile-work/v2/phase1-qa-fixes.md. */}
-      <AppHeader key={`header-scale-${fontScale}`} path={path} mode={mode} headerActions={headerActions} />
+      <AppHeader key={`header-scale-${fontScale}`} path={path} mode={mode} headerActions={headerActions} heroTitleShown={heroTitleShown} />
       {!tablet && showsMobileModeSwitch({ user, path }) ? (
         <View style={styles.mobileSwitch}>
           <Text style={styles.mobileSwitchLabel}>Workspace</Text>
           <ModeSwitch mode={mode} />
         </View>
       ) : null}
-      <Fragment key={`content-scale-${fontScale}`}>{children}</Fragment>
+      <HeroTitleProvider value={registry}>
+        <Fragment key={`content-scale-${fontScale}`}>{children}</Fragment>
+      </HeroTitleProvider>
     </View>
   );
 
