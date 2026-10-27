@@ -64,7 +64,7 @@ const POPUP = {
   totalExercises: 5,
 };
 const RECORDS = [
-  { exercise_id: 1, exercise_name: 'Barbell Bench Press', record_type: 'weight', value: 145, unit: 'lb', previous_value: 140, reps: 8 },
+  { exercise_id: 1, exercise_name: 'Barbell Bench Press', record_type: 'weight', value: 145, unit: 'lb', previous_value: 140 },
   { exercise_id: 1, exercise_name: 'Barbell Bench Press', record_type: 'reps', value: 12, unit: '', previous_value: 10 },
   { exercise_id: 2, exercise_name: 'Squat', record_type: 'weight', value: 200, unit: 'lb', previous_value: null },
 ];
@@ -115,8 +115,8 @@ describe('Workout complete, phone (UX F2 Workout complete)', () => {
   it('shows the New personal best card with beaten bests only, weight first, read as one item', () => {
     const tree = render(<CompletionPopup popup={{ ...POPUP, personalRecords: RECORDS }} onClose={() => {}} />);
     const card = host(tree, 'completion-pb');
-    expect(card.props.accessibilityLabel).toBe('New personal best, Barbell Bench Press, 145 pounds times 8');
-    expect(all(tree, 'completion-pb-line').map(text)).toEqual(['Barbell Bench Press · 145 lb × 8']);
+    expect(card.props.accessibilityLabel).toBe('New personal best, Barbell Bench Press, 145 pounds times 12');
+    expect(all(tree, 'completion-pb-line').map(text)).toEqual(['Barbell Bench Press · 145 lb × 12']);
     expect(flat(card).borderColor).toBe(colors.goldLine);
   });
 
@@ -135,7 +135,7 @@ describe('Workout complete, phone (UX F2 Workout complete)', () => {
     const tree = render(<CompletionPopup popup={{ ...POPUP, personalRecords: RECORDS }} onClose={() => {}} />);
     await act(async () => pressable(tree, 'completion-share').props.onPress());
     expect(share).toHaveBeenCalledWith({
-      message: 'Workout complete: Upper / Lower Split\nTime: 52m 10s\nVolume: 9,820 lb\nReps: 142\nSets: 15/15\nNew personal best: Barbell Bench Press · 145 lb × 8',
+      message: 'Workout complete: Upper / Lower Split\nTime: 52m 10s\nVolume: 9,820 lb\nReps: 142\nSets: 15/15\nNew personal best: Barbell Bench Press · 145 lb × 12',
     });
     expect(all(tree, 'completion-share-error')).toHaveLength(0);
   });

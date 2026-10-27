@@ -116,14 +116,16 @@ function isNumber(value) {
 //   "{exercise} · {w} {unit} × {r}", else "{exercise} · {r} reps";
 // - at most 3 lines, weight records first; none → [] (no card).
 // The BE shape (backend-plan #15): { exercise_id, exercise_name,
-// record_type "weight" | "reps", value, unit, previous_value }. The "× {r}"
-// part needs the reps of that weight record (`reps`); without it the line
-// ends at the weight (reported to the lead: not in the BE shape).
+// record_type "weight" | "reps", value, unit, previous_value }. Web parity
+// (PersonalBestCard.jsx:11-33, PM 27 Oct): the "× {r}" part is the same
+// exercise's beaten reps record in this list; without one the line ends at
+// the weight.
 export function personalBestLines(records) {
   if (!Array.isArray(records)) {
     return [];
   }
   const byExercise = new Map();
+  const beatenReps = new Map();
   for (const record of records) {
     if (!record || record.previous_value === null || record.previous_value === undefined) {
       continue;
@@ -135,6 +137,9 @@ export function personalBestLines(records) {
       continue;
     }
     const key = record.exercise_id ?? record.exercise_name;
+    if (record.record_type === 'reps') {
+      beatenReps.set(key, record.value);
+    }
     const current = byExercise.get(key);
     if (!current || (current.record_type !== 'weight' && record.record_type === 'weight')) {
       byExercise.set(key, record);
@@ -144,7 +149,8 @@ export function personalBestLines(records) {
     const name = record.exercise_name || 'Exercise';
     if (record.record_type === 'weight') {
       const weight = `${formatNumber(record.value)} ${record.unit || 'lb'}`.trim();
-      const reps = isNumber(record.reps) ? ` × ${formatNumber(record.reps, 0)}` : '';
+      const repsValue = beatenReps.get(record.exercise_id ?? record.exercise_name);
+      const reps = isNumber(repsValue) ? ` × ${formatNumber(repsValue, 0)}` : '';
       return { exerciseId: record.exercise_id ?? null, type: 'weight', text: `${name} · ${weight}${reps}` };
     }
     return { exerciseId: record.exercise_id ?? null, type: 'reps', text: `${name} · ${formatNumber(record.value, 0)} reps` };

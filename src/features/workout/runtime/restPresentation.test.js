@@ -97,9 +97,17 @@ describe('personalBestLines (#15)', () => {
     expect(personalBestLines([weight(1, 'Bench', 145, 140)]).map((l) => l.text)).toEqual(['Bench · 145 lb']);
   });
 
-  it('one line per exercise, the weight record wins; "× r" when the record carries reps', () => {
-    const lines = personalBestLines([reps(1, 'Bench', 12, 10), weight(1, 'Bench', 145, 140, { reps: 8 })]);
-    expect(lines.map((l) => l.text)).toEqual(['Bench · 145 lb × 8']);
+  // Web parity (PersonalBestCard.jsx:11-33, PM 27 Oct): "× r" comes from the
+  // same exercise's beaten reps record in the same list, never from a field.
+  it('one line per exercise, the weight record wins; "× r" from the same exercise\'s beaten reps record', () => {
+    const lines = personalBestLines([reps(1, 'Bench', 12, 10), weight(1, 'Bench', 145, 140)]);
+    expect(lines.map((l) => l.text)).toEqual(['Bench · 145 lb × 12']);
+  });
+
+  it('no "× r" without a beaten reps record for that exercise (an unbeaten one or a `reps` field doesn\'t count)', () => {
+    expect(personalBestLines([reps(1, 'Bench', 12, null), weight(1, 'Bench', 145, 140)]).map((l) => l.text)).toEqual(['Bench · 145 lb']);
+    expect(personalBestLines([weight(1, 'Bench', 145, 140, { reps: 8 })]).map((l) => l.text)).toEqual(['Bench · 145 lb']);
+    expect(personalBestLines([reps(2, 'Squat', 12, 10), weight(1, 'Bench', 145, 140)]).map((l) => l.text)).toEqual(['Bench · 145 lb', 'Squat · 12 reps']);
   });
 
   it('a reps-only record reads "{r} reps"; previous_value 0 counts as a previous best', () => {
