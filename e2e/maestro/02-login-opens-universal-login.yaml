@@ -9,7 +9,7 @@ appId: com.gymido.app
     timeout: 8000
 - runFlow: subflows/dismiss-browser-interstitials.yaml
 - runFlow: subflows/wait-for-login-form.yaml
-- assertVisible: "Continue with Google"
+- assertVisible: "Continue with Google|Reset password"
 - runFlow: subflows/cancel-universal-login.yaml
 - extendedWaitUntil:
     visible:

@@ -100,6 +100,9 @@ if [ "$CODE" -eq 3 ]; then
 elif [ "$CODE" -eq 0 ]; then
   echo "PASS sign-in $ACCOUNT"
 else
-  echo "FAIL sign-in $ACCOUNT (exit $CODE)"
+  # Name the failed step by a KNOWN label only (never echo a log line: typed
+  # values can be in it).
+  step="$(grep -E 'FAILED' "$WORK/run.log" 2>/dev/null | grep -oE 'welcome-log-in|Continue with Google|Email address|Use without an account|username|password|app-root|tab-Today|rail-Today|desktop-sidebar|create-profile-root|ensure-signed-out|launch-dev-client|fill-login-form|wait-for-login-form|dismiss-browser-interstitials|sign-in-as' | head -1)"
+  echo "FAIL sign-in $ACCOUNT (exit $CODE) at step: ${step:-unknown}"
 fi
 cleanup

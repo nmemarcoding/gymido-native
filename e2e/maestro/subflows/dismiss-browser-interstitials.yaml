@@ -20,6 +20,17 @@ appId: com.gymido.app
       - tapOn: "Continue"
       - waitForAnimationToEnd:
           timeout: 4000
+# Android: on a cold Chrome the first-run screen ("Make Chrome your own")
+# appears a few seconds AFTER the tap, so a one-off visibility check missed it
+# and the login wait timed out (27 Oct, fresh emulator). Wait until either it
+# or the hosted page is up, then clear it below.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - extendedWaitUntil:
+          visible: "Use without an account|No thanks|Got it|Continue with Google|Email address.*"
+          timeout: 45000
 - runFlow:
     when:
       visible: "Use without an account"

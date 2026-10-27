@@ -13,5 +13,7 @@ appId: com.gymido.app
     optional: true
 - extendedWaitUntil:
     visible:
-      id: "tab-Today"
+      # Any signed-in landing: phone tabs, tablet rail, iPad sidebar, or
+      # Create profile (an account without a profile).
+      id: "tab-Today|tab-TToday|rail-Today|rail-TToday|desktop-sidebar|create-profile-root"
     timeout: 60000

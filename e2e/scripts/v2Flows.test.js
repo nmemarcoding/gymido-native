@@ -51,3 +51,24 @@ describe('restore-workspace subflow works on phone AND tablet', () => {
     expect(flow).toMatch(/id: "tab-TToday\|rail-TToday"/);
   });
 });
+
+describe('dismiss-browser-interstitials waits for a late Chrome first-run screen', () => {
+  const flow = fs.readFileSync(path.join(__dirname, '..', 'maestro', 'subflows', 'dismiss-browser-interstitials.yaml'), 'utf8');
+  it('on Android, waits for the first-run screen OR the hosted page before the conditional taps', () => {
+    const wait = flow.indexOf('Use without an account|No thanks|Got it|Continue with Google');
+    expect(wait).toBeGreaterThan(-1);
+    expect(wait).toBeLessThan(flow.indexOf('tapOn: "Use without an account"'));
+  });
+});
+
+describe('login-form anchors work on small screens', () => {
+  const read = (rel) => fs.readFileSync(path.join(__dirname, '..', 'maestro', rel), 'utf8');
+  it.each(['subflows/wait-for-login-form.yaml', 'subflows/cancel-universal-login.yaml', '02-login-opens-universal-login.yaml', '01-welcome-no-auto-redirect.yaml', '06-sign-out.yaml'])(
+    '%s anchors on "Continue with Google|Reset password" (the Google button can be below the fold)',
+    (rel) => {
+      expect(read(rel)).toContain('"Continue with Google|Reset password"');
+      const steps = read(rel).split('\n').filter((line) => !line.trim().startsWith('#')).join('\n');
+      expect(steps).not.toMatch(/"Continue with Google"/);
+    },
+  );
+});
