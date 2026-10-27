@@ -64,6 +64,11 @@ jest.mock('./clients/api/clientsApi', () => ({
   listClientWeightLogs: jest.fn(),
   assignPlan: jest.fn(),
 }));
+// v2 phase 6 (p6n): Client detail reads the profile (+ client_email) through
+// clientDetailApi; it follows the mocked getClientProfile here.
+jest.mock('./clients/clientDetailApi', () => ({
+  getClientProfileAndEmail: jest.fn(async (id) => ({ profile: await require('./clients/api/clientsApi').getClientProfile(id), clientEmail: null })),
+}));
 jest.mock('./plans/api/plansApi', () => ({ listTrainerPlans: jest.fn() }));
 jest.mock('../../shared/components/toastStore', () => ({
   ToastTone: { success: 'success', error: 'error' },
@@ -168,7 +173,8 @@ describe('Clients (rows 3-4)', () => {
     expect(empty.props.actionLabel).toBe('Invite a client');
     await act(async () => empty.props.onAction());
     expect(tree.root.findByType(InviteClientModal).props.isOpen).toBe(true);
-    const golds = tree.root.findAll((node) => node.props.title === 'Invite a client' && node.props.variant === undefined && typeof node.type !== 'string');
+    // v2 phase 6 (declared): the header's one gold is the 44 "+" IconButton (active), labelled "Invite a client".
+    const golds = tree.root.findAll((node) => node.props.accessibilityLabel === 'Invite a client' && node.props.active === true && typeof node.type !== 'string');
     expect(golds.filter((node) => node.props.testID === 'clients-invite')).toHaveLength(1);
   });
 });

@@ -47,7 +47,11 @@ describe('number formats', () => {
 
   it('formats sessions, durations and targets', () => {
     expect(formatSessionDetail({ duration_seconds: 0 })).toBe('0 min');
-    expect(formatSessionDetail({ duration_seconds: 2700, total_volume: 1200 })).toMatch(/^45 min · 1.?200 volume$/);
+    // VOLUME RULE (v2 phase 3/6): total_volume_kg in the client's unit; the raw total_volume is never shown.
+    expect(formatSessionDetail({ duration_seconds: 2700, total_volume: 1200 })).toBe('45 min');
+    expect(formatSessionDetail({ duration_seconds: 2700, total_volume_kg: 1200 })).toMatch(/^45 min · 1.?200 kg volume$/);
+    expect(formatSessionDetail({ total_volume_kg: 100 }, 'lb')).toBe('220 lb volume');
+    expect(formatSessionDetail({ total_volume_kg: null })).toBe('No details recorded');
     expect(formatSessionDetail({})).toBe('No details recorded');
     expect(formatDuration(45)).toBe('45s');
     expect(formatDuration(150)).toBe('3 min');

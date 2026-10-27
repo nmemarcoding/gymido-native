@@ -1,0 +1,76 @@
+# v2 Phase 6 N: Trainer today (/trainer), READ-ONLY (never Accept/Decline).
+# Account: QA_TRAINER. Start: signed in (the lead's safe runner), tab root.
+#
+# Checks: the Today tab shows the Coaching pill, the title and the two glass
+# header actions; the Active clients tile is a link to Clients; "Manage →"
+# opens Clients; the Plans action opens Plans. BE-dependent blocks (Need
+# attention, "Need you") are optional: asserted only when present.
+appId: com.gymido.app
+tags:
+  - v2
+  - phase6
+  - trainer
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/trainer-workspace.yaml
+- tapOn:
+    id: "tab-TToday"
+- extendedWaitUntil:
+    visible:
+      id: "trainer-dashboard-clients"
+    timeout: 30000
+- assertVisible:
+    id: "coaching-pill"
+- assertVisible:
+    id: "trainer-dashboard-plans"
+- extendedWaitUntil:
+    visible:
+      id: "dashboard-stat-active|state-slot"
+    timeout: 30000
+
+# The Active clients tile → Clients.
+- runFlow:
+    when:
+      visible:
+        id: "dashboard-stat-active"
+    commands:
+      - tapOn:
+          id: "dashboard-stat-active"
+      - extendedWaitUntil:
+          visible:
+            id: "clients-invite"
+          timeout: 20000
+      - tapOn:
+          id: "tab-TToday"
+      - extendedWaitUntil:
+          visible:
+            id: "trainer-dashboard-clients"
+          timeout: 20000
+
+# "Manage →" → Clients.
+- scrollUntilVisible:
+    element:
+      id: "dashboard-manage-clients"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "dashboard-manage-clients"
+- extendedWaitUntil:
+    visible:
+      id: "clients-invite"
+    timeout: 20000
+
+# The Plans header action → Plans.
+- tapOn:
+    id: "tab-TToday"
+- extendedWaitUntil:
+    visible:
+      id: "trainer-dashboard-plans"
+    timeout: 20000
+- tapOn:
+    id: "trainer-dashboard-plans"
+- extendedWaitUntil:
+    visible:
+      id: "plans-create"
+    timeout: 20000
+- runFlow: ../subflows/restore-workspace.yaml
