@@ -1,8 +1,13 @@
-import { useWindowDimensions } from 'react-native';
+import { Text, useWindowDimensions } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
+import FormField from '../../shared/components/FormField';
+import GradientFill from '../../shared/components/GradientFill';
+import PillButton from '../../shared/components/PillButton';
+import Select from '../../shared/components/Select';
 import { addToast } from '../../shared/components/toastStore';
-import { colors, radii } from '../../shared/theme/tokens';
+import { colors, gradients, radii, textScale } from '../../shared/theme/tokens';
+import { CREATE_GLOW, TABLET_CARD_FILL, TABLET_CREATE_GLOW } from '../trainer/plans/screens/CreatePlanScreen';
 import { createMyPlan } from './api/myPlansApi';
 import MyPlanCreateScreen, { MEMBER_CREATE_VARIANT } from './MyPlanCreateScreen';
 
@@ -19,7 +24,12 @@ jest.mock('../shell/ShellPage', () => (props) => {
   mockShellProps = props;
   return props.children;
 });
-jest.mock('../trainer/TrainerOnly', () => ({ children }) => children);
+jest.mock(
+  '../trainer/TrainerOnly',
+  () =>
+    ({ children }) =>
+      children,
+);
 jest.mock('./myPlanRoutes', () => ({ myPlanRoutes: { MyPlans: 'MyPlans', MyPlanCreate: 'MyPlanCreate', MyPlan: 'MyPlan' } }));
 jest.mock('./api/myPlansApi', () => ({ createMyPlan: jest.fn() }));
 jest.mock('../trainer/plans/api/plansApi', () => ({
@@ -27,16 +37,26 @@ jest.mock('../trainer/plans/api/plansApi', () => ({
   listPlanCategories: jest.fn(() => Promise.resolve([{ id: 4, name: 'Strength' }])),
   listDifficultyLevels: jest.fn(() => Promise.resolve([{ id: 2, name: 'Beginner' }])),
 }));
-jest.mock('../../shared/components/toastStore', () => ({ ToastTone: { success: 'success', error: 'error' }, addToast: jest.fn() }));
+jest.mock('../../shared/components/toastStore', () => ({
+  ToastTone: { success: 'success', error: 'error' },
+  addToast: jest.fn(),
+}));
 
 const texts = (root) =>
-  root.findAll((node) => node.type === 'Text').map((node) => [].concat(node.props.children).filter((c) => typeof c !== 'object').join(''));
+  root
+    .findAll((node) => node.type === 'Text')
+    .map((node) =>
+      []
+        .concat(node.props.children)
+        .filter((c) => typeof c !== 'object')
+        .join(''),
+    );
 const host = (root, id) => root.findAll((node) => node.props.testID === id && typeof node.type === 'string');
 const comp = (root, id) => root.find((node) => node.props.testID === id && typeof node.type !== 'string');
 const flat = (style) => Object.assign({}, ...[].concat(style).flat(Infinity).filter(Boolean));
 
-function setWidth(width) {
-  useWindowDimensions.mockReturnValue({ width, height: 900, scale: 2, fontScale: 1 });
+function setWidth(width, fontScale = 1) {
+  useWindowDimensions.mockReturnValue({ width, height: 900, scale: 2, fontScale });
 }
 
 const mounted = [];
@@ -74,7 +94,13 @@ describe('My plan create v2 look (C3), phone', () => {
     expect(mockShellProps.glow).toBeTruthy();
     const shown = texts(tree.root);
     expect(shown).toEqual(
-      expect.arrayContaining(['← My plans', 'Create a plan', 'Private to you. Build it out, then start it.', 'Cancel', 'Create and add days'])
+      expect.arrayContaining([
+        '← My plans',
+        'Create a plan',
+        'Private to you. Build it out, then start it.',
+        'Cancel',
+        'Create and add days',
+      ]),
     );
     expect(shown).not.toContain('Slug');
     const title = tree.root.find((node) => node.type === 'Text' && node.props.children === 'Create a plan');
@@ -91,7 +117,9 @@ describe('My plan create v2 look (C3), phone', () => {
     expect(pair.findAll((node) => node.props.testID === 'create-plan-category').length).toBeGreaterThan(0);
     expect(pair.findAll((node) => node.props.testID === 'create-plan-days').length).toBeGreaterThan(0);
     const buttons = host(tree.root, 'create-plan-buttons')[0];
-    const ids = buttons.findAll((node) => typeof node.type === 'string' && /create-plan-(cancel|submit)/.test(node.props.testID ?? '')).map((n) => n.props.testID);
+    const ids = buttons
+      .findAll((node) => typeof node.type === 'string' && /create-plan-(cancel|submit)/.test(node.props.testID ?? ''))
+      .map((n) => n.props.testID);
     expect(ids[0]).toBe('create-plan-cancel');
     expect(ids).toContain('create-plan-submit');
   });
@@ -137,7 +165,9 @@ describe('My plan create v2 look (C3), phone', () => {
     const tree = await render();
     await fill(tree);
     await submit(tree);
-    expect(texts(tree.root)).toEqual(expect.arrayContaining(['Could not create the plan', 'You already have a plan with that name.']));
+    expect(texts(tree.root)).toEqual(
+      expect.arrayContaining(['Could not create the plan', 'You already have a plan with that name.']),
+    );
   });
 
   it('other failures: the generic form message', async () => {
@@ -150,7 +180,9 @@ describe('My plan create v2 look (C3), phone', () => {
 
   it('Back and Cancel go to My plans', async () => {
     const tree = await render();
-    act(() => tree.root.find((n) => n.props.testID === 'create-plan-all-plans' && typeof n.props.onPress === 'function').props.onPress());
+    act(() =>
+      tree.root.find((n) => n.props.testID === 'create-plan-all-plans' && typeof n.props.onPress === 'function').props.onPress(),
+    );
     act(() => comp(tree.root, 'create-plan-cancel').props.onPress());
     expect(mockNavigation.push).toHaveBeenNthCalledWith(1, 'MyPlans');
     expect(mockNavigation.push).toHaveBeenNthCalledWith(2, 'MyPlans');
@@ -171,5 +203,95 @@ describe('My plan create v2 look (C3), tablet', () => {
     expect(comp(tree.root, 'create-plan-description').props.rows).toBe(4);
     expect(flat(host(tree.root, 'create-plan-buttons')[0].props.style).justifyContent).toBe('flex-end');
     expect(flat(host(tree.root, 'create-plan-card')[0].props.style).padding).toBe(28);
+  });
+});
+
+// Phase 2 tokens pass: exact colours (UX §8.4/§8.5) and large text (§9).
+const insideKit = (node) => {
+  for (let parent = node.parent; parent; parent = parent.parent) {
+    if ([FormField, Select, PillButton].includes(parent.type)) {
+      return true;
+    }
+  }
+  return false;
+};
+const ownTexts = (root) => root.findAllByType(Text).filter((node) => !insideKit(node));
+const buttonOrder = (tree) =>
+  host(tree.root, 'create-plan-buttons')[0]
+    .findAll((node) => typeof node.type === 'string' && /^create-plan-(cancel|submit)$/.test(node.props.testID ?? ''))
+    .map((node) => node.props.testID);
+
+describe('My plan create tokens (Phase 2 exact match)', () => {
+  it('phone: the gold-ambient glow (0.18) at the board geometry, gradient-card form card', async () => {
+    const tree = await render();
+    expect(mockShellProps.glow).toBe(CREATE_GLOW);
+    expect(CREATE_GLOW.colors).toEqual(gradients.accountGlow.colors);
+    expect(CREATE_GLOW.colors[0]).toBe('rgba(255, 194, 26, 0.18)');
+    const card = host(tree.root, 'create-plan-card')[0];
+    expect(card.findByType(GradientFill).props).toMatchObject({ angle: gradients.card.angle, colors: gradients.card.colors });
+    expect(flat(card.props.style).borderColor).toBe(colors.choiceBorder);
+  });
+
+  it('tablet: its own glow geometry and the surface-input → surface-sunk card', async () => {
+    setWidth(834);
+    const tree = await render();
+    expect(mockShellProps.glow).toBe(TABLET_CREATE_GLOW);
+    expect(TABLET_CREATE_GLOW.radial).toEqual({ cx: 0.9, cy: -0.06, rx: 0.7, ry: 0.4 });
+    const card = host(tree.root, 'create-plan-card')[0];
+    expect(card.findByType(GradientFill).props).toMatchObject({ angle: 160, colors: [colors.surfaceInput, colors.surfaceSunk] });
+    expect(TABLET_CARD_FILL.colors).toEqual([colors.surfaceInput, colors.surfaceSunk]);
+  });
+});
+
+describe('My plan create large text (UX §9)', () => {
+  it.each([
+    [390, 1],
+    [390, 2],
+    [834, 1],
+    [834, 3.1],
+  ])('width %s, fontScale %s: the title is capped and wraps by word; every own text is capped', async (width, scale) => {
+    setWidth(width, scale);
+    const tree = await render();
+    const title = tree.root.find((node) => node.type === Text && node.props.children === 'Create a plan');
+    expect(title.props).toMatchObject({
+      maxFontSizeMultiplier: textScale.display,
+      numberOfLines: 3,
+      adjustsFontSizeToFit: true,
+      minimumFontScale: 0.7,
+      textBreakStrategy: 'simple',
+    });
+    ownTexts(tree.root).forEach((node) => {
+      expect(node.props.maxFontSizeMultiplier).toBeGreaterThan(0);
+      expect(node.props.numberOfLines === undefined || node.props.numberOfLines >= 2).toBe(true);
+    });
+    const subtitle = tree.root.find(
+      (node) => node.type === Text && node.props.children === 'Private to you. Build it out, then start it.',
+    );
+    expect(subtitle.props.maxFontSizeMultiplier).toBe(textScale.body);
+  });
+
+  it('fontScale 1: the pairs stay side by side and Cancel comes first', async () => {
+    for (const width of [390, 834]) {
+      setWidth(width, 1);
+      const tree = await render();
+      expect(flat(host(tree.root, 'create-plan-pair')[0].props.style).flexDirection).toBe('row');
+      expect(buttonOrder(tree)).toEqual(['create-plan-cancel', 'create-plan-submit']);
+      expect(flat(host(tree.root, 'create-plan-buttons')[0].props.style).flexDirection).toBe('row');
+    }
+  });
+
+  it.each([2, 3.1])('fontScale %s: one column of fields; Create stacks above Cancel, both full width', async (scale) => {
+    for (const width of [390, 834]) {
+      setWidth(width, scale);
+      const tree = await render();
+      const pair = host(tree.root, 'create-plan-pair')[0];
+      expect(flat(pair.props.style).flexDirection).toBe('column');
+      pair.props.children.forEach((cell) => expect(flat(cell.props.style).flex).toBeUndefined());
+      expect(flat(host(tree.root, 'create-plan-buttons')[0].props.style).flexDirection).toBe('column');
+      expect(buttonOrder(tree)).toEqual(['create-plan-submit', 'create-plan-cancel']);
+      ['create-plan-submit', 'create-plan-cancel'].forEach((id) =>
+        expect(flat(comp(tree.root, id).props.style)).toMatchObject({ width: '100%' }),
+      );
+    }
   });
 });

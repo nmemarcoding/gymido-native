@@ -7,9 +7,10 @@ import BlurLayer from '../../../shared/components/BlurLayer';
 import GradientFill from '../../../shared/components/GradientFill';
 import Chip from '../../../shared/components/Chip';
 import ExerciseImage, { muscleColor, TILE_ALPHA } from '../../../shared/components/ExerciseImage';
+import { usesSolidGlass } from '../../../shared/components/GlassSurface';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { useSheetFocus } from '../../../shared/hooks/useSheetFocus';
-import { breakpoints, colors, font, gradients, radii, shadows, spacing, typography } from '../../../shared/theme/tokens';
+import { blur, breakpoints, colors, font, gradients, radii, shadows, spacing, textScale, typography } from '../../../shared/theme/tokens';
 import { exerciseName, setsWord } from './sessionMath';
 
 const GOLD = [colors.brand300, colors.brand500];
@@ -29,6 +30,25 @@ const CARD_RADIUS = 26;
 // ExerciseImage sizes its tile glyph at ≈ 0.36–0.44 × size: a 150 box keeps
 // the failed-photo icon readable on the big cards.
 const CARD_GLYPH_BOX = 150;
+// The current row's drawn 160° gradient: its start is surface-raised + the 4 %
+// white overlay (UX §8.4: the drawn start = raised, pressed), its end surface-card-2.
+// Drawn as the raised → card-2 gradient under a 4 % → clear white wash.
+export const CURRENT_ROW_FILL = Object.freeze({ angle: 160, colors: Object.freeze([colors.surfaceRaised, colors.surfaceCard2]) });
+export const CURRENT_ROW_WASH = Object.freeze({ angle: 160, colors: Object.freeze([colors.pressOverlay, colors.sheenClear]) });
+
+// Large text (UX §9) for the All exercises sheet: role caps; titles wrap by
+// word (max 3 lines) and a single long word shrinks the title.
+const SHEET_TITLE = Object.freeze({
+  textBreakStrategy: 'simple',
+  maxFontSizeMultiplier: textScale.title,
+  numberOfLines: 3,
+  adjustsFontSizeToFit: true,
+  minimumFontScale: 0.7,
+});
+const SHEET_DISPLAY = Object.freeze({ ...SHEET_TITLE, maxFontSizeMultiplier: textScale.display });
+const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
+const PILL_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.pill });
+const BADGE_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.badge });
 
 // §19.8: swipe up anywhere on the bar (dy < −45 and |dy| > |dx|) opens the sheet.
 export function isOpenSheetSwipe(gesture) {
@@ -203,8 +223,14 @@ export function ExerciseSheet({
   returnFocusRef,
 }) {
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
+  const { width, height, fontScale } = useWindowDimensions();
   const tablet = width >= breakpoints.md;
+  // UX §9 reflow past 1.3×: one card column, trailing actions below the text,
+  // and the chip row wraps instead of scrolling sideways.
+  const stacked = fontScale > textScale.reflowAbove;
+  // glass-strong + blur 24 (UX §8.4); the low-end Android fallback stays the
+  // solid glass (no blur).
+  const solidGlass = usesSolidGlass();
   const reducedMotion = useReducedMotion();
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(0)).current;
@@ -268,8 +294,11 @@ export function ExerciseSheet({
           accessibilityViewIsModal
           style={[styles.panel, tablet && styles.panelTablet, { maxHeight, transform: [{ translateY }] }]}
         >
-          <BlurLayer blurPx={28} overApp />
-          <View style={[StyleSheet.absoluteFill, styles.panelFill]} />
+          {solidGlass ? null : <BlurLayer blurPx={blur.glassStrong} overApp />}
+          <View
+            testID="exercise-sheet-fill"
+            style={[StyleSheet.absoluteFill, solidGlass ? styles.panelFillSolid : styles.panelFill]}
+          />
           <ScrollView
             contentContainerStyle={[
               styles.panelContent,
@@ -287,9 +316,9 @@ export function ExerciseSheet({
               <View style={[styles.sheetHeader, tablet && styles.sheetHeaderTablet]}>
                 <View style={styles.sheetHeaderText}>
                   <Text
+                    {...(tablet ? SHEET_DISPLAY : SHEET_TITLE)}
                     ref={titleRef}
                     testID="exercise-sheet-title"
-                    textBreakStrategy="simple"
                     accessibilityRole="header"
                     style={tablet ? styles.sheetTitleTablet : styles.sheetTitle}
                   >
@@ -297,7 +326,7 @@ export function ExerciseSheet({
                   </Text>
                   {/* ND-5 applies to the phone only (the tablet board draws none). */}
                   {tablet ? null : (
-                    <Text testID="exercise-sheet-subtitle" numberOfLines={1} style={styles.sheetSubtitle}>
+                    <Text {...BODY_TEXT} testID="exercise-sheet-subtitle" style={styles.sheetSubtitle}>
                       {sheetSubtitle(planName, exercises)}
                     </Text>
                   )}
@@ -308,43 +337,91 @@ export function ExerciseSheet({
                   accessibilityLabel="Close"
                   onPress={onClose}
                   hitSlop={tablet ? 0 : 2}
-                  style={({ pressed }) => [styles.closePill, tablet && styles.closePillTablet, pressed && styles.closePressed]}
+                  style={[styles.closePill, tablet && styles.closePillTablet]}
                 >
-                  <Text style={[styles.closeText, tablet && styles.closeTextTablet]}>Close</Text>
-                  <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={colors.textSecondary} strokeWidth={3} strokeLinecap="round">
-                    <Path d="M18 6 6 18M6 6l12 12" />
-                  </Svg>
+                  {({ pressed }) => (
+                    <>
+                      {pressed ? <PressOverlay testID="exercise-sheet-close-pressed" /> : null}
+                      <Text {...BODY_TEXT} style={[styles.closeText, tablet && styles.closeTextTablet]}>
+                        Close
+                      </Text>
+                      <Svg
+                        width={14}
+                        height={14}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke={colors.textSecondary}
+                        strokeWidth={3}
+                        strokeLinecap="round"
+                      >
+                        <Path d="M18 6 6 18M6 6l12 12" />
+                      </Svg>
+                    </>
+                  )}
                 </Pressable>
               </View>
             </View>
-            {muscleGroups.length > 0 ? (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={[styles.chipsScroll, tablet && styles.chipsScrollTablet]}
-                contentContainerStyle={styles.chips}
-                accessibilityLabel="Muscle group"
-              >
-                {['all', ...muscleGroups].map((group) => (
-                  <Chip
-                    key={group}
-                    testID={`exercise-sheet-chip-${group}`}
-                    label={group === 'all' ? 'All' : group}
-                    selected={group === activeMuscle}
-                    onPress={() => onMuscle(group)}
-                    style={tablet ? styles.chipTablet : null}
-                  />
-                ))}
-              </ScrollView>
-            ) : null}
+            {muscleGroups.length > 0
+              ? (() => {
+                  const chips = ['all', ...muscleGroups].map((group) => (
+                    <Chip
+                      key={group}
+                      testID={`exercise-sheet-chip-${group}`}
+                      label={group === 'all' ? 'All' : group}
+                      selected={group === activeMuscle}
+                      onPress={() => onMuscle(group)}
+                      style={tablet ? styles.chipTablet : null}
+                    />
+                  ));
+                  // Past 1.3× the chips wrap: nothing hides off-screen (UX §9).
+                  return stacked ? (
+                    <View
+                      testID="exercise-sheet-chips"
+                      accessibilityLabel="Muscle group"
+                      style={[styles.chipsWrap, tablet && styles.chipsWrapTablet]}
+                    >
+                      {chips}
+                    </View>
+                  ) : (
+                    <ScrollView
+                      testID="exercise-sheet-chips"
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={[styles.chipsScroll, tablet && styles.chipsScrollTablet]}
+                      contentContainerStyle={styles.chips}
+                      accessibilityLabel="Muscle group"
+                    >
+                      {chips}
+                    </ScrollView>
+                  );
+                })()
+              : null}
             <View testID="exercise-sheet-list" style={[styles.cards, tablet && styles.grid]}>
-              {visible.length === 0 ? <Text style={styles.emptyText}>No exercises in this group.</Text> : null}
+              {visible.length === 0 ? (
+                <Text {...BODY_TEXT} style={styles.emptyText}>
+                  No exercises in this group.
+                </Text>
+              ) : null}
               {visible.map(({ exercise, idx }) =>
                 tablet ? (
-                  <SheetPhotoCard key={exercise.id} exercise={exercise} idx={idx} current={idx === currentIndex} onSelect={() => onSelect(idx)} />
+                  <SheetPhotoCard
+                    key={exercise.id}
+                    exercise={exercise}
+                    idx={idx}
+                    current={idx === currentIndex}
+                    stacked={stacked}
+                    onSelect={() => onSelect(idx)}
+                  />
                 ) : (
-                  <SheetRow key={exercise.id} exercise={exercise} idx={idx} current={idx === currentIndex} onSelect={() => onSelect(idx)} />
-                )
+                  <SheetRow
+                    key={exercise.id}
+                    exercise={exercise}
+                    idx={idx}
+                    current={idx === currentIndex}
+                    stacked={stacked}
+                    onSelect={() => onSelect(idx)}
+                  />
+                ),
               )}
             </View>
           </ScrollView>
@@ -356,7 +433,16 @@ export function ExerciseSheet({
 
 function CheckGlyph({ size = 12 }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={colors.onGold} strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={colors.onGold}
+      strokeWidth={3.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <Path d="M20 6 9 17l-5-5" />
     </Svg>
   );
@@ -364,18 +450,46 @@ function CheckGlyph({ size = 12 }) {
 
 // No photo URL: the tile with the ROW NUMBER (kept as drawn). The phone tile
 // is the neutral fill; the tablet card is tinted with the muscle colour.
+// The v2 state rule: pressed = the rest look + a 4 % overlay (white on dark,
+// ink on gold); never a new alpha. Every parent clips it (overflow hidden).
+function PressOverlay({ ink = false, testID }) {
+  return (
+    <View
+      testID={testID}
+      pointerEvents="none"
+      style={[StyleSheet.absoluteFill, ink ? styles.pressOverlayInk : styles.pressOverlayWhite]}
+    />
+  );
+}
+
+// Glass over a photo: on-photo + blur 12 (UX §8.4); before Android 12 the
+// fill alone (the GlassSurface rule).
+function PhotoGlass() {
+  return (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.photoGlass]}>
+      {usesSolidGlass() ? null : <BlurLayer blurPx={blur.onPhoto} />}
+      <View style={[StyleSheet.absoluteFill, styles.onPhotoFill]} />
+    </View>
+  );
+}
+
 function NumberTile({ idx, hue, style, numberStyle, testID }) {
   return (
-    <View testID={testID} style={[styles.numberTile, style]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <View
+      testID={testID}
+      style={[styles.numberTile, style]}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
       {hue ? <View style={[StyleSheet.absoluteFill, styles.numberTileTint, { backgroundColor: hue }]} /> : null}
-      <Text numberOfLines={1} textBreakStrategy="simple" style={[styles.numberTileText, hue ? { color: hue } : null, numberStyle]}>
+      <Text {...BADGE_TEXT} textBreakStrategy="simple" style={[styles.numberTileText, hue ? { color: hue } : null, numberStyle]}>
         {idx + 1}
       </Text>
     </View>
   );
 }
 
-function SheetRow({ exercise, idx, current, onSelect }) {
+function SheetRow({ exercise, idx, current, stacked = false, onSelect }) {
   const row = sheetRowState(exercise, current);
   const url = exercise.exercise?.thumbnail?.url;
   const gold = row.kind === 'current';
@@ -386,73 +500,99 @@ function SheetRow({ exercise, idx, current, onSelect }) {
       accessibilityRole="button"
       accessibilityLabel={row.accessibilityLabel}
       onPress={onSelect}
-      style={({ pressed }) => [styles.row, gold ? styles.rowCurrent : styles.rowPlain, pressed && !gold && styles.rowPressed]}
+      style={[styles.row, gold ? styles.rowCurrent : styles.rowPlain]}
     >
-      {/* The current row's gradient is mounted from the first render; only its opacity follows the state. */}
-      <View style={[StyleSheet.absoluteFill, { opacity: gold ? 1 : 0 }]} pointerEvents="none">
-        <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
-      </View>
-      <View style={styles.thumb}>
-        <View style={row.kind === 'complete' ? styles.thumbDone : null}>
-          {url ? (
-            <ExerciseImage
-              testID={`exercise-sheet-image-${idx}`}
-              url={url}
-              name={row.name}
-              muscleCode={exercise.exercise?.primary_muscle_group?.code}
-              size={THUMB}
-              style={styles.thumbImage}
-            />
-          ) : (
-            <NumberTile testID={`exercise-sheet-number-${idx}`} idx={idx} style={styles.thumbImage} />
-          )}
-        </View>
-        {row.kind === 'complete' ? (
-          <View testID={`exercise-sheet-done-${idx}`} style={[styles.badge, styles.badgeGold]}>
-            <CheckGlyph />
+      {({ pressed }) => (
+        <>
+          {/* The current row's gradient is mounted from the first render; only its opacity follows the state. */}
+          <View
+            testID={`exercise-sheet-current-fill-${idx}`}
+            style={[StyleSheet.absoluteFill, { opacity: gold ? 1 : 0 }]}
+            pointerEvents="none"
+          >
+            <GradientFill angle={CURRENT_ROW_FILL.angle} colors={CURRENT_ROW_FILL.colors} />
+            <GradientFill angle={CURRENT_ROW_WASH.angle} colors={CURRENT_ROW_WASH.colors} />
           </View>
-        ) : null}
-        {gold ? (
-          <View testID={`exercise-sheet-badge-${idx}`} style={[styles.badge, styles.badgeNumber]}>
-            <Text numberOfLines={1} style={styles.badgeNumberText}>
-              {idx + 1}
+          {pressed && !gold ? <PressOverlay testID={`exercise-sheet-card-${idx}-pressed`} /> : null}
+          <View style={styles.thumb}>
+            <View style={row.kind === 'complete' ? styles.thumbDone : null}>
+              {url ? (
+                <ExerciseImage
+                  testID={`exercise-sheet-image-${idx}`}
+                  url={url}
+                  name={row.name}
+                  muscleCode={exercise.exercise?.primary_muscle_group?.code}
+                  size={THUMB}
+                  style={styles.thumbImage}
+                />
+              ) : (
+                <NumberTile testID={`exercise-sheet-number-${idx}`} idx={idx} style={styles.thumbImage} />
+              )}
+            </View>
+            {row.kind === 'complete' ? (
+              <View testID={`exercise-sheet-done-${idx}`} style={[styles.badge, styles.badgeGold]}>
+                <CheckGlyph />
+              </View>
+            ) : null}
+            {gold ? (
+              <View testID={`exercise-sheet-badge-${idx}`} style={[styles.badge, styles.badgeNumber]}>
+                <Text {...BADGE_TEXT} style={styles.badgeNumberText}>
+                  {idx + 1}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+          <View testID={`exercise-sheet-text-${idx}`} style={styles.rowText}>
+            <Text
+              {...BODY_TEXT}
+              textBreakStrategy="simple"
+              numberOfLines={2}
+              ellipsizeMode="tail"
+              style={[styles.rowName, row.kind === 'complete' && styles.rowNameDone]}
+            >
+              {row.name}
             </Text>
+            <Text
+              {...BODY_TEXT}
+              testID={`exercise-sheet-sub-${idx}`}
+              style={[styles.rowSub, row.kind === 'complete' ? styles.rowSubDone : gold ? styles.rowSubCurrent : null]}
+            >
+              {sub}
+            </Text>
+            {stacked ? <SheetAction idx={idx} row={row} gold={gold} onSelect={onSelect} below /> : null}
           </View>
-        ) : null}
-      </View>
-      <View style={styles.rowText}>
-        <Text textBreakStrategy="simple" numberOfLines={2} ellipsizeMode="tail" style={[styles.rowName, row.kind === 'complete' && styles.rowNameDone]}>
-          {row.name}
-        </Text>
-        <Text
-          testID={`exercise-sheet-sub-${idx}`}
-          numberOfLines={1}
-          style={[styles.rowSub, row.kind === 'complete' ? styles.rowSubDone : gold ? styles.rowSubCurrent : null]}
-        >
-          {sub}
-        </Text>
-      </View>
-      <Pressable
-        testID={`exercise-sheet-action-${idx}`}
-        accessibilityRole="button"
-        accessibilityLabel={`${row.action} ${row.name}`}
-        onPress={onSelect}
-        hitSlop={4}
-        style={({ pressed }) => [
-          styles.action,
-          gold ? styles.actionGold : styles.actionPlain,
-          pressed && (gold ? styles.actionGoldPressed : styles.actionPlainPressed),
-        ]}
-      >
-        <Text numberOfLines={1} textBreakStrategy="simple" style={[styles.actionText, gold && styles.actionTextGold]}>
-          {row.action}
-        </Text>
-      </Pressable>
+          {stacked ? null : <SheetAction idx={idx} row={row} gold={gold} onSelect={onSelect} />}
+        </>
+      )}
     </Pressable>
   );
 }
 
-function SheetPhotoCard({ exercise, idx, current, onSelect }) {
+// The row's trailing action (36 visual, 44 hit); past 1.3× it sits below the
+// text (`below`). Its label wraps, never truncates (UX §9).
+function SheetAction({ idx, row, gold, onSelect, below = false }) {
+  return (
+    <Pressable
+      testID={`exercise-sheet-action-${idx}`}
+      accessibilityRole="button"
+      accessibilityLabel={`${row.action} ${row.name}`}
+      onPress={onSelect}
+      hitSlop={4}
+      style={[styles.action, gold ? styles.actionGold : styles.actionPlain, below && styles.actionBelow]}
+    >
+      {({ pressed }) => (
+        <>
+          {pressed ? <PressOverlay ink={gold} testID={`exercise-sheet-action-${idx}-pressed`} /> : null}
+          <Text {...BODY_TEXT} textBreakStrategy="simple" style={[styles.actionText, gold && styles.actionTextGold]}>
+            {row.action}
+          </Text>
+        </>
+      )}
+    </Pressable>
+  );
+}
+
+function SheetPhotoCard({ exercise, idx, current, stacked = false, onSelect }) {
   const row = sheetRowState(exercise, current);
   const url = exercise.exercise?.thumbnail?.url;
   const code = exercise.exercise?.primary_muscle_group?.code;
@@ -465,10 +605,22 @@ function SheetPhotoCard({ exercise, idx, current, onSelect }) {
       accessibilityRole="button"
       accessibilityLabel={row.accessibilityLabel}
       onPress={onSelect}
-      style={({ pressed }) => [styles.photoCard, gold ? styles.photoCardCurrent : styles.photoCardOther, pressed && styles.photoCardPressed]}
+      style={({ pressed }) => [
+        styles.photoCard,
+        gold ? styles.photoCardCurrent : styles.photoCardOther,
+        stacked && styles.photoCardFull,
+        pressed && styles.photoCardPressed,
+      ]}
     >
       {url ? (
-        <ExerciseImage testID={`exercise-sheet-image-${idx}`} url={url} name={row.name} muscleCode={code} size={CARD_GLYPH_BOX} style={styles.cardFill} />
+        <ExerciseImage
+          testID={`exercise-sheet-image-${idx}`}
+          url={url}
+          name={row.name}
+          muscleCode={code}
+          size={CARD_GLYPH_BOX}
+          style={styles.cardFill}
+        />
       ) : (
         <NumberTile
           testID={`exercise-sheet-number-${idx}`}
@@ -481,7 +633,7 @@ function SheetPhotoCard({ exercise, idx, current, onSelect }) {
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
         <GradientFill
           angle={180}
-          colors={[gradients.imageFade.colors[0], gradients.imageFade.colors[0], gradients.imageFade.colors[1]]}
+          colors={[gradients.photoFade.colors[0], ...gradients.photoFade.colors]}
           stops={gold ? [0, 0.2, 1] : [0, 0.25, 1]}
         />
       </View>
@@ -490,30 +642,46 @@ function SheetPhotoCard({ exercise, idx, current, onSelect }) {
           <CheckGlyph size={14} />
         </View>
       ) : (
-        <View testID={`exercise-sheet-badge-${idx}`} style={[styles.cardBadge, gold ? styles.cardBadgeCurrent : styles.cardBadgeOther]}>
-          <Text numberOfLines={1} style={[styles.cardBadgeText, gold && styles.cardBadgeTextCurrent]}>
+        <View
+          testID={`exercise-sheet-badge-${idx}`}
+          style={[styles.cardBadge, gold ? styles.cardBadgeCurrent : styles.cardBadgeOther]}
+        >
+          <Text {...BADGE_TEXT} style={[styles.cardBadgeText, gold && styles.cardBadgeTextCurrent]}>
             {idx + 1}
           </Text>
         </View>
       )}
       {gold ? null : (
         <View testID={`exercise-sheet-count-${idx}`} accessibilityLabel={countLabel} style={styles.countPill}>
-          <Text numberOfLines={1} style={[styles.countPillText, row.kind === 'complete' && styles.countPillTextDone]}>
+          <PhotoGlass />
+          <Text {...PILL_TEXT} style={[styles.countPillText, row.kind === 'complete' && styles.countPillTextDone]}>
             {`${row.done}/${row.total}`}
           </Text>
         </View>
       )}
-      <View style={[styles.cardBottomRow, gold && styles.cardBottomRowCurrent]}>
-        <View style={styles.rowText}>
-          <Text numberOfLines={2} style={gold ? styles.cardNameCurrent : styles.cardNameOther}>
+      <View
+        testID={`exercise-sheet-bottom-${idx}`}
+        style={[styles.cardBottomRow, gold && styles.cardBottomRowCurrent, stacked && styles.cardBottomRowStacked]}
+      >
+        <View style={stacked ? null : styles.rowText}>
+          <Text
+            {...(gold ? SHEET_TITLE : BODY_TEXT)}
+            numberOfLines={gold ? 3 : 2}
+            style={gold ? styles.cardNameCurrent : styles.cardNameOther}
+          >
             {row.name}
           </Text>
-          <Text numberOfLines={1} style={styles.cardSub}>
+          <Text {...BODY_TEXT} style={styles.cardSub}>
             {sub}
           </Text>
         </View>
         {gold ? (
-          <Text testID={`exercise-sheet-count-${idx}`} accessibilityLabel={countLabel} style={styles.cardCountCurrent}>
+          <Text
+            {...SHEET_TITLE}
+            testID={`exercise-sheet-count-${idx}`}
+            accessibilityLabel={countLabel}
+            style={styles.cardCountCurrent}
+          >
             {`${row.done}/${row.total}`}
           </Text>
         ) : null}
@@ -522,15 +690,17 @@ function SheetPhotoCard({ exercise, idx, current, onSelect }) {
           accessibilityRole="button"
           accessibilityLabel={`${row.action} ${row.name}`}
           onPress={onSelect}
-          style={({ pressed }) => [
-            styles.cardAction,
-            gold ? styles.cardActionGold : styles.cardActionGlass,
-            pressed && (gold ? styles.actionGoldPressed : styles.actionPlainPressed),
-          ]}
+          style={[styles.cardAction, gold ? styles.cardActionGold : styles.cardActionGlass]}
         >
-          <Text numberOfLines={1} textBreakStrategy="simple" style={[styles.cardActionText, gold && styles.actionTextGold]}>
-            {row.action}
-          </Text>
+          {({ pressed }) => (
+            <>
+              {gold ? null : <PhotoGlass />}
+              {pressed ? <PressOverlay ink={gold} testID={`exercise-sheet-action-${idx}-pressed`} /> : null}
+              <Text {...BODY_TEXT} textBreakStrategy="simple" style={[styles.cardActionText, gold && styles.actionTextGold]}>
+                {row.action}
+              </Text>
+            </>
+          )}
         </Pressable>
       </View>
     </Pressable>
@@ -618,7 +788,23 @@ const styles = StyleSheet.create({
     borderTopColor: colors.hairlineButton,
   },
   panelFill: {
+    backgroundColor: colors.glassStrong,
+  },
+  panelFillSolid: {
     backgroundColor: colors.glassSolid,
+  },
+  pressOverlayWhite: {
+    backgroundColor: colors.pressOverlay,
+  },
+  pressOverlayInk: {
+    backgroundColor: colors.pressOverlayInk,
+  },
+  photoGlass: {
+    overflow: 'hidden',
+    borderRadius: radii.full,
+  },
+  onPhotoFill: {
+    backgroundColor: colors.onPhoto,
   },
   panelContent: {
     paddingHorizontal: spacing[4],
@@ -633,7 +819,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 5,
     borderRadius: radii.full,
-    backgroundColor: colors.grabHandle,
+    backgroundColor: colors.hairlineBright,
   },
   handleTablet: {
     width: 48,
@@ -676,24 +862,23 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontVariant: ['tabular-nums'],
   },
-  // The code's "Close" + ✕ text pill (44 tall on phones, 46 on tablets).
+  // The code's "Close" + ✕ text pill (44 tall on phones, 46 on tablets) in
+  // the board's close-button colours (0.07 fill, 0.10 edge).
   closePill: {
     minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    overflow: 'hidden',
     paddingHorizontal: spacing[4],
     borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: colors.hairlineButton,
-    backgroundColor: colors.fillButton,
+    borderColor: colors.hairlineStrong,
+    backgroundColor: colors.fillSkeleton,
   },
   closePillTablet: {
     minHeight: 46,
     paddingHorizontal: spacing['4_5'],
-  },
-  closePressed: {
-    backgroundColor: colors.hairlineButton,
   },
   closeText: {
     ...typography.bodySm,
@@ -715,6 +900,15 @@ const styles = StyleSheet.create({
   chips: {
     gap: spacing[2],
     paddingHorizontal: spacing[4],
+  },
+  chipsWrap: {
+    marginTop: 14,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[2],
+  },
+  chipsWrapTablet: {
+    marginTop: 18,
   },
   chipTablet: {
     minHeight: 44,
@@ -756,9 +950,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.gold,
   },
-  rowPressed: {
-    backgroundColor: colors.fillSkeleton,
-  },
   thumb: {
     width: THUMB,
     height: THUMB,
@@ -794,7 +985,7 @@ const styles = StyleSheet.create({
     right: spacing[1],
     bottom: spacing[1],
     minWidth: 20,
-    height: 20,
+    minHeight: 20,
     paddingHorizontal: 5,
     borderRadius: radii.full,
     alignItems: 'center',
@@ -839,7 +1030,8 @@ const styles = StyleSheet.create({
   },
   // 36 visual, 44 hit area (hitSlop 4).
   action: {
-    height: 36,
+    minHeight: 36,
+    overflow: 'hidden',
     paddingHorizontal: 14,
     borderRadius: radii.full,
     alignItems: 'center',
@@ -848,15 +1040,13 @@ const styles = StyleSheet.create({
   actionPlain: {
     backgroundColor: colors.fillSkeleton,
   },
-  actionPlainPressed: {
-    backgroundColor: colors.hairlineButton,
+  actionBelow: {
+    marginTop: spacing[2],
+    alignSelf: 'flex-start',
   },
   actionGold: {
     backgroundColor: colors.gold,
     boxShadow: shadows.goldGlow,
-  },
-  actionGoldPressed: {
-    backgroundColor: colors.goldDeep,
   },
   actionText: {
     ...typography.bodySm,
@@ -867,8 +1057,10 @@ const styles = StyleSheet.create({
     ...font(700),
     color: colors.onGold,
   },
+  // minHeight (UX §9): large text grows the card instead of clipping.
   photoCard: {
-    height: CARD_HEIGHT,
+    minHeight: CARD_HEIGHT,
+    justifyContent: 'flex-end',
     overflow: 'hidden',
     borderRadius: CARD_RADIUS,
     backgroundColor: colors.surface,
@@ -879,11 +1071,14 @@ const styles = StyleSheet.create({
   },
   photoCardCurrent: {
     width: '100%',
-    height: CARD_CURRENT_HEIGHT,
+    minHeight: CARD_CURRENT_HEIGHT,
     borderRadius: radii.xxl,
     borderWidth: 2,
     borderColor: colors.gold,
     boxShadow: shadows.goldGlowLarge,
+  },
+  photoCardFull: {
+    width: '100%',
   },
   photoCardPressed: {
     transform: [{ scale: 0.99 }],
@@ -910,8 +1105,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // A solid badge on the photo: 0.7 → on-photo-strong (UX §8.6).
   cardBadgeOther: {
-    backgroundColor: colors.stickyHeaderFill,
+    backgroundColor: colors.onPhotoStrong,
   },
   cardBadgeCurrent: {
     top: spacing[4],
@@ -932,15 +1128,16 @@ const styles = StyleSheet.create({
     ...font(700),
     color: colors.onGold,
   },
+  // On-photo glass (UX §8.4): the fill and blur come from PhotoGlass.
   countPill: {
     position: 'absolute',
     top: 14,
     right: 14,
-    height: 30,
+    minHeight: 30,
     justifyContent: 'center',
+    overflow: 'hidden',
     paddingHorizontal: spacing[3],
     borderRadius: radii.full,
-    backgroundColor: colors.scrim,
   },
   countPillText: {
     ...typography.body,
@@ -951,21 +1148,26 @@ const styles = StyleSheet.create({
   countPillTextDone: {
     color: colors.gold,
   },
+  // In flow at the card's foot (the card grows with large text); the top
+  // padding clears the corner badges.
   cardBottomRow: {
-    position: 'absolute',
-    left: spacing[4],
-    right: spacing[4],
-    bottom: 14,
+    paddingTop: 58,
+    paddingHorizontal: spacing[4],
+    paddingBottom: 14,
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 10,
   },
   cardBottomRowCurrent: {
-    left: spacing[5],
-    right: spacing[5],
-    bottom: 18,
+    paddingTop: 66,
+    paddingHorizontal: spacing[5],
+    paddingBottom: 18,
     alignItems: 'center',
     gap: spacing[4],
+  },
+  cardBottomRowStacked: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
   },
   cardNameOther: {
     ...typography.titleXs,
@@ -992,15 +1194,16 @@ const styles = StyleSheet.create({
   },
   cardAction: {
     minHeight: 44,
+    overflow: 'hidden',
     paddingHorizontal: spacing[5],
     borderRadius: radii.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // On-photo glass with the hairline-bright edge (UX §8.4; folds 0.5 / 0.18).
   cardActionGlass: {
     borderWidth: 1,
-    borderColor: colors.switchTrackOff,
-    backgroundColor: colors.scrim,
+    borderColor: colors.hairlineBright,
   },
   cardActionGold: {
     minHeight: 50,

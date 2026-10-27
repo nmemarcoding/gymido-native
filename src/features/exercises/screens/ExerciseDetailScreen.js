@@ -3,13 +3,28 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { routes } from '../../../navigation/routes';
+import BlurLayer from '../../../shared/components/BlurLayer';
 import EmptyState from '../../../shared/components/EmptyState';
 import ErrorAlert from '../../../shared/components/ErrorAlert';
 import ExerciseImage, { muscleColor } from '../../../shared/components/ExerciseImage';
+import { usesSolidGlass } from '../../../shared/components/GlassSurface';
 import GradientFill from '../../../shared/components/GradientFill';
 import Loader from '../../../shared/components/Loader';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
-import { breakpoints, colors, font, gradients, radii, spacing, typography } from '../../../shared/theme/tokens';
+import {
+  blur,
+  breakpoints,
+  colors,
+  font,
+  gradients,
+  muscle,
+  muscleGlow,
+  muscleText,
+  radii,
+  spacing,
+  textScale,
+  typography,
+} from '../../../shared/theme/tokens';
 import GymIcon from '../../shell/GymIcon';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
@@ -43,6 +58,46 @@ const ALTERNATIVE_TILE_RADIUS = 22;
 const ALTERNATIVE_ROW_RADIUS = 18;
 export const ALTERNATIVE_TILE_HEIGHT = 150;
 const ALTERNATIVE_ROW_IMAGE = Object.freeze({ width: 104, height: 84 });
+// The phone caption clears the Back pill (12 + 44 + 12) when large text grows it.
+const PHONE_CAPTION_TOP = 68;
+// Tablet: the muscle orb behind the hero (a 360 circle at left −80, bottom −120).
+const HERO_ORB = Object.freeze({ size: 360, left: -80, bottom: -120 });
+// Tablet cards: the drawn 160° card gradient folds onto surface-input →
+// surface-sunk (UX §8.4).
+const TABLET_CARD = Object.freeze({
+  angle: 160,
+  colors: Object.freeze([colors.surfaceInput, colors.surfaceSunk]),
+});
+// The tablet page's gold wash (radial 70 % 40 % at 90 % −6 %, as drawn) in the
+// §8.5 glow-gold-ambient colours.
+export const TABLET_PAGE_WASH = Object.freeze({
+  radial: Object.freeze({ cx: 0.9, cy: -0.06, rx: 0.7, ry: 0.4 }),
+  colors: gradients.accountGlow.colors,
+  stops: Object.freeze([0, 0.6]),
+});
+
+// Large text (UX §9): role caps; titles wrap by word (max 3 lines) and a single
+// long word shrinks the title instead of breaking inside it.
+const DISPLAY_TEXT = Object.freeze({
+  textBreakStrategy: 'simple',
+  maxFontSizeMultiplier: textScale.display,
+  numberOfLines: 3,
+  adjustsFontSizeToFit: true,
+  minimumFontScale: 0.7,
+});
+const TITLE_TEXT = Object.freeze({
+  ...DISPLAY_TEXT,
+  maxFontSizeMultiplier: textScale.title,
+});
+const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
+const PILL_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.pill });
+
+// The muscle's lighter text colour (UX §8.4 muscle-*-text), null when none.
+export function muscleTextColor(code) {
+  const hex = muscleColor(code);
+  const name = hex ? Object.keys(muscle).find((key) => muscle[key] === hex) : null;
+  return name ? muscleText[name] : null;
+}
 
 // ND-4 (UX ruling): instructions with line breaks show one numbered step per
 // non-empty line; otherwise null → today's single text block. No data change.
@@ -67,8 +122,9 @@ export function primaryHue(profile, exercise) {
 // focus remounts and reloads (plans §8.1).
 export default function ExerciseDetailScreen() {
   const remountKey = useFocusRemountKey();
+  const { width } = useWindowDimensions();
   return (
-    <ShellPage testID="exercise-detail-screen">
+    <ShellPage testID="exercise-detail-screen" glow={width >= breakpoints.md ? TABLET_PAGE_WASH : false}>
       <View style={styles.column}>
         <ExerciseDetail key={remountKey} />
       </View>
@@ -79,8 +135,10 @@ export default function ExerciseDetailScreen() {
 function ExerciseDetail() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { width } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
   const tablet = width >= breakpoints.md;
+  // UX §9 reflow: past 1.3× the two-column grids become one column.
+  const stacked = fontScale > textScale.reflowAbove;
   // ShellPage's phone gutter: the phone hero bleeds through it.
   const gutter = width >= breakpoints.sm ? spacing[5] : spacing[4];
   const exerciseId = route.params?.exerciseId;
@@ -126,6 +184,10 @@ function ExerciseDetail() {
   const { exercise, profile } = load;
   const primaryMuscle = primaryMuscleName(profile, exercise);
   const hue = primaryHue(profile, exercise);
+  const muscleCode = profile?.primary_muscle?.code ?? exercise?.primary_muscle_group?.code;
+  const orbHue = muscleColor(muscleCode);
+  const eyebrowColor = tablet ? (muscleTextColor(muscleCode) ?? hue) : hue;
+  const half = stacked ? null : styles.half;
   const chips = factChips(profile);
   const equipment = equipmentLines(profile?.equipment);
   const substitutes = (profile?.substitutes ?? []).slice(0, MAX_ALTERNATIVES);
@@ -139,14 +201,22 @@ function ExerciseDetail() {
       accessibilityRole="button"
       onPress={goBack}
       hitSlop={tablet ? 2 : 0}
-      style={({ pressed }) => [tablet ? styles.backTablet : styles.backPhone, pressed && styles.backPressed]}
+      style={tablet ? styles.backTablet : styles.backPhone}
     >
-      <Text style={styles.backText}>← Back</Text>
+      {({ pressed }) => (
+        <>
+          {tablet ? null : <PhotoGlass />}
+          {pressed ? <PressOverlay testID="exercise-detail-back-pressed" /> : null}
+          <Text {...BODY_TEXT} style={styles.backText}>
+            ← Back
+          </Text>
+        </>
+      )}
     </Pressable>
   );
 
   const muscles = primaryMuscle ? (
-    <Section title="Muscles" testID="exercise-detail-muscles" tablet={tablet} gradient style={styles.half}>
+    <Section title="Muscles" testID="exercise-detail-muscles" tablet={tablet} gradient style={half}>
       {tablet ? (
         <View style={styles.pairs}>
           <Pair label="Primary" value={primaryMuscle} />
@@ -159,8 +229,10 @@ function ExerciseDetail() {
         </View>
       ) : (
         <View>
-          <Text style={[styles.smallLabel, styles.mt8]}>Primary</Text>
-          <Text testID="exercise-detail-primary" style={[styles.primaryValue, { color: hue }]}>
+          <Text {...BODY_TEXT} style={[styles.smallLabel, styles.mt8]}>
+            Primary
+          </Text>
+          <Text {...TITLE_TEXT} testID="exercise-detail-primary" style={[styles.primaryValue, { color: hue }]}>
             {primaryMuscle}
           </Text>
           {profile?.secondary_muscles?.length ? <MuscleChips label="Secondary" muscles={profile.secondary_muscles} /> : null}
@@ -171,12 +243,14 @@ function ExerciseDetail() {
   ) : null;
 
   const equipmentCard = equipment ? (
-    <Section title="Equipment" testID="exercise-detail-equipment" tablet={tablet} gradient={tablet} style={styles.half}>
+    <Section title="Equipment" testID="exercise-detail-equipment" tablet={tablet} gradient={tablet} style={half}>
       {tablet ? (
         <View style={styles.chipWrap}>
           {equipment.map((line, index) => (
             <View key={`${index}-${line}`} style={styles.softChipTablet}>
-              <Text style={styles.softChipTabletText}>{line}</Text>
+              <Text {...PILL_TEXT} style={styles.softChipTabletText}>
+                {line}
+              </Text>
             </View>
           ))}
         </View>
@@ -190,7 +264,9 @@ function ExerciseDetail() {
               >
                 <GymIcon name="workout" size={20} color={index === 0 ? colors.gold : colors.textStrong2} />
               </View>
-              <Text style={[styles.equipmentLine, index === 0 ? styles.equipmentLineFirst : null]}>{line}</Text>
+              <Text {...BODY_TEXT} style={[styles.equipmentLine, index === 0 ? styles.equipmentLineFirst : null]}>
+                {line}
+              </Text>
             </View>
           ))}
         </View>
@@ -204,38 +280,53 @@ function ExerciseDetail() {
 
       <View
         testID="exercise-detail-hero"
-        style={[styles.hero, tablet ? styles.heroTablet : { height: PHONE_HERO, marginHorizontal: -gutter }]}
+        style={[styles.hero, tablet ? styles.heroTablet : { minHeight: PHONE_HERO, marginHorizontal: -gutter }]}
       >
         {/* The h1 sits on the photo, so the photo itself has no label (UX). */}
         <ExerciseImage
           testID="exercise-detail-image"
           url={exercise?.thumbnail?.url ?? null}
           name={exercise?.name}
-          muscleCode={profile?.primary_muscle?.code ?? exercise?.primary_muscle_group?.code}
+          muscleCode={muscleCode}
           size={glyphSize(tablet ? TABLET_HERO_GLYPH : PHONE_HERO_GLYPH)}
           style={styles.fill}
         />
         {/* Gradients exist from the first render (Android rule). */}
         {tablet ? null : (
           <View pointerEvents="none" style={styles.topScrim}>
-            <GradientFill angle={180} colors={[colors.scrim, gradients.imageFade.colors[0]]} />
+            <GradientFill angle={180} colors={[colors.scrim, gradients.photoFade.colors[0]]} />
           </View>
         )}
         <View pointerEvents="none" style={tablet ? styles.fadeTablet : styles.fadePhone}>
-          <GradientFill
-            angle={180}
-            colors={[gradients.imageFade.colors[0], gradients.imageFade.colors[1], colors.ground]}
-            stops={tablet ? [0, 1, 1] : [0, 0.55, 1]}
-          />
+          {tablet ? (
+            <GradientFill angle={gradients.photoFade.angle} colors={gradients.photoFade.colors} />
+          ) : (
+            <GradientFill angle={180} colors={[...gradients.photoFade.colors, colors.ground]} stops={[0, 0.55, 1]} />
+          )}
         </View>
+        {tablet && orbHue ? (
+          <View
+            testID="exercise-detail-orb"
+            pointerEvents="none"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={styles.orb}
+          >
+            <GradientFill {...muscleGlow(orbHue)} />
+          </View>
+        ) : null}
         {tablet ? null : <View style={styles.backOnPhoto}>{back}</View>}
         <View style={tablet ? styles.captionTablet : styles.captionPhone}>
-          <Text testID="exercise-detail-eyebrow" style={[tablet ? styles.eyebrowTablet : styles.eyebrow, { color: hue }]}>
+          <Text
+            {...BODY_TEXT}
+            testID="exercise-detail-eyebrow"
+            style={[tablet ? styles.eyebrowTablet : styles.eyebrow, { color: eyebrowColor }]}
+          >
             {primaryMuscle || 'Exercise'}
           </Text>
           <Text
+            {...DISPLAY_TEXT}
             testID="exercise-detail-title"
-            textBreakStrategy="simple"
             accessibilityRole="header"
             style={tablet ? styles.titleTablet : styles.title}
           >
@@ -244,8 +335,11 @@ function ExerciseDetail() {
           {chips.length ? (
             <View style={[styles.factChips, tablet && styles.factChipsTablet]}>
               {chips.map((chip) => (
-                <View key={chip} style={[styles.factChip, tablet && styles.factChipTablet]}>
-                  <Text style={[styles.factChipText, tablet && styles.factChipTextTablet]}>{chip}</Text>
+                <View key={chip} testID="exercise-detail-fact-chip" style={[styles.factChip, tablet && styles.factChipTablet]}>
+                  <PhotoGlass />
+                  <Text {...PILL_TEXT} style={[styles.factChipText, tablet && styles.factChipTextTablet]}>
+                    {chip}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -254,10 +348,14 @@ function ExerciseDetail() {
       </View>
 
       <View style={[styles.body, tablet && styles.bodyTablet]}>
-        {isComingSoon(profile) ? <Text style={styles.comingSoon}>More details for this exercise are coming soon.</Text> : null}
+        {isComingSoon(profile) ? (
+          <Text {...BODY_TEXT} style={styles.comingSoon}>
+            More details for this exercise are coming soon.
+          </Text>
+        ) : null}
 
         {muscles || equipmentCard ? (
-          <View testID="exercise-detail-grid" style={[styles.grid, tablet && styles.gridTablet]}>
+          <View testID="exercise-detail-grid" style={[styles.grid, tablet && styles.gridTablet, stacked && styles.gridStacked]}>
             {muscles}
             {equipmentCard}
           </View>
@@ -266,18 +364,26 @@ function ExerciseDetail() {
         {exercise?.description || exercise?.instructions ? (
           <Section title="How to do it" testID="exercise-detail-how-to" tablet={tablet} gradient={tablet}>
             <View style={tablet ? styles.howToBodyTablet : styles.howToBody}>
-              {exercise.description ? <Text style={[styles.howTo, tablet && styles.howToTablet]}>{exercise.description}</Text> : null}
+              {exercise.description ? (
+                <Text {...BODY_TEXT} style={[styles.howTo, tablet && styles.howToTablet]}>
+                  {exercise.description}
+                </Text>
+              ) : null}
               {steps ? (
                 <View testID="exercise-detail-steps" style={styles.steps}>
                   {steps.map((step, index) => (
                     <View key={`${index}-${step}`} style={styles.step}>
-                      <Text style={[styles.howTo, tablet && styles.howToTablet, styles.stepNumber]}>{`${index + 1}.`}</Text>
-                      <Text style={[styles.howTo, tablet && styles.howToTablet, styles.stepText]}>{step}</Text>
+                      <Text {...BODY_TEXT} style={[styles.howTo, tablet && styles.howToTablet, styles.stepNumber]}>
+                        {`${index + 1}.`}
+                      </Text>
+                      <Text {...BODY_TEXT} style={[styles.howTo, tablet && styles.howToTablet, styles.stepText]}>
+                        {step}
+                      </Text>
                     </View>
                   ))}
                 </View>
               ) : exercise.instructions ? (
-                <Text testID="exercise-detail-instructions" style={[styles.howTo, tablet && styles.howToTablet]}>
+                <Text {...BODY_TEXT} testID="exercise-detail-instructions" style={[styles.howTo, tablet && styles.howToTablet]}>
                   {exercise.instructions}
                 </Text>
               ) : null}
@@ -295,29 +401,34 @@ function ExerciseDetail() {
                     testID={`exercise-alternative-${substitute.id}`}
                     accessibilityRole="button"
                     onPress={() => openSubstitute(substitute.id)}
-                    style={({ pressed }) => [styles.altRow, pressed && styles.altRowPressed]}
+                    style={[styles.altRow, stacked && styles.altFull]}
                   >
-                    <ExerciseImage
-                      testID={`exercise-alternative-${substitute.id}-image`}
-                      exercise={substitute}
-                      size={ALTERNATIVE_ROW_IMAGE.height}
-                      style={[ALTERNATIVE_ROW_IMAGE, styles.altRowImage]}
-                    />
-                    <View style={styles.textColumn}>
-                      <Text numberOfLines={2} style={styles.altRowName}>
-                        {substitute.name}
-                      </Text>
-                      <Text numberOfLines={2} style={styles.altRowSummary}>
-                        {substituteSummary(substitute)}
-                      </Text>
-                    </View>
+                    {({ pressed }) => (
+                      <>
+                        {pressed ? <PressOverlay testID={`exercise-alternative-${substitute.id}-pressed`} /> : null}
+                        <ExerciseImage
+                          testID={`exercise-alternative-${substitute.id}-image`}
+                          exercise={substitute}
+                          size={ALTERNATIVE_ROW_IMAGE.height}
+                          style={[ALTERNATIVE_ROW_IMAGE, styles.altRowImage]}
+                        />
+                        <View style={styles.textColumn}>
+                          <Text {...BODY_TEXT} numberOfLines={2} style={styles.altRowName}>
+                            {substitute.name}
+                          </Text>
+                          <Text {...BODY_TEXT} numberOfLines={2} style={styles.altRowSummary}>
+                            {substituteSummary(substitute)}
+                          </Text>
+                        </View>
+                      </>
+                    )}
                   </Pressable>
                 ))}
               </View>
             </Section>
           ) : (
             <View testID="exercise-detail-alternatives">
-              <Text accessibilityRole="header" style={[styles.sectionTitle, styles.alternativesTitle]}>
+              <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.sectionTitle, styles.alternativesTitle]}>
                 Alternatives
               </Text>
               <View style={styles.altGrid}>
@@ -327,7 +438,7 @@ function ExerciseDetail() {
                     testID={`exercise-alternative-${substitute.id}`}
                     accessibilityRole="button"
                     onPress={() => openSubstitute(substitute.id)}
-                    style={({ pressed }) => [styles.altTile, pressed && styles.altTilePressed]}
+                    style={({ pressed }) => [styles.altTile, stacked && styles.altFull, pressed && styles.altTilePressed]}
                   >
                     <ExerciseImage
                       testID={`exercise-alternative-${substitute.id}-image`}
@@ -338,15 +449,15 @@ function ExerciseDetail() {
                     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
                       <GradientFill
                         angle={180}
-                        colors={[gradients.imageFade.colors[0], gradients.imageFade.colors[0], gradients.imageFade.colors[1]]}
+                        colors={[gradients.photoFade.colors[0], ...gradients.photoFade.colors]}
                         stops={[0, 0.3, 1]}
                       />
                     </View>
                     <View style={styles.altCaption}>
-                      <Text numberOfLines={2} style={styles.altName}>
+                      <Text {...BODY_TEXT} numberOfLines={2} style={styles.altName}>
                         {substitute.name}
                       </Text>
-                      <Text numberOfLines={1} style={styles.altSummary}>
+                      <Text {...BODY_TEXT} numberOfLines={2} style={styles.altSummary}>
                         {substituteSummary(substitute)}
                       </Text>
                     </View>
@@ -366,8 +477,17 @@ function ExerciseDetail() {
 function Section({ title, testID, tablet, gradient = false, style, children }) {
   return (
     <View testID={testID} style={[styles.card, tablet ? styles.cardTablet : null, gradient ? styles.cardGradient : null, style]}>
-      {gradient ? <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} /> : null}
-      <Text accessibilityRole="header" style={tablet ? styles.cardTitleTablet : styles.cardTitle}>
+      {gradient ? (
+        <GradientFill
+          angle={tablet ? TABLET_CARD.angle : gradients.card.angle}
+          colors={tablet ? TABLET_CARD.colors : gradients.card.colors}
+        />
+      ) : null}
+      <Text
+        {...(tablet ? TITLE_TEXT : BODY_TEXT)}
+        accessibilityRole="header"
+        style={tablet ? styles.cardTitleTablet : styles.cardTitle}
+      >
         {title}
       </Text>
       {children}
@@ -375,11 +495,31 @@ function Section({ title, testID, tablet, gradient = false, style, children }) {
   );
 }
 
+// Glass over the photo (UX §8.4 color-on-photo + blur 12): the blur, then
+// the on-photo fill. Before Android 12 the fill alone (the GlassSurface rule).
+function PhotoGlass() {
+  return (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.photoGlass]}>
+      {usesSolidGlass() ? null : <BlurLayer blurPx={blur.onPhoto} />}
+      <View style={[StyleSheet.absoluteFill, styles.onPhotoFill]} />
+    </View>
+  );
+}
+
+// The v2 state rule: pressed = the rest look + a 4 % white overlay.
+function PressOverlay({ testID }) {
+  return <View testID={testID} pointerEvents="none" style={[StyleSheet.absoluteFill, styles.pressOverlay]} />;
+}
+
 function Pair({ label, value }) {
   return (
     <View>
-      <Text style={styles.pairLabel}>{label}</Text>
-      <Text style={styles.pairValue}>{value}</Text>
+      <Text {...BODY_TEXT} style={styles.pairLabel}>
+        {label}
+      </Text>
+      <Text {...BODY_TEXT} style={styles.pairValue}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -387,11 +527,15 @@ function Pair({ label, value }) {
 function MuscleChips({ label, muscles }) {
   return (
     <View>
-      <Text style={[styles.smallLabel, styles.chipsLabel]}>{label}</Text>
+      <Text {...BODY_TEXT} style={[styles.smallLabel, styles.chipsLabel]}>
+        {label}
+      </Text>
       <View style={styles.chipWrap}>
         {muscles.map((item) => (
           <View key={item.id ?? item.name} style={styles.softChip}>
-            <Text style={styles.softChipText}>{item.name}</Text>
+            <Text {...PILL_TEXT} style={styles.softChipText}>
+              {item.name}
+            </Text>
           </View>
         ))}
       </View>
@@ -423,23 +567,35 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 0,
   },
-  // Phone Back: on the photo, 44 tall, a dark glass pill.
+  // Phone Back: on the photo, 44 tall, on-photo glass (UX §8.4; folds 0.5),
+  // the 0.12 hairline-strong edge.
   backPhone: {
     alignSelf: 'flex-start',
     minHeight: 44,
     justifyContent: 'center',
+    overflow: 'hidden',
     paddingLeft: spacing[3],
     paddingRight: spacing[4],
     borderRadius: radii.full,
     borderWidth: 1,
     borderColor: colors.hairlineButton,
-    backgroundColor: colors.scrim,
+  },
+  photoGlass: {
+    overflow: 'hidden',
+    borderRadius: radii.full,
+  },
+  onPhotoFill: {
+    backgroundColor: colors.onPhoto,
+  },
+  pressOverlay: {
+    backgroundColor: colors.pressOverlay,
   },
   // Tablet Back: a 40 pill (44 hit area via hitSlop) above the hero.
   backTablet: {
     alignSelf: 'flex-start',
-    height: 40,
+    minHeight: 40,
     justifyContent: 'center',
+    overflow: 'hidden',
     paddingLeft: spacing[3],
     paddingRight: spacing[4],
     borderRadius: radii.full,
@@ -447,20 +603,19 @@ const styles = StyleSheet.create({
     borderColor: colors.hairlineStrong,
     backgroundColor: colors.fillSkeleton,
   },
-  backPressed: {
-    backgroundColor: colors.hairlineButton,
-  },
   backText: {
     ...typography.bodySm,
     ...font(600),
     color: colors.textPrimary,
   },
+  // minHeight (UX §9): large text grows the hero instead of clipping the caption.
   hero: {
     overflow: 'hidden',
+    justifyContent: 'flex-end',
     backgroundColor: colors.surface,
   },
   heroTablet: {
-    height: TABLET_HERO,
+    minHeight: TABLET_HERO,
     borderRadius: TABLET_HERO_RADIUS,
     borderWidth: 1,
     borderColor: colors.choiceBorder,
@@ -486,22 +641,27 @@ const styles = StyleSheet.create({
     bottom: 0,
     height: '70%',
   },
+  orb: {
+    position: 'absolute',
+    left: HERO_ORB.left,
+    bottom: HERO_ORB.bottom,
+    width: HERO_ORB.size,
+    height: HERO_ORB.size,
+  },
   backOnPhoto: {
     position: 'absolute',
     top: spacing[3],
     left: spacing[4],
   },
   captionPhone: {
-    position: 'absolute',
-    left: spacing[5],
-    right: spacing[5],
-    bottom: 14,
+    paddingTop: PHONE_CAPTION_TOP,
+    paddingHorizontal: spacing[5],
+    paddingBottom: 14,
   },
   captionTablet: {
-    position: 'absolute',
-    left: spacing[7],
-    right: spacing[7],
-    bottom: 26,
+    paddingTop: spacing[6],
+    paddingHorizontal: spacing[7],
+    paddingBottom: 26,
     gap: spacing[3],
   },
   eyebrow: {
@@ -535,17 +695,18 @@ const styles = StyleSheet.create({
     gap: spacing[2],
     marginTop: 0,
   },
+  // On-photo glass chips; the drawn 0.14 edge is hairline-strong 0.12 (§8.5).
   factChip: {
-    height: 28,
+    minHeight: 28,
     justifyContent: 'center',
+    overflow: 'hidden',
     paddingHorizontal: spacing[3],
     borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: colors.switchTrackOff,
-    backgroundColor: colors.scrim,
+    borderColor: colors.hairlineButton,
   },
   factChipTablet: {
-    height: 30,
+    minHeight: 30,
   },
   factChipText: {
     ...typography.caption,
@@ -575,6 +736,10 @@ const styles = StyleSheet.create({
   },
   gridTablet: {
     gap: spacing[4],
+  },
+  gridStacked: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
   },
   half: {
     flex: 1,
@@ -637,7 +802,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   softChip: {
-    height: 26,
+    minHeight: 26,
     justifyContent: 'center',
     paddingHorizontal: 10,
     borderRadius: radii.full,
@@ -648,7 +813,7 @@ const styles = StyleSheet.create({
     color: colors.textStrong2,
   },
   softChipTablet: {
-    height: 30,
+    minHeight: 30,
     justifyContent: 'center',
     paddingHorizontal: spacing[3],
     borderRadius: radii.full,
@@ -750,7 +915,8 @@ const styles = StyleSheet.create({
   altTile: {
     width: '47%',
     flexGrow: 1,
-    height: ALTERNATIVE_TILE_HEIGHT,
+    minHeight: ALTERNATIVE_TILE_HEIGHT,
+    justifyContent: 'flex-end',
     overflow: 'hidden',
     borderRadius: ALTERNATIVE_TILE_RADIUS,
     backgroundColor: colors.surface,
@@ -758,11 +924,13 @@ const styles = StyleSheet.create({
   altTilePressed: {
     transform: [{ scale: 0.98 }],
   },
+  altFull: {
+    width: '100%',
+  },
   altCaption: {
-    position: 'absolute',
-    left: spacing[3],
-    right: spacing[3],
-    bottom: 10,
+    paddingTop: spacing[6],
+    paddingHorizontal: spacing[3],
+    paddingBottom: 10,
   },
   altName: {
     ...typography.labelLg,
@@ -784,10 +952,8 @@ const styles = StyleSheet.create({
     gap: spacing[3],
     padding: 10,
     borderRadius: ALTERNATIVE_ROW_RADIUS,
+    overflow: 'hidden',
     backgroundColor: colors.fillWell,
-  },
-  altRowPressed: {
-    backgroundColor: colors.fillSkeleton,
   },
   altRowImage: {
     borderRadius: ALTERNATIVE_ROW_RADIUS,
