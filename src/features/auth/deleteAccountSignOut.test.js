@@ -10,6 +10,8 @@ jest.mock('../profile/api/profileApi', () => ({ getProfile: jest.fn() }));
 jest.mock('../workspace/workspacePreference', () => ({ loadWorkspace: jest.fn(), setWorkspace: jest.fn() }));
 jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn(() => Promise.resolve()) }));
 jest.mock('../../shared/components/Screen', () => ({ children }) => children);
+// Welcome reads the safe-area insets (v2 Phase 2 A1 layout); no provider here.
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 
 import { act, create } from 'react-test-renderer';
 

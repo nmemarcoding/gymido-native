@@ -1,97 +1,130 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Text as SvgText } from 'react-native-svg';
 
-import { colors, radii, shadows } from '../../shared/theme/tokens';
+import PillButton from '../../shared/components/PillButton';
+import Screen from '../../shared/components/Screen';
+import { breakpoints, colors, font, spacing, typography } from '../../shared/theme/tokens';
 
-// App-shell spec §9.4. "Go home" pushes Home (`onGoHome`).
-export default function NotFoundScreen({ onGoHome }) {
+// UX A §Not found: the outline "404" (gold at 55 %, 2 px stroke, no fill),
+// decorative. 150/140, tracking -0.07em. An Svg (explicit size) draws the
+// outline: RN Text has no text stroke.
+export const NUMERAL = { fontSize: 150, lineHeight: 140, width: 300 };
+const NUMERAL_TRACKING = -0.07 * NUMERAL.fontSize;
+// Digits' cap height ≈ 0.7 em: the baseline that centres them in the line.
+const NUMERAL_BASELINE = Math.round((NUMERAL.lineHeight + 0.7 * NUMERAL.fontSize) / 2);
+
+function OutlineNumeral({ centred }) {
   return (
-    <SafeAreaView testID="not-found" style={styles.screen}>
-      <View style={styles.column}>
-        <View style={styles.card}>
-          <Text style={styles.code}>404</Text>
-          <Text accessibilityRole="header" style={styles.title}>
+    <View
+      testID="not-found-numeral"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={centred && styles.centred}
+    >
+      <Svg width={NUMERAL.width} height={NUMERAL.lineHeight}>
+        <SvgText
+          x={centred ? NUMERAL.width / 2 : 0}
+          y={NUMERAL_BASELINE}
+          textAnchor={centred ? 'middle' : 'start'}
+          fontFamily={font(700).fontFamily}
+          fontSize={NUMERAL.fontSize}
+          letterSpacing={NUMERAL_TRACKING}
+          fill="none"
+          stroke={colors.notFoundStroke}
+          strokeWidth={2}
+        >
+          404
+        </SvgText>
+      </Svg>
+    </View>
+  );
+}
+
+// App-shell spec §9.4. "Go home" goes Home (`onGoHome`). Phone per the board
+// (left-aligned, the gold CTA at the bottom); tablet (ruling ND5): the SAME
+// 404, title, body and gold Go home, centred in the tablet column.
+export default function NotFoundScreen({ onGoHome }) {
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const tablet = width >= breakpoints.md;
+  const top = Math.max(spacing[6], Math.round((150 / 844) * height) - insets.top);
+
+  return (
+    <Screen testID="not-found" style={styles.screen}>
+      <ScrollView contentContainerStyle={[styles.scroll, tablet && styles.scrollTablet]}>
+        <View testID="not-found-column" style={[styles.column, tablet ? styles.columnTablet : { paddingTop: top }]}>
+          <OutlineNumeral centred={tablet} />
+          <Text accessibilityRole="header" textBreakStrategy="simple" style={[styles.title, tablet && styles.textCentred]}>
             Page not found
           </Text>
-          <Text style={styles.body}>The requested page does not exist. Return to the app home to keep going.</Text>
-          <Pressable
+          <Text style={[styles.body, tablet && styles.textCentred]}>
+            The requested page does not exist. Return to the app home to keep going.
+          </Text>
+          {tablet ? null : <View style={styles.spacer} />}
+          <PillButton
+            fullWidth={!tablet}
+            size="cta"
+            variant="primary"
             testID="not-found-home"
-            accessibilityRole="button"
+            title="Go home"
             onPress={onGoHome}
-            style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
-          >
-            <Text style={styles.buttonLabel}>Go home</Text>
-          </Pressable>
+            style={tablet ? styles.homeTablet : null}
+          />
         </View>
-      </View>
-    </SafeAreaView>
+      </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
-    flex: 1,
-    backgroundColor: colors.background,
+    paddingHorizontal: 0,
+    justifyContent: 'flex-start',
+  },
+  scroll: {
+    flexGrow: 1,
+    paddingHorizontal: spacing[6],
+    paddingBottom: 40,
+  },
+  scrollTablet: {
+    justifyContent: 'center',
+    paddingVertical: spacing[8],
   },
   column: {
-    flex: 1,
+    flexGrow: 1,
     width: '100%',
-    maxWidth: 430,
-    alignSelf: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 48,
-    justifyContent: 'center',
   },
-  card: {
-    width: '100%',
-    maxWidth: 512,
+  // The tablet content column: centred, max 640 (UX: missing tablet boards).
+  columnTablet: {
+    flexGrow: 0,
+    maxWidth: 640,
     alignSelf: 'center',
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    backgroundColor: colors.surface,
-    boxShadow: shadows.soft,
-    padding: 32,
     alignItems: 'center',
   },
-  code: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '600',
-    letterSpacing: 2.8,
-    textTransform: 'uppercase',
-    color: colors.brand700,
+  centred: {
+    alignSelf: 'center',
   },
   title: {
-    marginTop: 16,
-    fontSize: 30,
-    lineHeight: 36,
-    fontWeight: '600',
-    letterSpacing: -0.75,
+    ...typography.titleXl,
+    marginTop: spacing[7],
     color: colors.textPrimary,
-    textAlign: 'center',
   },
   body: {
-    marginTop: 12,
-    fontSize: 14,
-    lineHeight: 24,
+    ...typography.bodyLg,
+    marginTop: spacing[3],
     color: colors.textSecondary,
+  },
+  textCentred: {
     textAlign: 'center',
   },
-  button: {
-    marginTop: 24,
-    borderRadius: radii.full,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    backgroundColor: colors.brand400,
+  // margin-top:auto on the board, at least 24 under the body.
+  spacer: {
+    flexGrow: 1,
+    minHeight: spacing[6],
   },
-  buttonPressed: {
-    backgroundColor: colors.brand500,
-  },
-  buttonLabel: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '600',
-    color: colors.navy,
+  homeTablet: {
+    marginTop: spacing[7],
+    paddingHorizontal: spacing[8],
   },
 });
