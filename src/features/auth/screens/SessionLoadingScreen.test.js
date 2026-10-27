@@ -2,6 +2,7 @@ import { AccessibilityInfo, StyleSheet, Text } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import Spinner from '../../../shared/components/Spinner';
+import { colors, textScale } from '../../../shared/theme/tokens';
 import SessionLoadingScreen, { RING, TILE } from './SessionLoadingScreen';
 
 jest.mock('react-native-safe-area-context', () => {
@@ -11,9 +12,10 @@ jest.mock('react-native-safe-area-context', () => {
     useSafeAreaInsets: () => ({ top: 47, bottom: 34, left: 0, right: 0 }),
   };
 });
+let mockFontScale = 1;
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   __esModule: true,
-  default: () => ({ width: 390, height: 844, scale: 3, fontScale: 1 }),
+  default: () => ({ width: 390, height: 844, scale: 3, fontScale: mockFontScale }),
 }));
 
 function render() {
@@ -64,5 +66,28 @@ describe('SessionLoadingScreen (v2 §5 session variant)', () => {
 
   it("draws the board's own gold glow", () => {
     expect(render().root.find((node) => node.props.testID === 'ambient-glow')).toBeTruthy();
+  });
+});
+
+describe('SessionLoadingScreen: UX §8.5 colour + §9 large text', () => {
+  afterEach(() => {
+    mockFontScale = 1;
+  });
+
+  it('the ring track is color-track (board white 0.08)', () => {
+    expect(render().root.findByType(Spinner).props.track).toBe(colors.track);
+  });
+
+  it.each([1, 2])('fontScale %p: the label caps at textScale.body, keeps its place, never a fixed height or line limit', (fontScale) => {
+    mockFontScale = fontScale;
+    const tree = render();
+    const label = byId(tree, 'session-loading-label');
+    expect(label.props.maxFontSizeMultiplier).toBe(textScale.body);
+    expect(label.props.numberOfLines).toBeUndefined();
+    const style = StyleSheet.flatten(label.props.style);
+    expect(style.height).toBeUndefined();
+    expect(style).toMatchObject({ fontSize: 15, lineHeight: 22, top: 844 / 2 - 47 - 48 + 96 + 24 });
+    // The G glyph is fixed-geometry chrome inside the 52 tile.
+    expect(tree.root.findAllByType(Text).find((node) => node.props.children === 'G').props.allowFontScaling).toBe(false);
   });
 });

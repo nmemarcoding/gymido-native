@@ -4,8 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Screen from '../../../shared/components/Screen';
 import Spinner from '../../../shared/components/Spinner';
-import { Body } from '../../../shared/components/Typography';
-import { colors, font, gradients, radii } from '../../../shared/theme/tokens';
+import { colors, font, gradients, radii, textScale, typography } from '../../../shared/theme/tokens';
 
 const LOADING_LABEL = 'Restoring your session and preparing the app';
 
@@ -15,6 +14,11 @@ const LOADING_LABEL = 'Restoring your session and preparing the app';
 export const RING = 96;
 export const TILE = 52;
 const LABEL_GAP = 24;
+
+// Colours: the ring track is color-track (board white 0.08). Large text (UX
+// §9): the G glyph is fixed-geometry chrome (no scaling); the label (the
+// Typography Body look, 15/22 text-secondary) caps at textScale.body and
+// grows downward from under the ring, never clipped by a fixed height.
 
 export default function SessionLoadingScreen() {
   const { height } = useWindowDimensions();
@@ -40,7 +44,7 @@ export default function SessionLoadingScreen() {
       >
         <View testID="session-loading-ring" style={[styles.ring, { top: ringTop }]}>
           <View style={StyleSheet.absoluteFill}>
-            <Spinner size={RING} thickness={4} color={colors.gold} track={colors.fillButton} />
+            <Spinner size={RING} thickness={4} color={colors.gold} track={colors.track} />
           </View>
           <View style={styles.tile}>
             <Text allowFontScaling={false} style={styles.tileText}>
@@ -48,7 +52,9 @@ export default function SessionLoadingScreen() {
             </Text>
           </View>
         </View>
-        <Body style={[styles.label, { top: ringTop + RING + LABEL_GAP }]}>{LOADING_LABEL}</Body>
+        <Text testID="session-loading-label" maxFontSizeMultiplier={textScale.body} style={[styles.label, { top: ringTop + RING + LABEL_GAP }]}>
+          {LOADING_LABEL}
+        </Text>
       </View>
     </Screen>
   );
@@ -78,6 +84,7 @@ const styles = StyleSheet.create({
     color: colors.onGold,
   },
   label: {
+    ...typography.bodyText,
     position: 'absolute',
     alignSelf: 'center',
     maxWidth: 260,

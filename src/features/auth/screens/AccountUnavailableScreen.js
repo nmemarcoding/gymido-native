@@ -6,7 +6,7 @@ import PillButton from '../../../shared/components/PillButton';
 import Screen from '../../../shared/components/Screen';
 import { colors, font, gradients, spacing } from '../../../shared/theme/tokens';
 import { logout } from '../authService';
-import { AccountArt, IconTile, TabletAuthCard, boardTop, isTabletWidth } from '../components/AuthArt';
+import { BODY_TEXT, DISPLAY_TITLE_TEXT, AccountArt, IconTile, TabletAuthCard, boardTop, isTabletWidth } from '../components/AuthArt';
 
 export const TITLE = "We couldn't open your account";
 export const FOCUS_DELAY_MS = 300;
@@ -58,12 +58,12 @@ export default function AccountUnavailableScreen() {
   };
 
   const title = (
-    <Text testID="account-unavailable-title" accessibilityRole="header" textBreakStrategy="simple" style={tablet ? styles.titleTablet : styles.title}>
+    <Text testID="account-unavailable-title" accessibilityRole="header" {...DISPLAY_TITLE_TEXT} style={tablet ? styles.titleTablet : styles.title}>
       {TITLE}
     </Text>
   );
   const body = (
-    <Text style={tablet ? styles.bodyTablet : styles.body}>
+    <Text {...BODY_TEXT} style={tablet ? styles.bodyTablet : styles.body}>
       You signed in, but this login isn't connected to a Gymido account. If you normally sign in with an email and
       password, sign out and use that instead.
     </Text>
@@ -88,7 +88,7 @@ export default function AccountUnavailableScreen() {
         <ScrollView contentContainerStyle={styles.scrollTablet}>
           <TabletAuthCard testID="account-unavailable-card" width={620} cornerGlow={320}>
             <AccountArt />
-            <Text style={[styles.eyebrow, styles.eyebrowTablet]}>Account</Text>
+            <Text {...BODY_TEXT} style={[styles.eyebrow, styles.eyebrowTablet]}>Account</Text>
             {title}
             {body}
             {signOut}
@@ -103,7 +103,7 @@ export default function AccountUnavailableScreen() {
       <ScrollView contentContainerStyle={styles.scrollPhone}>
         <View testID="account-unavailable-header" style={[styles.header, { marginTop: boardTop(180, 844, height, insets.top) }]}>
           <IconTile testID="account-unavailable-icon" icon="user-x" color={colors.gold} backgroundColor={colors.goldTint} />
-          <Text style={[styles.eyebrow, styles.eyebrowPhone]}>Account</Text>
+          <Text {...BODY_TEXT} style={[styles.eyebrow, styles.eyebrowPhone]}>Account</Text>
           {title}
           {body}
         </View>

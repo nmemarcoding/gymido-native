@@ -1,9 +1,9 @@
 import { reloadAppAsync } from 'expo';
 import { Component } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { colors, layout, spacing, typography } from '../theme/tokens';
+import { colors, layout, spacing, textScale, typography } from '../theme/tokens';
 import FeedbackIcon from './FeedbackIcon';
 import PillButton from './PillButton';
 
@@ -43,22 +43,40 @@ export default class RouteErrorBoundary extends Component {
 // danger icon tile, "Something went wrong", the body and the GOLD "Reload
 // app". Full width with 16 sides (+ safe areas), centred; no tab bar (the
 // boundary sits outside the shell); the ToastHost still draws above it.
+// Colours (UX §8.5): the icon tile's board danger 0.12 → danger-tint 0.14
+// (the danger-dot fill; danger-text stays the glyph). Large text (UX §9): the title caps
+// at textScale.title (28 = title-*), wraps by word and shrinks a single long
+// word; the body at textScale.body; the card scrolls when it outgrows the
+// screen (AX5), never clipped.
 export function RouteErrorFallback({ onReload }) {
   return (
     <SafeAreaView testID="route-error" style={styles.screen}>
-      <View testID="route-error-region" style={styles.region}>
-        {/* One live region: the card (role alert, polite). */}
-        <View testID="route-error-card" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.card}>
-          <View testID="route-error-icon" style={styles.iconTile}>
-            <FeedbackIcon name="warning" size={26} color={colors.dangerText} />
+      <ScrollView testID="route-error-scroll" style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        <View testID="route-error-region" style={styles.region}>
+          {/* One live region: the card (role alert, polite). */}
+          <View testID="route-error-card" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.card}>
+            <View testID="route-error-icon" style={styles.iconTile}>
+              <FeedbackIcon name="warning" size={26} color={colors.dangerText} />
+            </View>
+            <Text
+              testID="route-error-title"
+              accessibilityRole="header"
+              maxFontSizeMultiplier={textScale.title}
+              numberOfLines={3}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+              textBreakStrategy="simple"
+              style={styles.title}
+            >
+              Something went wrong
+            </Text>
+            <Text testID="route-error-body" maxFontSizeMultiplier={textScale.body} style={styles.body}>
+              We hit a problem rendering this page. Reload the app to try again.
+            </Text>
+            <PillButton testID="route-error-reload" title="Reload app" onPress={onReload} style={styles.reload} />
           </View>
-          <Text accessibilityRole="header" textBreakStrategy="simple" style={styles.title}>
-            Something went wrong
-          </Text>
-          <Text style={styles.body}>We hit a problem rendering this page. Reload the app to try again.</Text>
-          <PillButton testID="route-error-reload" title="Reload app" onPress={onReload} style={styles.reload} />
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -68,10 +86,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.ground,
     paddingHorizontal: layout.gutter,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     paddingVertical: spacing[8],
   },
   region: {
-    flex: 1,
+    flexGrow: 1,
     width: '100%',
     maxWidth: 560,
     alignSelf: 'center',
@@ -91,7 +115,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 18,
-    backgroundColor: colors.dangerTextTint,
+    backgroundColor: colors.dangerTint,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing[5],

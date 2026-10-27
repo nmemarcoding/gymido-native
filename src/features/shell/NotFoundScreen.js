@@ -4,10 +4,11 @@ import Svg, { Text as SvgText } from 'react-native-svg';
 
 import PillButton from '../../shared/components/PillButton';
 import Screen from '../../shared/components/Screen';
-import { breakpoints, colors, font, spacing, typography } from '../../shared/theme/tokens';
+import { breakpoints, colors, font, spacing, textScale, typography } from '../../shared/theme/tokens';
 
-// UX A §Not found: the outline "404" (gold at 55 %, 2 px stroke, no fill),
-// decorative. 150/140, tracking -0.07em. An Svg (explicit size) draws the
+// UX A §Not found: the outline "404" (board gold 0.55 → gold-strong 0.60,
+// UX §8.5; 2 px stroke, no fill), decorative and fixed size (an Svg, not
+// Text: it never scales with the text size). 150/140, tracking -0.07em. An Svg (explicit size) draws the
 // outline: RN Text has no text stroke.
 export const NUMERAL = { fontSize: 150, lineHeight: 140, width: 300 };
 const NUMERAL_TRACKING = -0.07 * NUMERAL.fontSize;
@@ -41,6 +42,16 @@ function OutlineNumeral({ centred }) {
   );
 }
 
+// UX §9 large text: the page title caps at textScale.display, wraps by word
+// (max 3 lines) and shrinks a single long word; the body caps at textScale.body.
+const TITLE_TEXT = {
+  maxFontSizeMultiplier: textScale.display,
+  numberOfLines: 3,
+  adjustsFontSizeToFit: true,
+  minimumFontScale: 0.7,
+  textBreakStrategy: 'simple',
+};
+
 // App-shell spec §9.4. "Go home" goes Home (`onGoHome`). Phone per the board
 // (left-aligned, the gold CTA at the bottom); tablet (ruling ND5): the SAME
 // 404, title, body and gold Go home, centred in the tablet column.
@@ -55,10 +66,10 @@ export default function NotFoundScreen({ onGoHome }) {
       <ScrollView contentContainerStyle={[styles.scroll, tablet && styles.scrollTablet]}>
         <View testID="not-found-column" style={[styles.column, tablet ? styles.columnTablet : { paddingTop: top }]}>
           <OutlineNumeral centred={tablet} />
-          <Text accessibilityRole="header" textBreakStrategy="simple" style={[styles.title, tablet && styles.textCentred]}>
+          <Text testID="not-found-title" accessibilityRole="header" {...TITLE_TEXT} style={[styles.title, tablet && styles.textCentred]}>
             Page not found
           </Text>
-          <Text style={[styles.body, tablet && styles.textCentred]}>
+          <Text testID="not-found-body" maxFontSizeMultiplier={textScale.body} style={[styles.body, tablet && styles.textCentred]}>
             The requested page does not exist. Return to the app home to keep going.
           </Text>
           {tablet ? null : <View style={styles.spacer} />}
