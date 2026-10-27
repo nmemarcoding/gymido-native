@@ -1,3 +1,5 @@
+import { formatCount } from '../../shared/format/counts';
+
 // Derived data and copy for S1 (plans list) and S2 (plan detail),
 // RN-SPEC-plans §3.2, §4 and §10. Pure, so it can be tested.
 
@@ -54,13 +56,13 @@ export function deriveLibrary(plans, currentPlan) {
 
 // §3.4: still days_per_week after W1b (W1c).
 export function activePlanSummary(plan) {
-  const days = plan?.days_per_week ? `${plan.days_per_week} training days / week` : 'Your active routine';
+  const days = plan?.days_per_week ? `${formatCount(plan.days_per_week, 'training day', 'training days')} / week` : 'Your active routine';
   return days + (plan?.category?.name ? ` · ${plan.category.name}` : '');
 }
 
 // §3.6: a missing value keeps the leading space.
 export function planCardDaysLabel(plan) {
-  return `${plan?.days_per_week ?? ''} days / week`;
+  return plan?.days_per_week == null ? ' days / week' : `${formatCount(plan.days_per_week, 'day', 'days')} / week`;
 }
 
 export function planCountLabel(count) {
@@ -158,7 +160,7 @@ export function selectedWeekdaysLabel(selected, fullNames = false) {
 }
 
 export function workoutDaysLabel(count) {
-  return `${count} workout day${count === 1 ? '' : 's'}`;
+  return formatCount(count, 'workout day', 'workout days');
 }
 
 // §4.7: day 1 → the earliest selected weekday, and so on (⚠1).
@@ -171,7 +173,7 @@ export function buildScheduleItems(days, selected, requiredDays) {
 // The active card puts the category top-right (as drawn), so its days line
 // is the code's text without the " · {category}" tail.
 export function activePlanDaysLabel(plan) {
-  return plan?.days_per_week ? `${plan.days_per_week} training days / week` : 'Your active routine';
+  return plan?.days_per_week ? `${formatCount(plan.days_per_week, 'training day', 'training days')} / week` : 'Your active routine';
 }
 
 // Tablet: "Strength · 4 days / week" (category first when there is one).
@@ -181,7 +183,7 @@ export function activePlanSubline(plan) {
     parts.push(plan.category.name);
   }
   if (plan?.days_per_week) {
-    parts.push(`${plan.days_per_week} days / week`);
+    parts.push(`${formatCount(plan.days_per_week, 'day', 'days')} / week`);
   }
   return parts.join(' · ');
 }

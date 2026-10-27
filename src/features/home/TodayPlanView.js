@@ -13,6 +13,7 @@ import { colors, font, gradients, radii, shadows, spacing, typography } from '..
 import ProgressRing from '../workout/components/ProgressRing';
 import { exerciseCountText, workoutInitials } from './homeFormat';
 import { LARGE_TEXT as LT } from './TodayStates';
+import { keepUnitsTogether } from '../../shared/format/counts';
 
 // v2 Phase 3 §2 Today (UX E-today: phone "Today", "Tablet: Today"): the
 // loaded Today with an active plan. Look only, except the approved U1 "Your
@@ -153,7 +154,7 @@ export function TodayHero({ plan, card, tablet, reflow, imageUrl, dayTitle, dayO
             ellipsizeMode="tail"
             style={[tablet ? styles.subTablet : styles.sub, styles.subInRow, styles.subName]}
           >
-            {plan.name}
+            {keepUnitsTogether(plan.name)}
           </Text>
           <Text testID="home-today-sub-count" {...LT.body} numberOfLines={1} textBreakStrategy="simple" style={[tablet ? styles.subTablet : styles.sub, styles.subInRow, styles.subCount]}>
             {countText}
@@ -161,7 +162,7 @@ export function TodayHero({ plan, card, tablet, reflow, imageUrl, dayTitle, dayO
         </View>
       ) : (
         <Text testID="home-today-sub" {...LT.body} numberOfLines={2} ellipsizeMode="tail" style={tablet ? styles.subTablet : styles.sub}>
-          {card.sub ?? plan.name}
+          {card.sub ?? keepUnitsTogether(plan.name)}
         </Text>
       )}
       {card.moreMissed ? (

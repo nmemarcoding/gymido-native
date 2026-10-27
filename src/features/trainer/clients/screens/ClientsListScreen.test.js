@@ -236,3 +236,16 @@ describe('Clients, large text (§9)', () => {
     expect(pane.width).toBe(fontScale > textScale.reflowAbove ? '100%' : LIST_PANE_WIDTH);
   });
 });
+
+describe('plan name with a value + unit (RN-SPEC-v2-foundation §7.1, 27 Oct 2026)', () => {
+  it('the row shows "… 3\u00a0days" with U+00A0, the label names it once, and search still matches the raw name', async () => {
+    const plan = { ...PLAN, name: 'Get stronger · 3 days' };
+    listActiveClients.mockResolvedValue([{ ...alex, client_activity: activity({ current_plan: plan, week: { planned: 0, done: 0, missed: 0, days: [] } }) }]);
+    const tree = await render();
+    expect(texts(tree)).toContain('Get stronger · 3\u00a0days');
+    expect(texts(tree)).not.toContain('Get stronger · 3 days');
+    expect(byTestID(tree, 'clients-row-11').props.accessibilityLabel).toBe('Alex Kim, Get stronger · 3\u00a0days, On track');
+    await act(async () => host(tree, 'clients-search').props.onChangeText('3 days'));
+    expect(host(tree, 'clients-row-11')).toBeTruthy();
+  });
+});

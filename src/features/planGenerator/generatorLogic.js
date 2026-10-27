@@ -5,6 +5,7 @@ import { breakpoints } from '../../shared/theme/tokens';
 import { TAB_BAR_CLEARANCE } from '../shell/tabBarMetrics';
 import { formatLocalDateForInput } from '../../shared/time/format';
 import { COPY, QUESTIONS, bandLabel, focusBlockedHint, goEasyBlockedHint, goalLabel, humanizeCode, presetLabel } from './generatorCopy';
+import { formatCount, NBSP } from '../../shared/format/counts';
 
 // Option lists may carry plain codes or `{code}` objects.
 export function optionCode(option) {
@@ -259,8 +260,8 @@ export function reviewSummaries(answers, options) {
   return [
     goalLabel(answers.goal),
     bandLabel(answers.experience_band),
-    `${answers.days_per_week} days a week`,
-    `${answers.session_minutes} min`,
+    `${formatCount(answers.days_per_week, 'day', 'days')} a week`,
+    `${answers.session_minutes}${NBSP}min`,
     `${presetLabel(answers.equipment_preset)} · ${['Bodyweight', ...equipment].join(', ')}`,
     (areas.length ? [focusPart, goEasyPart, avoidPart] : [focusPart, avoidPart]).join(' · '),
   ].map((summary, index) => ({ step: index + 1, question: QUESTIONS[index], summary }));

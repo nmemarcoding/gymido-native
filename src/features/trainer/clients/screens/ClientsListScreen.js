@@ -36,6 +36,7 @@ import { PlusGlyph, SearchGlyph } from '../components/clientIcons';
 import InviteClientModal from '../components/InviteClientModal';
 import { useTrainerOverview } from '../useTrainerOverview';
 import ClientDetailContent from './ClientDetailContent';
+import { keepUnitsTogether } from '../../../../shared/format/counts';
 
 // C1 (trainer clients spec §C3; v2 phase 6 §2 Clients, UX N). Phone: the
 // list page (a row pushes Client detail). Tablet (≥ 768): master/detail, the
@@ -276,7 +277,8 @@ function ClientsList() {
     const ratio = weekRatio(row);
     const sub = subLine(row);
     const isSelected = Boolean(tablet && selected && selected.client_user_id === row.client_user_id);
-    const label = [name, planNameOf(row), sub?.text && sub.text !== planNameOf(row) ? sub.text : null, isOnTrack(row) ? 'On track' : null, ratio ? `${ratio.done} of ${ratio.planned} this week` : null]
+    const plan = keepUnitsTogether(planNameOf(row));
+    const label = [name, plan, sub?.text && sub.text !== plan ? sub.text : null, isOnTrack(row) ? 'On track' : null, ratio ? `${ratio.done} of ${ratio.planned} this week` : null]
       .filter(Boolean)
       .join(', ');
     return (
@@ -366,7 +368,7 @@ function subLine(row) {
   if (inactive) {
     return { tone: 'warning', text: inactive };
   }
-  return { text: planNameOf(row) ?? 'No plan yet' };
+  return { text: keepUnitsTogether(planNameOf(row)) ?? 'No plan yet' };
 }
 
 const styles = StyleSheet.create({

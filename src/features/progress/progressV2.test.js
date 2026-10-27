@@ -142,7 +142,7 @@ describe('progressFormat (Phase 3)', () => {
   it('completionCells: done/missed from days[] (rest → no cell) + this week (upcoming → due); no days[] → null', () => {
     const grid = completionCells(DATA.missed, DATA.week, new Date(2026, 9, 27));
     expect(grid.cells.map((cell) => cell.status)).toEqual(['done', 'missed', 'done', 'due']);
-    expect(grid.label).toBe('2 of 3 planned days done in the last 4 weeks');
+    expect(grid.label).toBe('2 of 3\u00a0planned days done in the last 4 weeks');
     expect(completionCells({ count: 1, planned_count: 4 }, null)).toBeNull();
   });
 

@@ -1,3 +1,5 @@
+import { formatCount, keepUnitsTogether, NBSP, pluralWord } from '../../shared/format/counts';
+
 // Display copy for the plan generator (RN-SPEC-PLAN-GENERATOR §G4, §G6).
 // Pure, so it can be tested.
 
@@ -125,8 +127,7 @@ export const COPY = Object.freeze({
   goEasyPrefix: 'Go easy on:',
   noFocus: 'No focus',
   nothingToAvoid: 'Nothing to avoid',
-  daysAWeekUnit: ' days a week',
-  minUnit: ' min',
+  minUnit: '\u00a0min',
 });
 
 // v2 Phase 4 J: the radio-group names of the single-choice steps (dated
@@ -146,16 +147,18 @@ export const stepFraction = (step) => `${step}/${STEP_COUNT}`;
 export const exerciseRowLabel = (name, muscle, prescription) => [name, muscle, prescription].filter(Boolean).join(', ');
 
 export const stepEyebrow = (step) => `Step ${step} of ${STEP_COUNT}`;
-export const daysPillLabel = (n) => `${n} days`;
-export const minutesPillLabel = (n) => `${n} min`;
+export const daysPillLabel = (n) => formatCount(n, 'day', 'days');
+export const minutesPillLabel = (n) => `${n}${NBSP}min`;
+// Review card 3: the unit after the big number ("3" + "\u00a0days a week", "1" + "\u00a0day a week").
+export const daysAWeekUnit = (n) => `${NBSP}${pluralWord(n, 'day', 'days')} a week`;
 export const pickUpTo = (n) => `Pick up to ${n}.`;
 export const removeLabel = (name) => `Remove ${name}`;
 export const changeLabel = (question) => `Change: ${question}`;
-export const activeNotice = (planName) => `Starting this plan ends your current plan (${planName}). Its history is kept.`;
-export const confirmDescription = (planName) => `Your current plan (${planName}) ends; its history is kept.`;
-export const createdMessage = (planName) => `${planName} created.`;
+export const activeNotice = (planName) => `Starting this plan ends your current plan (${keepUnitsTogether(planName)}). Its history is kept.`;
+export const confirmDescription = (planName) => `Your current plan (${keepUnitsTogether(planName)}) ends; its history is kept.`;
+export const createdMessage = (planName) => `${keepUnitsTogether(planName)} created.`;
 export const dayTitle = (day) => `Day ${day?.day_number}: ${day?.title}`;
-export const dayMinutes = (minutes) => `~${minutes} min`;
+export const dayMinutes = (minutes) => `~${minutes}${NBSP}min`;
 
 // T-18 block hints: names lower case mid-sentence, the first word
 // capitalised; joined "a", "a and b", "a, b and c" (no Oxford comma).

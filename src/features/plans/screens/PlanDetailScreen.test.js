@@ -229,7 +229,7 @@ describe('Plan detail (phone), the current plan', () => {
     const tree = await render();
     await act(async () => pressable(tree, 'plan-weekday-1').props.onPress());
     await act(async () => button(tree, 'plan-activate').props.onPress());
-    expect(texts(tree)).toEqual(expect.arrayContaining(['Plan activation failed', 'Select 3 workout days to continue.']));
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Plan activation failed', 'Select 3\u00a0workout days to continue.']));
     expect(replaceSchedule).not.toHaveBeenCalled();
   });
 });
@@ -241,7 +241,7 @@ describe('Plan detail (phone), not the current plan', () => {
     const tree = await render();
     expect(host(tree, 'plan-detail-current')).toBeUndefined();
     expect(host(tree, 'plan-this-week')).toBeUndefined();
-    expect(texts(tree)).toEqual(expect.arrayContaining(['Start this plan', 'Pick 3 workout days']));
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Start this plan', 'Pick 3\u00a0workout days']));
     const cta = button(tree, 'plan-activate');
     expect([cta.props.title, cta.props.variant, cta.props.disabled]).toEqual(['Start workout plan', 'primary', false]);
   });

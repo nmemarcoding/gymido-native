@@ -61,6 +61,7 @@ import {
 } from './restPresentation';
 import { consumeRestBack, setRestBackConsumer } from './restBackGate';
 import { setsWord } from './sessionMath';
+import { keepUnitsTogether } from '../../../shared/format/counts';
 
 const POP = Easing.bezier(...motion.easePop);
 const MARGIN = 8;
@@ -528,7 +529,7 @@ export function CompletionPopup({ popup, onClose }) {
     return null;
   }
   const scale = progress.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] });
-  const body = `You finished ${popup.planName} and kept your momentum today.`;
+  const body = `You finished ${keepUnitsTogether(popup.planName)} and kept your momentum today.`;
 
   if (tablet) {
     return (

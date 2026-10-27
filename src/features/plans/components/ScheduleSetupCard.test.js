@@ -71,7 +71,7 @@ describe('B2 Schedule setup card: copy and default (v1)', () => {
     expect(texts(tree.root)).toEqual(
       expect.arrayContaining([
         'Set up your week',
-        'Pick 4 training days',
+        'Pick 4\u00a0training days',
         'Upper / Lower Split doesn’t have training days yet. Choose the weekdays you train and we’ll line up your sessions.',
         'Selected: Monday, Tuesday, Wednesday, Thursday',
         'Save training days',
@@ -84,7 +84,7 @@ describe('B2 Schedule setup card: copy and default (v1)', () => {
   it('singular for one day; "Your plan" when the plan has no name', () => {
     const tree = render({ planName: '', planDays: [{ id: 1 }] });
     expect(texts(tree.root)).toEqual(
-      expect.arrayContaining(['Pick 1 training day', 'Your plan doesn’t have training days yet. Choose the weekdays you train and we’ll line up your sessions.'])
+      expect.arrayContaining(['Pick 1\u00a0training day', 'Your plan doesn’t have training days yet. Choose the weekdays you train and we’ll line up your sessions.'])
     );
   });
 
@@ -147,11 +147,11 @@ describe('B2 tablet (ND5 ring)', () => {
   it('7 chips in one row at 84 tall; the 120 ring labelled "{n} of {R} days selected"', () => {
     const tree = render();
     expect(styleOf(chip(tree, 7))).toMatchObject({ minHeight: 84, backgroundColor: colors.fillWell });
-    const ring = tree.root.find((node) => node.props.accessibilityLabel === '4 of 4 days selected' && typeof node.type === 'string');
+    const ring = tree.root.find((node) => node.props.accessibilityLabel === '4 of 4\u00a0days selected' && typeof node.type === 'string');
     expect(ring.props.accessibilityRole).toBe('image');
     expect(textOf(host(tree.root, 'schedule-setup-ring-count'))).toBe('4');
     tap(tree, 1);
-    expect(tree.root.findAll((node) => node.props.accessibilityLabel === '3 of 4 days selected' && typeof node.type === 'string')).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === '3 of 4\u00a0days selected' && typeof node.type === 'string')).toHaveLength(1);
     expect(queryHost(tree.root, 'schedule-setup-count')).toHaveLength(0);
     expect(texts(tree.root)).toContain('Selected: Tuesday, Wednesday, Thursday');
   });
@@ -170,7 +170,7 @@ describe('B2 save (v1 behaviour)', () => {
     expect(createSchedule).not.toHaveBeenCalled();
     const alert = host(tree.root, 'schedule-setup-error');
     expect(alert.props.accessibilityRole).toBe('alert');
-    expect(texts(tree.root)).toEqual(expect.arrayContaining(['Couldn’t save your days', 'Pick 4 training days to continue.']));
+    expect(texts(tree.root)).toEqual(expect.arrayContaining(['Couldn’t save your days', 'Pick 4\u00a0training days to continue.']));
   });
 
   it('sends day i → the i-th selected weekday, then onSaved', async () => {

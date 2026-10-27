@@ -5,6 +5,7 @@ import { colors, font, radii, spacing, typography } from '../../../shared/theme/
 import { openShellPath } from '../../shell/shellLinks';
 import { activePlanDaysLabel, activePlanSubline, trainingDaysLabel } from '../libraryFormat';
 import { OnGoldButton, useIsTablet, useReflow } from './planUi';
+import { keepUnitsTogether } from '../../../shared/format/counts';
 
 const HIDDEN = { accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' };
 
@@ -40,7 +41,7 @@ export default function ActivePlanCard({ plan, chips, onView }) {
         ) : null}
       </View>
       <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={tablet ? styles.nameTablet : styles.name}>
-        {plan?.name}
+        {keepUnitsTogether(plan?.name)}
       </Text>
       {tablet ? null : (
         <Text {...CAP_BODY} style={styles.days}>

@@ -1,3 +1,5 @@
+import { formatCount } from '../../shared/format/counts';
+
 // Derived values and copy of the Workout hub (RN-SPEC-workout Part A).
 // Pure, so it can be tested.
 
@@ -55,7 +57,7 @@ export function showsHeroStart(todayStatus) {
 }
 
 export function trainingDaysLabel(count) {
-  return `${count} training day${count === 1 ? '' : 's'}`;
+  return formatCount(count, 'training day', 'training days');
 }
 
 // §5.3: every completed session's plan day id (duplicates kept).

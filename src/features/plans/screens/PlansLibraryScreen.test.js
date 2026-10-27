@@ -134,8 +134,8 @@ describe('Plans active card (gold as drawn, N4)', () => {
     expect(card).toEqual(expect.objectContaining({ backgroundColor: colors.gold, borderRadius: radii.xxl, padding: 22, overflow: 'hidden' }));
     expect(flat(host(tree, 'plans-active-ring'))).toEqual(expect.objectContaining({ width: 220, borderWidth: 28, borderColor: colors.inkFaint }));
     expect(flat(host(tree, 'plans-active-badge')).backgroundColor).toBe(colors.inkTint);
-    expect(texts(tree)).toEqual(expect.arrayContaining(['Active plan', 'Strength', 'Upper / Lower Split', '4 training days / week', 'Your week']));
-    expect(texts(tree)).not.toContain('4 training days / week · Strength');
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Active plan', 'Strength', 'Upper / Lower Split', '4\u00a0training days / week', 'Your week']));
+    expect(texts(tree)).not.toContain('4\u00a0training days / week · Strength');
   });
 
   it('the week: 7 read-only chips, training days dark with gold text, labelled with full names', async () => {
@@ -196,7 +196,7 @@ describe('Plans entry tiles and plan tiles', () => {
     const tree = await render();
     expect(texts(tree)).toEqual(expect.arrayContaining(['Switch your plan', '3 plans', 'Hypertrophy', 'Strength']));
     const tile = pressable(tree, 'plans-card-2');
-    expect(tile.props.accessibilityLabel).toBe('Push / Pull / Legs, Hypertrophy, 6 days / week, A classic split.');
+    expect(tile.props.accessibilityLabel).toBe('Push / Pull / Legs, Hypertrophy, 6\u00a0days / week, A classic split.');
     await act(async () => tile.props.onPress());
     expect(mockNavigation.push).toHaveBeenCalledWith('PlanDetail', { planId: '2' });
   });
@@ -243,7 +243,7 @@ describe('Tablet: Plans', () => {
   it('the active card: radius 32, padding 32, the 7-day grid with the day titles, the 56 pair', async () => {
     const tree = await render();
     expect(flat(host(tree, 'plans-active-card'))).toEqual(expect.objectContaining({ borderRadius: radii.xxxl, padding: 32 }));
-    expect(texts(tree)).toEqual(expect.arrayContaining(['Strength · 4 days / week', 'Upper A', 'Lower A']));
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Strength · 4\u00a0days / week', 'Upper A', 'Lower A']));
     expect(host(tree, 'plans-week-grid').props.accessibilityLabel).toBe('Training days: Monday, Thursday');
     expect(flat(host(tree, 'plans-week-cell-4')).backgroundColor).toBe(colors.ground);
     expect(flat(pressableEl(tree, 'plans-go-to-workout')).minHeight).toBe(56);

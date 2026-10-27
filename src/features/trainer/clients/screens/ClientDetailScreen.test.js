@@ -217,7 +217,7 @@ describe('Client detail, phone', () => {
     const fill = card.findAll((node) => node.type === GradientFill)[0];
     expect(fill.props.colors).toEqual(gradients.gold.colors);
     expect(texts(tree)).toEqual(
-      expect.arrayContaining(['Assigned plan', 'Upper / Lower Split', `Started ${new Date('2026-09-14').toLocaleDateString()}`, '4 days / week · Strength'])
+      expect.arrayContaining(['Assigned plan', 'Upper / Lower Split', `Started ${new Date('2026-09-14').toLocaleDateString()}`, '4\u00a0days / week · Strength'])
     );
     load({ plan: { enrollment: { plan: {} } } });
     const bare = await render();

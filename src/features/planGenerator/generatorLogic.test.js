@@ -224,8 +224,8 @@ describe('review summaries (G1.3)', () => {
     expect(rows.map((r) => r.summary)).toEqual([
       'Build muscle',
       '2+ years',
-      '4 days a week',
-      '60 min',
+      '4\u00a0days a week',
+      '60\u00a0min',
       'Full gym · Bodyweight, Barbell, Cable',
       'Focus: Chest · Avoid: Dips',
     ]);

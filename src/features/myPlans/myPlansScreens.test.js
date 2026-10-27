@@ -63,7 +63,7 @@ describe('M1 My plans (§M1)', () => {
     });
     const tree = await render(<MyPlansScreen />);
     const shown = texts(tree);
-    expect(shown).toEqual(expect.arrayContaining(['← All plans', 'My plans', 'Strength', 'Inactive', '3 days / week', 'Training plan', 'Plan']));
+    expect(shown).toEqual(expect.arrayContaining(['← All plans', 'My plans', 'Strength', 'Inactive', '3\u00a0days / week', 'Training plan', 'Plan']));
     expect(shown.filter((text) => text === 'Inactive')).toHaveLength(1);
     expect(shown).not.toContain('Library');
     expect(shown).not.toContain('Build me a plan');

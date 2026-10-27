@@ -6,6 +6,7 @@ import PillButton from '../../../shared/components/PillButton';
 import StatusPill from '../../../shared/components/StatusPill';
 import { colors, font, gradients, radii, spacing, typography } from '../../../shared/theme/tokens';
 import { formatDaysPerWeek } from '../../trainer/plans/planFormat';
+import { keepUnitsTogether } from '../../../shared/format/counts';
 
 const HIDDEN = { accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' };
 // glow-gold-ambient (0.18) as the featured card's 260 circle, top-right.
@@ -43,7 +44,7 @@ export default function MyPlanCard({ plan, onOpen, tablet = false, featured = fa
         accessibilityRole="header"
         style={big ? styles.nameFeatured : tablet ? styles.nameTablet : styles.name}
       >
-        {plan.name}
+        {keepUnitsTogether(plan.name)}
       </Text>
       <Text {...CAP_BODY} style={[styles.days, tablet && styles.daysTablet, big && styles.daysFeatured]}>
         {formatDaysPerWeek(plan)}

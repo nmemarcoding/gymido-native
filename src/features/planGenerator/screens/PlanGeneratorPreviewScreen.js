@@ -51,6 +51,7 @@ import {
 import { THUMB_WIDTH, imageSourceProps } from '../../plans/planImages';
 import { generatorRoutes } from '../generatorRoutes';
 import { useTabBarClearance } from '../useTabBarClearance';
+import { keepUnitsTogether } from '../../../shared/format/counts';
 
 const THUMB = Object.freeze({ width: THUMB_WIDTH });
 
@@ -310,7 +311,7 @@ function Feasible({ preview, notice, changingSplit, onSplitChange, onOpenExercis
           {COPY.yourPlan}
         </Text>
         <Text {...PAGE_TITLE_TEXT} accessibilityRole="header" testID="generator-plan-name" style={[styles.planName, tablet && styles.planNameTablet]}>
-          {preview.plan_name}
+          {keepUnitsTogether(preview.plan_name)}
         </Text>
         {!tablet && preview.split?.name ? (
           <Text {...BODY_TEXT} style={styles.splitName}>

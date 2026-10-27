@@ -1,3 +1,5 @@
+import { formatCount } from '../../../shared/format/counts';
+
 // Text and derived values of the trainer plans spec, kept exact (bugs included).
 
 const DOT = ' · ';
@@ -28,9 +30,10 @@ export function formatExerciseSummary(exercise) {
   return `${setCount} ${setCount === 1 ? 'set' : 'sets'}${DOT}${formatSetSummary(summary)}`;
 }
 
-// PlanCard line. ⚠T1-4: never singular.
+// PlanCard line. The singular for 1 (RN-SPEC-v2-foundation §7.1, 27 Oct 2026;
+// supersedes ⚠T1-4).
 export function formatDaysPerWeek(plan) {
-  return plan?.days_per_week ? `${plan.days_per_week} days / week` : 'Training plan';
+  return plan?.days_per_week ? `${formatCount(plan.days_per_week, 'day', 'days')} / week` : 'Training plan';
 }
 
 // ⚠T3-4: never singular, and 0 when the count is missing.

@@ -385,12 +385,12 @@ describe('Check your answers (GeneratorReview board)', () => {
     expect(tree.root.findAll((node) => node.type === PillButton && node.props.variant !== 'secondary')).toHaveLength(1);
     const days = host(tree, 'generator-review-3');
     expect(days.findAll((node) => node.type === Text).map((node) => [].concat(node.props.children).filter((c) => typeof c === 'string').join(''))).toEqual(
-      expect.arrayContaining(['4', ' days a week'])
+      expect.arrayContaining(['4', '\u00a0days a week'])
     );
     const number = days.findAll((node) => node.type === Text && [].concat(node.props.children).includes('4'))[0];
     expect(flat(number)).toMatchObject({ fontSize: 44, fontVariant: ['tabular-nums'] });
     expect(number.props.maxFontSizeMultiplier).toBe(textScale.display);
-    expect(textOf(tree, ' min')).toBeDefined();
+    expect(textOf(tree, '\u00a0min')).toBeDefined();
   });
 
   it('each card reads as ONE string (question: code summary); row 5 = preset + chips (Bodyweight first); row 6 lines with coloured labels', async () => {

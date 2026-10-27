@@ -102,7 +102,7 @@ describe('My plans (phone)', () => {
     const tree = await render();
     const pill = tree.root.findAllByType(StatusPill).find((node) => node.props.testID === 'my-plan-card-inactive-2');
     expect([pill.props.label, pill.props.tone]).toEqual(['Inactive', 'inactive']);
-    expect(texts(tree)).toEqual(expect.arrayContaining(['Strength', 'My strength plan', '3 days / week', 'Heavy basics.', 'Plan']));
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Strength', 'My strength plan', '3\u00a0days / week', 'Heavy basics.', 'Plan']));
     const open = button(tree, 'my-plan-card-open-2');
     expect([open.props.accessibilityLabel, open.props.variant, open.props.size]).toEqual(['Open Push / Pull / Legs (copy)', 'secondary', 'compact']);
     await act(async () => open.props.onPress());

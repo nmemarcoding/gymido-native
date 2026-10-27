@@ -156,7 +156,7 @@ describe('TodayHeroCard (v2)', () => {
     expect(host(tree.root, 'workout-hero-badge')).toBeTruthy();
     expect(tree.root.findByProps({ testID: 'workout-hero-badge' }).props).toMatchObject({ tone: 'gold', label: 'Training day' });
     expect(flat(host(tree.root, 'workout-hero-plan')).fontSize).toBe(40);
-    expect(tree.root.findByType(ProgressRing).props).toMatchObject({ flat: true, size: 104, label: '2 of 4 training days completed this week' });
+    expect(tree.root.findByType(ProgressRing).props).toMatchObject({ flat: true, size: 104, label: '2 of 4\u00a0training days completed this week' });
     expect(queryHost(tree.root, 'workout-hero-photo')).toHaveLength(0);
   });
 
