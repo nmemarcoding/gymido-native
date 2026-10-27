@@ -15,6 +15,7 @@ jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => {
   return {
     __esModule: true,
     default: () =>
+      // eslint-disable-next-line react-hooks/rules-of-hooks -- this mock IS the useWindowDimensions hook
       useSyncExternalStore(
         (listener) => {
           mockWindow.listeners.add(listener);

@@ -298,6 +298,16 @@ describe('My trainer v2 look (C5), phone', () => {
 describe('My trainer v2 look (C5), tablet', () => {
   beforeEach(() => setWidth(834));
 
+  // Lint gate (no-dupe-keys, 27 Oct): a second `column` style key replaced the
+  // page column, so the hub never got its centred 672 cap on tablets.
+  it('the page sits in a centred column at most 672 wide', async () => {
+    getMyTrainer.mockResolvedValue(activeMine);
+    listPendingTrainerRequests.mockResolvedValue([]);
+    const tree = await render();
+    const column = host(tree.root, 'trainer-hub-column')[0];
+    expect(Object.assign({}, ...[].concat(column.props.style).flat().filter(Boolean))).toMatchObject({ width: '100%', maxWidth: 672, alignSelf: 'center' });
+  });
+
   it('active coach: 104 avatar, 52 name, links side by side', async () => {
     getMyTrainer.mockResolvedValue(activeMine);
     listPendingTrainerRequests.mockResolvedValue([outgoing]);

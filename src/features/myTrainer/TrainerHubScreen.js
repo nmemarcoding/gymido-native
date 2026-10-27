@@ -95,7 +95,7 @@ export default function TrainerHubScreen() {
   const remountKey = useFocusRemountKey();
   return (
     <ShellPage testID="trainer-hub-screen" glow={gradients.tealAmbient}>
-      <View style={styles.column}>
+      <View testID="trainer-hub-column" style={styles.pageColumn}>
         <TrainerHub key={remountKey} />
       </View>
     </ShellPage>
@@ -601,7 +601,8 @@ function ActiveTrainerCard({ tablet, stacked = false, name, userId, trainer, sta
 }
 
 const styles = StyleSheet.create({
-  column: {
+  // The page column (was a second `column` key, so a later one replaced it).
+  pageColumn: {
     width: '100%',
     maxWidth: 672,
     alignSelf: 'center',

@@ -13,8 +13,8 @@ function labelOf(element) {
 
 describe('button labels on Android', () => {
   it.each([
-    ['PillButton', <PillButton title="Add weight" onPress={() => {}} />],
-    ['PillButton small', <PillButton title="Add weight" size="small" onPress={() => {}} />],
+    ['PillButton', <PillButton key="pill" title="Add weight" onPress={() => {}} />],
+    ['PillButton small', <PillButton key="pill-small" title="Add weight" size="small" onPress={() => {}} />],
   ])('%s label stays on one line with simple breaking', (_name, element) => {
     const label = labelOf(element);
     expect(label.props.textBreakStrategy).toBe('simple');

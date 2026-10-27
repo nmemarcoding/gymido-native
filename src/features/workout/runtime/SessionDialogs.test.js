@@ -117,6 +117,7 @@ describe('Discard workout? (F1, ND6)', () => {
   });
 
   it('M4: the dead duplicate shell is gone (SessionDialogs exports no Discard dialog)', () => {
+    // eslint-disable-next-line import/namespace -- asserting the export is GONE
     expect(SessionDialogs.DiscardWorkoutDialog).toBeUndefined();
   });
 });
