@@ -8,6 +8,7 @@ import ErrorAlert from '../../../shared/components/ErrorAlert';
 import FormField from '../../../shared/components/FormField';
 import Loader from '../../../shared/components/Loader';
 import PillButton from '../../../shared/components/PillButton';
+import StateSlot from '../../../shared/components/StateSlot';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
 import { breakpoints, colors } from '../../../shared/theme/tokens';
 import ShellPage from '../../shell/ShellPage';
@@ -94,19 +95,30 @@ function TrainersList() {
   function renderBody() {
     if (state.error) {
       return (
-        <ErrorAlert
-          title="Could not load trainers"
-          description={state.error}
-          onRetry={() => setReloadToken((value) => value + 1)}
-        />
+        <StateSlot>
+          <ErrorAlert
+            title="Could not load trainers"
+            description={state.error}
+            onRetry={() => setReloadToken((value) => value + 1)}
+          />
+        </StateSlot>
       );
     }
     if (state.loading) {
-      return <Loader label="Loading trainers" style={styles.loader} />;
+      return (
+        <StateSlot>
+          <Loader label="Loading trainers" style={styles.loader} />
+        </StateSlot>
+      );
     }
     if (state.trainers.length === 0) {
       const copy = trainersEmptyCopy(search);
-      return <EmptyState title={copy.title} message={copy.message} />;
+      return (
+        <StateSlot>
+          {/* The copy switches with the search: a polite live region. */}
+          <EmptyState live title={copy.title} message={copy.message} />
+        </StateSlot>
+      );
     }
     const { pagination } = state;
     const rows = twoColumns ? pairs(state.trainers) : state.trainers.map((trainer) => [trainer]);

@@ -6,6 +6,7 @@ import ErrorAlert from '../../../shared/components/ErrorAlert';
 import FormField from '../../../shared/components/FormField';
 import Loader from '../../../shared/components/Loader';
 import PillButton from '../../../shared/components/PillButton';
+import StateSlot from '../../../shared/components/StateSlot';
 import { ToastTone, addToast } from '../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
 import { breakpoints, colors, radii, shadows } from '../../../shared/theme/tokens';
@@ -89,9 +90,17 @@ function TrainerApply() {
           </View>
         );
       case 'loading':
-        return <Loader label="Loading your application" style={styles.loader} />;
+        return (
+          <StateSlot>
+            <Loader label="Loading your application" style={styles.loader} />
+          </StateSlot>
+        );
       case 'error':
-        return <ErrorAlert title="Could not load your application" description={state.error} onRetry={load} />;
+        return (
+          <StateSlot>
+            <ErrorAlert title="Could not load your application" description={state.error} onRetry={load} />
+          </StateSlot>
+        );
       case 'form':
         return <ApplicationForm copy={FORM_COPY.first} cardPadding={cardPadding} onSubmitted={onSubmitted} />;
       case 'rejected':

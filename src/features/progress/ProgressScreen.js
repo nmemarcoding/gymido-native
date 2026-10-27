@@ -5,6 +5,7 @@ import Card from '../../shared/components/Card';
 import EmptyState from '../../shared/components/EmptyState';
 import { InlineError } from '../../shared/components/FeedbackBox';
 import Loader from '../../shared/components/Loader';
+import StateSlot from '../../shared/components/StateSlot';
 import { InlineToast } from '../../shared/components/ToastHost';
 import { ToastTone } from '../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
@@ -84,12 +85,18 @@ function Progress() {
   }, [successMessage]);
 
   if (load.status === 'loading') {
-    return <Loader label="Loading progress" />;
+    return (
+      <StateSlot loader>
+        <Loader label="Loading progress" />
+      </StateSlot>
+    );
   }
   if (load.status === 'error') {
-    // ⚠PR-1: the transport text, no retry.
+    // ⚠PR-1: the transport text, no retry. §D1: the 640 column under the header.
     return (
-      <InlineError testID="progress-error" title="Progress unavailable" message={load.error?.message || 'Please try again.'} />
+      <StateSlot>
+        <InlineError testID="progress-error" title="Progress unavailable" message={load.error?.message || 'Please try again.'} />
+      </StateSlot>
     );
   }
 

@@ -5,6 +5,7 @@ import EmptyState from '../../../../shared/components/EmptyState';
 import ErrorAlert from '../../../../shared/components/ErrorAlert';
 import Loader from '../../../../shared/components/Loader';
 import PillButton from '../../../../shared/components/PillButton';
+import StateSlot from '../../../../shared/components/StateSlot';
 import { useFocusRemountKey } from '../../../../shared/hooks/useFocusRemountKey';
 import ShellPage from '../../../shell/ShellPage';
 import TrainerOnly from '../../TrainerOnly';
@@ -42,20 +43,30 @@ function ClientsList() {
 
   function renderBody() {
     if (error) {
-      return <ErrorAlert title="Could not load your clients" description={error} onRetry={reload} />;
+      return (
+        <StateSlot>
+          <ErrorAlert title="Could not load your clients" description={error} onRetry={reload} />
+        </StateSlot>
+      );
     }
     if (loading) {
-      return <Loader label="Loading your clients" style={styles.loader} />;
+      return (
+        <StateSlot>
+          <Loader label="Loading your clients" style={styles.loader} />
+        </StateSlot>
+      );
     }
     if (clients.length === 0) {
       return (
-        <EmptyState
-          title="No clients yet"
-          message="Invite a member to coach, or wait for someone to ask you."
-          actionLabel="Invite a client"
-          actionTestID="clients-empty-invite"
-          onAction={() => setInviteOpen(true)}
-        />
+        <StateSlot>
+          <EmptyState
+            title="No clients yet"
+            message="Invite a member to coach, or wait for someone to ask you."
+            actionLabel="Invite a client"
+            actionTestID="clients-empty-invite"
+            onAction={() => setInviteOpen(true)}
+          />
+        </StateSlot>
       );
     }
     return (

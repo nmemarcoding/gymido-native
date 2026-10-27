@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-na
 
 import EmptyState from '../../shared/components/EmptyState';
 import Loader from '../../shared/components/Loader';
+import StateSlot from '../../shared/components/StateSlot';
 import { breakpoints, colors, radii, shadows } from '../../shared/theme/tokens';
 import ShellPage from '../shell/ShellPage';
 import NotificationItem from './NotificationItem';
@@ -63,8 +64,17 @@ function NotificationsPage() {
         ) : null}
       </View>
 
-      {body === 'loading' ? <Loader label="Loading notifications" style={styles.loader} /> : null}
-      {body === 'empty' ? <EmptyState title={EMPTY_TITLE} message={EMPTY_MESSAGE} /> : null}
+      {/* §D1: whole-page states sit in the 640 column under the header. */}
+      {body === 'loading' ? (
+        <StateSlot>
+          <Loader label="Loading notifications" style={styles.loader} />
+        </StateSlot>
+      ) : null}
+      {body === 'empty' ? (
+        <StateSlot>
+          <EmptyState title={EMPTY_TITLE} message={EMPTY_MESSAGE} />
+        </StateSlot>
+      ) : null}
       {body === 'list' ? (
         // ⚠N-5: a 1px divider above every row after the first, plus each
         // row's own bottom border → 2px lines.

@@ -6,6 +6,7 @@ import EmptyState from '../../shared/components/EmptyState';
 import ErrorAlert from '../../shared/components/ErrorAlert';
 import Loader from '../../shared/components/Loader';
 import PillButton from '../../shared/components/PillButton';
+import StateSlot from '../../shared/components/StateSlot';
 import { ToastTone, addToast } from '../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
 import { breakpoints } from '../../shared/theme/tokens';
@@ -90,10 +91,18 @@ function Dashboard() {
 
   function renderBody() {
     if (loading) {
-      return <Loader label="Loading your dashboard" style={styles.loader} />;
+      return (
+        <StateSlot>
+          <Loader label="Loading your dashboard" style={styles.loader} />
+        </StateSlot>
+      );
     }
     if (error) {
-      return <ErrorAlert title="Could not load your dashboard" description={error} onRetry={reload} />;
+      return (
+        <StateSlot>
+          <ErrorAlert title="Could not load your dashboard" description={error} onRetry={reload} />
+        </StateSlot>
+      );
     }
     return (
       <>

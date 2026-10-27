@@ -9,6 +9,7 @@ import EmptyState from '../../../../shared/components/EmptyState';
 import ErrorAlert from '../../../../shared/components/ErrorAlert';
 import Loader from '../../../../shared/components/Loader';
 import PillButton from '../../../../shared/components/PillButton';
+import StateSlot from '../../../../shared/components/StateSlot';
 import { ToastTone, addToast } from '../../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../../shared/hooks/useFocusRemountKey';
 import { breakpoints, colors } from '../../../../shared/theme/tokens';
@@ -138,14 +139,26 @@ function PlansList({ assignTo }) {
 
   function renderBody() {
     if (state.status === 'error') {
-      return <ErrorAlert title="Could not load plans" description={state.error} onRetry={retry} />;
+      return (
+        <StateSlot>
+          <ErrorAlert title="Could not load plans" description={state.error} onRetry={retry} />
+        </StateSlot>
+      );
     }
     if (state.status === 'loading') {
-      return <Loader label="Loading plans" style={styles.loader} />;
+      return (
+        <StateSlot>
+          <Loader label="Loading plans" style={styles.loader} />
+        </StateSlot>
+      );
     }
     const { items, currentPage, totalPages, totalRecords } = state.result;
     if (items.length === 0) {
-      return <EmptyState title="No plans yet" message="Create a private plan to build one for your clients." />;
+      return (
+        <StateSlot>
+          <EmptyState title="No plans yet" message="Create a private plan to build one for your clients." />
+        </StateSlot>
+      );
     }
     return (
       <>

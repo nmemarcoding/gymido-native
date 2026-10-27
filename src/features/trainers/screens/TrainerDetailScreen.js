@@ -9,6 +9,7 @@ import EmptyState from '../../../shared/components/EmptyState';
 import ErrorAlert from '../../../shared/components/ErrorAlert';
 import Loader from '../../../shared/components/Loader';
 import PillButton from '../../../shared/components/PillButton';
+import StateSlot from '../../../shared/components/StateSlot';
 import { ToastTone, addToast } from '../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
 import { colors, radii, shadows } from '../../../shared/theme/tokens';
@@ -93,21 +94,31 @@ function TrainerDetail({ trainerUserId }) {
   }
 
   if (state.loading) {
-    return <Loader label="Loading trainer" style={styles.loader} />;
+    return (
+      <StateSlot>
+        <Loader label="Loading trainer" style={styles.loader} />
+      </StateSlot>
+    );
   }
   if (state.notFound) {
     return (
-      <EmptyState
-        title="Trainer not found"
-        message="This trainer isn’t available. They may have removed their profile."
-        actionLabel="Back to trainers"
-        actionTestID="trainer-detail-back"
-        onAction={openList}
-      />
+      <StateSlot>
+        <EmptyState
+          title="Trainer not found"
+          message="This trainer isn’t available. They may have removed their profile."
+          actionLabel="Back to trainers"
+          actionTestID="trainer-detail-back"
+          onAction={openList}
+        />
+      </StateSlot>
     );
   }
   if (state.error || !state.trainer) {
-    return <ErrorAlert title="Could not load this trainer" description={state.error} onRetry={load} />;
+    return (
+      <StateSlot>
+        <ErrorAlert title="Could not load this trainer" description={state.error} onRetry={load} />
+      </StateSlot>
+    );
   }
 
   const { trainer } = state;

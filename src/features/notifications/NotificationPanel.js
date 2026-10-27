@@ -61,7 +61,10 @@ export default function NotificationPanel() {
           <Loader label="Loading notifications" style={styles.loading} />
         ) : visible.length === 0 ? (
           <View style={styles.empty}>
+            {/* UX D row 9: the text switches with the filter, so it is a
+                polite live region. */}
             <EmptyState
+              live
               title={filter === 'unread' ? 'No unread notifications' : 'No notifications'}
               message="You’re all caught up for now."
             />

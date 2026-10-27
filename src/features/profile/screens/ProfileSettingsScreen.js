@@ -6,6 +6,7 @@ import { routes } from '../../../navigation/routes';
 import EmptyState from '../../../shared/components/EmptyState';
 import ErrorAlert from '../../../shared/components/ErrorAlert';
 import Loader from '../../../shared/components/Loader';
+import StateSlot from '../../../shared/components/StateSlot';
 import { colors, radii, shadows } from '../../../shared/theme/tokens';
 import { logout } from '../../auth/authService';
 import { useAuthStore } from '../../auth/authStore';
@@ -58,27 +59,37 @@ function Settings() {
   }, []);
 
   if (profileStatus === ProfileStatus.loading || profileStatus === ProfileStatus.idle) {
-    return <Loader label="Loading settings" />;
+    return (
+      <StateSlot loader>
+        <Loader label="Loading settings" />
+      </StateSlot>
+    );
   }
+  // §D1: whole-page states in the 640 column under the header.
   if (profileStatus === ProfileStatus.error) {
     return (
-      <ErrorAlert
-        testID="settings-error"
-        title="Something went wrong"
-        description={profileError?.message || 'Failed to load profile'}
-        onRetry={() => fetchProfile()}
-      />
+      <StateSlot>
+        <ErrorAlert
+          testID="settings-error"
+          title="Something went wrong"
+          description={profileError?.message || 'Failed to load profile'}
+          onRetry={() => fetchProfile()}
+        />
+      </StateSlot>
     );
   }
   if (profileStatus === ProfileStatus.missing || !profile) {
+    // UX D row 19: the code's secondary "Create profile" (§D1 keeps it).
     return (
-      <EmptyState
-        title="No profile yet"
-        message="Create your profile to unlock settings."
-        actionLabel="Create profile"
-        actionTestID="settings-create-profile"
-        onAction={() => navigation.navigate(routes.Onboarding)}
-      />
+      <StateSlot>
+        <EmptyState
+          title="No profile yet"
+          message="Create your profile to unlock settings."
+          actionLabel="Create profile"
+          actionTestID="settings-create-profile"
+          onAction={() => navigation.navigate(routes.Onboarding)}
+        />
+      </StateSlot>
     );
   }
 
