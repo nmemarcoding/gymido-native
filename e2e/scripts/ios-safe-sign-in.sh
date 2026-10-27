@@ -47,6 +47,8 @@ MAESTRO_LOGIN_PASSWORD="$(e2e_value "$ENV_FILE" "${ACCOUNT}_PASSWORD")"
 # A dev client is checked against Metro (default :8081, or GYMIDO_METRO_PORT).
 GUARD_OUT="$(node "$ROOT/e2e/scripts/apiGuard.js" "$UDID" ${GYMIDO_METRO_PORT:+--metro "$GYMIDO_METRO_PORT"})" || { rm -rf "$WORK"; exit 3; }
 printf '%s\n' "$GUARD_OUT"
+# Never with a second simulator booted: Maestro could read or type into it.
+"$ROOT/e2e/scripts/single-ios-sim.sh" "$UDID" || { rm -rf "$WORK"; exit 4; }
 # Release build → the launch subflow uses launchApp, not the dev-client link.
 if printf '%s' "$GUARD_OUT" | grep -q 'Release build'; then export MAESTRO_GYMIDO_RELEASE=true; else export MAESTRO_GYMIDO_RELEASE=false; fi
 export MAESTRO_LOGIN_EMAIL MAESTRO_LOGIN_PASSWORD

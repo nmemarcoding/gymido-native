@@ -40,6 +40,9 @@ case "$TARGET" in
   *) DEVICE="$TARGET" ;;
 esac
 
+# iOS: never with a second simulator booted (Maestro could read or drive it).
+"$ROOT/e2e/scripts/single-ios-sim.sh" "$DEVICE" || exit 4
+
 FLAGS=()
 [ -n "${GYMIDO_METRO_PORT:-}" ] && FLAGS=(--metro "$GYMIDO_METRO_PORT")
 [ "${GYMIDO_NO_METRO:-0}" = 1 ] && FLAGS=(--no-metro)

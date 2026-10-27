@@ -1,12 +1,11 @@
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { routes } from '../../../navigation/routes';
 import { getServerMessage } from '../../../shared/api/apiError';
 import DateInput from '../../../shared/components/DateInput';
 import ErrorAlert from '../../../shared/components/ErrorAlert';
-import { InlineError } from '../../../shared/components/FeedbackBox';
 import FormField from '../../../shared/components/FormField';
 import Loader from '../../../shared/components/Loader';
 import PillButton from '../../../shared/components/PillButton';
@@ -68,17 +67,44 @@ export const EDIT_PROFILE_GLOW_TABLET = Object.freeze({
   stops: Object.freeze([0, 0.7]),
 });
 
+// Dated change (27 Oct 2026, RN-SPEC-profile P2, UX round 2): a refused save
+// focuses the FIRST field in error in form order: first name, last name,
+// height (the unit's errors focus its height input), current weight, goal
+// weight (a unit error belongs to its weight), date of birth, sex.
+const TEXT_TARGETS = ['first_name', 'last_name', 'height_value', 'height_feet', 'height_inches', 'current_weight_value', 'goal_weight_value'];
+
+function firstEditErrorTarget(errors, heightUnit) {
+  const has = (...keys) => keys.some((key) => Boolean(errors[key]));
+  const ftIn = heightUnit === 'ft_in';
+  if (has('first_name')) return 'first_name';
+  if (has('last_name')) return 'last_name';
+  if (has('height_value', 'height_unit', 'height_feet')) return ftIn ? 'height_feet' : 'height_value';
+  if (has('height_inches')) return ftIn ? 'height_inches' : 'height_value';
+  if (has('current_weight_value', 'current_weight_unit')) return 'current_weight_value';
+  if (has('goal_weight_value', 'goal_weight_unit')) return 'goal_weight_value';
+  if (has('date_of_birth')) return 'date_of_birth';
+  if (has('sex')) return 'sex';
+  return null;
+}
+
+// The scroll offset that puts the field's centre in the middle of the
+// screen, so the phone's Save bar never covers it.
+export function fieldScrollY({ y, height }, screenHeight) {
+  return Math.max(0, y + height / 2 - screenHeight / 2);
+}
+
 // RN-SPEC-profile P2 (Edit profile), pushed on the Profile stack.
 export default function EditProfileScreen() {
   const { width } = useWindowDimensions();
+  const scrollRef = useRef(null);
   return (
-    <ShellPage testID="edit-profile-screen" glow={isTabletWidth(width) ? EDIT_PROFILE_GLOW_TABLET : false}>
-      <EditProfile />
+    <ShellPage testID="edit-profile-screen" glow={isTabletWidth(width) ? EDIT_PROFILE_GLOW_TABLET : false} scrollRef={scrollRef}>
+      <EditProfile scrollRef={scrollRef} />
     </ShellPage>
   );
 }
 
-function EditProfile() {
+function EditProfile({ scrollRef }) {
   const navigation = useNavigation();
   const profile = useProfileStore((state) => state.profile);
   const profileStatus = useProfileStore((state) => state.profileStatus);
@@ -116,12 +142,12 @@ function EditProfile() {
       />
     );
   }
-  return <EditProfileForm profile={profile} />;
+  return <EditProfileForm profile={profile} scrollRef={scrollRef} />;
 }
 
-function EditProfileForm({ profile }) {
+function EditProfileForm({ profile, scrollRef }) {
   const navigation = useNavigation();
-  const { width } = useWindowDimensions();
+  const { width, height: screenHeight } = useWindowDimensions();
   const tablet = isTabletWidth(width);
   const reflow = useLargeTextReflow();
   const email = useAuthStore((state) => state.user?.email);
@@ -133,6 +159,42 @@ function EditProfileForm({ profile }) {
   const [fieldErrors, setFieldErrors] = useState({});
   const [errorMessage, setErrorMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // One request per refused save, run after the errors render.
+  const [focusRequest, setFocusRequest] = useState(null);
+  const targets = useRef({});
+  const bindTarget = (key) => (node) => {
+    targets.current[key] = node;
+  };
+
+  // Brings the field to the middle of the screen, then focuses it.
+  useEffect(() => {
+    const node = focusRequest ? targets.current[focusRequest.target] : null;
+    if (!node) {
+      return;
+    }
+    const content = scrollRef?.current?.getInnerViewRef?.();
+    if (content) {
+      node.measureLayout?.(
+        content,
+        (_x, y, _w, h) => scrollRef.current?.scrollTo?.({ y: fieldScrollY({ y, height: h }, screenHeight), animated: !reducedMotion }),
+        () => {}
+      );
+    }
+    if (TEXT_TARGETS.includes(focusRequest.target)) {
+      node.focus?.();
+    } else {
+      AccessibilityInfo.sendAccessibilityEvent(node, 'focus');
+    }
+    // screenHeight and reducedMotion are read at the request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRequest]);
+
+  function focusFirstError(errors) {
+    const target = firstEditErrorTarget(errors, form.height_unit);
+    if (target) {
+      setFocusRequest({ target });
+    }
+  }
 
   // ⚠P-6: a new store profile object resets the form, dropping edits.
   const seen = useRef(profile);
@@ -187,6 +249,7 @@ function EditProfileForm({ profile }) {
     const errors = validateEditProfile(form, { goalOptional: isGoalWeightOptional(profile) });
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
+      focusFirstError(errors);
       return;
     }
     setSubmitting(true);
@@ -203,7 +266,9 @@ function EditProfileForm({ profile }) {
       navigation.replace(routes.Settings);
     } catch (error) {
       setErrorMessage(getServerMessage(error));
-      setFieldErrors(firstFieldErrors(error));
+      const serverErrors = firstFieldErrors(error);
+      setFieldErrors(serverErrors);
+      focusFirstError(serverErrors);
     } finally {
       setSubmitting(false);
     }
@@ -215,6 +280,7 @@ function EditProfileForm({ profile }) {
   const fieldVariant = tablet ? 'well' : 'default';
   const input = (key, props) => (
     <FormField
+      ref={bindTarget(key)}
       testID={`edit-profile-${key}`}
       value={shown(key)}
       error={fieldErrors[key]}
@@ -411,7 +477,7 @@ function EditProfileForm({ profile }) {
 
   const extras = (
     <View style={pair}>
-      <View style={cell}>
+      <View ref={bindTarget('date_of_birth')} collapsable={false} testID="edit-profile-date-of-birth-field" style={cell}>
         <DateInput
           testID="edit-profile-date-of-birth"
           label="Date of Birth (optional)"
@@ -421,7 +487,7 @@ function EditProfileForm({ profile }) {
           error={fieldErrors.date_of_birth}
         />
       </View>
-      <View style={cell}>
+      <View ref={bindTarget('sex')} collapsable={false} testID="edit-profile-sex-field" style={cell}>
         <Select
           testID="edit-profile-sex"
           label="Sex (optional)"
@@ -465,7 +531,8 @@ function EditProfileForm({ profile }) {
 
   const fields = (
     <>
-      {errorMessage ? <InlineError testID="edit-profile-error" message={errorMessage} /> : null}
+      {/* The refusal box is the shared ErrorAlert (RN-SPEC-profile P2, dated 27 Oct). */}
+      {errorMessage ? <ErrorAlert testID="edit-profile-error" title="Something went wrong" description={errorMessage} /> : null}
       {names}
       {tablet ? tabletHeight : phoneHeight}
       <View style={pair}>

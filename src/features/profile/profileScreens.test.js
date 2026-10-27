@@ -10,7 +10,7 @@ jest.mock('@react-navigation/native', () => ({ useNavigation: () => mockNavigati
 jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn(() => Promise.resolve()) }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 
-import { AccessibilityInfo } from 'react-native';
+import { AccessibilityInfo, TextInput } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { routes } from '../../navigation/routes';
@@ -20,7 +20,8 @@ import { openShellPath } from '../shell/shellLinks';
 import { getProfile, sendPasswordResetEmail, updateProfile } from './api/profileApi';
 import { clearResetCooldown } from './passwordReset';
 import { resetProfileStore, setStoredProfile, useProfileStore } from './profileStore';
-import EditProfileScreen from './screens/EditProfileScreen';
+import ErrorAlert from '../../shared/components/ErrorAlert';
+import EditProfileScreen, { fieldScrollY } from './screens/EditProfileScreen';
 import ProfileSettingsScreen from './screens/ProfileSettingsScreen';
 
 const PROFILE = {
@@ -444,5 +445,79 @@ describe('P2 Edit profile', () => {
     const tree = render(<EditProfileScreen />);
     act(() => byTestId(tree.root, 'edit-profile-cancel').props.onPress());
     expect(mockNavigation.push).toHaveBeenCalledWith(routes.Settings);
+  });
+
+  // Dated change (27 Oct 2026, RN-SPEC-profile P2, UX round 2): a refused save
+  // focuses the FIRST field in error, in form order, and scrolls it to the
+  // middle of the screen; the refusal box is the shared ErrorAlert.
+  describe('a refused save focuses the first field in error', () => {
+    const INPUTS = ['edit-profile-first_name', 'edit-profile-last_name', 'edit-profile-height_feet', 'edit-profile-current_weight_value', 'edit-profile-goal_weight_value'];
+    const input = (tree, id) => tree.root.find((node) => node.props.testID === id && node.type === TextInput);
+    function spyFocus(tree) {
+      // The mocked TextInput's focus is one shared prototype mock: give each instance its own.
+      return Object.fromEntries(
+        INPUTS.map((id) => {
+          const spy = jest.fn();
+          input(tree, id).instance.focus = spy;
+          return [id, spy];
+        })
+      );
+    }
+    const focused = (spies) => Object.keys(spies).filter((id) => spies[id].mock.calls.length > 0);
+    const type = (tree, id, text) => act(() => tree.root.find((node) => node.props.testID === id && node.props.onChangeText).props.onChangeText(text));
+    const save = async (tree) => {
+      const button = tree.root.find((node) => node.props.testID === 'edit-profile-save' && 'disabled' in node.props);
+      await act(async () => {
+        await button.props.onPress();
+      });
+    };
+
+    it('client validation: the first in form order, once per save, never while typing', async () => {
+      setStoredProfile(PROFILE);
+      const tree = render(<EditProfileScreen />);
+      const spies = spyFocus(tree);
+      type(tree, 'edit-profile-last_name', ' ');
+      type(tree, 'edit-profile-current_weight_value', '-3');
+      await save(tree);
+      expect(focused(spies)).toEqual(['edit-profile-last_name']);
+      type(tree, 'edit-profile-last_name', 'Lopez');
+      expect(spies['edit-profile-last_name']).toHaveBeenCalledTimes(1);
+      await save(tree);
+      expect(spies['edit-profile-current_weight_value']).toHaveBeenCalledTimes(1);
+      expect(updateProfile).not.toHaveBeenCalled();
+    });
+
+    it('a server 422: the first field in form order; Sex (not a text input) gets the screen-reader focus', async () => {
+      setStoredProfile(PROFILE);
+      const tree = render(<EditProfileScreen />);
+      const spies = spyFocus(tree);
+      type(tree, 'edit-profile-first_name', 'Asadd');
+      updateProfile.mockRejectedValueOnce({
+        response: { status: 422, data: { message: 'The given data was invalid.', errors: { sex: ['The selected sex is invalid.'], goal_weight_value: ['Too low.'] } } },
+      });
+      await save(tree);
+      expect(focused(spies)).toEqual(['edit-profile-goal_weight_value']);
+
+      const a11y = jest.spyOn(AccessibilityInfo, 'sendAccessibilityEvent').mockImplementation(() => {});
+      updateProfile.mockRejectedValueOnce({ response: { status: 422, data: { message: 'The given data was invalid.', errors: { sex: ['The selected sex is invalid.'] } } } });
+      await save(tree);
+      expect(a11y.mock.calls.filter(([, event]) => event === 'focus').map(([node]) => node?.props?.testID)).toEqual(['edit-profile-sex-field']);
+      a11y.mockRestore();
+    });
+
+    it('the refusal box is the shared ErrorAlert: "Something went wrong" + the server message', async () => {
+      setStoredProfile(PROFILE);
+      const tree = render(<EditProfileScreen />);
+      type(tree, 'edit-profile-first_name', 'Asadd');
+      updateProfile.mockRejectedValueOnce({ response: { status: 422, data: { message: 'The given data was invalid.', errors: {} } } });
+      await save(tree);
+      const alert = tree.root.findByType(ErrorAlert);
+      expect(alert.props).toMatchObject({ testID: 'edit-profile-error', title: 'Something went wrong', description: 'The given data was invalid.' });
+    });
+
+    it('fieldScrollY centres the field on the screen (never above the top)', () => {
+      expect(fieldScrollY({ y: 1200, height: 56 }, 844)).toBe(1200 + 28 - 422);
+      expect(fieldScrollY({ y: 100, height: 56 }, 844)).toBe(0);
+    });
   });
 });
