@@ -4,6 +4,7 @@ import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-nati
 import { colors, font, layout, radii, spacing } from '../theme/tokens';
 import FeedbackIcon from './FeedbackIcon';
 import GradientFill from './GradientFill';
+import { CAP_BODY, useLargeTextReflow } from './largeText';
 
 // RN-SPEC-v2-phase2 §D1 Ruling 2: ONE Retry style everywhere: glass secondary
 // (white 8 % + 1 px white 12 %), 40 visual with a 44 hit area, 14/600.
@@ -26,7 +27,7 @@ export function RetryButton({ title = 'Retry', onPress, loading = false, disable
       onPress={onPress}
       style={({ pressed }) => [retryStyles.button, style, pressed && !inactive && retryStyles.pressed, inactive && retryStyles.inactive]}
     >
-      <Text textBreakStrategy="simple" style={retryStyles.label}>
+      <Text {...CAP_BODY} textBreakStrategy="simple" style={retryStyles.label}>
         {title}
       </Text>
     </Pressable>
@@ -77,19 +78,22 @@ export default function ErrorAlert({ title, description, onRetry, retrying = fal
   const name = VARIANT_STYLES[variant] ? variant : 'default';
   const look = VARIANT_STYLES[name];
   const compact = name !== 'default';
+  // UX §9 rule 4: past 1.3× the trailing Retry drops below the text, full
+  // width (the row wraps; the text keeps the line beside the icon).
+  const stacked = useLargeTextReflow();
 
   return (
-    <View ref={ref} testID={testID} accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.box, look.box, style]}>
+    <View ref={ref} testID={testID} accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.box, look.box, stacked && styles.boxStacked, style]}>
       {/* Mounted with the card (never added on a state change); SVG. */}
       {name === 'generator' ? <GradientFill angle={160} colors={[colors.dangerTextTint, colors.dangerTextFill]} /> : null}
       <View testID="error-alert-icon" style={[styles.iconTile, look.iconTile]}>
         <FeedbackIcon name="error" size={name === 'generator' ? 22 : 18} color={colors.dangerText} />
       </View>
       <View style={styles.text}>
-        {title ? <Text style={[styles.title, compact && styles.titleCompact]}>{title}</Text> : null}
-        {description ? <Text style={[styles.description, compact && styles.descriptionCompact]}>{description}</Text> : null}
+        {title ? <Text {...CAP_BODY} style={[styles.title, compact && styles.titleCompact]}>{title}</Text> : null}
+        {description ? <Text {...CAP_BODY} style={[styles.description, compact && styles.descriptionCompact]}>{description}</Text> : null}
       </View>
-      {onRetry ? <RetryButton title="Retry" testID={retryTestID} onPress={onRetry} loading={retrying} style={styles.retry} /> : null}
+      {onRetry ? <RetryButton title="Retry" testID={retryTestID} onPress={onRetry} loading={retrying} style={stacked ? styles.retryStacked : styles.retry} /> : null}
     </View>
   );
 }
@@ -140,6 +144,12 @@ const styles = StyleSheet.create({
   retry: {
     flexShrink: 0,
     alignSelf: 'center',
+  },
+  boxStacked: {
+    flexWrap: 'wrap',
+  },
+  retryStacked: {
+    width: '100%',
   },
 });
 

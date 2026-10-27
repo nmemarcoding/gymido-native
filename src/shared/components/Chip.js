@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { colors, font, layout, radii, spacing } from '../theme/tokens';
+import { CAP_BODY } from './largeText';
 
 // RN-SPEC-v2-foundation §4.4 filter chip: 38 tall with a 44 hit area
 // (hitSlop), white when on, a faint glass pill when off. The selected state
@@ -37,7 +38,8 @@ export default function Chip({
         style,
       ]}
     >
-      <Text numberOfLines={1} style={[styles.label, selected ? styles.labelOn : styles.labelOff]}>
+      {/* UX §9: a chip label wraps at large text, never truncated. */}
+      <Text {...CAP_BODY} style={[styles.label, selected ? styles.labelOn : styles.labelOff]}>
         {label}
       </Text>
     </Pressable>
@@ -50,6 +52,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing[4],
+    // Shows only once the label grows at large text (one line at 1× sits
+    // inside the 38).
+    paddingVertical: spacing[2],
+    maxWidth: '100%',
     borderRadius: radii.full,
     // Always 1 px so the chip keeps its size when it turns on.
     borderWidth: 1,
@@ -73,6 +79,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     lineHeight: 20,
+    textAlign: 'center',
   },
   labelOn: {
     ...font(600),

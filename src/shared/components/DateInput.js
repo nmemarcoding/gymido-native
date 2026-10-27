@@ -7,6 +7,7 @@ import Svg, { Path, Rect } from 'react-native-svg';
 
 import { colors, font, spacing, typography } from '../theme/tokens';
 import { FIELD_HEIGHT, FieldFrame, fieldBoxStyle } from './FormField';
+import { CAP_BODY } from './largeText';
 
 // §4.5 DateInput: the input style + an 18 px calendar icon at right.
 function CalendarIcon() {
@@ -65,15 +66,15 @@ export default function DateInput({ label, value, onChange, error, testID, label
         style={[fieldBoxStyle({ focused: open, error: Boolean(error), disabled: false }), styles.box]}
       >
         {value ? (
-          <Text style={styles.value}>{formatDateInput(value)}</Text>
+          <Text {...CAP_BODY} style={styles.value}>{formatDateInput(value)}</Text>
         ) : (
-          <Text style={styles.placeholder}>{Platform.OS === 'android' ? 'mm/dd/yyyy' : ''}</Text>
+          <Text {...CAP_BODY} style={styles.placeholder}>{Platform.OS === 'android' ? 'mm/dd/yyyy' : ''}</Text>
         )}
         <View style={styles.trailing}>
           {value ? (
             // hitSlop 12 around the 20 px line: a 44 target.
             <Pressable testID={testID ? `${testID}-clear` : undefined} accessibilityRole="button" onPress={() => onChange('')} hitSlop={12}>
-              <Text style={styles.clear}>Clear</Text>
+              <Text {...CAP_BODY} style={styles.clear}>Clear</Text>
             </Pressable>
           ) : null}
           <CalendarIcon />
@@ -86,7 +87,7 @@ export default function DateInput({ label, value, onChange, error, testID, label
           <View style={[styles.sheet, { paddingBottom: insets.bottom }]}>
             <View style={styles.toolbar}>
               <Pressable testID={testID ? `${testID}-done` : undefined} accessibilityRole="button" onPress={() => setOpen(false)} hitSlop={8}>
-                <Text style={styles.done}>Done</Text>
+                <Text {...CAP_BODY} style={styles.done}>Done</Text>
               </Pressable>
             </View>
             <DateTimePicker value={pickerDate} mode="date" display="inline" themeVariant="dark" accentColor={colors.gold} onChange={onPicked} />
@@ -105,6 +106,8 @@ const styles = StyleSheet.create({
     gap: spacing[2],
     minHeight: FIELD_HEIGHT,
     paddingRight: 14,
+    // Shows only once the date wraps at large text.
+    paddingVertical: spacing[2],
   },
   // The input's 16/400 text; the placeholder in text-faint.
   value: {

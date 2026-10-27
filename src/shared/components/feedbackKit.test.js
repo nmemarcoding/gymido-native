@@ -527,7 +527,8 @@ describe('Toast (§5)', () => {
     expect(tree.root.find((node) => node.props.testID === 'toast-icon' && node.type === FeedbackIcon).props.name).toBe('info');
   });
 
-  it('one line: a 52 px pill, 15/500', () => {
+  it('one line: a 52 px pill, 15/500 (at 1× text)', () => {
+    atWidth(390);
     const tree = render(<ToastCard tone="success" title="Weight log saved" message="" />);
     const glass = tree.root.findByType(GlassSurface);
     expect(glass.props.radius).toBe(radii.full);

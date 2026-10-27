@@ -18,6 +18,7 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 import { breakpoints, colors, motion, radii, shadows, spacing, typography } from '../theme/tokens';
 import BlurLayer from './BlurLayer';
 import FeedbackIcon from './FeedbackIcon';
+import { CAP_BODY, DISPLAY_TITLE_TEXT, TITLE_TEXT, useLargeTextReflow } from './largeText';
 
 // RN-SPEC-v2-foundation §6 + UX's dialog ruling (26 Oct).
 // Phone (< 768): every dialog is a bottom sheet that slides up 300 ms
@@ -155,11 +156,14 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
             bounces={false}
             keyboardShouldPersistTaps="handled"
           >
-            <Text accessibilityRole="header" style={tablet ? styles.titleTablet : styles.title}>
+            {/* UX §9 title rule: the phone title is title-sm (1.6× cap), the
+                tablet one is 34 px, a page-size title (1.3× cap); both wrap by
+                word, max 3 lines, and a long word shrinks. */}
+            <Text {...(tablet ? DISPLAY_TITLE_TEXT : TITLE_TEXT)} accessibilityRole="header" style={tablet ? styles.titleTablet : styles.title}>
               {title}
             </Text>
             {description ? (
-              <Text style={[styles.description, tablet && !compact && styles.descriptionTablet, tablet && styles.descriptionTabletGap]}>
+              <Text {...CAP_BODY} style={[styles.description, tablet && !compact && styles.descriptionTablet, tablet && styles.descriptionTabletGap]}>
                 {description}
               </Text>
             ) : null}
@@ -176,9 +180,12 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
 // Footer actions of the dialogs: children are [Cancel, verb]. Phone: stacked
 // full width, the verb on top (column-reverse). Tablet: a row at the right,
 // Cancel left, the verb right (§6).
+// UX §9 rule 4: past 1.3× the tablet row stacks too, like the phone column
+// (primary on top, both full width).
 export function ModalActions({ children }) {
   const { width } = useWindowDimensions();
-  return <View style={isTabletWidth(width) ? styles.actionsTablet : styles.actionsPhone}>{children}</View>;
+  const stacked = useLargeTextReflow();
+  return <View style={isTabletWidth(width) && !stacked ? styles.actionsTablet : styles.actionsPhone}>{children}</View>;
 }
 
 const styles = StyleSheet.create({

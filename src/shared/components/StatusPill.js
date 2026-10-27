@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { colors, font, radii, spacing } from '../theme/tokens';
+import { CAP_PILL } from './largeText';
 
 // RN-SPEC-v2-foundation §4.3: a tinted pill, an icon or 6 px dot ALWAYS
 // first so colour is never the only cue (the neutral "Rest day" tone carries
@@ -69,7 +70,8 @@ export default function StatusPill({ label, tone = 'neutral', compact = false, t
           <Mark mark={look.mark} color={look.ink} size={compact ? 10 : 12} />
         </View>
       ) : null}
-      <Text numberOfLines={1} style={[styles.label, compact && styles.labelCompact, { color: look.ink }]}>
+      {/* UX §9: status text caps at 1.6× and wraps rather than truncating. */}
+      <Text {...CAP_PILL} style={[styles.label, compact && styles.labelCompact, { color: look.ink }]}>
         {label}
       </Text>
     </View>
@@ -84,7 +86,10 @@ const styles = StyleSheet.create({
     gap: spacing['1_5'],
     // min, not fixed: large text grows the pill instead of clipping it.
     minHeight: 28,
+    maxWidth: '100%',
     paddingHorizontal: spacing[3],
+    // Shows only once the label grows at large text (1×: 18 + 8 < 28).
+    paddingVertical: spacing[1],
     borderRadius: radii.full,
   },
   compact: {
@@ -99,6 +104,7 @@ const styles = StyleSheet.create({
   // 13/600.
   label: {
     ...font(600),
+    flexShrink: 1,
     fontSize: 13,
     lineHeight: 18,
   },

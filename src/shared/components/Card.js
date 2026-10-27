@@ -4,6 +4,7 @@ import { Animated, Easing, StyleSheet, Text, useWindowDimensions, View } from 'r
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { breakpoints, colors, font, gradients, motion, radii, spacing } from '../theme/tokens';
 import GradientFill from './GradientFill';
+import { CAP_BODY, TITLE_TEXT } from './largeText';
 
 // CSS `ease-out`, matching the web card entrance.
 const EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
@@ -74,10 +75,11 @@ export default function Card({ children, style, title, subtitle, hero = false })
     <Animated.View style={[cardFrameStyle(hero), styles.titled, motionStyle, style]}>
       {fill}
       <View style={[styles.header, wide && styles.headerWide]}>
-        <Text accessibilityRole="header" style={styles.title}>
+        {/* UX §9 title rule: 1.6× cap, word wrap, max 3 lines, a long word shrinks. */}
+        <Text {...TITLE_TEXT} accessibilityRole="header" style={styles.title}>
           {title}
         </Text>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        {subtitle ? <Text {...CAP_BODY} style={styles.subtitle}>{subtitle}</Text> : null}
       </View>
       <View style={[styles.body, wide && styles.bodyWide]}>{children}</View>
     </Animated.View>

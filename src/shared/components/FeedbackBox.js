@@ -3,6 +3,7 @@ import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
 
 import { colors, font, radii, spacing } from '../theme/tokens';
 import FeedbackIcon from './FeedbackIcon';
+import { CAP_BODY } from './largeText';
 
 // RN-SPEC-v2-foundation §5 FeedbackBox / ErrorBox (native inline result):
 // radius 16, padding 12 14, the tone's fill + border at 0.25, always an icon,
@@ -26,8 +27,8 @@ export function FeedbackBox({ tone, title, message, testID, accessibilityRole, a
         <FeedbackIcon name={look.icon} size={18} color={look.iconColor} />
       </View>
       <View style={styles.text}>
-        {title ? <Text style={[styles.title, titleStyle]}>{title}</Text> : null}
-        {message ? <Text style={[styles.message, messageStyle]}>{message}</Text> : null}
+        {title ? <Text {...CAP_BODY} style={[styles.title, titleStyle]}>{title}</Text> : null}
+        {message ? <Text {...CAP_BODY} style={[styles.message, messageStyle]}>{message}</Text> : null}
       </View>
     </View>
   );

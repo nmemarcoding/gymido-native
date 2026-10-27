@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, font, radii, spacing } from '../theme/tokens';
 import FeedbackIcon from './FeedbackIcon';
+import { CAP_BODY } from './largeText';
 
 // RN-SPEC-v2-foundation §5 Banners (OnHoldBox, the inactive-plan banner):
 // warning fill 0.08 + border 0.28, radius 16, title 15/600, body 13
@@ -12,7 +13,7 @@ export default function Banner({ title, warningTitle = false, children, testID, 
     <View testID={testID} accessibilityRole={accessibilityRole} accessibilityLiveRegion={accessibilityLiveRegion} style={[styles.box, style]}>
       <View style={styles.titleRow}>
         {warningTitle ? <FeedbackIcon testID={testID ? `${testID}-icon` : undefined} name="warning" size={16} color={colors.warning} /> : null}
-        <Text style={[styles.title, warningTitle && styles.titleWarning]}>{title}</Text>
+        <Text {...CAP_BODY} style={[styles.title, warningTitle && styles.titleWarning]}>{title}</Text>
       </View>
       {children}
     </View>
@@ -20,7 +21,7 @@ export default function Banner({ title, warningTitle = false, children, testID, 
 }
 
 export function BannerText({ children }) {
-  return <Text style={styles.body}>{children}</Text>;
+  return <Text {...CAP_BODY} style={styles.body}>{children}</Text>;
 }
 
 export const bannerStyles = StyleSheet.create({

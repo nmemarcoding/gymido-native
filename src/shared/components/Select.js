@@ -7,6 +7,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { colors, font, spacing, typography } from '../theme/tokens';
 import { FIELD_HEIGHT, FieldFrame, fieldBoxStyle } from './FormField';
+import { CAP_BODY } from './largeText';
 
 // §4.5 Select: the input style + a 16 px chevron at right (text-muted).
 export function SelectChevron({ color = colors.textMuted }) {
@@ -52,7 +53,8 @@ export default function Select({
       style={[fieldBoxStyle({ focused: open, error: Boolean(error), disabled }), styles.box, !boxStyle && styles.boxHeight, trailingContent ? styles.boxWithTrailing : null, boxStyle]}
       pointerEvents="none"
     >
-      <Text numberOfLines={1} style={[styles.value, textStyle]}>
+      {/* UX §9: the chosen option wraps at large text, never truncated. */}
+      <Text {...CAP_BODY} style={[styles.value, textStyle]}>
         {selected?.label ?? ''}
       </Text>
       {trailingContent}
@@ -106,7 +108,7 @@ export default function Select({
         <View style={[styles.sheet, { paddingBottom: insets.bottom }]}>
           <View style={styles.toolbar}>
             <Pressable testID={testID ? `${testID}-done` : undefined} accessibilityRole="button" onPress={() => setOpen(false)} hitSlop={8}>
-              <Text style={styles.done}>Done</Text>
+              <Text {...CAP_BODY} style={styles.done}>Done</Text>
             </Pressable>
           </View>
           <Picker selectedValue={value} onValueChange={(next) => onChange(next)} itemStyle={styles.wheelItem}>
@@ -124,6 +126,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing[2],
+    // Shows only once the value wraps at large text (one line sits well
+    // inside the 52 box).
+    paddingVertical: spacing[2],
   },
   boxHeight: {
     minHeight: FIELD_HEIGHT,

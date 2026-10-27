@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, font, layout, radii, spacing } from '../theme/tokens';
+import { CAP_BODY } from './largeText';
 
 // RN-SPEC-v2-foundation §4.7 segmented switch (Personal / Trainer, cm /
 // ft-in): a surface track with a hairline, padding 4, radius full; segments
@@ -44,7 +45,7 @@ export default function SegmentedSwitch({
               active ? styles.segmentOn : pressed && styles.segmentPressed,
             ]}
           >
-            <Text style={[compact ? styles.labelCompact : styles.label, styles.labelCentered, active ? styles.labelOn : styles.labelOff]}>
+            <Text {...CAP_BODY} style={[compact ? styles.labelCompact : styles.label, styles.labelCentered, active ? styles.labelOn : styles.labelOff]}>
               {segment.label}
             </Text>
           </Pressable>

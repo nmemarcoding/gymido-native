@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { colors, font, layout } from '../theme/tokens';
+import { CAP_BODY } from './largeText';
 
 // RN-SPEC-v2-foundation §4.8 TextLink: 14/600 gold, min-height 44 (the
 // whole 44 is the touch area), optional trailing "→". Underlined while
@@ -12,7 +13,7 @@ export default function TextLink({ label, onPress, arrow = false, testID, access
   return (
     <Pressable testID={testID} accessibilityRole="link" accessibilityLabel={accessibilityLabel ?? label} onPress={onPress} hitSlop={HIT_SLOP} style={styles.link}>
       {({ pressed }) => (
-        <Text numberOfLines={1} textBreakStrategy="simple" style={[styles.text, pressed && styles.pressed]}>
+        <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.text, pressed && styles.pressed]}>
           {arrow ? `${label} →` : label}
         </Text>
       )}
@@ -24,13 +25,16 @@ export default function TextLink({ label, onPress, arrow = false, testID, access
 export const textLinkRow = {
   flexDirection: 'row',
   alignItems: 'center',
-  gap: 20,
+  // UX §9: at large text a row of links wraps instead of clipping.
+  flexWrap: 'wrap',
+  columnGap: 20,
   marginTop: 16,
 };
 
 const styles = StyleSheet.create({
   link: {
     minHeight: layout.touchMin,
+    flexShrink: 1,
     justifyContent: 'center',
   },
   text: {
