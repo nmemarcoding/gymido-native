@@ -5,6 +5,7 @@ import GradientFill from '../../shared/components/GradientFill';
 import PillButton from '../../shared/components/PillButton';
 import StatusPill from '../../shared/components/StatusPill';
 import { addToast } from '../../shared/components/toastStore';
+import { LINE_TEXT, NAME_TEXT } from '../../shared/components/largeText';
 import { colors, textScale } from '../../shared/theme/tokens';
 import { openShellPath } from '../shell/shellLinks';
 import { acceptRequest, listActiveClients, listPendingRequests, rejectRequest } from './clients/api/clientsApi';
@@ -318,5 +319,30 @@ describe('Trainer today, large text (§9)', () => {
     const title = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Trainer dashboard')[0];
     expect(title.props.maxFontSizeMultiplier).toBe(textScale.title);
     expect(title.props.adjustsFontSizeToFit).toBe(true);
+  });
+});
+
+// UX final audit X7 (§1.1 long text): row names wrap by word to 2 lines then an
+// ellipsis (a single long word shrinks to 0.75); the secondary line is 1 line.
+describe.each([
+  ['phone', 390],
+  ['tablet', 834],
+])('Trainer today, long text (X7), %s', (_label, width) => {
+  const LONG_FIRST = 'Maximilianopolous';
+  const LONG_LAST = 'Vanderbergenschmidt-Oyelaran';
+  const pick = (node, role) => Object.fromEntries(Object.keys(role).map((key) => [key, node.props[key]]));
+  const named = (row) => ({ ...row, client: { first_name: LONG_FIRST, last_name: LONG_LAST } });
+  const nameNodes = (tree) => tree.root.findAll((node) => node.type === 'Text' && [].concat(node.props.children).join('').includes(LONG_LAST));
+
+  it('request, client and invitation names: NAME_TEXT; their sublines: LINE_TEXT', async () => {
+    setWindow(width, 3.1);
+    listActiveClients.mockResolvedValue([named(alexData)]);
+    listPendingRequests.mockResolvedValue([named(request), { ...namedInvite, invitee: { first_name: LONG_FIRST, last_name: LONG_LAST } }]);
+    const tree = await render();
+    const names = nameNodes(tree);
+    expect(names.length).toBeGreaterThanOrEqual(3);
+    names.forEach((node) => expect(pick(node, NAME_TEXT)).toEqual(NAME_TEXT));
+    const asked = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'asked you to coach them')[0];
+    expect(pick(asked, LINE_TEXT)).toEqual(LINE_TEXT);
   });
 });

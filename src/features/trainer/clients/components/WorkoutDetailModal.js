@@ -9,7 +9,7 @@ import ErrorAlert from '../../../../shared/components/ErrorAlert';
 import ExerciseImage from '../../../../shared/components/ExerciseImage';
 import GlassSurface from '../../../../shared/components/GlassSurface';
 import GradientFill from '../../../../shared/components/GradientFill';
-import { CAP_BODY, CAP_PILL, TITLE_TEXT, useLargeTextReflow } from '../../../../shared/components/largeText';
+import { CAP_BODY, CAP_PILL, NAME_TITLE_TEXT, TITLE_TEXT, useLargeTextReflow } from '../../../../shared/components/largeText';
 import Loader from '../../../../shared/components/Loader';
 import PillButton from '../../../../shared/components/PillButton';
 import StatusPill from '../../../../shared/components/StatusPill';
@@ -222,7 +222,7 @@ function ExerciseBox({ exercise, tablet, first }) {
           <GradientFill angle={gradients.surfaceFade.angle} colors={gradients.surfaceFade.colors} />
         </View>
         <View style={[styles.bandText, tablet && styles.bandTextTablet]}>
-          <Text {...TITLE_TEXT} style={tablet ? styles.exerciseNameTablet : styles.exerciseName}>
+          <Text {...NAME_TITLE_TEXT} style={tablet ? styles.exerciseNameTablet : styles.exerciseName}>
             {name}
           </Text>
           {tablet ? (

@@ -4,7 +4,7 @@ import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { getServerMessage, getStatus } from '../../shared/api/apiError';
 import EmptyState from '../../shared/components/EmptyState';
 import ErrorAlert from '../../shared/components/ErrorAlert';
-import { CAP_BODY, useLargeTextReflow } from '../../shared/components/largeText';
+import { CAP_BODY, LINE_TEXT, NAME_TEXT, useLargeTextReflow } from '../../shared/components/largeText';
 import Loader from '../../shared/components/Loader';
 import PillButton from '../../shared/components/PillButton';
 import StateSlot from '../../shared/components/StateSlot';
@@ -249,10 +249,10 @@ function Dashboard() {
                 <View style={styles.requestWho}>
                   <ClientAvatar userId={request.client_user_id} initials={rowInitials(request)} size={tablet ? 52 : 44} />
                   <View style={styles.flexText}>
-                    <Text {...CAP_BODY} numberOfLines={2} style={[clientStyles.rowLabel, tablet && styles.requestNameTablet]}>
+                    <Text {...NAME_TEXT} style={[clientStyles.rowLabel, tablet && styles.requestNameTablet]}>
                       {name}
                     </Text>
-                    <Text {...CAP_BODY} style={clientStyles.rowMeta}>
+                    <Text {...LINE_TEXT} style={clientStyles.rowMeta}>
                       asked you to coach them
                     </Text>
                   </View>
@@ -372,11 +372,11 @@ function Dashboard() {
                 >
                   <ClientAvatar userId={client.client_user_id} initials={rowInitials(client)} size={tablet ? 44 : 36} />
                   <View style={styles.flexText}>
-                    <Text {...CAP_BODY} numberOfLines={2} style={clientStyles.rowLabel}>
+                    <Text {...NAME_TEXT} style={clientStyles.rowLabel}>
                       {name}
                     </Text>
                     {sub ? (
-                      <Text {...CAP_BODY} style={clientStyles.rowMeta}>
+                      <Text {...LINE_TEXT} style={clientStyles.rowMeta}>
                         {sub}
                       </Text>
                     ) : null}
@@ -405,7 +405,7 @@ function Dashboard() {
         </Text>
         {outgoing.map((request) => (
           <View key={request.id} testID={`invitation-${request.id}`} style={[styles.invitationRow, reflow && styles.wrapRow]}>
-            <Text {...CAP_BODY} numberOfLines={2} style={[clientStyles.rowLabel, styles.flexText]}>
+            <Text {...NAME_TEXT} style={[clientStyles.rowLabel, styles.flexText]}>
               {/* ⚠C-1 unless the approved invitee name is sent. */}
               {inviteLabel(request)}
             </Text>

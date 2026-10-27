@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import ExerciseImage from '../../../shared/components/ExerciseImage';
-import { CAP_BODY, CAP_PILL } from '../../../shared/components/largeText';
+import { CAP_BODY, CAP_PILL, NAME_TEXT } from '../../../shared/components/largeText';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { colors, font, motion, radii, spacing, typography } from '../../../shared/theme/tokens';
 // Review M4/M5: the v2 image chain (w400 first) and media_type.
@@ -68,7 +68,7 @@ export default function DayRow({ day, exercises, isOpen, onToggle, onOpenExercis
               </Text>
             </View>
             <View style={styles.textColumn}>
-              <Text {...CAP_BODY} textBreakStrategy="simple" style={styles.dayTitle}>
+              <Text {...NAME_TEXT} style={styles.dayTitle}>
                 {title}
               </Text>
               <Text {...CAP_BODY} style={styles.meta}>
@@ -195,7 +195,7 @@ function ExerciseCard({ item, position, width, onPress }) {
           </View>
           <View style={styles.cardText}>
             <View style={styles.textColumn}>
-              <Text {...CAP_BODY} textBreakStrategy="simple" style={styles.cardName}>
+              <Text {...NAME_TEXT} style={styles.cardName}>
                 {exercise.name}
               </Text>
               {muscle ? (

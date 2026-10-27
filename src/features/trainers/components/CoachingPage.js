@@ -17,8 +17,8 @@ export function PageBackLink({ label, onPress, testID }) {
   );
 }
 
-// The page heading: the shell title is the one h1, so this is the next level
-// (h2, `accessibilityRole="header"`). Phone and tablet sizes as the boards
+// The page heading (`accessibilityRole="header"`): the page's one title; the
+// shell header shows none here (UX final audit X1). Phone and tablet sizes as the boards
 // draw them; `accent` paints the last word gold ("Become a trainer").
 export function PageHeading({ title, accent, subtitle, tablet = false, size = 'list', testID }) {
   const look = tablet ? TABLET_SIZES[size] : PHONE_SIZES[size];

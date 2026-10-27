@@ -14,16 +14,17 @@ const TITLES = [
   ['/notifications', 'Notifications'],
   ['/profile', 'Profile'],
   ['/my-trainer', 'Coaching'],
-  ['/trainers', 'Coaching'],
-  ['/trainer', 'Coaching'],
 ];
 
 // During a workout session the Workout header is untitled (session override).
 // "/" is untitled too: Today's own greeting is the page heading (v2, web parity).
 // "/workout" (the hub) is untitled: the page draws its own "← Today" + 52 H1
 // (UX G / U5), so the shell header there is just the bell (UX verdict P3-1).
+// The coaching / trainer pages (/trainers*, /trainer*) draw their own hero
+// title too (UX final audit X1, one title per page): untitled; /my-trainer
+// (no page title of its own) keeps "Coaching". Back links are unchanged.
 export function getHeaderTitle(path, isSessionActive = false) {
-  if (path === '/' || path === '/workout') {
+  if (path === '/' || path === '/workout' || path.startsWith('/trainer')) {
     return '';
   }
   if (isSessionActive && path.startsWith('/workout')) {

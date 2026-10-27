@@ -70,12 +70,15 @@ export default function AppHeader({ path, query = '', mode }) {
   return (
     <View style={[box, styles.full]}>
       <View style={styles.row}>
-        {title ? (
+        {title || backLink ? (
+          // X1: a page that draws its own title keeps the back link, untitled.
           <View style={styles.titleColumn}>
             {backLink ? <BackLink label={backLink.label} onPress={() => openShellPath(backLink.path)} /> : null}
-            <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.title, tablet && styles.titleTablet]}>
-              {title}
-            </Text>
+            {title ? (
+              <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.title, tablet && styles.titleTablet]}>
+                {title}
+              </Text>
+            ) : null}
           </View>
         ) : (
           <View />

@@ -19,6 +19,20 @@ const TITLE_RULE = {
 export const TITLE_TEXT = Object.freeze({ ...TITLE_RULE, maxFontSizeMultiplier: textScale.title });
 export const DISPLAY_TITLE_TEXT = Object.freeze({ ...TITLE_RULE, maxFontSizeMultiplier: textScale.display });
 
+// §1.1 long text (UX final audit X7, ruling 27 Oct) for list rows and cards:
+// a name wraps by word to at most 2 lines, then an ellipsis; it never shrinks
+// (shrink-to-fit is only for single-word stat-tile values, at 0.75). NAME_TEXT
+// is body-sized (capped like body), NAME_TITLE_TEXT title-sized (a card name).
+// LINE_TEXT: a secondary line or caption, 1 line + an ellipsis.
+const NAME_RULE = {
+  textBreakStrategy: 'simple',
+  numberOfLines: 2,
+  ellipsizeMode: 'tail',
+};
+export const NAME_TEXT = Object.freeze({ ...NAME_RULE, maxFontSizeMultiplier: textScale.body });
+export const NAME_TITLE_TEXT = Object.freeze({ ...NAME_RULE, maxFontSizeMultiplier: textScale.title });
+export const LINE_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body, numberOfLines: 1, ellipsizeMode: 'tail' });
+
 // True when the system text size is past the reflow point (§9 rule 4): button
 // pairs stack and trailing actions drop below the text. Read from
 // useWindowDimensions so a live font-size change re-renders the layout.

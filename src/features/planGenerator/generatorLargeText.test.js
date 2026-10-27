@@ -1,7 +1,7 @@
 import { StyleSheet, Text } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
-import { getGeneratorProfile, previewGeneratedPlan } from './api/generatorApi';
+import { getGeneratorProfile, previewGeneratedPlan, searchExercises } from './api/generatorApi';
 import PlanGeneratorPreviewScreen from './screens/PlanGeneratorPreviewScreen';
 import PlanGeneratorScreen, { isReflow } from './screens/PlanGeneratorScreen';
 
@@ -381,5 +381,55 @@ describe('G1 card (GeneratorStates board)', () => {
     expect(message.props.maxFontSizeMultiplier).toBe(textScale.body);
     expect(message.props.numberOfLines).toBeUndefined();
     expect(flat(host(tree, 'generator-unavailable')).height).toBeUndefined();
+  });
+});
+
+// UX final audit X7 ruling (27 Oct 2026, §1.1): every name in a row, card or
+// list is at most 2 lines then a tail ellipsis, no font shrink. Phone + tablet.
+describe.each([
+  ['phone', 390],
+  ['tablet', 834],
+])('X7 generator row names, %s', (_label, width) => {
+  const NAME = { numberOfLines: 2, ellipsizeMode: 'tail' };
+  const nameNodes = (tree, value) => tree.root.findAll((node) => node.type === Text && node.props.children === value);
+  const expectName = (node) => {
+    expect(node.props).toMatchObject(NAME);
+    expect(node.props.adjustsFontSizeToFit).toBeUndefined();
+  };
+  beforeEach(() => {
+    mockWindow = { width, height: 1194, scale: 2, fontScale: 3.1 };
+  });
+
+  it('preview: the split name, the exercise rows and the weekly-volume rows', async () => {
+    previewGeneratedPlan.mockResolvedValue(FEASIBLE);
+    const tree = await render(<PlanGeneratorPreviewScreen />);
+    ['Upper / Lower', 'Bench Press'].forEach((value) => {
+      const nodes = nameNodes(tree, value);
+      expect([value, nodes.length > 0]).toEqual([value, true]);
+      nodes.forEach(expectName);
+    });
+    // "Chest" is also the exercise row's muscle caption; the weekly-volume row name is one of them.
+    expect(nameNodes(tree, 'Chest').filter((node) => node.props.numberOfLines === 2 && node.props.ellipsizeMode === 'tail')).toHaveLength(1);
+  });
+
+  it('questionnaire: the equipment rows and the avoid search results', async () => {
+    getGeneratorProfile.mockResolvedValue({ available: true, profile: PROFILE, options: OPTIONS });
+    mockParams = { step: 4 };
+    const equipment = await render(<PlanGeneratorScreen />);
+    await act(async () => one(equipment, 'generator-preset-FULL_GYM').props.onPress());
+    await act(async () => one(equipment, 'generator-edit-equipment').props.onPress());
+    const barbell = nameNodes(equipment, 'Barbell');
+    expect(barbell.length).toBeGreaterThan(0);
+    barbell.forEach(expectName);
+
+    searchExercises.mockResolvedValue([{ id: 77, name: 'Romanian Deadlift', primary_muscle_group: null }]);
+    const tree = await openStep6();
+    await act(async () => host(tree, 'generator-avoid-search').props.onChangeText('roman'));
+    await act(async () => {
+      jest.advanceTimersByTime(400);
+    });
+    const result = nameNodes(tree, 'Romanian Deadlift');
+    expect(result.length).toBeGreaterThan(0);
+    result.forEach(expectName);
   });
 });

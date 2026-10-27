@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
 import GradientFill from '../../../../shared/components/GradientFill';
-import { CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT, TITLE_TEXT } from '../../../../shared/components/largeText';
+import { CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT, LINE_TEXT, TITLE_TEXT } from '../../../../shared/components/largeText';
 import TextLink from '../../../../shared/components/TextLink';
 import { colors, font, gradients, layout, radii, spacing, textScale, typography } from '../../../../shared/theme/tokens';
 import { AlertGlyph, CheckGlyph } from './clientIcons';
@@ -71,7 +71,7 @@ export function CoachingPill({ tablet = false }) {
 }
 
 // The page intro under the shell header: the Coaching pill, the page title
-// (h2; the shell title is the h1), a subline, then optional actions. `aside`
+// (the one title; the shell header is untitled here, X1), a subline, then optional actions. `aside`
 // sits at the right of the title block (the Clients "+" button).
 // `titleRef` / `titleTestID`: the title as a focus target (t55m, Clients
 // heading after the last client's coaching ends in the tablet pane).
@@ -209,7 +209,7 @@ export function StatTile({
         maxFontSizeMultiplier={textScale.display}
         numberOfLines={1}
         adjustsFontSizeToFit
-        minimumFontScale={0.7}
+        minimumFontScale={0.75}
         style={valueStyle}
       >
         {value}
@@ -255,7 +255,7 @@ export function StatusLine({ tone, text, testID }) {
   return (
     <View testID={testID} style={styles.statusLine}>
       {tone === 'success' ? <CheckGlyph size={12} color={color} /> : <AlertGlyph size={12} color={color} />}
-      <Text {...CAP_BODY} style={[styles.statusText, { color }]}>
+      <Text {...LINE_TEXT} style={[styles.statusText, { color }]}>
         {text}
       </Text>
     </View>

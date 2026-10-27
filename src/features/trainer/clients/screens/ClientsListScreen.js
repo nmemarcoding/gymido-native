@@ -6,7 +6,7 @@ import Chip from '../../../../shared/components/Chip';
 import EmptyState from '../../../../shared/components/EmptyState';
 import ErrorAlert from '../../../../shared/components/ErrorAlert';
 import IconButton from '../../../../shared/components/IconButton';
-import { CAP_BODY, useLargeTextReflow } from '../../../../shared/components/largeText';
+import { CAP_BODY, LINE_TEXT, NAME_TEXT, useLargeTextReflow } from '../../../../shared/components/largeText';
 import Loader from '../../../../shared/components/Loader';
 import StateSlot from '../../../../shared/components/StateSlot';
 import StatusPill from '../../../../shared/components/StatusPill';
@@ -307,14 +307,14 @@ function ClientsList() {
       >
         <ClientAvatar userId={row.client_user_id} initials={rowInitials(row)} size={44} />
         <View style={styles.rowText}>
-          <Text {...CAP_BODY} numberOfLines={2} style={clientStyles.rowLabel}>
+          <Text {...NAME_TEXT} style={clientStyles.rowLabel}>
             {name}
           </Text>
           {sub ? (
             sub.tone ? (
               <StatusLine tone={sub.tone} text={sub.text} />
             ) : (
-              <Text {...CAP_BODY} style={clientStyles.rowMeta}>
+              <Text {...LINE_TEXT} style={clientStyles.rowMeta}>
                 {sub.text}
               </Text>
             )

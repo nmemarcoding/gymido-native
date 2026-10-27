@@ -3,7 +3,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { CardHeroFill } from '../../../shared/components/Card';
 import GradientFill from '../../../shared/components/GradientFill';
-import { CAP_BODY, CAP_PILL, TITLE_TEXT } from '../../../shared/components/largeText';
+import { CAP_BODY, CAP_PILL, NAME_TITLE_TEXT } from '../../../shared/components/largeText';
 import StatusPill from '../../../shared/components/StatusPill';
 import { colors, font, muscleGlow, radii, spacing, typography } from '../../../shared/theme/tokens';
 import { trainerDisplayName } from '../../myTrainer/myTrainerFormat';
@@ -77,7 +77,7 @@ function PhoneBody({ trainer, name }) {
       />
       <View style={styles.body}>
         <View style={styles.nameRow}>
-          <Text {...TITLE_TEXT} style={styles.name}>
+          <Text {...NAME_TITLE_TEXT} style={styles.name}>
             {name}
           </Text>
           <StatusPill label="Trainer" tone="gold" compact />
@@ -112,7 +112,7 @@ function TabletBody({ trainer, name }) {
         <Text {...CAP_BODY} style={styles.eyebrowTablet}>
           Trainer
         </Text>
-        <Text {...TITLE_TEXT} style={styles.nameTablet}>
+        <Text {...NAME_TITLE_TEXT} style={styles.nameTablet}>
           {name}
         </Text>
       </View>
