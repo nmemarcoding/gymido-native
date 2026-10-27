@@ -153,6 +153,8 @@ describe('type (§2)', () => {
     ['displayTimer', 92, 92, 'Geist-Bold', -5.52],
     ['displayXl', 56, 58, 'Geist-Bold', -2.8],
     ['titleXl', 36, 40, 'Geist-Bold', -1.44],
+    // FINAL-AUDIT batch 1: the phone sheet title 26/30 700 (tracking −0.03em).
+    ['titleSheet', 26, 30, 'Geist-Bold', -0.78],
     ['titleMd', 24, 28, 'Geist-Bold', -0.72],
     ['titleXs', 18, 24, 'Geist-Bold', -0.36],
     ['bodyLg', 16, 24, 'Geist-Regular', 0],

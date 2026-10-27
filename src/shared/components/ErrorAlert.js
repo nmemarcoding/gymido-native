@@ -1,16 +1,17 @@
 import { useEffect } from 'react';
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, font, layout, radii, spacing } from '../theme/tokens';
+import { colors, font, gradients, layout, radii, spacing } from '../theme/tokens';
 import FeedbackIcon from './FeedbackIcon';
 import GradientFill from './GradientFill';
 import { CAP_BODY, useLargeTextReflow } from './largeText';
 
 // RN-SPEC-v2-phase2 §D1 Ruling 2: ONE Retry style everywhere: glass secondary
-// (white 8 % + 1 px white 12 %), 40 visual with a 44 hit area, 14/600.
+// (white 8 % + 1 px white 12 %), 38 visual with a 44 hit area, 14/600
+// (FINAL-AUDIT "Rulings for FE batch 1": Retry 38, 44 hit).
 // Loading: the label stays, disabled at 0.5, busy. Used by ErrorAlert and the
 // Workout whole-page "Try again".
-export const RETRY_HEIGHT = 40;
+export const RETRY_HEIGHT = 38;
 export const RETRY_SLOP = (layout.touchMin - RETRY_HEIGHT) / 2;
 
 export function RetryButton({ title = 'Retry', onPress, loading = false, disabled = false, accessibilityLabel, testID, style, ref }) {
@@ -62,39 +63,36 @@ const retryStyles = StyleSheet.create({
   },
 });
 
-// RN-SPEC-v2-foundation §5 (inline; what loaded stays): the State boards'
-// card (fill glassStrong, edge dangerLine; D's kit folds), a dangerTint icon
-// tile, the failed part as the title, the server text under it,
-// and the Retry (ruling 2) at the right only when `onRetry` is given (never
-// for save failures). Role alert, announced on mount.
-// `variant` (UX D component table): 'default' (the kit card), 'compact' (the
-// Exercises board: surface fill, 40 tile, centred row) and 'generator' (the
-// Generator board: danger-tint gradient over the surface, 48 tile).
-// `retrying` shows the Retry's loading state; `retryTestID` names it.
-export default function ErrorAlert({ title, description, onRetry, retrying = false, retryTestID, variant = 'default', style, testID, ref }) {
+// RN-SPEC-v2-foundation §5 (inline; what loaded stays) + FINAL-AUDIT
+// "Rulings for FE batch 1" (2026-10-27): ONE ErrorAlert look app-wide (web +
+// native). Radius 24, the gradient card (160°, gradients.card), a 1 px
+// danger line (0.30), padding 20; a dangerTint icon tile, the failed part as
+// the title, the message 14/20 secondary, and the glass Retry (38, 44 hit)
+// UNDER the text, only when `onRetry` is given (never for save failures).
+// Role alert, announced on mount. The old `variant` prop (compact /
+// generator) is retired: it is accepted and ignored, so every caller draws
+// the one look. `retrying` shows the Retry's loading state; `retryTestID`
+// names it.
+export default function ErrorAlert({ title, description, onRetry, retrying = false, retryTestID, style, testID, ref }) {
   useEffect(() => {
     AccessibilityInfo.announceForAccessibility([title, description].filter(Boolean).join('. '));
   }, [title, description]);
 
-  const name = VARIANT_STYLES[variant] ? variant : 'default';
-  const look = VARIANT_STYLES[name];
-  const compact = name !== 'default';
-  // UX §9 rule 4: past 1.3× the trailing Retry drops below the text, full
-  // width (the row wraps; the text keeps the line beside the icon).
+  // UX §9 rule 4: past 1.3× the Retry takes the text column's full width.
   const stacked = useLargeTextReflow();
 
   return (
-    <View ref={ref} testID={testID} accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.box, look.box, stacked && styles.boxStacked, style]}>
+    <View ref={ref} testID={testID} accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.box, style]}>
       {/* Mounted with the card (never added on a state change); SVG. */}
-      {name === 'generator' ? <GradientFill angle={160} colors={[colors.dangerTint, colors.dangerFaint]} /> : null}
-      <View testID="error-alert-icon" style={[styles.iconTile, look.iconTile]}>
-        <FeedbackIcon name="error" size={name === 'generator' ? 22 : 18} color={colors.dangerText} />
+      <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
+      <View testID="error-alert-icon" style={styles.iconTile}>
+        <FeedbackIcon name="error" size={18} color={colors.dangerText} />
       </View>
-      <View style={styles.text}>
-        {title ? <Text {...CAP_BODY} style={[styles.title, compact && styles.titleCompact]}>{title}</Text> : null}
-        {description ? <Text {...CAP_BODY} style={[styles.description, compact && styles.descriptionCompact]}>{description}</Text> : null}
+      <View testID="error-alert-text" style={styles.text}>
+        {title ? <Text {...CAP_BODY} style={styles.title}>{title}</Text> : null}
+        {description ? <Text {...CAP_BODY} style={styles.description}>{description}</Text> : null}
+        {onRetry ? <RetryButton title="Retry" testID={retryTestID} onPress={onRetry} loading={retrying} style={[styles.retry, stacked && styles.retryStacked]} /> : null}
       </View>
-      {onRetry ? <RetryButton title="Retry" testID={retryTestID} onPress={onRetry} loading={retrying} style={stacked ? styles.retryStacked : styles.retry} /> : null}
     </View>
   );
 }
@@ -107,8 +105,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: colors.dangerLine,
-    backgroundColor: colors.glassStrong,
-    padding: spacing['4_5'],
+    // Under the gradient until it has measured (its end stop's neighbour).
+    backgroundColor: colors.surface,
+    overflow: 'hidden',
+    padding: spacing[5],
   },
   iconTile: {
     width: 36,
@@ -128,9 +128,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: colors.textPrimary,
   },
-  titleCompact: {
-    lineHeight: 20,
-  },
   description: {
     ...font(400),
     marginTop: spacing['0_5'],
@@ -138,46 +135,12 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: colors.textSecondary,
   },
-  descriptionCompact: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
   retry: {
-    flexShrink: 0,
-    alignSelf: 'center',
-  },
-  boxStacked: {
-    flexWrap: 'wrap',
+    alignSelf: 'flex-start',
+    marginTop: spacing[3],
   },
   retryStacked: {
+    alignSelf: 'stretch',
     width: '100%',
   },
 });
-
-const VARIANT_STYLES = {
-  default: StyleSheet.create({ box: {}, iconTile: {} }),
-  // Exercises board: padding 16, radius 24, surface, danger-text edge
-  // (0.28 drawn → token dangerTextBorder 0.25), tile 40 radius 12.
-  compact: StyleSheet.create({
-    box: {
-      alignItems: 'center',
-      padding: spacing[4],
-      backgroundColor: colors.surface,
-      borderColor: colors.dangerTextBorder,
-    },
-    iconTile: { width: 40, height: 40, borderRadius: radii.sm },
-  }),
-  // Generator board: padding 18, radius 26 (no token → radius-xl 24), the
-  // 160° danger gradient (0.14 → 0.04 drawn → dangerTint → dangerFaint) over
-  // the surface, edge dangerLine, tile 48 radius 16 (0.18 → dangerTint).
-  generator: StyleSheet.create({
-    box: {
-      alignItems: 'center',
-      padding: spacing['4_5'],
-      backgroundColor: colors.surface,
-      borderColor: colors.dangerLine,
-      overflow: 'hidden',
-    },
-    iconTile: { width: 48, height: 48, borderRadius: radii.md },
-  }),
-};

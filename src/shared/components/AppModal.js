@@ -47,8 +47,13 @@ export function isTabletWidth(width) {
 
 // Trainer plans spec §A3.1. RN <Modal> gives the paired scroll lock for free;
 // Android back and the scrim both call onClose.
-// `hideClose` hides the tablet header Close while the dialog is busy (sending,
-// done), as on web; the scrim/Back rules stay the caller's.
+// FINAL-AUDIT "Rulings for FE batch 1" (2026-10-27): phone = ONE attached
+// bottom sheet (grab handle, top radius 28, safe-area bottom padding; there
+// is no other phone variant); a TITLED sheet shows a 36 glass × (44 hit) on
+// its title row; the phone title is 26/30 700, the tablet dialog's 34/38.
+// `hideClose` hides the Close (phone title-row × and tablet header Close)
+// while the dialog is busy (sending, done), as on web; the scrim/Back rules
+// stay the caller's.
 // `eyebrow` (optional, default none; RN-SPEC-v2-phase5 §1 M 3): shown ABOVE
 // the title. A string is the gold eyebrow line (12/600, 6 above the title),
 // e.g. the client's name on the tablet client modals; a node is rendered as
@@ -126,6 +131,7 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
       };
 
   const hasChildren = Children.toArray(children).length > 0;
+  const phoneClose = !tablet && !hideClose && Boolean(title);
   // UX Phase 1 review: with the keyboard open a phone sheet has little height,
   // and a fixed footer clipped the last field (the Unit select). The footer
   // then scrolls with the content, so the fields keep their full height.
@@ -154,20 +160,9 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
               scale. The Modal, its open state and the entrance progress live
               above this key and are kept; the caller's state is kept too. */}
           <Fragment key={`text-scale-${fontScale}`}>
-            {tablet && !hideClose ? (
-              // §6 tablet header Close (UX, 26 Oct): a 36 glass circle with a 44
-              // hit area; the scrim and Back still close the dialog too.
-              <Pressable
-                testID="app-modal-close"
-                accessibilityRole="button"
-                accessibilityLabel="Close"
-                hitSlop={4}
-                onPress={onClose}
-                style={({ pressed }) => [styles.close, pressed && styles.closePressed]}
-              >
-                <FeedbackIcon name="close" size={16} color={colors.textPrimary} />
-              </Pressable>
-            ) : null}
+            {/* §6 tablet header Close (UX, 26 Oct): a 36 glass circle with a 44
+                hit area; the scrim and Back still close the dialog too. */}
+            {tablet && !hideClose ? <CloseButton onPress={onClose} /> : null}
             {tablet ? null : (
               <View
                 testID="app-modal-grab-handle"
@@ -191,9 +186,18 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
               {/* UX §9 title rule: the phone title is title-sm (1.6× cap), the
                   tablet one is 34 px, a page-size title (1.3× cap); both wrap by
                   word, max 3 lines, and a long word shrinks. */}
-              <Text {...(tablet ? DISPLAY_TITLE_TEXT : TITLE_TEXT)} accessibilityRole="header" style={tablet ? styles.titleTablet : styles.title}>
-                {title}
-              </Text>
+              {phoneClose ? (
+                <View testID="app-modal-title-row" style={styles.titleRow}>
+                  <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.title, styles.titleInRow]}>
+                    {title}
+                  </Text>
+                  <CloseButton onPress={onClose} inRow />
+                </View>
+              ) : (
+                <Text {...(tablet ? DISPLAY_TITLE_TEXT : TITLE_TEXT)} accessibilityRole="header" style={tablet ? styles.titleTablet : styles.title}>
+                  {title}
+                </Text>
+              )}
               {description ? (
                 <Text {...CAP_BODY} style={[styles.description, tablet && !compact && styles.descriptionTablet, tablet && styles.descriptionTabletGap]}>
                   {description}
@@ -208,6 +212,23 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
       </View>
       <ToastHost hostId={toastHostId} />
     </Modal>
+  );
+}
+
+// The dialog Close: a 36 glass circle, 44 hit area. Tablet: pinned in the
+// card's top-right corner; phone: the end of the title row (`inRow`).
+function CloseButton({ onPress, inRow = false }) {
+  return (
+    <Pressable
+      testID="app-modal-close"
+      accessibilityRole="button"
+      accessibilityLabel="Close"
+      hitSlop={4}
+      onPress={onPress}
+      style={({ pressed }) => [styles.close, inRow ? styles.closeInRow : styles.closePinned, pressed && styles.closePressed]}
+    >
+      <FeedbackIcon name="close" size={16} color={colors.textPrimary} />
+    </Pressable>
   );
 }
 
@@ -292,9 +313,19 @@ const styles = StyleSheet.create({
   eyebrowTablet: {
     paddingRight: 48,
   },
+  // FINAL-AUDIT batch 1: the phone sheet title 26/30 700.
   title: {
-    ...typography.titleSm,
+    ...typography.titleSheet,
     color: colors.textPrimary,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[3],
+  },
+  titleInRow: {
+    flex: 1,
+    minWidth: 0,
   },
   // Tablet dialog title 34/38 (UX, 26 Oct: the boards' 34–40 range),
   // clear of the Close button.
@@ -306,11 +337,18 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     paddingRight: 48,
   },
-  close: {
+  closePinned: {
     position: 'absolute',
     top: spacing[6],
     right: spacing[6],
     zIndex: 1,
+  },
+  // Centred on the 30 px first title line.
+  closeInRow: {
+    flexShrink: 0,
+    marginTop: -3,
+  },
+  close: {
     width: 36,
     height: 36,
     borderRadius: radii.full,

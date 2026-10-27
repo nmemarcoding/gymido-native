@@ -482,6 +482,8 @@ export const typography = Object.freeze({
   titleLg: step(30, 32, 700, -0.04),
   titleMd: step(24, 28, 700, -0.03),
   titleSm: step(22, 28, 700, -0.03),
+  // FINAL-AUDIT "Rulings for FE batch 1": the phone bottom-sheet title.
+  titleSheet: step(26, 30, 700, -0.03),
   titleXs: step(18, 24, 700, -0.02),
   // Input text is 16 (it keeps iOS from zooming the field).
   bodyLg: step(16, 24, 400),

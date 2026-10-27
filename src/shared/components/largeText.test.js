@@ -265,18 +265,20 @@ describe.each(SCALES)('kit at fontScale %s', (scale) => {
     expect(textNode(tree, 'Your plan ends this week.').props.maxFontSizeMultiplier).toBe(2);
   });
 
-  it('ErrorAlert: past 1.3 the Retry drops below the text, full width; label capped 2.0', () => {
+  // FINAL-AUDIT batch-1 ruling: the Retry is always UNDER the text; past 1.3
+  // it also takes the text column's full width (UX §9 rule 4).
+  it('ErrorAlert: the Retry sits under the text; past 1.3 full width; label capped 2.0', () => {
     const tree = render(<ErrorAlert testID="ea" title="Couldn't load" description="Check your connection." onRetry={() => {}} retryTestID="retry" />);
     const stacked = scale > textScale.reflowAbove;
-    expect(flat(host(tree, 'ea')).flexWrap).toBe(stacked ? 'wrap' : undefined);
+    expect(flat(host(tree, 'ea')).flexWrap).toBeUndefined();
     const retry = flat(host(tree, 'retry'));
     if (stacked) {
       expect(retry.width).toBe('100%');
     } else {
-      expect(retry).toMatchObject({ flexShrink: 0, alignSelf: 'center' });
+      expect(retry).toMatchObject({ alignSelf: 'flex-start' });
       expect(retry.width).toBeUndefined();
     }
-    expect(flat(host(tree, 'retry')).minHeight).toBe(40);
+    expect(flat(host(tree, 'retry')).minHeight).toBe(38);
     expectAllCapped(tree);
   });
 

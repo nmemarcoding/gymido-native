@@ -96,7 +96,8 @@ describe('§E1.2 step 4: a later page fails (T-16)', () => {
     expect(texts(tree.root)).toEqual(expect.arrayContaining(["Some exercises didn't load", 'Ex 1']));
   });
 
-  it('v2 look (§D2): the compact ErrorAlert with the ruling-2 Retry, at the top of the list, before the rows', async () => {
+  // FINAL-AUDIT batch 1: ONE ErrorAlert look app-wide (the compact variant is retired).
+  it('v2 look: the one ErrorAlert with the ruling-2 Retry, at the top of the list, before the rows', async () => {
     const { colors } = require('../../../shared/theme/tokens');
     const { RetryButton } = require('../../../shared/components/ErrorAlert');
     const { StyleSheet } = require('react-native');
@@ -104,7 +105,7 @@ describe('§E1.2 step 4: a later page fails (T-16)', () => {
     const tree = await render();
     const alert = tree.root.find((node) => node.props.testID === 'exercises-partial-error' && typeof node.type === 'string');
     expect(alert.props.accessibilityRole).toBe('alert');
-    expect(StyleSheet.flatten(alert.props.style)).toMatchObject({ backgroundColor: colors.surface, borderColor: colors.dangerTextBorder, padding: 16, alignItems: 'center' });
+    expect(StyleSheet.flatten(alert.props.style)).toMatchObject({ borderRadius: 24, borderColor: colors.dangerLine, padding: 20 });
     const retry = tree.root.findByType(RetryButton);
     expect(retry.props).toMatchObject({ title: 'Retry', testID: 'exercises-partial-retry' });
     const shown = texts(tree.root);
