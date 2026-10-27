@@ -1,210 +1,222 @@
-import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import PillButton from '../../../../shared/components/PillButton';
-import { colors, radii, shadows } from '../../../../shared/theme/tokens';
+import { CardHeroFill } from '../../../../shared/components/Card';
+import { CAP_BODY } from '../../../../shared/components/largeText';
+import { colors, font, radii, spacing } from '../../../../shared/theme/tokens';
 import { formatDayTitle, formatExerciseCount } from '../planFormat';
+import { TextAction } from './builderParts';
 
-// T3a (spec §A5.4.1), with the Part B day buttons (§B6).
-export default function DayListCard({ days, selectedDayId, onSelect, capabilities, onEditDay, onDeleteDay }) {
+// T3a (spec §A5.4.1) with the Part B day buttons (§B6): the TABLET days
+// column (phone: DayTabs). v2 look (UX phase4 I §2, phase6 O tablet):
+// member = the gradient days card with "Plan days" / "Structure"; trainer =
+// the panel with the "Plan days" label. Each day: the title block selects
+// it (gold tint + inset gold ring when selected), "{n} exercises" stays (code),
+// the "#n" pill is dropped as drawn, Edit / Delete sit in the day's footer.
+// `footer` is the "Add a day" control (inside the panel on the trainer).
+export default function DayListCard({ days, selectedDayId, onSelect, capabilities, onEditDay, onDeleteDay, look = 'member', footer = null }) {
+  const trainer = look === 'trainer';
   return (
-    <View testID="plan-days-card" style={styles.card}>
-      <View style={styles.header}>
-        <Text style={styles.kicker}>Plan days</Text>
-        <Text style={styles.heading}>Structure</Text>
-      </View>
-      <View style={styles.body}>
-        {days.length === 0 ? (
-          <Text style={styles.empty}>No days yet. Add the first training day to start building the plan.</Text>
+    <View style={styles.column}>
+      <View testID="plan-days-card" style={[styles.card, trainer && styles.cardTrainer]}>
+        <CardHeroFill />
+        {trainer ? (
+          <Text {...CAP_BODY} style={styles.label}>
+            Plan days
+          </Text>
         ) : (
-          days.map((day) => {
-            return (
-              <DayArticle
+          <View style={styles.header}>
+            <Text {...CAP_BODY} style={styles.kicker}>
+              Plan days
+            </Text>
+            <Text {...CAP_BODY} accessibilityRole="header" style={styles.heading}>
+              Structure
+            </Text>
+          </View>
+        )}
+        <View testID="plan-days-list" accessibilityRole="list" style={trainer ? styles.listTrainer : styles.list}>
+          {days.length === 0 ? (
+            <Text {...CAP_BODY} style={styles.empty}>
+              No days yet. Add the first training day to start building the plan.
+            </Text>
+          ) : (
+            days.map((day) => (
+              <DayItem
                 key={day.id}
                 day={day}
+                trainer={trainer}
                 selected={day.id === selectedDayId}
+                capabilities={capabilities}
                 onSelect={() => onSelect(day.id)}
-              >
-                <View style={styles.footer}>
-                  <Text numberOfLines={1} style={styles.footerText}>
-                    {formatExerciseCount(day)}
-                  </Text>
-                  {capabilities.editDay || capabilities.deleteDay ? (
-                    <View style={styles.dayButtons}>
-                      {capabilities.editDay ? (
-                        <PillButton
-                          testID={`plan-day-edit-${day.id}`}
-                          title="Edit"
-                          variant="secondary"
-                          size="small"
-                          onPress={() => onEditDay(day)}
-                        />
-                      ) : null}
-                      {capabilities.deleteDay ? (
-                        <PillButton
-                          testID={`plan-day-delete-${day.id}`}
-                          title="Delete"
-                          variant="danger"
-                          size="small"
-                          accessibilityLabel={`Delete day ${day.day_number}`}
-                          onPress={() => onDeleteDay(day)}
-                        />
-                      ) : null}
-                    </View>
-                  ) : null}
-                </View>
-              </DayArticle>
-            );
-          })
-        )}
+                onEditDay={onEditDay}
+                onDeleteDay={onDeleteDay}
+              />
+            ))
+          )}
+        </View>
+        {trainer ? footer : null}
       </View>
+      {trainer ? null : footer}
     </View>
   );
 }
 
-// One day: only the title row selects it; the footer (count + Part B
-// buttons) sits outside that button, as on the web.
-function DayArticle({ day, selected, onSelect, children }) {
-  const [pressed, setPressed] = useState(false);
+// One day: only the title block selects it; the footer (Part B buttons)
+// sits outside that button, as on the web.
+function DayItem({ day, trainer, selected, capabilities, onSelect, onEditDay, onDeleteDay }) {
   return (
-    <View style={[styles.day, selected ? styles.daySelected : styles.dayIdle, !selected && pressed && styles.dayPressed]}>
+    <View style={[styles.day, trainer && styles.dayTrainer, selected ? styles.daySelected : trainer ? styles.dayIdleTrainer : styles.dayIdle]}>
       <Pressable
         testID={`plan-day-${day.id}`}
         accessibilityRole="button"
         accessibilityState={{ selected }}
         onPress={onSelect}
-        onPressIn={() => setPressed(true)}
-        onPressOut={() => setPressed(false)}
+        style={styles.dayButton}
       >
-        <View style={styles.dayRow}>
-          <View style={styles.dayText}>
-            <Text style={styles.dayTitle}>{formatDayTitle(day)}</Text>
-            {day.description ? <Text style={styles.dayDescription}>{day.description}</Text> : null}
-          </View>
-          <Text style={styles.pill}>#{day.day_number}</Text>
-        </View>
+        {({ pressed }) => (
+          <>
+            {pressed && !selected ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.pressed]} /> : null}
+            <Text {...CAP_BODY} style={styles.dayTitle}>
+              {formatDayTitle(day)}
+            </Text>
+            {day.description ? (
+              <Text {...CAP_BODY} style={styles.dayDescription}>
+                {day.description}
+              </Text>
+            ) : null}
+            {/* C7: the count never breaks across lines. */}
+            <Text {...CAP_BODY} numberOfLines={1} style={[styles.count, selected && styles.countSelected]}>
+              {formatExerciseCount(day)}
+            </Text>
+          </>
+        )}
       </Pressable>
-      {children}
+      {capabilities.editDay || capabilities.deleteDay ? (
+        <View style={styles.footer}>
+          {capabilities.editDay ? <TextAction testID={`plan-day-edit-${day.id}`} label="Edit" onPress={() => onEditDay(day)} /> : null}
+          {capabilities.deleteDay ? (
+            <TextAction
+              testID={`plan-day-delete-${day.id}`}
+              label="Delete"
+              tone="danger"
+              accessibilityLabel={`Delete day ${day.day_number}`}
+              onPress={() => onDeleteDay(day)}
+            />
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  column: {
+    gap: spacing[3],
+  },
   card: {
     borderRadius: radii.xl,
     borderWidth: 1,
-    borderColor: 'transparent',
-    backgroundColor: colors.surface,
-    boxShadow: shadows.soft,
+    borderColor: colors.choiceBorder,
     overflow: 'hidden',
+  },
+  cardTrainer: {
+    padding: spacing[3],
+    gap: spacing['1_5'],
   },
   header: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing['4_5'],
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.hairline,
   },
   kicker: {
+    ...font(600),
     fontSize: 12,
     lineHeight: 16,
-    fontWeight: '600',
-    letterSpacing: 2.88,
-    textTransform: 'uppercase',
-    color: colors.brand700,
+    color: colors.gold,
   },
   heading: {
-    marginTop: 4,
-    fontSize: 18,
-    lineHeight: 28,
-    fontWeight: '600',
+    ...font(700),
+    marginTop: spacing[1],
+    fontSize: 17,
+    lineHeight: 22,
     color: colors.textPrimary,
   },
-  body: {
-    padding: 16,
-    gap: 12,
+  label: {
+    ...font(600),
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textMuted,
+  },
+  list: {
+    padding: spacing[2],
+    gap: spacing['1_5'],
+  },
+  listTrainer: {
+    gap: spacing['1_5'],
   },
   empty: {
-    borderRadius: radii.lg,
-    backgroundColor: colors.background,
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    overflow: 'hidden',
+    ...font(400),
+    padding: spacing[3],
     fontSize: 14,
     lineHeight: 20,
     color: colors.textSecondary,
   },
   day: {
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    padding: 16,
+    borderRadius: radii.md,
+    overflow: 'hidden',
+  },
+  dayTrainer: {
+    minHeight: 56,
   },
   daySelected: {
-    borderColor: colors.brand400,
-    backgroundColor: colors.brand50,
+    backgroundColor: colors.goldTint,
+    borderWidth: 1.5,
+    borderColor: colors.gold,
   },
   dayIdle: {
-    borderColor: colors.border,
-    backgroundColor: colors.background,
+    backgroundColor: colors.fillWell,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
-  dayPressed: {
-    backgroundColor: colors.surfaceMuted,
+  dayIdleTrainer: {
+    backgroundColor: colors.fillChip,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
-  dayRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
+  dayButton: {
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing['3_5'],
+    gap: spacing['0_5'],
   },
-  dayText: {
-    flex: 1,
-    minWidth: 0,
+  pressed: {
+    backgroundColor: colors.pressOverlay,
   },
   dayTitle: {
-    fontSize: 14,
+    ...font(600),
+    fontSize: 15,
     lineHeight: 20,
-    fontWeight: '600',
     color: colors.textPrimary,
   },
   dayDescription: {
-    marginTop: 4,
-    fontSize: 14,
-    lineHeight: 20,
+    ...font(400),
+    fontSize: 13,
+    lineHeight: 18,
     color: colors.textSecondary,
   },
-  pill: {
-    alignSelf: 'flex-start',
-    borderRadius: radii.full,
-    backgroundColor: colors.surface,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    overflow: 'hidden',
+  count: {
+    ...font(400),
     fontSize: 12,
     lineHeight: 16,
-    fontWeight: '700',
-    letterSpacing: 2.16,
-    textTransform: 'uppercase',
     color: colors.textMuted,
   },
-  // C7: wraps at narrow widths; the buttons never shrink and the count
-  // stays on one line.
+  countSelected: {
+    color: colors.gold,
+  },
   footer: {
-    marginTop: 16,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  dayButtons: {
-    flexDirection: 'row',
-    flexShrink: 0,
-    gap: 8,
-  },
-  footerText: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '600',
-    letterSpacing: 2.16,
-    textTransform: 'uppercase',
-    color: colors.textMuted,
+    gap: spacing[4],
+    paddingHorizontal: spacing['3_5'],
+    paddingBottom: spacing['1_5'],
   },
 });
