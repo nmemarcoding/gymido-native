@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import GradientFill from '../../../shared/components/GradientFill';
 import PillButton from '../../../shared/components/PillButton';
@@ -35,20 +35,23 @@ export function GeneratorUnavailable({ onBack }) {
       {/* The board's gold 0.18 wash = glow-gold-ambient (§8.5 ladder). */}
       <GradientFill radial={TOP_GLOW} colors={gradients.accountGlow.colors} stops={GLOW_STOPS} />
       <View testID="generator-unavailable-icon" style={styles.tile}>
+        {/* UX parity ruling (board G1): a 24 px clock, stroke 2.0, on-gold,
+            at every width. */}
         <Svg
-          width={32}
-          height={32}
+          testID="generator-unavailable-clock"
+          width={24}
+          height={24}
           viewBox="0 0 24 24"
           fill="none"
           stroke={colors.onGold}
-          strokeWidth={2.2}
+          strokeWidth={2}
           strokeLinecap="round"
           strokeLinejoin="round"
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
         >
-          {/* A sparkle: the generator "makes" a plan. */}
-          <Path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16z" />
+          <Circle cx="12" cy="12" r="9" />
+          <Path d="M12 7v5l3 2" />
         </Svg>
       </View>
       <Text {...TITLE_TEXT} accessibilityRole="header" style={styles.title}>

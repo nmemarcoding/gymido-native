@@ -410,3 +410,61 @@ export const BOTTOM_NAV_HEIGHT = TAB_BAR_CLEARANCE;
 export function tabBarClearance({ width, insetBottom }) {
   return (width < breakpoints.md ? BOTTOM_NAV_HEIGHT : 0) + (insetBottom ?? 0);
 }
+
+// ---- v2 Phase 4 J (look only) ----
+
+// The review cards draw the §G1.3 summaries split for layout (the same words
+// in the same order; screen readers still get the whole summary string).
+export function reviewDetails(answers, options) {
+  const equipmentNames = nameLookup(options?.equipment);
+  const focusNames = nameLookup(options?.focus_muscles);
+  const focus = answers.focus_muscle_ids.map((id) => focusNames.get(id)).filter(Boolean);
+  const avoided = answers.exclusions.filter((item) => item.exercise?.name);
+  const areas = goEasyAreasOf(options);
+  const selected = answers.go_easy_area_ids ?? [];
+  const goEasy = areas.filter((area) => selected.includes(area.id)).map(goEasyAreaLabel);
+  return {
+    goal: goalLabel(answers.goal),
+    band: bandLabel(answers.experience_band),
+    days: String(answers.days_per_week ?? ''),
+    minutes: String(answers.session_minutes ?? ''),
+    preset: presetLabel(answers.equipment_preset),
+    equipment: ['Bodyweight', ...answers.equipment_type_ids.map((id) => equipmentNames.get(id)).filter(Boolean)],
+    focus: focus.length ? { label: COPY.focusPrefix, text: focus.join(', ') } : { label: null, text: COPY.noFocus },
+    goEasy: areas.length
+      ? goEasy.length
+        ? { label: COPY.goEasyPrefix, text: goEasy.join(', ') }
+        : { label: null, text: COPY.nothingToGoEasyOn }
+      : null,
+    avoid: avoided.length
+      ? { label: COPY.avoidPrefix, text: avoided.map((item) => item.exercise.name).join(', ') }
+      : { label: null, text: COPY.nothingToAvoid },
+    // The first avoided exercise: the row-6 photo (UX N4: only when its
+    // catalog entry is already loaded on the client).
+    firstAvoided: avoided[0]?.exercise ?? null,
+  };
+}
+
+// Dated change 27 Oct (images): a thumbnail whose `media_type` is not an
+// image (a video) is not drawn as one; no URL → the §8.1 tile.
+export function imageUrlOf(exercise) {
+  const thumb = exercise?.thumbnail ?? exercise?.image ?? null;
+  const url = typeof thumb === 'string' ? thumb : thumb?.url;
+  const type = typeof thumb === 'object' && thumb ? thumb.media_type : undefined;
+  if (!url || (type && !String(type).toLowerCase().startsWith('image'))) {
+    return null;
+  }
+  return url;
+}
+
+// UX N4: the exercises already loaded on the client (search results this
+// visit), by id; a profile exclusion only has {id, name}.
+export function rememberExercises(known, items) {
+  const next = { ...known };
+  for (const item of items ?? []) {
+    if (item && item.id !== undefined && item.id !== null) {
+      next[item.id] = item;
+    }
+  }
+  return next;
+}

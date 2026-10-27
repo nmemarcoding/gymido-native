@@ -1,0 +1,74 @@
+# v2 Phase 4 §3 Generator (team 4j): save the answers and open the preview;
+# check the sticky row, open an exercise, come back. NEVER taps "Start this
+# plan" (that would replace the QA member's plan). Saves the generator
+# profile only (PUT /plan-generator/profile). Starts signed in on a tab root.
+appId: com.gymido.app
+---
+- tapOn:
+    id: "tab-Plans"
+- scrollUntilVisible:
+    element:
+      id: "generator-entry-start"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "generator-entry-start"
+- extendedWaitUntil:
+    visible:
+      id: "generator-progress"
+    timeout: 30000
+# Deep-link-free path: the saved profile pre-fills the answers; walk Next.
+- tapOn:
+    id: "generator-goal-BUILD_MUSCLE"
+- repeat:
+    times: 5
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "generator-next"
+          direction: DOWN
+          timeout: 15000
+      - tapOn:
+          id: "generator-next"
+- extendedWaitUntil:
+    visible:
+      id: "generator-review-1"
+    timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: "generator-see-plan"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "generator-see-plan"
+# Feasible (the usual QA case) or the refusal card.
+- extendedWaitUntil:
+    visible:
+      id: "generator-plan-name"
+    timeout: 45000
+    optional: true
+- runFlow:
+    when:
+      visible:
+        id: "generator-plan-name"
+    commands:
+      - assertVisible:
+          id: "generator-sticky-row"
+      - assertVisible:
+          id: "generator-bar-change"
+      - assertVisible:
+          id: "generator-day-1"
+      # Back to the answers with the phone back icon button.
+      - tapOn:
+          id: "generator-preview-back"
+      - extendedWaitUntil:
+          visible:
+            id: "generator-review-1"
+          timeout: 15000
+- runFlow:
+    when:
+      visible:
+        id: "generator-not-feasible"
+    commands:
+      - assertVisible:
+          id: "generator-not-feasible-title"
