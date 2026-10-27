@@ -16,7 +16,7 @@ import { act, create } from 'react-test-renderer';
 
 import { useAuthStore } from '../auth/authStore';
 import { colors, radii, spacing, typography } from '../../shared/theme/tokens';
-import CreateProfileScreen, { HEIGHT_UNITS, WEIGHT_UNITS } from './CreateProfileScreen';
+import CreateProfileScreen, { HEIGHT_UNITS, PROFILE_PLACEHOLDERS, WEIGHT_UNITS } from './CreateProfileScreen';
 import { createProfile, getProfile } from './api/profileApi';
 import { resetProfileStore, useProfileStore } from './profileStore';
 
@@ -205,6 +205,8 @@ describe('B1 phone layout (ND2, ND6)', () => {
 
   it('numbers are 64 tall (62 + the 1 px border) at 32/700 tabular', () => {
     const tree = render();
+    // C2 (verdict b7a7867): the value style shows once there is a value.
+    ['profile-height_feet', 'profile-height_inches', 'profile-current_weight_value', 'profile-goal_weight_value'].forEach((id) => type(tree, id, '7'));
     ['profile-height_feet', 'profile-height_inches', 'profile-current_weight_value', 'profile-goal_weight_value'].forEach((id) => {
       const style = flat(textInput(tree.root, id).props.style);
       expect(style).toMatchObject({ minHeight: 62, fontSize: 32, fontFamily: 'Geist-Bold', fontVariant: ['tabular-nums'] });
@@ -229,6 +231,86 @@ describe('B1 phone layout (ND2, ND6)', () => {
       expect(node.props.selectionColor).toBe(colors.gold);
       expect(node.props.cursorColor).toBe(colors.gold);
     });
+  });
+});
+
+// C2 (UX verdict b7a7867): an empty number field draws in the placeholder
+// look (text-faint, 400, the kit's 16) so "5" / "82.5" never read as values;
+// the big 32/700 value style starts with the first character.
+const PHONE_NUMBERS = ['profile-height_feet', 'profile-height_inches', 'profile-current_weight_value', 'profile-goal_weight_value'];
+describe('C2 placeholders never wear the value style', () => {
+  it('phone: empty numbers are text-faint 400 at the kit body size, not 32/700; still 62 min tall', () => {
+    const tree = render();
+    PHONE_NUMBERS.forEach((id) => {
+      const node = textInput(tree.root, id);
+      const style = flat(node.props.style);
+      expect(node.props.value).toBe('');
+      expect(node.props.placeholderTextColor).toBe(colors.textFaint);
+      expect(style).toMatchObject({ fontFamily: 'Geist-Regular', fontSize: typography.bodyLg.fontSize, color: colors.textFaint, minHeight: 62 });
+      expect(style.fontSize).not.toBe(32);
+      expect(style.fontVariant).toBeUndefined();
+      expect(style.letterSpacing).toBeUndefined();
+      expect(style.fontWeight).toBeUndefined();
+    });
+  });
+
+  it('phone: a typed value switches to the 32/700 value style; clearing it switches back', () => {
+    const tree = render();
+    type(tree, 'profile-current_weight_value', '82.5');
+    expect(flat(textInput(tree.root, 'profile-current_weight_value').props.style)).toMatchObject({
+      fontFamily: 'Geist-Bold',
+      fontSize: 32,
+      color: colors.textPrimary,
+      fontVariant: ['tabular-nums'],
+    });
+    type(tree, 'profile-current_weight_value', '');
+    expect(flat(textInput(tree.root, 'profile-current_weight_value').props.style)).toMatchObject({
+      fontFamily: 'Geist-Regular',
+      fontSize: typography.bodyLg.fontSize,
+      color: colors.textFaint,
+    });
+  });
+
+  it('phone: cm / in height follows the same rule', () => {
+    const tree = render();
+    press(tree, 'profile-height-unit-cm');
+    expect(flat(textInput(tree.root, 'profile-height_value').props.style)).toMatchObject({ fontFamily: 'Geist-Regular', color: colors.textFaint });
+    type(tree, 'profile-height_value', '180');
+    expect(flat(textInput(tree.root, 'profile-height_value').props.style)).toMatchObject({ fontFamily: 'Geist-Bold', fontSize: 32 });
+  });
+
+  it('names (kit style) and tablet numbers (kit style) already draw placeholders at 400 text-faint, size 16', () => {
+    const phone = render();
+    ['profile-first_name', 'profile-last_name'].forEach((id) => {
+      const node = textInput(phone.root, id);
+      expect(node.props.placeholderTextColor).toBe(colors.textFaint);
+      expect(flat(node.props.style)).toMatchObject({ fontFamily: 'Geist-Regular', fontSize: typography.bodyLg.fontSize });
+    });
+    mockWidth = 834;
+    const tablet = render();
+    PHONE_NUMBERS.forEach((id) => {
+      const node = textInput(tablet.root, id);
+      expect(node.props.placeholderTextColor).toBe(colors.textFaint);
+      const style = flat(node.props.style);
+      expect(style).toMatchObject({ fontFamily: 'Geist-Regular', fontSize: typography.bodyLg.fontSize, minHeight: 50 });
+      expect(style.fontSize).not.toBe(32);
+    });
+    type(tablet, 'profile-height_feet', '5');
+    expect(flat(textInput(tablet.root, 'profile-height_feet').props.style).fontSize).toBe(typography.bodyLg.fontSize);
+  });
+
+  it('the placeholder texts come from one map (PROFILE_PLACEHOLDERS)', () => {
+    const tree = render();
+    expect(textInput(tree.root, 'profile-first_name').props.placeholder).toBe(PROFILE_PLACEHOLDERS.first_name);
+    expect(textInput(tree.root, 'profile-last_name').props.placeholder).toBe(PROFILE_PLACEHOLDERS.last_name);
+    expect(textInput(tree.root, 'profile-height_feet').props.placeholder).toBe(PROFILE_PLACEHOLDERS.height_feet);
+    expect(textInput(tree.root, 'profile-height_inches').props.placeholder).toBe(PROFILE_PLACEHOLDERS.height_inches);
+    expect(textInput(tree.root, 'profile-current_weight_value').props.placeholder).toBe(PROFILE_PLACEHOLDERS.current_weight_value);
+    expect(textInput(tree.root, 'profile-goal_weight_value').props.placeholder).toBe(PROFILE_PLACEHOLDERS.goal_weight_value);
+    press(tree, 'profile-height-unit-cm');
+    expect(textInput(tree.root, 'profile-height_value').props.placeholder).toBe(PROFILE_PLACEHOLDERS.height_cm);
+    press(tree, 'profile-height-unit-in');
+    expect(textInput(tree.root, 'profile-height_value').props.placeholder).toBe(PROFILE_PLACEHOLDERS.height_in);
   });
 });
 
