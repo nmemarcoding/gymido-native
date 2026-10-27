@@ -1,12 +1,17 @@
 import { apiClient } from '../../../shared/api/client';
+import { GENERATOR_MOCK, applyGeneratorMock } from '../devMock';
 
 // RN-SPEC-PLAN-GENERATOR §G3 (contract v2). The client adds the auth header
 // and X-Timezone.
 
 const data = (response) => response.data?.data ?? {};
 
-// `{ available, profile, options }`
-export async function getGeneratorProfile() {
+// `{ available, profile, options }`. G1 passes `{ screen: true }`; it only
+// matters to the DEV-only stub (devMock.js 'off'), never in a release build.
+export async function getGeneratorProfile({ screen = false } = {}) {
+  if (GENERATOR_MOCK === 'off' && screen) {
+    return applyGeneratorMock(GENERATOR_MOCK, 'screenProfile', null);
+  }
   return data(await apiClient.get('/plan-generator/profile'));
 }
 
@@ -16,7 +21,8 @@ export async function saveGeneratorProfile(body) {
 
 // No body.
 export async function previewGeneratedPlan() {
-  return data(await apiClient.post('/plan-generator/preview'));
+  const preview = data(await apiClient.post('/plan-generator/preview'));
+  return GENERATOR_MOCK ? applyGeneratorMock(GENERATOR_MOCK, 'preview', preview) : preview;
 }
 
 export async function acceptGeneratedPlan(body) {

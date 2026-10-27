@@ -47,14 +47,14 @@ export default function ShellPage({ children, nestable = false, glow = false, te
           scale; state kept above ShellPage (the screen component) survives.
           The active workout renders outside ShellPage and is not remounted.
           Details: ~/gymido-mobile-work/v2/phase1-qa-fixes.md. */}
-      <AppHeader key={`text-scale-${fontScale}`} path={path} mode={mode} />
+      <AppHeader key={`header-scale-${fontScale}`} path={path} mode={mode} />
       {!tablet && showsMobileModeSwitch({ user, path }) ? (
         <View style={styles.mobileSwitch}>
           <Text style={styles.mobileSwitchLabel}>Workspace</Text>
           <ModeSwitch mode={mode} />
         </View>
       ) : null}
-      <Fragment key={`text-scale-${fontScale}`}>{children}</Fragment>
+      <Fragment key={`content-scale-${fontScale}`}>{children}</Fragment>
     </View>
   );
 
