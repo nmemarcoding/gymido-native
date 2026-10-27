@@ -20,7 +20,7 @@
 #
 # Usage: e2e/scripts/ios-safe-sign-in.sh <simulator-udid> <ACCOUNT>
 #   ACCOUNT is the env-file prefix, e.g. QA_MEMBER → QA_MEMBER_EMAIL / _PASSWORD
-# Requires: .env.e2e.local, and either a guarded Release build (no Metro) or
+# Requires: the canonical .env.e2e.local (e2e/scripts/e2eEnv.sh), and either a guarded Release build (no Metro) or
 # the dev client with Metro running.
 # Refuses (exit 3) unless the app's runtime API is a local test API
 # (e2e/scripts/apiGuard.js; a dev client is checked against Metro).
@@ -31,24 +31,24 @@ set -uo pipefail
 UDID="${1:?usage: $0 <simulator-udid> <ACCOUNT>}"
 ACCOUNT="${2:?usage: $0 <simulator-udid> <ACCOUNT>}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-ENV_FILE="$ROOT/.env.e2e.local"
+# Credentials: the ONE canonical file (or GYMIDO_E2E_ENV), never a worktree copy.
+. "$ROOT/e2e/scripts/e2eEnv.sh"
+ENV_FILE="$(e2e_env_file)" || exit 2
 FLOWS="$ROOT/e2e/maestro/ios-sign-in"
 CHECK="$ROOT/e2e/scripts/ios-login-check.py"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/ios-sign-in.XXXXXX")"
 MARK="$WORK/.mark"
 touch "$MARK"
 
-[ -f "$ENV_FILE" ] || { echo "missing $ENV_FILE" >&2; exit 2; }
+MAESTRO_LOGIN_EMAIL="$(e2e_value "$ENV_FILE" "${ACCOUNT}_EMAIL")"
+MAESTRO_LOGIN_PASSWORD="$(e2e_value "$ENV_FILE" "${ACCOUNT}_PASSWORD")"
+[ -n "$MAESTRO_LOGIN_EMAIL" ] && [ -n "$MAESTRO_LOGIN_PASSWORD" ] || { echo "no ${ACCOUNT}_EMAIL/_PASSWORD in the credentials file" >&2; rm -rf "$WORK"; exit 2; }
 # Prod safety: never type credentials into an app aimed at a non-test API.
 # A dev client is checked against Metro (default :8081, or GYMIDO_METRO_PORT).
 GUARD_OUT="$(node "$ROOT/e2e/scripts/apiGuard.js" "$UDID" ${GYMIDO_METRO_PORT:+--metro "$GYMIDO_METRO_PORT"})" || { rm -rf "$WORK"; exit 3; }
 printf '%s\n' "$GUARD_OUT"
 # Release build → the launch subflow uses launchApp, not the dev-client link.
 if printf '%s' "$GUARD_OUT" | grep -q 'Release build'; then export MAESTRO_GYMIDO_RELEASE=true; else export MAESTRO_GYMIDO_RELEASE=false; fi
-value() { grep -E "^$1=" "$ENV_FILE" | head -1 | cut -d= -f2-; }
-MAESTRO_LOGIN_EMAIL="$(value "${ACCOUNT}_EMAIL")"
-MAESTRO_LOGIN_PASSWORD="$(value "${ACCOUNT}_PASSWORD")"
-[ -n "$MAESTRO_LOGIN_EMAIL" ] && [ -n "$MAESTRO_LOGIN_PASSWORD" ] || { echo "no ${ACCOUNT}_EMAIL/_PASSWORD in the env file" >&2; exit 2; }
 export MAESTRO_LOGIN_EMAIL MAESTRO_LOGIN_PASSWORD
 
 MAESTRO_LOGS="$HOME/Library/Logs/maestro"

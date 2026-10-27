@@ -4,7 +4,10 @@
 # already be gone: the tap is optional and tab-Today is the real check.
 appId: com.gymido.app
 ---
-- hideKeyboard
+# Enter in the focused password field submits the form. hideKeyboard failed
+# on a Release build (27 Oct: "Hide Keyboard... FAILED") and could itself
+# submit; Enter is deterministic. Continue stays as an optional fallback.
+- pressKey: Enter
 - tapOn:
     text: "Continue"
     optional: true
