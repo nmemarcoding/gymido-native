@@ -12,50 +12,6 @@ import { AlertGlyph, CheckGlyph } from './clientIcons';
 // RN-SPEC-TRAINER-CLIENTS §C1; v2 look.
 
 // ---------------------------------------------------------------------------
-// Kept for the other trainer pages (Trainers, Trainer apply, Trainer profile
-// import these; their teams restyle them). Unchanged API and look.
-
-const BADGES = {
-  pending: { backgroundColor: colors.warningFill, color: colors.warningTextStrong, borderColor: colors.warningBorderSoft },
-  active: { backgroundColor: colors.emeraldFill, color: colors.emeraldText, borderColor: colors.emeraldBorder },
-  approved: { backgroundColor: colors.emeraldFill, color: colors.emeraldText, borderColor: colors.emeraldBorder },
-  rejected: { backgroundColor: colors.errorFill, color: colors.errorText, borderColor: colors.dangerBorderSoft },
-};
-const FALLBACK_BADGE = { backgroundColor: colors.neutralFill, color: colors.neutralText, borderColor: colors.neutralBorder };
-
-// §C1.3: styled by `status`, text = `label` or else that status.
-export function TrainerStatusBadge({ status, label }) {
-  const key = String(status ?? '').trim().toLowerCase();
-  const look = BADGES[key] ?? FALLBACK_BADGE;
-  return (
-    <Text
-      style={[
-        legacy.badge,
-        { backgroundColor: look.backgroundColor, color: look.color, borderColor: look.borderColor },
-      ]}
-    >
-      {label ?? status}
-    </Text>
-  );
-}
-
-// §C1.6
-export function CoachingHeader({ title, subtitle, children }) {
-  return (
-    <View style={legacy.header}>
-      <View style={legacy.headerLeft}>
-        <Text style={legacy.eyebrow}>Coaching</Text>
-        <Text textBreakStrategy="simple" accessibilityRole="header" style={legacy.title}>
-          {title}
-        </Text>
-        {subtitle ? <Text style={legacy.subtitle}>{subtitle}</Text> : null}
-      </View>
-      {children ? <View style={legacy.headerRight}>{children}</View> : null}
-    </View>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // v2 pieces (this team's pages).
 
 // X-7 the teal "Coaching" eyebrow pill (26 tall phone, 28 tablet; 6 px dot).
@@ -504,60 +460,5 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: 13,
     lineHeight: 18,
-  },
-});
-
-// v1 styles of the two kept components.
-const legacy = StyleSheet.create({
-  badge: {
-    alignSelf: 'flex-start',
-    borderRadius: radii.full,
-    borderWidth: 1,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    overflow: 'hidden',
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '700',
-    letterSpacing: 2.4,
-    textTransform: 'uppercase',
-  },
-  header: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  headerLeft: {
-    minWidth: 0,
-    flexShrink: 1,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    flexShrink: 0,
-    gap: 8,
-  },
-  eyebrow: {
-    fontSize: 11.2,
-    lineHeight: 16.8,
-    fontWeight: '700',
-    letterSpacing: 2.016,
-    textTransform: 'uppercase',
-    color: colors.brand700,
-  },
-  title: {
-    marginTop: 4,
-    fontSize: 30,
-    lineHeight: 37.5,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  subtitle: {
-    marginTop: 4,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.textSecondary,
   },
 });

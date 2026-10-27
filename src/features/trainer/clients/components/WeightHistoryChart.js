@@ -3,7 +3,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop, Text as SvgText } from 'react-native-svg';
 
 import EmptyState from '../../../../shared/components/EmptyState';
-import { colors, radii, shadows } from '../../../../shared/theme/tokens';
+import { TOOLTIP_BOX } from '../../../../shared/components/tooltipStyle';
+import { colors, font } from '../../../../shared/theme/tokens';
 import { formatWeight } from '../clientFormat';
 import { buildWeightSeries, monotoneXPath, thinLabels, tickLabel } from '../weightChartData';
 
@@ -171,29 +172,25 @@ const styles = StyleSheet.create({
   wrap: {
     height: HEIGHT,
   },
+  // UX ruling (T-61): the kit tooltip container, as the rail tip.
   tooltip: {
     position: 'absolute',
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    boxShadow: shadows.soft,
+    ...TOOLTIP_BOX,
   },
+  // Board chart dates: 13 px muted regular, sentence case.
   tooltipLabel: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '600',
-    letterSpacing: 2.64,
-    textTransform: 'uppercase',
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '400',
     color: colors.textMuted,
   },
+  // The value: 15/600 primary, tabular (UX ruling, T-61).
   tooltipValue: {
-    marginTop: 4,
-    fontSize: 14,
+    marginTop: 2,
+    ...font(600),
+    fontSize: 15,
     lineHeight: 20,
-    fontWeight: '600',
     color: colors.textPrimary,
+    fontVariant: ['tabular-nums'],
   },
 });

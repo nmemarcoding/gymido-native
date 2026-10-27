@@ -2,7 +2,7 @@ import { StyleSheet, useWindowDimensions } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import PillButton from '../../shared/components/PillButton';
-import { colors, radii, textScale } from '../../shared/theme/tokens';
+import { colors, radii, textScale, typography } from '../../shared/theme/tokens';
 import NotificationItem, { DEFAULT_TYPE, TYPE_STYLES } from './NotificationItem';
 import NotificationPanel from './NotificationPanel';
 import NotificationsScreen, { NOTIFICATIONS_GLOW_TABLET } from './NotificationsScreen';
@@ -284,6 +284,19 @@ describe('the bell panel', () => {
     ]);
     expect(tree.root.findAll((node) => node.props.accessibilityRole === 'tablist')).not.toHaveLength(0);
     tree.root.findAllByType(NotificationItem).forEach((item) => expect(item.props.tablet).toBeUndefined());
+  });
+
+  // T-61 B: the panel eyebrow is the kit Eyebrow (caption 12/600 gold,
+  // sentence case), not v1 tracked caps.
+  it('the eyebrow is the sentence-case kit Eyebrow: "Notifications", 12/600 gold, no caps or tracking', () => {
+    seed();
+    const tree = render(<NotificationPanel />);
+    const eyebrow = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Notifications');
+    expect(eyebrow).toHaveLength(1);
+    const style = StyleSheet.flatten(eyebrow[0].props.style);
+    expect(style).toMatchObject({ ...typography.eyebrow, fontSize: 12, color: colors.gold });
+    expect(style.textTransform).toBeUndefined();
+    expect(style.letterSpacing ?? 0).toBe(0);
   });
 });
 

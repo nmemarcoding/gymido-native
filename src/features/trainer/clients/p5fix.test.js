@@ -254,6 +254,42 @@ describe('Weight chart goal line (M6, UX M ruling 1 + §9a)', () => {
     expect(none.root.findAll((node) => node.props.testID === 'weight-chart-goal-line')).toHaveLength(0);
   });
 
+  // T-61 C: the tooltip date reads like the board's chart dates
+  // (TabletClientWeightModal: 13 px, muted, regular, sentence case).
+  it('the tooltip label is sentence case 13 / muted / regular, not tracked caps', async () => {
+    const tree = await chart({ unit: 'kg' });
+    const wrap = tree.root.find((node) => typeof node.type === 'string' && typeof node.props.onResponderGrant === 'function');
+    await act(async () => wrap.props.onResponderGrant({ nativeEvent: { locationX: 44 } }));
+    const tooltip = tree.root.find((node) => typeof node.type === 'string' && node.props.pointerEvents === 'none' && typeof node.props.onLayout === 'function');
+    const [label] = tooltip.findAll((node) => node.type === 'Text');
+    const style = StyleSheet.flatten(label.props.style);
+    expect(style).toMatchObject({ fontSize: 13, lineHeight: 18, fontWeight: '400', color: colors.textMuted });
+    expect(style.textTransform).toBeUndefined();
+    expect(style.letterSpacing ?? 0).toBe(0);
+  });
+
+  // UX ruling (T-61): the kit tooltip CONTAINER (one tooltip look app-wide,
+  // as the rail tip) with the board's date label, then the value 15/600
+  // primary tabular.
+  it('the tooltip is the kit tooltip container; the value is 15/600 primary tabular', async () => {
+    const { shadows } = require('../../../shared/theme/tokens');
+    const tree = await chart({ unit: 'kg' });
+    const wrap = tree.root.find((node) => typeof node.type === 'string' && typeof node.props.onResponderGrant === 'function');
+    await act(async () => wrap.props.onResponderGrant({ nativeEvent: { locationX: 44 } }));
+    const tooltip = tree.root.find((node) => typeof node.type === 'string' && node.props.pointerEvents === 'none' && typeof node.props.onLayout === 'function');
+    expect(StyleSheet.flatten(tooltip.props.style)).toMatchObject({
+      backgroundColor: colors.surfaceRaised,
+      borderWidth: 1,
+      borderColor: colors.hairlineStrong,
+      borderRadius: 10,
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+      boxShadow: shadows.float,
+    });
+    const [, value] = tooltip.findAll((node) => node.type === 'Text');
+    expect(StyleSheet.flatten(value.props.style)).toMatchObject({ fontSize: 15, color: colors.textPrimary, fontVariant: ['tabular-nums'], fontFamily: 'Geist-SemiBold' });
+  });
+
   it('the client weight modal asks for the goal line', async () => {
     listClientWeightLogs.mockResolvedValue(LOGS);
     const profile = { current_weight_value: 78, current_weight_unit: 'kg', goal_weight_value: 70, goal_weight_unit: 'kg' };
