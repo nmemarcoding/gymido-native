@@ -1,0 +1,19 @@
+# One-time workout pop-ups that can sit over the session: Android's exact-alarm
+# offer ("Not now" changes no setting) and the "Hear your rest timer" intro
+# ("Keep it on" = the default). Every tap is conditional.
+appId: com.gymido.app
+---
+- runFlow:
+    when:
+      visible:
+        id: "exact-alarm-dialog"
+    commands:
+      - tapOn:
+          id: "exact-alarm-not-now"
+- runFlow:
+    when:
+      visible:
+        id: "speak-intro-dialog"
+    commands:
+      - tapOn:
+          id: "speak-intro-keep-on"

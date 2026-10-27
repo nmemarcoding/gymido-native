@@ -15,9 +15,12 @@ tags:
 - runFlow: ../subflows/trainer-workspace.yaml
 - tapOn:
     id: "tab-TPlans"
-- extendedWaitUntil:
-    visible:
+# QA s7 (6o-02): Create a plan sits at the top of trainer Plans, but 6o-01
+# can leave the list scrolled down (re-tapping a tab doesn't scroll to top).
+- scrollUntilVisible:
+    element:
       id: "plans-create"
+    direction: UP
     timeout: 30000
 - tapOn:
     id: "plans-create"

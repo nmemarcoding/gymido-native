@@ -15,6 +15,6 @@ appId: com.gymido.app
       - pressKey: Back
       - runFlow:
           when:
-            visible: "Continue with Google"
+            visible: "Continue with Google|Reset password"
           commands:
             - pressKey: Back

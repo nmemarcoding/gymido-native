@@ -23,7 +23,10 @@ appId: com.gymido.app
     timeout: 60000
 - tapOn:
     id: "tab-Profile"
-- extendedWaitUntil:
-    visible:
+# QA s6 (k4/k5): re-tapping the active tab doesn't scroll to the top, and an
+# earlier flow can leave Profile scrolled down. Scroll UP to the top row.
+- scrollUntilVisible:
+    element:
       id: "settings-display-name"
+    direction: UP
     timeout: 30000

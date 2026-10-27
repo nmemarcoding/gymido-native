@@ -10,4 +10,4 @@ appId: com.gymido.app
 # Anchored on the Google button: Auth0's field labels carry a trailing space
 # and Chrome does not always expose the form's field nodes, so either of those
 # would pass vacuously whether or not the page was open.
-- assertNotVisible: "Continue with Google"
+- assertNotVisible: "Continue with Google|Reset password"

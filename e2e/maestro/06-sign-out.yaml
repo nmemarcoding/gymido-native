@@ -42,4 +42,4 @@ appId: com.gymido.app
     visible:
       id: "welcome-log-in"
     timeout: 60000
-- assertNotVisible: "Continue with Google"
+- assertNotVisible: "Continue with Google|Reset password"

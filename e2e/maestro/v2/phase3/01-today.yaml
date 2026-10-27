@@ -21,10 +21,16 @@ appId: com.gymido.app
     id: "home-view-plan"
 - assertVisible:
     id: "home-stats"
+# QA s4: home-weight can stop with only its header peeking under the floating
+# tab bar; scroll to the card's own button, centred, so the card is in view.
 - scrollUntilVisible:
     element:
-      id: "home-weight"
+      id: "home-add-weight"
     direction: DOWN
+    centerElement: true
+    timeout: 20000
+- assertVisible:
+    id: "home-weight"
 - assertVisible:
     id: "home-see-progress"
 - assertVisible:

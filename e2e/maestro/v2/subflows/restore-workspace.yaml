@@ -6,8 +6,20 @@ appId: com.gymido.app
     when:
       true: ${output.v2SwitchedToMember === true}
     commands:
-      - tapOn:
-          id: "tab-Profile"
+      - runFlow:
+          when:
+            visible:
+              id: "tab-Profile"
+          commands:
+            - tapOn:
+                id: "tab-Profile"
+      - runFlow:
+          when:
+            visible:
+              id: "rail-Profile"
+          commands:
+            - tapOn:
+                id: "rail-Profile"
       - scrollUntilVisible:
           element:
             id: "mode-switch-trainer"
@@ -18,15 +30,27 @@ appId: com.gymido.app
           id: "mode-switch-trainer"
       - extendedWaitUntil:
           visible:
-            id: "tab-TToday"
+            id: "tab-TToday|rail-TToday"
           timeout: 20000
       - evalScript: ${output.v2SwitchedToMember = false}
 - runFlow:
     when:
       true: ${output.v2SwitchedToTrainer === true}
     commands:
-      - tapOn:
-          id: "tab-TProfile"
+      - runFlow:
+          when:
+            visible:
+              id: "tab-TProfile"
+          commands:
+            - tapOn:
+                id: "tab-TProfile"
+      - runFlow:
+          when:
+            visible:
+              id: "rail-TProfile"
+          commands:
+            - tapOn:
+                id: "rail-TProfile"
       - scrollUntilVisible:
           element:
             id: "mode-switch-member"
@@ -37,6 +61,6 @@ appId: com.gymido.app
           id: "mode-switch-member"
       - extendedWaitUntil:
           visible:
-            id: "tab-Today"
+            id: "tab-Today|rail-Today"
           timeout: 20000
       - evalScript: ${output.v2SwitchedToTrainer = false}
