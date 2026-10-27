@@ -10,8 +10,15 @@ import { AccessibilityInfo, findNodeHandle } from 'react-native';
 // 300 ms pattern).
 export const SHEET_FOCUS_DELAY_MS = 300;
 
+// Best effort: a lookup that fails (a node already gone when the delayed
+// focus runs) is "no focus", never a throw out of the timer.
 export function focusNode(ref) {
-  const node = ref?.current ? findNodeHandle(ref.current) : null;
+  let node = null;
+  try {
+    node = ref?.current ? findNodeHandle(ref.current) : null;
+  } catch {
+    node = null;
+  }
   if (node) {
     AccessibilityInfo.setAccessibilityFocus(node);
     return true;

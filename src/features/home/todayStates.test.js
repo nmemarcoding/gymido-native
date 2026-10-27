@@ -6,6 +6,7 @@ jest.mock('../planGenerator/api/generatorApi', () => ({ getGeneratorProfile: jes
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ addListener: () => () => {} }) }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../../shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
+jest.mock('../workout/runtime/workoutSessionStore', () => ({ verifySessionState: jest.fn(() => Promise.resolve()) }));
 let mockWidth = 390;
 let mockFontScale = 1;
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
@@ -26,6 +27,7 @@ import { resetProfileStore, setStoredProfile } from '../profile/profileStore';
 import { openShellPath } from '../shell/shellLinks';
 import { getDashboard } from './api/homeApi';
 import HomeScreen from './HomeScreen';
+import { verifySessionState } from '../workout/runtime/workoutSessionStore';
 import { avatarInitials, todayDateLabel, todayEmptyStats } from './homeFormat';
 
 function textOf(node) {
@@ -638,5 +640,16 @@ describe('Board geometry (phase2-open-items §3 B)', () => {
     expect(tabletCard.findAll((node) => node.type === 'Text')[0].props).toMatchObject({ maxFontSizeMultiplier: 1.3, adjustsFontSizeToFit: true });
     expect(styleOf(tabletCard).height).toBeUndefined();
     expect(host(tablet.root, 'home-avatar').findByType('Text').props.maxFontSizeMultiplier).toBe(1.2);
+  });
+});
+
+// PM (T-59 realistic case): a session ended elsewhere while the user is on
+// Today must not leave its stored rest alert scheduled; Today re-checks the
+// stored session (the store only calls the server when one is stored).
+describe('Today re-checks a stored workout session (T-59)', () => {
+  it('on every mount / refocus', async () => {
+    verifySessionState.mockClear();
+    await render();
+    expect(verifySessionState).toHaveBeenCalledTimes(1);
   });
 });

@@ -120,3 +120,68 @@ describe('useRestAlerts with a session', () => {
     expect(value.alerts.dispose).toHaveBeenCalledTimes(1);
   });
 });
+
+// PM (realistic case, 27 Oct): after the session ends elsewhere the user
+// often stays on Today or leaves the app in the background, so the Workout
+// loader never runs. The store re-checks the server itself — on foreground,
+// on Today's focus, and once just before a stored rest ends while the
+// Workout screen is away — so no stale "rest over" fires. (A rest whose end
+// passes while the app stays in the background the whole time is beyond any
+// app code: the OS shows the scheduled notification.)
+describe('verifySessionState (ended elsewhere, screen away)', () => {
+  const { verifySessionState, handleAppStateChange, restScreenMounted, restScreenUnmounted } = require('./workoutSessionStore');
+  let controller;
+  beforeEach(() => {
+    controller = { dispose: jest.fn() };
+    sessionEntry(5).controller = controller;
+  });
+
+  it('no active session or another one → the entry ends and its alert is cancelled; the same one keeps it; a failure keeps it', async () => {
+    await verifySessionState({ fetchCurrent: () => Promise.resolve({ id: 5 }) });
+    expect(peekSession(5)).not.toBeNull();
+    await verifySessionState({ fetchCurrent: () => Promise.reject(new Error('Network Error')) });
+    expect(peekSession(5)).not.toBeNull();
+    await verifySessionState({ fetchCurrent: () => Promise.resolve(null) });
+    expect(peekSession(5)).toBeNull();
+    expect(controller.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('without a stored session it never calls the server', async () => {
+    endSessionState();
+    const fetchCurrent = jest.fn(() => Promise.resolve(null));
+    await verifySessionState({ fetchCurrent });
+    expect(fetchCurrent).not.toHaveBeenCalled();
+  });
+
+  it('coming back to the foreground re-checks; going away does not', async () => {
+    const fetchCurrent = jest.fn(() => Promise.resolve(null));
+    await handleAppStateChange('background', { fetchCurrent });
+    expect(fetchCurrent).not.toHaveBeenCalled();
+    await handleAppStateChange('active', { fetchCurrent });
+    expect(fetchCurrent).toHaveBeenCalledTimes(1);
+    expect(peekSession(5)).toBeNull();
+  });
+
+  it('a rest left running while the screen is away is re-checked once, 5 s before its end; a remount cancels that', () => {
+    jest.useFakeTimers();
+    try {
+      const fetchCurrent = jest.fn(() => Promise.resolve({ id: 5 }));
+      const entry = sessionEntry(5);
+      entry.rest = { setId: 'A', startMs: Date.now(), total: 60 };
+      restScreenUnmounted(5, { fetchCurrent });
+      jest.advanceTimersByTime(54000);
+      expect(fetchCurrent).not.toHaveBeenCalled();
+      jest.advanceTimersByTime(1000);
+      expect(fetchCurrent).toHaveBeenCalledTimes(1);
+
+      fetchCurrent.mockClear();
+      entry.rest = { setId: 'B', startMs: Date.now(), total: 60 };
+      restScreenUnmounted(5, { fetchCurrent });
+      restScreenMounted(5);
+      jest.advanceTimersByTime(70000);
+      expect(fetchCurrent).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});

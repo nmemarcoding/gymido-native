@@ -131,9 +131,12 @@ describe('useRestTimer with a session (survives remounts)', () => {
     const end = endOf(alerts);
     act(() => tree.unmount());
     expect(alerts.restCleared).not.toHaveBeenCalled();
+    // Away with a rest running: one server re-check is pending before its end.
+    expect(peekSession('S1').checkTimer).not.toBeNull();
 
     act(() => jest.advanceTimersByTime(5000));
     ({ handle, tree } = mountTimer(alerts, 'S1'));
+    expect(peekSession('S1').checkTimer).toBeNull();
     expect(handle.timer).toMatchObject({ setId: 'A', secondsLeft: 35, totalSeconds: 60, nextSetKey: 'next' });
     expect(handle.minimized).toBe(true);
     expect(alerts.restStarted).toHaveBeenCalledTimes(1);

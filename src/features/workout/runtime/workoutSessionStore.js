@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react';
+import { AppState } from 'react-native';
 
 import { AuthStatus, useAuthStore } from '../../auth/authStore';
+import { getCurrentWorkout } from '../api/workoutApi';
 
 // T-59 follow-up (PM + reviewer, 27 Oct 2026): the live workout session's
 // runtime state outlives ANY remount of the Workout screen (a font-scale
@@ -23,6 +25,8 @@ function newEntry(sessionId) {
     rest: null,
     restUi: { minimized: true, position: null },
     values: {},
+    // One server re-check before a rest ends while the screen is away.
+    checkTimer: null,
   };
 }
 
@@ -46,6 +50,7 @@ export function peekSession(sessionId) {
 export function endSessionState() {
   const ended = entry;
   entry = null;
+  clearTimeout(ended?.checkTimer);
   ended?.unsubscribe?.();
   ended?.controller?.dispose();
 }
@@ -56,6 +61,52 @@ export function endSessionState() {
 export function reconcileSessionState(activeSessionId) {
   if (entry && String(entry.sessionId) !== String(activeSessionId ?? '')) {
     endSessionState();
+  }
+}
+
+// PM (realistic case): after the session ends elsewhere the user often stays
+// on Today or leaves the app, so the Workout loader never runs. These ask the
+// server themselves, only while a session is stored; a failed request keeps
+// it (no proof it ended). A rest whose end passes while the app stays in the
+// background the whole time is beyond app code: the OS shows its notification.
+export async function verifySessionState({ fetchCurrent = getCurrentWorkout } = {}) {
+  const checked = entry;
+  if (!checked) {
+    return;
+  }
+  let current;
+  try {
+    current = await fetchCurrent();
+  } catch {
+    return;
+  }
+  if (entry === checked) {
+    reconcileSessionState(current?.id ?? null);
+  }
+}
+
+// Coming back to the foreground re-checks.
+export function handleAppStateChange(next, options) {
+  return next === 'active' ? verifySessionState(options) : Promise.resolve();
+}
+
+// The Workout screen left with a rest running: one re-check 5 s before its
+// end (a remount, or the session's end, cancels it).
+export function restScreenUnmounted(sessionId, options) {
+  const current = peekSession(sessionId);
+  if (!current?.rest) {
+    return;
+  }
+  clearTimeout(current.checkTimer);
+  const endMs = current.rest.startMs + current.rest.total * 1000;
+  current.checkTimer = setTimeout(() => verifySessionState(options), Math.max(0, endMs - 5000 - Date.now()));
+}
+
+export function restScreenMounted(sessionId) {
+  const current = peekSession(sessionId);
+  if (current) {
+    clearTimeout(current.checkTimer);
+    current.checkTimer = null;
   }
 }
 
@@ -79,6 +130,10 @@ export function useSessionValue(sessionId, key, initial) {
   );
   return [value, setValue];
 }
+
+AppState.addEventListener('change', (next) => {
+  handleAppStateChange(next);
+});
 
 useAuthStore.subscribe((state) => {
   if (state.status === AuthStatus.signedOut && entry) {

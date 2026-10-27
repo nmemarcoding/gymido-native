@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo } from 'react-native';
 
 import { adjustTimer, rebasedTotal, remainingSeconds } from './restEngine';
-import { peekSession, sessionEntry } from './workoutSessionStore';
+import { peekSession, restScreenMounted, restScreenUnmounted, sessionEntry } from './workoutSessionStore';
 
 const TICK_MS = 500;
 
@@ -174,15 +174,20 @@ export default function useRestTimer({ onRestComplete, alerts, sessionId }) {
 
   // Pairing D: a genuine unmount is the only native teardown. With a session
   // the rest outlives the screen; the session's end tears it down.
-  useEffect(
-    () => () => {
-      if (!stored && currentSetId.current !== null) {
+  useEffect(() => {
+    if (stored) {
+      restScreenMounted(sessionId);
+    }
+    return () => {
+      if (stored) {
+        // Away with a rest running: one server re-check before its end.
+        restScreenUnmounted(sessionId);
+      } else if (currentSetId.current !== null) {
         callbacks.current.alerts?.restCleared();
       }
-    },
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
-  );
+  }, []);
 
   return { timer, start, clear, adjust, minimized, setMinimized, position, setPosition };
 }

@@ -28,6 +28,7 @@ import {
 } from './homeFormat';
 import { RecentWorkouts, TodayHero, TodayStats, WeekCard, WeightCard, WeightValues } from './TodayPlanView';
 import { LARGE_TEXT as LT, TodayEmpty, TodayError, TodayHeader, TodayLoading, useReflow } from './TodayStates';
+import { verifySessionState } from '../workout/runtime/workoutSessionStore';
 import WeightLogModal from './WeightLogModal';
 
 const SAVED_TOAST_MS = 3500;
@@ -40,6 +41,12 @@ const VALUE_TEXT = { maxFontSizeMultiplier: textScale.title };
 // from the first render.
 export default function HomeScreen() {
   const remountKey = useFocusRemountKey();
+  // T-59: a workout ended elsewhere must not leave its stored rest alert
+  // scheduled while the user stays on Today (the store asks the server only
+  // when a session is stored).
+  useEffect(() => {
+    verifySessionState();
+  }, [remountKey]);
   return (
     <ShellPage glow>
       <Home key={remountKey} />

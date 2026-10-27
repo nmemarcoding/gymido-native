@@ -75,4 +75,14 @@ describe('useSheetFocus', () => {
     expect(focusNode({ current: { tag: 5 } })).toBe(true);
     expect(handle).toHaveBeenCalled();
   });
+
+  // Gate flake (27 Oct, under full-suite load): the delayed focus ran when
+  // findNodeHandle was no longer a function and threw out of the timer.
+  // Focus is best effort: a failed lookup is "no focus", never a throw.
+  it('focusNode never throws when the node lookup fails', () => {
+    jest.spyOn(ReactNative, 'findNodeHandle', 'get').mockReturnValue(undefined);
+    expect(() => focusNode({ current: { tag: 5 } })).not.toThrow();
+    expect(focusNode({ current: { tag: 5 } })).toBe(false);
+    expect(focus).not.toHaveBeenCalled();
+  });
 });
