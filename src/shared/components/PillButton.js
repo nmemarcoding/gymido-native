@@ -10,7 +10,7 @@ const VARIANTS = {
     pressed: { backgroundColor: colors.surfaceMuted },
     text: colors.textPrimary,
   },
-  danger: { rest: { backgroundColor: colors.danger600 }, pressed: { backgroundColor: colors.danger700 }, text: '#ffffff' },
+  danger: { rest: { backgroundColor: colors.danger600 }, pressed: { backgroundColor: colors.danger700 }, text: colors.onDanger },
 };
 
 // Trainer plans spec §A3.3. The pill-shaped app button; the older `Button`

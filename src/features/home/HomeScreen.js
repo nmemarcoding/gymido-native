@@ -22,7 +22,7 @@ const SAVED_TOAST_MS = 3500;
 const PILL_TONES = {
   success: { background: colors.successTint, text: colors.success700, dot: colors.success },
   brand: { background: colors.brand50, text: colors.brand700, dot: colors.brand400 },
-  warning: { background: 'rgba(245, 158, 11, 0.10)', text: colors.warning700, dot: colors.warning },
+  warning: { background: colors.warningTint, text: colors.warning700, dot: colors.warning },
   // A1: the muted pill text is text-secondary.
   muted: { background: colors.surfaceMuted, text: colors.textSecondary, dot: colors.textMuted },
 };

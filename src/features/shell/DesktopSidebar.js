@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   },
   itemActive: {
     backgroundColor: colors.brand50,
-    borderColor: 'rgba(221, 160, 0, 0.30)',
+    borderColor: colors.brandActiveBorder,
   },
   itemPressed: {
     backgroundColor: colors.surfaceMuted,

@@ -10,10 +10,10 @@ import { ToastTone, useToastStore } from './toastStore';
 const EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
 
 const TONES = {
-  [ToastTone.success]: { border: 'rgba(34, 197, 94, 0.30)', background: '#f0fdf4', text: '#008236' },
-  [ToastTone.error]: { border: 'rgba(239, 68, 68, 0.30)', background: '#fef2f2', text: '#c10007' },
-  [ToastTone.info]: { border: 'rgba(14, 165, 233, 0.30)', background: '#eff6ff', text: '#1447e6' },
-  [ToastTone.warning]: { border: 'rgba(245, 158, 11, 0.30)', background: '#fffbeb', text: '#bb4d00' },
+  [ToastTone.success]: { border: colors.successBorder, background: colors.successFill, text: colors.successText },
+  [ToastTone.error]: { border: colors.dangerBorder, background: colors.errorFill, text: colors.errorText },
+  [ToastTone.info]: { border: colors.infoBorder, background: colors.infoFill, text: colors.infoText },
+  [ToastTone.warning]: { border: colors.warningBorder, background: colors.warningFill, text: colors.warning700 },
 };
 
 // App-shell spec §8: bottom-right stack, above everything including the tab

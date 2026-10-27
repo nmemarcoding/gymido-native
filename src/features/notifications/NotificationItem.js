@@ -13,22 +13,22 @@ import { useNotificationStore } from './notificationStore';
 
 
 const TYPE_STYLES = {
-  workout_completed: { background: '#fef8e7', color: '#a07700', d: 'M4 13v6M9 10v12M23 10v12M28 13v6M9 16h14' },
+  workout_completed: { background: colors.brand50, color: colors.brand600, d: 'M4 13v6M9 10v12M23 10v12M28 13v6M9 16h14' },
   personal_record: {
-    background: '#fffbeb',
-    color: '#bb4d00',
+    background: colors.warningFill,
+    color: colors.warning700,
     d: 'M8 4h16v4a8 8 0 0 1-16 0V4zM8 6H4v2a4 4 0 0 0 4 4M24 6h4v2a4 4 0 0 1-4 4M12 21v4M20 21v4M9 28h14',
   },
-  goal_achieved: { background: '#f0fdf4', color: '#008236', d: 'M16 4v6M16 22v6M4 16h6M22 16h6' },
+  goal_achieved: { background: colors.successFill, color: colors.successText, d: 'M16 4v6M16 22v6M4 16h6M22 16h6' },
   friend_activity: {
-    background: '#e6f7f8',
-    color: '#007e87',
+    background: colors.tealFill,
+    color: colors.tealText,
     d: 'M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM5 27c0-4 3-7 7-7s7 3 7 7M21 6a4 4 0 0 1 0 8M23 20c3 .6 5 3.3 5 7',
   },
 };
 const DEFAULT_TYPE = {
-  background: '#eff6ff',
-  color: '#1447e6',
+  background: colors.infoFill,
+  color: colors.infoText,
   d: 'M16 5a7 7 0 0 0-7 7v4l-2 3h18l-2-3v-4a7 7 0 0 0-7-7zM13 26a3 3 0 0 0 6 0',
 };
 const CLOSE_PATH =
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand50,
   },
   rowUnreadPressed: {
-    backgroundColor: '#fcefc4',
+    backgroundColor: colors.brandTintStrong,
   },
   rowRead: {
     backgroundColor: colors.surface,

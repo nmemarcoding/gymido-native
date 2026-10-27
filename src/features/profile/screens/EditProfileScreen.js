@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(229, 231, 235, 0.70)',
+    borderBottomColor: colors.dividerSoft,
   },
   headerWide: {
     paddingHorizontal: 24,

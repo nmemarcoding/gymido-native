@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
   },
   header: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(229, 231, 235, 0.70)',
+    borderBottomColor: colors.dividerSoft,
   },
   headerPhone: {
     flexDirection: 'column',

@@ -36,13 +36,13 @@ export default function ProgressRing({ value, total, size, thickness, label, chi
       <Svg width={size} height={size} viewBox="0 0 100 100" style={styles.rotated}>
         <Defs>
           <LinearGradient id={id} x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0" stopColor="#f7ce4f" />
-            <Stop offset="1" stopColor="#dda000" />
+            <Stop offset="0" stopColor={colors.brand300} />
+            <Stop offset="1" stopColor={colors.brand500} />
           </LinearGradient>
         </Defs>
         <Circle cx={50} cy={50} r={radius} fill="none" stroke={colors.surfaceMuted} strokeWidth={thickness} />
         {/* The groove sits 0.6 up on screen; after the −90° turn that is +x. */}
-        <Circle cx={50.6} cy={50} r={radius} fill="none" stroke="rgba(17, 24, 39, 0.05)" strokeWidth={thickness} />
+        <Circle cx={50.6} cy={50} r={radius} fill="none" stroke={colors.ringTrack} strokeWidth={thickness} />
         {ratio > 0 ? (
           <AnimatedCircle
             cx={50}

@@ -582,7 +582,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   barFill: {
-    backgroundColor: 'rgba(247, 248, 250, 0.95)',
+    backgroundColor: colors.stickyHeaderFill,
   },
   searchBox: {
     justifyContent: 'center',
@@ -723,7 +723,7 @@ const styles = StyleSheet.create({
     boxShadow: shadows.soft,
   },
   cardPressed: {
-    borderColor: 'rgba(221, 160, 0, 0.40)',
+    borderColor: colors.brandPressedBorder,
   },
   cardMedia: {
     aspectRatio: 1,

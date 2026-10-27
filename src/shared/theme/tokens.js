@@ -48,6 +48,85 @@ export const colors = Object.freeze({
   // the notification panel.
   scrim: 'rgba(17, 24, 39, 0.50)',
   scrimLight: 'rgba(17, 24, 39, 0.30)',
+  // P1-02 sweep: the literals that bypassed tokens, named by role, values unchanged.
+  // Status palettes (toasts, feedback boxes, notices, badges).
+  warningTint: 'rgba(245, 158, 11, 0.10)',
+  warningBorder: 'rgba(245, 158, 11, 0.30)',
+  warningFill: '#fffbeb',
+  warningTextStrong: '#973c00',
+  warningBorderSoft: '#fee685',
+  infoBorder: 'rgba(14, 165, 233, 0.30)',
+  infoFill: '#eff6ff',
+  infoText: '#1447e6',
+  tealFill: '#e6f7f8',
+  tealText: '#007e87',
+  emeraldFill: '#ecfdf5',
+  emeraldText: '#007a55',
+  emeraldBorder: '#a4f4cf',
+  dangerBorderSoft: '#ffc9c9',
+  neutralFill: '#f1f5f9',
+  neutralText: '#314158',
+  neutralBorder: '#e2e8f0',
+  onDanger: '#ffffff',
+  onNavy: '#ffffff',
+  // Gold accents.
+  brandTintStrong: '#fcefc4',
+  brandTextPressed: '#5c4400',
+  brandActiveBorder: 'rgba(221, 160, 0, 0.30)',
+  brandPressedBorder: 'rgba(221, 160, 0, 0.40)',
+  brandEdge: 'rgba(244, 180, 0, 0.40)',
+  setNextBorder: 'rgba(244, 180, 0, 0.70)',
+  setHighlightOutline: 'rgba(244, 180, 0, 0.60)',
+  // Ink on the gold rest disc and gold buttons.
+  onGoldEdge: 'rgba(255, 255, 255, 0.30)',
+  onGoldWash: 'rgba(17, 24, 39, 0.10)',
+  onGoldRing: 'rgba(17, 24, 39, 0.15)',
+  onGoldSpinnerTrack: 'rgba(17, 24, 39, 0.4)',
+  onGoldTextSoft: 'rgba(17, 24, 39, 0.70)',
+  onGoldTextStrong: 'rgba(17, 24, 39, 0.80)',
+  illustrationInk: 'rgba(17, 24, 39, 0.70)',
+  ringTrack: 'rgba(17, 24, 39, 0.05)',
+  // Glass bars, dividers and sheens.
+  dividerSoft: 'rgba(229, 231, 235, 0.70)',
+  glassEdge: 'rgba(229, 231, 235, 0.80)',
+  glassFill: 'rgba(255, 255, 255, 0.80)',
+  navGlassFill: 'rgba(255, 255, 255, 0.95)',
+  stickyHeaderFill: 'rgba(247, 248, 250, 0.95)',
+  sheenClear: 'rgba(255, 255, 255, 0)',
+  sheenCard: 'rgba(255, 255, 255, 0.9)',
+  sheenSkeleton: 'rgba(255, 255, 255, 0.7)',
+  // Native pickers (Select, DateInput) and the exercise picker icons.
+  fillSubtle: '#f3f4f6',
+  pickerSheet: '#d1d5db',
+  pickerToolbarBorder: '#9ca3af',
+  pickerDone: '#007aff',
+  pickerCheckInk: '#0B1D3A',
+  iconSubtle: '#9CA3AF',
+  // Client weight chart.
+  chartLine: '#009ca6',
+  chartGrid: '#e2e8f0',
+});
+
+// P1-02: exercise-thumbnail tiles by primary muscle group (spec §A7.3), the
+// background hues plus the two icon inks. Values unchanged from ExerciseThumb.
+export const musclePalette = Object.freeze({
+  legs: '#3A4D6A',
+  shoulders: '#009CA6',
+  abs: '#FF6A00',
+  cardio: '#009CA6',
+  quads: '#3B82F6',
+  obliques: '#8B5CF6',
+  adductors: '#06B6D4',
+  trapsNeck: '#F59E0B',
+  abductors: '#14B8A6',
+  hamstrings: '#D946EF',
+  lowerBack: '#F97316',
+  lats: '#0EA5E9',
+  glutes: '#84CC16',
+  upperBack: '#3A4D6A',
+  forearms: '#14B8A6',
+  iconLight: '#ffffff',
+  iconDark: '#000000',
 });
 
 export const typography = Object.freeze({
@@ -93,6 +172,11 @@ export const shadows = Object.freeze({
   // Design system v1 #20: modals use lift-3.
   modal: '0px 4px 8px rgba(17, 24, 39, 0.06), 0px 24px 48px -12px rgba(17, 24, 39, 0.16)',
   insetSoft: 'inset 0px 1px 0px rgba(255, 255, 255, 0.8)',
+  // P1-02 sweep: shadows that were written inline, values unchanged.
+  ringInk: 'inset 0px 0px 0px 1px rgba(17, 24, 39, 0.05)',
+  ringInkOuter: '0px 0px 0px 1px rgba(17, 24, 39, 0.10)',
+  sheetUp: '0px -8px 32px rgba(17, 24, 39, 0.12)',
+  dialog: '0px 20px 48px -12px rgba(17, 24, 39, 0.25), inset 0px 0px 0px 1px rgba(17, 24, 39, 0.05)',
 });
 
 export const radii = Object.freeze({

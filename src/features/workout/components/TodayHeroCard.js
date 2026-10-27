@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import GradientFill from '../../../shared/components/GradientFill';
-import { breakpoints, colors } from '../../../shared/theme/tokens';
+import { breakpoints, colors, shadows } from '../../../shared/theme/tokens';
 import { TODAY_BADGE_LABELS } from '../workoutFormat';
 import BrandButton from './BrandButton';
 import Card3D from './Card3D';
@@ -24,7 +24,7 @@ export default function TodayHeroCard({ planName, dayCountLabel, state, detail, 
   return (
     <Card3D testID="workout-hero" style={styles.card}>
       <View style={[styles.inner, { padding: wide ? 24 : 20 }]}>
-        <GradientFill angle={135} colors={['#fef8e7', '#ffffff', '#ffffff']} />
+        <GradientFill angle={135} colors={[colors.brand50, colors.surface, colors.surface]} />
         <View style={styles.topRow}>
           <View style={styles.textColumn}>
             <Text style={styles.eyebrow}>Your plan</Text>
@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
     paddingHorizontal: 12,
     paddingVertical: 4,
-    boxShadow: 'inset 0px 1px 0px rgba(255, 255, 255, 0.9), 0px 1px 2px rgba(17, 24, 39, 0.05)',
+    boxShadow: shadows.emboss,
   },
   badgeDot: {
     width: 6,

@@ -7,9 +7,9 @@ import { colors, radii, shadows } from '../../../../shared/theme/tokens';
 import { formatWeight } from '../clientFormat';
 import { buildWeightSeries, monotoneXPath, thinLabels, tickLabel } from '../weightChartData';
 
-const TEAL = '#009ca6';
-const GRID = '#e2e8f0';
-const AXIS_COLOR = '#6b7280';
+const TEAL = colors.chartLine;
+const GRID = colors.chartGrid;
+const AXIS_COLOR = colors.textMuted;
 const FONT_SIZE = 12;
 const HEIGHT = 288;
 const Y_AXIS_WIDTH = 44;
@@ -131,10 +131,10 @@ export default function WeightHistoryChart({ logs, profile, unit }) {
             <Path d={line} fill="none" stroke={TEAL} strokeWidth={2.5} />
             {active ? <Line x1={activeX} x2={activeX} y1={top} y2={bottom} stroke={GRID} strokeWidth={1} /> : null}
             {coords.map(([x, y], index) => (
-              <Circle key={`dot-${index}`} cx={x} cy={y} r={3} fill={TEAL} stroke="#ffffff" strokeWidth={2} />
+              <Circle key={`dot-${index}`} cx={x} cy={y} r={3} fill={TEAL} stroke={colors.surface} strokeWidth={2} />
             ))}
             {active ? (
-              <Circle cx={activeX} cy={yAt(active.value)} r={5} fill={TEAL} stroke="#ffffff" strokeWidth={2} />
+              <Circle cx={activeX} cy={yAt(active.value)} r={5} fill={TEAL} stroke={colors.surface} strokeWidth={2} />
             ) : null}
           </Svg>
           {active ? (

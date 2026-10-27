@@ -11,7 +11,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 //
 // `angle` uses CSS degrees: 180 = "to bottom", 90 = "to right", 135 = the
 // ruled replacement for every corner keyword (§19.10.1).
-// react-native-svg drops the alpha of an rgba() stopColor and paints the stop
+// react-native-svg drops the alpha of an rgba stopColor and paints the stop
 // opaque, so the alpha goes to stopOpacity instead.
 export function splitStopColor(color) {
   const match = /^rgba\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*\)$/.exec(color);

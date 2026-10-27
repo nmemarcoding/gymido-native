@@ -455,7 +455,7 @@ function ScheduleCard({ isCurrentPlan, requiredDays, selected, onToggle, isActiv
         onPress={onSubmit}
         style={({ pressed }) => [styles.cta, pressed && !disabled && styles.ctaPressed, disabled && styles.ctaDisabled]}
       >
-        {isActivating ? <Spinner size={20} thickness={2} color={colors.navy} track="rgba(17, 24, 39, 0.4)" /> : null}
+        {isActivating ? <Spinner size={20} thickness={2} color={colors.navy} track={colors.onGoldSpinnerTrack} /> : null}
         <Text numberOfLines={1} textBreakStrategy="simple" style={styles.ctaText}>{isCurrentPlan ? 'UPDATE SCHEDULE' : 'START WORKOUT PLAN'}</Text>
       </Pressable>
     </View>

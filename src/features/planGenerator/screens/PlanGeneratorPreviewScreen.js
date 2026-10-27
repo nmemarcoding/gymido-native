@@ -605,7 +605,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: 'rgba(247, 248, 250, 0.95)',
+    backgroundColor: colors.stickyHeaderFill,
   },
   barRow: {
     width: '100%',

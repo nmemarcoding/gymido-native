@@ -13,8 +13,8 @@ import Card3D from '../components/Card3D';
 import ProgressRing from '../components/ProgressRing';
 import { exerciseName, exerciseNotes, setMetaLabel, setRepsLabel, setsWord } from './sessionMath';
 
-const GOLD = ['#f7ce4f', '#dda000'];
-const GOLD_BUTTON = ['#f7ce4f', '#f4b400'];
+const GOLD = [colors.brand300, colors.brand500];
+const GOLD_BUTTON = [colors.brand300, colors.brand400];
 const POP = Easing.bezier(0.34, 1.56, 0.64, 1);
 const EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
 
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     paddingHorizontal: 10,
     paddingVertical: 12,
-    boxShadow: `${shadows.emboss}, inset 0px 0px 0px 1px rgba(17, 24, 39, 0.05)`,
+    boxShadow: `${shadows.emboss}, ${shadows.ringInk}`,
   },
   statLabel: {
     fontSize: 11,
@@ -350,14 +350,14 @@ const styles = StyleSheet.create({
   chrome: {
     overflow: 'hidden',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(229, 231, 235, 0.80)',
+    borderBottomColor: colors.glassEdge,
   },
   chromeWide: {
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
   },
   glassFill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.80)',
+    backgroundColor: colors.glassFill,
   },
   chromeRow: {
     flexDirection: 'row',
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
     gap: 12,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(244, 180, 0, 0.40)',
+    borderColor: colors.brandEdge,
     backgroundColor: colors.brand50,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
   },
   cardPressed: {
     transform: [{ translateY: -2 }],
-    boxShadow: '0px 4px 8px rgba(17, 24, 39, 0.06), 0px 24px 48px -12px rgba(17, 24, 39, 0.16)',
+    boxShadow: shadows.lift3,
   },
   upNextThumb: {
     width: 96,
@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     borderRadius: 24,
     padding: 16,
-    boxShadow: `${shadows.press}, inset 0px 0px 0px 1px rgba(17, 24, 39, 0.05)`,
+    boxShadow: `${shadows.press}, ${shadows.ringInk}`,
   },
   setList: {
     gap: 12,
@@ -655,7 +655,7 @@ const styles = StyleSheet.create({
     boxShadow: shadows.emboss,
   },
   setNext: {
-    borderColor: 'rgba(244, 180, 0, 0.70)',
+    borderColor: colors.setNextBorder,
     backgroundColor: colors.surface,
     boxShadow: shadows.lift2,
   },
@@ -666,7 +666,7 @@ const styles = StyleSheet.create({
   },
   setHighlighted: {
     outlineWidth: 2,
-    outlineColor: 'rgba(244, 180, 0, 0.60)',
+    outlineColor: colors.setHighlightOutline,
     outlineStyle: 'solid',
   },
   setHeader: {
@@ -697,7 +697,7 @@ const styles = StyleSheet.create({
     boxShadow: shadows.lift1,
   },
   badgeCompleted: {
-    backgroundColor: '#fcefc4',
+    backgroundColor: colors.brandTintStrong,
     boxShadow: shadows.emboss,
   },
   badgeOther: {
@@ -755,10 +755,10 @@ const styles = StyleSheet.create({
   },
   weightError: {
     borderColor: colors.danger,
-    backgroundColor: '#fef2f2',
+    backgroundColor: colors.errorFill,
     color: colors.danger700,
     outlineWidth: 2,
-    outlineColor: '#ffc9c9',
+    outlineColor: colors.dangerBorderSoft,
     outlineStyle: 'solid',
   },
   unitBox: {

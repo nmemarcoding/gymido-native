@@ -29,7 +29,7 @@ import { formatClock } from './restEngine';
 import { setsWord } from './sessionMath';
 import { StatTile } from './RuntimeParts';
 
-const DISC = ['#f7ce4f', '#f4b400', '#dda000'];
+const DISC = [colors.brand300, colors.brand400, colors.brand500];
 const POP = Easing.bezier(0.34, 1.56, 0.64, 1);
 const MARGIN = 8;
 
@@ -46,7 +46,7 @@ function CountdownRing({ size, radius, strokeWidth, ratio }) {
   const circumference = 2 * Math.PI * radius;
   return (
     <Svg width={size} height={size} viewBox="0 0 40 40" style={[StyleSheet.absoluteFill, styles.rotated]}>
-      <Circle cx={20} cy={20} r={radius} fill="none" stroke="rgba(17, 24, 39, 0.15)" strokeWidth={strokeWidth} />
+      <Circle cx={20} cy={20} r={radius} fill="none" stroke={colors.onGoldRing} strokeWidth={strokeWidth} />
       <Circle
         cx={20}
         cy={20}
@@ -284,7 +284,7 @@ export function CompletionPopup({ popup, onClose }) {
               thickness={9}
               label={`${popup.completedSets} of ${popup.totalSets} ${setsWord(popup.totalSets)} completed`}
             >
-              <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="#dda000" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
+              <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={colors.brand500} strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
                 <Path d="M20 6 9 17l-5-5" />
               </Svg>
             </ProgressRing>
@@ -459,12 +459,12 @@ export function CompleteWorkoutButton({ completing, onPress }) {
       {({ pressed }) => (
         <>
           <View style={[StyleSheet.absoluteFill, styles.completeClip]}>
-            <GradientFill colors={['#f7ce4f', '#f4b400']} />
+            <GradientFill colors={[colors.brand300, colors.brand400]} />
             <View style={[StyleSheet.absoluteFill, { opacity: pressed && !completing ? 1 : 0 }]}>
-              <GradientFill colors={['#f4b400', '#dda000']} />
+              <GradientFill colors={[colors.brand400, colors.brand500]} />
             </View>
           </View>
-          {completing ? <Spinner size={20} thickness={2} color={colors.navy} track="rgba(17, 24, 39, 0.4)" /> : null}
+          {completing ? <Spinner size={20} thickness={2} color={colors.navy} track={colors.onGoldSpinnerTrack} /> : null}
           <Text numberOfLines={1} textBreakStrategy="simple" style={styles.completeText}>COMPLETE WORKOUT</Text>
         </>
       )}
@@ -490,8 +490,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.30)',
-    boxShadow: `${shadows.lift3}, 0px 0px 0px 1px rgba(17, 24, 39, 0.10)`,
+    borderColor: colors.onGoldEdge,
+    boxShadow: `${shadows.lift3}, ${shadows.ringInkOuter}`,
   },
   countdownSmall: {
     fontSize: 20,
@@ -518,13 +518,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(17, 24, 39, 0.10)',
+    backgroundColor: colors.onGoldWash,
   },
   minimizeText: {
     fontSize: 18,
     lineHeight: 22,
     fontWeight: '900',
-    color: 'rgba(17, 24, 39, 0.70)',
+    color: colors.onGoldTextSoft,
   },
   resting: {
     fontSize: 11,
@@ -532,7 +532,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 3.3,
     textTransform: 'uppercase',
-    color: 'rgba(17, 24, 39, 0.80)',
+    color: colors.onGoldTextStrong,
   },
   adjustRow: {
     flexDirection: 'row',
@@ -545,7 +545,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(17, 24, 39, 0.10)',
+    backgroundColor: colors.onGoldWash,
   },
   adjustText: {
     fontSize: 12,
@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 2.2,
     textTransform: 'uppercase',
-    color: '#f7ce4f',
+    color: colors.brand300,
   },
   popupHost: {
     flex: 1,
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     paddingHorizontal: 24,
     paddingVertical: 28,
-    boxShadow: '0px 20px 48px -12px rgba(17, 24, 39, 0.25), inset 0px 0px 0px 1px rgba(17, 24, 39, 0.05)',
+    boxShadow: shadows.dialog,
   },
   popupTop: {
     flexDirection: 'row',
@@ -658,7 +658,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     paddingHorizontal: 24,
     paddingVertical: 28,
-    boxShadow: '0px 20px 48px -12px rgba(17, 24, 39, 0.25), inset 0px 0px 0px 1px rgba(17, 24, 39, 0.05)',
+    boxShadow: shadows.dialog,
   },
   dialogTitle: {
     fontSize: 20,
@@ -745,7 +745,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onDanger,
   },
   complete: {
     flexDirection: 'row',

@@ -1,10 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { radii } from '../theme/tokens';
+import { colors, radii } from '../theme/tokens';
 
 const TONES = {
-  error: { borderColor: 'rgba(239, 68, 68, 0.30)', backgroundColor: '#fef2f2', color: '#c10007' },
-  success: { borderColor: 'rgba(34, 197, 94, 0.30)', backgroundColor: '#f0fdf4', color: '#008236' },
+  error: { borderColor: colors.dangerBorder, backgroundColor: colors.errorFill, color: colors.errorText },
+  success: { borderColor: colors.successBorder, backgroundColor: colors.successFill, color: colors.successText },
 };
 
 // InlineError and SuccessState (profile-create spec §6): a title (600) and

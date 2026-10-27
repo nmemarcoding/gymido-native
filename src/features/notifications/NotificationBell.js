@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     backgroundColor: colors.danger600,
     borderWidth: 2,
-    borderColor: '#ffffff',
+    borderColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -84,6 +84,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 11,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onDanger,
   },
 });

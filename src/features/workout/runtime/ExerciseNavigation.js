@@ -10,7 +10,7 @@ import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { colors, radii, shadows } from '../../../shared/theme/tokens';
 import { exerciseName } from './sessionMath';
 
-const GOLD = ['#f7ce4f', '#dda000'];
+const GOLD = [colors.brand300, colors.brand500];
 const SHEET_EASE = Easing.bezier(0.22, 1, 0.36, 1);
 const EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
 
@@ -212,7 +212,7 @@ export function ExerciseSheet({ open, exercises, muscleGroups, activeMuscle, onM
                       onPress={() => onMuscle(group)}
                       style={({ pressed }) => [styles.chip, active ? styles.chipActive : pressed ? styles.chipPressed : styles.chipIdle]}
                     >
-                      <Text style={[styles.chipText, { color: active ? '#ffffff' : colors.textSecondary }]}>{group === 'all' ? 'All' : group}</Text>
+                      <Text style={[styles.chipText, { color: active ? colors.onNavy : colors.textSecondary }]}>{group === 'all' ? 'All' : group}</Text>
                     </Pressable>
                   );
                 })}
@@ -292,9 +292,9 @@ function SheetCard({ exercise, idx, current, onSelect }) {
               {({ pressed: buttonPressed }) => (
                 <>
                   <View style={[StyleSheet.absoluteFill, styles.actionClip, { opacity: goldButton ? 1 : 0 }]}>
-                    <GradientFill colors={['#f7ce4f', '#f4b400']} />
+                    <GradientFill colors={[colors.brand300, colors.brand400]} />
                     <View style={[StyleSheet.absoluteFill, { opacity: buttonPressed ? 1 : 0 }]}>
-                      <GradientFill colors={['#f4b400', '#dda000']} />
+                      <GradientFill colors={[colors.brand400, colors.brand500]} />
                     </View>
                   </View>
                   <Text numberOfLines={1} textBreakStrategy="simple" style={[styles.cardActionText, { color: goldButton ? colors.navy : colors.textPrimary }]}>{label}</Text>
@@ -316,12 +316,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     overflow: 'hidden',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(229, 231, 235, 0.80)',
+    borderTopColor: colors.glassEdge,
     paddingHorizontal: 16,
     paddingTop: 12,
   },
   glassFill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.80)',
+    backgroundColor: colors.glassFill,
   },
   navInner: {
     width: '100%',
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    boxShadow: '0px -8px 32px rgba(17, 24, 39, 0.12)',
+    boxShadow: shadows.sheetUp,
   },
   panelContent: {
     paddingHorizontal: 20,
@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.xxxl,
     backgroundColor: colors.surface,
     padding: 12,
-    boxShadow: `${shadows.lift2}, inset 0px 0px 0px 1px rgba(17, 24, 39, 0.05)`,
+    boxShadow: `${shadows.lift2}, ${shadows.ringInk}`,
   },
   cardCurrent: {
     borderWidth: 2,
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
   },
   cardPressed: {
     transform: [{ translateY: -2 }],
-    boxShadow: '0px 4px 8px rgba(17, 24, 39, 0.06), 0px 24px 48px -12px rgba(17, 24, 39, 0.16)',
+    boxShadow: shadows.lift3,
   },
   cardRow: {
     flexDirection: 'row',

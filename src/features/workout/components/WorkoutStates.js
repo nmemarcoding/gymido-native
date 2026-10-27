@@ -44,13 +44,13 @@ export function WorkoutEmptyState({ onBrowse }) {
     <Card3D testID="workout-empty" style={styles.emptyCard}>
       <View accessibilityLiveRegion="polite" style={styles.center}>
         <View style={styles.emptyCircle}>
-          <GradientFill angle={135} colors={['#fef8e7', '#eff1f4']} />
+          <GradientFill angle={135} colors={[colors.brand50, colors.surfaceMuted]} />
           <Svg width={56} height={56} viewBox="0 0 64 64">
-            <Rect x={6} y={24} width={8} height={16} rx={3} fill="#f4b400" />
-            <Rect x={16} y={27} width={5} height={10} rx={2} fill="#f7ce4f" />
-            <Rect x={43} y={27} width={5} height={10} rx={2} fill="#f7ce4f" />
-            <Rect x={50} y={24} width={8} height={16} rx={3} fill="#f4b400" />
-            <Rect x={21} y={30} width={22} height={4} rx={2} fill="rgba(17, 24, 39, 0.70)" />
+            <Rect x={6} y={24} width={8} height={16} rx={3} fill={colors.brand400} />
+            <Rect x={16} y={27} width={5} height={10} rx={2} fill={colors.brand300} />
+            <Rect x={43} y={27} width={5} height={10} rx={2} fill={colors.brand300} />
+            <Rect x={50} y={24} width={8} height={16} rx={3} fill={colors.brand400} />
+            <Rect x={21} y={30} width={22} height={4} rx={2} fill={colors.illustrationInk} />
           </Svg>
         </View>
         <Text textBreakStrategy="simple" style={[styles.title, styles.emptyTitle]}>No active workout plan</Text>
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fef2f2',
+    backgroundColor: colors.errorFill,
     boxShadow: shadows.press,
   },
   title: {

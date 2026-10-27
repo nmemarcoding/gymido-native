@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
     boxShadow: shadows.soft,
   },
   cardPressed: {
-    borderColor: 'rgba(221,160,0,0.40)',
+    borderColor: colors.brandPressedBorder,
     backgroundColor: colors.surfaceMuted,
   },
   eyebrow: {

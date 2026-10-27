@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: colors.navGlassFill,
   },
   grid: {
     width: '100%',

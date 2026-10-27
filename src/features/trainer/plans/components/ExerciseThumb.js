@@ -1,34 +1,34 @@
 import { StyleSheet, View } from 'react-native';
 
 import RemoteImage from '../../../../shared/components/RemoteImage';
-import { colors, radii } from '../../../../shared/theme/tokens';
+import { colors, musclePalette, radii } from '../../../../shared/theme/tokens';
 import { DumbbellIcon } from './pickerIcons';
 
-const WHITE = '#ffffff';
+const WHITE = musclePalette.iconLight;
 
 // Spec §A7.3 tile colours by primary muscle group code: [background, icon].
 const MUSCLE_TILES = {
   CHEST: [colors.navy, WHITE],
   BACK: [colors.brand400, colors.navy],
-  LEGS: ['#3A4D6A', WHITE],
-  SHOULDERS: ['#009CA6', WHITE],
+  LEGS: [musclePalette.legs, WHITE],
+  SHOULDERS: [musclePalette.shoulders, WHITE],
   ARMS: [colors.arms, WHITE],
-  ABS: ['#FF6A00', colors.navy],
-  CARDIO: ['#009CA6', WHITE],
-  QUADS: ['#3B82F6', WHITE],
-  OBLIQUES: ['#8B5CF6', WHITE],
+  ABS: [musclePalette.abs, colors.navy],
+  CARDIO: [musclePalette.cardio, WHITE],
+  QUADS: [musclePalette.quads, WHITE],
+  OBLIQUES: [musclePalette.obliques, WHITE],
   BICEPS: [colors.arms, WHITE],
-  ADDUCTORS: ['#06B6D4', WHITE],
-  TRAPS_NECK: ['#F59E0B', colors.navy],
+  ADDUCTORS: [musclePalette.adductors, WHITE],
+  TRAPS_NECK: [musclePalette.trapsNeck, colors.navy],
   TRICEPS: [colors.arms, WHITE],
-  ABDUCTORS: ['#14B8A6', WHITE],
-  HAMSTRINGS: ['#D946EF', WHITE],
-  LOWER_BACK: ['#F97316', colors.navy],
-  LATS: ['#0EA5E9', WHITE],
-  GLUTES: ['#84CC16', '#000000'],
+  ABDUCTORS: [musclePalette.abductors, WHITE],
+  HAMSTRINGS: [musclePalette.hamstrings, WHITE],
+  LOWER_BACK: [musclePalette.lowerBack, colors.navy],
+  LATS: [musclePalette.lats, WHITE],
+  GLUTES: [musclePalette.glutes, musclePalette.iconDark],
   // C11 (23 Oct 2026, owner).
-  UPPER_BACK: ['#3A4D6A', WHITE],
-  FOREARMS: ['#14B8A6', WHITE],
+  UPPER_BACK: [musclePalette.upperBack, WHITE],
+  FOREARMS: [musclePalette.forearms, WHITE],
 };
 
 export function getMuscleTileColors(code) {

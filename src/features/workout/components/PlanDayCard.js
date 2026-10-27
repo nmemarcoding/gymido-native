@@ -41,7 +41,7 @@ export default function PlanDayCard({ day, weekdays, isDone, starting, onStart, 
       <Card3D testID={`workout-day-${day.id}`} style={isDone ? styles.cardDone : undefined}>
         <View style={styles.clip}>
           <View style={styles.accent} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            <GradientFill colors={['#f7ce4f', '#dda000']} />
+            <GradientFill colors={[colors.brand300, colors.brand500]} />
             <View style={[StyleSheet.absoluteFill, styles.accentSolid, { opacity: isDone ? 0 : 1 }]} />
           </View>
           <View style={styles.body}>
@@ -49,7 +49,7 @@ export default function PlanDayCard({ day, weekdays, isDone, starting, onStart, 
               <Text style={styles.title}>{dayTitle(day)}</Text>
               {isDone ? (
                 <View style={styles.donePill}>
-                  <GradientFill angle={135} colors={['#f7ce4f', '#dda000']} />
+                  <GradientFill angle={135} colors={[colors.brand300, colors.brand500]} />
                   <Svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke={colors.navy} strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
                     <Path d="M20 6 9 17l-5-5" />
                   </Svg>

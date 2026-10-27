@@ -129,21 +129,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sheet: {
-    backgroundColor: '#d1d5db',
+    backgroundColor: colors.pickerSheet,
   },
   toolbar: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.fillSubtle,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#9ca3af',
+    borderTopColor: colors.pickerToolbarBorder,
   },
   done: {
     fontSize: 16,
     lineHeight: 22,
     fontWeight: '600',
-    color: '#007aff',
+    color: colors.pickerDone,
   },
 });

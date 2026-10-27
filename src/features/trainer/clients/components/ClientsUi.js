@@ -6,8 +6,8 @@ import { colors, radii, shadows } from '../../../../shared/theme/tokens';
 
 const STAT_TONES = {
   brand: colors.brand700,
-  emerald: '#007a55',
-  amber: '#bb4d00',
+  emerald: colors.emeraldText,
+  amber: colors.warning700,
   slate: colors.textPrimary,
 };
 
@@ -23,12 +23,12 @@ export function TrainerStatCard({ label, value, tone = 'slate', subtitle, style 
 }
 
 const BADGES = {
-  pending: { backgroundColor: '#fffbeb', color: '#973c00', borderColor: '#fee685' },
-  active: { backgroundColor: '#ecfdf5', color: '#007a55', borderColor: '#a4f4cf' },
-  approved: { backgroundColor: '#ecfdf5', color: '#007a55', borderColor: '#a4f4cf' },
-  rejected: { backgroundColor: '#fef2f2', color: '#c10007', borderColor: '#ffc9c9' },
+  pending: { backgroundColor: colors.warningFill, color: colors.warningTextStrong, borderColor: colors.warningBorderSoft },
+  active: { backgroundColor: colors.emeraldFill, color: colors.emeraldText, borderColor: colors.emeraldBorder },
+  approved: { backgroundColor: colors.emeraldFill, color: colors.emeraldText, borderColor: colors.emeraldBorder },
+  rejected: { backgroundColor: colors.errorFill, color: colors.errorText, borderColor: colors.dangerBorderSoft },
 };
-const FALLBACK_BADGE = { backgroundColor: '#f1f5f9', color: '#314158', borderColor: '#e2e8f0' };
+const FALLBACK_BADGE = { backgroundColor: colors.neutralFill, color: colors.neutralText, borderColor: colors.neutralBorder };
 
 // §C1.3: styled by `status`, text = `label` or else that status.
 export function TrainerStatusBadge({ status, label }) {

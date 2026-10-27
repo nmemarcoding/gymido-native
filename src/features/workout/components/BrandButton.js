@@ -4,8 +4,8 @@ import GradientFill from '../../../shared/components/GradientFill';
 import Spinner from '../../../shared/components/Spinner';
 import { colors, shadows } from '../../../shared/theme/tokens';
 
-const RESTING = ['#f7ce4f', '#f4b400'];
-const PRESSED = ['#f4b400', '#dda000'];
+const RESTING = [colors.brand300, colors.brand400];
+const PRESSED = [colors.brand400, colors.brand500];
 
 // The gold `to bottom` buttons (START TODAY'S WORKOUT, Browse plans). §19.10:
 // both gradients are created at mount and a press only reveals the pressed
@@ -35,7 +35,7 @@ export default function BrandButton({ label, onPress, loading = false, disabled 
               <GradientFill colors={PRESSED} />
             </View>
           </View>
-          {loading ? <Spinner size={20} thickness={2} color={colors.navy} track="rgba(17, 24, 39, 0.4)" /> : null}
+          {loading ? <Spinner size={20} thickness={2} color={colors.navy} track={colors.onGoldSpinnerTrack} /> : null}
           <Text numberOfLines={1} textBreakStrategy="simple" style={[styles.label, labelStyle]}>{label}</Text>
         </>
       )}

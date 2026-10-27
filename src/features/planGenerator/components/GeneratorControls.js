@@ -94,8 +94,8 @@ export function Checkbox({ checked }) {
 }
 
 const CALLOUT_TONES = {
-  info: { borderColor: 'rgba(14, 165, 233, 0.30)', backgroundColor: '#eff6ff', color: '#1447e6' },
-  warning: { borderColor: 'rgba(245, 158, 11, 0.30)', backgroundColor: '#fffbeb', color: '#bb4d00' },
+  info: { borderColor: colors.infoBorder, backgroundColor: colors.infoFill, color: colors.infoText },
+  warning: { borderColor: colors.warningBorder, backgroundColor: colors.warningFill, color: colors.warning700 },
 };
 
 // `role` is passed through (T-18: the GO_EASY_AREAS note is role="note").

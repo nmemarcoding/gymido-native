@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
     textDecorationStyle: 'dotted',
   },
   detailLinkPressed: {
-    color: '#5c4400',
+    color: colors.brandTextPressed,
   },
   stats: {
     flexDirection: 'row',

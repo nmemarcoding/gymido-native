@@ -68,7 +68,7 @@ function Shimmer({ style }) {
     <View style={[styles.bar, style]} onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
       {!reducedMotion && width > 0 ? (
         <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateX }] }]}>
-          <GradientFill angle={90} colors={['rgba(255, 255, 255, 0)', 'rgba(255, 255, 255, 0.7)', 'rgba(255, 255, 255, 0)']} />
+          <GradientFill angle={90} colors={[colors.sheenClear, colors.sheenSkeleton, colors.sheenClear]} />
         </Animated.View>
       ) : null}
     </View>

@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
   },
   segmentActive: {
     backgroundColor: colors.brand50,
-    borderColor: 'rgba(221, 160, 0, 0.30)',
+    borderColor: colors.brandActiveBorder,
   },
   label: {
     fontSize: 14,
