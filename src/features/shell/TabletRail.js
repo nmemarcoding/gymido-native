@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { TOOLTIP_BOX } from '../../shared/components/tooltipStyle';
 import { colors, font, textScale, typography } from '../../shared/theme/tokens';
 import GymIcon from './GymIcon';
 import { RAIL } from './railMetrics';
@@ -207,14 +208,9 @@ const styles = StyleSheet.create({
   // UX (batch verdicts 27 Oct): the kit tooltip look — surfaceRaised, hairline
   // 0.10, radius 10, 13/600 — beside the item, never over it.
   tip: {
+    ...TOOLTIP_BOX,
     minHeight: TIP_HEIGHT,
     justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    backgroundColor: colors.surfaceRaised,
-    borderWidth: 1,
-    borderColor: colors.hairlineStrong,
   },
   // QA BUG-N1: the full name at any text size, never ellipsized; the label
   // keeps its text width and the chip grows around it.

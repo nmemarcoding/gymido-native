@@ -227,6 +227,10 @@ describe('TabletRail large text (UX §9 "Rail (tablet): the same rule")', () => 
       borderColor: colors.hairlineStrong,
       borderWidth: 1,
       borderRadius: 10,
+      // UX ruling (T-61): one tooltip container app-wide (padding 8 10,
+      // shadow-float) — extended assertion.
+      paddingVertical: 8,
+      paddingHorizontal: 10,
     });
     expect(StyleSheet.flatten(host(tree, 'tablet-rail-tip').findByType(Text).props.style)).toMatchObject({ fontSize: 13, fontFamily: 'Geist-SemiBold' });
     expect(StyleSheet.flatten(host(tree, 'tablet-rail-tip-box').props.style).left).toBeGreaterThanOrEqual(88);
