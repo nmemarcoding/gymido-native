@@ -65,6 +65,14 @@ const V2_COLORS = {
   info: '#8FA8FF',
   infoTint: 'rgba(143, 168, 255, 0.10)',
   infoBorder: 'rgba(143, 168, 255, 0.25)',
+  // v2 kit: feedback (§5 FeedbackBox / ErrorBox: tone fill 0.08 + border 0.25).
+  tealFeedbackFill: 'rgba(79, 216, 196, 0.08)',
+  tealFeedbackBorder: 'rgba(79, 216, 196, 0.25)',
+  dangerTextFill: 'rgba(255, 122, 112, 0.08)',
+  dangerTextBorder: 'rgba(255, 122, 112, 0.25)',
+  // §5 Skeleton shimmer band: clear → faint white → clear over fillSkeleton.
+  skeletonShimmer: 'rgba(255, 255, 255, 0.08)',
+  skeletonShimmerEdge: 'rgba(255, 255, 255, 0)',
 };
 
 // v1 names kept as ALIASES of v2 values while screens move to the v2 names

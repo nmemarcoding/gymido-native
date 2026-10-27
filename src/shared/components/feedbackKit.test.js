@@ -1,0 +1,498 @@
+import { AccessibilityInfo, Animated, Platform, StyleSheet, Text } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
+import { act, create } from 'react-test-renderer';
+
+import { colors, motion, radii } from '../theme/tokens';
+import Banner, { BannerText } from './Banner';
+import EmptyState, { EMPTY_STATE_DEFAULTS } from './EmptyState';
+import ErrorAlert from './ErrorAlert';
+import ErrorBox from './ErrorBox';
+import { FEEDBACK_TONES, InlineError, SuccessState } from './FeedbackBox';
+import FeedbackIcon, { FEEDBACK_ICON_NAMES } from './FeedbackIcon';
+import GlassSurface from './GlassSurface';
+import GradientFill from './GradientFill';
+import Loader from './Loader';
+import PillButton from './PillButton';
+import RouteErrorBoundary, { RouteErrorFallback } from './RouteErrorBoundary';
+import Skeleton, { SHIMMER_MS, SKELETON_RADIUS } from './Skeleton';
+import Spinner from './Spinner';
+import ToastHost, { InlineToast, TAB_BAR_CLEARANCE, TOAST_GAP, TOAST_TONES, ToastCard, toastPlacement } from './ToastHost';
+import { useToastStore } from './toastStore';
+import Card3D from '../../features/workout/components/Card3D';
+import WorkoutSkeleton from '../../features/workout/components/WorkoutSkeleton';
+import OnHoldBox from '../../features/myPlans/components/OnHoldBox';
+import { ClientsBanner, InactiveBanner } from '../../features/trainer/plans/components/AffectedClients';
+
+let mockReducedMotion = false;
+jest.mock('../hooks/useReducedMotion', () => ({ useReducedMotion: () => mockReducedMotion }));
+let mockInsets = { top: 0, bottom: 0, left: 0, right: 0 };
+jest.mock('react-native-safe-area-context', () => {
+  const { View } = require('react-native');
+  return { useSafeAreaInsets: () => mockInsets, SafeAreaView: View };
+});
+jest.mock('expo', () => ({ reloadAppAsync: jest.fn() }));
+
+const mounted = [];
+function render(element) {
+  let tree;
+  act(() => {
+    tree = create(element);
+  });
+  mounted.push(tree);
+  return tree;
+}
+const flat = (node) => StyleSheet.flatten(node.props.style);
+const host = (tree, testID) => tree.root.find((node) => node.props.testID === testID && typeof node.type === 'string');
+const texts = (tree) => tree.root.findAllByType(Text).map((node) => [].concat(node.props.children).join(''));
+const byTitle = (tree, title) => tree.root.findAll((node) => node.type === PillButton && node.props.title === title);
+
+function atWidth(width) {
+  const dimensions = require('react-native/Libraries/Utilities/useWindowDimensions');
+  return jest.spyOn(dimensions, 'default').mockReturnValue({ width, height: 900, scale: 2, fontScale: 1 });
+}
+
+afterEach(() => {
+  mounted.splice(0).forEach((tree) => act(() => tree.unmount()));
+  mockReducedMotion = false;
+  mockInsets = { top: 0, bottom: 0, left: 0, right: 0 };
+  jest.restoreAllMocks();
+});
+
+describe('FeedbackIcon', () => {
+  it.each(FEEDBACK_ICON_NAMES)('%s: an Svg with explicit size, hidden from screen readers', (name) => {
+    const svg = render(<FeedbackIcon name={name} size={20} color={colors.info} />).root.findByType(Svg);
+    expect(svg.props).toMatchObject({ width: 20, height: 20, stroke: colors.info, strokeLinecap: 'round', accessibilityElementsHidden: true });
+  });
+});
+
+describe('Spinner (§5: never stops)', () => {
+  it('turns once a second by default', () => {
+    const timing = jest.spyOn(Animated, 'timing');
+    render(<Spinner />);
+    expect(timing).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ duration: motion.spinnerLoopMs }));
+  });
+
+  it('under reduced motion slows to 3 s per turn and keeps looping (no opt-in needed)', () => {
+    mockReducedMotion = true;
+    const timing = jest.spyOn(Animated, 'timing');
+    const loop = jest.spyOn(Animated, 'loop');
+    render(<Spinner />);
+    expect(timing).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ duration: 3000 }));
+    expect(loop).toHaveBeenCalled();
+  });
+
+  it('still honours a caller-given reduced pace', () => {
+    mockReducedMotion = true;
+    const timing = jest.spyOn(Animated, 'timing');
+    render(<Spinner reducedMotionLoopMs={4500} />);
+    expect(timing).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ duration: 4500 }));
+  });
+
+  it('draws a gold round-capped arc on a faint track in a fixed-size Svg', () => {
+    const tree = render(<Spinner size={36} thickness={4} />);
+    const svg = tree.root.findByType(Svg);
+    expect(svg.props).toMatchObject({ width: 36, height: 36 });
+    expect(tree.root.findByType(Circle).props).toMatchObject({ stroke: colors.hairlineStrong, strokeWidth: 4, r: 16 });
+    expect(tree.root.findByType(Path).props).toMatchObject({ stroke: colors.gold, strokeLinecap: 'round' });
+    expect(tree.root.findByType(Animated.View).props.accessibilityElementsHidden).toBe(true);
+  });
+
+  it('keeps callers’ colours (button spinners on a transparent track)', () => {
+    const tree = render(<Spinner size={16} thickness={2} color={colors.onGold} track="transparent" />);
+    expect(tree.root.findByType(Circle).props.stroke).toBe('transparent');
+    expect(tree.root.findByType(Path).props.stroke).toBe(colors.onGold);
+  });
+});
+
+describe('Loader', () => {
+  it('defaults the label to "Loading" and is a busy progressbar', () => {
+    const tree = render(<Loader />);
+    const region = tree.root.find((node) => node.props.accessibilityRole === 'progressbar' && typeof node.type === 'string');
+    expect(region.props.accessibilityLabel).toBe('Loading');
+    expect(region.props.accessibilityState).toEqual({ busy: true });
+    expect(texts(tree)).toEqual(['Loading']);
+  });
+
+  it('shows the screen’s label beside an 18 px spinner, 14 secondary', () => {
+    const tree = render(<Loader label="Loading dashboard" />);
+    expect(texts(tree)).toEqual(['Loading dashboard']);
+    expect(tree.root.findByType(Spinner).props).toMatchObject({ size: 18, thickness: 2, track: colors.hairlineButton });
+    expect(flat(tree.root.findByType(Text))).toMatchObject({ fontSize: 14, color: colors.textSecondary, fontFamily: 'Geist-Regular' });
+    expect(flat(tree.root.findByType(Text)).fontWeight).toBeUndefined();
+  });
+});
+
+describe('Skeleton (§5)', () => {
+  const layout = (tree, width) => act(() => host(tree, 'sk').props.onLayout({ nativeEvent: { layout: { width, height: 12 } } }));
+
+  it('is a fillSkeleton block, radius 10, hidden from screen readers', () => {
+    const block = host(render(<Skeleton testID="sk" style={{ height: 12 }} />), 'sk');
+    expect(flat(block)).toMatchObject({ backgroundColor: colors.fillSkeleton, borderRadius: SKELETON_RADIUS, height: 12, overflow: 'hidden' });
+    expect(SKELETON_RADIUS).toBe(10);
+    expect(block.props.accessibilityElementsHidden).toBe(true);
+    expect(block.props.importantForAccessibility).toBe('no-hide-descendants');
+  });
+
+  it('takes a radius for pills and rings', () => {
+    expect(flat(host(render(<Skeleton testID="sk" radius={radii.full} />), 'sk')).borderRadius).toBe(radii.full);
+  });
+
+  it('mounts the shimmer gradient from the first render and sweeps once laid out', () => {
+    const loop = jest.spyOn(Animated, 'loop');
+    const timing = jest.spyOn(Animated, 'timing');
+    const tree = render(<Skeleton testID="sk" />);
+    expect(tree.root.findAllByType(GradientFill)).toHaveLength(1);
+    expect(loop).not.toHaveBeenCalled();
+    layout(tree, 200);
+    expect(timing).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ duration: SHIMMER_MS }));
+    expect(flat(host(tree, 'sk-shimmer')).opacity).toBe(1);
+    expect(tree.root.findAllByType(GradientFill)).toHaveLength(1);
+  });
+
+  it('turns the shimmer off under reduced motion (hidden, no loop)', () => {
+    mockReducedMotion = true;
+    const loop = jest.spyOn(Animated, 'loop');
+    const tree = render(<Skeleton testID="sk" />);
+    layout(tree, 200);
+    expect(loop).not.toHaveBeenCalled();
+    expect(flat(host(tree, 'sk-shimmer')).opacity).toBe(0);
+  });
+
+  it('can be a static block with no shimmer layer at all', () => {
+    const tree = render(<Skeleton testID="sk" shimmer={false} />);
+    expect(tree.root.findAllByType(GradientFill)).toHaveLength(0);
+  });
+});
+
+describe('WorkoutSkeleton', () => {
+  it('keeps its loading region and draws the hub shape from Skeleton blocks', () => {
+    const tree = render(<WorkoutSkeleton />);
+    const region = host(tree, 'workout-skeleton');
+    expect(region.props).toMatchObject({ accessibilityRole: 'progressbar', accessibilityLabel: 'Loading workout', accessibilityLiveRegion: 'polite' });
+    const blocks = tree.root.findAllByType(Skeleton);
+    expect(blocks.length).toBe(18);
+    expect(blocks.filter((block) => block.props.radius === radii.full)).toHaveLength(10);
+  });
+
+  it('lays the day cards in 1 column on phones and 2 on tablets', () => {
+    const cardWidths = (tree) =>
+      tree.root.findAllByType(Card3D).slice(1).map((node) => StyleSheet.flatten(node.props.style).width);
+    atWidth(390);
+    expect(cardWidths(render(<WorkoutSkeleton />))).toEqual(['100%', '100%', '100%']);
+    mounted.splice(0).forEach((tree) => act(() => tree.unmount()));
+    jest.restoreAllMocks();
+    atWidth(834);
+    expect(cardWidths(render(<WorkoutSkeleton />))).toEqual(['48%', '48%', '48%']);
+  });
+});
+
+describe('EmptyState (§5)', () => {
+  it('shows UX’s defaults in a centred card with the 44 px icon tile', () => {
+    const tree = render(<EmptyState />);
+    expect(texts(tree)).toEqual([EMPTY_STATE_DEFAULTS.title, EMPTY_STATE_DEFAULTS.message]);
+    expect(EMPTY_STATE_DEFAULTS).toEqual({ title: 'Nothing to show yet', message: 'Once data is available, it will appear here.' });
+    const tile = host(tree, 'empty-state-icon');
+    expect(flat(tile)).toMatchObject({ width: 44, height: 44, borderRadius: 16, backgroundColor: colors.fillSkeleton });
+    expect(tree.root.findByType(FeedbackIcon).props.name).toBe('empty');
+  });
+
+  it('uses the screen’s copy, title 15/600 and message 13 muted, as a polite live region', () => {
+    const tree = render(<EmptyState title="No exercises found" message="Try a different search term." />);
+    expect(texts(tree)).toEqual(['No exercises found', 'Try a different search term.']);
+    const [title, message] = tree.root.findAllByType(Text);
+    expect(flat(title)).toMatchObject({ fontSize: 15, fontFamily: 'Geist-SemiBold', color: colors.textPrimary, textAlign: 'center' });
+    expect(flat(message)).toMatchObject({ fontSize: 13, color: colors.textMuted });
+    const card = tree.root.find((node) => node.props.accessibilityLiveRegion === 'polite' && typeof node.type === 'string');
+    expect(flat(card)).toMatchObject({ backgroundColor: colors.surface, borderColor: colors.hairline, borderRadius: radii.xl, alignItems: 'center' });
+  });
+
+  it('hides the message when the screen passes null', () => {
+    expect(texts(render(<EmptyState title="No days yet" message={null} />))).toEqual(['No days yet']);
+  });
+
+  it('offers the optional action as a glass button that fires onAction', () => {
+    const onAction = jest.fn();
+    const tree = render(<EmptyState title="t" message="m" actionLabel="Browse plans" actionTestID="go" onAction={onAction} />);
+    const [button] = byTitle(tree, 'Browse plans');
+    expect(button.props).toMatchObject({ variant: 'secondary', testID: 'go' });
+    act(() => button.props.onPress());
+    expect(onAction).toHaveBeenCalledTimes(1);
+  });
+
+  it('has no button without an action label', () => {
+    expect(render(<EmptyState title="t" message="m" />).root.findAllByType(PillButton)).toHaveLength(0);
+  });
+
+  it('draws the danger-text disc for icon="error"', () => {
+    const tree = render(<EmptyState icon="error" title="t" message="m" />);
+    expect(flat(host(tree, 'empty-state-error-icon'))).toMatchObject({ borderRadius: radii.full, backgroundColor: colors.dangerTextTint });
+    expect(tree.root.findByType(FeedbackIcon).props).toMatchObject({ name: 'error', color: colors.dangerText });
+  });
+});
+
+describe('FeedbackBox: InlineError / SuccessState / ErrorBox (§5)', () => {
+  it('InlineError: default title, role alert, danger-text tint at 0.08 / 0.25 with the error icon', () => {
+    const tree = render(<InlineError testID="err" message="Please try again." />);
+    const box = host(tree, 'err');
+    expect(box.props.accessibilityRole).toBe('alert');
+    expect(flat(box)).toMatchObject({
+      borderRadius: 16,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      backgroundColor: 'rgba(255, 122, 112, 0.08)',
+      borderColor: 'rgba(255, 122, 112, 0.25)',
+    });
+    expect(texts(tree)).toEqual(['Something went wrong', 'Please try again.']);
+    expect(tree.root.findByType(FeedbackIcon).props).toMatchObject({ name: 'error', color: colors.dangerText });
+  });
+
+  it('bold title over the muted message', () => {
+    const [title, message] = render(<InlineError title="Dashboard unavailable" message="m" />).root.findAllByType(Text);
+    expect(flat(title)).toMatchObject({ fontFamily: 'Geist-SemiBold', color: colors.textPrimary });
+    expect(flat(message)).toMatchObject({ color: colors.textMuted });
+  });
+
+  it('SuccessState: default "Success", teal tint and a teal check, role summary', () => {
+    const tree = render(<SuccessState testID="ok" message="Profile created." />);
+    const box = host(tree, 'ok');
+    expect(box.props.accessibilityRole).toBe('summary');
+    expect(flat(box)).toMatchObject({ backgroundColor: 'rgba(79, 216, 196, 0.08)', borderColor: 'rgba(79, 216, 196, 0.25)' });
+    expect(texts(tree)).toEqual(['Success', 'Profile created.']);
+    expect(tree.root.findByType(FeedbackIcon).props).toMatchObject({ name: 'check', color: colors.teal });
+    expect(FEEDBACK_TONES.success.iconColor).toBe(colors.teal);
+  });
+
+  it('no message: title only', () => {
+    expect(texts(render(<SuccessState />))).toEqual(['Success']);
+  });
+
+  it('ErrorBox: the error box, title optional as in v1', () => {
+    const tree = render(<ErrorBox testID="eb" message="Login failed" />);
+    expect(host(tree, 'eb').props.accessibilityRole).toBe('alert');
+    expect(texts(tree)).toEqual(['Login failed']);
+    expect(flat(host(tree, 'eb')).backgroundColor).toBe(colors.dangerTextFill);
+    expect(texts(render(<ErrorBox title="Something went wrong" message="x" />))).toEqual(['Something went wrong', 'x']);
+  });
+});
+
+describe('ErrorAlert (§5)', () => {
+  it('a radius-24 danger card with the 36 px icon tile, title and server text; announced', () => {
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {});
+    const tree = render(<ErrorAlert testID="ea" title="Some exercises didn't load" description="Please try again." />);
+    const box = host(tree, 'ea');
+    expect(box.props).toMatchObject({ accessibilityRole: 'alert', accessibilityLiveRegion: 'assertive' });
+    expect(flat(box)).toMatchObject({ borderRadius: 24, padding: 18, backgroundColor: colors.dangerDotTint, borderColor: colors.dangerDotBorder });
+    const [title, description] = tree.root.findAllByType(Text);
+    expect(flat(title)).toMatchObject({ fontSize: 15, fontFamily: 'Geist-SemiBold', color: colors.textPrimary });
+    expect(flat(description)).toMatchObject({ fontSize: 14, lineHeight: 20, color: colors.textSecondary });
+    const tile = tree.root.findByType(FeedbackIcon).parent;
+    expect(flat(tile)).toMatchObject({ width: 36, height: 36, borderRadius: 12, backgroundColor: colors.dangerTextTint });
+    expect(announce).toHaveBeenCalledWith("Some exercises didn't load. Please try again.");
+  });
+
+  it('shows a glass Retry that calls onRetry', () => {
+    const onRetry = jest.fn();
+    const tree = render(<ErrorAlert title="t" description="d" onRetry={onRetry} />);
+    const [retry] = byTitle(tree, 'Retry');
+    expect(retry.props.variant).toBe('secondary');
+    act(() => retry.props.onPress());
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('no Retry without onRetry (save failures)', () => {
+    expect(byTitle(render(<ErrorAlert title="Could not save" />), 'Retry')).toHaveLength(0);
+  });
+});
+
+describe('RouteErrorBoundary screen', () => {
+  it('fallback: ground, the error disc, the v1 copy and "Reload app"', () => {
+    const onReload = jest.fn();
+    const tree = render(<RouteErrorFallback onReload={onReload} />);
+    expect(flat(host(tree, 'route-error')).backgroundColor).toBe(colors.ground);
+    expect(texts(tree)).toEqual(['Something went wrong', 'We hit a problem rendering this page. Reload the app to try again.', 'Reload app']);
+    expect(tree.root.findAll((node) => node.props.testID === 'empty-state-error-icon')).not.toHaveLength(0);
+    act(() => tree.root.find((node) => node.props.testID === 'route-error-reload' && node.type === PillButton).props.onPress());
+    expect(onReload).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders children until a render crash, then the fallback', () => {
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    function Boom() {
+      throw new Error('boom');
+    }
+    expect(texts(render(<RouteErrorBoundary><Text>ok</Text></RouteErrorBoundary>))).toEqual(['ok']);
+    const crashed = render(
+      <RouteErrorBoundary reload={jest.fn()}>
+        <Boom />
+      </RouteErrorBoundary>
+    );
+    expect(crashed.root.findAll((node) => node.props.testID === 'route-error')).not.toHaveLength(0);
+  });
+});
+
+describe('Banners (§5)', () => {
+  it('OnHoldBox: warning fill 0.08 + border 0.28, radius 16, title 15/600, body 13 secondary, copy unchanged', () => {
+    const tree = render(<OnHoldBox message="Your trainer paused coaching." />);
+    const box = host(tree, 'my-plans-on-hold');
+    expect(box.props).toMatchObject({ accessibilityRole: 'summary', accessibilityLiveRegion: 'polite' });
+    expect(flat(box)).toMatchObject({ borderRadius: 16, backgroundColor: colors.warningFill, borderColor: colors.warningBorder });
+    const all = texts(tree);
+    expect(all[0]).toBe('Your plans are on hold');
+    expect(all[1]).toBe('Your trainer paused coaching.');
+    expect(all).toHaveLength(3);
+    const [title, body] = tree.root.findAllByType(Text);
+    expect(flat(title)).toMatchObject({ fontSize: 15, fontFamily: 'Geist-SemiBold', color: colors.textPrimary });
+    expect(flat(body)).toMatchObject({ fontSize: 13, color: colors.textSecondary });
+    expect(tree.root.findAllByType(FeedbackIcon)).toHaveLength(0);
+  });
+
+  it('OnHoldBox without a server message keeps only the title and the tail', () => {
+    expect(texts(render(<OnHoldBox />))).toHaveLength(2);
+  });
+
+  it('inactive-plan banner: title in warning with its icon', () => {
+    const tree = render(<InactiveBanner body="Members can't start it." />);
+    expect(texts(tree)).toEqual(['This plan is inactive', "Members can't start it."]);
+    expect(flat(tree.root.findAllByType(Text)[0]).color).toBe(colors.warning);
+    expect(tree.root.findByType(FeedbackIcon).props).toMatchObject({ name: 'warning', color: colors.warning });
+    expect(flat(host(tree, 'plan-inactive-banner')).backgroundColor).toBe(colors.warningFill);
+  });
+
+  it('AffectedClients: a plain card', () => {
+    const tree = render(<ClientsBanner count={3} />);
+    expect(flat(host(tree, 'plan-clients-banner'))).toMatchObject({ backgroundColor: colors.surface, borderColor: colors.hairline, borderRadius: radii.xl, padding: 18 });
+    expect(render(<ClientsBanner count={0} />).toJSON()).toBeNull();
+  });
+
+  it('Banner takes any role and body', () => {
+    const tree = render(
+      <Banner testID="b" title="T" accessibilityRole="alert">
+        <BannerText>Body</BannerText>
+      </Banner>
+    );
+    expect(host(tree, 'b').props.accessibilityRole).toBe('alert');
+    expect(texts(tree)).toEqual(['T', 'Body']);
+  });
+});
+
+describe('Toast (§5)', () => {
+  beforeEach(() => useToastStore.setState({ toasts: [] }));
+
+  it('placement: phones bottom-centre above the floating tab bar (66 + 20) plus the safe area', () => {
+    expect(TAB_BAR_CLEARANCE).toBe(86);
+    expect(toastPlacement({ width: 390, insets: { bottom: 34, left: 0, right: 0 } })).toEqual({ tablet: false, bottom: 86 + TOAST_GAP + 34, left: 16, right: 16 });
+  });
+
+  it('placement: tablets bottom-right with insets', () => {
+    expect(toastPlacement({ width: 834, insets: { bottom: 20, left: 0, right: 10 } })).toEqual({ tablet: true, bottom: 44, left: 24, right: 34 });
+  });
+
+  it('renders nothing with no toasts', () => {
+    expect(render(<ToastHost />).toJSON()).toBeNull();
+  });
+
+  it('phone: the stack is centred and clears the tab bar', () => {
+    atWidth(390);
+    mockInsets = { top: 0, bottom: 34, left: 0, right: 0 };
+    useToastStore.setState({ toasts: [{ id: 1, tone: 'success', title: 'Weight log saved', message: '' }] });
+    const stack = flat(host(render(<ToastHost />), 'toast-stack'));
+    expect(stack).toMatchObject({ position: 'absolute', alignItems: 'center', paddingBottom: 86 + 12 + 34 });
+    expect(stack.paddingBottom).toBeGreaterThan(TAB_BAR_CLEARANCE + 34);
+  });
+
+  it('tablet: bottom-right', () => {
+    atWidth(1024);
+    useToastStore.setState({ toasts: [{ id: 1, tone: 'info', title: 'A', message: '' }] });
+    expect(flat(host(render(<ToastHost />), 'toast-stack'))).toMatchObject({ alignItems: 'flex-end', paddingBottom: 24, paddingRight: 24 });
+  });
+
+  it('is denser glass (tone toast) that blurs the app behind it', () => {
+    useToastStore.setState({ toasts: [{ id: 1, tone: 'info', title: 'A', message: '' }] });
+    const glass = render(<ToastHost />).root.findByType(GlassSurface);
+    expect(glass.props).toMatchObject({ tone: 'toast', overApp: true });
+  });
+
+  it.each([
+    ['success', 'check', colors.success],
+    ['error', 'error', colors.dangerText],
+    ['info', 'info', colors.info],
+    ['warning', 'warning', colors.warning],
+  ])('%s: the icon carries the tone', (tone, icon, color) => {
+    const tree = render(<ToastCard tone={tone} title="T" message="" />);
+    expect(tree.root.find((node) => node.props.testID === 'toast-icon' && node.type === FeedbackIcon).props).toMatchObject({ name: icon, color });
+    expect(TOAST_TONES[tone]).toEqual({ icon, color });
+  });
+
+  it('unknown tone falls back to info', () => {
+    const tree = render(<ToastCard tone="nope" title="T" />);
+    expect(tree.root.find((node) => node.props.testID === 'toast-icon' && node.type === FeedbackIcon).props.name).toBe('info');
+  });
+
+  it('one line: a 52 px pill, 15/500', () => {
+    const tree = render(<ToastCard tone="success" title="Weight log saved" message="" />);
+    const glass = tree.root.findByType(GlassSurface);
+    expect(glass.props.radius).toBe(radii.full);
+    expect(StyleSheet.flatten(glass.props.style)).toMatchObject({ minHeight: 52, paddingHorizontal: 18 });
+    expect(texts(tree)).toEqual(['Weight log saved']);
+    expect(flat(tree.root.findByType(Text))).toMatchObject({ fontSize: 15, fontFamily: 'Geist-Medium', color: colors.textPrimary });
+  });
+
+  it('message only is also one line', () => {
+    expect(texts(render(<ToastCard tone="error" title="" message="Failed" />))).toEqual(['Failed']);
+  });
+
+  it('title + message: radius 20, title 14/600 over the message 13 muted', () => {
+    const tree = render(<ToastCard tone="success" title="Plan copied" message="You’re now on your copy." />);
+    const glass = tree.root.findByType(GlassSurface);
+    expect(glass.props.radius).toBe(20);
+    expect(StyleSheet.flatten(glass.props.style)).toMatchObject({ paddingVertical: 12, paddingHorizontal: 16 });
+    const [title, message] = tree.root.findAllByType(Text);
+    expect(flat(title)).toMatchObject({ fontSize: 14, fontFamily: 'Geist-SemiBold' });
+    expect(flat(message)).toMatchObject({ fontSize: 13, color: colors.textMuted });
+  });
+
+  it('host toasts keep the close button (44 hit area) and close on press', () => {
+    useToastStore.setState({ toasts: [{ id: 7, tone: 'error', title: 'Workout error', message: 'Server down' }] });
+    const tree = render(<ToastHost />);
+    const [close] = tree.root.findAll((node) => node.props.accessibilityLabel === 'Close notification' && typeof node.props.style === 'function');
+    const size = flat({ props: { style: close.props.style({ pressed: false }) } });
+    expect(size.width + close.props.hitSlop * 2).toBeGreaterThanOrEqual(44);
+    expect(StyleSheet.flatten(close.props.style({ pressed: true })).backgroundColor).toBe(colors.fillButton);
+    act(() => close.props.onPress());
+    expect(useToastStore.getState().toasts).toEqual([]);
+  });
+
+  it('a polite alert region; announced on iOS only', () => {
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {});
+    const realOS = Platform.OS;
+    try {
+      Platform.OS = 'ios';
+      const tree = render(<InlineToast testID="it" tone="error" title="Workout error" message="Nope" />);
+      expect(host(tree, 'it').props).toMatchObject({ accessibilityRole: 'alert', accessibilityLiveRegion: 'polite' });
+      expect(announce).toHaveBeenCalledWith('Workout error Nope');
+      announce.mockClear();
+      Platform.OS = 'android';
+      render(<InlineToast tone="error" title="Workout error" message="Nope" />);
+      expect(announce).not.toHaveBeenCalled();
+    } finally {
+      Platform.OS = realOS;
+    }
+  });
+
+  it('InlineToast: the same glass card in place, no close button, not blurring the app root', () => {
+    const tree = render(<InlineToast testID="it" tone="success" title="Saved" message="" />);
+    expect(tree.root.findByType(GlassSurface).props.overApp).toBe(false);
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'Close notification')).toHaveLength(0);
+    expect(tree.root.findByType(InlineToast).props.testID).toBe('it');
+  });
+
+  it('slides up, or appears at once under reduced motion', () => {
+    const timing = jest.spyOn(Animated, 'timing');
+    render(<InlineToast tone="info" title="A" />);
+    expect(timing).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ duration: motion.slideUpMs }));
+    timing.mockClear();
+    mockReducedMotion = true;
+    render(<InlineToast tone="info" title="A" />);
+    expect(timing).not.toHaveBeenCalled();
+  });
+});

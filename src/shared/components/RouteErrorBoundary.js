@@ -3,7 +3,7 @@ import { Component } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { colors } from '../theme/tokens';
+import { colors, layout, spacing } from '../theme/tokens';
 import EmptyState from './EmptyState';
 import PillButton from './PillButton';
 
@@ -37,12 +37,15 @@ export default class RouteErrorBoundary extends Component {
   }
 }
 
+// v2 look (RN-SPEC-v2-foundation §5): the ground, a centred card with the
+// danger-text disc (InlineError's look), the glass "Reload app" under it.
 export function RouteErrorFallback({ onReload }) {
   return (
     <SafeAreaView testID="route-error" style={styles.screen}>
       <View style={styles.region}>
         <View accessibilityLiveRegion="polite">
           <EmptyState
+            icon="error"
             title="Something went wrong"
             message="We hit a problem rendering this page. Reload the app to try again."
           />
@@ -58,9 +61,9 @@ export function RouteErrorFallback({ onReload }) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.background,
-    paddingHorizontal: 16,
-    paddingVertical: 32,
+    backgroundColor: colors.ground,
+    paddingHorizontal: layout.gutter,
+    paddingVertical: spacing[8],
   },
   region: {
     flex: 1,
@@ -71,7 +74,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   action: {
-    marginTop: 20,
+    marginTop: spacing[5],
     alignItems: 'center',
   },
 });

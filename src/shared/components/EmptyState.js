@@ -1,13 +1,33 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, radii, shadows } from '../theme/tokens';
+import { colors, font, radii, spacing } from '../theme/tokens';
+import FeedbackIcon from './FeedbackIcon';
 import PillButton from './PillButton';
 
-// Trainer plans spec §A3.5. With `actionLabel` (trainer clients spec) a
-// secondary button follows, mt 20.
-export default function EmptyState({ title, message, actionLabel, onAction, actionTestID, style }) {
+// RN-SPEC-v2-foundation §5: a centred card: 44 px icon tile, title 15/600,
+// message 13 muted, optional action; a polite live region. Each screen passes
+// its own copy (as in v1); the defaults are UX's. `icon="error"` draws the
+// danger-text disc instead of the tile (the route error screen).
+export const EMPTY_STATE_DEFAULTS = Object.freeze({
+  title: 'Nothing to show yet',
+  message: 'Once data is available, it will appear here.',
+});
+
+export default function EmptyState({
+  title = EMPTY_STATE_DEFAULTS.title,
+  message = EMPTY_STATE_DEFAULTS.message,
+  actionLabel,
+  onAction,
+  actionTestID,
+  icon = 'empty',
+  style,
+}) {
+  const error = icon === 'error';
   return (
-    <View style={[styles.card, style]}>
+    <View accessibilityLiveRegion="polite" style={[styles.card, style]}>
+      <View testID={error ? 'empty-state-error-icon' : 'empty-state-icon'} style={[styles.tile, error && styles.errorDisc]}>
+        <FeedbackIcon name={error ? 'error' : 'empty'} size={20} color={error ? colors.dangerText : colors.textSecondary} />
+      </View>
       <Text style={styles.title}>{title}</Text>
       {message ? <Text style={styles.message}>{message}</Text> : null}
       {actionLabel ? (
@@ -23,28 +43,39 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: radii.xl,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: colors.hairline,
     backgroundColor: colors.surface,
-    boxShadow: shadows.soft,
-    paddingVertical: 40,
-    paddingHorizontal: 24,
+    padding: spacing[5],
     alignItems: 'center',
+    gap: spacing[2],
+  },
+  tile: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.md,
+    backgroundColor: colors.fillSkeleton,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorDisc: {
+    borderRadius: radii.full,
+    backgroundColor: colors.dangerTextTint,
   },
   title: {
-    fontSize: 20,
-    lineHeight: 28,
-    fontWeight: '600',
+    ...font(600),
+    fontSize: 15,
+    lineHeight: 22,
     color: colors.textPrimary,
     textAlign: 'center',
   },
-  action: {
-    marginTop: 20,
-  },
   message: {
-    marginTop: 8,
-    fontSize: 14,
-    lineHeight: 24,
-    color: colors.textSecondary,
+    ...font(400),
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textMuted,
     textAlign: 'center',
+  },
+  action: {
+    marginTop: spacing[2],
   },
 });
