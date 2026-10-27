@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { CardSurface } from '../../shared/components/Card';
 import FeedbackIcon from '../../shared/components/FeedbackIcon';
@@ -10,7 +10,7 @@ import PillButton from '../../shared/components/PillButton';
 import Skeleton from '../../shared/components/Skeleton';
 import Spinner from '../../shared/components/Spinner';
 import TextLink from '../../shared/components/TextLink';
-import { colors, font, gradients, radii, shadows, spacing, typography } from '../../shared/theme/tokens';
+import { colors, font, gradients, radii, spacing, textScale, typography } from '../../shared/theme/tokens';
 import { useGeneratorAvailable } from '../planGenerator/useGeneratorAvailable';
 import GymIcon from '../shell/GymIcon';
 import ProgressRing from '../workout/components/ProgressRing';
@@ -20,6 +20,27 @@ import ProgressRing from '../workout/components/ProgressRing';
 // except the approved #42 "Build me a plan" (gated like the generator entry).
 
 export const LOADING_LABEL = 'Loading dashboard';
+
+// UX §9 large text. Caps per role; titles wrap by word (max 3 lines) and a
+// single long word shrinks the title (titles only); body copy and labels
+// scale to 2.0 and never truncate.
+const TITLE_FIT = { numberOfLines: 3, adjustsFontSizeToFit: true, minimumFontScale: 0.7, textBreakStrategy: 'simple' };
+export const LARGE_TEXT = Object.freeze({
+  display: { ...TITLE_FIT, maxFontSizeMultiplier: textScale.display },
+  title: { ...TITLE_FIT, maxFontSizeMultiplier: textScale.title },
+  // Big stat numbers (34–72): display-sized, capped, never shrunk.
+  number: { maxFontSizeMultiplier: textScale.display },
+  body: { maxFontSizeMultiplier: textScale.body },
+  // Text inside fixed geometry (the avatar circle).
+  badge: { maxFontSizeMultiplier: textScale.badge },
+});
+const LT = LARGE_TEXT;
+
+// Reflow past textScale.reflowAbove (§9 rule 4); live, never cached.
+export function useReflow() {
+  const { fontScale } = useWindowDimensions();
+  return fontScale > textScale.reflowAbove;
+}
 
 // The main Today board's header: a 44 gold avatar (60 on tablet), the
 // "{weekday}, {Mon} {d}" line and the page heading "Welcome back, {name}"
@@ -35,13 +56,15 @@ export function TodayHeader({ initials, dateLabel, greeting, tablet }) {
         importantForAccessibility="no-hide-descendants"
       >
         <GradientFill angle={gradients.gold.angle} colors={gradients.gold.colors} stops={gradients.gold.stops} />
-        <Text style={[styles.avatarText, tablet && styles.avatarTextTablet]}>{initials}</Text>
+        <Text {...LT.badge} style={[styles.avatarText, tablet && styles.avatarTextTablet]}>
+          {initials}
+        </Text>
       </View>
       <View style={styles.headerText}>
-        <Text testID="home-date" style={tablet ? styles.dateLineTablet : styles.dateLine}>
+        <Text testID="home-date" {...LT.body} style={tablet ? styles.dateLineTablet : styles.dateLine}>
           {dateLabel}
         </Text>
-        <Text testID="home-greeting" accessibilityRole="header" style={tablet ? styles.greetingTablet : styles.greeting}>
+        <Text testID="home-greeting" accessibilityRole="header" {...LT.display} style={tablet ? styles.greetingTablet : styles.greeting}>
           {greeting}
         </Text>
       </View>
@@ -76,7 +99,9 @@ export function TodayLoading({ tablet }) {
           <GlassSurface radius={60} shadow={false} style={styles.disc}>
             <Spinner size={72} thickness={6} track={colors.hairlineStrong} />
           </GlassSurface>
-          <Text style={styles.statusTabletText}>{LOADING_LABEL}</Text>
+          <Text {...LT.body} style={styles.statusTabletText}>
+            {LOADING_LABEL}
+          </Text>
         </View>
       </View>
     );
@@ -122,10 +147,12 @@ export function TodayError({ message, tablet }) {
       <View style={[styles.errorTile, tablet && styles.errorTileTablet]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <FeedbackIcon name="error" size={tablet ? 44 : 28} color={colors.dangerText} />
       </View>
-      <Text accessibilityRole="header" style={tablet ? styles.errorTitleTablet : styles.errorTitle}>
+      <Text accessibilityRole="header" {...(tablet ? LT.display : LT.title)} style={tablet ? styles.errorTitleTablet : styles.errorTitle}>
         Dashboard unavailable
       </Text>
-      <Text style={tablet ? styles.errorMessageTablet : styles.errorMessage}>{message || 'Please try again.'}</Text>
+      <Text {...LT.body} style={tablet ? styles.errorMessageTablet : styles.errorMessage}>
+        {message || 'Please try again.'}
+      </Text>
     </View>
   );
 }
@@ -134,13 +161,13 @@ export function TodayError({ message, tablet }) {
 // says `available: true` (the generator entry's gate). Hidden while loading,
 // when unavailable, for a member with a trainer (403) and on any error. It
 // mounts only in the no-plan state, so only then is the profile requested.
-function BuildPlanAction({ tablet, onBuildPlan }) {
+function BuildPlanAction({ tablet, stacked, onBuildPlan }) {
   const available = useGeneratorAvailable();
   if (!available) {
     return null;
   }
   return tablet ? (
-    <PillButton testID="home-build-plan" title="Build me a plan" variant="secondary" size="cta" onPress={onBuildPlan} />
+    <PillButton testID="home-build-plan" title="Build me a plan" variant="secondary" size="cta" fullWidth={stacked} onPress={onBuildPlan} />
   ) : (
     <View style={styles.buildLink}>
       <TextLink testID="home-build-plan" label="Build me a plan" onPress={onBuildPlan} />
@@ -152,23 +179,34 @@ function BuildPlanAction({ tablet, onBuildPlan }) {
 // "Choose a plan" (+ #42), the stat tiles, the weight card and the recent
 // workouts empty box. Data and copy are v1's.
 export function TodayEmpty({ tablet, stats, weight, weightValues, recentEmpty, recentList, onChoosePlan, onBuildPlan, onSeeProgress, onAddWeight }) {
+  // §9: past 1.3 the button pair stacks, the tile rows and the tablet grid
+  // become one column and trailing links/rings drop below their text.
+  const reflow = useReflow();
+  const stacked = reflow ? styles.stacked : null;
   const zero = (value) => (value === 0 ? styles.numberDim : null);
   const hero = (
     <CardSurface hero testID="home-empty-hero" style={tablet ? styles.heroTablet : styles.heroPhone}>
       <View pointerEvents="none" style={tablet ? styles.heroGlowTablet : styles.heroGlowPhone}>
         <GradientFill radial={gradients.heroGlow.radial} colors={gradients.heroGlow.colors} stops={gradients.heroGlow.stops} />
       </View>
-      <View style={[styles.heroTile, tablet && styles.heroTileTablet]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <View
+        testID="home-empty-hero-tile"
+        style={[styles.heroTile, tablet ? styles.heroTileTablet : styles.heroTilePhone]}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
         <GymIcon name="library" size={tablet ? 38 : 34} color={colors.gold} />
       </View>
-      <Text accessibilityRole="header" style={tablet ? styles.heroTitleTablet : styles.heroTitle}>
+      <Text accessibilityRole="header" {...(tablet ? LT.display : LT.title)} style={tablet ? styles.heroTitleTablet : styles.heroTitle}>
         No active plan yet
       </Text>
-      <Text style={tablet ? styles.heroBodyTablet : styles.heroBody}>Pick a workout plan to unlock your weekly schedule and guided workouts.</Text>
+      <Text {...LT.body} style={tablet ? styles.heroBodyTablet : styles.heroBody}>
+        Pick a workout plan to unlock your weekly schedule and guided workouts.
+      </Text>
       {tablet ? (
-        <View style={styles.heroActions}>
-          <PillButton testID="home-choose-plan" title="Choose a plan" size="cta" onPress={onChoosePlan} />
-          <BuildPlanAction tablet onBuildPlan={onBuildPlan} />
+        <View testID="home-empty-actions" style={[styles.heroActions, reflow && styles.heroActionsStacked]}>
+          <PillButton testID="home-choose-plan" title="Choose a plan" size="cta" fullWidth={reflow} onPress={onChoosePlan} />
+          <BuildPlanAction tablet stacked={reflow} onBuildPlan={onBuildPlan} />
         </View>
       ) : (
         <>
@@ -180,54 +218,89 @@ export function TodayEmpty({ tablet, stats, weight, weightValues, recentEmpty, r
   );
 
   const thisWeekTile = (
-    <View testID="home-stat-this-week" accessible accessibilityLabel={`This week ${stats.thisWeekText} ${stats.plannedText} Planned`} style={[styles.tile, tablet && styles.tileTablet]}>
+    <View
+      testID="home-stat-this-week"
+      accessible
+      accessibilityLabel={`This week ${stats.thisWeekText} ${stats.plannedText} Planned`}
+      style={[styles.tile, tablet && styles.tileTablet, stacked]}
+    >
       {tablet ? (
-        <View style={styles.tileRow}>
+        <View testID="home-stat-this-week-row" style={[styles.tileRow, reflow && styles.tileRowStacked]}>
           <ProgressRing value={stats.thisWeek} total={stats.planned} size={96} thickness={10} label={stats.ringLabel} />
           <View style={styles.tileText}>
-            <Text style={styles.tileLabelTablet}>This week</Text>
-            <Text style={[styles.numberTablet, zero(stats.thisWeek)]}>
+            <Text {...LT.body} style={styles.tileLabelTablet}>
+              This week
+            </Text>
+            <Text {...LT.number} style={[styles.numberTablet, zero(stats.thisWeek)]}>
               {stats.thisWeekText}
               <Text style={styles.denominatorTablet}>{stats.plannedText}</Text>
             </Text>
-            <Text style={styles.tileCaptionTablet}>Planned</Text>
+            <Text {...LT.body} style={styles.tileCaptionTablet}>
+              Planned
+            </Text>
           </View>
         </View>
       ) : (
         <>
-          <Text style={styles.tileLabel}>This week</Text>
-          <Text style={[styles.number, zero(stats.thisWeek)]}>
+          <Text {...LT.body} style={styles.tileLabel}>
+            This week
+          </Text>
+          <Text {...LT.number} style={[styles.number, zero(stats.thisWeek)]}>
             {stats.thisWeekText}
             <Text style={styles.denominator}>{stats.plannedText}</Text>
           </Text>
-          <Text style={styles.tileCaption}>Planned</Text>
+          <Text {...LT.body} style={styles.tileCaption}>
+            Planned
+          </Text>
         </>
       )}
     </View>
   );
   const doneTile = (
-    <View testID="home-stat-done" accessible accessibilityLabel={`Done total ${stats.doneTotalText} workouts`} style={[styles.tile, tablet && styles.tileTablet]}>
-      <Text style={tablet ? styles.tileLabelTablet : styles.tileLabel}>Done total</Text>
-      <Text style={[tablet ? styles.numberLarge : styles.number, zero(stats.doneTotal)]}>{stats.doneTotalText}</Text>
-      <Text style={tablet ? styles.tileCaptionTablet : styles.tileCaption}>workouts</Text>
+    <View
+      testID="home-stat-done"
+      accessible
+      accessibilityLabel={`Done total ${stats.doneTotalText} workouts`}
+      style={[styles.tile, tablet && styles.tileTablet, stacked]}
+    >
+      <Text {...LT.body} style={tablet ? styles.tileLabelTablet : styles.tileLabel}>
+        Done total
+      </Text>
+      <Text {...LT.number} style={[tablet ? styles.numberLarge : styles.number, zero(stats.doneTotal)]}>
+        {stats.doneTotalText}
+      </Text>
+      <Text {...LT.body} style={tablet ? styles.tileCaptionTablet : styles.tileCaption}>
+        workouts
+      </Text>
     </View>
   );
 
   const weightCard = (
-    <View testID="home-weight" style={[styles.tile, tablet ? styles.tileTablet : styles.weightPhone]}>
-      <View style={styles.weightHeader}>
-        <Text style={tablet ? styles.cardTitleTablet : styles.cardTitle}>Weight</Text>
+    <View testID="home-weight" style={[styles.tile, tablet ? styles.tileTablet : styles.weightPhone, stacked]}>
+      <View testID="home-weight-header" style={[styles.weightHeader, reflow && styles.trailingBelow]}>
+        <Text {...(tablet ? LT.title : LT.body)} style={tablet ? styles.cardTitleTablet : styles.cardTitle}>
+          Weight
+        </Text>
         <TextLink testID="home-see-progress" label="See progress" onPress={onSeeProgress} />
       </View>
-      {weight.hasData ? weightValues : <Text style={tablet ? styles.weightBodyTablet : styles.weightBody}>Log today's weight to start tracking your trend.</Text>}
+      {weight.hasData ? (
+        weightValues
+      ) : (
+        <Text {...LT.body} style={tablet ? styles.weightBodyTablet : styles.weightBody}>
+          Log today's weight to start tracking your trend.
+        </Text>
+      )}
       {tablet ? (
-        <Pressable
-          testID="home-add-weight"
-          accessibilityRole="button"
-          onPress={onAddWeight}
-          style={({ pressed }) => [styles.addWeightTablet, pressed && styles.addWeightTabletPressed]}
-        >
-          <Text style={styles.addWeightTabletText}>Add weight log</Text>
+        <Pressable testID="home-add-weight" accessibilityRole="button" onPress={onAddWeight} style={styles.addWeightTablet}>
+          {({ pressed }) => (
+            <>
+              {/* STATE RULE (§8.6): pressed = the gold tint + a white 4 % overlay. */}
+              {pressed ? <View testID="home-add-weight-pressed" pointerEvents="none" style={[StyleSheet.absoluteFill, styles.pressOverlay]} /> : null}
+              <Text {...LT.body} style={styles.addWeightTabletText}>
+                Add weight log
+              </Text>
+            </>
+          )}
         </Pressable>
       ) : (
         <PillButton testID="home-add-weight" title="Add weight log" variant="secondary" size="compact" fullWidth onPress={onAddWeight} style={styles.addWeightPhone} />
@@ -235,8 +308,8 @@ export function TodayEmpty({ tablet, stats, weight, weightValues, recentEmpty, r
     </View>
   );
   const recentCard = recentEmpty ? (
-    <View testID="home-recent-empty" style={tablet ? [styles.tile, styles.tileTablet] : styles.recentEmptyPhone}>
-      <Text accessibilityRole="header" style={tablet ? styles.cardTitleTablet : styles.cardTitle}>
+    <View testID="home-recent-empty" style={tablet ? [styles.tile, styles.tileTablet, stacked] : [styles.recentEmptyPhone, stacked]}>
+      <Text accessibilityRole="header" {...(tablet ? LT.title : LT.body)} style={tablet ? styles.cardTitleTablet : styles.cardTitle}>
         Recent workouts
       </Text>
       {tablet ? (
@@ -244,40 +317,52 @@ export function TodayEmpty({ tablet, stats, weight, weightValues, recentEmpty, r
           <GymIcon name="workout" size={26} color={colors.teal} />
         </View>
       ) : null}
-      <Text style={tablet ? styles.recentTitleTablet : styles.recentTitle}>No completed workouts yet</Text>
-      <Text style={tablet ? styles.recentBodyTablet : styles.recentBody}>Once you finish a workout, it will show up here.</Text>
+      <Text {...(tablet ? LT.title : LT.body)} style={tablet ? styles.recentTitleTablet : styles.recentTitle}>
+        No completed workouts yet
+      </Text>
+      <Text {...LT.body} style={tablet ? styles.recentBodyTablet : styles.recentBody}>
+        Once you finish a workout, it will show up here.
+      </Text>
     </View>
   ) : (
     recentList
   );
+  const lastWorkout = stats.lastWorkout ? (
+    <Text {...LT.body} style={styles.lastWorkout}>
+      {stats.lastWorkout}
+    </Text>
+  ) : null;
 
   if (tablet) {
+    const cell = [styles.gridCell, reflow && styles.gridCellFull];
     return (
       <View style={styles.stackTablet}>
         {hero}
         <View style={styles.grid}>
-          <View style={styles.gridCell}>{thisWeekTile}</View>
-          <View style={styles.gridCell}>{doneTile}</View>
-          <View style={styles.gridCell}>{weightCard}</View>
-          {recentEmpty ? <View style={styles.gridCell}>{recentCard}</View> : null}
+          <View testID="home-grid-cell" style={cell}>
+            {thisWeekTile}
+          </View>
+          <View style={cell}>{doneTile}</View>
+          <View style={cell}>{weightCard}</View>
+          {recentEmpty ? <View style={cell}>{recentCard}</View> : null}
         </View>
-        {stats.lastWorkout ? <Text style={styles.lastWorkout}>{stats.lastWorkout}</Text> : null}
+        {lastWorkout}
         {recentEmpty ? null : recentCard}
       </View>
     );
   }
 
   // The board's two-up cards row is the no-data case; with weight values or
-  // a recent list the cards stack full width.
-  const twoUp = recentEmpty && !weight.hasData;
+  // a recent list (or past the reflow scale) the cards stack full width.
+  const twoUp = recentEmpty && !weight.hasData && !reflow;
   return (
     <View style={styles.stack}>
       {hero}
-      <View style={styles.row}>
+      <View testID="home-stat-row" style={reflow ? styles.stack : styles.row}>
         {thisWeekTile}
         {doneTile}
       </View>
-      {stats.lastWorkout ? <Text style={styles.lastWorkout}>{stats.lastWorkout}</Text> : null}
+      {lastWorkout}
       {twoUp ? (
         <View style={styles.row}>
           {weightCard}
@@ -371,6 +456,18 @@ const styles = StyleSheet.create({
     width: '50%',
     paddingHorizontal: spacing[2],
   },
+  // §9 reflow: one column; flex:1 cells would collapse in a column.
+  gridCellFull: {
+    width: '100%',
+  },
+  stacked: {
+    flex: 0,
+  },
+  trailingBelow: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+  },
   // Loading
   skeletonHero: {
     borderRadius: radii.xxl,
@@ -417,13 +514,14 @@ const styles = StyleSheet.create({
     width: 80,
     height: 10,
   },
-  // A hollow ring (no shimmer): 64 with an 8 px skeleton edge.
+  // A hollow ring (no shimmer): 64 with an 8 px skeleton edge (the board's
+  // grey folds into color-skeleton, UX §8.5).
   skRing: {
     width: 64,
     height: 64,
     borderRadius: radii.full,
     borderWidth: 8,
-    borderColor: colors.fillSkeleton,
+    borderColor: colors.skeleton,
   },
   skNumber: {
     width: 60,
@@ -462,7 +560,8 @@ const styles = StyleSheet.create({
     height: 120,
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: shadows.goldGlowLarge,
+    // The board's glow (0 0 80 −10) in gold-strong (ladder: 0.45 → 0.60).
+    boxShadow: `0px 0px 80px -10px ${colors.goldStrong}`,
   },
   statusTabletText: {
     ...font(600),
@@ -475,7 +574,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: radii.xxl,
     borderWidth: 1,
-    borderColor: colors.dangerDotBorder,
+    borderColor: colors.dangerLine,
   },
   errorCardPhone: {
     marginTop: spacing[2],
@@ -509,24 +608,24 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.dangerTextTint,
+    backgroundColor: colors.dangerTint,
   },
   errorTileTablet: {
     width: 104,
     height: 104,
     borderRadius: spacing[8],
   },
-  // D1: the title in danger-text, the message in text-secondary (the board's
-  // lighter reds have no token). Tablet names its tokens: primary / strong-2.
+  // Phone: the board's light reds = danger-text-soft (the message's paler
+  // red folds into it, UX §8.5). Tablet names its tokens: primary / strong-2.
   errorTitle: {
     ...typography.titleLg,
     marginTop: spacing['4_5'],
-    color: colors.dangerText,
+    color: colors.dangerTextSoft,
   },
   errorMessage: {
     ...typography.body,
     marginTop: spacing[2],
-    color: colors.textSecondary,
+    color: colors.dangerTextSoft,
   },
   errorTitleTablet: {
     ...typography.displayMd,
@@ -569,15 +668,19 @@ const styles = StyleSheet.create({
     height: 380,
   },
   heroTile: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.goldTint,
+  },
+  // Phone: gold-line ring (0.3) and the board's 0 0 40 −6 glow in
+  // gold-strong (0.5 → 0.60). Tablet: the tint only, as drawn.
+  heroTilePhone: {
     width: 76,
     height: 76,
     borderRadius: radii.xl,
     borderWidth: 1,
-    borderColor: colors.goldBorder,
-    backgroundColor: colors.goldTint,
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: shadows.goldGlow,
+    borderColor: colors.goldLine,
+    boxShadow: `0px 0px 40px -6px ${colors.goldStrong}`,
   },
   heroTileTablet: {
     width: 84,
@@ -615,6 +718,11 @@ const styles = StyleSheet.create({
     gap: spacing[3],
     marginTop: spacing['1_5'],
   },
+  // §9: the pair stacks, primary on top, both full width.
+  heroActionsStacked: {
+    flexDirection: 'column',
+    alignSelf: 'stretch',
+  },
   choosePhone: {
     marginTop: spacing[6],
   },
@@ -642,6 +750,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[5],
+  },
+  tileRowStacked: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
   },
   tileText: {
     flex: 1,
@@ -749,20 +861,22 @@ const styles = StyleSheet.create({
   addWeightPhone: {
     marginTop: spacing['2_5'],
   },
-  // ND4: the gold-tint "Add weight log" (52).
+  // ND4: the gold-tint "Add weight log" (52), gold-line edge (0.35 → 0.30).
   addWeightTablet: {
     alignSelf: 'flex-start',
     minHeight: 52,
     marginTop: spacing[4],
     justifyContent: 'center',
+    overflow: 'hidden',
     borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: colors.goldBorder,
+    borderColor: colors.goldLine,
     backgroundColor: colors.goldTint,
     paddingHorizontal: spacing['5_5'],
+    paddingVertical: spacing['1_5'],
   },
-  addWeightTabletPressed: {
-    backgroundColor: colors.goldTintTab,
+  pressOverlay: {
+    backgroundColor: colors.pressOverlay,
   },
   addWeightTabletText: {
     ...font(700),
@@ -777,7 +891,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.xl,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: colors.hairlineButton,
+    // The board's dashed 0.14 → hairline-strong (UX §8.5 white ladder).
+    borderColor: colors.hairlineStrong,
     backgroundColor: colors.fillWell,
     padding: spacing[4],
     gap: spacing['1_5'],

@@ -17,7 +17,7 @@ import SegmentedSwitch from '../../shared/components/SegmentedSwitch';
 import Select from '../../shared/components/Select';
 import { useKeyboardHeight } from '../../shared/hooks/useKeyboardHeight';
 import { useReducedMotion } from '../../shared/hooks/useReducedMotion';
-import { breakpoints, colors, font, gradients, motion, radii, spacing, typography } from '../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, motion, radii, spacing, textScale, typography } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
 import { getScreenTab } from '../shell/shellNavigation';
 import { createProfile } from './api/profileApi';
@@ -61,6 +61,14 @@ const GOLD_CARET = { selectionColor: colors.gold, cursorColor: colors.gold };
 const HEIGHT_HELPER = 'Feet and inches are shown first. Switch to cm or inches if that is how you measure height.';
 // Phone CTA bar (ND2): padding 16 20 30 above the safe area.
 const BAR_BOTTOM = 30;
+// UX §9 large text: the page title caps at 1.3, wraps by word (max 3 lines)
+// and shrinks a single long word; body, labels and inputs scale to 2.0; the
+// G in its fixed 32 tile caps at 1.2.
+const TITLE = { numberOfLines: 3, adjustsFontSizeToFit: true, minimumFontScale: 0.7, textBreakStrategy: 'simple', maxFontSizeMultiplier: textScale.display };
+const BODY = { maxFontSizeMultiplier: textScale.body };
+const BADGE = { maxFontSizeMultiplier: textScale.badge };
+// The board draws every field label in text-strong-2.
+const LABEL = { color: colors.textStrong2 };
 
 // Create profile (RN-SPEC-profile-create; v2 Phase 2 B1): one step, no
 // navigation (⚠P7). Shown by the gate while the profile is missing. Phone:
@@ -71,7 +79,10 @@ export default function CreateProfileScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
-  const { width } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
+  // §9 reflow (live): the 2-column pairs become one column and the weight
+  // unit switch drops below its label.
+  const reflow = fontScale > textScale.reflowAbove;
   // The layout is fixed at mount: the phone bar's fade is a gradient, and a
   // gradient is never added on a later change (Android render rule).
   const [tablet] = useState(() => width >= breakpoints.md);
@@ -171,6 +182,8 @@ export default function CreateProfileScreen() {
       returnKeyType="go"
       onSubmitEditing={submit}
       accessibilityState={{ invalid: Boolean(fieldErrors[key]) }}
+      labelStyle={LABEL}
+      {...BODY}
       {...NO_AUTOFILL}
       {...GOLD_CARET}
       {...(NUMBER_FIELDS.includes(key) ? { keyboardType: WEIGHT_FIELDS.includes(key) ? 'decimal-pad' : NUMBER_KEYBOARD } : null)}
@@ -184,7 +197,7 @@ export default function CreateProfileScreen() {
   const firstName = input('first_name', { label: 'First Name', placeholder: 'John' });
   const lastName = input('last_name', { label: 'Last Name', placeholder: 'Doe' });
   const heightSwitch = (
-    <FieldFrame label="Height unit" helperText={HEIGHT_HELPER} error={fieldErrors.height_unit}>
+    <FieldFrame label="Height unit" helperText={HEIGHT_HELPER} error={fieldErrors.height_unit} labelStyle={LABEL}>
       <SegmentedSwitch
         testID="profile-height-unit"
         accessibilityLabel="Height unit"
@@ -192,13 +205,16 @@ export default function CreateProfileScreen() {
         value={form.height_unit}
         onChange={changeHeightUnit}
         segmentWidth={tablet ? 96 : undefined}
-        style={tablet ? null : styles.switchStretch}
+        style={tablet ? styles.switchWell : styles.switchStretch}
       />
     </FieldFrame>
   );
+  // §9: past 1.3 every 2-column pair is one column.
+  const pair = reflow ? styles.pairStacked : tablet ? styles.pairTablet : styles.pair;
+  const cell = reflow ? styles.cellStacked : styles.cell;
   const heightFields = ftIn ? (
-    <View style={styles.pair}>
-      <View style={styles.cell}>
+    <View testID="profile-height-pair" style={reflow ? styles.pairStacked : styles.pair}>
+      <View style={cell}>
         {number('height_feet', {
           label: 'Feet',
           placeholder: '5',
@@ -207,7 +223,7 @@ export default function CreateProfileScreen() {
           error: fieldErrors.height_value ?? fieldErrors.height_feet,
         })}
       </View>
-      <View style={styles.cell}>
+      <View style={cell}>
         {number('height_inches', {
           label: 'Inches',
           placeholder: '9',
@@ -225,8 +241,10 @@ export default function CreateProfileScreen() {
     })
   );
   const weightUnitRow = (
-    <View style={styles.unitRow}>
-      <Text style={styles.rowLabel}>Weight unit</Text>
+    <View testID="profile-weight-unit-row" style={[styles.unitRow, reflow && styles.unitRowStacked]}>
+      <Text {...BODY} style={styles.rowLabel}>
+        Weight unit
+      </Text>
       <SegmentedSwitch
         testID="profile-weight-unit"
         accessibilityLabel="Weight unit"
@@ -235,6 +253,7 @@ export default function CreateProfileScreen() {
         onChange={(value) => setForm((current) => ({ ...current, weight_unit: value }))}
         compact={!tablet}
         segmentWidth={tablet ? 72 : 64}
+        style={tablet ? styles.switchWell : null}
       />
     </View>
   );
@@ -252,12 +271,13 @@ export default function CreateProfileScreen() {
     <DateInput
       testID="profile-date-of-birth"
       label="Date of Birth"
+      labelStyle={LABEL}
       value={form.date_of_birth}
       onChange={(value) => setForm((current) => ({ ...current, date_of_birth: value }))}
     />
   );
   const sex = (
-    <Select testID="profile-sex" label="Sex" value={form.sex} options={SEX_OPTIONS} onChange={(value) => setForm((current) => ({ ...current, sex: value }))} />
+    <Select testID="profile-sex" label="Sex" labelStyle={LABEL} value={form.sex} options={SEX_OPTIONS} onChange={(value) => setForm((current) => ({ ...current, sex: value }))} />
   );
   const submitButton = <PillButton testID="profile-submit" title="Create profile" size="cta" fullWidth loading={submitting} onPress={submit} />;
   const feedback = (
@@ -290,9 +310,13 @@ export default function CreateProfileScreen() {
           {tablet ? (
             <View style={styles.brandRow}>
               <View style={styles.brandTile} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-                <Text style={styles.brandLetter}>G</Text>
+                <Text {...BADGE} style={styles.brandLetter}>
+                  G
+                </Text>
               </View>
-              <Text style={styles.brandName}>Gymido</Text>
+              <Text {...BODY} style={styles.brandName}>
+                Gymido
+              </Text>
             </View>
           ) : null}
           <View>
@@ -301,34 +325,36 @@ export default function CreateProfileScreen() {
             <Text
               accessibilityRole="header"
               accessibilityLabel="Create Profile"
-              textBreakStrategy="simple"
+              {...TITLE}
               style={tablet ? styles.titleTablet : styles.titlePhone}
             >
               {tablet ? 'Create Profile' : 'Create\n'}
               {tablet ? null : <Text style={styles.titleGold}>Profile</Text>}
             </Text>
-            <Text style={tablet ? styles.subtitleTablet : styles.subtitlePhone}>A quick setup so we can tailor your workout plan.</Text>
+            <Text {...BODY} style={tablet ? styles.subtitleTablet : styles.subtitlePhone}>
+              A quick setup so we can tailor your workout plan.
+            </Text>
           </View>
           {feedback}
           {tablet ? (
             <>
               <CardSurface hero testID="profile-card-body" style={styles.tabletCard}>
-                <View style={styles.pairTablet}>
-                  <View style={styles.cell}>{firstName}</View>
-                  <View style={styles.cell}>{lastName}</View>
+                <View testID="profile-names-pair" style={pair}>
+                  <View style={cell}>{firstName}</View>
+                  <View style={cell}>{lastName}</View>
                 </View>
                 {heightSwitch}
                 {heightFields}
               </CardSurface>
               <CardSurface hero testID="profile-card-weight" style={styles.tabletCard}>
                 {weightUnitRow}
-                <View style={styles.pairTablet}>
-                  <View style={styles.cell}>{currentWeight}</View>
-                  <View style={styles.cell}>{goalWeight}</View>
+                <View testID="profile-weights-pair" style={pair}>
+                  <View style={cell}>{currentWeight}</View>
+                  <View style={cell}>{goalWeight}</View>
                 </View>
-                <View style={styles.pairTablet}>
-                  <View style={styles.cell}>{dateOfBirth}</View>
-                  <View style={styles.cell}>{sex}</View>
+                <View style={pair}>
+                  <View style={cell}>{dateOfBirth}</View>
+                  <View style={cell}>{sex}</View>
                 </View>
               </CardSurface>
               <View>
@@ -339,22 +365,22 @@ export default function CreateProfileScreen() {
             </>
           ) : (
             <>
-              <View testID="profile-section-names" style={[styles.section, styles.pair]}>
-                <View style={styles.cell}>{firstName}</View>
-                <View style={styles.cell}>{lastName}</View>
+              <View testID="profile-section-names" style={[styles.section, pair]}>
+                <View style={cell}>{firstName}</View>
+                <View style={cell}>{lastName}</View>
               </View>
               <View testID="profile-section-height-unit" style={styles.section}>
                 {heightSwitch}
               </View>
               {heightFields}
               {weightUnitRow}
-              <View style={styles.pair}>
-                <View style={styles.cell}>{currentWeight}</View>
-                <View style={styles.cell}>{goalWeight}</View>
+              <View testID="profile-weights-pair" style={pair}>
+                <View style={cell}>{currentWeight}</View>
+                <View style={cell}>{goalWeight}</View>
               </View>
-              <View style={styles.pair}>
-                <View style={styles.cell}>{dateOfBirth}</View>
-                <View style={styles.cell}>{sex}</View>
+              <View style={pair}>
+                <View style={cell}>{dateOfBirth}</View>
+                <View style={cell}>{sex}</View>
               </View>
             </>
           )}
@@ -464,8 +490,20 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  pairStacked: {
+    flexDirection: 'column',
+    gap: spacing[3],
+  },
+  // flex:1 would collapse in a column.
+  cellStacked: {
+    minWidth: 0,
+  },
   switchStretch: {
     alignSelf: 'stretch',
+  },
+  // Tablet: segmented tracks are wells (UX §8.3 surface-well, as drawn).
+  switchWell: {
+    backgroundColor: colors.surfaceWell,
   },
   unitRow: {
     flexDirection: 'row',
@@ -473,15 +511,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing[3],
   },
+  unitRowStacked: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+  },
   rowLabel: {
     ...typography.label,
-    color: colors.textSecondary,
+    color: colors.textStrong2,
   },
   // ND6: the input inside the kit box (1 px border) → 64 tall, 32/700
-  // tabular, room for the unit suffix at the right.
+  // tabular, room for the unit suffix at the right. §9: minHeight, so the
+  // scaled digits are never clipped.
   bigInput: {
     ...font(700),
-    height: 62,
+    minHeight: 62,
     paddingVertical: 0,
     paddingLeft: spacing[4],
     paddingRight: 40,

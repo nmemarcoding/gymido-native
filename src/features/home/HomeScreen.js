@@ -5,7 +5,7 @@ import EmptyState from '../../shared/components/EmptyState';
 import { InlineToast } from '../../shared/components/ToastHost';
 import { ToastTone } from '../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
-import { breakpoints, colors, radii, shadows } from '../../shared/theme/tokens';
+import { breakpoints, colors, radii, shadows, textScale } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
 import { getCurrentPlan, listPlanDays } from '../plans/api/libraryApi';
 import { applySavedWeightLog, useProfileStore } from '../profile/profileStore';
@@ -23,10 +23,14 @@ import {
   todayEmptyStats,
   weightCard,
 } from './homeFormat';
-import { TodayEmpty, TodayError, TodayHeader, TodayLoading } from './TodayStates';
+import { LARGE_TEXT as LT, TodayEmpty, TodayError, TodayHeader, TodayLoading, useReflow } from './TodayStates';
 import WeightLogModal from './WeightLogModal';
 
 const SAVED_TOAST_MS = 3500;
+// §9: status-pill text is fixed-geometry chrome (1.6).
+const PILL_TEXT = { maxFontSizeMultiplier: textScale.pill };
+// Stat values (18–20 px): the title cap, never shrunk.
+const VALUE_TEXT = { maxFontSizeMultiplier: textScale.title };
 
 const PILL_TONES = {
   success: { background: colors.successTint, text: colors.success700, dot: colors.success },
@@ -71,6 +75,9 @@ function Home() {
   // Fixed per mount (every Today focus remounts): the states draw gradients,
   // which are never swapped on a later change (Android render rule).
   const [tablet] = useState(() => width >= breakpoints.md);
+  // §9 reflow (live): stat columns → label/value rows, trailing pills below,
+  // the button pair stacks.
+  const reflow = useReflow();
   const [load, setLoad] = useState({ status: 'loading', dashboard: null, error: null });
   // T-24 (25 Oct 2026): the ProfileGate already loaded the profile; Home reads the store.
   const profile = useProfileStore((state) => state.profile);
@@ -155,32 +162,41 @@ function Home() {
     <InlineToast testID="home-saved-toast" tone={ToastTone.success} title="Saved" message={successMessage} />
   ) : null;
   const weightValues = (
-    <View style={styles.weightValues}>
+    <View testID="home-weight-values" style={[styles.weightValues, reflow && styles.valuesStacked]}>
       {[
         ['Current', weight.current],
         ['Goal', weight.goal],
         ['To goal', weight.toGoal],
-      ].map(([label, value], index) => (
-        <View key={label} style={[styles.weightItem, index > 0 && styles.divider]}>
-          <Text numberOfLines={1} textBreakStrategy="simple" style={styles.weightValue}>{value}</Text>
-          <Text style={styles.stripLabel}>{label}</Text>
-        </View>
-      ))}
+      ].map(([label, value], index) =>
+        reflow ? (
+          <StatRow key={label} label={label} value={value} first={index === 0} valueStyle={styles.weightValue} />
+        ) : (
+          <View key={label} style={[styles.weightItem, index > 0 && styles.divider]}>
+            <Text {...VALUE_TEXT} numberOfLines={1} textBreakStrategy="simple" style={styles.weightValue}>
+              {value}
+            </Text>
+            <Text {...LT.body} style={styles.stripLabel}>
+              {label}
+            </Text>
+          </View>
+        )
+      )}
     </View>
   );
   const recentList = (
     <View>
-      <Text accessibilityRole="header" style={[styles.sectionTitle, styles.recentHeading]}>
+      <Text accessibilityRole="header" {...LT.body} style={[styles.sectionTitle, styles.recentHeading]}>
         Recent workouts
       </Text>
       <View style={styles.recentList}>
         {recent.map((workout, index) => (
-          <View key={workout.id ?? index} testID={`home-recent-${workout.id ?? index}`} style={[styles.card, styles.recentRow]}>
-            <View style={styles.textColumn}>
-              <Text numberOfLines={1} style={styles.recentTitle}>
+          <View key={workout.id ?? index} testID={`home-recent-${workout.id ?? index}`} style={[styles.card, styles.recentRow, reflow && styles.trailingBelow]}>
+            {/* §9: names may ellipsize in a dense list, 2 lines max. */}
+            <View style={[styles.textColumn, reflow && styles.textColumnStacked]}>
+              <Text {...LT.body} numberOfLines={2} style={styles.recentTitle}>
                 {workout.workout_plan_day?.title || 'Workout session'}
               </Text>
-              <Text numberOfLines={1} style={styles.recentMeta}>
+              <Text {...LT.body} numberOfLines={2} style={styles.recentMeta}>
                 {recentWorkoutMeta(workout)}
               </Text>
             </View>
@@ -231,25 +247,41 @@ function Home() {
       {toast}
       {header}
 
-      <TodayCard plan={plan} card={todayCard(dashboard, setupDayCount)} />
+      <TodayCard plan={plan} card={todayCard(dashboard, setupDayCount)} reflow={reflow} />
 
       <View>
-        <View testID="home-stats" style={[styles.strip, styles.card]}>
-          {stats.items.map((item, index) => (
-            <View key={item.label} style={[styles.stripItem, index > 0 && styles.divider]}>
-              <Text numberOfLines={1} textBreakStrategy="simple" style={styles.stripValue}>{item.value}</Text>
-              <Text style={styles.stripLabel}>{item.label}</Text>
-            </View>
-          ))}
+        <View testID="home-stats" style={[styles.strip, styles.card, reflow && styles.stripStacked]}>
+          {stats.items.map((item, index) =>
+            reflow ? (
+              <StatRow key={item.label} label={item.label} value={item.value} first={index === 0} valueStyle={styles.stripValue} />
+            ) : (
+              <View key={item.label} style={[styles.stripItem, index > 0 && styles.divider]}>
+                <Text {...VALUE_TEXT} numberOfLines={1} textBreakStrategy="simple" style={styles.stripValue}>
+                  {item.value}
+                </Text>
+                <Text {...LT.body} style={styles.stripLabel}>
+                  {item.label}
+                </Text>
+              </View>
+            )
+          )}
         </View>
-        {stats.lastWorkout ? <Text style={styles.lastWorkout}>{stats.lastWorkout}</Text> : null}
+        {stats.lastWorkout ? (
+          <Text {...LT.body} style={styles.lastWorkout}>
+            {stats.lastWorkout}
+          </Text>
+        ) : null}
       </View>
 
       <View testID="home-weight" style={[styles.card, styles.weightCard]}>
-        <View style={styles.weightHeader}>
-          <Text style={styles.sectionTitle}>Weight</Text>
+        <View style={[styles.weightHeader, reflow && styles.trailingBelow]}>
+          <Text {...LT.body} style={styles.sectionTitle}>
+            Weight
+          </Text>
           <Pressable testID="home-see-progress" accessibilityRole="link" hitSlop={12} onPress={() => openShellPath('/progress')}>
-            <Text style={styles.link}>See progress</Text>
+            <Text {...LT.body} style={styles.link}>
+              See progress
+            </Text>
           </Pressable>
         </View>
         {weight.hasData ? (
@@ -261,19 +293,25 @@ function Home() {
               onPress={() => setModalOpen(true)}
               style={({ pressed }) => [styles.secondaryButton, styles.mt16, pressed && styles.secondaryPressed]}
             >
-              <Text style={styles.secondaryText}>Add weight log</Text>
+              <Text {...LT.body} style={styles.secondaryText}>
+                Add weight log
+              </Text>
             </Pressable>
           </>
         ) : (
           <View style={styles.noWeight}>
-            <Text style={styles.noWeightText}>Log today's weight to start tracking your trend.</Text>
+            <Text {...LT.body} style={styles.noWeightText}>
+              Log today's weight to start tracking your trend.
+            </Text>
             <Pressable
               testID="home-add-weight"
               accessibilityRole="button"
               onPress={() => setModalOpen(true)}
               style={({ pressed }) => [styles.smallPrimary, pressed && styles.primaryPressed]}
             >
-              <Text numberOfLines={1} textBreakStrategy="simple" style={styles.primaryText}>Add weight log</Text>
+              <Text {...LT.body} style={styles.primaryText}>
+                Add weight log
+              </Text>
             </Pressable>
           </View>
         )}
@@ -281,7 +319,7 @@ function Home() {
 
       {recent.length === 0 ? (
         <View>
-          <Text accessibilityRole="header" style={[styles.sectionTitle, styles.recentHeading]}>
+          <Text accessibilityRole="header" {...LT.body} style={[styles.sectionTitle, styles.recentHeading]}>
             Recent workouts
           </Text>
           <EmptyState title="No completed workouts yet" message="Once you finish a workout, it will show up here." />
@@ -296,37 +334,48 @@ function Home() {
 }
 
 // H1.3 (23 Oct: no "TODAY" eyebrow; the sub-line is the plan name, 2 lines).
-function TodayCard({ plan, card }) {
+function TodayCard({ plan, card, reflow }) {
   return (
     <View testID="home-today-card" style={[styles.todayCard, styles.card]}>
       <View style={[styles.accent, { backgroundColor: card.state === 'missed' ? colors.warning : colors.brand400 }]} />
       <View style={styles.todayContent}>
-        <View style={styles.todayTop}>
-          <View style={styles.textColumn}>
-            <Text textBreakStrategy="simple" style={styles.headline}>{card.headline}</Text>
-            <Text numberOfLines={2} ellipsizeMode="tail" style={styles.sub}>
+        <View style={[styles.todayTop, reflow && styles.trailingBelow]}>
+          <View style={[styles.textColumn, reflow && styles.textColumnStacked]}>
+            <Text {...LT.title} style={styles.headline}>
+              {card.headline}
+            </Text>
+            <Text {...LT.body} numberOfLines={2} ellipsizeMode="tail" style={styles.sub}>
               {card.sub ?? plan.name}
             </Text>
-            {card.moreMissed ? <Text style={styles.moreMissed}>{card.moreMissed}</Text> : null}
+            {card.moreMissed ? (
+              <Text {...LT.body} style={styles.moreMissed}>
+                {card.moreMissed}
+              </Text>
+            ) : null}
           </View>
           <StatusPill tone={card.tone} label={card.pill} />
         </View>
-        <View style={styles.buttons}>
+        {/* §9: past 1.3 the pair stacks, primary on top, both full width. */}
+        <View testID="home-today-buttons" style={[styles.buttons, reflow && styles.buttonsStacked]}>
           <Pressable
             testID="home-today-primary"
             accessibilityRole="button"
             onPress={() => openShellPath('/workout')}
-            style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed]}
+            style={({ pressed }) => [styles.primary, reflow && styles.buttonStacked, pressed && styles.primaryPressed]}
           >
-            <Text numberOfLines={1} textBreakStrategy="simple" style={styles.primaryText}>{card.primary}</Text>
+            <Text {...LT.body} style={styles.primaryText}>
+              {card.primary}
+            </Text>
           </Pressable>
           <Pressable
             testID="home-view-plan"
             accessibilityRole="button"
             onPress={() => openPlanDetailAlone(plan.id)}
-            style={({ pressed }) => [styles.viewPlan, pressed && styles.secondaryPressed]}
+            style={({ pressed }) => [styles.viewPlan, reflow && styles.buttonStacked, pressed && styles.secondaryPressed]}
           >
-            <Text style={styles.secondaryText}>View plan</Text>
+            <Text {...LT.body} style={styles.secondaryText}>
+              View plan
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -340,7 +389,23 @@ function StatusPill({ tone, label }) {
   return (
     <View style={[styles.pill, { backgroundColor: look.background }]}>
       <View style={[styles.pillDot, { backgroundColor: look.dot }]} accessibilityElementsHidden importantForAccessibility="no" />
-      <Text style={[styles.pillText, { color: look.text }]}>{label}</Text>
+      <Text {...PILL_TEXT} style={[styles.pillText, { color: look.text }]}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+// §9 rule 4: a stat column past 1.3 becomes a label → value row.
+function StatRow({ label, value, first, valueStyle }) {
+  return (
+    <View testID={`home-stat-row-${label}`} style={[styles.statRow, !first && styles.statRowDivider]}>
+      <Text {...LT.body} style={[styles.stripLabel, styles.statRowLabel]}>
+        {label}
+      </Text>
+      <Text {...VALUE_TEXT} style={[valueStyle, styles.statRowValue]}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -402,6 +467,51 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginTop: 20,
+  },
+  buttonsStacked: {
+    flexDirection: 'column',
+  },
+  // flex:1 would collapse in a column.
+  buttonStacked: {
+    flex: 0,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+  },
+  trailingBelow: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+  },
+  textColumnStacked: {
+    flex: 0,
+    alignSelf: 'stretch',
+  },
+  stripStacked: {
+    flexDirection: 'column',
+    paddingHorizontal: 16,
+  },
+  valuesStacked: {
+    flexDirection: 'column',
+  },
+  statRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    columnGap: 12,
+    paddingVertical: 8,
+  },
+  statRowDivider: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  statRowLabel: {
+    marginTop: 0,
+    flexShrink: 1,
+  },
+  statRowValue: {
+    flexShrink: 1,
+    textAlign: 'right',
   },
   primary: {
     flex: 1,

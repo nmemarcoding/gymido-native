@@ -5,9 +5,10 @@ const mockNavigation = { push: jest.fn(), replace: jest.fn(), navigate: jest.fn(
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => mockNavigation }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 47, bottom: 34, left: 0, right: 0 }) }));
 let mockWidth = 390;
+let mockFontScale = 1;
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   __esModule: true,
-  default: () => ({ width: mockWidth, height: 1194, scale: 2, fontScale: 1 }),
+  default: () => ({ width: mockWidth, height: 1194, scale: 2, fontScale: mockFontScale }),
 }));
 
 import { StyleSheet } from 'react-native';
@@ -45,6 +46,7 @@ const mounted = [];
 beforeEach(() => {
   jest.clearAllMocks();
   mockWidth = 390;
+  mockFontScale = 1;
   resetProfileStore();
   useAuthStore.setState({ user: { email: 'member@example.com', roles: [] }, claims: { sub: 'auth0|member' }, workspace: null });
 });
@@ -205,7 +207,7 @@ describe('B1 phone layout (ND2, ND6)', () => {
     const tree = render();
     ['profile-height_feet', 'profile-height_inches', 'profile-current_weight_value', 'profile-goal_weight_value'].forEach((id) => {
       const style = flat(textInput(tree.root, id).props.style);
-      expect(style).toMatchObject({ height: 62, fontSize: 32, fontFamily: 'Geist-Bold', fontVariant: ['tabular-nums'] });
+      expect(style).toMatchObject({ minHeight: 62, fontSize: 32, fontFamily: 'Geist-Bold', fontVariant: ['tabular-nums'] });
       expect(style.fontWeight).toBeUndefined();
     });
     // Names keep the kit size.
@@ -335,5 +337,105 @@ describe('B1 behaviour unchanged (v1)', () => {
     await act(async () => pressable(tree.root, 'profile-submit').props.onPress());
     expect(texts(tree.root)).toEqual(expect.arrayContaining(['Validation failed', 'Too long', 'Bad height']));
     expect(tree.root.find((node) => node.props.testID === 'profile-submit' && node.props.accessibilityState).props.accessibilityState.disabled).toBe(false);
+  });
+});
+
+// Phase 2 "exact match + large text" pass (UX §8.3 colours, §9).
+const labelText = (root, label) => root.findAll((node) => node.type === 'Text' && textOf(node) === label)[0];
+
+describe('Phase 2 tokens: exact colours', () => {
+  it.each([
+    ['phone', 390],
+    ['tablet', 834],
+  ])('%s: every field label is text-strong-2, as drawn', (_, width) => {
+    mockWidth = width;
+    const tree = render();
+    ['First Name', 'Last Name', 'Height unit', 'Feet', 'Inches', 'Weight unit'].forEach((label) => {
+      expect(flat(labelText(tree.root, label).props.style).color).toBe(colors.textStrong2);
+    });
+    // Date of Birth and Sex carry the "(optional)" suffix inside the label.
+    ['Date of Birth', 'Sex'].forEach((label) => {
+      const node = tree.root.findAll((n) => n.type === 'Text' && textOf(n).startsWith(label))[0];
+      expect(flat(node.props.style).color).toBe(colors.textStrong2);
+    });
+  });
+
+  it('tablet: both segmented tracks are surface-well (UX §8.3); phone keeps the surface track', () => {
+    const phone = render();
+    expect(flat(host(phone.root, 'profile-height-unit').props.style).backgroundColor).toBe(colors.surface);
+    mockWidth = 834;
+    const tablet = render();
+    expect(flat(host(tablet.root, 'profile-height-unit').props.style).backgroundColor).toBe(colors.surfaceWell);
+    expect(flat(host(tablet.root, 'profile-weight-unit').props.style).backgroundColor).toBe(colors.surfaceWell);
+  });
+});
+
+describe('§9 large text', () => {
+  const title = (tree) => tree.root.find((node) => node.type === 'Text' && node.props.accessibilityRole === 'header');
+
+  it.each([
+    ['phone', 390],
+    ['tablet', 834],
+  ])('%s caps: the title 1.3 (3 lines, shrinks a long word), subtitle and inputs 2.0', (_, width) => {
+    mockWidth = width;
+    const tree = render();
+    expect(title(tree).props).toMatchObject({ maxFontSizeMultiplier: 1.3, numberOfLines: 3, adjustsFontSizeToFit: true, minimumFontScale: 0.7 });
+    expect(labelText(tree.root, 'A quick setup so we can tailor your workout plan.').props.maxFontSizeMultiplier).toBe(2);
+    expect(labelText(tree.root, 'Weight unit').props.maxFontSizeMultiplier).toBe(2);
+    ['profile-first_name', 'profile-height_feet', 'profile-current_weight_value'].forEach((id) => {
+      expect(textInput(tree.root, id).props.maxFontSizeMultiplier).toBe(2);
+    });
+  });
+
+  it('tablet: the G in its fixed tile caps at 1.2', () => {
+    mockWidth = 834;
+    const tree = render();
+    expect(labelText(tree.root, 'G').props.maxFontSizeMultiplier).toBe(1.2);
+  });
+
+  it('phone numbers grow from min 62 (never a fixed height that clips scaled digits)', () => {
+    mockFontScale = 2;
+    const tree = render();
+    const style = flat(textInput(tree.root, 'profile-height_feet').props.style);
+    expect(style.minHeight).toBe(62);
+    expect(style.height).toBeUndefined();
+  });
+
+  it.each([
+    ['phone', 390, 'profile-section-names'],
+    ['tablet', 834, 'profile-names-pair'],
+  ])('%s at fontScale 1: the 2-column pairs and the unit row sit side by side', (_, width, names) => {
+    mockWidth = width;
+    const tree = render();
+    expect(flat(host(tree.root, names).props.style).flexDirection).toBe('row');
+    expect(flat(host(tree.root, 'profile-weights-pair').props.style).flexDirection).toBe('row');
+    expect(flat(host(tree.root, 'profile-weight-unit-row').props.style).flexDirection).toBe('row');
+  });
+
+  it.each([
+    ['phone', 390, 2, 'profile-section-names'],
+    ['tablet', 834, 2, 'profile-names-pair'],
+    ['phone AX5', 390, 3.1, 'profile-section-names'],
+  ])('%s at fontScale %s: one column, the unit switch below its label, nothing lost', (_, width, scale, names) => {
+    mockWidth = width;
+    mockFontScale = scale;
+    const tree = render();
+    expect(flat(host(tree.root, names).props.style).flexDirection).toBe('column');
+    expect(flat(host(tree.root, 'profile-weights-pair').props.style).flexDirection).toBe('column');
+    expect(flat(host(tree.root, 'profile-height-pair').props.style).flexDirection).toBe('column');
+    expect(flat(host(tree.root, 'profile-weight-unit-row').props.style)).toMatchObject({ flexDirection: 'column', alignItems: 'flex-start' });
+    // Every field and both actions are still there.
+    ['profile-first_name', 'profile-last_name', 'profile-height_feet', 'profile-height_inches', 'profile-current_weight_value', 'profile-goal_weight_value'].forEach((id) =>
+      expect(textInput(tree.root, id)).toBeTruthy()
+    );
+    expect(texts(tree.root)).toEqual(expect.arrayContaining(['Create profile', 'Delete account']));
+  });
+
+  it('re-lays out live when the font scale changes (no relaunch)', () => {
+    const tree = render();
+    expect(flat(host(tree.root, 'profile-weights-pair').props.style).flexDirection).toBe('row');
+    mockFontScale = 2;
+    act(() => tree.update(<CreateProfileScreen />));
+    expect(flat(host(tree.root, 'profile-weights-pair').props.style).flexDirection).toBe('column');
   });
 });
