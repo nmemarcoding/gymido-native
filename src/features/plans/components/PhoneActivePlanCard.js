@@ -67,10 +67,26 @@ export default function PhoneActivePlanCard({ plan, meta, circles, next, compact
         >
           {keepUnitsTogether(plan?.name)}
         </Text>
-        {meta ? (
-          <Text {...LINE_TEXT} testID="plans-active-meta" style={styles.meta}>
-            {meta}
-          </Text>
+        {meta?.label ? (
+          // QA T60-1: one row of three parts — "{n} days a week" never cuts,
+          // the level truncates first (flexShrink), then the category.
+          <View testID="plans-active-meta" accessible accessibilityLabel={meta.label} style={styles.metaRow}>
+            {meta.category ? (
+              <Text {...LINE_TEXT} testID="plans-active-meta-category" style={[styles.meta, styles.metaCategory]}>
+                {`${meta.category}${meta.days || meta.level ? ' · ' : ''}`}
+              </Text>
+            ) : null}
+            {meta.days ? (
+              <Text {...LINE_TEXT} testID="plans-active-meta-days" style={[styles.meta, styles.metaDays]}>
+                {meta.days}
+              </Text>
+            ) : null}
+            {meta.level ? (
+              <Text {...LINE_TEXT} testID="plans-active-meta-level" style={[styles.meta, styles.metaLevel]}>
+                {`${meta.category || meta.days ? ' · ' : ''}${meta.level}`}
+              </Text>
+            ) : null}
+          </View>
         ) : null}
 
         {circles ? <YourWeek circles={circles} compact={compact} /> : null}
@@ -261,9 +277,21 @@ const styles = StyleSheet.create({
     letterSpacing: -1.2,
     color: colors.textPrimary,
   },
+  metaRow: {
+    flexDirection: 'row',
+    marginTop: spacing[2],
+  },
+  metaCategory: {
+    flexShrink: 1,
+  },
+  metaDays: {
+    flexShrink: 0,
+  },
+  metaLevel: {
+    flexShrink: 1000,
+  },
   meta: {
     ...font(400),
-    marginTop: spacing[2],
     fontSize: 15,
     lineHeight: 22,
     color: colors.textSecondary,

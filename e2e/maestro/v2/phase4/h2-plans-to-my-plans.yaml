@@ -3,8 +3,21 @@
 # Starts signed in on a tab root. IDs only.
 appId: com.gymido.app
 ---
-- tapOn:
-    id: "tab-Plans"
+# Phone bottom tab or the tablet rail (QA T-60 flow defect).
+- runFlow:
+    when:
+      visible:
+        id: "tab-Plans"
+    commands:
+      - tapOn:
+          id: "tab-Plans"
+- runFlow:
+    when:
+      visible:
+        id: "rail-Plans"
+    commands:
+      - tapOn:
+          id: "rail-Plans"
 - extendedWaitUntil:
     visible:
       id: "my-plans-entry"

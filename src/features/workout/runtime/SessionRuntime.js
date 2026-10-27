@@ -547,10 +547,10 @@ export default function SessionRuntime({
   // height already holds the safe area, so the room is that height + a gap.
   const dockHeight = measuredDock ?? DID_IT_HEIGHT + 32 + spacing[3] + (tablet ? TABLET_DOCK_BOTTOM : spacing[7]) + insets.bottom;
   const bottomRoom = browsing ? navHeight + spacing[5] + insets.bottom : showDock ? dockHeight + spacing[4] : spacing[6] + insets.bottom;
-  // I2 follow-up (a): on tablets the minimised disc docks just above
-  // `bottomRoom`; while it shows, the scroll also keeps the disc's height so
-  // the last control (Complete workout) scrolls fully clear of it.
-  const discRoom = tablet && rest.timer && rest.minimized ? DISC_SIZE : 0;
+  // I2 follow-up (a) + UX I2-r ruling: on tablets the minimised disc docks
+  // just above `bottomRoom`; while it shows, the scroll also keeps the disc
+  // (92) + its 24 gap, so every row, the last included, scrolls fully clear.
+  const discRoom = tablet && rest.timer && rest.minimized ? DISC_SIZE + spacing[6] : 0;
 
   // M6: the expanded Rest is modal for TalkBack too (accessibilityViewIsModal
   // is iOS-only): hide what is behind it while it is open.
