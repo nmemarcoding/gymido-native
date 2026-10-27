@@ -6,19 +6,19 @@ import { routes } from '../../../navigation/routes';
 import { getServerMessage } from '../../../shared/api/apiError';
 import BlurLayer from '../../../shared/components/BlurLayer';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
-import EmptyState from '../../../shared/components/EmptyState';
 import ErrorAlert from '../../../shared/components/ErrorAlert';
 import Loader from '../../../shared/components/Loader';
 import PillButton from '../../../shared/components/PillButton';
 import Select from '../../../shared/components/Select';
 import { ToastTone, addToast } from '../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
-import { breakpoints, colors, radii } from '../../../shared/theme/tokens';
+import { breakpoints, colors, font, radii, typography } from '../../../shared/theme/tokens';
 import { Eyebrow, planStyles } from '../../plans/components/PlanBits';
 import ShellPage from '../../shell/ShellPage';
 import { handOffToWorkout, openShellPath } from '../../shell/shellLinks';
 import { acceptGeneratedPlan, getGeneratorProfile, previewGeneratedPlan, saveGeneratorProfile } from '../api/generatorApi';
 import { Callout, WhyLine } from '../components/GeneratorControls';
+import { GeneratorUnavailable } from '../components/GeneratorStates';
 import {
   COPY,
   activeNotice,
@@ -37,6 +37,7 @@ import {
   planNotice,
   previewExercise,
   refusalActions,
+  stepErrorsFrom422,
   shouldConfirmAfterActive,
   weeklyVolumeRows,
 } from '../generatorLogic';
@@ -89,8 +90,9 @@ function PlanGeneratorPreview() {
       if (kind === 'profile') {
         navigation.replace(generatorRoutes.PlanGenerator);
       } else if (kind === 'goEasy') {
-        // T-18: no error screen, no Retry; the questionnaire on step 6.
-        navigation.replace(generatorRoutes.PlanGenerator, { step: 5 });
+        // T-18: no error screen, no Retry; the questionnaire on step 6. PM
+        // parity (26 Oct): its field error goes along and gets the focus.
+        navigation.replace(generatorRoutes.PlanGenerator, { step: 5, stepErrors: stepErrorsFrom422(error?.response?.data?.errors) });
       } else if (kind === 'unavailable') {
         setView({ status: 'unavailable' });
       } else {
@@ -192,18 +194,16 @@ function PlanGeneratorPreview() {
         <View style={styles.column}>
           {view.status === 'loading' ? <Loader label={COPY.buildingPlan} style={styles.loader} /> : null}
           {view.status === 'unavailable' ? (
-            <EmptyState
-              title={COPY.unavailableTitle}
-              message={COPY.unavailableMessage}
-              actionLabel={COPY.backToPlans}
-              actionTestID="generator-back-to-plans"
-              onAction={() => openShellPath('/plans')}
-            />
+            <GeneratorUnavailable onBack={() => openShellPath('/plans')} />
           ) : null}
           {view.status === 'error' ? (
+            // G5: Retry; 403 none.
             <ErrorAlert
+              testID="generator-preview-error"
+              variant="generator"
               title={COPY.previewError}
               description={view.message}
+              retryTestID="generator-preview-retry"
               onRetry={view.forbidden ? undefined : () => runPreview()}
             />
           ) : null}
@@ -388,12 +388,12 @@ function NotFeasible({ reason, onChange, onOpenStep }) {
 
   return (
     <View testID="generator-not-feasible" style={styles.notFeasibleCard}>
-      <Text ref={titleRef} testID="generator-not-feasible-title" textBreakStrategy="simple" style={planStyles.titleXl}>
+      <Text ref={titleRef} testID="generator-not-feasible-title" textBreakStrategy="simple" style={styles.refusalTitle}>
         {COPY.notFeasibleTitle}
       </Text>
-      {reason?.message ? <Text style={[planStyles.body, styles.mt8]}>{reason.message}</Text> : null}
+      {reason?.message ? <Text style={[styles.refusalReason, styles.mt8]}>{reason.message}</Text> : null}
       {reason?.what_to_change ? (
-        <Callout tone="info" style={styles.mt16}>
+        <Callout testID="generator-refusal-callout" tone="teal" role="note" style={styles.refusalCallout}>
           {reason.what_to_change}
         </Callout>
       ) : null}
@@ -494,12 +494,28 @@ const styles = StyleSheet.create({
   dayCard: {
     padding: 20,
   },
+  // G6 (UX D): radius 26 drawn (→ radius-2xl 28), padding 22 20, surface,
+  // hairline; title-sm, reason 14/22 secondary, teal callout, action mt 18.
   notFeasibleCard: {
     borderRadius: radii.xxl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hairline,
     backgroundColor: colors.surface,
-    padding: 20,
+    paddingVertical: 22,
+    paddingHorizontal: 20,
+  },
+  refusalTitle: {
+    ...typography.titleSm,
+    color: colors.textPrimary,
+  },
+  refusalReason: {
+    ...font(400),
+    fontSize: 14,
+    lineHeight: 22,
+    color: colors.textSecondary,
+  },
+  refusalCallout: {
+    marginTop: 14,
   },
   dayHeader: {
     flexDirection: 'row',
@@ -587,11 +603,11 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   notFeasibleAction: {
-    marginTop: 20,
+    marginTop: 18,
     alignItems: 'flex-start',
   },
   refusalActions: {
-    marginTop: 20,
+    marginTop: 18,
     gap: 12,
   },
   bar: {

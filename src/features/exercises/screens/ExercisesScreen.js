@@ -329,8 +329,11 @@ function ExercisesCatalog() {
       case 'partialError':
         return (
           <View style={[padding, styles.contentTop]}>
+            {/* UX D "Exercises, error": the compact card; Retry = ruling 2. */}
             <ErrorAlert
               testID="exercises-partial-error"
+              variant="compact"
+              retryTestID="exercises-partial-retry"
               title="Some exercises didn't load"
               description={catalogErrorMessage(load.partial.error)}
               onRetry={retryRestPages}
@@ -441,6 +444,8 @@ function StickyBar({ padding, searchValue, onChangeSearch, onSubmitSearch, searc
           clearButtonMode={!searching && Platform.OS === 'ios' ? 'while-editing' : 'never'}
           autoCorrect={false}
           autoCapitalize="none"
+          selectionColor={colors.gold}
+          cursorColor={colors.gold}
           style={[styles.searchInput, searching && styles.searchInputSearching, focused && styles.searchInputFocused]}
         />
         <View pointerEvents="none" style={styles.searchGlyph} accessibilityElementsHidden importantForAccessibility="no">

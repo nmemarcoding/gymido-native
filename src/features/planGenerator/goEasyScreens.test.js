@@ -336,7 +336,8 @@ describe('T-18 G2 preview', () => {
   it('G2.1: a 422 errors.go_easy_area_ids replaces the preview with step 6 (step: 5); no error screen', async () => {
     previewGeneratedPlan.mockRejectedValue(httpError(422, { errors: { go_easy_area_ids: ['GO_EASY_FOCUS_CONFLICT'] } }));
     const tree = await render(<PlanGeneratorPreviewScreen />);
-    expect(mockNavigation.replace).toHaveBeenCalledWith('PlanGenerator', { step: 5 });
+    // PM parity (26 Oct): the field error goes along to be shown and focused.
+    expect(mockNavigation.replace).toHaveBeenCalledWith('PlanGenerator', { step: 5, stepErrors: { 6: 'GO_EASY_FOCUS_CONFLICT' } });
     expect(texts(tree)).not.toContain('Could not build your plan');
     expect(texts(tree)).not.toContain('Retry');
   });
