@@ -290,7 +290,7 @@ describe('G6 refusal', () => {
     expect(flat(title)).toMatchObject({ fontSize: 22, lineHeight: 28, fontFamily: 'Geist-Bold' });
     const callout = one(tree, 'generator-refusal-callout');
     expect(callout.props).toMatchObject({ tone: 'teal', role: 'note' });
-    expect(flat(hostOf(tree, 'generator-refusal-callout'))).toMatchObject({ backgroundColor: colors.tealTint, marginTop: 14 });
+    expect(flat(hostOf(tree, 'generator-refusal-callout'))).toMatchObject({ backgroundColor: colors.tealFaint, borderColor: colors.tealLine, marginTop: 14 });
     expect(flat(hostOf(tree, 'generator-not-feasible'))).toMatchObject({ paddingVertical: 22, paddingHorizontal: 20, borderColor: colors.hairline, backgroundColor: colors.surface });
     const change = tree.root.find((node) => node.type === PillButton && node.props.testID === 'generator-change-answers');
     expect(change.props.variant).toBeUndefined();

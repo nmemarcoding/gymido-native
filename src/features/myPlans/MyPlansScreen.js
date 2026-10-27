@@ -9,7 +9,7 @@ import Loader from '../../shared/components/Loader';
 import PillButton from '../../shared/components/PillButton';
 import StateSlot from '../../shared/components/StateSlot';
 import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
-import { breakpoints, colors } from '../../shared/theme/tokens';
+import { breakpoints, colors, textScale } from '../../shared/theme/tokens';
 import { PageSubtitle, PageTitle, PlanPage, TextLink } from '../trainer/plans/components/PlanPage';
 import { isGeneratorAvailable, listMyPlans } from './api/myPlansApi';
 import MyPlanCard from './components/MyPlanCard';
@@ -25,7 +25,10 @@ export default function MyPlansScreen() {
 
 function MyPlansList() {
   const navigation = useNavigation();
-  const { width } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
+  // UX §9 rule 4: above 1.3× text the empty state's button pair stacks, full
+  // width ("Create a plan" stays on top).
+  const stackEmpty = fontScale > textScale.reflowAbove;
   // Two columns at ≥640: half of the 896-capped column minus the 16 gap.
   const halfWidth = width >= breakpoints.sm ? (Math.min(width - 32, 896) - 16) / 2 : null;
   const [page, setPage] = useState(1);
@@ -125,13 +128,21 @@ function MyPlansList() {
             title="No plans yet"
             message="Create a plan from scratch, or copy one from the catalog to make it yours."
           />
-          <View style={styles.emptyButtons}>
-            <PillButton testID="my-plans-empty-create" title="Create a plan" variant="secondary" size="compact" onPress={openCreate} />
+          <View testID="my-plans-empty-buttons" style={[styles.emptyButtons, stackEmpty && styles.emptyButtonsStacked]}>
+            <PillButton
+              testID="my-plans-empty-create"
+              title="Create a plan"
+              variant="secondary"
+              size="compact"
+              fullWidth={stackEmpty}
+              onPress={openCreate}
+            />
             <PillButton
               testID="my-plans-browse"
               title="Browse the catalog"
               variant="secondary"
               size="compact"
+              fullWidth={stackEmpty}
               onPress={openCatalog}
             />
           </View>
@@ -216,6 +227,10 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 8,
+  },
+  emptyButtonsStacked: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
   },
   grid: {
     flexDirection: 'row',

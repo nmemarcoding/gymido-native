@@ -6,6 +6,7 @@ import GradientFill from '../../../shared/components/GradientFill';
 import PillButton from '../../../shared/components/PillButton';
 import { colors, gradients, radii } from '../../../shared/theme/tokens';
 import { FOCUS_DELAY_MS, STATE_MAX_WIDTH, WorkoutEmptyState, WorkoutErrorState } from './WorkoutStates';
+import { textScale } from '../../../shared/theme/tokens';
 
 // The module object itself, so spies on its getters reach the component.
 const ReactNative = require('react-native');
@@ -89,7 +90,7 @@ describe('W2 Workout unavailable (§D2, whole-page inline error WITH "Try again"
     const tree = render(<WorkoutErrorState message="m" onRetry={jest.fn()} />);
     expect(flat(host(tree, 'workout-error'))).toMatchObject({
       borderRadius: radii.xxl,
-      borderColor: colors.dangerTextBorder,
+      borderColor: colors.dangerLine,
       maxWidth: STATE_MAX_WIDTH,
       alignSelf: 'center',
       paddingVertical: 32,
@@ -97,7 +98,7 @@ describe('W2 Workout unavailable (§D2, whole-page inline error WITH "Try again"
       overflow: 'hidden',
     });
     expect(STATE_MAX_WIDTH).toBe(640);
-    expect(flat(host(tree, 'workout-error-icon'))).toMatchObject({ width: 72, height: 72, borderRadius: radii.xl, backgroundColor: colors.dangerTextTint });
+    expect(flat(host(tree, 'workout-error-icon'))).toMatchObject({ width: 72, height: 72, borderRadius: radii.xl, backgroundColor: colors.dangerTint });
     const [title, body] = tree.root.findAllByType(Text);
     expect(flat(title)).toMatchObject({ fontSize: 32, lineHeight: 34, fontFamily: 'Geist-Bold', marginTop: 18, color: colors.textPrimary });
     expect(flat(title).fontWeight).toBeUndefined();
@@ -130,10 +131,60 @@ describe('W1 No active workout plan (§D2 EmptyState, whole tab)', () => {
     const fills = tree.root.findAllByType(GradientFill);
     expect(fills).toHaveLength(3);
     expect(fills[0].props.colors).toBe(gradients.card.colors);
-    expect(fills[1].props.colors).toBe(gradients.goldAmbient.colors);
+    expect(fills[1].props.colors).toBe(gradients.heroGlow.colors);
     expect(flat(host(tree, 'workout-empty-icon'))).toMatchObject({ width: 132, height: 132, borderRadius: radii.full, overflow: 'hidden' });
     const [title] = tree.root.findAllByType(Text);
     expect(flat(title)).toMatchObject({ fontSize: 32, marginTop: 22 });
     expect(focus).not.toHaveBeenCalled();
+  });
+});
+
+describe('Phase 2 tokens: exact board colours (UX §8.5 ladder)', () => {
+  it('error card: gradient-danger-card + glow-danger-ambient, danger-line edge, danger-tint tile', () => {
+    const tree = render(<WorkoutErrorState message="m" onRetry={jest.fn()} />);
+    const [card, glow] = tree.root.findAllByType(GradientFill);
+    expect(card.props).toMatchObject({ angle: 160, colors: gradients.dangerCard.colors });
+    expect(glow.props.colors).toBe(gradients.signInFailedGlow.colors);
+    expect(glow.props.colors[0]).toBe('rgba(255, 90, 78, 0.18)');
+    expect(flat(host(tree, 'workout-error')).borderColor).toBe('rgba(255, 90, 78, 0.30)');
+    expect(flat(host(tree, 'workout-error-icon')).backgroundColor).toBe('rgba(255, 90, 78, 0.14)');
+  });
+
+  it('empty card: gold-orb glows (0.26) on the top wash and the disc; the bar in text-secondary', () => {
+    const tree = render(<WorkoutEmptyState onBrowse={jest.fn()} />);
+    const fills = tree.root.findAllByType(GradientFill);
+    expect(fills[1].props.colors[0]).toBe('rgba(255, 194, 26, 0.26)');
+    expect(fills[2].props).toMatchObject({ colors: ['rgba(255, 194, 26, 0.26)', colors.fillWell], stops: [0, 0.7] });
+    const svgRects = tree.root.findAll((node) => node.props.fill === colors.textSecondary && node.props.width === 22);
+    expect(svgRects.length).toBeGreaterThan(0);
+  });
+});
+
+describe('UX §9 large text', () => {
+  const cases = [
+    ['error', () => <WorkoutErrorState message="Network Error" onRetry={jest.fn()} />],
+    ['empty', () => <WorkoutEmptyState onBrowse={jest.fn()} />],
+  ];
+  it.each(cases)('%s: title capped 1.6, wraps by word to 3 lines, shrinks a long word; body capped 2.0', (_, make) => {
+    const tree = render(make());
+    const [title, body] = tree.root.findAllByType(Text);
+    expect(title.props).toMatchObject({
+      maxFontSizeMultiplier: textScale.title,
+      numberOfLines: 3,
+      adjustsFontSizeToFit: true,
+      minimumFontScale: 0.7,
+      textBreakStrategy: 'simple',
+    });
+    expect(body.props.maxFontSizeMultiplier).toBe(textScale.body);
+    expect(body.props.numberOfLines).toBeUndefined();
+  });
+
+  it('no fixed height on the text cards (they grow with the text)', () => {
+    [render(<WorkoutErrorState message="m" onRetry={jest.fn()} />), render(<WorkoutEmptyState onBrowse={jest.fn()} />)].forEach((tree) => {
+      ['workout-error', 'workout-empty'].forEach((id) => {
+        const found = tree.root.findAll((node) => node.props.testID === id && typeof node.type === 'string');
+        found.forEach((node) => expect(flat(node).height).toBeUndefined());
+      });
+    });
   });
 });

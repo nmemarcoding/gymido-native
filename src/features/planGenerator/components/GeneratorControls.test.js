@@ -1,7 +1,8 @@
 import { StyleSheet, Text } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
-import { colors, font } from '../../../shared/theme/tokens';
+import GradientFill from '../../../shared/components/GradientFill';
+import { colors, font, gradients, textScale } from '../../../shared/theme/tokens';
 import { Callout, Checkbox, Choice, OptionPill, WhyLine } from './GeneratorControls';
 
 // Generator controls (RN-SPEC-PLAN-GENERATOR §G1.2 behaviour, unchanged) in
@@ -9,8 +10,17 @@ import { Callout, Checkbox, Choice, OptionPill, WhyLine } from './GeneratorContr
 // "GeneratorControls" board.
 
 const flat = (style) => StyleSheet.flatten(style) ?? {};
-const pressable = (tree, id) => tree.root.findAll((node) => node.props.testID === id && typeof node.props.style === 'function')[0];
-const styleOf = (tree, id, pressed = false) => flat(pressable(tree, id).props.style({ pressed }));
+const pressable = (tree, id) => tree.root.findAll((node) => node.props.testID === id && typeof node.props.children === 'function')[0];
+const styleOf = (tree, id) => flat(pressable(tree, id).props.style);
+// The Pressable's content in a given pressed state (its children function).
+const contentOf = (tree, id, pressed) => {
+  let inner;
+  act(() => {
+    inner = create(<>{pressable(tree, id).props.children({ pressed })}</>);
+  });
+  return inner;
+};
+const overlayOf = (inner) => inner.root.findAll((node) => node.props?.testID === 'press-overlay' && node.type === 'View')[0];
 const text = (tree, value) => tree.root.findAll((node) => node.type === Text && node.props.children === value)[0];
 
 function render(element) {
@@ -68,8 +78,13 @@ describe('Choice (card radio)', () => {
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
-  it('pressed (off): the raised surface; disabled: opacity 0.5 and not pressable', () => {
-    expect(styleOf(choice(), 'goal', true).backgroundColor).toBe(colors.surfaceRaised);
+  it('pressed (off): the rest fill + the white 4 % overlay (§8.6 state rule); disabled: opacity 0.5 and not pressable', () => {
+    const rest = choice();
+    expect(overlayOf(contentOf(rest, 'goal', false))).toBeUndefined();
+    const overlay = overlayOf(contentOf(rest, 'goal', true));
+    expect(flat(overlay.props.style)).toMatchObject({ backgroundColor: colors.pressOverlay, position: 'absolute' });
+    expect(styleOf(rest, 'goal').backgroundColor).toBe(colors.surface);
+    expect(overlayOf(contentOf(choice({ selected: true }), 'goal', true))).toBeUndefined();
     const tree = choice({ disabled: true });
     expect(styleOf(tree, 'goal').opacity).toBe(0.5);
     expect(pressable(tree, 'goal').props.disabled).toBe(true);
@@ -98,7 +113,8 @@ describe('OptionPill', () => {
   it('selected: gold + on-gold text and a visible ✓; pressed = gold-deep', () => {
     const tree = pill({ selected: true });
     expect(styleOf(tree, 'days').backgroundColor).toBe(colors.gold);
-    expect(styleOf(tree, 'days', true).backgroundColor).toBe(colors.goldDeep);
+    // §8.6 state rule: pressed gold = gold + the ink 4 % overlay (was gold-deep).
+    expect(flat(overlayOf(contentOf(tree, 'days', true)).props.style).backgroundColor).toBe(colors.pressOverlayInk);
     expect(flat(text(tree, '✓').props.style).opacity).toBeUndefined();
     expect(flat(text(tree, '✓').props.style).color).toBe(colors.onGold);
     expect(flat(text(tree, '4 days').props.style).color).toBe(colors.onGold);
@@ -157,8 +173,8 @@ describe('Callout', () => {
       </Callout>
     );
     const style = wrap(tree);
-    expect(style.backgroundColor).toBe(colors.infoTint);
-    expect(style.borderColor).toBe(colors.infoBorder);
+    expect(style.backgroundColor).toBe(colors.infoFaint);
+    expect(style.borderColor).toBe(colors.infoLine);
     expect(style.borderRadius).toBe(16);
     expect([style.paddingVertical, style.paddingHorizontal]).toEqual([12, 14]);
     const body = flat(text(tree, 'Keep the knees happy.').props.style);
@@ -172,8 +188,8 @@ describe('Callout', () => {
         Locked.
       </Callout>
     );
-    expect(wrap(tree).backgroundColor).toBe(colors.warningFill);
-    expect(wrap(tree).borderColor).toBe(colors.warningBorder);
+    expect(wrap(tree).backgroundColor).toBe(colors.warningFaint);
+    expect(wrap(tree).borderColor).toBe(colors.warningLine);
   });
 });
 
@@ -187,5 +203,81 @@ describe('WhyLine', () => {
     expect(label.fontFamily).toBe(font(600).fontFamily);
     const body = flat(text(tree, 'Why this: ').parent.parent.props.style);
     expect([body.fontSize, body.lineHeight, body.color]).toEqual([13, 18, colors.textSecondary]);
+  });
+});
+
+describe('Phase 2 tokens: board colours on the §8.5 ladder', () => {
+  it('Choice off: gradient-card layer from the first render; selected swaps the same layer to gold-faint', () => {
+    const off = render(<Choice testID="goal" label="Get stronger" selected={false} onPress={() => {}} />);
+    const inner = contentOf(off, 'goal', false);
+    const fill = inner.root.findByType(GradientFill);
+    expect(fill.props).toMatchObject({ angle: gradients.card.angle, colors: gradients.card.colors });
+    const on = render(<Choice testID="goal" label="Get stronger" selected onPress={() => {}} />);
+    expect(contentOf(on, 'goal', false).root.findByType(GradientFill).props.colors).toEqual([colors.goldFaint, colors.goldFaint]);
+    expect(styleOf(on, 'goal').backgroundColor).toBe('rgba(255, 194, 26, 0.08)');
+    expect(styleOf(off, 'goal').overflow).toBe('hidden');
+  });
+
+  it('Choice off ring: 1.5 px hairline-bright; on: gold', () => {
+    const off = render(<Choice testID="goal" label="A" selected={false} onPress={() => {}} />);
+    const slot = off.root.find((node) => node.props.testID === 'choice-check-slot' && node.type === 'View');
+    expect(flat(slot.props.style)).toMatchObject({ borderWidth: 1.5, borderColor: colors.hairlineBright });
+    const on = render(<Choice testID="goal" label="A" selected onPress={() => {}} />);
+    const disc = on.root.find((node) => node.props.testID === 'choice-check' && node.type === 'View');
+    expect(flat(disc.props.style).borderColor).toBe(colors.gold);
+  });
+
+  it('OptionPill rest pressed: white 4 % overlay over the glass', () => {
+    const tree = render(<OptionPill testID="days" label="4 days" selected={false} onPress={() => {}} />);
+    expect(flat(overlayOf(contentOf(tree, 'days', true)).props.style).backgroundColor).toBe(colors.pressOverlay);
+    expect(overlayOf(contentOf(tree, 'days', false))).toBeUndefined();
+    expect(styleOf(tree, 'days').backgroundColor).toBe(colors.fillButton);
+  });
+
+  it('teal callout: teal-faint fill, teal-line edge, teal-text copy', () => {
+    const tree = render(
+      <Callout tone="teal" testID="note">
+        Add a day.
+      </Callout>
+    );
+    const style = flat(tree.root.find((node) => node.props.testID === 'note' && node.type === 'View').props.style);
+    expect(style).toMatchObject({ backgroundColor: 'rgba(79, 216, 196, 0.08)', borderColor: 'rgba(79, 216, 196, 0.30)' });
+    expect(flat(text(tree, 'Add a day.').props.style).color).toBe('#7FE6D6');
+  });
+});
+
+describe('UX §9 large text', () => {
+  it('every label scales to 2× and is never truncated (no numberOfLines)', () => {
+    const trees = [
+      render(<Choice testID="goal" label="Get stronger" hint="Heavier lifts" selected onPress={() => {}} />),
+      render(<OptionPill testID="days" label="4 days" selected onPress={() => {}} />),
+    ];
+    trees.forEach((tree, index) => {
+      const inner = contentOf(tree, index === 0 ? 'goal' : 'days', false);
+      const labels = inner.root.findAllByType(Text).filter((node) => node.props.children !== '✓');
+      expect(labels.length).toBeGreaterThan(0);
+      labels.forEach((node) => {
+        expect(node.props.maxFontSizeMultiplier).toBe(textScale.body);
+        expect(node.props.numberOfLines).toBeUndefined();
+      });
+    });
+    const callout = render(<Callout testID="note">Note.</Callout>);
+    expect(text(callout, 'Note.').props.maxFontSizeMultiplier).toBe(textScale.body);
+    const why = render(<WhyLine text="because." />);
+    expect(text(why, 'Why this: ').parent.parent.props.maxFontSizeMultiplier).toBe(textScale.body);
+  });
+
+  it('pills grow with a wrapped label: min-height 40 (no fixed height), the label shrinks to wrap', () => {
+    const tree = render(<OptionPill testID="days" label="A very long option label" selected={false} onPress={() => {}} />);
+    const style = styleOf(tree, 'days');
+    expect(style.height).toBeUndefined();
+    expect(style.minHeight).toBe(40);
+    const label = contentOf(tree, 'days', false).root.findAllByType(Text).find((node) => node.props.children === 'A very long option label');
+    expect(flat(label.props.style).flexShrink).toBe(1);
+  });
+
+  it('the choice check disc caps at 1.2 (fixed 24 geometry)', () => {
+    const tree = render(<Choice testID="goal" label="A" selected onPress={() => {}} />);
+    expect(text(tree, '✓').props.maxFontSizeMultiplier).toBe(textScale.badge);
   });
 });
