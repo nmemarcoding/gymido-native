@@ -54,10 +54,19 @@ export async function getMissedWeeks(weeks = 12) {
 
 // U8: the 5 latest completed workouts live on /dashboard.
 export async function getRecentWorkouts() {
+  return (await getDashboardActivity()).recentWorkouts;
+}
+
+// One /dashboard call: U8 recent_workouts + ND-10 "Goal {n}" = the active
+// plan's days per week (current_plan.enrollment.plan.days_per_week; no plan /
+// junk / 0 → null). Any failure → [] / null.
+export async function getDashboardActivity() {
   try {
-    return data(await apiClient.get('/dashboard')).recent_workouts ?? [];
+    const dashboard = data(await apiClient.get('/dashboard'));
+    const days = Number(dashboard.current_plan?.enrollment?.plan?.days_per_week);
+    return { recentWorkouts: dashboard.recent_workouts ?? [], planDaysPerWeek: Number.isInteger(days) && days > 0 ? days : null };
   } catch {
-    return [];
+    return { recentWorkouts: [], planDaysPerWeek: null };
   }
 }
 
@@ -77,14 +86,14 @@ export async function getCurrentWeekDays() {
 // v2: plus the optional Phase 3 calls (missed weeks, recent workouts, this
 // week), each falling back silently.
 export async function loadProgress() {
-  const [weightProgress, weightLogs, overview, history, frequency, missed, recentWorkouts, week] = await Promise.allSettled([
+  const [weightProgress, weightLogs, overview, history, frequency, missed, activity, week] = await Promise.allSettled([
     getWeightProgress(),
     getRecentWeightLogs(),
     getProgressOverview(),
     getWorkoutHistorySummary(),
     getProgressFrequency(),
     getMissedWeeks(12),
-    getRecentWorkouts(),
+    getDashboardActivity(),
     getCurrentWeekDays(),
   ]);
   if (weightProgress.status === 'rejected') {
@@ -100,7 +109,8 @@ export async function loadProgress() {
     history: history.status === 'fulfilled' ? history.value : null,
     frequency: frequency.status === 'fulfilled' ? frequency.value : [],
     missed: missed.status === 'fulfilled' ? missed.value : null,
-    recentWorkouts: recentWorkouts.status === 'fulfilled' ? recentWorkouts.value : [],
+    recentWorkouts: activity.status === 'fulfilled' ? activity.value.recentWorkouts : [],
     week: week.status === 'fulfilled' ? week.value : null,
+    planDaysPerWeek: activity.status === 'fulfilled' ? activity.value.planDaysPerWeek : null,
   };
 }

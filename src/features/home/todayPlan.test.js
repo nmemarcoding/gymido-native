@@ -25,7 +25,8 @@ import { openPlanDetailAlone, openShellPath } from '../shell/shellLinks';
 import ProgressRing from '../workout/components/ProgressRing';
 import { getCurrentWeek, getDashboard } from './api/homeApi';
 import HomeScreen from './HomeScreen';
-import { heroDayTitle, heroImageUrl, memberVolume, weekRing, weekStrip, workoutInitials } from './homeFormat';
+import { exerciseCountText, heroDayTitle, heroImageUrl, memberVolume, weekRing, weekStrip, workoutInitials } from './homeFormat';
+import { TodayHero } from './TodayPlanView';
 
 function textOf(node) {
   return []
@@ -211,6 +212,81 @@ describe('Today hero (UX E, all five states)', () => {
 // Batch 2 item 4 (pm-web-facts): image = today_status.image.url only; tile name = the plan day title (the latest
 // miss's when missed; none in setup). Phone: no image → gradient + glow only. Tablet: photo, else the failed-photo
 // workout-icon tile, else the neutral initials tile of the title, else the plain gradient.
+describe('ND4 hero sub-line "{plan name} · {n} exercises" (UX E 27 Oct)', () => {
+  const CARD = { state: 'training', tone: 'brand', pill: "Today's workout", headline: 'Upper A', primary: 'Start workout' };
+  function hero(props = {}) {
+    let tree;
+    act(() => {
+      tree = create(<TodayHero plan={{ id: 4, name: 'Upper / Lower Split' }} card={CARD} tablet={false} reflow={false} onPrimary={() => {}} onViewPlan={() => {}} {...props} />);
+    });
+    return tree;
+  }
+
+  it('exerciseCountText: " · n exercises", singular at 1; 0 / none / junk → null', () => {
+    expect(exerciseCountText(5)).toBe(' · 5 exercises');
+    expect(exerciseCountText(1)).toBe(' · 1 exercise');
+    expect(exerciseCountText(0)).toBeNull();
+    expect(exerciseCountText(null)).toBeNull();
+    expect(exerciseCountText(undefined)).toBeNull();
+    expect(exerciseCountText(-2)).toBeNull();
+    expect(exerciseCountText(2.5)).toBeNull();
+  });
+
+  it.each([false, true])('tablet=%s: the plan name truncates (1 line, shrinks); the count never does (flexShrink 0, 1 line); same sub-line style', (tablet) => {
+    const tree = hero({ tablet, exerciseCount: 5 });
+    const row = host(tree.root, 'home-today-sub');
+    expect(styleOf(row).flexDirection).toBe('row');
+    const name = host(tree.root, 'home-today-sub-plan');
+    expect(textOf(name)).toBe('Upper / Lower Split');
+    expect(name.props.numberOfLines).toBe(1);
+    expect(name.props.ellipsizeMode).toBe('tail');
+    expect(styleOf(name).flexShrink).toBe(1);
+    const count = host(tree.root, 'home-today-sub-count');
+    expect(textOf(count)).toBe(' · 5 exercises');
+    expect(count.props.numberOfLines).toBe(1);
+    expect(styleOf(count).flexShrink).toBe(0);
+    [name, count].forEach((node) => {
+      expect(styleOf(node).color).toBe(colors.textSecondary);
+      expect(styleOf(node).fontSize).toBe(tablet ? 17 : 15);
+    });
+    expect(row.props.accessible).toBe(true);
+    expect(row.props.accessibilityLabel).toBe('Upper / Lower Split · 5 exercises');
+  });
+
+  it('1 exercise → singular', () => {
+    const tree = hero({ exerciseCount: 1 });
+    expect(textOf(host(tree.root, 'home-today-sub-count'))).toBe(' · 1 exercise');
+  });
+
+  it('count 0 / absent → the plan name alone (the v1 sub-line, unchanged)', () => {
+    [0, null, undefined].forEach((exerciseCount) => {
+      const tree = hero({ exerciseCount });
+      expect(queryHost(tree.root, 'home-today-sub-count')).toHaveLength(0);
+      const sub = host(tree.root, 'home-today-sub');
+      expect(textOf(sub)).toBe('Upper / Lower Split');
+      expect(sub.props.numberOfLines).toBe(2);
+    });
+  });
+
+  it('a card sub (setup) wins over the count', () => {
+    const tree = hero({ card: { ...CARD, state: 'setup', sub: "Choose the 3 days you'll train each week." }, exerciseCount: 5 });
+    expect(queryHost(tree.root, 'home-today-sub-count')).toHaveLength(0);
+    expect(textOf(host(tree.root, 'home-today-sub'))).toBe("Choose the 3 days you'll train each week.");
+  });
+
+  it('past reflow the pair wraps instead of hiding the plan name', () => {
+    const tree = hero({ reflow: true, exerciseCount: 5 });
+    expect(styleOf(host(tree.root, 'home-today-sub')).flexWrap).toBe('wrap');
+    expect(host(tree.root, 'home-today-sub-plan').props.numberOfLines).toBeUndefined();
+  });
+
+  it('Today today: /dashboard carries no exercise count, so the screen shows the plan name alone', async () => {
+    const tree = await render();
+    expect(queryHost(tree.root, 'home-today-sub-count')).toHaveLength(0);
+    expect(textOf(host(tree.root, 'home-today-sub'))).toBe('Upper / Lower');
+  });
+});
+
 describe('Today hero with no image (Batch 2 item 4)', () => {
   afterEach(() => {
     mockWidth = 390;

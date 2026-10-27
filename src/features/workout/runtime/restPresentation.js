@@ -162,9 +162,10 @@ export function personalBestLines(records) {
 }
 
 // The completion popup's volume, in the unit the snapshot carries (the
-// member's unit once SessionRuntime sends `volumeUnit`; v1 said "lb").
+// member's unit: profile current → goal → kg). Web parity (batch 3 (a),
+// PM-approved): no unit → kg, never v1's "lb".
 export function completionVolume(popup) {
-  return formatWeight(popup?.totalVolume ?? 0, popup?.volumeUnit || 'lb', 0);
+  return formatWeight(popup?.totalVolume ?? 0, popup?.volumeUnit || 'kg', 0);
 }
 
 // U6 Share summary (phase 3 spec §4, UX §10): text only, one fact a line.

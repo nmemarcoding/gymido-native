@@ -77,7 +77,7 @@ function Progress() {
   const [reloadCount, setReloadCount] = useState(0);
   const [tab, setTab] = useState('body');
   const [range, setRange] = useState(DEFAULT_RANGE);
-  const [rangeLogs, setRangeLogs] = useState({ key: null, logs: null });
+  const [rangeLogs, setRangeLogs] = useState({ key: null, range: null, reload: null, logs: null });
   const [modalOpen, setModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const mounted = useRef(true);
@@ -111,8 +111,8 @@ function Progress() {
     Promise.resolve()
       .then(() => getWeightLogsInRange(rangeDates(range)))
       .then(
-      (logs) => alive && mounted.current && setRangeLogs({ key, logs }),
-      () => alive && mounted.current && setRangeLogs({ key, logs: null })
+      (logs) => alive && mounted.current && setRangeLogs({ key, range, reload: reloadCount, logs }),
+      () => alive && mounted.current && setRangeLogs({ key, range, reload: reloadCount, logs: null })
     );
     return () => {
       alive = false;
@@ -143,11 +143,19 @@ function Progress() {
     );
   }
 
-  const { weightProgress, weightLogs, overview, history, frequency, missed, recentWorkouts, week } = load.data;
+  const { weightProgress, weightLogs, overview, history, frequency, missed, recentWorkouts, week, planDaysPerWeek } = load.data;
   const unit = progressUnit(weightLogs);
-  const days = PHONE_RANGES.find((item) => item.key === range)?.days ?? 90;
-  const fallback = logsSince(chartLogs(weightLogs), days);
-  const shownRangeLogs = rangeLogs.key === `${range}:${reloadCount}` && rangeLogs.logs ? rangeLogs.logs : fallback;
+  const fallbackFor = (key) => logsSince(chartLogs(weightLogs), PHONE_RANGES.find((item) => item.key === key)?.days ?? 90);
+  // Batch 3 (e), web parity: while a newly picked range loads, the chart
+  // keeps the last settled range's data, dimmed + busy (no skeleton); the
+  // new chip is already selected (`range`).
+  const settled = rangeLogs.key === `${range}:${reloadCount}`;
+  const rangeLoading = !tablet && !settled && rangeLogs.reload === reloadCount && rangeLogs.range !== null;
+  const shownRangeLogs = settled
+    ? rangeLogs.logs ?? fallbackFor(range)
+    : rangeLoading
+      ? rangeLogs.logs ?? fallbackFor(rangeLogs.range)
+      : fallbackFor(range);
 
   const tabs = <ViewSwitch tab={tab} onChange={setTab} tablet={tablet} />;
 
@@ -171,6 +179,7 @@ function Progress() {
           weightProgress={weightProgress}
           weightLogs={weightLogs}
           rangeLogs={shownRangeLogs}
+          rangeLoading={rangeLoading}
           range={range}
           onRange={setRange}
           tablet={tablet}
@@ -185,6 +194,7 @@ function Progress() {
           missed={missed}
           week={week}
           recentWorkouts={recentWorkouts}
+          planDaysPerWeek={planDaysPerWeek}
           tablet={tablet}
           reflow={reflow}
         />
@@ -276,7 +286,7 @@ function ChartBlock({ logs, units, goal, height, grid, total }) {
 }
 
 // PR1.4 Body (Current / Goal / To goal, Goal progress, history, recent logs).
-function BodyTab({ weightProgress, weightLogs, rangeLogs, range, onRange, tablet, reflow, onAddWeight }) {
+function BodyTab({ weightProgress, weightLogs, rangeLogs, rangeLoading = false, range, onRange, tablet, reflow, onAddWeight }) {
   // T-34: the profile store, already loaded by the profile gate (no request).
   const profile = useProfileStore((state) => state.profile);
   const units = weightUnits(profile, weightLogs);
@@ -442,7 +452,7 @@ function BodyTab({ weightProgress, weightLogs, rangeLogs, range, onRange, tablet
             {logCountLabel(rangeLogs.length)}
           </Text>
         </View>
-        <View style={styles.mt10}>
+        <View testID="progress-chart-wrap" accessibilityState={{ busy: rangeLoading }} style={[styles.mt10, rangeLoading && styles.rangeLoading]}>
           <ChartBlock logs={rangeLogs} units={units} goal={goal} height={110} total={weightLogs.length} />
         </View>
         <View testID="progress-ranges" accessibilityLabel="Range" style={[styles.ranges, reflow && styles.rangesWrap]}>
@@ -542,7 +552,7 @@ function TwelveWeeks({ frequency, tablet }) {
 }
 
 // PR1.5 Activity + #23 (Workouts per week, Consistency) + U8 (phone).
-function ActivityTab({ overview, history, frequency, missed, week, recentWorkouts, tablet, reflow }) {
+function ActivityTab({ overview, history, frequency, missed, week, recentWorkouts, planDaysPerWeek = null, tablet, reflow }) {
   const profile = useProfileStore((state) => state.profile);
   const unit = profile?.current_weight_unit || profile?.goal_weight_unit || 'kg';
   const bars = weeklyBars(frequency);
@@ -551,11 +561,29 @@ function ActivityTab({ overview, history, frequency, missed, week, recentWorkout
   const stats = activityStats(overview, history);
   const rows = tablet ? [] : recentWorkoutRows(recentWorkouts, missed?.items, unit, memberVolume);
 
-  const perWeek = (
-    <View testID="progress-per-week" style={[styles.tile, !reflow && styles.flex1]}>
-      <Text {...CAP_BODY} style={styles.tileLabel}>
+  // ND-10 (UX G 27 Oct): "Goal {n}" (the active plan's days per week) right
+  // of the label; the label truncates first; no plan → the label alone.
+  const goalDays = Number.isInteger(planDaysPerWeek) && planDaysPerWeek > 0 ? planDaysPerWeek : null;
+  const perWeekLabel = ['Workouts per week', goalDays ? `goal ${goalDays}` : null, bars.empty ? null : `average ${bars.average}`].filter(Boolean).join(', ');
+  const perWeekHead = (
+    <View testID="progress-per-week-head" style={[styles.spaceRow, reflow && styles.stackedRow]}>
+      <Text testID="progress-per-week-label" {...CAP_BODY} numberOfLines={reflow ? undefined : 1} style={[styles.tileLabel, styles.shrink]}>
         Workouts per week
       </Text>
+      {goalDays ? (
+        <Text testID="progress-per-week-goal" {...CAP_BODY} numberOfLines={1} textBreakStrategy="simple" style={styles.perWeekGoal}>
+          {`Goal ${goalDays}`}
+        </Text>
+      ) : null}
+    </View>
+  );
+  const perWeek = (
+    <View testID="progress-per-week" style={[styles.tile, !reflow && styles.flex1]}>
+      {bars.empty ? (
+        <View testID="progress-per-week-summary" accessible accessibilityLabel={perWeekLabel}>
+          {perWeekHead}
+        </View>
+      ) : null}
       {bars.empty ? (
         <View>
           <Text {...CAP_BODY} style={styles.emptyTitle}>
@@ -567,9 +595,12 @@ function ActivityTab({ overview, history, frequency, missed, week, recentWorkout
         </View>
       ) : (
         <>
-          <Text {...NUMBER} style={styles.tileValue}>
-            {bars.average}
-          </Text>
+          <View testID="progress-per-week-summary" accessible accessibilityLabel={perWeekLabel}>
+            {perWeekHead}
+            <Text {...NUMBER} style={styles.tileValue}>
+              {bars.average}
+            </Text>
+          </View>
           <View testID="progress-week-bars" accessible accessibilityRole="image" accessibilityLabel={bars.label} style={styles.miniBars}>
             {bars.bars.map((bar) => (
               <View
@@ -706,6 +737,10 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  shrink: {
+    flexShrink: 1,
+    minWidth: 0,
+  },
   flexHistory: {
     flex: 1.4,
     minWidth: 0,
@@ -833,12 +868,23 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
   },
+  // ND-10: "Goal {n}" 13/500 muted, tabular, never shrinks.
+  perWeekGoal: {
+    ...typography.label,
+    color: colors.textMuted,
+    fontVariant: ['tabular-nums'],
+    flexShrink: 0,
+  },
   ranges: {
     flexDirection: 'row',
     marginTop: 12,
     padding: 3,
     borderRadius: radii.full,
     backgroundColor: colors.fillGlass,
+  },
+  // Batch 3 (e): the previous range's chart while the new one loads (web opacity-60).
+  rangeLoading: {
+    opacity: 0.6,
   },
   rangesWrap: {
     flexWrap: 'wrap',

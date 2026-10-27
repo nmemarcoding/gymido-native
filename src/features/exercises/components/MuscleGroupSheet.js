@@ -95,7 +95,8 @@ export default function MuscleGroupSheet({ open, categories, categoryCounts, tot
             <Pressable
               testID="muscle-sheet-option-all"
               accessibilityRole="button"
-              accessibilityLabel={`All muscle groups, ${total} exercises`}
+              // Batch 3 (f), web parity: named by the visible text.
+              accessibilityLabel={`All muscle groups ${total}`}
               accessibilityState={{ selected: allActive }}
               onPress={() => onSelect('')}
               style={[styles.allTile, tablet && styles.allTileTablet, allActive ? styles.allActive : styles.tileIdle]}
@@ -138,7 +139,7 @@ export default function MuscleGroupSheet({ open, categories, categoryCounts, tot
                     key={group.value}
                     testID={`muscle-sheet-option-${group.value}`}
                     accessibilityRole="button"
-                    accessibilityLabel={`${group.label}, ${group.count} exercises`}
+                    accessibilityLabel={`${group.label} ${group.count}`}
                     accessibilityState={{ selected: active }}
                     onPress={() => onSelect(group.value)}
                     style={[styles.tile, tablet && styles.tileTablet, { width: `${100 / columns}%` }]}

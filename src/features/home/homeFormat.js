@@ -121,6 +121,16 @@ export function workoutInitials(title) {
   return letters.toUpperCase();
 }
 
+// ND4 (UX E 27 Oct): the hero sub-line's " · {n} exercises" ("1 exercise");
+// 0 / none / junk → null (the plan name alone).
+export function exerciseCountText(count) {
+  const n = Number(count);
+  if (count === null || count === undefined || !Number.isInteger(n) || n <= 0) {
+    return null;
+  }
+  return ` · ${n} ${n === 1 ? 'exercise' : 'exercises'}`;
+}
+
 // Today hero photo (RN-SPEC-v2-phase3 §1 data facts): today_status.image.url,
 // omitted when none.
 export function heroImageUrl(dashboard) {

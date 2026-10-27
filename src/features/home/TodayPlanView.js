@@ -11,7 +11,7 @@ import StatusPill from '../../shared/components/StatusPill';
 import TextLink from '../../shared/components/TextLink';
 import { colors, font, gradients, radii, shadows, spacing, typography } from '../../shared/theme/tokens';
 import ProgressRing from '../workout/components/ProgressRing';
-import { workoutInitials } from './homeFormat';
+import { exerciseCountText, workoutInitials } from './homeFormat';
 import { LARGE_TEXT as LT } from './TodayStates';
 
 // v2 Phase 3 §2 Today (UX E-today: phone "Today", "Tablet: Today"): the
@@ -92,13 +92,14 @@ export function GlassButton({ testID, label, onPress, height = 58, textStyle, st
 // Batch 2 item 4 (web ≥1024 parity): the tablet hero's right media half is
 // the photo, else (photo failed) the workout-icon tile, else the neutral
 // initials tile of the day title (`dayTitle`), else nothing (plain gradient).
-export function TodayHero({ plan, card, tablet, reflow, imageUrl, dayTitle, dayOfWeek, onPrimary, onViewPlan }) {
+export function TodayHero({ plan, card, tablet, reflow, imageUrl, dayTitle, dayOfWeek, exerciseCount = null, onPrimary, onViewPlan }) {
   // Fixed at mount: the fade gradient never appears on a later change
   // (Android render rule).
   const [photo] = useState(() => (tablet ? null : imageUrl));
   const [media] = useState(() => (tablet && (imageUrl || dayTitle) ? { url: imageUrl || null, name: dayTitle || '' } : null));
   const [longMissed, setLongMissed] = useState(false);
   const missedLong = card.state === 'missed' && longMissed;
+  const countText = card.sub ? null : exerciseCountText(exerciseCount);
   return (
     <CardSurface hero testID="home-today-card" style={[styles.hero, tablet && styles.heroTablet]}>
       {photo ? (
@@ -137,9 +138,32 @@ export function TodayHero({ plan, card, tablet, reflow, imageUrl, dayTitle, dayO
       >
         {card.headline}
       </Text>
-      <Text {...LT.body} numberOfLines={2} ellipsizeMode="tail" style={tablet ? styles.subTablet : styles.sub}>
-        {card.sub ?? plan.name}
-      </Text>
+      {countText ? (
+        // ND4: the plan name truncates; " · n exercises" never does.
+        <View
+          testID="home-today-sub"
+          accessible
+          accessibilityLabel={`${plan.name}${countText}`}
+          style={[styles.subRow, tablet ? styles.subRowTablet : styles.subRowPhone, reflow && styles.subRowWrap]}
+        >
+          <Text
+            testID="home-today-sub-plan"
+            {...LT.body}
+            numberOfLines={reflow ? undefined : 1}
+            ellipsizeMode="tail"
+            style={[tablet ? styles.subTablet : styles.sub, styles.subInRow, styles.subName]}
+          >
+            {plan.name}
+          </Text>
+          <Text testID="home-today-sub-count" {...LT.body} numberOfLines={1} textBreakStrategy="simple" style={[tablet ? styles.subTablet : styles.sub, styles.subInRow, styles.subCount]}>
+            {countText}
+          </Text>
+        </View>
+      ) : (
+        <Text testID="home-today-sub" {...LT.body} numberOfLines={2} ellipsizeMode="tail" style={tablet ? styles.subTablet : styles.sub}>
+          {card.sub ?? plan.name}
+        </Text>
+      )}
       {card.moreMissed ? (
         <Text testID="home-more-missed" {...LT.body} style={styles.moreMissed}>
           {card.moreMissed}
@@ -483,6 +507,30 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 24,
     color: colors.textSecondary,
+  },
+  // ND4: the sub-line as a row; the row carries the margin of the Text.
+  subRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  subRowPhone: {
+    marginTop: spacing[2],
+  },
+  subRowTablet: {
+    marginTop: spacing['2_5'],
+  },
+  subRowWrap: {
+    flexWrap: 'wrap',
+  },
+  subInRow: {
+    marginTop: 0,
+  },
+  subName: {
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  subCount: {
+    flexShrink: 0,
   },
   moreMissed: {
     ...font(600),

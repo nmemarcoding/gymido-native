@@ -178,6 +178,29 @@ describe('progressFormat (Phase 3)', () => {
     expect(five.filter((row) => row.kind === 'missed').map((row) => row.title)).toEqual(['Inside']);
   });
 
+  it('recentWorkoutRows (batch 3 (d)): sorted by timestamp, newest first (completed_at, else started_at)', () => {
+    const rows = recentWorkoutRows(
+      [
+        { id: 1, workout_plan_day: { title: 'A' }, completed_at: '2026-10-22T01:00:00+05:00' },
+        { id: 2, workout_plan_day: { title: 'B' }, completed_at: '2026-10-21T22:00:00Z' },
+        { id: 3, workout_plan_day: { title: 'C' }, completed_at: null, started_at: '2026-10-21T21:00:00Z' },
+      ],
+      [],
+      'kg',
+      memberVolume
+    );
+    expect(rows.map((row) => row.title)).toEqual(['B', 'C', 'A']);
+  });
+
+  it('recentWorkoutRows (batch 3 (d)): a Missed row sorts at LOCAL midnight of its date', () => {
+    const before = new Date(2026, 9, 21, 23, 59).toISOString();
+    const after = new Date(2026, 9, 22, 0, 1).toISOString();
+    const missed = [{ date: '2026-10-22', plan_day: { title: 'Missed' } }];
+    const done = (iso) => [{ id: 1, workout_plan_day: { title: 'Done' }, completed_at: iso }];
+    expect(recentWorkoutRows(done(before), missed, 'kg', memberVolume).map((row) => row.title)).toEqual(['Missed', 'Done']);
+    expect(recentWorkoutRows(done(after), missed, 'kg', memberVolume).map((row) => row.title)).toEqual(['Done', 'Missed']);
+  });
+
   it('recentWorkoutRows (LOW): a Missed row with no title reads "Workout session", else the day name', () => {
     expect(recentWorkoutRows([], [{ date: '2026-10-21', plan_day: {} }], 'kg', memberVolume)[0].title).toBe('Workout session');
     expect(recentWorkoutRows([], [{ date: '2026-10-21', plan_day: { name: 'Leg day' } }], 'kg', memberVolume)[0].title).toBe('Leg day');
@@ -215,6 +238,47 @@ describe('Progress phone (UX G)', () => {
     expect(texts(host(tree.root, 'progress-log-count'))).toEqual(['1 log']);
     expect(texts(tree.root)).toContain('Not enough weight history yet');
     expect(queryHost(tree.root, 'progress-delta')[0] && texts(host(tree.root, 'progress-delta'))).toEqual(['-4.1 kg to goal (78 kg)']);
+  });
+
+  it('batch 3 (e): while a new range loads the chart keeps the previous data dimmed (busy, 0.6), no skeleton; the new chip is already selected', async () => {
+    const tree = await render();
+    expect(host(tree.root, 'progress-chart-wrap').props.accessibilityState).toEqual({ busy: false });
+    expect(flat(host(tree.root, 'progress-chart-wrap')).opacity).toBeUndefined();
+    let resolve;
+    getWeightLogsInRange.mockImplementationOnce(() => new Promise((done) => (resolve = done)));
+    press(tree.root, 'progress-range-7D');
+    await flush();
+    expect(host(tree.root, 'progress-range-7D').props.accessibilityState).toEqual({ selected: true });
+    expect(host(tree.root, 'progress-range-3M').props.accessibilityState).toEqual({ selected: false });
+    const wrap = host(tree.root, 'progress-chart-wrap');
+    expect(wrap.props.accessibilityState).toEqual({ busy: true });
+    expect(flat(wrap).opacity).toBe(0.6);
+    expect(queryHost(tree.root, 'progress-chart-plot')).toHaveLength(1);
+    expect(texts(host(tree.root, 'progress-log-count'))).toEqual(['3 logs']);
+    expect(texts(tree.root)).not.toContain('Not enough weight history yet');
+    expect(tree.root.findAll((node) => /skeleton/i.test(String(node.props.testID ?? '')))).toHaveLength(0);
+    await act(async () => resolve(RANGE_ASC.slice(2)));
+    await flush();
+    expect(host(tree.root, 'progress-chart-wrap').props.accessibilityState).toEqual({ busy: false });
+    expect(flat(host(tree.root, 'progress-chart-wrap')).opacity).toBeUndefined();
+    expect(texts(host(tree.root, 'progress-log-count'))).toEqual(['1 log']);
+  });
+
+  it('batch 3 (e): a quick second pick keeps the last settled range dimmed until its own data lands', async () => {
+    const tree = await render();
+    getWeightLogsInRange.mockImplementationOnce(() => new Promise(() => {}));
+    press(tree.root, 'progress-range-7D');
+    let resolve;
+    getWeightLogsInRange.mockImplementationOnce(() => new Promise((done) => (resolve = done)));
+    press(tree.root, 'progress-range-1Y');
+    await flush();
+    expect(host(tree.root, 'progress-range-1Y').props.accessibilityState).toEqual({ selected: true });
+    expect(host(tree.root, 'progress-chart-wrap').props.accessibilityState).toEqual({ busy: true });
+    expect(texts(host(tree.root, 'progress-log-count'))).toEqual(['3 logs']);
+    await act(async () => resolve(RANGE_ASC.slice(1)));
+    await flush();
+    expect(host(tree.root, 'progress-chart-wrap').props.accessibilityState).toEqual({ busy: false });
+    expect(texts(host(tree.root, 'progress-log-count'))).toEqual(['2 logs']);
   });
 
   it('chart: gold line, dashed goal line (U9), data label', async () => {
@@ -263,6 +327,46 @@ describe('Progress phone (UX G)', () => {
     expect(recent.findAllByType(StatusPill).map((pill) => pill.props)).toEqual([expect.objectContaining({ tone: 'warning', label: 'Missed' })]);
   });
 
+  it('ND-10: "Goal {n}" right of the label (13/500 muted, tabular, one line, no shrink); the label truncates first; a11y reads goal + average', async () => {
+    loadProgress.mockResolvedValue({ ...DATA, planDaysPerWeek: 4 });
+    const tree = await render();
+    press(tree.root, 'progress-tab-activity');
+    const row = host(tree.root, 'progress-per-week-head');
+    expect(flat(row)).toMatchObject({ flexDirection: 'row', justifyContent: 'space-between' });
+    const label = host(tree.root, 'progress-per-week-label');
+    expect(textOf(label)).toBe('Workouts per week');
+    expect(label.props.numberOfLines).toBe(1);
+    expect(flat(label).flexShrink).toBe(1);
+    const goal = host(tree.root, 'progress-per-week-goal');
+    expect(textOf(goal)).toBe('Goal 4');
+    expect(goal.props.numberOfLines).toBe(1);
+    expect(flat(goal)).toMatchObject({ fontSize: 13, color: colors.textMuted, flexShrink: 0, fontVariant: ['tabular-nums'] });
+    const summary = host(tree.root, 'progress-per-week-summary');
+    expect(summary.props.accessible).toBe(true);
+    expect(summary.props.accessibilityLabel).toBe('Workouts per week, goal 4, average 3.3');
+  });
+
+  it('ND-10: no plan → the label alone, a11y without the goal; tablet shows the goal too', async () => {
+    const tree = await render();
+    press(tree.root, 'progress-tab-activity');
+    expect(queryHost(tree.root, 'progress-per-week-goal')).toHaveLength(0);
+    expect(host(tree.root, 'progress-per-week-summary').props.accessibilityLabel).toBe('Workouts per week, average 3.3');
+    mockWidth = 834;
+    loadProgress.mockResolvedValue({ ...DATA, planDaysPerWeek: 3 });
+    const tablet = await render();
+    press(tablet.root, 'progress-tab-activity');
+    expect(textOf(host(tablet.root, 'progress-per-week-goal'))).toBe('Goal 3');
+    expect(host(tablet.root, 'progress-per-week-summary').props.accessibilityLabel).toBe('Workouts per week, goal 3, average 3.3');
+  });
+
+  it('ND-10: no completed workouts yet → the label row still carries the goal', async () => {
+    loadProgress.mockResolvedValue({ ...DATA, frequency: [], planDaysPerWeek: 4 });
+    const tree = await render();
+    press(tree.root, 'progress-tab-activity');
+    expect(textOf(host(tree.root, 'progress-per-week-goal'))).toBe('Goal 4');
+    expect(host(tree.root, 'progress-per-week-summary').props.accessibilityLabel).toBe('Workouts per week, goal 4');
+  });
+
   it('Activity without plan data: no Consistency tile, no recent missed rows', async () => {
     loadProgress.mockResolvedValue({ ...DATA, missed: null, recentWorkouts: [] });
     const tree = await render();
@@ -304,6 +408,17 @@ describe('§9 large text', () => {
     expect(host(tree.root, 'progress-current').props.maxFontSizeMultiplier).toBe(1.3);
     expect(flat(host(tree.root, 'progress-weight-stats')).flexDirection).toBe(scale > 1.3 ? 'column' : 'row');
     expect(flat(host(tree.root, 'progress-ranges')).flexWrap).toBe(scale > 1.3 ? 'wrap' : undefined);
+  });
+
+  it.each([1, 2, 3.1])('ND-10 at %s: Goal caps at the body cap; past reflow the label wraps (column), never truncated', async (scale) => {
+    mockFontScale = scale;
+    loadProgress.mockResolvedValue({ ...DATA, planDaysPerWeek: 4 });
+    const tree = await render();
+    press(tree.root, 'progress-tab-activity');
+    const reflow = scale > 1.3;
+    expect(flat(host(tree.root, 'progress-per-week-head')).flexDirection).toBe(reflow ? 'column' : 'row');
+    expect(host(tree.root, 'progress-per-week-label').props.numberOfLines).toBe(reflow ? undefined : 1);
+    expect(host(tree.root, 'progress-per-week-goal').props.maxFontSizeMultiplier).toBe(host(tree.root, 'progress-per-week-label').props.maxFontSizeMultiplier);
   });
 
   it('tablet at 3.1: the header row stacks', async () => {

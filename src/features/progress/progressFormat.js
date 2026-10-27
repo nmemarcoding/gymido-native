@@ -258,6 +258,7 @@ export function recentWorkoutRows(recent, missedItems, unit, memberVolume) {
     kind: 'done',
     title: workout.workout_plan_day?.title || 'Workout session',
     sortKey: String(workout.completed_at || workout.started_at || ''),
+    when: instantMs(workout.completed_at || workout.started_at),
     meta: `${formatDate(workout.completed_at || workout.started_at)} · ${formatDuration(workout.duration_seconds)}`,
     volume: memberVolume(workout.total_volume_kg, unit),
   }));
@@ -272,11 +273,28 @@ export function recentWorkoutRows(recent, missedItems, unit, memberVolume) {
       kind: 'missed',
       title: item.plan_day?.title || item.plan_day?.name || 'Workout session',
       sortKey: String(item.date),
+      when: localMidnightMs(item.date),
       meta: `${formatDate(`${item.date}T12:00:00`)} · —`,
       volume: null,
     }));
   return done
     .concat(missed)
-    .sort((a, b) => (a.sortKey < b.sortKey ? 1 : a.sortKey > b.sortKey ? -1 : 0))
+    .sort((a, b) => b.when - a.when || 0)
     .slice(0, 8);
+}
+
+// Batch 3 (d), web parity: sort by timestamp (epoch ms), newest first.
+// Completed rows = the absolute instant; Missed rows = LOCAL midnight of
+// their YYYY-MM-DD. Unreadable → oldest.
+function instantMs(value) {
+  const ms = value ? new Date(value).getTime() : NaN;
+  return Number.isFinite(ms) ? ms : -Infinity;
+}
+
+function localMidnightMs(date) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(date ?? ''));
+  if (!match) {
+    return -Infinity;
+  }
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])).getTime();
 }

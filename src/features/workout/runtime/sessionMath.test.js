@@ -314,12 +314,32 @@ describe('v2 F1 reps (ND2)', () => {
     expect(stepReps('', -1)).toBe('');
   });
 
+  // Batch 3 (b), web parity: a blank field steps from the target (max ?? min).
+  it('blank field: ± steps from target_reps_max ?? target_reps_min (+ on blank 8–10 → 11, − → 9)', () => {
+    expect(stepReps('', 1, 10)).toBe('11');
+    expect(stepReps('', -1, 10)).toBe('9');
+    expect(stepReps('', 1, 12)).toBe('13');
+    expect(stepReps('', 1, 99)).toBe('99');
+    expect(stepReps('', -1, 1)).toBe('1');
+    expect(stepReps('', 1, null)).toBe('1');
+    expect(stepReps('', -1, null)).toBe('');
+    expect(stepReps('', -1, 0)).toBe('');
+    expect(stepReps('6', 1, 10)).toBe('7');
+    expect(stepReps('6', -1, 10)).toBe('5');
+  });
+
   it('prefill: the set\'s own Last time reps, else the top of the target, else blank; a done set shows its reps', () => {
     expect(repsPrefill({ target_reps_min: 8, target_reps_max: 10 }, { reps: 6 })).toBe('6');
     expect(repsPrefill({ target_reps_min: 8, target_reps_max: 10 }, null)).toBe('10');
     expect(repsPrefill({ target_reps_min: 12 }, null)).toBe('12');
     expect(repsPrefill({}, null)).toBe('');
     expect(repsPrefill({ is_completed: true, actual_reps: 9, target_reps_max: 10 }, { reps: 6 })).toBe('9');
+  });
+
+  it('prefill target is target_reps_max ?? target_reps_min (batch 3 (b))', () => {
+    expect(repsPrefill({ target_reps_max: 10 }, null)).toBe('10');
+    expect(repsPrefill({ target_reps_min: 8, target_reps_max: null }, null)).toBe('8');
+    expect(repsPrefill({ target_reps_min: 8, target_reps_max: 0 }, null)).toBe('');
   });
 
   it('seeds once per set and keeps typed values', () => {
@@ -421,5 +441,14 @@ describe('v2 F1 texts', () => {
     expect(setOfLabel({}, 3)).toBe('of 3');
     expect(doneSetLabel({ actual_weight_value: 135, actual_reps: 10 })).toBe('135 × 10');
     expect(doneSetLabel({ actual_weight_value: null, actual_reps: 10 })).toBe('10 reps');
+  });
+
+  it('done chip reps = actual_reps ?? target_reps_max ?? target_reps_min (batch 3 (b))', () => {
+    expect(doneSetLabel({ actual_weight_value: 135, actual_reps: null, target_reps_min: 8, target_reps_max: 10 })).toBe('135 × 10');
+    expect(doneSetLabel({ actual_weight_value: null, target_reps_min: 8 })).toBe('8 reps');
+    expect(doneSetLabel({ actual_weight_value: 135, actual_reps: 0, target_reps_max: 10 })).toBe('135');
+    expect(doneSetLabel({ actual_weight_value: null, actual_reps: 0, target_reps_max: 10 })).toBe('Done');
+    expect(doneSetLabel({})).toBe('Done');
+    expect(doneSetLabel({ actual_weight_value: 62.5 })).toBe('62.5');
   });
 });

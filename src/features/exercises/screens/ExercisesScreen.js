@@ -43,7 +43,6 @@ import {
   cardMuscleLabel,
   cardThumbnailSources,
   catalogErrorMessage,
-  countFor,
   deriveCatalog,
   filterChips,
   flatGridRows,
@@ -334,7 +333,6 @@ function ExercisesCatalog() {
             showFilter={catalog.categories.length > 0}
             categories={catalog.categories}
             categoryFilter={categoryFilter}
-            filterCount={countFor(catalog.categoryCounts, categoryFilter)}
             onSelectFilter={setCategoryFilter}
             onOpenFilter={() => setFilterOpen(true)}
             tablet={tablet}
@@ -431,7 +429,7 @@ function ExercisesCatalog() {
 // and the chip row AS DRAWN: "All" + the raw muscle groups, single select,
 // horizontally scrolling (§9: wraps past 1.3, never hides chips), then the
 // native trailing "All muscle groups ▾" chip that opens the full-list sheet.
-function StickyBar({ padding, searchValue, onChangeSearch, onSubmitSearch, searching, showFilter, categories, categoryFilter, filterCount, onSelectFilter, onOpenFilter, tablet, reflow }) {
+function StickyBar({ padding, searchValue, onChangeSearch, onSubmitSearch, searching, showFilter, categories, categoryFilter, onSelectFilter, onOpenFilter, tablet, reflow }) {
   const [focused, setFocused] = useState(false);
   const chips = filterChips(categories).map((chip) => (
     <Chip
@@ -448,7 +446,8 @@ function StickyBar({ padding, searchValue, onChangeSearch, onSubmitSearch, searc
       key="__sheet__"
       testID="exercises-filter"
       accessibilityRole="button"
-      accessibilityLabel={`All muscle groups${categoryFilter ? `, ${categoryFilter} selected, ${filterCount}` : ''}`}
+      // Batch 3 (f), web parity: named by its visible text; no selected count.
+      accessibilityLabel="All muscle groups"
       onPress={onOpenFilter}
       hitSlop={{ top: 3, bottom: 3 }}
       style={[styles.sheetChip, tablet && styles.chipTablet]}

@@ -470,10 +470,18 @@ export function parseReps(value) {
   return Number.isInteger(reps) && reps >= REPS_MIN && reps <= REPS_MAX && String(value).trim() !== '' ? reps : null;
 }
 
-export function stepReps(value, direction) {
-  const current = parseReps(value) ?? 0;
+// Batch 3 (b), web parity: a blank field steps from `target` (the set's
+// target_reps_max ?? target_reps_min), else 0 ("+" on blank 8–10 → 11).
+export function stepReps(value, direction, target = null) {
+  const fallback = Number(target);
+  const current = parseReps(value) ?? (Number.isFinite(fallback) && fallback > 0 ? fallback : 0);
   const next = Math.min(REPS_MAX, Math.max(REPS_MIN, current + direction));
   return current === 0 && direction < 0 ? '' : String(next);
+}
+
+// Batch 3 (b): the top of the target range, min only as fallback.
+export function targetReps(set) {
+  return set?.target_reps_max ?? set?.target_reps_min ?? null;
 }
 
 // ND2 prefill: the set's own Last time reps, else the top of the target
@@ -486,7 +494,7 @@ export function repsPrefill(set, previous) {
   if (last !== null) {
     return String(last);
   }
-  const top = Number(set?.target_reps_max || set?.target_reps_min || 0);
+  const top = Number(targetReps(set) || 0);
   return top > 0 ? String(Math.min(REPS_MAX, top)) : '';
 }
 
@@ -523,11 +531,16 @@ export function repsFieldLabel(set) {
   return range ? `Reps · target ${range}` : 'Reps';
 }
 
-// A done chip: "135 × 10" / "10 reps" (weight blank).
+// A done chip: "135 × 10" / "10 reps" (weight blank) / "135" (no reps) /
+// "Done". Batch 3 (b), web parity: reps = actual_reps ?? target max ?? min
+// (an actual 0 stays 0, so it shows the weight or "Done", never "0 reps").
 export function doneSetLabel(set) {
   const weight = Number(set?.actual_weight_value);
-  const reps = Number(set?.actual_reps || 0);
-  return weight > 0 ? `${formatPlain(weight)} × ${reps}` : `${reps} reps`;
+  const reps = Number(set?.actual_reps ?? targetReps(set) ?? 0) || 0;
+  if (weight > 0) {
+    return reps ? `${formatPlain(weight)} × ${reps}` : formatPlain(weight);
+  }
+  return reps ? `${reps} reps` : 'Done';
 }
 
 // The chrome timer pill: m:ss, minutes never roll into hours ("95:03").

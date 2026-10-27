@@ -111,7 +111,14 @@ describe('Exercises (UX G, phone)', () => {
     // Review LOW: the scrolling chip row is a radiogroup too (as the reflow wrap).
     expect(host(tree.root, 'exercises-chips').props).toMatchObject({ accessibilityRole: 'radiogroup', accessibilityLabel: 'Muscle group' });
     expect(texts(host(tree.root, 'exercises-filter'))).toEqual(['All muscle groups']);
+    // Batch 3 (f): each chip is named by its visible text; no selected count anywhere.
+    tree.root.findAllByType(Chip).forEach((chip) => {
+      const node = host(tree.root, chip.props.testID);
+      expect(node.props.accessibilityLabel).toBe(chip.props.label);
+    });
     press(tree.root, 'exercises-chip-Chest');
+    expect(host(tree.root, 'exercises-filter').props.accessibilityLabel).toBe('All muscle groups');
+    expect(host(tree.root, 'exercises-chip-Chest').props.accessibilityState).toMatchObject({ selected: true });
     expect(cardIds(tree.root)).toEqual(['exercise-card-1', 'exercise-card-3']);
     expect(tree.root.findAllByType(Chip).filter((chip) => chip.props.selected).map((chip) => chip.props.label)).toEqual(['Chest']);
     press(tree.root, 'exercises-chip-all');
@@ -187,7 +194,23 @@ describe('Muscle group sheet (v2 tiles)', () => {
     expect(flat(all)).toMatchObject({ backgroundColor: colors.goldTint });
     expect(all.props.accessibilityState).toEqual({ selected: true });
     expect(queryHost(tree.root, 'muscle-sheet-all-check')).toHaveLength(1);
-    expect(host(tree.root, 'muscle-sheet-option-Chest').props.accessibilityLabel).toBe('Chest, 2 exercises');
+    // DECLARED (batch 3 (f), web parity): options are named by their visible text; was 'Chest, 2 exercises'.
+    expect(host(tree.root, 'muscle-sheet-option-Chest').props.accessibilityLabel).toBe('Chest 2');
+  });
+
+  it('batch 3 (f): the sheet is "Filter by muscle group"; every option is named by its visible text ("{group} {n}", "All muscle groups {total}")', () => {
+    [390, 834].forEach((width) => {
+      mockWidth = width;
+      const tree = renderSheet();
+      expect(host(tree.root, 'muscle-sheet').props.accessibilityLabel).toBe('Filter by muscle group');
+      const all = host(tree.root, 'muscle-sheet-option-all');
+      expect(all.props.accessibilityLabel).toBe('All muscle groups 3');
+      expect(texts(all).join(' ')).toBe('All muscle groups 3');
+      const back = host(tree.root, 'muscle-sheet-option-Back');
+      expect(back.props.accessibilityLabel).toBe('Back 1');
+      expect(texts(back).join(' ')).toBe('Back 1');
+      expect(back.props.accessibilityLabel).not.toMatch(/selected|exercises/);
+    });
   });
 
   it('a group selected: its tile gets the muscle border + filled check; All becomes a normal tile', () => {

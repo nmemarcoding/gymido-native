@@ -13,7 +13,7 @@ function stub(overrides = {}) {
     '/history/workouts': () => ok({ total_workouts: 4 }),
     '/progress/frequency': () => ok({ items: [{ workout_count: 1 }] }),
     '/my-plans/current/missed': () => ok({ count: 1, planned_count: 4 }),
-    '/dashboard': () => ok({ recent_workouts: [{ id: 7 }] }),
+    '/dashboard': () => ok({ recent_workouts: [{ id: 7 }], current_plan: { enrollment: { plan: { id: 3, days_per_week: 4 } } } }),
     '/my-plans/current/week': () => ok({ week: [{ is_workout_day: true }] }),
     ...overrides,
   };
@@ -46,7 +46,24 @@ describe('loadProgress (PR1.1)', () => {
       missed: { count: 1, planned_count: 4 },
       recentWorkouts: [{ id: 7 }],
       week: [{ is_workout_day: true }],
+      planDaysPerWeek: 4, // DECLARED (ND-10): + the plan's days per week, from the same /dashboard call
     });
+  });
+
+  it('ND-10: planDaysPerWeek = /dashboard current_plan.enrollment.plan.days_per_week; failure / no plan / 0 / junk → null', async () => {
+    const plan = (days_per_week) => ok({ recent_workouts: [], current_plan: { enrollment: { plan: { days_per_week } } } });
+    const cases = [
+      [() => Promise.reject(new Error('nope')), null],
+      [() => ok({ recent_workouts: [], current_plan: null }), null],
+      [() => plan(0), null],
+      [() => plan('x'), null],
+      [() => plan(2.5), null],
+      [() => plan('5'), 5],
+    ];
+    for (const [response, expected] of cases) {
+      stub({ '/dashboard': response });
+      expect((await loadProgress()).planDaysPerWeek).toBe(expected);
+    }
   });
 
   it('the v2 optional calls fail silently into null / [] / null (404 = no plan)', async () => {

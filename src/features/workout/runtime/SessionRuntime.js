@@ -59,6 +59,7 @@ import {
   setKey,
   staleSessionTitle,
   stepReps,
+  targetReps,
   stepWeight,
   validateDraftWeight,
   volumeInUnit,
@@ -367,14 +368,18 @@ export default function SessionRuntime({
       const draft = drafts[set.id];
       const unit = draft?.actualWeightUnit || 'lb';
       const start = lastTimeWeight(previousSetFor(exercise, set), unit);
+      const before = String(draft?.actualWeightValue ?? '').trim();
       const value = stepWeight(draft?.actualWeightValue, unit, direction, start);
       changeDraft(exercise, set, 'actualWeightValue', value);
       if (value) {
         AccessibilityInfo.announceForAccessibility?.(`${value} ${unit}`);
+      } else if (before !== '') {
+        // Batch 3 (c), web parity: only the "−" that clears the field speaks.
+        AccessibilityInfo.announceForAccessibility?.('Weight cleared');
       }
       return;
     }
-    const value = stepReps(repsDrafts[set.id], direction);
+    const value = stepReps(repsDrafts[set.id], direction, targetReps(set));
     setRepsDrafts((current) => ({ ...current, [set.id]: value }));
     if (value) {
       AccessibilityInfo.announceForAccessibility?.(`${value} reps`);

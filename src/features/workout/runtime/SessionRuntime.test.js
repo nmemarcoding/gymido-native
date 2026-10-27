@@ -298,7 +298,9 @@ const sheet = (tree) => tree.root.findByType(ExerciseSheet);
 
 describe('v2 F1 live and browsing states (ND3)', () => {
   it('live: one chrome (Exit · plan + n/m · timer m:ss · All), segments, the set card and the dock; no nav, bar or stats', () => {
-    const { tree } = render();
+    // Started at render time: SESSION.started_at is set at module load, so
+    // a slow run could already read 0:01 (flake seen 1 in 5 runs).
+    const { tree } = render({ session: { ...SESSION, started_at: new Date().toISOString() } });
     expect(host(tree, 'session-chrome')).toBeDefined();
     expect(text(tree, 'Exit')).toHaveLength(1);
     expect(text(tree, 'Plan')).toHaveLength(1);
@@ -418,6 +420,39 @@ describe('v2 F1 steppers (ND1 / ND2) and the real reps (U3)', () => {
     expect(byId(tree, 'set-reps-12').props.value).toBe('13');
     await act(async () => byId(tree, 'set-action-12').props.onPress());
     expect(updateSessionSet).toHaveBeenLastCalledWith(1, 1, 12, expect.objectContaining({ actual_reps: 13 }));
+  });
+
+  it('batch 3 (b): + on a blank reps field gives target max + 1, − gives max − 1', () => {
+    const { tree } = render({ session: NO_TARGET });
+    act(() => byId(tree, 'set-reps-12').props.onChangeText(''));
+    act(() => byId(tree, 'set-reps-plus-12').props.onPress());
+    expect(byId(tree, 'set-reps-12').props.value).toBe('11');
+    act(() => byId(tree, 'set-reps-12').props.onChangeText(''));
+    act(() => byId(tree, 'set-reps-minus-12').props.onPress());
+    expect(byId(tree, 'set-reps-12').props.value).toBe('9');
+  });
+
+  it('batch 3 (c): only the weight − that clears the field announces "Weight cleared"; typing it empty is silent', () => {
+    const { AccessibilityInfo } = require('react-native');
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {});
+    const { tree } = render({ session: NO_TARGET });
+    act(() => byId(tree, 'set-weight-plus-12').props.onPress());
+    announce.mockClear();
+    act(() => byId(tree, 'set-weight-minus-12').props.onPress());
+    expect(byId(tree, 'set-weight-12').props.value).toBe('');
+    expect(announce).toHaveBeenCalledTimes(1);
+    expect(announce).toHaveBeenCalledWith('Weight cleared');
+    announce.mockClear();
+    act(() => byId(tree, 'set-weight-minus-12').props.onPress());
+    expect(announce).not.toHaveBeenCalled();
+    act(() => byId(tree, 'set-weight-12').props.onChangeText('20'));
+    act(() => byId(tree, 'set-weight-12').props.onChangeText(''));
+    expect(announce).not.toHaveBeenCalled();
+    act(() => byId(tree, 'set-weight-12').props.onChangeText('20'));
+    act(() => byId(tree, 'set-weight-minus-12').props.onPress());
+    expect(announce).toHaveBeenCalledWith('15 lb');
+    expect(announce).not.toHaveBeenCalledWith('Weight cleared');
+    announce.mockRestore();
   });
 
   it('a blank reps field logs the target as v1', async () => {

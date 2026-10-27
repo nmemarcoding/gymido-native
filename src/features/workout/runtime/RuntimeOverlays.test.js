@@ -83,7 +83,7 @@ describe('Workout complete, phone (UX F2 Workout complete)', () => {
         'Great job!',
         'You finished Upper / Lower Split and kept your momentum today.',
         '52m 10s',
-        '9,820 lb',
+        '9,820 kg', // DECLARED (batch 3 (a)): no unit → kg, was v1 '9,820 lb'
         '142',
         '5/5 ex',
         '15/15 sets done. Consistency wins.',
@@ -130,12 +130,18 @@ describe('Workout complete, phone (UX F2 Workout complete)', () => {
     expect(texts(tree)).toContain('4,454 kg');
   });
 
+  it('volume in lb when the member unit is lb (batch 3 (a))', () => {
+    const tree = render(<CompletionPopup popup={{ ...POPUP, volumeUnit: 'lb' }} onClose={() => {}} />);
+    expect(texts(tree)).toContain('9,820 lb');
+    expect(texts(tree)).not.toContain('9,820 kg');
+  });
+
   it('Share summary opens the share sheet with the text summary (PB lines included)', async () => {
     const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
     const tree = render(<CompletionPopup popup={{ ...POPUP, personalRecords: RECORDS }} onClose={() => {}} />);
     await act(async () => pressable(tree, 'completion-share').props.onPress());
     expect(share).toHaveBeenCalledWith({
-      message: 'Workout complete: Upper / Lower Split\nTime: 52m 10s\nVolume: 9,820 lb\nReps: 142\nSets: 15/15\nNew personal best: Barbell Bench Press · 145 lb × 12',
+      message: 'Workout complete: Upper / Lower Split\nTime: 52m 10s\nVolume: 9,820 kg\nReps: 142\nSets: 15/15\nNew personal best: Barbell Bench Press · 145 lb × 12',
     });
     expect(all(tree, 'completion-share-error')).toHaveLength(0);
   });

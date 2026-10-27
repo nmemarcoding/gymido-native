@@ -153,14 +153,18 @@ describe('personalBestLines (#15)', () => {
 describe('completion text (U6, VOLUME RULE)', () => {
   const popup = { planName: 'Upper / Lower', durationSeconds: 3130, totalVolume: 9820, totalReps: 142, completedSets: 15, totalSets: 15, completedExercises: 5, totalExercises: 5 };
 
-  it('volume in the snapshot unit, else v1 "lb"', () => {
-    expect(completionVolume(popup)).toBe('9,820 lb');
+  // DECLARED parity change (PM-approved, web facts batch 3 (a)): no unit → kg, never v1 "lb".
+  it('volume in the snapshot unit, else kg (web parity, never "lb")', () => {
+    expect(completionVolume(popup)).toBe('9,820 kg');
     expect(completionVolume({ ...popup, volumeUnit: 'kg', totalVolume: 4454.4 })).toBe('4,454 kg');
+    expect(completionVolume({ ...popup, volumeUnit: 'lb' })).toBe('9,820 lb');
+    expect(completionVolume({ ...popup, volumeUnit: '' })).toBe('9,820 kg');
+    expect(completionVolume(null)).toBe('0 kg');
   });
 
   it('share summary text', () => {
     expect(shareSummaryText(popup, [{ text: 'Bench · 145 lb × 8' }])).toBe(
-      ['Workout complete: Upper / Lower', 'Time: 52m 10s', 'Volume: 9,820 lb', 'Reps: 142', 'Sets: 15/15', 'New personal best: Bench · 145 lb × 8'].join('\n')
+      ['Workout complete: Upper / Lower', 'Time: 52m 10s', 'Volume: 9,820 kg', 'Reps: 142', 'Sets: 15/15', 'New personal best: Bench · 145 lb × 8'].join('\n')
     );
     expect(shareSummaryText({ ...popup, planName: '' })).toMatch(/^Workout complete: Workout\n/);
   });
