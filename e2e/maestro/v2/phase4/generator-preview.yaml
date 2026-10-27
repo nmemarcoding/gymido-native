@@ -23,8 +23,10 @@ appId: com.gymido.app
 # Deep-link-free path: the saved profile pre-fills the answers; walk Next.
 - tapOn:
     id: "generator-goal-BUILD_MUSCLE"
+# Steps 1 → 6 take five Nexts and step 6 → the Review a sixth (QA's "the
+# Review keeps step 6's offset" was this off-by-one: the flow never left step 6).
 - repeat:
-    times: 5
+    times: 6
     commands:
       - scrollUntilVisible:
           element:
@@ -34,6 +36,13 @@ appId: com.gymido.app
           timeout: 15000
       - tapOn:
           id: "generator-next"
+# G1.3: the Review opens at its TOP — the title is on screen with no scroll.
+- extendedWaitUntil:
+    visible:
+      id: "generator-review-title"
+    timeout: 15000
+- assertVisible:
+    id: "generator-review-1"
 - extendedWaitUntil:
     visible:
       id: "generator-review-1"

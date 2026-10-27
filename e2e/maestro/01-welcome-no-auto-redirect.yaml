@@ -2,6 +2,12 @@
 appId: com.gymido.app
 ---
 - runFlow: subflows/ensure-signed-out.yaml
+# QA s3-p2: wait for Welcome before asserting (the first check read the page
+# at once after the sign-out).
+- extendedWaitUntil:
+    visible:
+      id: "welcome-log-in"
+    timeout: 30000
 - assertVisible: "Gymido"
 - assertVisible:
     id: "welcome-log-in"
