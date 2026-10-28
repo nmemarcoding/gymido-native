@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { routes } from '../../../navigation/routes';
 import { isTabletWidth } from '../../../shared/components/AppModal';
@@ -9,6 +9,7 @@ import ErrorAlert from '../../../shared/components/ErrorAlert';
 import GradientFill from '../../../shared/components/GradientFill';
 import Loader from '../../../shared/components/Loader';
 import StateSlot from '../../../shared/components/StateSlot';
+import Toggle from '../../../shared/components/Toggle';
 import { CAP_BODY, TITLE_TEXT, useLargeTextReflow } from '../../../shared/components/largeText';
 import { colors, font, gradients, radii, spacing, typography } from '../../../shared/theme/tokens';
 import { logout } from '../../auth/authService';
@@ -64,10 +65,6 @@ export default function ProfileSettingsScreen() {
     </ShellPage>
   );
 }
-
-// RN-SPEC-v2-foundation §4.7: on = gold track + color-ground thumb; off =
-// the 14 % white track + a text-primary thumb. The thumb position is the cue.
-const SWITCH_TRACK = { false: colors.switchTrackOff, true: colors.gold };
 
 function Settings() {
   const navigation = useNavigation();
@@ -439,19 +436,11 @@ function SwitchRow({ row, first, tablet, reflow }) {
               {row.hint}
             </Text>
           </View>
-          <Switch
-            testID={`${row.testID}-switch`}
-            value={row.value}
-            onValueChange={row.onChange}
-            // v2 §4.7: the gold track (no ✓ in the thumb); the thumb is set
-            // in both states, since Android's default ON thumb is an
-            // off-palette teal.
-            trackColor={SWITCH_TRACK}
-            thumbColor={row.value ? colors.ground : colors.textPrimary}
-            ios_backgroundColor={colors.switchTrackOff}
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-          />
+          {/* UX native final audit 27 Oct 2026, ruling 11 (A145): the kit
+              Toggle (gold track + white knob on; 0.14 track off; 51×31 iOS /
+              52×32 Android). The row is the switch, so the toggle is
+              decorative. */}
+          <Toggle testID={`${row.testID}-switch`} value={row.value} onValueChange={row.onChange} decorative />
         </>
       )}
     </Pressable>

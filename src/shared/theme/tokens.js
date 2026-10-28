@@ -23,6 +23,9 @@ const V2_COLORS = {
   fillSkeleton: 'rgba(255, 255, 255, 0.07)',
   fillButton: 'rgba(255, 255, 255, 0.08)',
   switchTrackOff: 'rgba(255, 255, 255, 0.14)',
+  // UX native final audit 27 Oct 2026, ruling 11: the toggle knob is white
+  // in both states.
+  switchKnob: '#FFFFFF',
   scrim: 'rgba(10, 11, 15, 0.6)',
   // §1.2 Text.
   textPrimary: '#F5F6F8',

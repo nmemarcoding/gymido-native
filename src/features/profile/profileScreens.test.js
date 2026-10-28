@@ -10,7 +10,7 @@ jest.mock('@react-navigation/native', () => ({ useNavigation: () => mockNavigati
 jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn(() => Promise.resolve()) }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 
-import { AccessibilityInfo, TextInput } from 'react-native';
+import { AccessibilityInfo, StyleSheet, TextInput } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { routes } from '../../navigation/routes';
@@ -110,23 +110,25 @@ describe('P1 Settings', () => {
     expect(texts(tree.root)).toEqual(expect.arrayContaining(['Vibrate on rest end', 'Buzz when rest is over']));
     expect(row().props.accessibilityRole).toBe('switch');
     expect(row().props.accessibilityState).toEqual({ checked: true });
-    // Design system v1 #17: the gold track, the off colour behind it on iOS.
+    // DECLARED (UX native final audit 27 Oct 2026, ruling 11, A145): was the
+    // RN Switch's trackColor / ios_backgroundColor / thumbColor (color-ground
+    // thumb when on). Now the kit Toggle: gold track + white knob on the
+    // right when on; the white 0.14 track + white knob on the left when off.
+    const hostStyle = (id) => StyleSheet.flatten(tree.root.find((node) => node.props.testID === id && typeof node.type === 'string').props.style);
+    const Toggle = require('../../shared/components/Toggle').default;
     const toggle = tree.root.find((node) => node.props.testID === 'settings-vibrate-rest-alerts-switch' && node.props.onValueChange);
-    // v2 §4.7 (declared look-only change, P1-05): gold track on, 14 % white
-    // track off.
-    expect(toggle.props.trackColor).toEqual({ false: 'rgba(255, 255, 255, 0.14)', true: '#FFC21A' });
-    expect(toggle.props.ios_backgroundColor).toBe('rgba(255, 255, 255, 0.14)');
-    // v2 §4.7 (declared look-only change; was QA 1.0.1's white thumb): the thumb
-    // is set in both states on both switches (Android's default ON thumb is
-    // teal): color-ground when on, #F5F6F8 when off.
-    expect(toggle.props.thumbColor).toBe('#0A0B0F');
+    expect(toggle.type).toBe(Toggle);
+    expect(toggle.props.value).toBe(true);
+    expect(hostStyle('settings-vibrate-rest-alerts-switch-track')).toMatchObject({ backgroundColor: '#FFC21A', alignItems: 'flex-end' });
+    expect(hostStyle('settings-vibrate-rest-alerts-switch-knob').backgroundColor).toBe('#FFFFFF');
     const speak = tree.root.find((node) => node.props.testID === 'settings-speak-rest-alerts-switch' && node.props.onValueChange);
-    expect(speak.props.thumbColor).toBe(speak.props.value ? '#0A0B0F' : '#F5F6F8');
+    expect(speak.type).toBe(Toggle);
     act(() => {
       row().props.onPress();
     });
     expect(row().props.accessibilityState).toEqual({ checked: false });
-    expect(tree.root.find((node) => node.props.testID === 'settings-vibrate-rest-alerts-switch' && node.props.onValueChange).props.thumbColor).toBe('#F5F6F8');
+    expect(hostStyle('settings-vibrate-rest-alerts-switch-track')).toMatchObject({ backgroundColor: 'rgba(255, 255, 255, 0.14)', alignItems: 'flex-start' });
+    expect(hostStyle('settings-vibrate-rest-alerts-switch-knob').backgroundColor).toBe('#FFFFFF');
     expect(AsyncStorage.setItem).toHaveBeenCalledWith('gymido.vibrateRestAlerts', '0');
     expect(AsyncStorage.setItem).not.toHaveBeenCalledWith('gymido.speakRestAlerts', expect.anything());
     act(() => {
