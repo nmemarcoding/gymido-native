@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { usesRail } from '../../shared/hooks/useLayoutClass';
 import { RAIL } from './railMetrics';
+import StatusBarBackdrop from './StatusBarBackdrop';
 import { useShellUiStore } from './shellUiStore';
 
 // T-56: true when ShellOverlay draws the tablet rail: ≥ 768 (both
@@ -30,6 +31,9 @@ export default function TabletFrame({ children }) {
     <View testID="tablet-frame" style={[styles.row, { paddingLeft: showsRail ? RAIL.width + insets.left : 0 }]}>
       <View testID="tablet-frame-column" style={[styles.column, { paddingTop: insets.top }]}>
         {children}
+        {/* UX native final audit 27 Oct 2026, ruling 2: the status-bar backdrop
+            over the column's scroll; the rail column keeps its own top. */}
+        <StatusBarBackdrop />
       </View>
     </View>
   );

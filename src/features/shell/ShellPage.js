@@ -13,6 +13,7 @@ import AppHeader from './AppHeader';
 import { HeroTitleProvider, useHeroTitleRegistry } from './heroTitle';
 import ModeSwitch from './ModeSwitch';
 import { RAIL } from './railMetrics';
+import StatusBarBackdrop from './StatusBarBackdrop';
 import { getScreenPath } from './shellNavigation';
 import { resolveMode, showsMobileModeSwitch } from './shellRules';
 import TabletFrame from './TabletFrame';
@@ -104,7 +105,8 @@ export default function ShellPage({ children, nestable = false, glow = false, te
   }
 
   return (
-    // [O2] The status-bar band is page background; content never scrolls under it.
+    // [O2] The status-bar band is page background; content never scrolls
+    // under it: StatusBarBackdrop covers the band (audit ruling 2).
     <View testID={testID} style={[styles.screen, { paddingTop: insets.top }]}>
       <AmbientGlow glow={glow} />
       <Scroller
@@ -118,6 +120,8 @@ export default function ShellPage({ children, nestable = false, glow = false, te
       >
         <View style={styles.phoneColumn}>{content}</View>
       </Scroller>
+      {/* UX native final audit 27 Oct 2026, ruling 2: over the scroll, in the inset band. */}
+      <StatusBarBackdrop />
     </View>
   );
 }
