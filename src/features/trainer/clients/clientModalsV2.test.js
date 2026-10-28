@@ -252,7 +252,12 @@ describe('Client weight modal (UX M)', () => {
   // Reviewer LOW (TRAINER-CLIENTS:631): teal only at 768 ≤ w < 1280.
   it.each([
     [390, colors.gold],
+    // QA candidate-9643e9c "Automate:": the edges.
+    [767, colors.gold],
+    [768, colors.chartLine],
     [834, colors.chartLine],
+    [1279, colors.chartLine],
+    [1280, colors.gold],
     [1366, colors.gold],
   ])('the client weight chart at %s draws its line in %s', async (width, color) => {
     setWindow(width);

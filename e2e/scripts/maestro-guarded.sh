@@ -9,6 +9,8 @@
 # Usage: e2e/scripts/maestro-guarded.sh <emulator-serial | simulator-udid | android | ios> <maestro test args…>
 #   android / ios: the one booted emulator / simulator (GYMIDO_DEVICE picks
 #   one when several are running).
+# Exit: maestro's, or 2 (usage / no device), 3 (API guard), 4 (a second
+# simulator), 5 (a Maestro log could not be deleted).
 set -uo pipefail
 TARGET="${1:?usage: $0 <device | android | ios> <maestro test args…>}"
 shift
@@ -50,4 +52,53 @@ GUARD_OUT="$(node "$ROOT/e2e/scripts/apiGuard.js" "$DEVICE" ${FLAGS[@]+"${FLAGS[
 printf '%s\n' "$GUARD_OUT"
 # Release build → the launch subflow uses launchApp, not the dev-client link.
 if printf '%s' "$GUARD_OUT" | grep -q 'Release build'; then export MAESTRO_GYMIDO_RELEASE=true; else export MAESTRO_GYMIDO_RELEASE=false; fi
-exec maestro --device "$DEVICE" test "$@"
+
+# QA candidate-9643e9c: Maestro's device logs (device-logcat.txt,
+# device-simulator.log) keep text from a sign-in, and so can maestro.log and
+# commands*.json. They go to the caller's --debug-output, else to a private
+# temp folder (never the shared ~/.maestro/tests), and are deleted after
+# every run: a pass, a failure, Ctrl-C or a kill. One left behind → exit 5.
+DEBUG=""
+OWN_DEBUG=""
+prev=""
+for arg in "$@"; do
+  case "$arg" in --debug-output=*) DEBUG="${arg#--debug-output=}" ;; esac
+  [ "$prev" = --debug-output ] && DEBUG="$arg"
+  prev="$arg"
+done
+if [ -z "$DEBUG" ]; then
+  OWN_DEBUG="$(mktemp -d "${TMPDIR:-/tmp}/maestro-guarded.XXXXXX")" || exit 2
+  DEBUG="$OWN_DEBUG"
+  set -- --debug-output "$OWN_DEBUG" "$@"
+fi
+LOGS=(-name device-logcat.txt -o -name device-simulator.log -o -name maestro.log -o -name 'commands*.json')
+
+MPID=""
+CODE=1
+CLEANED=""
+scrub() {
+  [ -n "$CLEANED" ] && return
+  CLEANED=1
+  trap - EXIT INT TERM HUP
+  # Maestro may still be writing.
+  [ -n "$MPID" ] && kill "$MPID" 2>/dev/null && wait "$MPID" 2>/dev/null
+  find "$DEBUG" -type f \( "${LOGS[@]}" \) -delete 2>/dev/null
+  [ -n "$OWN_DEBUG" ] && rm -rf "${OWN_DEBUG:?}"
+  local left
+  left="$(find "$DEBUG" -type f \( "${LOGS[@]}" \) 2>/dev/null | wc -l | tr -d ' ')"
+  if [ "${left:-0}" -gt 0 ]; then
+    echo "maestro-guarded: $left Maestro log file(s) could not be deleted under $DEBUG" >&2
+    CODE=5
+  fi
+  exit "$CODE"
+}
+trap scrub EXIT
+trap 'CODE=1; scrub' INT TERM HUP
+
+# In the background + wait, so a signal reaches the trap at once.
+maestro --device "$DEVICE" test "$@" &
+MPID=$!
+wait "$MPID"
+CODE=$?
+MPID=""
+scrub

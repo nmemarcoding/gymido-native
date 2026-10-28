@@ -69,7 +69,8 @@ tags:
 - tapOn:
     id: "create-plan-name"
 - inputText: "QA Draft"
-- hideKeyboard
+# QA candidate-9643e9c: no hideKeyboard (it fails on iOS); the page passes
+# taps through with the keyboard up, and the scroll centres the submit.
 - scrollUntilVisible:
     element:
       id: "create-plan-submit"

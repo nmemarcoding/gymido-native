@@ -5,6 +5,13 @@ appId: com.gymido.app
 ---
 - tapOn:
     id: "tab-Today"
+# QA candidate-9643e9c: Today keeps its scroll position (01-today ends at
+# the weight card), so scroll back up to the top state first.
+- scrollUntilVisible:
+    element:
+      id: "home-today-primary|home-empty-hero|home-error"
+    direction: UP
+    timeout: 20000
 - extendedWaitUntil:
     visible:
       id: "home-today-primary"

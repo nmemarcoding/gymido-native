@@ -5,6 +5,7 @@ appId: com.gymido.app
 - runFlow: subflows/ensure-signed-in.yaml
 # Trainer mode: switch to the member workspace first (the Workspace switch
 # sits on the trainer Profile tab), or tab-Profile never appears.
+# Phone tab bar or the tablet rail (QA candidate-9643e9c flow defect).
 - runFlow:
     when:
       visible:
@@ -12,15 +13,39 @@ appId: com.gymido.app
     commands:
       - tapOn:
           id: "tab-TProfile"
+- runFlow:
+    when:
+      visible:
+        id: "rail-TProfile"
+    commands:
+      - tapOn:
+          id: "rail-TProfile"
+- runFlow:
+    when:
+      visible:
+        id: "mode-switch-member"
+    commands:
       - tapOn:
           id: "mode-switch-member"
       - extendedWaitUntil:
           visible:
-            id: "tab-Profile"
+            id: "tab-Profile|rail-Profile"
           timeout: 20000
-# Member mode: the Profile tab root holds the account actions.
-- tapOn:
-    id: "tab-Profile"
+# Member mode: the Profile root holds the account actions.
+- runFlow:
+    when:
+      visible:
+        id: "tab-Profile"
+    commands:
+      - tapOn:
+          id: "tab-Profile"
+- runFlow:
+    when:
+      visible:
+        id: "rail-Profile"
+    commands:
+      - tapOn:
+          id: "rail-Profile"
 # Centre the button, or the tap lands on the floating tab bar above it.
 - scrollUntilVisible:
     element:

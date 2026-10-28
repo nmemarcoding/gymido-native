@@ -79,6 +79,32 @@ describe('invite.sh', () => {
     expect(text).not.toMatch(/state-slot/);
   });
 
+  // QA candidate-9643e9c: the trainer sign-in exited 3 (its sweep deleted a
+  // stale log) and invite.sh stopped at `|| exit $?` with no line at all; two
+  // invites silently didn't send.
+  it.each([1, 3, 4])('a trainer sign-in that exits %i fails LOUDLY: a FAIL line, nothing sent, that exit code', (code) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'invite-signin-'));
+    const scripts = path.join(root, 'e2e', 'scripts');
+    fs.mkdirSync(scripts, { recursive: true });
+    ['invite.sh', 'e2eEnv.sh'].forEach((name) => fs.copyFileSync(path.join(__dirname, name), path.join(scripts, name)));
+    fs.writeFileSync(path.join(scripts, 'android-sign-in.sh'), `#!/usr/bin/env bash\nexit ${code}\n`, { mode: 0o755 });
+    fs.writeFileSync(path.join(scripts, 'maestro-guarded.sh'), `#!/usr/bin/env bash\ntouch ${JSON.stringify(path.join(root, 'invite-ran'))}\n`, { mode: 0o755 });
+    const creds = path.join(root, 'creds.env');
+    fs.writeFileSync(creds, FAKE);
+    try {
+      const r = spawnSync('bash', [path.join(scripts, 'invite.sh'), 'emulator-5554', 'QA_TRAINER', 'THROWAWAY3', '--send'], {
+        encoding: 'utf8',
+        env: { PATH: process.env.PATH, HOME: root, GYMIDO_E2E_ENV: creds },
+      });
+      expect(r.status).toBe(code);
+      expect(r.stdout + r.stderr).toMatch(new RegExp(`FAIL invite: the trainer sign-in exited ${code}[^\\n]*nothing was sent`));
+      expect(fs.existsSync(path.join(root, 'invite-ran'))).toBe(false);
+      expect(r.stdout + r.stderr).not.toMatch(/fake\.|Fake-/);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it('taps Invite only with --send', () => {
     expect(text).toMatch(/if \[ "\$SEND" = 1 \]/);
     const sendBlock = text.slice(text.indexOf('if [ "$SEND" = 1 ]'));

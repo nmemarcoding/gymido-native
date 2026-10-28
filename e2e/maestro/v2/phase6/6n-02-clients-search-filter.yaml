@@ -53,7 +53,8 @@ tags:
           visible: "No clients found"
           timeout: 10000
       - eraseText: 30
-      - hideKeyboard
+      # QA candidate-9643e9c: no hideKeyboard (on iOS it taps the screen and
+      # opened a client row); the list passes taps through with the keyboard up.
       - extendedWaitUntil:
           visible:
             id: "clients-list"

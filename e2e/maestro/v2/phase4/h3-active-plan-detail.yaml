@@ -21,17 +21,33 @@ appId: com.gymido.app
           id: "rail-Plans"
 - extendedWaitUntil:
     visible:
-      id: "plans-entry-tiles"
+      id: "plans-entry-tiles|plans-own"
     timeout: 30000
 - runFlow:
     when:
       visible:
         id: "plans-active-card"
     commands:
-      - assertVisible:
-          id: "plans-go-to-workout"
-      - tapOn:
-          id: "plans-view-active"
+      # Tablet card: Go to workout + View plan. Phone card (T-60): Start +
+      # See full plan. Neither Go to workout nor Start is ever tapped.
+      - runFlow:
+          when:
+            visible:
+              id: "plans-view-active"
+          commands:
+            - assertVisible:
+                id: "plans-go-to-workout"
+            - tapOn:
+                id: "plans-view-active"
+      - runFlow:
+          when:
+            visible:
+              id: "plans-see-full-plan"
+          commands:
+            - assertVisible:
+                id: "plans-start"
+            - tapOn:
+                id: "plans-see-full-plan"
       - extendedWaitUntil:
           visible:
             id: "plan-detail-current"
@@ -57,5 +73,5 @@ appId: com.gymido.app
           id: "plan-detail-back"
       - extendedWaitUntil:
           visible:
-            id: "plans-entry-tiles"
+            id: "plans-entry-tiles|plans-own"
           timeout: 30000

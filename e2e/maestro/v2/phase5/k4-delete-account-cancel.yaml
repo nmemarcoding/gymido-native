@@ -20,7 +20,10 @@ appId: com.gymido.app
     id: "delete-account-submit"
 - assertVisible:
     id: "delete-account-bullets"
-- hideKeyboard
+# QA candidate-9643e9c: no hideKeyboard (on Android it sends Back, which
+# closes the dialog). The dialog passes taps through with the keyboard up.
+- assertVisible:
+    id: "delete-account-cancel"
 - tapOn:
     id: "delete-account-cancel"
 - assertNotVisible:

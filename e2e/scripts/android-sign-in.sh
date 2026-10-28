@@ -67,7 +67,9 @@ cleanup() {
   [ -n "$MPID" ] && kill "$MPID" 2>/dev/null && wait "$MPID" 2>/dev/null
   pkill -P $$ 2>/dev/null
   rm -rf "$WORK"
-  find "$HOME/.maestro/tests" "$MAESTRO_LOGS" -newer "$MARK_SAVED" -type f \( -name 'maestro.log' -o -name 'commands*.json' -o -name '*.png' \) -delete 2>/dev/null
+  # maestro-guarded.sh keeps the debug output private; ~/.maestro/tests is
+  # not swept by age (another lane's files).
+  find "$MAESTRO_LOGS" -newer "$MARK_SAVED" -type f \( -name 'maestro.log' -o -name 'commands*.json' -o -name '*.png' \) -delete 2>/dev/null
   local hits zip
   hits="$(grep -rlF -f <(patterns) "$HOME/.maestro" "$MAESTRO_LOGS" 2>/dev/null)"
   while IFS= read -r zip; do

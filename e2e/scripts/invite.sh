@@ -33,10 +33,23 @@ case "$DEVICE" in
 esac
 export MAESTRO_INVITE_EMAIL
 
+# QA candidate-9643e9c: a failed sign-in stopped here with no line at all
+# (exit 3 after its sweep deleted a stale log), so two invites silently didn't
+# send. Say so, and keep the sign-in's exit code.
 case "$SIGN_IN" in
-  *android*) "$ROOT/e2e/scripts/android-sign-in.sh" "$DEVICE" "$TRAINER" || exit $? ;;
-  *) "$ROOT/e2e/scripts/ios-safe-sign-in.sh" "$DEVICE" "$TRAINER" || exit $? ;;
+  *android*) "$ROOT/e2e/scripts/android-sign-in.sh" "$DEVICE" "$TRAINER" ;;
+  *) "$ROOT/e2e/scripts/ios-safe-sign-in.sh" "$DEVICE" "$TRAINER" ;;
 esac
+SIGN_IN_CODE=$?
+if [ "$SIGN_IN_CODE" -ne 0 ]; then
+  case "$SIGN_IN_CODE" in
+    3) why="the API guard refused, or its sweep deleted files that held a credential; check the sign-in lines above, then re-run" ;;
+    4) why="another simulator is booted" ;;
+    *) why="see the sign-in lines above" ;;
+  esac
+  echo "FAIL invite: the trainer sign-in exited $SIGN_IN_CODE ($why); nothing was sent" >&2
+  exit "$SIGN_IN_CODE"
+fi
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/invite.XXXXXX")"
 MARK_SAVED="$(mktemp "${TMPDIR:-/tmp}/invite-mark.XXXXXX")"
@@ -117,7 +130,9 @@ cleanup() {
   [ -n "$MPID" ] && kill "$MPID" 2>/dev/null && wait "$MPID" 2>/dev/null
   pkill -P $$ 2>/dev/null
   rm -rf "$WORK"
-  find "$HOME/.maestro/tests" "$MAESTRO_LOGS" -newer "$MARK_SAVED" -type f \( -name 'maestro.log' -o -name 'commands*.json' -o -name '*.png' \) -delete 2>/dev/null
+  # maestro-guarded.sh keeps the debug output private; ~/.maestro/tests is
+  # not swept by age (another lane's files).
+  find "$MAESTRO_LOGS" -newer "$MARK_SAVED" -type f \( -name 'maestro.log' -o -name 'commands*.json' -o -name '*.png' \) -delete 2>/dev/null
   local hits zip
   hits="$(grep -rlF -f <(patterns) "$HOME/.maestro" "$MAESTRO_LOGS" 2>/dev/null)"
   while IFS= read -r zip; do

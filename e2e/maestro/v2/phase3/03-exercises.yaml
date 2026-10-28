@@ -1,4 +1,6 @@
 # v2 Phase 3 §5 Exercises (team 3a). Read-only. Starts signed in on a tab root.
+# T-62 (QA candidate-9643e9c flow defect): the muscle chips are gone. A phone
+# or a < 1024 tablet has the Filter button + sheet; ≥ 1024 has the panel.
 appId: com.gymido.app
 ---
 - tapOn:
@@ -9,31 +11,61 @@ appId: com.gymido.app
     timeout: 60000
 - assertVisible:
     id: "exercises-search"
-- assertVisible:
-    id: "exercises-chips"
-- assertVisible:
-    id: "exercises-chip-all"
-# The trailing "All muscle groups" chip opens the sheet; Close dismisses it.
-# QA s4: the default speed timed out on the long chip row (all muscle
-# groups); scroll faster and allow longer.
-- scrollUntilVisible:
-    element:
-      id: "exercises-filter"
-    direction: RIGHT
-    centerElement: false
-    speed: 90
-    timeout: 45000
-- tapOn:
-    id: "exercises-filter"
 - extendedWaitUntil:
     visible:
-      id: "muscle-sheet"
-    timeout: 10000
+      id: "exercises-filter|exercises-filter-panel"
+    timeout: 30000
 - assertVisible:
-    id: "muscle-sheet-option-all"
-- tapOn:
-    id: "muscle-sheet-close"
-- assertNotVisible:
-    id: "muscle-sheet"
+    id: "exercises-result-count"
+# The Filter button opens the sheet with its Muscle group section; × closes it.
+- runFlow:
+    when:
+      visible:
+        id: "exercises-filter"
+    commands:
+      - tapOn:
+          id: "exercises-filter"
+      - extendedWaitUntil:
+          visible:
+            id: "exercise-filter-sheet"
+          timeout: 10000
+      - assertVisible:
+          id: "exercise-filter-find"
+      - assertVisible:
+          id: "exercise-filter-section-muscle"
+      # QA candidate-9643e9c "Automate:": a find text with no match.
+      - tapOn:
+          id: "exercise-filter-find"
+      - inputText: "zzqq"
+      - extendedWaitUntil:
+          visible:
+            id: "exercise-filter-no-match"
+          timeout: 10000
+      - eraseText: 10
+      - tapOn:
+          id: "app-modal-close"
+      - extendedWaitUntil:
+          notVisible:
+            id: "exercise-filter-sheet"
+          timeout: 10000
+# ≥ 1024: the always-visible panel with the same section.
+- runFlow:
+    when:
+      visible:
+        id: "exercises-filter-panel"
+    commands:
+      - assertVisible:
+          id: "exercise-filter-find"
+      - assertVisible:
+          id: "exercise-filter-section-muscle"
+      # QA candidate-9643e9c "Automate:": a find text with no match.
+      - tapOn:
+          id: "exercise-filter-find"
+      - inputText: "zzqq"
+      - extendedWaitUntil:
+          visible:
+            id: "exercise-filter-no-match"
+          timeout: 10000
+      - eraseText: 10
 - assertVisible:
     id: "exercises-list"

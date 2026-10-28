@@ -45,6 +45,8 @@ appId: com.gymido.app
     visible:
       id: "trainers-card-.*"
     timeout: 30000
+# QA candidate-9643e9c "Automate:": a member never sees a trainer's email.
+- assertNotVisible: ".*@.*"
 - tapOn:
     id: "trainers-card-.*"
     index: 0
@@ -58,6 +60,8 @@ appId: com.gymido.app
     visible:
       id: "trainer-detail-card"
     timeout: 30000
+# QA candidate-9643e9c "Automate:": a member never sees a trainer's email.
+- assertNotVisible: ".*@.*"
 - assertVisible:
     id: "trainer-detail-about"
 - runFlow:

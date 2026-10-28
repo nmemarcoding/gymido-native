@@ -159,3 +159,97 @@ describe('h1-h3 open Plans on phone AND tablet (QA T-60 flow defect)', () => {
     expect(flow).not.toMatch(/^- tapOn:\n {4}id: "tab-Plans"/m);
   });
 });
+
+// QA candidate-9643e9c flow defects (PM-approved updates; each changed step
+// is declared in the commit and is equal or stricter).
+describe('QA candidate-9643e9c flow defects', () => {
+  const read = (rel) => fs.readFileSync(path.join(V2, rel), 'utf8');
+  const steps = (src) => src.split('\n').filter((line) => !line.trim().startsWith('#')).join('\n');
+
+  it('03-exercises asserts the T-62 filter (button + sheet on a phone, the panel at ≥ 1024), not the removed chips', () => {
+    const flow = steps(read('phase3/03-exercises.yaml'));
+    expect(flow).not.toMatch(/exercises-chips|exercises-chip-all|muscle-sheet/);
+    expect(flow).toMatch(/id: "exercises-filter\|exercises-filter-panel"/);
+    expect(flow).toMatch(/visible:\n\s+id: "exercises-filter"\n\s+commands:[\s\S]*id: "exercise-filter-sheet"[\s\S]*id: "exercise-filter-section-muscle"[\s\S]*id: "app-modal-close"[\s\S]*notVisible:\n\s+id: "exercise-filter-sheet"/);
+    expect(flow).toMatch(/visible:\n\s+id: "exercises-filter-panel"\n\s+commands:[\s\S]*id: "exercise-filter-section-muscle"/);
+    expect(flow).toMatch(/id: "exercises-result-count"/);
+  });
+
+  it.each(['h1-plans-to-plan-detail.yaml', 'h2-plans-to-my-plans.yaml', 'h3-active-plan-detail.yaml'])(
+    '%s anchors Plans on the tiles (tablet) OR the own rows (T-60 phone), never the tiles alone',
+    (name) => {
+      const flow = steps(read(`phase4/${name}`));
+      expect(flow).toMatch(/id: "plans-entry-tiles\|plans-own"/);
+      expect(flow).not.toMatch(/id: "plans-entry-tiles"\n/);
+    },
+  );
+
+  it('h3 opens the active plan on the tablet card (View plan) AND the phone card (See full plan)', () => {
+    const flow = steps(read('phase4/h3-active-plan-detail.yaml'));
+    expect(flow).toMatch(/visible:\n\s+id: "plans-view-active"\n\s+commands:\n\s+- assertVisible:\n\s+id: "plans-go-to-workout"\n\s+- tapOn:\n\s+id: "plans-view-active"/);
+    expect(flow).toMatch(/visible:\n\s+id: "plans-see-full-plan"\n\s+commands:\n\s+- assertVisible:\n\s+id: "plans-start"\n\s+- tapOn:\n\s+id: "plans-see-full-plan"/);
+    expect(flow).toMatch(/id: "plan-detail-current"/);
+  });
+
+  it('h2 scrolls My plans into view and lets the scroll settle before the tap', () => {
+    const flow = steps(read('phase4/h2-plans-to-my-plans.yaml'));
+    expect(flow).toMatch(/scrollUntilVisible:\n\s+element:\n\s+id: "my-plans-entry"\n\s+direction: DOWN\n\s+centerElement: true[^\n]*\n[^\n]*\n- waitForAnimationToEnd[^\n]*\n(?:\s+timeout: \d+\n)?- tapOn:\n\s+id: "my-plans-entry"/);
+  });
+
+  it.each(['phase5/k4-delete-account-cancel.yaml', 'phase6/6n-02-clients-search-filter.yaml', 'phase6/6o-02-trainer-plan-create-form.yaml'])(
+    '%s never uses hideKeyboard (Android: Back closes the dialog; iOS: taps the screen)',
+    (rel) => {
+      expect(steps(read(rel))).not.toMatch(/hideKeyboard/);
+    },
+  );
+
+  it('k4 asserts Cancel is on screen with the keyboard up, then taps it', () => {
+    expect(steps(read('phase5/k4-delete-account-cancel.yaml'))).toMatch(/- assertVisible:\n\s+id: "delete-account-cancel"\n- tapOn:\n\s+id: "delete-account-cancel"/);
+  });
+
+  it.each(['phase3/02-workout-hub.yaml', 'subflows/start-workout.yaml'])('%s scrolls Today back to the top before it looks for the primary button', (rel) => {
+    const flow = steps(read(rel));
+    const tab = flow.indexOf('id: "tab-Today"');
+    const reset = flow.search(/scrollUntilVisible:\n\s+element:\n\s+id: "home-today-primary\|home-empty-hero\|home-error"\n\s+direction: UP/);
+    expect(tab).toBeGreaterThan(-1);
+    expect(reset).toBeGreaterThan(tab);
+    expect(reset).toBeLessThan(flow.indexOf('tapOn:\n    id: "home-today-primary"'));
+  });
+
+  it('06-sign-out opens Profile from the rail on a tablet as well as the tab bar', () => {
+    const flow = steps(fs.readFileSync(path.join(__dirname, '..', 'maestro', '06-sign-out.yaml'), 'utf8'));
+    expect(flow).toMatch(/visible:\n\s+id: "rail-TProfile"\n\s+commands:\n\s+- tapOn:\n\s+id: "rail-TProfile"/);
+    expect(flow).toMatch(/visible:\n\s+id: "rail-Profile"\n\s+commands:\n\s+- tapOn:\n\s+id: "rail-Profile"/);
+    expect(flow).toMatch(/id: "tab-Profile\|rail-Profile"/);
+    expect(flow).not.toMatch(/^- tapOn:\n {4}id: "tab-Profile"/m);
+  });
+});
+
+// QA candidate-9643e9c "Automate:" (the parts that are Maestro flows).
+describe('QA candidate-9643e9c automate list', () => {
+  const read = (rel) => fs.readFileSync(path.join(V2, rel), 'utf8');
+  const steps = (src) => src.split('\n').filter((line) => !line.trim().startsWith('#')).join('\n');
+  const NO_EMAIL = /- assertNotVisible: "\.\*@\.\*"/g;
+
+  it('l1: no email ("@") on the trainers list or the trainer detail a member sees', () => {
+    const flow = steps(read('phase5/l1-find-trainer-detail.yaml'));
+    expect(flow.match(NO_EMAIL)).toHaveLength(2);
+    const list = flow.indexOf('id: "trainers-card-.*"\n    timeout');
+    const detail = flow.indexOf('id: "trainer-detail-card"\n    timeout');
+    const checks = [...flow.matchAll(NO_EMAIL)].map((m) => m.index);
+    expect(checks[0]).toBeGreaterThan(list);
+    expect(checks[0]).toBeLessThan(flow.indexOf('tapOn:\n    id: "trainers-card-.*"'));
+    expect(checks[1]).toBeGreaterThan(detail);
+  });
+
+  it('l4: no email ("@") on the coaching hub with an active trainer', () => {
+    const flow = steps(read('phase5/l4-end-coaching-dialog.yaml'));
+    expect(flow.match(NO_EMAIL)).toHaveLength(1);
+  });
+
+  it('03-exercises: a find text with no match shows exercise-filter-no-match, in the sheet AND the panel', () => {
+    const flow = steps(read('phase3/03-exercises.yaml'));
+    const block = /- tapOn:\n\s+id: "exercise-filter-find"\n\s+- inputText: "zzqq"\n\s+- extendedWaitUntil:\n\s+visible:\n\s+id: "exercise-filter-no-match"/g;
+    expect(flow.match(block)).toHaveLength(2);
+  });
+});

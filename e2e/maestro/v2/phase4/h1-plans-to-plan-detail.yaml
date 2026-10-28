@@ -25,7 +25,7 @@ appId: com.gymido.app
     timeout: 30000
 - extendedWaitUntil:
     visible:
-      id: "plans-entry-tiles"
+      id: "plans-entry-tiles|plans-own"
     timeout: 30000
 - assertVisible:
     id: "my-plans-entry"
@@ -57,5 +57,5 @@ appId: com.gymido.app
     id: "plan-detail-back"
 - extendedWaitUntil:
     visible:
-      id: "plans-entry-tiles"
+      id: "plans-entry-tiles|plans-own"
     timeout: 30000

@@ -20,8 +20,18 @@ appId: com.gymido.app
           id: "rail-Plans"
 - extendedWaitUntil:
     visible:
-      id: "my-plans-entry"
+      id: "plans-entry-tiles|plans-own"
     timeout: 30000
+# QA candidate-9643e9c: on Android the entry is below the fold, and on iOS a
+# tap while the scroll still moves is lost. Scroll it in, then let it settle.
+- scrollUntilVisible:
+    element:
+      id: "my-plans-entry"
+    direction: DOWN
+    centerElement: true
+    timeout: 20000
+- waitForAnimationToEnd:
+    timeout: 3000
 - tapOn:
     id: "my-plans-entry"
 - extendedWaitUntil:
@@ -42,5 +52,5 @@ appId: com.gymido.app
     id: "my-plans-all-plans"
 - extendedWaitUntil:
     visible:
-      id: "plans-entry-tiles"
+      id: "plans-entry-tiles|plans-own"
     timeout: 30000

@@ -55,11 +55,12 @@ export MAESTRO_LOGIN_EMAIL MAESTRO_LOGIN_PASSWORD
 
 MAESTRO_LOGS="$HOME/Library/Logs/maestro"
 
-# Deletes everything Maestro wrote since the run started: its test output and
-# its own log folder (per-run logs and zips).
+# Deletes everything Maestro wrote since the run started: its test and debug
+# output (both under $WORK/out, device-simulator.log included) and its own
+# log folder (per-run logs and zips). The shared ~/.maestro/tests is no longer
+# swept by age (another lane's files); nothing of ours goes there now.
 purge() {
   rm -rf "$WORK/out"
-  find "$HOME/.maestro/tests" -mindepth 1 -maxdepth 1 -newer "$MARK" -exec rm -rf {} + 2>/dev/null
   find "$MAESTRO_LOGS" -mindepth 1 -maxdepth 1 -newer "$MARK" -exec rm -rf {} + 2>/dev/null
 }
 
@@ -75,7 +76,7 @@ stage() {
   mkdir -p "$WORK/out"
   # In the background + wait, so a trap runs at once (exec: maestro is our
   # direct child, which finish's pkill stops).
-  (cd "$WORK/out" && exec maestro --device "$UDID" test --test-output-dir "$WORK/out" "$FLOWS/$name.yaml" > "$WORK/out/stage.log" 2>&1) &
+  (cd "$WORK/out" && exec maestro --device "$UDID" test --debug-output "$WORK/out/debug" --test-output-dir "$WORK/out" "$FLOWS/$name.yaml" > "$WORK/out/stage.log" 2>&1) &
   wait $!
   local code=$?
   # On a failure, name the failed step: status lines only, never a typed value.
@@ -99,7 +100,7 @@ check() {
 
 abort() {
   echo "aborting: cancelling the login sheet"
-  (cd "$WORK" && maestro --device "$UDID" test "$ROOT/e2e/maestro/subflows/cancel-universal-login.yaml" > /dev/null 2>&1)
+  (cd "$WORK" && maestro --device "$UDID" test --debug-output "$WORK/out/debug" "$ROOT/e2e/maestro/subflows/cancel-universal-login.yaml" > /dev/null 2>&1)
   finish 1
 }
 
