@@ -896,3 +896,36 @@ describe('AppModal sheetTopGap (phone sheet)', () => {
     expect(flat(host(plain, 'dlg')).maxHeight).toBe(HEIGHT - 16 - 40);
   });
 });
+
+// UX native final audit 27 Oct 2026, "Batch (d)/(g) confirms" 4: the tablet
+// dialog title stays pinned and looks the same at rest; while the body is
+// scrolled a 0.07 hairline sits under the header (no layout shift).
+describe('tablet pinned title hairline (Batch (d)/(g) confirms 4)', () => {
+  const scrollOf = (tree) => tree.root.findAllByType(ReactNative.ScrollView)[0];
+  const scrollTo = (tree, y) => act(() => scrollOf(tree).props.onScroll({ nativeEvent: { contentOffset: { x: 0, y } } }));
+  const dialog = () => (
+    <AppModal isOpen title="Log weight" testID="dlg" onClose={jest.fn()}>
+      <Text>Body</Text>
+    </AppModal>
+  );
+
+  it('none at rest; the 0.07 hairline under the header while scrolled; gone back at the top', () => {
+    atWidth(TABLET);
+    const tree = render(dialog());
+    expect(hasHost(tree, 'app-modal-header-hairline')).toBe(false);
+    scrollTo(tree, 12);
+    const line = host(tree, 'app-modal-header-hairline');
+    expect(host(tree, 'app-modal-header').findAll((n) => n === line)).toHaveLength(1);
+    expect(flat(line)).toEqual(expect.objectContaining({ position: 'absolute', left: 0, right: 0, bottom: 0, height: 1, backgroundColor: colors.hairline }));
+    expect(colors.hairline).toBe('rgba(255, 255, 255, 0.07)');
+    scrollTo(tree, 0);
+    expect(hasHost(tree, 'app-modal-header-hairline')).toBe(false);
+  });
+
+  it('phones keep their header as is', () => {
+    atWidth(PHONE);
+    const tree = render(dialog());
+    expect(scrollOf(tree).props.onScroll).toBeUndefined();
+    expect(hasHost(tree, 'app-modal-header-hairline')).toBe(false);
+  });
+});

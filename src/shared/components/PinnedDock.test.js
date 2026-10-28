@@ -4,7 +4,7 @@ import { act, create } from 'react-test-renderer';
 import { TAB_BAR, TAB_BAR_CLEARANCE } from '../../features/shell/tabBarMetrics';
 import { colors, gradients } from '../theme/tokens';
 import GradientFill from './GradientFill';
-import PinnedDock, { DOCK_FADE_HEIGHT, DOCK_STACK_BELOW, DOCK_TAB_BAR_GAP, dockBottomPadding, dockStacks } from './PinnedDock';
+import PinnedDock, { DOCK_FADE_HEIGHT, DOCK_STACK_BELOW, DOCK_TAB_BAR_GAP, dockBottomPadding, dockButtonsHeight, dockStacks } from './PinnedDock';
 
 // UX native final audit 27 Oct 2026, ruling 1 (+ the GENERATOR-FADE ruling):
 // ONE dock layer for every pinned footer. It runs from 32 above the top button
@@ -85,6 +85,34 @@ describe('PinnedDock (UX native final audit 27 Oct 2026, ruling 1)', () => {
     const tree = render({ onHeight });
     act(() => host(tree, 'dock').props.onLayout({ nativeEvent: { layout: { height: 254 } } }));
     expect(onHeight).toHaveBeenCalledWith(254);
+  });
+
+  // Reviewer carry (final batch, 27 Oct 2026): before the first onLayout a
+  // frame could show content under the dock (the screen's dockHeight was
+  // null). The dock seeds it with an estimate (fade 32 + the body's top
+  // padding + the buttons + dockBottomPadding) until it is measured.
+  it('before the first onLayout it reports an estimate: fade 32 + one 52 button + the bottom room', () => {
+    const onHeight = jest.fn();
+    render({ onHeight });
+    expect(onHeight).toHaveBeenCalledTimes(1);
+    expect(onHeight).toHaveBeenCalledWith(DOCK_FADE_HEIGHT + 52 + dockBottomPadding({ width: 390, insetBottom: 34 }));
+  });
+
+  it('the estimate takes the screen’s buttons and the body’s top padding (here a stacked pair, 12 on top, no tab bar)', () => {
+    const onHeight = jest.fn();
+    render({ onHeight, estimate: dockButtonsHeight({ rows: 2 }), contentStyle: { paddingTop: 12 }, overTabBar: false, bottomGap: 28 });
+    expect(dockButtonsHeight({ rows: 2 })).toBe(52 + 10 + 52);
+    expect(dockButtonsHeight({ buttonHeight: 60 })).toBe(60);
+    expect(onHeight).toHaveBeenCalledWith(DOCK_FADE_HEIGHT + 12 + 114 + 34 + 28);
+  });
+
+  it('once measured, the measured height wins and a re-render does not re-seed the estimate', () => {
+    const onHeight = jest.fn();
+    const tree = render({ onHeight });
+    act(() => host(tree, 'dock').props.onLayout({ nativeEvent: { layout: { height: 254 } } }));
+    onHeight.mockClear();
+    act(() => tree.update(<PinnedDock testID="dock" onHeight={onHeight} estimate={120}><Text>Buttons</Text></PinnedDock>));
+    expect(onHeight).not.toHaveBeenCalled();
   });
 
   it('taps over the fade go through to the page (box-none root), the body takes them', () => {

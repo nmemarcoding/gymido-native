@@ -42,6 +42,11 @@ afterEach(() => jest.restoreAllMocks());
 
 // iPhone 15: the keyboard frame's height equals what it covers.
 const IPHONE = { window: { width: 390, height: 844, scale: 3, fontScale: 1 }, insets: { top: 47, bottom: 34, left: 0, right: 0 }, frame: { height: 336, screenY: 844 - 336 } };
+// Reviewer carry (final batch, 27 Oct 2026): the small phone, 375 × 667
+// (iPhone SE / 8, no home indicator), keyboard 216 + the 44 suggestion bar.
+const IPHONE_SE = { window: { width: 375, height: 667, scale: 2, fontScale: 1 }, insets: { top: 20, bottom: 0, left: 0, right: 0 }, frame: { height: 260, screenY: 667 - 260 } };
+// … and both phones at fontScale 1.3 (the reflow edge: still the 1× layouts).
+const at13 = (device) => ({ ...device, window: { ...device.window, fontScale: 1.3 } });
 // Android phone, 3-button nav (48): RN reports height = IME − system bars
 // (ReactRootView.checkForKeyboardEvents), but the edge-to-edge Modal draws to
 // the screen bottom, so the keyboard covers height + 48 of the window.
@@ -105,7 +110,11 @@ const DIALOGS = [
 
 describe.each([
   ['iPhone', IPHONE],
+  ['iPhone SE (375 × 667)', IPHONE_SE],
+  ['iPhone SE (375 × 667) at fontScale 1.3', at13(IPHONE_SE)],
+  ['iPhone at fontScale 1.3', at13(IPHONE)],
   ['Android phone (nav bar)', ANDROID],
+  ['Android phone (nav bar) at fontScale 1.3', at13(ANDROID)],
   ['iPad landscape', IPAD_L],
   ['Android tablet landscape (taskbar)', ANDROID_TABLET_L],
 ])('ruling 12 on %s: the footer buttons sit above the keyboard top', (_, device) => {

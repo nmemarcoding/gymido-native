@@ -205,7 +205,8 @@ function StagePhoto({ exercise, variant }) {
 // F1 Workout / Workout browsing / Tablet stage. `variant`: 'live' (phone),
 // 'browse' (phone or tablet browsing), 'split' (the tablet live stage
 // column). `top` is the room the overlaid chrome takes; `chrome` an in-flow
-// chrome (large text). Notes (v1 §19.2) stay under the name.
+// chrome (large text). Notes (v1 §19.2) stay under the name. `onLayout`
+// reports the stage's frame (the session's top band, A116).
 export function ExerciseStage({
   exercise,
   index,
@@ -219,6 +220,7 @@ export function ExerciseStage({
   totalSets = 0,
   howTo = null,
   segments = null,
+  onLayout,
 }) {
   const notes = exerciseNotes(exercise);
   const name = exerciseName(exercise);
@@ -234,7 +236,7 @@ export function ExerciseStage({
       ? tabletEyebrow({ isActive, index, count, exercise })
       : stageEyebrow({ isActive, index, count, muscle, completedSets, totalSets });
   return (
-    <View testID="exercise-stage" style={[styles.stage, split && styles.stageSplit, { minHeight, paddingTop: top }]}>
+    <View testID="exercise-stage" onLayout={onLayout} style={[styles.stage, split && styles.stageSplit, { minHeight, paddingTop: top }]}>
       <StagePhoto exercise={exercise} variant={variant} />
       {chrome}
       <View style={styles.flex} />

@@ -1,4 +1,4 @@
-import { Children, Fragment, useEffect, useRef } from 'react';
+import { Children, Fragment, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -90,6 +90,15 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
   // it (the overlap already includes any bar under the keyboard).
   const bottomInset = keyboardOpen ? keyboardHeight : insets.bottom;
   const progress = useRef(new Animated.Value(0)).current;
+  // UX native final audit 27 Oct 2026, "Batch (d)/(g) confirms" 4: the pinned
+  // tablet title looks the same at rest; while the body is scrolled a 0.07
+  // hairline sits under the header (absolute, so nothing shifts).
+  // A new opening starts at rest (the scroll does too).
+  const [scroll, setScroll] = useState({ open: isOpen, scrolled: false });
+  if (scroll.open !== isOpen) {
+    setScroll({ open: isOpen, scrolled: false });
+  }
+  const bodyScrolled = scroll.scrolled;
   // BUG-N4: while open, this modal's window hosts the toasts (it sits above
   // the app-level ToastHost); the topmost open modal wins.
   const toastHostId = useRef(Symbol('modal-toast-host')).current;
@@ -248,10 +257,20 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
                 {eyebrowView}
                 {tabletTitle}
                 {pinnedView}
+                {bodyScrolled ? <View testID="app-modal-header-hairline" pointerEvents="none" style={styles.headerHairline} /> : null}
               </View>
             ) : null}
             <ScrollView
               style={styles.scroll}
+              onScroll={
+                tablet
+                  ? (event) => {
+                      const scrolled = event.nativeEvent.contentOffset.y > 0;
+                      setScroll((current) => (current.scrolled === scrolled ? current : { ...current, scrolled }));
+                    }
+                  : undefined
+              }
+              scrollEventThrottle={tablet ? 16 : undefined}
               overScrollMode="never"
               bounces={false}
               keyboardShouldPersistTaps="handled"
@@ -383,6 +402,14 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     zIndex: 1,
     backgroundColor: colors.surfaceRaised,
+  },
+  headerHairline: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 1,
+    backgroundColor: colors.hairline,
   },
   titleRow: {
     flexDirection: 'row',

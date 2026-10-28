@@ -60,11 +60,6 @@ export function activePlanSummary(plan) {
   return days + (plan?.category?.name ? ` · ${plan.category.name}` : '');
 }
 
-// §3.6: a missing value keeps the leading space.
-export function planCardDaysLabel(plan) {
-  return plan?.days_per_week == null ? ' days / week' : `${formatCount(plan.days_per_week, 'day', 'days')} / week`;
-}
-
 export function planCountLabel(count) {
   return `${count} plan${count === 1 ? '' : 's'}`;
 }
@@ -169,46 +164,6 @@ export function buildScheduleItems(days, selected, requiredDays) {
 }
 
 // ---- v2 Phase 4 §1 (UX H) -------------------------------------------------
-
-// The active card puts the category top-right (as drawn), so its days line
-// is the code's text without the " · {category}" tail.
-export function activePlanDaysLabel(plan) {
-  return plan?.days_per_week ? `${formatCount(plan.days_per_week, 'training day', 'training days')} / week` : 'Your active routine';
-}
-
-// Tablet: "Strength · 4 days / week" (category first when there is one).
-export function activePlanSubline(plan) {
-  const parts = [];
-  if (plan?.category?.name) {
-    parts.push(plan.category.name);
-  }
-  if (plan?.days_per_week) {
-    parts.push(`${formatCount(plan.days_per_week, 'day', 'days')} / week`);
-  }
-  return parts.join(' · ');
-}
-
-// The active card's week: all 7 weekdays, each flagged when the schedule
-// trains on it (with the scheduled day's title, if any). Empty when the
-// schedule has no valid weekday (the card then hides "Your week").
-export function weekChips(schedule) {
-  const byId = new Map();
-  for (const item of schedule ?? []) {
-    const id = Number(item?.weekday?.id);
-    if (id >= 1 && id <= 7 && !byId.has(id)) {
-      byId.set(id, item?.plan_day?.title || '');
-    }
-  }
-  if (byId.size === 0) {
-    return [];
-  }
-  return WEEKDAYS.map((weekday) => ({ ...weekday, training: byId.has(weekday.id), title: byId.get(weekday.id) ?? '' }));
-}
-
-// "Training days: Monday, Tuesday" (the chips' group label, full names).
-export function trainingDaysLabel(chips) {
-  return `Training days: ${chips.filter((chip) => chip.training).map((chip) => chip.name).join(', ')}`;
-}
 
 // The compact prescription under a strip photo: "3×8-10", "3×12", "1 set",
 // "Open prescription" (the short form of formatSetSummary; U+00D7).

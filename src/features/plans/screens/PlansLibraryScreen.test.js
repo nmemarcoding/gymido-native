@@ -35,7 +35,7 @@ import { InlineError } from '../../../shared/components/FeedbackBox';
 import GradientFill from '../../../shared/components/GradientFill';
 import RemoteImage from '../../../shared/components/RemoteImage';
 import Loader from '../../../shared/components/Loader';
-import { colors, radii, shadows, textScale } from '../../../shared/theme/tokens';
+import { colors, font, radii, shadows, textScale } from '../../../shared/theme/tokens';
 import { listMyPlans } from '../../myPlans/api/myPlansApi';
 import { getGeneratorProfile } from '../../planGenerator/api/generatorApi';
 import { openShellPath } from '../../shell/shellLinks';
@@ -673,6 +673,36 @@ describe('Tablet: Plans T-60 §6 (B203 / B204)', () => {
     expect(flat(host(tree, 'plans-week-letter-1')).fontSize).toBe(15);
     expect(flat(host(tree, 'plans-week-label-1')).fontSize).toBe(12);
     expect(flat(host(tree, 'plans-week-label-4'))).toEqual(expect.objectContaining({ fontSize: 12, color: colors.gold }));
+  });
+
+  // UX native final audit 27 Oct 2026, "Batch (d)/(g) confirms" 1: below 1024
+  // the actions STACK: full width, Start on top, gap 10; Start 54, See full plan 50.
+  it('768–1023: the actions stacked full width, Start on top, gap 10; Start 54 / See full plan 50; the phone label weights', async () => {
+    mockWindow = PORTRAIT;
+    const tree = await render();
+    const actions = host(tree, 'plans-active-actions');
+    expect(flat(actions)).toEqual(expect.objectContaining({ flexDirection: 'column', gap: 10 }));
+    expect(flat(actions).alignItems ?? 'stretch').toBe('stretch');
+    const order = actions.findAll((node) => ['plans-start', 'plans-see-full-plan'].includes(node.props.testID) && typeof node.type === 'string');
+    expect(order.map((node) => node.props.testID)).toEqual(['plans-start', 'plans-see-full-plan']);
+    const start = flat(pressableEl(tree, 'plans-start'));
+    const outline = flat(pressableEl(tree, 'plans-see-full-plan'));
+    expect(start.minHeight).toBe(54);
+    expect(outline.minHeight).toBe(50);
+    [start, outline].forEach((style) => {
+      expect(style.minWidth).toBeUndefined();
+      expect(style.alignSelf).toBeUndefined();
+    });
+    expect(flat(host(tree, 'plans-week-label-2'))).toEqual(expect.objectContaining({ fontSize: 11, ...font(400) }));
+  });
+
+  // "Batch (d)/(g) confirms" 2 (corrected): at ≥1024 the week labels are
+  // 12/600, the WEIGHT too (Train, Rest and Today alike).
+  it('≥1024: every week label 12/600 (Train, Rest, Today)', async () => {
+    mockWindow = LANDSCAPE;
+    const tree = await render();
+    [1, 2, 4].forEach((id) => expect(flat(host(tree, `plans-week-label-${id}`))).toEqual(expect.objectContaining({ fontSize: 12, ...font(600) })));
+    expect(textOf(host(tree, 'plans-week-label-2'))).toBe('Rest');
   });
 
   it('≥1024: the actions side by side: gold Start min-width 220 × 54, outline See full plan 50 (auto width)', async () => {

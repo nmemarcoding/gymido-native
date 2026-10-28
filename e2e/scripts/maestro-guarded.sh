@@ -73,6 +73,20 @@ if [ -z "$DEBUG" ]; then
 fi
 LOGS=(-name device-logcat.txt -o -name device-simulator.log -o -name maestro.log -o -name 'commands*.json')
 
+# Reviewer carry (final batch, 27 Oct 2026): stop maestro without hanging.
+# TERM, then wait at most MAESTRO_STOP_WAIT seconds (default 10) and kill -9:
+# the JVM can ignore TERM, and a bare `wait` then never returns. The
+# watchdog's stdio is closed so a leftover `sleep` holds no caller's pipe.
+stop_maestro() {
+  local pid="$1" dog
+  kill "$pid" 2>/dev/null || return 0
+  ( sleep "${MAESTRO_STOP_WAIT:-10}"; kill -9 "$pid" 2>/dev/null ) </dev/null >/dev/null 2>&1 &
+  dog=$!
+  wait "$pid" 2>/dev/null
+  kill -9 "$dog" 2>/dev/null
+  wait "$dog" 2>/dev/null
+  return 0
+}
 MPID=""
 CODE=1
 CLEANED=""
@@ -84,7 +98,7 @@ scrub() {
   trap '' INT TERM HUP
   trap - EXIT
   # Maestro may still be writing.
-  [ -n "$MPID" ] && kill "$MPID" 2>/dev/null && wait "$MPID" 2>/dev/null
+  [ -n "$MPID" ] && stop_maestro "$MPID"
   find "$DEBUG" -type f \( "${LOGS[@]}" \) -delete 2>/dev/null
   [ -n "$OWN_DEBUG" ] && rm -rf "${OWN_DEBUG:?}"
   local left

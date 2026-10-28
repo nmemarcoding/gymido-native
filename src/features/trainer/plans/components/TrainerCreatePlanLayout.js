@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import GradientFill from '../../../../shared/components/GradientFill';
 import { CAP_BODY, DISPLAY_TITLE_TEXT } from '../../../../shared/components/largeText';
 import PillButton from '../../../../shared/components/PillButton';
-import PinnedDock from '../../../../shared/components/PinnedDock';
+import PinnedDock, { dockButtonsHeight } from '../../../../shared/components/PinnedDock';
 import { colors, font, gradients, radii, spacing, typography } from '../../../../shared/theme/tokens';
 import ShellPage from '../../../shell/ShellPage';
 import { HeroTitleMark } from '../../../shell/heroTitle';
@@ -122,7 +122,13 @@ export default function TrainerCreatePlanLayout({ tablet, stacked = false, docke
         </View>
       </ShellPage>
       {docked ? (
-        <PinnedDock testID="create-plan-dock" onHeight={setDockHeight} contentStyle={styles.dockContent}>
+        <PinnedDock
+          testID="create-plan-dock"
+          onHeight={setDockHeight}
+          contentStyle={styles.dockContent}
+          // Until measured: the stacked pair below 21rem, else the 54 phone pair.
+          estimate={dockStacked ? dockButtonsHeight({ rows: 2 }) : dockButtonsHeight({ buttonHeight: styles.submitPhone.minHeight })}
+        >
           {buttons}
         </PinnedDock>
       ) : null}

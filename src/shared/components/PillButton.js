@@ -91,6 +91,8 @@ const SIZE_ALIASES = {
 
 export const BUTTON_VARIANTS = Object.freeze(Object.keys(VARIANTS));
 export const BUTTON_SIZES = Object.freeze(['default', 'compact', 'cta']);
+// The sizes' minimum heights (PinnedDock's estimate reads them).
+export const BUTTON_HEIGHTS = Object.freeze({ default: 52, compact: 44, cta: 60 });
 
 // QA LOW (Create profile): the sticky CTA bars sit OUTSIDE the ScrollView, so
 // a scroll swipe that starts on the button isn't taken by the scroll and
@@ -248,15 +250,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   default: {
-    minHeight: 52,
+    minHeight: BUTTON_HEIGHTS.default,
     paddingHorizontal: spacing[6],
   },
   compact: {
-    minHeight: 44,
+    minHeight: BUTTON_HEIGHTS.compact,
     paddingHorizontal: spacing['4_5'],
   },
   cta: {
-    minHeight: 60,
+    minHeight: BUTTON_HEIGHTS.cta,
     paddingHorizontal: spacing[6],
   },
   // A wrapped compact label (large text) grows from 52, like the default

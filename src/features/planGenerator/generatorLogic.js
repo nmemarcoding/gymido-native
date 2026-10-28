@@ -2,8 +2,6 @@
 // (RN-SPEC-PLAN-GENERATOR §G1–§G2). Pure, so it can be tested.
 
 import { mediaUrl } from '../../shared/images/remoteImageSources';
-import { breakpoints } from '../../shared/theme/tokens';
-import { TAB_BAR_CLEARANCE } from '../shell/tabBarMetrics';
 import { formatLocalDateForInput } from '../../shared/time/format';
 import { COPY, QUESTIONS, bandLabel, focusBlockedHint, goEasyBlockedHint, goalLabel, humanizeCode, presetLabel } from './generatorCopy';
 import { formatCount, NBSP } from '../../shared/format/counts';
@@ -400,17 +398,6 @@ export function deepLinkStep(param) {
 // it's feasible with an unlocked active plan.
 export function shouldConfirmAfterActive(preview) {
   return Boolean(preview?.feasible && preview?.active_enrollment && !preview.active_enrollment.trainer_locked);
-}
-
-// The space the shell's floating tab bar takes above the bottom safe area
-// (RN-SPEC-v2-foundation §7.1: 66 tall + 20 above the safe area = 86). The
-// custom `tabBar` is an absolute overlay, so useBottomTabBarHeight() can't
-// measure it; the shell exports the number (tabBarMetrics).
-export const BOTTOM_NAV_HEIGHT = TAB_BAR_CLEARANCE;
-
-// Spec ruling: the bar's clearance (86) below 768 wide, 0 at ≥768, plus the bottom safe-area inset.
-export function tabBarClearance({ width, insetBottom }) {
-  return (width < breakpoints.md ? BOTTOM_NAV_HEIGHT : 0) + (insetBottom ?? 0);
 }
 
 // ---- v2 Phase 4 J (look only) ----

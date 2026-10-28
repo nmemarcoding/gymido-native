@@ -37,7 +37,6 @@ jest.mock('../shell/shellLinks', () => ({ openShellPath: jest.fn(), handOffToWor
 jest.mock('./generatorRoutes', () => ({
   generatorRoutes: { PlanGenerator: 'PlanGenerator', PlanGeneratorPreview: 'PlanGeneratorPreview' },
 }));
-jest.mock('./useTabBarClearance', () => ({ useTabBarClearance: () => 86 }));
 jest.mock('../../shared/components/ConfirmDialog', () => () => null);
 jest.mock('../../shared/components/Select', () => {
   const { View } = require('react-native');

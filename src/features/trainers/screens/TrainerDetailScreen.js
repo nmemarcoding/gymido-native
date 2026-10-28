@@ -11,8 +11,8 @@ import GradientFill from '../../../shared/components/GradientFill';
 import ErrorAlert from '../../../shared/components/ErrorAlert';
 import { CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT, TITLE_TEXT } from '../../../shared/components/largeText';
 import Loader from '../../../shared/components/Loader';
-import PillButton from '../../../shared/components/PillButton';
-import PinnedDock from '../../../shared/components/PinnedDock';
+import PillButton, { BUTTON_HEIGHTS } from '../../../shared/components/PillButton';
+import PinnedDock, { dockButtonsHeight } from '../../../shared/components/PinnedDock';
 import StateSlot from '../../../shared/components/StateSlot';
 import StatusPill from '../../../shared/components/StatusPill';
 import { ToastTone, addToast } from '../../../shared/components/toastStore';
@@ -64,7 +64,7 @@ function DetailFrame({ trainerUserId, tablet, dock = null, children }) {
         <View style={styles.column}>{children}</View>
       </ShellPage>
       {dock ? (
-        <PinnedDock testID="trainer-detail-dock" onHeight={setDockHeight} contentStyle={styles.dockContent}>
+        <PinnedDock testID="trainer-detail-dock" onHeight={setDockHeight} contentStyle={styles.dockContent} estimate={dockButtonsHeight({ buttonHeight: BUTTON_HEIGHTS.cta })}>
           {dock}
         </PinnedDock>
       ) : null}

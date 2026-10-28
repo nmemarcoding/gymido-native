@@ -8,8 +8,8 @@ import { InlineError } from '../../../shared/components/FeedbackBox';
 import IconButton from '../../../shared/components/IconButton';
 import { NAME_TEXT } from '../../../shared/components/largeText';
 import Loader from '../../../shared/components/Loader';
-import PillButton from '../../../shared/components/PillButton';
-import PinnedDock, { dockStacks } from '../../../shared/components/PinnedDock';
+import PillButton, { BUTTON_HEIGHTS } from '../../../shared/components/PillButton';
+import PinnedDock, { dockButtonsHeight, dockStacks } from '../../../shared/components/PinnedDock';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
 import { colors, font, radii, spacing, titleTracking } from '../../../shared/theme/tokens';
 import ShellPage from '../../shell/ShellPage';
@@ -237,7 +237,7 @@ function PlanGenerator() {
       const reviewPinned = stepBarPlacement({ step: STEP_COUNT, tablet, reflow }) === 'pinned';
       if (reviewPinned) {
         pinnedBar = (
-          <PinnedDock testID="generator-review-bar" onHeight={setBarHeight} contentStyle={styles.dockContent}>
+          <PinnedDock testID="generator-review-bar" onHeight={setBarHeight} contentStyle={styles.dockContent} estimate={dockButtonsHeight({ rows: narrow ? 2 : 1 })}>
             <ReviewButtons saving={saving} stacked={narrow} onBack={goTo} onSave={handleSave} />
           </PinnedDock>
         );
@@ -277,7 +277,12 @@ function PlanGenerator() {
       );
       if (pinned) {
         pinnedBar = (
-          <PinnedDock testID="generator-step-bar" onHeight={setBarHeight} contentStyle={styles.dockContent}>
+          <PinnedDock
+            testID="generator-step-bar"
+            onHeight={setBarHeight}
+            contentStyle={styles.dockContent}
+            estimate={stacked ? dockButtonsHeight({ rows: 2 }) : dockButtonsHeight({ buttonHeight: BUTTON_HEIGHTS.cta })}
+          >
             {buttons}
           </PinnedDock>
         );

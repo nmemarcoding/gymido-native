@@ -317,6 +317,17 @@ describe('My plan create pinned dock (UX native final audit 27 Oct 2026, ruling 
     expect(flat(host(tree.root, 'create-plan-dock-body')[0].props.style)).toMatchObject({ backgroundColor: colors.ground, paddingBottom: 86 + 12 });
   });
 
+  // Reviewer carry (final batch, 27 Oct 2026): until the dock is measured the
+  // scroll room is its estimate, so no frame shows content under the dock.
+  it.each([
+    [390, 56],
+    [320, 52 + 10 + 52],
+  ])('phone %s: before the first onLayout the scroll room is the estimate (fade 32 + the buttons + 12 above the tab bar)', async (width, buttons) => {
+    setWidth(width);
+    await render();
+    expect(mockShellProps.dockHeight).toBe(32 + buttons + 86 + 12);
+  });
+
   it('phone: the scroll content padding = the measured dock height', async () => {
     const tree = await render();
     await act(async () => host(tree.root, 'create-plan-dock')[0].props.onLayout({ nativeEvent: { layout: { height: 150 } } }));

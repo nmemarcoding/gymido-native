@@ -23,10 +23,11 @@ appId: com.gymido.app
       id: "plans-library-screen"
     timeout: 30000
 # Flow run ea27f77: on a phone with an active plan the entry rows sit below
-# the plan card; scroll down to them.
+# the plan card; scroll down to them. Final batch (27 Oct 2026): the T-60
+# tablet draws the own rows too; the old tablet tiles are gone.
 - scrollUntilVisible:
     element:
-      id: "plans-entry-tiles|plans-own"
+      id: "plans-own"
     direction: DOWN
     timeout: 20000
 # QA candidate-9643e9c: on Android the entry is below the fold, and on iOS a

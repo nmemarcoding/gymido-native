@@ -77,7 +77,6 @@ jest.mock('./plans/api/libraryApi', () => ({
   createSchedule: jest.fn(),
   replaceSchedule: jest.fn(),
 }));
-jest.mock('./myPlans/components/MyPlansEntryCard', () => () => null);
 jest.mock('./myPlans/components/CopyToMyPlansCard', () => () => null);
 jest.mock('./planGenerator/components/GeneratorEntryCard', () => () => null);
 jest.mock('./myPlans/api/myPlansApi', () => ({

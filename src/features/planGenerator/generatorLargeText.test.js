@@ -34,7 +34,6 @@ jest.mock('../shell/shellLinks', () => ({ openShellPath: jest.fn(), handOffToWor
 jest.mock('./generatorRoutes', () => ({
   generatorRoutes: { PlanGenerator: 'PlanGenerator', PlanGeneratorPreview: 'PlanGeneratorPreview' },
 }));
-jest.mock('./useTabBarClearance', () => ({ useTabBarClearance: () => 0 }));
 // PinnedDock (UX native final audit 27 Oct 2026, ruling 1) reads the safe area.
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../../shared/components/BlurLayer', () => {
@@ -350,7 +349,9 @@ describe('Preview (GeneratorPreview board)', () => {
   it('the scroll room is the measured dock height (re-measured on every layout)', async () => {
     const tree = await openPreview();
     expect(flat(host(tree, 'generator-feasible')).paddingBottom).toBeUndefined();
-    expect(host(tree, 'shell-page').props.dockHeight).toBeNull();
+    // DECLARED (final batch, 27 Oct 2026, reviewer carry): was null until measured; now the dock's estimate
+    // until measured (fade 32 + the stacked pair 52 + 10 + 52 at 390 < 432 + 12 above the 86 tab bar).
+    expect(host(tree, 'shell-page').props.dockHeight).toBe(32 + 114 + 86 + 12);
     await act(async () => host(tree, 'generator-sticky-bar').props.onLayout({ nativeEvent: { layout: { height: 220 } } }));
     expect(host(tree, 'shell-page').props.dockHeight).toBe(220);
   });

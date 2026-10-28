@@ -2,7 +2,6 @@ import { act, create } from 'react-test-renderer';
 
 import { copyToMyPlans, isGeneratorAvailable, listMyPlans } from './api/myPlansApi';
 import CopyToMyPlansCard from './components/CopyToMyPlansCard';
-import MyPlansEntryCard from './components/MyPlansEntryCard';
 import MyPlansScreen from './MyPlansScreen';
 
 const mockNavigation = { push: jest.fn(), addListener: jest.fn(() => () => {}) };
@@ -103,16 +102,6 @@ describe('M1 My plans (§M1)', () => {
     await act(async () => retry.props.onPress());
     expect(listMyPlans).toHaveBeenLastCalledWith(1);
     expect(texts(tree)).toContain('No plans yet');
-  });
-});
-
-describe('M4 card (§M4)', () => {
-  it('reads both texts and pushes M1', async () => {
-    const tree = await render(<MyPlansEntryCard />);
-    const card = byTestId(tree, 'my-plans-entry')[0];
-    expect(card.props.accessibilityLabel).toBe('My plans. Build your own, or copy one from the catalog to change it.');
-    await act(async () => card.props.onPress());
-    expect(mockNavigation.push).toHaveBeenCalledWith('MyPlans');
   });
 });
 

@@ -175,18 +175,24 @@ describe('QA candidate-9643e9c flow defects', () => {
     expect(flow).toMatch(/id: "exercises-result-count"/);
   });
 
+  // DECLARED (final batch, 27 Oct 2026, reviewer carry): was "anchors Plans on the tiles (tablet) OR the own
+  // rows (T-60 phone)" (id "plans-entry-tiles|plans-own"). The T-60 tablet has the own rows too and no screen
+  // draws plans-entry-tiles any more, so the anchor is "plans-own" alone.
   it.each(['h1-plans-to-plan-detail.yaml', 'h2-plans-to-my-plans.yaml', 'h3-active-plan-detail.yaml'])(
-    '%s anchors Plans on the tiles (tablet) OR the own rows (T-60 phone), never the tiles alone',
+    '%s anchors Plans on the own rows (phone and T-60 tablet), never the removed tiles',
     (name) => {
       const flow = steps(read(`phase4/${name}`));
-      expect(flow).toMatch(/id: "plans-entry-tiles\|plans-own"/);
-      expect(flow).not.toMatch(/id: "plans-entry-tiles"\n/);
+      expect(flow).toMatch(/id: "plans-own"\n/);
+      expect(flow).not.toMatch(/plans-entry-tiles/);
     },
   );
 
-  it('h3 opens the active plan on the tablet card (View plan) AND the phone card (See full plan)', () => {
+  // DECLARED (final batch, 27 Oct 2026, reviewer carry): was "on the tablet card (View plan) AND the phone card
+  // (See full plan)". The tablet card's View plan / Go to workout are gone (T-60: one card, Start + See full
+  // plan), so the dead plans-view-active branch is dropped.
+  it('h3 opens the active plan by See full plan (one card on phone and tablet), never the removed View plan', () => {
     const flow = steps(read('phase4/h3-active-plan-detail.yaml'));
-    expect(flow).toMatch(/visible:\n\s+id: "plans-view-active"\n\s+commands:\n\s+- assertVisible:\n\s+id: "plans-go-to-workout"\n\s+- tapOn:\n\s+id: "plans-view-active"/);
+    expect(flow).not.toMatch(/plans-view-active|plans-go-to-workout/);
     expect(flow).toMatch(/visible:\n\s+id: "plans-see-full-plan"\n\s+commands:\n\s+- assertVisible:\n\s+id: "plans-start"\n\s+- tapOn:\n\s+id: "plans-see-full-plan"/);
     expect(flow).toMatch(/id: "plan-detail-current"/);
   });
@@ -288,8 +294,9 @@ describe('flow run ea27f77 fixes', () => {
     (name) => {
       const flow = steps(read(`phase4/${name}`));
       expect(flow).toMatch(/id: "plans-library-screen"/);
-      expect(flow).toMatch(/scrollUntilVisible:\n\s+element:\n\s+id: "plans-entry-tiles\|plans-own"\n\s+direction: DOWN/);
-      expect(flow).not.toMatch(/extendedWaitUntil:\n\s+visible:\n\s+id: "plans-entry-tiles\|plans-own"/);
+      // DECLARED (final batch, 27 Oct 2026): the id was "plans-entry-tiles|plans-own"; now "plans-own".
+      expect(flow).toMatch(/scrollUntilVisible:\n\s+element:\n\s+id: "plans-own"\n\s+direction: DOWN/);
+      expect(flow).not.toMatch(/extendedWaitUntil:\n\s+visible:\n\s+id: "plans-own"/);
     },
   );
 

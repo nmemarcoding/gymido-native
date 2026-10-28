@@ -1,15 +1,11 @@
 import {
-  activePlanDaysLabel,
-  activePlanSubline,
   compactSetSummary,
   dayOfMonth,
   joinWithAnd,
   planPhotoUrl,
   stripCells,
   thisWeekCards,
-  trainingDaysLabel,
   weekCardMeta,
-  weekChips,
 } from './libraryFormat';
 
 // v2 Phase 4 §1 (UX H) helpers.
@@ -19,43 +15,6 @@ const item = (id, muscle, sets = { set_count: 3, target_reps_min: 8, target_reps
   id,
   exercise: { name: `E${id}`, primary_muscle_group: muscle ? { name: muscle } : undefined },
   target_set_summary: sets,
-});
-
-describe('active card copy', () => {
-  it('drops the category from the days line; the tablet subline leads with it', () => {
-    expect(activePlanDaysLabel({ days_per_week: 4, category: { name: 'Strength' } })).toBe('4\u00a0training days / week');
-    expect(activePlanDaysLabel({})).toBe('Your active routine');
-    expect(activePlanSubline({ days_per_week: 4, category: { name: 'Strength' } })).toBe('Strength · 4\u00a0days / week');
-    expect(activePlanSubline({ days_per_week: 4 })).toBe('4\u00a0days / week');
-    expect(activePlanSubline({})).toBe('');
-  });
-});
-
-describe('weekChips', () => {
-  it('7 chips Mon…Sun, training flags and the first scheduled title per weekday', () => {
-    const chips = weekChips([
-      { weekday: wd(4, 'Thursday'), plan_day: day(1, 'Upper B') },
-      { weekday: wd(1, 'Monday'), plan_day: day(2, 'Upper A') },
-      { weekday: wd(1, 'Monday'), plan_day: day(3, 'Ignored') },
-      { weekday: { id: 9 } },
-    ]);
-    expect(chips.map((chip) => [chip.label, chip.training, chip.title])).toEqual([
-      ['Mon', true, 'Upper A'],
-      ['Tue', false, ''],
-      ['Wed', false, ''],
-      ['Thu', true, 'Upper B'],
-      ['Fri', false, ''],
-      ['Sat', false, ''],
-      ['Sun', false, ''],
-    ]);
-    expect(trainingDaysLabel(chips)).toBe('Training days: Monday, Thursday');
-  });
-
-  it('no valid weekday → no chips', () => {
-    expect(weekChips([])).toEqual([]);
-    expect(weekChips(undefined)).toEqual([]);
-    expect(weekChips([{ weekday: { id: 0 } }])).toEqual([]);
-  });
 });
 
 describe('compactSetSummary (the short form, U+00D7)', () => {

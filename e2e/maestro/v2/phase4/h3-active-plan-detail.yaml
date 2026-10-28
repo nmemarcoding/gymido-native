@@ -24,10 +24,11 @@ appId: com.gymido.app
       id: "plans-library-screen"
     timeout: 30000
 # Flow run ea27f77: on a phone with an active plan the entry rows sit below
-# the plan card; scroll down to them.
+# the plan card; scroll down to them. Final batch (27 Oct 2026): the T-60
+# tablet draws the own rows too; the old tablet tiles are gone.
 - scrollUntilVisible:
     element:
-      id: "plans-entry-tiles|plans-own"
+      id: "plans-own"
     direction: DOWN
     timeout: 20000
 - runFlow:
@@ -35,17 +36,8 @@ appId: com.gymido.app
       visible:
         id: "plans-active-card"
     commands:
-      # Tablet card: Go to workout + View plan. Phone card (T-60): Start +
-      # See full plan. Neither Go to workout nor Start is ever tapped.
-      - runFlow:
-          when:
-            visible:
-              id: "plans-view-active"
-          commands:
-            - assertVisible:
-                id: "plans-go-to-workout"
-            - tapOn:
-                id: "plans-view-active"
+      # The card (T-60, phone and tablet): Start + See full plan. Start is
+      # never tapped.
       - runFlow:
           when:
             visible:

@@ -57,6 +57,20 @@ patterns() { printf '%s\n%s\n' "$MAESTRO_LOGIN_EMAIL" "$MAESTRO_LOGIN_PASSWORD";
 # deletes this run's folder and every file Maestro left that holds either
 # value (zipped logs included), and clears Chrome again so no form data
 # stays behind. Exits non-zero when it had to delete something.
+# Reviewer carry (final batch, 27 Oct 2026): stop maestro without hanging.
+# TERM, then wait at most MAESTRO_STOP_WAIT seconds (default 10) and kill -9:
+# the JVM can ignore TERM, and a bare `wait` then never returns. The
+# watchdog's stdio is closed so a leftover `sleep` holds no caller's pipe.
+stop_maestro() {
+  local pid="$1" dog
+  kill "$pid" 2>/dev/null || return 0
+  ( sleep "${MAESTRO_STOP_WAIT:-10}"; kill -9 "$pid" 2>/dev/null ) </dev/null >/dev/null 2>&1 &
+  dog=$!
+  wait "$pid" 2>/dev/null
+  kill -9 "$dog" 2>/dev/null
+  wait "$dog" 2>/dev/null
+  return 0
+}
 MPID=""
 CODE=1
 CLEANED=""
@@ -67,7 +81,7 @@ cleanup() {
   # cleanup before the logs are gone); the EXIT trap is done.
   trap '' INT TERM HUP
   trap - EXIT
-  [ -n "$MPID" ] && kill "$MPID" 2>/dev/null && wait "$MPID" 2>/dev/null
+  [ -n "$MPID" ] && stop_maestro "$MPID"
   pkill -P $$ 2>/dev/null
   rm -rf "$WORK"
   # maestro-guarded.sh keeps the debug output private; ~/.maestro/tests is

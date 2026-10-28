@@ -1,6 +1,6 @@
 import { useIsFocused } from '@react-navigation/native';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Keyboard, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Animated, Keyboard, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getServerMessage, getStatus } from '../../../shared/api/apiError';
@@ -9,9 +9,11 @@ import { formatDuration } from '../../../shared/time/format';
 import { InlineToast } from '../../../shared/components/ToastHost';
 import PinnedDock, { DOCK_FADE_HEIGHT } from '../../../shared/components/PinnedDock';
 import { useLargeTextReflow } from '../../../shared/components/largeText';
-import { useKeyboardHeight } from '../../../shared/hooks/useKeyboardHeight';
+import { useKeyboardOverlap } from '../../../shared/hooks/useKeyboardHeight';
+import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { ToastTone } from '../../../shared/components/toastStore';
-import { breakpoints, colors, spacing } from '../../../shared/theme/tokens';
+import { breakpoints, colors, motion, spacing } from '../../../shared/theme/tokens';
+import { BackdropBand } from '../../shell/StatusBarBackdrop';
 import { useProfileStore } from '../../profile/profileStore';
 import { abandonWorkout, completeWorkout, updateSessionSet } from '../api/workoutApi';
 import { ExerciseSheet, SessionExerciseList, WorkoutExerciseNav } from './ExerciseNavigation';
@@ -78,6 +80,8 @@ const TABLET_LOGGER_MIN = 320;
 const TABLET_LOGGER_MAX = 480;
 // Tablet: Workout dock, 40 above the bottom (+ inset).
 const TABLET_DOCK_BOTTOM = 40;
+// The dock's estimate before it is measured: the room under Did it (Up next).
+const UP_NEXT_ESTIMATE = 32;
 const LOCK_REST = 'Rest timer running — wait or skip it first';
 
 // The session runtime (RN-SPEC-workout Part B, v2 Phase 3 §3 / UX F1).
@@ -168,8 +172,17 @@ export default function SessionRuntime({
   const elapsed = useElapsedTimer(session.started_at);
   const howTo = useHowToLibrary(loadHowTo ? { load: loadHowTo } : undefined);
   // Edge-to-edge Android isn't resized for the keyboard (iOS uses
-  // automaticallyAdjustKeyboardInsets below).
-  const keyboardHeight = useKeyboardHeight();
+  // automaticallyAdjustKeyboardInsets below). UX native final audit 27 Oct
+  // 2026, final batch: the room is what the keyboard COVERS of the window
+  // (useKeyboardOverlap), which includes the nav bar under the IME; the raw
+  // height leaves it out.
+  const keyboardHeight = useKeyboardOverlap();
+  // A116 + ruling 2 amendment 1: the stage's bottom edge in the scroll and
+  // whether it has scrolled out from under the top band.
+  const reducedMotion = useReducedMotion();
+  const [stageBottom, setStageBottom] = useState(null);
+  const [pastPhoto, setPastPhoto] = useState(false);
+  const bandOpacity = useRef(new Animated.Value(0)).current;
 
   // Rest-done sound and alerts (time §7.2, O4, A1, A2, A3). The spoken copy
   // is the short form once no set is left besides the one just done.
@@ -452,6 +465,30 @@ export default function SessionRuntime({
     />
   );
   const stageTop = chromeOverlay ? chromeTop + chromeHeight + spacing[3] : 0;
+  // UX native final audit 27 Oct 2026, A116 + ruling 2 amendment 1: the
+  // session's top band, in the status-bar backdrop's colours. It covers the
+  // top edge down to the floating pills' bottom (only the status bar when the
+  // pills scroll in flow, large text). No band while the edge-to-edge photo
+  // is under it; it fades in (150 ms, at once with reduced motion) once the
+  // photo has scrolled out from under it. Only where one scroll holds the
+  // stage (phone, tablet browsing): the tablet live logger column already
+  // starts below the pills and its stage column does not scroll.
+  const oneScroll = !(tablet && !browsing);
+  const bandHeight = oneScroll ? (chromeOverlay ? chromeTop + chromeHeight : header ? 0 : insets.top) : 0;
+  const bandOn = bandHeight > 0 && stageBottom !== null && pastPhoto;
+  const onPageScroll = (event) => {
+    const past = stageBottom !== null && event.nativeEvent.contentOffset.y + bandHeight >= stageBottom;
+    setPastPhoto((current) => (current === past ? current : past));
+  };
+  useEffect(() => {
+    if (reducedMotion) {
+      bandOpacity.setValue(bandOn ? 1 : 0);
+      return undefined;
+    }
+    const fade = Animated.timing(bandOpacity, { toValue: bandOn ? 1 : 0, duration: motion.durationFast, useNativeDriver: true });
+    fade.start();
+    return () => fade.stop();
+  }, [bandOn, reducedMotion, bandOpacity]);
   const howToEntry = exercise?.exercise?.id ? howTo.entries[exercise.exercise.id] : null;
   const howToButton =
     exercise?.exercise?.id && showHowToPill(howToEntry, exercise) ? (
@@ -544,6 +581,10 @@ export default function SessionRuntime({
       totalSets={progress.totalSets}
       howTo={howToButton}
       segments={tablet && showSegments ? <ExerciseSegments exercises={exercises} viewingIndex={viewing} tablet /> : null}
+      onLayout={(event) => {
+        const { y, height } = event.nativeEvent.layout;
+        setStageBottom(y + height);
+      }}
     />
   ) : null;
 
@@ -567,7 +608,7 @@ export default function SessionRuntime({
   // is the shared PinnedDock (32 fade, then solid ground to the edge) and the
   // room is exactly its measured height, so "Complete workout" and "Discard
   // workout" scroll fully clear above the fade.
-  const dockHeight = measuredDock ?? (tablet ? DID_IT_HEIGHT + 32 + spacing[3] + TABLET_DOCK_BOTTOM : DOCK_FADE_HEIGHT + DID_IT_HEIGHT + 32 + spacing[7]) + insets.bottom;
+  const dockHeight = measuredDock ?? (tablet ? DID_IT_HEIGHT + UP_NEXT_ESTIMATE + spacing[3] + TABLET_DOCK_BOTTOM : DOCK_FADE_HEIGHT + DID_IT_HEIGHT + UP_NEXT_ESTIMATE + spacing[7]) + insets.bottom;
   const bottomRoom = browsing ? navHeight + spacing[5] + insets.bottom : showDock ? dockHeight + (tablet ? spacing[4] : 0) : spacing[6] + insets.bottom;
   // I2 follow-up (a) + UX I2-r ruling: the minimised disc docks just above
   // `bottomRoom`; while it shows, the scroll also keeps the disc (92) + its 24
@@ -621,7 +662,7 @@ export default function SessionRuntime({
     );
   } else {
     body = (
-      <ScrollView {...scrollProps} contentContainerStyle={{ paddingBottom: bottomRoom + discRoom + androidKeyboard }}>
+      <ScrollView {...scrollProps} onScroll={onPageScroll} scrollEventThrottle={16} contentContainerStyle={{ paddingBottom: bottomRoom + discRoom + androidKeyboard }}>
         <View ref={contentRef} collapsable={false}>
           {stage}
           {showSegments ? <ExerciseSegments exercises={exercises} viewingIndex={viewing} /> : null}
@@ -651,9 +692,20 @@ export default function SessionRuntime({
       <View testID="session-column" {...behindRest} style={[styles.column, !tablet && styles.columnPhone]}>
         {tablet && !browsing && !chromeOverlay ? chrome : null}
         {body}
+        {bandHeight > 0 ? (
+          <BackdropBand testID="session-top-band" height={bandHeight} opacity={reducedMotion ? (bandOn ? 1 : 0) : bandOpacity} />
+        ) : null}
         {chromeOverlay ? chrome : null}
         {showDock && !tablet ? (
-          <PinnedDock testID="session-dock" onHeight={setDockHeight} overTabBar={false} bottomGap={spacing[7]} contentStyle={styles.dockContent}>
+          <PinnedDock
+            testID="session-dock"
+            onHeight={setDockHeight}
+            overTabBar={false}
+            bottomGap={spacing[7]}
+            contentStyle={styles.dockContent}
+            // Until measured: Did it + the Up next link (the fallback above).
+            estimate={DID_IT_HEIGHT + UP_NEXT_ESTIMATE}
+          >
             {didIt}
             {upNext ? <UpNextLink exercise={upNext} onPress={dismiss(() => setViewingIndex(laterIncomplete))} /> : null}
           </PinnedDock>

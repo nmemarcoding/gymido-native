@@ -10,8 +10,8 @@ import ExerciseImage from '../../../shared/components/ExerciseImage';
 import IconButton from '../../../shared/components/IconButton';
 import { NAME_TEXT } from '../../../shared/components/largeText';
 import Loader from '../../../shared/components/Loader';
-import PillButton from '../../../shared/components/PillButton';
-import PinnedDock from '../../../shared/components/PinnedDock';
+import PillButton, { BUTTON_HEIGHTS } from '../../../shared/components/PillButton';
+import PinnedDock, { dockButtonsHeight } from '../../../shared/components/PinnedDock';
 import Select from '../../../shared/components/Select';
 import { ToastTone, addToast } from '../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
@@ -713,7 +713,13 @@ function StickyBar({ showStart, starting, onChange, onStart, onHeight, tablet, r
     );
   }
   return (
-    <PinnedDock testID="generator-sticky-bar" onHeight={onHeight} bottomGap={TABLET_BAR_BOTTOM}>
+    <PinnedDock
+      testID="generator-sticky-bar"
+      onHeight={onHeight}
+      bottomGap={TABLET_BAR_BOTTOM}
+      // Until measured: the stacked pair, else one row of cta 60 (phone) / 52 (tablet).
+      estimate={stacked ? dockButtonsHeight({ rows: 2 }) : dockButtonsHeight({ buttonHeight: BUTTON_HEIGHTS[size] })}
+    >
       {row}
     </PinnedDock>
   );

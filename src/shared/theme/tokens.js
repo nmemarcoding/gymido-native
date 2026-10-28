@@ -147,8 +147,11 @@ const V2_COLORS = {
   // Sticky bars on the ground (blur.groundBar).
   groundBar: 'rgba(10, 11, 15, 0.88)',
   // UX native final audit 27 Oct 2026, ruling 2: the status-bar backdrop's
-  // low-end Android fallback (no blur there); elsewhere it is solid ground.
+  // low-end Android fallback (no blur there).
   groundFallback: 'rgba(10, 11, 15, 0.96)',
+  // Ruling 2 amendment 2 (27 Oct 2026): where blur exists (iOS, Android 31+)
+  // the backdrop is this translucent ground over blur.statusBar.
+  groundTranslucent: 'rgba(10, 11, 15, 0.86)',
   // The ink ladder (dark on gold): 0.08 / 0.10 tint (inkTint) / 0.30 / 0.60.
   inkFaint: 'rgba(10, 11, 15, 0.08)',
   // MT1.6 (27 Oct 2026): the ink 0.12 chip / Decline fill on the gold card.
@@ -415,8 +418,10 @@ export function muscleGlow(hex) {
 
 // Blur radii (px): §3 blur-glass, and UX §8.4 glass-strong / on-photo.
 // v2 kit: kit 2 (UX §8.7): U12 scrim backdrops blur 4 on phones and 6 on
-// tablets; U4 the dark loading disc (colors.scrimStrong) blurs 16.
-export const blur = Object.freeze({ glass: 24, glassStrong: 24, onPhoto: 12, groundBar: 24, scrim: 4, scrimTablet: 6, scrimStrong: 16 });
+// tablets; U4 the dark loading disc (colors.scrimStrong) blurs 16. Ruling 2
+// amendment 2 (27 Oct 2026): the status-bar backdrop (and the session band)
+// blurs 20 under colors.groundTranslucent.
+export const blur = Object.freeze({ glass: 24, glassStrong: 24, onPhoto: 12, groundBar: 24, scrim: 4, scrimTablet: 6, scrimStrong: 16, statusBar: 20 });
 
 // The API's muscle groups onto the six colours (UX, 26 Oct 2026); anything
 // else is neutral. v1's per-group thumbnail hues map through this until

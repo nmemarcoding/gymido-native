@@ -10,7 +10,7 @@ import { useGeneratorAvailable } from '../../planGenerator/useGeneratorAvailable
 import PlanIcon from './planIcons';
 import { PressOverlay, rowsOf } from './planUi';
 
-// The code's strings win (spec T-60): MyPlansEntryCard's title + sub-line.
+// The code's strings win (spec T-60): the old My plans entry card's title + sub-line.
 const MY_PLANS_TITLE = 'My plans';
 const MY_PLANS_BODY = 'Build your own, or copy one from the catalog to change it.';
 

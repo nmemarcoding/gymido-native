@@ -35,7 +35,6 @@ import { addToast } from '../../shared/components/toastStore';
 import { colors, gradients, radii, textScale } from '../../shared/theme/tokens';
 import { copyToMyPlans, isGeneratorAvailable, listMyPlans } from './api/myPlansApi';
 import CopyToMyPlansCard, { COPY_NO_ID_MESSAGE, COPY_SUCCESS_MESSAGE } from './components/CopyToMyPlansCard';
-import MyPlansEntryCard from './components/MyPlansEntryCard';
 import MyPlansScreen, { MY_PLANS_GLOW, MY_PLANS_GLOW_TABLET } from './MyPlansScreen';
 
 function textOf(node) {
@@ -228,16 +227,6 @@ describe('My plans large text (§9)', () => {
 });
 
 describe('Entry card + copy card (v2)', () => {
-  it('My plans entry: the phone tile and the tablet row (56 icon tile), one link', async () => {
-    let tree = await render(<MyPlansEntryCard />);
-    const tile = tree.root.findAll((node) => node.props.testID === 'my-plans-entry' && typeof node.props.style === 'function')[0];
-    expect(flat(tile)).toEqual(expect.objectContaining({ borderRadius: radii.xl, padding: 16 }));
-    expect(StyleSheet.flatten(tile.props.style({ pressed: true })).borderColor).toBe(colors.goldLine);
-    tree = await render(<MyPlansEntryCard layout="row" />);
-    const row = tree.root.findAll((node) => node.props.testID === 'my-plans-entry' && typeof node.props.style === 'function')[0];
-    expect(flat(row)).toEqual(expect.objectContaining({ flexDirection: 'row', borderRadius: radii.xxl }));
-  });
-
   it('copy card: the v2 card, a glass full-width button; loading while copying', async () => {
     copyToMyPlans.mockReturnValue(new Promise(() => {}));
     const tree = await render(<CopyToMyPlansCard planId="12" />);

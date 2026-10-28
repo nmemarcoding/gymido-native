@@ -4,7 +4,7 @@ import { act, create } from 'react-test-renderer';
 import { todayCard } from './home/homeFormat';
 import { createdMessage, daysAWeekUnit, daysPillLabel, minutesPillLabel } from './planGenerator/generatorCopy';
 import { daysSelectedLabel } from './plans/components/ScheduleSetupCard';
-import { activePlanDaysLabel, planCardDaysLabel, workoutDaysLabel } from './plans/libraryFormat';
+import { workoutDaysLabel } from './plans/libraryFormat';
 import PlanCard from './trainer/plans/components/PlanCard';
 import { formatDaysPerWeek } from './trainer/plans/planFormat';
 import { fullPlanMessage } from './trainer/plans/planValidation';
@@ -53,8 +53,6 @@ describe('plan names on screen', () => {
 describe('day counts: the singular for exactly 1', () => {
   it.each([
     [formatDaysPerWeek({ days_per_week: 1 }), '1 day / week'],
-    [planCardDaysLabel({ days_per_week: 1 }), '1 day / week'],
-    [activePlanDaysLabel({ days_per_week: 1 }), '1 training day / week'],
     [workoutDaysLabel(1), '1 workout day'],
     [trainingDaysLabel(1), '1 training day'],
     [daysPillLabel(1), '1 day'],

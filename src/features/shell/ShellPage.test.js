@@ -181,10 +181,13 @@ describe('ShellPage header-actions slot (FE batch 1)', () => {
 
 // UX native final audit 27 Oct 2026, ruling 2 (rows A101, A105, C318): every
 // scrolled screen gets a status-bar backdrop, one fixed layer the height of
-// the top inset over the scroll: solid ground (#0A0B0F) with the blur where
-// it is available, the 0.96 ground on low-end Android (no blur there).
+// the top inset over the scroll. Ruling 2 amendments (2) + (3), 27 Oct 2026:
+// where blur exists (iOS, Android 31+) the fill is TRANSLUCENT, the 0.86
+// ground over a blur 20; low-end Android keeps the 0.96 ground, no blur.
 describe('status-bar backdrop (UX native final audit 27 Oct 2026, ruling 2)', () => {
   const backdrop = (tree) => tree.root.findAll((node) => node.props.testID === 'status-bar-backdrop' && typeof node.type === 'string');
+  // The fill is its own layer drawn OVER the blur (GlassSurface's order).
+  const fillOf = (node) => StyleSheet.flatten(node.findAll((child) => child.props.testID === 'status-bar-backdrop-fill' && typeof child.type === 'string')[0].props.style);
   const pageRoot = (tree) => tree.root.findAll((node) => node.props.testID === 'app-root' && typeof node.type === 'string')[0];
   const { Version } = Platform;
   const setVersion = (value) => Object.defineProperty(Platform, 'Version', { value, configurable: true });
@@ -238,26 +241,33 @@ describe('status-bar backdrop (UX native final audit 27 Oct 2026, ruling 2)', ()
     expect(style.elevation).toBeUndefined();
   });
 
-  it('iOS: solid ground #0A0B0F over the blur', () => {
-    Platform.OS = 'ios';
+  // DECLARED (final batch, 27 Oct 2026, ruling 2 amendment 2): was "solid
+  // ground #0A0B0F over the blur" on the band itself; now the band is clear
+  // and its fill layer, over the blur 20, is the translucent 0.86 ground.
+  it.each([
+    ['iOS', 'ios', undefined],
+    ['Android 12+ (API 31)', 'android', 31],
+  ])('%s: the translucent 0.86 ground over a blur 20 (ruling 2 amendment 2)', (_name, os, version) => {
+    Platform.OS = os;
+    if (version) {
+      setVersion(version);
+    }
     const node = backdrop(render())[0];
-    expect(StyleSheet.flatten(node.props.style).backgroundColor).toBe('#0A0B0F');
-    expect(node.findAllByType(BlurView)).toHaveLength(1);
+    expect(StyleSheet.flatten(node.props.style).backgroundColor).toBeUndefined();
+    expect(fillOf(node).backgroundColor).toBe('rgba(10, 11, 15, 0.86)');
+    const blurs = node.findAllByType(BlurView);
+    expect(blurs).toHaveLength(1);
+    // BlurLayer maps CSS px to intensity × 2.5: blur 20 → 50.
+    expect(blurs[0].props.intensity).toBe(50);
   });
 
-  it('Android 12+ (API 31): solid ground #0A0B0F over the blur', () => {
-    Platform.OS = 'android';
-    setVersion(31);
-    const node = backdrop(render())[0];
-    expect(StyleSheet.flatten(node.props.style).backgroundColor).toBe('#0A0B0F');
-    expect(node.findAllByType(BlurView)).toHaveLength(1);
-  });
-
-  it('low-end Android (below API 31): the 0.96 ground fallback and no blur', () => {
+  // DECLARED (final batch, 27 Oct 2026): the 0.96 now sits on the fill layer
+  // (it was the band's own background); value and no-blur unchanged.
+  it('low-end Android (below API 31): the 0.96 ground fallback and no blur (ruling 2 amendment 3)', () => {
     Platform.OS = 'android';
     setVersion(29);
     const node = backdrop(render())[0];
-    expect(StyleSheet.flatten(node.props.style).backgroundColor).toBe('rgba(10, 11, 15, 0.96)');
+    expect(fillOf(node).backgroundColor).toBe('rgba(10, 11, 15, 0.96)');
     expect(node.findAllByType(BlurView)).toHaveLength(0);
   });
 

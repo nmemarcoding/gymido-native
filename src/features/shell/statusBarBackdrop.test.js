@@ -66,9 +66,11 @@ const NOT_UNDER_THE_STATUS_BAR = {
   'shared/components/Select.js': 'Modal list',
   'shared/components/AppModal.js': 'Modal window',
   // The active workout: the board draws the exercise photo edge to edge
-  // under the status bar (SessionChrome sits at the inset); a ground band
-  // would cut the photo. Reported to the PM as not covered by this batch.
-  'features/workout/runtime/SessionRuntime.js': 'immersive photo stage (PM call)',
+  // under the status bar (SessionChrome sits at the inset). Ruling 2
+  // amendment 1 (27 Oct 2026, A116): it draws its own band (BackdropBand,
+  // the same colours) that fades in once the photo has scrolled away; see
+  // sessionTopBand.test.js.
+  'features/workout/runtime/SessionRuntime.js': 'own top band once the photo scrolls away (sessionTopBand.test.js)',
 };
 
 function sourceFiles(dir) {

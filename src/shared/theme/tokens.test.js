@@ -26,6 +26,8 @@ describe('v2 colours (§1)', () => {
     ['glassSolid', 'rgba(30, 33, 41, 0.96)'],
     // UX native final audit 27 Oct 2026, ruling 2: the status-bar backdrop fallback.
     ['groundFallback', 'rgba(10, 11, 15, 0.96)'],
+    // Ruling 2 amendment 2 (27 Oct 2026): the backdrop's translucent fill where blur exists.
+    ['groundTranslucent', 'rgba(10, 11, 15, 0.86)'],
     ['hairline', 'rgba(255, 255, 255, 0.07)'],
     ['hairlineStrong', 'rgba(255, 255, 255, 0.10)'],
     ['scrim', 'rgba(10, 11, 15, 0.6)'],
@@ -296,7 +298,8 @@ describe('kit 2 tokens (UX §8.7 U1–U13, §8.6 shadow-sheet)', () => {
   });
 
   it('U12 scrim blur 4 phone / 6 tablet; U4 the dark disc blur 16; the earlier radii unchanged', () => {
-    expect(blur).toEqual({ glass: 24, glassStrong: 24, onPhoto: 12, groundBar: 24, scrim: 4, scrimTablet: 6, scrimStrong: 16 });
+    // DECLARED (final batch, 27 Oct 2026, ruling 2 amendment 2): + statusBar 20, the status-bar / session band blur.
+    expect(blur).toEqual({ glass: 24, glassStrong: 24, onPhoto: 12, groundBar: 24, scrim: 4, scrimTablet: 6, scrimStrong: 16, statusBar: 20 });
   });
 
   it('U13 the unit suffix caps at 1.6 and keeps a 16 gap', () => {

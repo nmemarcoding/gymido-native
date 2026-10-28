@@ -32,7 +32,7 @@ const CIRCLE = { phone: 36, compact: 32, tablet: 40, wide: 44 };
 // padding 0 32 32 pulled up 40, circles 40. At ≥1024 the body is two columns
 // (gap 32): name 40/44, meta 16/24, the next row and the actions side by side
 // on the left; the Your week inset (max 520, circles 44, letters 15, labels
-// 12) on the right.
+// 12/600) on the right.
 export default function PhoneActivePlanCard({ plan, meta, circles, next, compact = false, size = 'phone', onStart, onView }) {
   const photo = imageSourceProps(mediaUrl(plan?.thumbnail));
   const [failedUrl, setFailedUrl] = useState(null);
@@ -461,8 +461,10 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     color: colors.gold,
   },
-  // ≥1024: 12 (weights kept per type).
+  // ≥1024: 12/600 for every type (UX native final audit 27 Oct 2026,
+  // "Batch (d)/(g) confirms" 2: §6 sets the weight too; the Rest 400 goes).
   labelWide: {
+    ...font(600),
     fontSize: 12,
     lineHeight: 16,
   },

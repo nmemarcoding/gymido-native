@@ -8,7 +8,7 @@ import ErrorAlert from '../../../../shared/components/ErrorAlert';
 import FormField from '../../../../shared/components/FormField';
 import GradientFill from '../../../../shared/components/GradientFill';
 import PillButton from '../../../../shared/components/PillButton';
-import PinnedDock, { dockStacks } from '../../../../shared/components/PinnedDock';
+import PinnedDock, { dockButtonsHeight, dockStacks } from '../../../../shared/components/PinnedDock';
 import Select from '../../../../shared/components/Select';
 import { ToastTone, addToast } from '../../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../../shared/hooks/useFocusRemountKey';
@@ -423,7 +423,13 @@ function CreatePlanV2({ tablet, stacked = false, docked = false, narrow = false,
         </View>
       </ShellPage>
       {docked ? (
-        <PinnedDock testID="create-plan-dock" onHeight={setDockHeight} contentStyle={v2.dockContent}>
+        <PinnedDock
+          testID="create-plan-dock"
+          onHeight={setDockHeight}
+          contentStyle={v2.dockContent}
+          // Until measured: Create (52) over Cancel (52) below 21rem, else the 56 phone pair.
+          estimate={dockStacked ? dockButtonsHeight({ rows: 2 }) : dockButtonsHeight({ buttonHeight: v2.buttonPhone.minHeight })}
+        >
           {buttons}
         </PinnedDock>
       ) : null}

@@ -112,6 +112,54 @@ describe('maestro-guarded.sh deletes Maestro debug logs after every run', () => 
     expect(fs.existsSync(dir)).toBe(false);
   }, 20000);
 
+  // Reviewer carry (final batch, 27 Oct 2026): `kill "$MPID"; wait "$MPID"`
+  // hung for good when maestro (a JVM) ignored TERM. The cleanup now waits at
+  // most MAESTRO_STOP_WAIT seconds (default 10), then kill -9. A stub maestro
+  // that ignores TERM; the test waits 1 s.
+  it('a maestro that ignores TERM: the cleanup waits at most MAESTRO_STOP_WAIT, then kill -9; the logs still go', async () => {
+    const box = make();
+    const dir = path.join(box.root, 'caller-debug');
+    const started = path.join(box.root, 'maestro-started');
+    const pidFile = path.join(box.root, 'maestro-pid');
+    fs.writeFileSync(
+      path.join(box.root, 'bin', 'maestro'),
+      `#!/usr/bin/env bash
+trap '' TERM
+mkdir -p "${dir}/run"
+echo typed-bytes > "${dir}/run/device-logcat.txt"
+echo $$ > ${JSON.stringify(pidFile)}
+touch ${JSON.stringify(started)}
+exec sleep 60
+`,
+      { mode: 0o755 },
+    );
+    const child = spawn('bash', [path.join(box.root, 'e2e', 'scripts', 'maestro-guarded.sh'), 'emulator-5594', '--debug-output', dir, 'flow.yaml'], {
+      env: { ...box.env, MAESTRO_STOP_WAIT: '1' },
+    });
+    const done = new Promise((resolve) => child.on('exit', (code, signal) => resolve({ code, signal })));
+    const begin = Date.now();
+    while (!fs.existsSync(started) && Date.now() - begin < 10000) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    expect(fs.existsSync(started)).toBe(true);
+    const killedAt = Date.now();
+    child.kill('SIGTERM');
+    const result = await done;
+    expect(Date.now() - killedAt).toBeLessThan(8000);
+    expect(result).toEqual({ code: 1, signal: null });
+    const pid = Number(fs.readFileSync(pidFile, 'utf8'));
+    expect(() => process.kill(pid, 0)).toThrow();
+    expect(files(dir).some((file) => file.endsWith('device-logcat.txt'))).toBe(false);
+  }, 20000);
+
+  it.each(['maestro-guarded.sh', 'android-sign-in.sh', 'invite.sh'])('%s: the cleanup never waits on maestro unbounded (bounded wait, then kill -9)', (name) => {
+    const src = fs.readFileSync(path.join(__dirname, name), 'utf8');
+    expect(src).not.toMatch(/kill "\$MPID"[^\n]*&& wait "\$MPID"/);
+    expect(src).toMatch(/stop_maestro "\$MPID"/);
+    expect(src).toMatch(/MAESTRO_STOP_WAIT:-10/);
+    expect(src).toMatch(/kill -9/);
+  });
+
   it.each(['maestro-guarded.sh', 'android-sign-in.sh', 'invite.sh', 'ios-safe-sign-in.sh'])(
     '%s: its cleanup IGNORES INT/TERM/HUP (never resets them to the default, which kills it)',
     (name) => {

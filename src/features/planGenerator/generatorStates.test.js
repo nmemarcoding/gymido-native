@@ -31,7 +31,6 @@ jest.mock('../shell/shellLinks', () => ({ openShellPath: jest.fn(), handOffToWor
 jest.mock('./generatorRoutes', () => ({
   generatorRoutes: { PlanGenerator: 'PlanGenerator', PlanGeneratorPreview: 'PlanGeneratorPreview' },
 }));
-jest.mock('./useTabBarClearance', () => ({ useTabBarClearance: () => 0 }));
 // PinnedDock (UX native final audit 27 Oct 2026, ruling 1) reads the safe area.
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../../shared/components/BlurLayer', () => () => null);

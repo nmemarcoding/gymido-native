@@ -9,7 +9,6 @@ import {
   formatSetSummary,
   initialWeekdays,
   muscleFocus,
-  planCardDaysLabel,
   planCountLabel,
   selectedWeekdaysLabel,
   toggleWeekday,
@@ -58,7 +57,6 @@ describe('S1 copy', () => {
   it('labels the active plan and the cards', () => {
     expect(activePlanSummary({ days_per_week: 4, category: { name: 'Strength' } })).toBe('4\u00a0training days / week · Strength');
     expect(activePlanSummary({})).toBe('Your active routine');
-    expect(planCardDaysLabel({})).toBe(' days / week');
     expect(planCountLabel(1)).toBe('1 plan');
     expect(planCountLabel(2)).toBe('2 plans');
   });

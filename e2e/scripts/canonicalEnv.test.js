@@ -92,7 +92,10 @@ describe('android-sign-in.sh cleans up on interrupt', () => {
   it('runs Maestro in the background and waits, so a signal reaches the trap at once', () => {
     expect(text).toMatch(/maestro-guarded\.sh[^\n]*&\s*\n[^\n]*MPID=\$!/);
     expect(text).toMatch(/wait "?\$MPID"?/);
-    expect(text).toMatch(/kill[^\n]*\$MPID/);
+    // DECLARED (final batch, 27 Oct 2026, reviewer carry): was /kill[^\n]*\$MPID/ (a bare kill + wait);
+    // the cleanup now stops maestro through the bounded stop_maestro (TERM, at most 10 s, then kill -9).
+    expect(text).toMatch(/stop_maestro "\$MPID"/);
+    expect(text).toMatch(/stop_maestro\(\) \{[\s\S]*kill "\$pid"[\s\S]*kill -9 "\$pid"/);
   });
 
   it('clears Chrome again at the end (no saved form data left behind)', () => {
