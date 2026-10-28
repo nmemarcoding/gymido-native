@@ -359,8 +359,13 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   // The fixed phone header: never shrinks; the ScrollView takes the rest.
+  // Final device audit (iOS, 27 Oct 2026): it paints and hit-tests ABOVE the
+  // scroll (zIndex) on the card's opaque fill, so a row scrolled up under a
+  // pinned find field never shows or takes a tap there.
   header: {
     flexShrink: 0,
+    zIndex: 1,
+    backgroundColor: colors.surfaceRaised,
   },
   titleRow: {
     flexDirection: 'row',
@@ -381,11 +386,12 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     paddingRight: 48,
   },
+  // Above the tablet fixed header (zIndex 1), which it overlaps.
   closePinned: {
     position: 'absolute',
     top: spacing[6],
     right: spacing[6],
-    zIndex: 1,
+    zIndex: 2,
   },
   // Centred on the 30 px first title line.
   closeInRow: {

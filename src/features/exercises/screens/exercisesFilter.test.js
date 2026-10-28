@@ -27,7 +27,10 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn(() => Promise.resolve()) }));
-jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
+let mockInsets = { top: 0, bottom: 0, left: 0, right: 0 };
+let mockKeyboard = 0;
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => mockInsets }));
+jest.mock('../../../shared/hooks/useKeyboardHeight', () => ({ useKeyboardHeight: () => mockKeyboard }));
 jest.mock('../api/exercisesApi', () => ({ listExercisesPage: jest.fn(), listEquipmentTypes: jest.fn(), listMuscleGroups: jest.fn() }));
 jest.mock('../../shell/AppHeader', () => () => null);
 jest.mock('../../shell/TabletFrame', () => ({ children }) => children);
@@ -75,6 +78,8 @@ beforeEach(() => {
   clearExerciseListCache();
   mockWidth = 390;
   mockFontScale = 1;
+  mockInsets = { top: 0, bottom: 0, left: 0, right: 0 };
+  mockKeyboard = 0;
   listExercisesPage.mockResolvedValue({ items: ITEMS, pagination: { total_pages: 1 } });
   listEquipmentTypes.mockResolvedValue(TYPES);
   listMuscleGroups.mockResolvedValue([]);
@@ -430,7 +435,11 @@ describe('T-62 ≥ 1024: the always-visible filter panel', () => {
   const listRows = (root) => root.find((node) => node.props.testID === 'exercises-list' && typeof node.type !== 'string' && Array.isArray(node.props.data)).props.data.filter((row) => row.type === 'row');
 
   // DECLARED change (reviewer, web parity): the panel's height is the row
-  // beside the results ('100%'), was window − 48 beside the whole page.
+  // beside the results, was window − 48 beside the whole page.
+  // DECLARED change (final device audit, 27 Oct 2026): the top 24 and the
+  // height cap moved from the card (marginTop 24 + maxHeight '100%', which
+  // overran the row by 24 and ignored the bottom inset) to the panel's frame
+  // (padding 24 top, 24 + inset bottom; the card shrinks inside it).
   it('1024–1279: 256 wide card (radius 24, surface, hairline, padding 16 10), top 24, as tall as the results row at most; no Filter button', async () => {
     mockWidth = 1194;
     const tree = await render();
@@ -442,9 +451,11 @@ describe('T-62 ≥ 1024: the always-visible filter panel', () => {
       borderWidth: 1,
       paddingVertical: 16,
       paddingHorizontal: 10,
-      marginTop: 24,
-      maxHeight: '100%',
+      flexShrink: 1,
     });
+    expect(flat(panel(tree.root))).not.toHaveProperty('marginTop');
+    expect(flat(panel(tree.root))).not.toHaveProperty('maxHeight');
+    expect(flat(host(tree.root, 'exercises-filter-panel-frame'))).toMatchObject({ paddingTop: 24, paddingBottom: 24 });
     expect(hosts(tree.root, 'exercises-filter')).toHaveLength(0);
     // No title, no ×, no footer inside the panel; the list scrolls inside it.
     expect(panel(tree.root).findAll((node) => node.props.testID === 'app-modal-close')).toHaveLength(0);
@@ -634,5 +645,110 @@ describe.each([390, 834])('T-62 loading footer and counts (%ipx)', (width) => {
     await act(async () => finish());
     expect(showTitle(tree.root)).toMatch(/^Show 4.exercises$/);
     expect(counts(tree.root)).not.toContain('—');
+  });
+});
+
+// Final device audit (27 Oct 2026), T-62 bugs found on the Android tablet /
+// iPhone builds.
+describe('T-62 final audit: panel insets + keyboard, the search field, the sheet with the keyboard', () => {
+  const frame = (root) => host(root, 'exercises-filter-panel-frame');
+  const panel = (root) => host(root, 'exercises-filter-panel');
+
+  it('panel (≥ 1024): its frame keeps the card 24 above the bottom safe-area inset, so the last rows can be reached', async () => {
+    mockWidth = 1280;
+    mockInsets = { top: 24, bottom: 48, left: 0, right: 0 };
+    const tree = await render();
+    // The frame fills the results row; the card hugs its content and shrinks
+    // (its rows scroll) when the row is shorter.
+    expect(flat(frame(tree.root))).toMatchObject({ alignSelf: 'stretch', paddingTop: 24, paddingBottom: 24 + 48 });
+    expect(flat(panel(tree.root))).toMatchObject({ flexShrink: 1 });
+    expect(flat(host(tree.root, 'exercises-filter-panel-scroll'))).toMatchObject({ flexShrink: 1 });
+    // The screen's panel margins sit on the frame.
+    expect(flat(frame(tree.root))).toMatchObject({ marginLeft: 20, marginRight: 4 });
+  });
+
+  it('panel: an open keyboard replaces the bottom inset, so the card (find field + its own list) ends 24 above the keyboard', async () => {
+    mockWidth = 1280;
+    mockInsets = { top: 24, bottom: 48, left: 0, right: 0 };
+    mockKeyboard = 320;
+    const tree = await render();
+    expect(flat(frame(tree.root)).paddingBottom).toBe(24 + 320);
+    // The find field stays at the top of the card, outside the list's scroll.
+    const scroll = host(tree.root, 'exercises-filter-panel-scroll');
+    expect(scroll.findAll((node) => node.props.testID === 'exercise-filter-find')).toHaveLength(0);
+    expect(hosts(panel(tree.root), 'exercise-filter-find')).toHaveLength(1);
+    expect(flat(host(tree.root, 'exercise-filter-find-box')).flexShrink ?? 0).toBe(0);
+  });
+
+  it.each([
+    [390, 1],
+    [834, 1],
+    [1280, 1],
+    [834, 2],
+  ])('search field at %i (font %f): the pill is the box, the text starts past the icon, the input style never changes', async (width, fontScale) => {
+    mockWidth = width;
+    mockFontScale = fontScale;
+    const tree = await render();
+    const box = flat(host(tree.root, 'exercises-search-box'));
+    const glyph = flat(host(tree.root, 'exercises-search-icon'));
+    // The text box starts at the box's left padding (inside its 1 border);
+    // the 18 icon sits at 18 from the outer edge: ≥ 8 clear of it.
+    expect(box).toMatchObject({ borderRadius: 999, borderWidth: 1, backgroundColor: colors.surface, paddingLeft: 46 });
+    expect(box.borderWidth + box.paddingLeft).toBeGreaterThanOrEqual(glyph.left + 18 + 8);
+    // Android resets an EditText's padding when its background is re-set (the
+    // focus ring did that: the text then started under the icon). The input
+    // draws no chrome and pads nothing horizontally, and its style is the
+    // same focused or not.
+    const input = () => host(tree.root, 'exercises-search');
+    const before = flat(input());
+    expect(before.paddingLeft ?? 0).toBe(0);
+    expect(before.paddingRight ?? 0).toBe(0);
+    expect(before).not.toHaveProperty('borderWidth');
+    expect(before).not.toHaveProperty('backgroundColor');
+    expect(before).not.toHaveProperty('boxShadow');
+    act(() => searchInput(tree.root).props.onFocus());
+    expect(flat(input())).toEqual(before);
+    // The focus ring is drawn by the box instead, and goes on blur.
+    expect(flat(host(tree.root, 'exercises-search-box'))).toMatchObject({ borderColor: colors.gold });
+    expect(flat(host(tree.root, 'exercises-search-box')).boxShadow).toEqual(expect.stringContaining(colors.goldFocus));
+    act(() => searchInput(tree.root).props.onBlur());
+    expect(flat(host(tree.root, 'exercises-search-box'))).toMatchObject({ borderColor: colors.hairlineStrong });
+    expect(flat(host(tree.root, 'exercises-search-box'))).not.toHaveProperty('boxShadow');
+  });
+
+  it('search field: a tap on the pill outside the text box (the icon, the edges) still focuses the field', async () => {
+    const tree = await render();
+    const field = tree.root.find((node) => node.props.testID === 'exercises-search' && typeof node.type !== 'string');
+    const box = pressable(tree.root, 'exercises-search-box');
+    expect(box.props.accessible).toBe(false);
+    const focus = jest.fn();
+    jest.spyOn(field.instance, 'focus').mockImplementation(focus);
+    act(() => box.props.onPress());
+    expect(focus).toHaveBeenCalledTimes(1);
+  });
+
+  it('search field: 52 tall on the phone, 56 at 768–1279', async () => {
+    let tree = await render();
+    expect(flat(host(tree.root, 'exercises-search-box')).minHeight).toBe(52);
+    mockWidth = 834;
+    tree = await render();
+    expect(flat(host(tree.root, 'exercises-search-box')).minHeight).toBe(56);
+  });
+
+  it('iPhone sheet, keyboard up: lifted above it, the pinned find field stays over the list (opaque, on top), the rows scroll', async () => {
+    mockInsets = { top: 47, bottom: 34, left: 0, right: 0 };
+    const tree = await render();
+    await press(tree.root, 'exercises-filter');
+    mockKeyboard = 336;
+    await act(async () => {
+      tree.update(<ExercisesScreen />);
+    });
+    expect(flat(host(tree.root, 'app-modal-overlay')).paddingBottom).toBe(336);
+    const header = host(tree.root, 'app-modal-header');
+    expect(flat(header)).toMatchObject({ zIndex: 1, backgroundColor: colors.surfaceRaised });
+    expect(hosts(header, 'app-modal-pinned-header')).toHaveLength(1);
+    const scroll = tree.root.findAllByType(require('react-native').ScrollView).find((node) => node.findAll((child) => child.props.testID === 'exercise-filter-muscle-Chest').length > 0);
+    expect(scroll).toBeDefined();
+    expect(scroll.findAll((node) => node.props.testID === 'exercise-filter-find')).toHaveLength(0);
   });
 });

@@ -1,4 +1,4 @@
-import { AccessibilityInfo, Platform } from 'react-native';
+import { AccessibilityInfo, Platform, StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { AuthStatus, useAuthStore } from '../../auth/authStore';
@@ -292,7 +292,9 @@ describe('§E1.2 step 1: a search reload keeps the list (T-12 F2)', () => {
     expect(shown).not.toContain('Loading exercises');
     expect(shown).toContain('Ex 1');
     expect(spinners(tree)).toHaveLength(1);
-    expect(input(tree).props.style).toEqual(expect.arrayContaining([expect.objectContaining({ paddingRight: 44 })]));
+    // DECLARED (final device audit, 27 Oct 2026): the spinner's room (right
+    // 44) is the search box's padding now, not the TextInput's.
+    expect(StyleSheet.flatten(tree.root.findAll((node) => node.props.testID === 'exercises-search-box' && typeof node.type === 'string')[0].props.style)).toMatchObject({ paddingRight: 44 });
     expect(announce.mock.calls.filter((call) => call[0] === 'Searching…')).toHaveLength(1);
     expect(tree.root.find((node) => node.props.testID === 'exercises-list' && node.props.accessibilityState).props.accessibilityState).toEqual({ busy: true });
 

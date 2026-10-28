@@ -92,10 +92,13 @@ describe('Exercises (UX G, phone)', () => {
   // the trailing "All muscle groups ▾" chip, and the chip that opens the
   // §E2 sheet) are replaced by exercisesFilter.test.js (the Filter button).
 
+  // DECLARED (final device audit, 27 Oct 2026): the pill (52, radius,
+  // surface, padding-left 46) is drawn by the search box, not the TextInput
+  // (Android re-set the input's padding when its focus ring changed it).
   it('search: the 52 pill on surface, the 18 svg icon, faint placeholder', async () => {
     const tree = await render();
     const input = host(tree.root, 'exercises-search');
-    expect(flat(input)).toMatchObject({ minHeight: 52, borderRadius: 999, backgroundColor: colors.surface, paddingLeft: 46 });
+    expect(flat(host(tree.root, 'exercises-search-box'))).toMatchObject({ minHeight: 52, borderRadius: 999, backgroundColor: colors.surface, paddingLeft: 46 });
     expect(input.props.placeholderTextColor).toBe(colors.textFaint);
     expect(queryHost(tree.root, 'exercises-search-icon')).toHaveLength(1);
   });

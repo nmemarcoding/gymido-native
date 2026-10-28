@@ -472,6 +472,36 @@ describe('AppModal pinnedHeader (T-62)', () => {
     expect(hasHost(tree, 'app-modal-close')).toBe(true);
   });
 
+  // Final device audit (iOS, 27 Oct 2026): a row scrolled up under the pinned
+  // find field must not show there, nor take a tap meant for the field: the
+  // fixed header paints and hit-tests ABOVE the scroll (zIndex) on the card's
+  // opaque fill. The tablet Close stays above both.
+  it.each([
+    ['phone', PHONE],
+    ['tablet', TABLET],
+  ])('%s: the fixed header sits above the scroll content, opaque', (_, width) => {
+    atWidth(width);
+    const tree = render(modal({ pinnedHeader: pinned, children: <Text>Body</Text> }));
+    const header = flat(host(tree, 'app-modal-header'));
+    const scroll = StyleSheet.flatten(tree.root.findByType(ReactNative.ScrollView).props.style);
+    expect(header.zIndex).toBeGreaterThan(scroll.zIndex ?? 0);
+    expect(header.backgroundColor).toBe(colors.surfaceRaised);
+    expect(flat(host(tree, 'dlg')).backgroundColor).toBe(colors.surfaceRaised);
+    if (width === TABLET) {
+      expect(flat(host(tree, 'app-modal-close')).zIndex).toBeGreaterThan(header.zIndex);
+    }
+  });
+
+  it('phone, keyboard open: the sheet rides above it and the pinned header stays fixed over the scrolling content', () => {
+    atWidth(PHONE);
+    mockKeyboard = 336;
+    const tree = render(modal({ pinnedHeader: pinned, children: <Text>Body</Text>, footer: <Text>Show</Text> }));
+    expect(flat(scrimView(tree)).paddingBottom).toBe(336);
+    expect(flat(host(tree, 'dlg')).maxHeight).toBe(HEIGHT - 16 - 40 - 336);
+    expect(inScroll(tree, (n) => n.props.testID === 'find')).toBe(false);
+    expect(inScroll(tree, (n) => n.type === Text && n.props.children === 'Body')).toBe(true);
+  });
+
   it('accessibility order: title, ×, pinned header, then the content', () => {
     atWidth(PHONE);
     const tree = render(modal({ pinnedHeader: pinned, children: <Text>Body</Text> }));

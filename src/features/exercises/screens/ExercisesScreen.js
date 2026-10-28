@@ -597,7 +597,6 @@ function ExercisesCatalog() {
                       onSelect={selectFilter}
                       loadingNames={firstLoad && load.items.length === 0}
                       width={width}
-                      maxHeight="100%"
                       style={styles.panel}
                     />
                     <View style={styles.listColumn}>{list}</View>
@@ -639,7 +638,15 @@ function StickyBar({ padding, searchFieldRef, searchValue, onChangeSearch, onSub
       <BlurLayer blurPx={blur.groundBar} />
       <View style={[StyleSheet.absoluteFill, styles.barFill]} />
       <View testID="exercises-toolbar" style={[styles.toolbar, tablet && styles.toolbarTablet]}>
-        <View testID="exercises-search-box" style={styles.searchBox}>
+        {/* The pill is the box (see searchBox): a tap on its padding (the
+            icon, the edges) focuses the field as before. Not an a11y
+            element itself; the TextInput is. */}
+        <Pressable
+          testID="exercises-search-box"
+          accessible={false}
+          onPress={() => searchFieldRef.current?.focus()}
+          style={[styles.searchBox, tall && styles.searchBoxTall, searching && styles.searchBoxSearching, focused && styles.searchBoxFocused]}
+        >
           <TextInput
             {...textInputColors}
             ref={searchFieldRef}
@@ -660,7 +667,7 @@ function StickyBar({ padding, searchFieldRef, searchValue, onChangeSearch, onSub
             clearButtonMode={!searching && Platform.OS === 'ios' ? 'while-editing' : 'never'}
             autoCorrect={false}
             autoCapitalize="none"
-            style={[styles.searchInput, tall && styles.searchInputTall, searching && styles.searchInputSearching, focused && styles.searchInputFocused]}
+            style={styles.searchInput}
           />
           <View testID="exercises-search-icon" pointerEvents="none" style={styles.searchGlyph} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
             <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
@@ -668,7 +675,7 @@ function StickyBar({ padding, searchFieldRef, searchValue, onChangeSearch, onSub
             </Svg>
           </View>
           {searching ? <SearchSpinner /> : null}
-        </View>
+        </Pressable>
         {filterButton}
       </View>
     </View>
@@ -822,41 +829,51 @@ const styles = StyleSheet.create({
   barFill: {
     backgroundColor: colors.groundBar,
   },
+  // UX G: 52 tall pill, surface, the 0.08 edge → hairline-strong (ladder).
+  // Final device audit (27 Oct 2026, Android tablet): the pill, its padding
+  // and the focus ring are the BOX's. Android re-sets an EditText's padding
+  // when its background changes (the focus ring did), so the text started
+  // under the icon; the input itself now draws nothing and its style never
+  // changes. Text starts at 1 + 46: past the 18 icon at 18, at any size.
   searchBox: {
     flex: 1,
     minWidth: 0,
-    justifyContent: 'center',
-  },
-  // UX G: 52 tall pill, surface, the 0.08 edge → hairline-strong (ladder).
-  searchInput: {
-    ...font(400),
     minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
     borderRadius: radii.full,
     borderWidth: 1,
     borderColor: colors.hairlineStrong,
     backgroundColor: colors.surface,
-    paddingVertical: 14,
     paddingLeft: 46,
     paddingRight: 16,
+  },
+  searchBoxTall: {
+    minHeight: 56,
+  },
+  searchBoxSearching: {
+    paddingRight: 44,
+  },
+  searchBoxFocused: {
+    borderColor: colors.gold,
+    boxShadow: `0px 0px 0px 4px ${colors.goldFocus}`,
+  },
+  searchInput: {
+    ...font(400),
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 14,
+    paddingHorizontal: 0,
     fontSize: 16,
     lineHeight: 20,
     color: colors.textPrimary,
   },
-  searchInputTall: {
-    minHeight: 56,
-  },
-  searchInputSearching: {
-    paddingRight: 44,
-  },
-  searchInputFocused: {
-    borderColor: colors.gold,
-    boxShadow: `0px 0px 0px 4px ${colors.goldFocus}`,
-  },
+  // Inside the box's 1 border: 14 / 18 from its outer edge, as before.
   spinnerSlot: {
     position: 'absolute',
     top: 0,
     bottom: 0,
-    right: 14,
+    right: 13,
     justifyContent: 'center',
   },
   spinner: {
@@ -871,7 +888,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     bottom: 0,
-    left: 18,
+    left: 17,
     justifyContent: 'center',
   },
   contentTop: {
