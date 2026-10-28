@@ -13,7 +13,7 @@ import {
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
+import { useKeyboardOverlap } from '../hooks/useKeyboardHeight';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { blur, breakpoints, colors, motion, radii, shadows, spacing, typography } from '../theme/tokens';
 import BlurLayer from './BlurLayer';
@@ -52,7 +52,7 @@ export function isTabletWidth(width) {
 // is no other phone variant); a TITLED sheet shows a 36 glass × (44 hit) on
 // its title row; the phone title is 26/30 700, the tablet dialog's 34/38.
 // The phone title row is a FIXED header under the handle (the × is always
-// reachable; the description, content and keyboard-time footer scroll under
+// reachable; the description and content scroll under
 // it). Order (and screen-reader order): handle, eyebrow, title, ×, content,
 // footer. `footerDismiss` (default false): the footer already has a Cancel /
 // Close / Done, so the phone × is dropped (one way out); the tablet header
@@ -66,16 +66,28 @@ export function isTabletWidth(width) {
 // given (the caller styles and hides it from AT as needed).
 // `pinnedHeader` (optional, default none; T-62 27 Oct 2026): a node rendered
 // right after the title (row) and OUTSIDE the ScrollView, e.g. a find field
-// that stays put while the list scrolls. On a tablet it also pins the
-// eyebrow and title above the scroll (the description still scrolls).
+// that stays put while the list scrolls.
+// UX native final audit 27 Oct 2026, ruling 12 (A141, A142, A150, A151,
+// B225, B250): a dialog with a field rises above the keyboard and keeps its
+// buttons visible; on a landscape tablet it scrolls with its title pinned.
+// So the lift is the window height the keyboard COVERS (useKeyboardOverlap),
+// not the raw keyboard height: on Android RN reports the IME height minus the
+// nav bar / taskbar, while this edge-to-edge Modal (adjustResize is a no-op
+// there) draws to the screen bottom, so the raw lift fell short by the bar.
+// The footer stays fixed under the scroll with the keyboard open too (it used
+// to move into the scroll and so scrolled out of sight). The tablet eyebrow
+// and title sit in a fixed header above the scroll (iOS scrolls a focused
+// field into view, which took the title off the top); the description and
+// content scroll.
 export default function AppModal({ isOpen, onClose, title, description, size = 'lg', footer, children, testID, entrance = 'slide', compact = false, hideClose = false, footerDismiss = false, role, eyebrow, pinnedHeader, sheetTopGap = SHEET_TOP_GAP }) {
   const { width, height, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const tablet = isTabletWidth(width);
   const reducedMotion = useReducedMotion();
-  const keyboardHeight = useKeyboardHeight();
+  const keyboardHeight = useKeyboardOverlap();
   const keyboardOpen = keyboardHeight > 0;
-  // An open keyboard replaces the bottom inset so the sheet / card stays above it.
+  // An open keyboard replaces the bottom inset so the sheet / card stays above
+  // it (the overlap already includes any bar under the keyboard).
   const bottomInset = keyboardOpen ? keyboardHeight : insets.bottom;
   const progress = useRef(new Animated.Value(0)).current;
   // BUG-N4: while open, this modal's window hosts the toasts (it sits above
@@ -142,10 +154,6 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
 
   const hasChildren = Children.toArray(children).length > 0;
   const phoneClose = !tablet && !hideClose && !footerDismiss && Boolean(title);
-  // UX Phase 1 review: with the keyboard open a phone sheet has little height,
-  // and a fixed footer clipped the last field (the Unit select). The footer
-  // then scrolls with the content, so the fields keep their full height.
-  const footerInScroll = !tablet && keyboardOpen;
   let eyebrowView = null;
   if (typeof eyebrow === 'string' && eyebrow) {
     eyebrowView = (
@@ -174,7 +182,6 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
       {pinnedHeader}
     </View>
   ) : null;
-  const tabletHeader = tablet && Boolean(pinnedHeader);
   const tabletTitle = (
     <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.titleTablet}>
       {title}
@@ -233,7 +240,10 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
                 {pinnedView}
               </View>
             )}
-            {tabletHeader ? (
+            {/* UX §9 title rule: the phone title is title-sheet (1.6× cap), the
+                tablet one is 34 px, a page-size title (1.3× cap); both wrap by
+                word, max 3 lines, and a long word shrinks. */}
+            {tablet ? (
               <View testID="app-modal-header" style={styles.header}>
                 {eyebrowView}
                 {tabletTitle}
@@ -246,20 +256,14 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
               bounces={false}
               keyboardShouldPersistTaps="handled"
             >
-              {/* UX §9 title rule: the phone title is title-sheet (1.6× cap), the
-                  tablet one is 34 px, a page-size title (1.3× cap); both wrap by
-                  word, max 3 lines, and a long word shrinks. */}
-              {tablet && !tabletHeader ? eyebrowView : null}
-              {tablet && !tabletHeader ? tabletTitle : null}
               {description ? (
                 <Text {...CAP_BODY} style={[styles.description, tablet && !compact && styles.descriptionTablet, tablet && styles.descriptionTabletGap, pinnedHeader && styles.underPinned]}>
                   {description}
                 </Text>
               ) : null}
               {hasChildren ? <View style={[tablet ? styles.childrenTablet : styles.children, pinnedHeader && !description && styles.underPinned]}>{children}</View> : null}
-              {footerInScroll ? footerView : null}
             </ScrollView>
-            {footerInScroll ? null : footerView}
+            {footerView}
           </Fragment>
         </Animated.View>
       </View>
