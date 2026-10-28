@@ -8,6 +8,7 @@ import StatusPill from '../../../shared/components/StatusPill';
 import { colors, font, radii, textScale } from '../../../shared/theme/tokens';
 import { getClientWorkout, inviteClient, listClientWeightLogs, searchMembers } from './api/clientsApi';
 import InviteClientModal from './components/InviteClientModal';
+import WeightHistoryChart from './components/WeightHistoryChart';
 import WeightHistoryModal, { goalLabel, splitWeight } from './components/WeightHistoryModal';
 import WorkoutDetailModal, {
   BAND_HEIGHT,
@@ -244,6 +245,18 @@ describe('Client weight modal (UX M)', () => {
     const tree = await render(<WeightHistoryModal isOpen clientUserId={7} profile={PROFILE} onClose={jest.fn()} />);
     expect(deepText(host(tree, 'weight-history-total-value'))).toBe('\u221212.2 kg');
     expect(deepText(host(tree, 'weight-history-30d-value'))).toBe('\u221212.2 kg');
+  });
+
+  // PM ruling (RN-SPEC TRAINER-CLIENTS, audit b4; exact web parity): the
+  // CLIENT weight chart line is gold on the phone and teal on the tablet.
+  it.each([
+    [390, colors.gold],
+    [834, colors.chartLine],
+  ])('the client weight chart at %s draws its line in %s', async (width, color) => {
+    setWindow(width);
+    listClientWeightLogs.mockResolvedValue(LOGS);
+    const tree = await render(<WeightHistoryModal isOpen clientUserId={7} profile={PROFILE} onClose={jest.fn()} />);
+    expect(tree.root.findByType(WeightHistoryChart).props.lineColor).toBe(color);
   });
 
   it('positive change keeps the "+" (the sign carries the meaning)', async () => {

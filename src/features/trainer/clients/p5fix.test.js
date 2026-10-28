@@ -258,6 +258,14 @@ describe('Weight chart goal line (M6, UX M ruling 1 + §9a)', () => {
     dots.forEach((dot) => expect(dot.props.fill).toBe('#4FD8C4'));
   });
 
+  it('the line colour comes from the screen: lineColor gold draws a gold line, fill and dots; teal is the default', async () => {
+    const profile = { current_weight_value: 78, current_weight_unit: 'kg', goal_weight_value: 70, goal_weight_unit: 'kg' };
+    const gold = await chart({ profile, showGoal: true, lineColor: colors.gold });
+    expect(gold.root.findAll((node) => node.type === Path && node.props.fill === 'none').map((node) => node.props.stroke)).toEqual([colors.gold]);
+    expect(gold.root.findAll((node) => node.type === Stop).map((node) => node.props.stopColor)).toEqual([colors.gold, colors.gold]);
+    gold.root.findAll((node) => node.type === Circle).forEach((dot) => expect(dot.props.fill).toBe(colors.gold));
+  });
+
   it('no goal line on Progress (no showGoal) or when the client has no goal', async () => {
     const progress = await chart({ unit: 'kg', profile: { goal_weight_value: 70, goal_weight_unit: 'kg' } });
     expect(progress.root.findAll((node) => node.props.testID === 'weight-chart-goal-line')).toHaveLength(0);

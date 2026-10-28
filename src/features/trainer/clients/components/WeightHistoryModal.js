@@ -149,7 +149,7 @@ export default function WeightHistoryModal({ isOpen, clientUserId, profile, onCl
           {/* UX M ruling 1: the dashed goal line from the client's goal
               (the label below). Still open (6n): the gold line look and the
               150 / 200 heights. */}
-          <WeightHistoryChart logs={logs} profile={profile} showGoal />
+          <WeightHistoryChart logs={logs} profile={profile} showGoal lineColor={tablet ? colors.chartLine : colors.gold} />
           {goalText ? (
             <Text {...CAP_BODY} testID="weight-history-goal-label" style={[styles.goalLabel, tablet && styles.goalLabelTablet]}>
               {goalText}

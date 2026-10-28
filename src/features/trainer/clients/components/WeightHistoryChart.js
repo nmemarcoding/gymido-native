@@ -31,7 +31,9 @@ const TOOLTIP_GAP = 10;
 // trainer rule (§C5.3) picks it. `showGoal` (client weight modal, UX M
 // ruling 1): a dashed teal goal line at the profile's goal (as drawn: teal
 // 0.6, dash 4 5); the axis keeps it inside.
-export default function WeightHistoryChart({ logs, profile, unit, showGoal = false }) {
+// `lineColor` (line, area fill, dots): teal by default; the CLIENT weight
+// modal passes gold on the phone (RN-SPEC TRAINER-CLIENTS, audit b4).
+export default function WeightHistoryChart({ logs, profile, unit, showGoal = false, lineColor = TEAL }) {
   const [width, setWidth] = useState(0);
   const [activeIndex, setActiveIndex] = useState(null);
   const [tooltipWidth, setTooltipWidth] = useState(0);
@@ -89,8 +91,8 @@ export default function WeightHistoryChart({ logs, profile, unit, showGoal = fal
           <Svg width={width} height={HEIGHT}>
             <Defs>
               <LinearGradient id="weightFill" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0" stopColor={TEAL} stopOpacity={0.22} />
-                <Stop offset="1" stopColor={TEAL} stopOpacity={0.02} />
+                <Stop offset="0" stopColor={lineColor} stopOpacity={0.22} />
+                <Stop offset="1" stopColor={lineColor} stopOpacity={0.02} />
               </LinearGradient>
             </Defs>
             {ticks.map((tick) => (
@@ -143,13 +145,13 @@ export default function WeightHistoryChart({ logs, profile, unit, showGoal = fal
               />
             ) : null}
             <Path d={area} fill="url(#weightFill)" />
-            <Path d={line} fill="none" stroke={TEAL} strokeWidth={2.5} />
+            <Path d={line} fill="none" stroke={lineColor} strokeWidth={2.5} />
             {active ? <Line x1={activeX} x2={activeX} y1={top} y2={bottom} stroke={GRID} strokeWidth={1} /> : null}
             {coords.map(([x, y], index) => (
-              <Circle key={`dot-${index}`} cx={x} cy={y} r={3} fill={TEAL} stroke={colors.surface} strokeWidth={2} />
+              <Circle key={`dot-${index}`} cx={x} cy={y} r={3} fill={lineColor} stroke={colors.surface} strokeWidth={2} />
             ))}
             {active ? (
-              <Circle cx={activeX} cy={yAt(active.value)} r={5} fill={TEAL} stroke={colors.surface} strokeWidth={2} />
+              <Circle cx={activeX} cy={yAt(active.value)} r={5} fill={lineColor} stroke={colors.surface} strokeWidth={2} />
             ) : null}
           </Svg>
           {active ? (
