@@ -224,7 +224,7 @@ function DayChip({ value, selected, disabled, tablet, onPress }) {
     >
       {({ pressed }) => (
         <>
-          {pressed && !disabled ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, selected ? styles.overlayInk : styles.overlay]} /> : null}
+          {pressed && !disabled ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.overlay]} /> : null}
           <Text maxFontSizeMultiplier={1.6} style={[styles.chipText, tablet && styles.chipTextTablet, selected ? styles.chipTextOn : styles.chipTextOff]}>
             {value}
           </Text>
@@ -273,10 +273,13 @@ const styles = StyleSheet.create({
     minHeight: 56,
     borderRadius: radii.md,
   },
+  // UX T-74 ruling 2 (28 Oct): the selected day is goldTint (fill 0.14, a
+  // 1 px gold-line edge, gold 600 text), never a second solid gold next to
+  // the gold primary.
   chipOn: {
-    backgroundColor: colors.gold,
-    borderWidth: 2,
-    borderColor: colors.ground,
+    backgroundColor: colors.goldTint,
+    borderWidth: 1,
+    borderColor: colors.goldLine,
   },
   chipOff: {
     backgroundColor: colors.fillChip,
@@ -289,9 +292,6 @@ const styles = StyleSheet.create({
   overlay: {
     backgroundColor: colors.pressOverlay,
   },
-  overlayInk: {
-    backgroundColor: colors.pressOverlayInk,
-  },
   chipText: {
     fontSize: 15,
     lineHeight: 20,
@@ -302,8 +302,8 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   chipTextOn: {
-    ...font(700),
-    color: colors.onGold,
+    ...font(600),
+    color: colors.gold,
   },
   chipTextOff: {
     ...font(600),

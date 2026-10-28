@@ -12,7 +12,7 @@ import FormField from '../../../../shared/components/FormField';
 import PillButton from '../../../../shared/components/PillButton';
 import SegmentedSwitch from '../../../../shared/components/SegmentedSwitch';
 import { useSheetFocus } from '../../../../shared/hooks/useSheetFocus';
-import { colors, textScale } from '../../../../shared/theme/tokens';
+import { colors, font, textScale } from '../../../../shared/theme/tokens';
 import { PlanAction } from '../planActions';
 import { MEMBER_PLAN_TEXT } from '../../../myPlans/memberPlanAdapter';
 import { TRAINER_PLAN_TEXT } from '../trainerPlanAdapter';
@@ -243,7 +243,12 @@ describe('EditPlanDetailsModal (UX I §8-9)', () => {
     const chip = (n) => pressable(tree, `edit-plan-days-${n}`);
     expect(chip(2).props.accessibilityState).toEqual({ checked: false, disabled: true });
     expect(chip(4).props.accessibilityState).toEqual({ checked: true, disabled: false });
-    expect(flat(chip(4))).toMatchObject({ backgroundColor: colors.gold });
+    // DECLARED (UX T-74 ruling 2): the selected day was solid gold; now goldTint + a 1 px gold-line edge,
+    // its number gold 600; the unselected chip is unchanged. The same chips serve "Name your copy".
+    expect(flat(chip(4))).toMatchObject({ backgroundColor: colors.goldTint, borderWidth: 1, borderColor: colors.goldLine });
+    const selectedText = chip(4).findAll((node) => node.type === Text)[0];
+    expect(StyleSheet.flatten(selectedText.props.style)).toMatchObject({ color: colors.gold, ...font(600) });
+    expect(flat(chip(5))).toMatchObject({ backgroundColor: colors.fillChip, borderColor: colors.hairlineStrong });
     expect(allText(tree)).toEqual(expect.arrayContaining(['At least 3 — the plan already has that many days.']));
     expect(input(tree, 'edit-plan-description').props.placeholder).toBe('Who this plan is for');
   });
