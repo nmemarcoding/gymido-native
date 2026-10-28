@@ -151,6 +151,17 @@ describe('upNext: the first upcoming after today, else next week from the schedu
     expect(upNext({ week: noneLeft, schedule: SCHEDULE, planDays: DAYS, now: NOW })).toMatchObject({ dayId: 1, title: 'Upper A', when: 'Monday' });
   });
 
+  it('next week\'s first day that is tomorrow (Sunday → Monday) says "Tomorrow" (review M2)', () => {
+    const noneLeft = WEEK.map((entry) => (entry.status === 'upcoming' || entry.status === 'today' ? { ...entry, status: 'done' } : entry));
+    const sunday = new Date(2026, 10, 1, 9);
+    expect(upNext({ week: noneLeft, schedule: SCHEDULE, planDays: DAYS, now: sunday })).toEqual({
+      dayId: 1,
+      title: 'Upper A',
+      when: 'Tomorrow',
+      meta: s('Tomorrow · 5 exercises'),
+    });
+  });
+
   it('no /week: the schedule\'s next weekday after today, wrapping; no schedule → null', () => {
     expect(upNext({ week: null, schedule: SCHEDULE, planDays: DAYS, now: NOW })).toMatchObject({ title: 'Lower B', when: 'Saturday' });
     expect(upNext({ week: null, schedule: SCHEDULE, planDays: DAYS, now: new Date(2026, 9, 31, 9) })).toMatchObject({ title: 'Upper A', when: 'Monday' });
@@ -189,6 +200,8 @@ describe('todayDurationMinutes: today\'s completed workout for today\'s day', ()
     ];
     expect(todayDurationMinutes(completed, 3, NOW)).toBe(52);
     expect(todayDurationMinutes([{ workout_plan_day_id: 3, duration_seconds: 20, completed_at: at(8) }], 3, NOW)).toBe(1);
+    // A stored 0 s still shows "1 min" (shared rule, review carry 1).
+    expect(todayDurationMinutes([{ workout_plan_day_id: 3, duration_seconds: 0, completed_at: at(8) }], 3, NOW)).toBe(1);
   });
 
   it('another day, another date or no duration → null', () => {
@@ -206,9 +219,14 @@ describe('dayRows: Other days', () => {
     expect(rows.map((row) => row.done)).toEqual([false, true, true]);
   });
 
-  it('today done: today is listed, last, as done', () => {
-    const rows = dayRows({ planDays: DAYS, schedule: SCHEDULE, doneIds: [1, 2, 3], state: 'todayDone', todayDayId: 3 });
-    expect(rows.map((row) => row.action)).toEqual(['Start Lower B', 'Repeat Upper A', 'Repeat Lower A', 'Repeat Upper B']);
+  it('today done: today is listed LAST of the done rows, even when it comes earlier in plan order (review M1)', () => {
+    const rows = dayRows({ planDays: DAYS, schedule: SCHEDULE, doneIds: [1, 2, 4], state: 'todayDone', todayDayId: 1 });
+    expect(rows.map((row) => row.action)).toEqual(['Start Upper B', 'Repeat Lower A', 'Repeat Lower B', 'Repeat Upper A']);
+  });
+
+  it('other states keep plan order inside the done group (today not moved)', () => {
+    const rows = dayRows({ planDays: DAYS, schedule: SCHEDULE, doneIds: [1, 2, 3, 4], state: 'weekComplete', todayDayId: 1 });
+    expect(rows.map((row) => row.action)).toEqual(['Repeat Upper A', 'Repeat Lower A', 'Repeat Upper B', 'Repeat Lower B']);
   });
 
   it('rest / no schedule list every day; a day on two weekdays names both', () => {

@@ -310,13 +310,20 @@ function useDayExercises(planId, dayIdsKey, firstId) {
   // as nothing loaded yet without a reset.
   const key = `${planId}|${dayIdsKey}`;
   const [store, setStore] = useState({ key: '', byDay: {} });
+  // Today's day only orders the first fetch; a new day (midnight) never refetches.
+  // (Declared before the fetch effect, so it updates first on each commit.)
+  const firstRef = useRef(firstId);
+  useEffect(() => {
+    firstRef.current = firstId;
+  }, [firstId]);
   useEffect(() => {
     if (!planId || !dayIdsKey) {
       return undefined;
     }
     let live = true;
     const ids = dayIdsKey.split(',').map(Number);
-    const ordered = ids.includes(firstId) ? [firstId, ...ids.filter((id) => id !== firstId)] : ids;
+    const first = firstRef.current;
+    const ordered = ids.includes(first) ? [first, ...ids.filter((id) => id !== first)] : ids;
     const save = (dayId, items) =>
       live && setStore((current) => ({ key, byDay: { ...(current.key === key ? current.byDay : {}), [dayId]: items } }));
     for (const dayId of ordered) {
@@ -327,7 +334,7 @@ function useDayExercises(planId, dayIdsKey, firstId) {
     return () => {
       live = false;
     };
-  }, [key, planId, dayIdsKey, firstId]);
+  }, [key, planId, dayIdsKey]);
   return store.key === key ? store.byDay : {};
 }
 

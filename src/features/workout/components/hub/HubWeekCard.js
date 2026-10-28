@@ -151,7 +151,8 @@ const styles = StyleSheet.create({
 const CIRCLE_LOOKS = StyleSheet.create({
   today: { backgroundColor: colors.gold },
   todayRest: { borderWidth: 2, borderColor: colors.gold },
-  train: { borderWidth: 2, borderColor: colors.hairlineBright },
+  // RN-SPEC T-76: 2px text-muted (the token for the board's white 0.35).
+  train: { borderWidth: 2, borderColor: colors.textMuted },
   missed: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.hairlineBright },
   rest: {},
 });

@@ -217,6 +217,8 @@ describe('state 1: training day (main board)', () => {
     const labels = [1, 2, 3, 4, 5, 6, 7].map((id) => host(tree.root, `workout-week-day-${id}`).props.accessibilityLabel);
     expect(labels).toEqual(['Mon: done', 'Tue: done', 'Wed: rest', 'Thu: today, training', 'Fri: rest', 'Sat: training', 'Sun: rest']);
     expect(flat(host(tree.root, 'workout-week-circle-4')).backgroundColor).toBe(colors.gold);
+    // RN-SPEC T-76 (review carry 3): Train = a 2px text-muted outline.
+    expect(flat(host(tree.root, 'workout-week-circle-6'))).toMatchObject({ borderWidth: 2, borderColor: colors.textMuted });
   });
 
   it('week strip looks: 13/600 labels (N1), rest in text-muted (N2), missed dashed (C3)', async () => {
@@ -283,7 +285,8 @@ describe('state 3: today done', () => {
     const doneWeek = WEEK.map((entry, index) => (index === 3 ? { ...entry, status: 'done' } : entry));
     const completed = [{ workout_plan_day_id: 3, duration_seconds: 3120, completed_at: new Date(2026, 9, 29, 8).toISOString() }];
     const tree = await renderScreen(
-      hub({ todayStatus: { ...TRAINING, already_completed: true }, week: doneWeek, completedThisWeek: completed, completedThisWeekDayIds: [1, 2, 3] })
+      // Lower B (after today in plan order) was also done earlier this week: today still lists last (review M1).
+      hub({ todayStatus: { ...TRAINING, already_completed: true }, week: doneWeek, completedThisWeek: completed, completedThisWeekDayIds: [1, 2, 3, 4] })
     );
     const card = host(tree.root, 'workout-hero');
     expect(flat(card).borderColor).toBe(colors.tealLine);
@@ -293,7 +296,7 @@ describe('state 3: today done', () => {
     pressable(tree.root, 'workout-view-progress').props.onPress();
     expect(openShellPath).toHaveBeenCalledWith('/progress');
     expect(texts(host(tree.root, 'workout-other-days'))).toContain('Want more? Tap a day to start it.');
-    expect(dayButtons(tree.root).map((node) => node.props.accessibilityLabel)).toEqual(['Start Lower B', 'Repeat Upper A', 'Repeat Lower A', 'Repeat Upper B']);
+    expect(dayButtons(tree.root).map((node) => node.props.accessibilityLabel)).toEqual(['Repeat Upper A', 'Repeat Lower A', 'Repeat Lower B', 'Repeat Upper B']);
     expect(textOf(host(tree.root, 'workout-week-count'))).toBe('3 of 4 done');
   });
 });

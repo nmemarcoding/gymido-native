@@ -159,8 +159,15 @@ export function upNext({ week, schedule, planDays = [], now = new Date() }) {
       const item = week[index];
       return nextRow(item.plan_day, item.date === tomorrowKey ? 'Tomorrow' : weekdayAt(item, index).name, planDays);
     }
+    // Next week's first training day: "Tomorrow" when that is the next
+    // calendar day (Sunday → Monday), else its weekday.
     const first = scheduleDays(schedule)[0];
-    return first ? nextRow(first.planDay, first.weekday.name, planDays) : null;
+    if (!first) {
+      return null;
+    }
+    const monday = addDays(now, 7 - ((now.getDay() + 6) % 7));
+    const date = localDateKey(addDays(monday, first.weekday.id - 1));
+    return nextRow(first.planDay, date === tomorrowKey ? 'Tomorrow' : first.weekday.name, planDays);
   }
   const days = scheduleDays(schedule);
   const todayId = now.getDay() === 0 ? 7 : now.getDay();
@@ -180,7 +187,7 @@ export function weekCompleteDetail(progress, schedule) {
 }
 
 // Today done: the duration of today's completed workout for today's day, in
-// whole minutes; null when there is none or it carries no duration.
+// whole minutes (at least 1); null when there is none or it has no duration.
 export function todayDurationMinutes(completed, dayId, now = new Date()) {
   const todayKey = localDateKey(now);
   const matches = (completed ?? []).filter((item) => {
@@ -191,8 +198,10 @@ export function todayDurationMinutes(completed, dayId, now = new Date()) {
     return !Number.isNaN(at.getTime()) && localDateKey(at) === todayKey;
   });
   const latest = matches.sort((a, b) => String(b.completed_at).localeCompare(String(a.completed_at)))[0];
-  const seconds = Number(latest?.duration_seconds);
-  return latest && Number.isFinite(seconds) && seconds > 0 ? Math.max(1, Math.round(seconds / 60)) : null;
+  const raw = latest?.duration_seconds;
+  const seconds = raw == null ? NaN : Number(raw);
+  // A stored duration, even 0 s, shows at least "1 min" (shared rule).
+  return Number.isFinite(seconds) && seconds >= 0 ? Math.max(1, Math.round(seconds / 60)) : null;
 }
 
 // "Nice work. 6 exercises · 52 min." (no duration → no minutes).
@@ -225,8 +234,9 @@ export const OTHER_DAYS_COPY = Object.freeze({
   noSchedule: { title: 'Or start now', help: 'Tap any day to start it.' },
 });
 
-// One row per plan day: not done first, then done (each in plan order).
-// Today's day is left out while it is a not-done training day (ruling (b)).
+// One row per plan day: not done first, then done (each in plan order; in
+// "today done" today's day comes last). Today's day is left out while it is a not-done training
+// day (ruling (b)).
 // Done comes from this week's completed workouts (workout_plan_day_id).
 export function dayRows({ planDays = [], schedule, doneIds = [], state, todayDayId }) {
   const weekdays = scheduledWeekdaysByDayId(schedule);
@@ -245,5 +255,10 @@ export function dayRows({ planDays = [], schedule, doneIds = [], state, todayDay
         action: `${done ? 'Repeat' : 'Start'} ${title}`,
       };
     });
-  return [...rows.filter((row) => !row.done), ...rows.filter((row) => row.done)];
+  // "Today done": today's day is the LAST of the done rows (shared rule);
+  // every other state keeps plan order inside each group.
+  const done = rows.filter((row) => row.done);
+  const isToday = (row) => state === 'todayDone' && row.dayId === todayDayId;
+  const lastDone = [...done.filter((row) => !isToday(row)), ...done.filter(isToday)];
+  return [...rows.filter((row) => !row.done), ...lastDone];
 }
