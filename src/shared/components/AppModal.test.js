@@ -502,6 +502,37 @@ describe('AppModal pinnedHeader (T-62)', () => {
     expect(inScroll(tree, (n) => n.type === Text && n.props.children === 'Body')).toBe(true);
   });
 
+  // v2 fix (iOS row-label peek, 27 Oct 2026): the gap between the pinned
+  // field and the first scrolled block was a top margin INSIDE the scroll, so
+  // once scrolled a row's bottom edge showed right under the field. The gap
+  // is now the pinned header's own (opaque) bottom padding: the header's fill
+  // runs to the scroll's top edge and the scroll content starts at 0.
+  it.each([
+    ['phone', PHONE, undefined, 12],
+    ['tablet', TABLET, undefined, 12],
+    ['phone + description', PHONE, 'Logged sets will be lost.', 6],
+    ['tablet + description', TABLET, 'Logged sets will be lost.', 10],
+  ])('%s: the gap under the pinned field is opaque header, not scroll content', (_, width, description, gap) => {
+    atWidth(width);
+    const tree = render(modal({ pinnedHeader: pinned, description, children: <Text>Body</Text> }));
+    const header = host(tree, 'app-modal-header');
+    // The pinned box is the header's last block and owns the gap.
+    expect(flat(host(tree, 'app-modal-pinned-header')).paddingBottom).toBe(gap);
+    expect(flat(header)).toMatchObject({ backgroundColor: colors.surfaceRaised, zIndex: 1 });
+    expect(flat(header).paddingBottom ?? 0).toBe(0);
+    expect(flat(header).marginBottom ?? 0).toBe(0);
+    // Nothing between the header's bottom and the scroll's top…
+    const scroll = tree.root.findByType(ReactNative.ScrollView);
+    expect(StyleSheet.flatten(scroll.props.style).marginTop ?? 0).toBe(0);
+    expect(StyleSheet.flatten(scroll.props.contentContainerStyle)?.paddingTop ?? 0).toBe(0);
+    // …and the first scrolled block starts at the scroll's top edge.
+    const first = description
+      ? scroll.findAll((n) => n.type === 'Text' && [].concat(n.props.children).join('') === description)[0]
+      : scroll.findAll((n) => n.type === 'View' && n.findAll((c) => c.type === 'Text' && c.props.children === 'Body').length > 0).pop();
+    expect(first).toBeDefined();
+    expect(StyleSheet.flatten(first.props.style).marginTop ?? 0).toBe(0);
+  });
+
   it('accessibility order: title, ×, pinned header, then the content', () => {
     atWidth(PHONE);
     const tree = render(modal({ pinnedHeader: pinned, children: <Text>Body</Text> }));

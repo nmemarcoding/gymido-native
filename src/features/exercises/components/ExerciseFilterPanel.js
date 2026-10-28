@@ -22,7 +22,10 @@ import ExerciseFilterList, { FilterFindField } from './ExerciseFilterList';
 // bottom safe-area inset at the bottom (the "− 48", kept above the inset);
 // an open keyboard replaces the inset (as in AppModal), so the card shrinks
 // above it and its own list scrolls there, the find field on top.
-export default function ExerciseFilterPanel({ facets, filters, onSelect, loadingNames, width, style }) {
+// v2 fix (PM decision (a), 27 Oct 2026): `onFindFocusChange(focused)` reports
+// the find field's focus, so the screen can collapse its header block while
+// the keyboard is up (the card then gets the keyboard top − 48).
+export default function ExerciseFilterPanel({ facets, filters, onSelect, loadingNames, width, style, onFindFocusChange }) {
   const [query, setQuery] = useState('');
   const shown = useMemo(() => findFacets(facets, query), [facets, query]);
   const variantB = facets.equipment !== null;
@@ -33,7 +36,14 @@ export default function ExerciseFilterPanel({ facets, filters, onSelect, loading
   return (
     <View testID="exercises-filter-panel-frame" style={[styles.frame, { paddingBottom: PANEL_GAP + bottomInset }, style]}>
       <View testID="exercises-filter-panel" style={[styles.panel, { width: width >= 1280 ? 280 : 256 }]}>
-        <FilterFindField value={query} onChangeText={setQuery} variantB={variantB} panel />
+        <FilterFindField
+          value={query}
+          onChangeText={setQuery}
+          variantB={variantB}
+          panel
+          onFocus={onFindFocusChange ? () => onFindFocusChange(true) : undefined}
+          onBlur={onFindFocusChange ? () => onFindFocusChange(false) : undefined}
+        />
         <ScrollView testID="exercises-filter-panel-scroll" style={styles.scroll} bounces={false} overScrollMode="never" keyboardShouldPersistTaps="handled">
           <ExerciseFilterList
             facets={shown}

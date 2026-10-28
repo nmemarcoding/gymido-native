@@ -23,6 +23,7 @@ import ErrorAlert from '../../../shared/components/ErrorAlert';
 import Loader from '../../../shared/components/Loader';
 import ExerciseImage, { muscleTextColor } from '../../../shared/components/ExerciseImage';
 import { CAP_BODY, CAP_PILL, TITLE_TEXT } from '../../../shared/components/largeText';
+import { useKeyboardOverlap } from '../../../shared/hooks/useKeyboardHeight';
 import { focusNode } from '../../../shared/hooks/useSheetFocus';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { blur, breakpoints, colors, font, layout, radii, spacing, textInputColors, textScale } from '../../../shared/theme/tokens';
@@ -92,6 +93,20 @@ function ExercisesCatalog() {
   // the Filter button + dialog, except at large text (font scale ≥ 1.5),
   // where the 256–280 column can't hold the text.
   const panelShown = width >= breakpoints.lg && fontScale < 1.5;
+  // v2 fix (PM decision (a), 27 Oct 2026; web's sticky panel): on a landscape
+  // tablet the keyboard covered the panel's card below its find field, as
+  // the title, toolbar and active line sit above the [panel | results] row.
+  // While the PANEL's find field is focused and the keyboard overlaps the
+  // window, that header block collapses, so the panel sits at the top 24 of
+  // the content area; a blur or a hidden keyboard restores it, and a
+  // floating keyboard (no overlap) never collapses it.
+  const keyboardOverlap = useKeyboardOverlap();
+  const [panelFindFocused, setPanelFindFocused] = useState(false);
+  if (!panelShown && panelFindFocused) {
+    // The panel unmounted (a rotation, large text) without a blur.
+    setPanelFindFocused(false);
+  }
+  const headerCollapsed = panelShown && panelFindFocused && keyboardOverlap > 0;
   const sm = width >= breakpoints.sm;
   // The page cancels the shell's horizontal padding (web -mx-4 / ≥ 640 -mx-5)
   // and pads its own blocks with the same amount.
@@ -586,10 +601,17 @@ function ExercisesCatalog() {
             <View style={styles.tabletContent}>
               {panelShown ? (
                 <>
-                  {/* Web parity (≥ 1024): the title, toolbar and active line above a [256 | 1fr] row. */}
-                  {renderItem({ item: { type: 'header' } })}
-                  {renderItem({ item: { type: 'bar' } })}
-                  {renderItem({ item: { type: 'line' } })}
+                  {/* Web parity (≥ 1024): the title, toolbar and active line above a [256 | 1fr] row.
+                      Collapsed (height 0, still mounted) while the panel's find field
+                      has the keyboard; the H1 stays in the accessibility tree, the
+                      hidden toolbar and line leave it. */}
+                  <View testID="exercises-panel-header" style={headerCollapsed ? styles.panelHeaderCollapsed : null}>
+                    {renderItem({ item: { type: 'header' } })}
+                    <View accessibilityElementsHidden={headerCollapsed} importantForAccessibility={headerCollapsed ? 'no-hide-descendants' : 'auto'}>
+                      {renderItem({ item: { type: 'bar' } })}
+                      {renderItem({ item: { type: 'line' } })}
+                    </View>
+                  </View>
                   <View testID="exercises-panel-row" style={styles.panelRow}>
                     <ExerciseFilterPanel
                       facets={facets}
@@ -598,6 +620,7 @@ function ExercisesCatalog() {
                       loadingNames={firstLoad && load.items.length === 0}
                       width={width}
                       style={styles.panel}
+                      onFindFocusChange={setPanelFindFocused}
                     />
                     <View style={styles.listColumn}>{list}</View>
                   </View>
@@ -776,6 +799,11 @@ const styles = StyleSheet.create({
   // T-62 panel row: the panel 20 in (the rows' own padding) and 4 + the
   // rows' 20 padding = the 24 gap to the results.
   // ≥ 1024: the panel beside the results only, both under the toolbar.
+  // The page header block above the panel row, collapsed (see headerCollapsed).
+  panelHeaderCollapsed: {
+    height: 0,
+    overflow: 'hidden',
+  },
   panelRow: {
     flex: 1,
     flexDirection: 'row',

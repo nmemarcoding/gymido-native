@@ -111,7 +111,9 @@ function SectionHeading({ title }) {
 // long for it ends in an ellipsis (copy unchanged): our own 1-line Text over
 // the empty field (a TextInput placeholder can't ellipsize on Android); the
 // copy stays the field's accessibility label.
-export function FilterFindField({ value, onChangeText, variantB, panel = false, pinned = false }) {
+// `onFocus` / `onBlur` (optional; v2 fix, 27 Oct 2026): passed to the input,
+// so the panel can report its find field's focus to the screen.
+export function FilterFindField({ value, onChangeText, variantB, panel = false, pinned = false, onFocus, onBlur }) {
   const placeholder = variantB ? 'Find a muscle or equipment' : 'Find a muscle';
   const androidClear = Platform.OS !== 'ios' && value.length > 0;
   return (
@@ -121,6 +123,8 @@ export function FilterFindField({ value, onChangeText, variantB, panel = false, 
         testID="exercise-filter-find"
         value={value}
         onChangeText={onChangeText}
+        onFocus={onFocus}
+        onBlur={onBlur}
         accessibilityLabel={placeholder}
         returnKeyType="search"
         clearButtonMode="while-editing"

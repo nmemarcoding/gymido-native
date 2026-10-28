@@ -772,3 +772,121 @@ describe('T-62 final audit: panel insets + keyboard, the search field, the sheet
     expect(scroll.findAll((node) => node.props.testID === 'exercise-filter-find')).toHaveLength(0);
   });
 });
+
+// v2 fix (PM decision (a), 27 Oct 2026; web's sticky panel): on a device
+// (Android 1280 landscape, iPad landscape) the keyboard covered the panel's
+// card below the find field, because the title, toolbar and active line sat
+// above the [panel | results] row. While the PANEL's find field is focused
+// AND the keyboard overlaps the window, that header block collapses (height
+// 0, still mounted: the H1 stays in the accessibility tree), so the panel
+// sits at the top 24 of the content area. Blur or a hidden keyboard restore
+// it; a floating keyboard (overlap 0) never collapses it.
+describe('T-62 panel find field + keyboard: the page header collapses', () => {
+  const block = (root) => host(root, 'exercises-panel-header');
+  const panelFind = (root) => host(host(root, 'exercises-filter-panel'), 'exercise-filter-find');
+  const collapsed = (root) => (flat(block(root)) ?? {}).height === 0;
+  const focusPanelFind = (root) => act(() => panelFind(root).props.onFocus({}));
+  const blurPanelFind = (root) => act(() => panelFind(root).props.onBlur({}));
+  const rerender = async (tree) => {
+    await act(async () => {
+      tree.update(<ExercisesScreen />);
+    });
+  };
+
+  it('focus with the keyboard overlapping → the header block is collapsed and the row is the top block; the H1 stays for screen readers', async () => {
+    mockWidth = 1280;
+    const tree = await render();
+    expect(collapsed(tree.root)).toBe(false);
+    focusPanelFind(tree.root);
+    mockOverlap = 320;
+    await rerender(tree);
+    expect(collapsed(tree.root)).toBe(true);
+    expect(flat(block(tree.root))).toMatchObject({ height: 0, overflow: 'hidden' });
+    // The header block, then the row: nothing else takes height above it.
+    // (host → its View element → the content column)
+    const content = block(tree.root).parent.parent;
+    expect(content.children.map((node) => node.props.testID)).toEqual(['exercises-panel-header', 'exercises-panel-row']);
+    // The H1 is still mounted and still a header; the hidden toolbar and line
+    // leave the accessibility tree while collapsed.
+    const title = host(tree.root, 'exercises-title');
+    expect(title.props.accessibilityRole).toBe('header');
+    const hiddenBox = (id) => {
+      let node = host(tree.root, id);
+      while (node && node !== block(tree.root)) {
+        if (node.props.importantForAccessibility === 'no-hide-descendants' && node.props.accessibilityElementsHidden) return true;
+        node = node.parent;
+      }
+      return false;
+    };
+    expect(hiddenBox('exercises-title')).toBe(false);
+    expect(hiddenBox('exercises-toolbar')).toBe(true);
+    expect(hiddenBox('exercises-active-line')).toBe(true);
+    // The panel keeps its keyboard frame (24 + overlap).
+    expect(flat(host(tree.root, 'exercises-filter-panel-frame')).paddingBottom).toBe(24 + 320);
+  });
+
+  it('blur → restored', async () => {
+    mockWidth = 1280;
+    mockOverlap = 320;
+    const tree = await render();
+    focusPanelFind(tree.root);
+    expect(collapsed(tree.root)).toBe(true);
+    blurPanelFind(tree.root);
+    expect(collapsed(tree.root)).toBe(false);
+    expect(flat(block(tree.root)) ?? {}).not.toHaveProperty('overflow');
+    expect(host(tree.root, 'exercises-title').props.accessibilityElementsHidden).toBeFalsy();
+  });
+
+  it('keyboard hides (overlap 0) while still focused → restored', async () => {
+    mockWidth = 1194;
+    mockOverlap = 300;
+    const tree = await render();
+    focusPanelFind(tree.root);
+    expect(collapsed(tree.root)).toBe(true);
+    mockOverlap = 0;
+    await rerender(tree);
+    expect(collapsed(tree.root)).toBe(false);
+  });
+
+  it('focus with overlap 0 (floating / undocked keyboard) → NOT collapsed', async () => {
+    mockWidth = 1280;
+    mockKeyboard = 320;
+    mockOverlap = 0;
+    const tree = await render();
+    focusPanelFind(tree.root);
+    expect(collapsed(tree.root)).toBe(false);
+  });
+
+  it('the toolbar search field with the keyboard up never collapses it', async () => {
+    mockWidth = 1280;
+    mockOverlap = 320;
+    const tree = await render();
+    act(() => searchInput(tree.root).props.onFocus?.({}));
+    expect(collapsed(tree.root)).toBe(false);
+  });
+
+  it.each([390, 834])('%i (sheet / dialog): unaffected — the header, toolbar and line stay list rows', async (width) => {
+    mockWidth = width;
+    mockOverlap = 320;
+    mockKeyboard = 320;
+    const tree = await render();
+    await press(tree.root, 'exercises-filter');
+    const find = host(host(tree.root, 'app-modal-pinned-header'), 'exercise-filter-find');
+    act(() => find.props.onFocus?.({}));
+    await rerender(tree);
+    expect(hosts(tree.root, 'exercises-panel-header')).toHaveLength(0);
+    const data = tree.root.find((node) => node.props.testID === 'exercises-list' && Array.isArray(node.props.data)).props.data;
+    expect(data.slice(0, 3).map((item) => item.type)).toEqual(['header', 'bar', 'line']);
+  });
+
+  it('large text at ≥ 1024 (button + dialog): unaffected', async () => {
+    mockWidth = 1280;
+    mockFontScale = 1.5;
+    mockOverlap = 320;
+    const tree = await render();
+    await press(tree.root, 'exercises-filter');
+    const find = host(host(tree.root, 'app-modal-pinned-header'), 'exercise-filter-find');
+    act(() => find.props.onFocus?.({}));
+    expect(hosts(tree.root, 'exercises-panel-header')).toHaveLength(0);
+  });
+});

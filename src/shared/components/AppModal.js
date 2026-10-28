@@ -156,8 +156,21 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
   } else if (eyebrow && typeof eyebrow !== 'string') {
     eyebrowView = <View testID="app-modal-eyebrow">{eyebrow}</View>;
   }
+  // v2 fix (iOS row-label peek, 27 Oct 2026): the gap between the pinned
+  // field and the first scrolled block (the description, else the children)
+  // is the pinned box's own bottom padding, on the header's opaque fill, not
+  // a top margin inside the scroll: a row scrolled up is cut at the scroll's
+  // top edge, one gap under the field, and never shows in that gap.
+  let pinnedGap = null;
+  if (pinnedHeader) {
+    if (!description) {
+      pinnedGap = styles.pinnedGapChildren;
+    } else {
+      pinnedGap = tablet ? styles.pinnedGapDescriptionTablet : styles.pinnedGapDescription;
+    }
+  }
   const pinnedView = pinnedHeader ? (
-    <View testID="app-modal-pinned-header" style={tablet ? styles.pinnedTablet : styles.pinned}>
+    <View testID="app-modal-pinned-header" style={[tablet ? styles.pinnedTablet : styles.pinned, pinnedGap]}>
       {pinnedHeader}
     </View>
   ) : null;
@@ -239,11 +252,11 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
               {tablet && !tabletHeader ? eyebrowView : null}
               {tablet && !tabletHeader ? tabletTitle : null}
               {description ? (
-                <Text {...CAP_BODY} style={[styles.description, tablet && !compact && styles.descriptionTablet, tablet && styles.descriptionTabletGap]}>
+                <Text {...CAP_BODY} style={[styles.description, tablet && !compact && styles.descriptionTablet, tablet && styles.descriptionTabletGap, pinnedHeader && styles.underPinned]}>
                   {description}
                 </Text>
               ) : null}
-              {hasChildren ? <View style={[tablet ? styles.childrenTablet : styles.children, pinnedHeader && !description && styles.childrenUnderPinned]}>{children}</View> : null}
+              {hasChildren ? <View style={[tablet ? styles.childrenTablet : styles.children, pinnedHeader && !description && styles.underPinned]}>{children}</View> : null}
               {footerInScroll ? footerView : null}
             </ScrollView>
             {footerInScroll ? null : footerView}
@@ -437,8 +450,20 @@ const styles = StyleSheet.create({
   pinnedTablet: {
     paddingTop: spacing[5],
   },
-  childrenUnderPinned: {
-    marginTop: spacing[3],
+  // The gap under the pinned box (see pinnedGap): the old top margin of the
+  // first scrolled block, moved onto the opaque header.
+  pinnedGapChildren: {
+    paddingBottom: spacing[3],
+  },
+  pinnedGapDescription: {
+    paddingBottom: spacing['1_5'],
+  },
+  pinnedGapDescriptionTablet: {
+    paddingBottom: spacing['2_5'],
+  },
+  // The first scrolled block under a pinned box starts at the scroll's top.
+  underPinned: {
+    marginTop: 0,
   },
   footer: {
     flexShrink: 0,
