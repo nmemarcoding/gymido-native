@@ -370,3 +370,58 @@ describe('final pass 5f53f3d flow fixes', () => {
     expect(flow.trim().endsWith('- assertNotVisible:\n    id: "bottom-nav"')).toBe(true);
   });
 });
+
+describe('QA candidate 2941880 flow fixes', () => {
+  const steps = (name) =>
+    fs
+      .readFileSync(path.join(V2, name), 'utf8')
+      .split('\n')
+      .filter((line) => !line.trim().startsWith('#'))
+      .join('\n');
+  const body = (name) => steps(name).split('\n---\n')[1];
+
+  it.each([
+    ['phase3/04-progress.yaml', '../subflows/signed-in-start.yaml'],
+    ['phase4/h1-plans-to-plan-detail.yaml', '../subflows/signed-in-start.yaml'],
+    ['phase4/h2-plans-to-my-plans.yaml', '../subflows/signed-in-start.yaml'],
+    ['phase4/h3-active-plan-detail.yaml', '../subflows/signed-in-start.yaml'],
+    ['phase5/k-subflows/open-profile.yaml', '../../subflows/signed-in-start.yaml'],
+    ['phase5/l2-trainer-apply.yaml', '../subflows/signed-in-start.yaml'],
+    ['phase5/l4-end-coaching-dialog.yaml', '../subflows/signed-in-start.yaml'],
+  ])('%s starts with signed-in-start (a main page)', (name, ref) => {
+    expect(body(name).startsWith(`- runFlow: ${ref}\n`)).toBe(true);
+  });
+
+  it.each(['k1-profile-root', 'k2-edit-profile-cancel', 'k3-reset-password-cancel', 'k4-delete-account-cancel', 'k5-profile-links'])('phase5/%s opens Profile through open-profile first', (name) => {
+    expect(body(`phase5/${name}.yaml`).startsWith('- runFlow: k-subflows/open-profile.yaml\n')).toBe(true);
+  });
+
+  it('generator-preview: after the preview back, a FRESH Step 1 (the hint, the goal unchecked), not the review', () => {
+    const flow = steps('phase4/generator-preview.yaml');
+    expect(flow.slice(flow.indexOf('id: "generator-preview-back"'))).not.toMatch(/generator-review-1/);
+    expect(flow).toMatch(/- tapOn:\n\s+id: "generator-preview-back"\n\s+- extendedWaitUntil:\n\s+visible:\n\s+id: "generator-step1-hint"\n\s+timeout: 15000\n\s+- assertVisible:\n\s+id: "generator-goal-BUILD_MUSCLE"\n\s+checked: false\n/);
+  });
+
+  it('member-workspace asserts per form factor: tab-Today on phone, rail-Today on tablet, never an either/or', () => {
+    const flow = steps('subflows/member-workspace.yaml');
+    const [phone, tablet] = flow.split('\n- runFlow:\n').slice(1);
+    expect(phone).toMatch(/^\s+when:\n\s+notVisible:\n\s+id: "tablet-rail"\n/);
+    expect(phone).toMatch(/id: "tab-Today"\n\s+timeout: 10000\s*$/);
+    expect(phone).not.toMatch(/rail-/);
+    expect(tablet).toMatch(/^\s+when:\n\s+visible:\n\s+id: "tablet-rail"\n/);
+    expect(tablet).toMatch(/id: "rail-Today"\n\s+timeout: 10000\s*$/);
+    expect(tablet).not.toMatch(/tab-/);
+    expect(flow).not.toMatch(/id: "[^"]*\|[^"]*"/);
+  });
+
+  it('6o-02: on iOS a Return tap closes the keyboard after inputText, before the scroll to the docked submit', () => {
+    const flow = steps('phase6/6o-02-trainer-plan-create-form.yaml');
+    expect(flow).toMatch(/- inputText: "QA Draft"\n- runFlow:\n\s+when:\n\s+platform: iOS\n\s+commands:\n\s+- pressKey: Enter\n- scrollUntilVisible:\n\s+element:\n\s+id: "create-plan-submit"/);
+  });
+
+  it('6o-03: asserts the hero heading "Trainer profile", not the a11y-hidden avatar', () => {
+    const flow = steps('phase6/6o-03-trainer-profile.yaml');
+    expect(flow).not.toMatch(/trainer-profile-avatar/);
+    expect(flow).toMatch(/id: "trainer-profile-eyebrow"\n- assertVisible:\n\s+text: "Trainer profile"\n/);
+  });
+});

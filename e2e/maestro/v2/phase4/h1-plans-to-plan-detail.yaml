@@ -4,6 +4,9 @@
 # IDs only, no coordinates, no credentials, no screenshots.
 appId: com.gymido.app
 ---
+# QA candidate 2941880 (PM 28 Oct 2026): since T-65 the flow before this one
+# can end on an inner page (no tab bar), so start from a main page.
+- runFlow: ../subflows/signed-in-start.yaml
 # Phone bottom tab or the tablet rail (QA T-60 flow defect).
 - runFlow:
     when:

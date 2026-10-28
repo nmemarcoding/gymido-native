@@ -6,7 +6,7 @@ import { useLargeTextReflow } from '../../../shared/components/largeText';
 import PillButton from '../../../shared/components/PillButton';
 import { useSheetFocus } from '../../../shared/hooks/useSheetFocus';
 import { findFacets, showLabel } from '../exerciseFilters';
-import ExerciseFilterList, { FilterFindField } from './ExerciseFilterList';
+import ExerciseFilterList, { FilterFindField, useScrollTopOnQuery } from './ExerciseFilterList';
 
 // Dated change (27 Oct 2026, owner T-62; UX T62 §5): the filter list in the
 // shared AppModal, used unchanged: phone < 768 = the bottom sheet (handle,
@@ -35,6 +35,8 @@ export default function ExerciseFilterSheet({ open, facets, filters, resultCount
   }, [open]);
   const shown = useMemo(() => findFacets(facets, query), [facets, query]);
   const firstRowRef = useRef(null);
+  const scrollRef = useRef(null);
+  useScrollTopOnQuery(scrollRef, query);
   useSheetFocus(open, { initialRef: firstRowRef, returnRef });
 
   const select = (facet, value) => {
@@ -51,6 +53,7 @@ export default function ExerciseFilterSheet({ open, facets, filters, resultCount
       onClose={onClose}
       title={variantB ? 'Filters' : 'Muscle group'}
       size="md"
+      scrollRef={scrollRef}
       pinnedHeader={<FilterFindField value={query} onChangeText={setQuery} variantB={variantB} pinned />}
       footer={
         variantB ? (

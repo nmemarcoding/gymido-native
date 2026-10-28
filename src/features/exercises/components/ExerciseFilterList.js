@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -160,6 +161,21 @@ export function FilterFindField({ value, onChangeText, variantB, panel = false, 
       ) : null}
     </View>
   );
+}
+
+// QA M1 (candidate 2941880, iPhone): a find typed after scrolling kept the
+// old offset, so the first matches sat under the pinned title + find field.
+// A new query shows its results from the top: the caller's ScrollView (the
+// sheet's AppModal scroll, the panel's own) jumps to y 0 with no animation.
+export function useScrollTopOnQuery(scrollRef, query) {
+  const last = useRef(query);
+  useEffect(() => {
+    if (last.current === query) {
+      return;
+    }
+    last.current = query;
+    scrollRef.current?.scrollTo?.({ y: 0, animated: false });
+  }, [scrollRef, query]);
 }
 
 // §4 Row (radio): name wraps to 2 lines then an ellipsis; the count is

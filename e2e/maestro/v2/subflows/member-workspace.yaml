@@ -1,30 +1,69 @@
 # Puts a trainer account into the member (Personal) workspace; a no-op for a
 # member. Sets output.v2SwitchedToMember so restore-workspace.yaml can put the
 # stored workspace back afterwards (it is device state, not server data).
+# QA candidate 2941880 (PM 28 Oct 2026): the form factor decides the nav to
+# assert, never either one: a phone (no tablet-rail) the bottom tab, a tablet
+# (the tablet-rail) the rail item.
 appId: com.gymido.app
 ---
 - evalScript: ${output.v2SwitchedToMember = false}
+# Phone.
 - runFlow:
     when:
-      visible:
-        id: "tab-TToday"
+      notVisible:
+        id: "tablet-rail"
     commands:
-      - tapOn:
-          id: "tab-TProfile"
-      - scrollUntilVisible:
-          element:
-            id: "mode-switch-member"
-          direction: DOWN
-          centerElement: true
-          timeout: 10000
-      - tapOn:
-          id: "mode-switch-member"
+      - runFlow:
+          when:
+            visible:
+              id: "tab-TToday"
+          commands:
+            - tapOn:
+                id: "tab-TProfile"
+            - scrollUntilVisible:
+                element:
+                  id: "mode-switch-member"
+                direction: DOWN
+                centerElement: true
+                timeout: 10000
+            - tapOn:
+                id: "mode-switch-member"
+            - extendedWaitUntil:
+                visible:
+                  id: "tab-Today"
+                timeout: 20000
+            - evalScript: ${output.v2SwitchedToMember = true}
       - extendedWaitUntil:
           visible:
             id: "tab-Today"
-          timeout: 20000
-      - evalScript: ${output.v2SwitchedToMember = true}
-- extendedWaitUntil:
-    visible:
-      id: "tab-Today"
-    timeout: 10000
+          timeout: 10000
+# Tablet.
+- runFlow:
+    when:
+      visible:
+        id: "tablet-rail"
+    commands:
+      - runFlow:
+          when:
+            visible:
+              id: "rail-TToday"
+          commands:
+            - tapOn:
+                id: "rail-TProfile"
+            - scrollUntilVisible:
+                element:
+                  id: "mode-switch-member"
+                direction: DOWN
+                centerElement: true
+                timeout: 10000
+            - tapOn:
+                id: "mode-switch-member"
+            - extendedWaitUntil:
+                visible:
+                  id: "rail-Today"
+                timeout: 20000
+            - evalScript: ${output.v2SwitchedToMember = true}
+      - extendedWaitUntil:
+          visible:
+            id: "rail-Today"
+          timeout: 10000

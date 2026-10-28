@@ -27,6 +27,7 @@ function sandbox({ exitCode = 0, sleep = 0 } = {}) {
   const seen = path.join(root, 'seen-debug-dir');
   const seenHome = path.join(root, 'seen-home');
   const seenEnv = path.join(root, 'seen-env');
+  const seenJava = path.join(root, 'seen-java');
   fs.writeFileSync(
     path.join(bin, 'maestro'),
     `#!/usr/bin/env bash
@@ -42,6 +43,7 @@ home="$HOME"
 case "$JAVA_TOOL_OPTIONS" in *-Duser.home=*) home="\${JAVA_TOOL_OPTIONS##*-Duser.home=}"; home="\${home%% *}" ;; esac
 printf '%s' "$home" > ${JSON.stringify(seenHome)}
 printf '%s' "\${XDG_STATE_HOME-unset}|\${MAESTRO_CLI_NO_ANALYTICS-unset}" > ${JSON.stringify(seenEnv)}
+printf '%s' "\${_JAVA_OPTIONS-unset}|\${JDK_JAVA_OPTIONS-unset}|\${JAVA_OPTS-unset}|\${MAESTRO_OPTS-unset}" > ${JSON.stringify(seenJava)}
 mkdir -p "$home/Library/Logs/maestro" "$home/.maestro/tests/run"
 echo typed-bytes > "$home/Library/Logs/maestro/2026-10-28_run.zip"
 echo typed-bytes > "$home/.maestro/tests/run/maestro.log"
@@ -52,7 +54,7 @@ exit ${exitCode}
 `,
     { mode: 0o755 },
   );
-  return { root, seen, seenHome, seenEnv, env: { PATH: `${bin}:${process.env.PATH}`, HOME: path.join(root, 'home'), TMPDIR: root } };
+  return { root, seen, seenHome, seenEnv, seenJava, env: { PATH: `${bin}:${process.env.PATH}`, HOME: path.join(root, 'home'), TMPDIR: root } };
 }
 const files = (dir) => (fs.existsSync(dir) ? fs.readdirSync(dir, { recursive: true }).map(String) : []);
 const run = (box, args, options = {}) =>
@@ -119,6 +121,18 @@ describe('maestro-guarded.sh deletes Maestro debug logs after every run', () => 
       const result = run(box, ['flow.yaml']);
       expect(result.status).toBe(exitCode);
       expect(fs.readFileSync(box.seenEnv, 'utf8')).toBe('unset|1');
+      expectClean(box);
+    });
+
+    // Reviewer carry (T-68 48ece53): each of these beats JAVA_TOOL_OPTIONS for
+    // user.home, so the maestro subshell unsets them.
+    it('the caller sets _JAVA_OPTIONS, JDK_JAVA_OPTIONS, JAVA_OPTS and MAESTRO_OPTS to the real HOME: maestro sees none of them', () => {
+      const box = make();
+      const real = `-Duser.home=${box.env.HOME}`;
+      Object.assign(box.env, { _JAVA_OPTIONS: real, JDK_JAVA_OPTIONS: real, JAVA_OPTS: real, MAESTRO_OPTS: real });
+      const result = run(box, ['flow.yaml']);
+      expect(result.status).toBe(0);
+      expect(fs.readFileSync(box.seenJava, 'utf8')).toBe('unset|unset|unset|unset');
       expectClean(box);
     });
 
@@ -263,7 +277,7 @@ describe('sign-in runners keep Maestro debug output private', () => {
     const runs = src.split('\n').filter((line) => /maestro --device "\$UDID" hierarchy/.test(line));
     expect(runs.length).toBe(1);
     runs.forEach((line) => {
-      expect(line).toMatch(/\(unset XDG_STATE_HOME; MAESTRO_CLI_NO_ANALYTICS=1 JAVA_TOOL_OPTIONS="-Duser\.home=\$WORK\/home" exec maestro/);
+      expect(line).toMatch(/\(unset XDG_STATE_HOME _JAVA_OPTIONS JDK_JAVA_OPTIONS JAVA_OPTS MAESTRO_OPTS; MAESTRO_CLI_NO_ANALYTICS=1 JAVA_TOOL_OPTIONS="-Duser\.home=\$WORK\/home" exec maestro/);
       expect(line).toMatch(/2>\/dev\/null\) \| python3 "\$CHECK"/);
       expect(line).not.toMatch(/>\s*"\$WORK/);
     });
@@ -273,7 +287,7 @@ describe('sign-in runners keep Maestro debug output private', () => {
   it('ios-safe-sign-in.sh: every `maestro … test` runs with the private user.home under $WORK (T-68)', () => {
     const runs = code(read('ios-safe-sign-in.sh')).split('\n').filter((line) => /maestro --device "\$UDID" test/.test(line));
     expect(runs.length).toBe(2);
-    runs.forEach((line) => expect(line).toMatch(/unset XDG_STATE_HOME && mkdir -p "\$WORK\/home" && MAESTRO_CLI_NO_ANALYTICS=1 JAVA_TOOL_OPTIONS="-Duser\.home=\$WORK\/home" exec maestro/));
+    runs.forEach((line) => expect(line).toMatch(/unset XDG_STATE_HOME _JAVA_OPTIONS JDK_JAVA_OPTIONS JAVA_OPTS MAESTRO_OPTS && mkdir -p "\$WORK\/home" && MAESTRO_CLI_NO_ANALYTICS=1 JAVA_TOOL_OPTIONS="-Duser\.home=\$WORK\/home" exec maestro/));
   });
 
   it.each(['ios-safe-sign-in.sh', 'android-sign-in.sh', 'invite.sh', 'maestro-guarded.sh'])('%s: no age-based delete anywhere (T-68: never sweep by age)', (name) => {

@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useKeyboardOverlap } from '../../../shared/hooks/useKeyboardHeight';
 import { colors, radii, spacing } from '../../../shared/theme/tokens';
 import { findFacets } from '../exerciseFilters';
-import ExerciseFilterList, { FilterFindField } from './ExerciseFilterList';
+import ExerciseFilterList, { FilterFindField, useScrollTopOnQuery } from './ExerciseFilterList';
 
 // Dated change (27 Oct 2026, owner T-62; UX T62 §5 "≥ 1024"): the always
 // visible filter panel left of the results (tablet landscape, beside the
@@ -28,6 +28,8 @@ import ExerciseFilterList, { FilterFindField } from './ExerciseFilterList';
 export default function ExerciseFilterPanel({ facets, filters, onSelect, loadingNames, width, style, onFindFocusChange }) {
   const [query, setQuery] = useState('');
   const shown = useMemo(() => findFacets(facets, query), [facets, query]);
+  const scrollRef = useRef(null);
+  useScrollTopOnQuery(scrollRef, query);
   const variantB = facets.equipment !== null;
   const insets = useSafeAreaInsets();
   // The part of the window the keyboard covers (a floating keyboard: none).
@@ -44,7 +46,7 @@ export default function ExerciseFilterPanel({ facets, filters, onSelect, loading
           onFocus={onFindFocusChange ? () => onFindFocusChange(true) : undefined}
           onBlur={onFindFocusChange ? () => onFindFocusChange(false) : undefined}
         />
-        <ScrollView testID="exercises-filter-panel-scroll" style={styles.scroll} bounces={false} overScrollMode="never" keyboardShouldPersistTaps="handled">
+        <ScrollView ref={scrollRef} testID="exercises-filter-panel-scroll" style={styles.scroll} bounces={false} overScrollMode="never" keyboardShouldPersistTaps="handled">
           <ExerciseFilterList
             facets={shown}
             filters={filters}

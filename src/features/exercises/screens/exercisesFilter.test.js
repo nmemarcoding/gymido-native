@@ -944,3 +944,32 @@ describe('T-62 panel find field + keyboard: the page header collapses', () => {
     expect(hosts(tree.root, 'exercises-panel-header')).toHaveLength(0);
   });
 });
+
+// QA M1 (candidate 2941880): a new find query shows its results from the top.
+describe('M1: a new find query scrolls the filter list to the top (no animation)', () => {
+  const scrollOf = (root, pick) => root.findAll((node) => typeof node.instance?.scrollTo === 'function' && pick(node))[0].instance;
+  const typeInto = (find, text) => act(() => find().props.onChangeText(text));
+
+  it('phone sheet: each changed query (typed or cleared) jumps the sheet body to y 0; opening it does not', async () => {
+    const tree = await render();
+    await press(tree.root, 'exercises-filter');
+    const body = scrollOf(sheet(tree.root), () => true);
+    const spy = jest.spyOn(body, 'scrollTo');
+    const find = () => host(tree.root, 'exercise-filter-find');
+    typeInto(find, 'b');
+    typeInto(find, 'be');
+    typeInto(find, '');
+    expect(spy.mock.calls).toEqual([[{ y: 0, animated: false }], [{ y: 0, animated: false }], [{ y: 0, animated: false }]]);
+  });
+
+  it('≥ 1024 panel: its own list scroll jumps to y 0 on a new query', async () => {
+    mockWidth = 1194;
+    const tree = await render();
+    const list = scrollOf(tree.root, (node) => node.props.testID === 'exercises-filter-panel-scroll');
+    const spy = jest.spyOn(list, 'scrollTo');
+    const find = () => host(host(tree.root, 'exercises-filter-panel'), 'exercise-filter-find');
+    expect(spy).not.toHaveBeenCalled();
+    typeInto(find, 'tr');
+    expect(spy.mock.calls).toEqual([[{ y: 0, animated: false }]]);
+  });
+});

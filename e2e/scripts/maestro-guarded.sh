@@ -124,7 +124,9 @@ trap 'CODE=1; scrub' INT TERM HUP
 
 # In the background + wait, so a signal reaches the trap at once.
 # The analytics opt-out keeps the first-run notice of the fresh home quiet.
-(unset XDG_STATE_HOME; MAESTRO_CLI_NO_ANALYTICS=1 JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:+$JAVA_TOOL_OPTIONS }-Duser.home=$MHOME" exec maestro --device "$DEVICE" test "$@") &
+# _JAVA_OPTIONS, JDK_JAVA_OPTIONS, JAVA_OPTS and MAESTRO_OPTS each beat
+# JAVA_TOOL_OPTIONS for user.home (reviewer carry, T-68), so they are unset.
+(unset XDG_STATE_HOME _JAVA_OPTIONS JDK_JAVA_OPTIONS JAVA_OPTS MAESTRO_OPTS; MAESTRO_CLI_NO_ANALYTICS=1 JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:+$JAVA_TOOL_OPTIONS }-Duser.home=$MHOME" exec maestro --device "$DEVICE" test "$@") &
 MPID=$!
 wait "$MPID"
 CODE=$?

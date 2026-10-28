@@ -75,12 +75,17 @@ appId: com.gymido.app
       # Back to the answers with the phone back icon button.
       - tapOn:
           id: "generator-preview-back"
-      # Back on the review (it may keep the See plan scroll): scroll UP to card 1.
-      - scrollUntilVisible:
-          element:
-            id: "generator-review-1"
-          direction: UP
+      # DECLARED (QA candidate 2941880, PM 28 Oct 2026): was "back on the
+      # review, scroll UP to generator-review-1". By the G1 design (review M1)
+      # "Back to your answers" pushes a FRESH questionnaire at Step 1: the
+      # Step 1 hint shows and the goal picked above is not checked.
+      - extendedWaitUntil:
+          visible:
+            id: "generator-step1-hint"
           timeout: 15000
+      - assertVisible:
+          id: "generator-goal-BUILD_MUSCLE"
+          checked: false
 - runFlow:
     when:
       visible:

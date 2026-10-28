@@ -69,8 +69,15 @@ tags:
 - tapOn:
     id: "create-plan-name"
 - inputText: "QA Draft"
-# QA candidate-9643e9c: no hideKeyboard (it fails on iOS); the page passes
-# taps through with the keyboard up, and the scroll centres the submit.
+# QA candidate-9643e9c: no hideKeyboard (it fails on iOS: it taps the screen).
+# DECLARED (QA candidate 2941880, PM 28 Oct 2026): a Return tap closes the
+# keyboard first, which covered the docked submit on iOS (L1). The field has
+# no submit action, so Return only closes the keyboard.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
 - scrollUntilVisible:
     element:
       id: "create-plan-submit"

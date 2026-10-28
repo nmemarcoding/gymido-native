@@ -73,7 +73,7 @@ stage() {
   mkdir -p "$WORK/out"
   # In the background + wait, so a trap runs at once (exec: maestro is our
   # direct child, which finish's pkill stops).
-  (cd "$WORK/out" && unset XDG_STATE_HOME && mkdir -p "$WORK/home" && MAESTRO_CLI_NO_ANALYTICS=1 JAVA_TOOL_OPTIONS="-Duser.home=$WORK/home" exec maestro --device "$UDID" test --debug-output "$WORK/out/debug" --test-output-dir "$WORK/out" "$FLOWS/$name.yaml" > "$WORK/out/stage.log" 2>&1) &
+  (cd "$WORK/out" && unset XDG_STATE_HOME _JAVA_OPTIONS JDK_JAVA_OPTIONS JAVA_OPTS MAESTRO_OPTS && mkdir -p "$WORK/home" && MAESTRO_CLI_NO_ANALYTICS=1 JAVA_TOOL_OPTIONS="-Duser.home=$WORK/home" exec maestro --device "$UDID" test --debug-output "$WORK/out/debug" --test-output-dir "$WORK/out" "$FLOWS/$name.yaml" > "$WORK/out/stage.log" 2>&1) &
   wait $!
   local code=$?
   # On a failure, name the failed step: status lines only, never a typed value.
@@ -97,9 +97,11 @@ check() {
   # a direct child, which finish's pkill stops.
   mkdir -p "$WORK/home"
   # XDG_STATE_HOME wins over user.home in Maestro's log path (review carry 2).
+  # _JAVA_OPTIONS, JDK_JAVA_OPTIONS, JAVA_OPTS and MAESTRO_OPTS beat
+  # JAVA_TOOL_OPTIONS for user.home (T-68 carry); every maestro call unsets them.
   # A fresh home prints Maestro's analytics notice on stdout, before the JSON
   # (the check then failed: confirm 2941880), so it is opted out.
-  (unset XDG_STATE_HOME; MAESTRO_CLI_NO_ANALYTICS=1 JAVA_TOOL_OPTIONS="-Duser.home=$WORK/home" exec maestro --device "$UDID" hierarchy 2>/dev/null) | python3 "$CHECK" "$ENV_FILE" "$ACCOUNT" "$1"
+  (unset XDG_STATE_HOME _JAVA_OPTIONS JDK_JAVA_OPTIONS JAVA_OPTS MAESTRO_OPTS; MAESTRO_CLI_NO_ANALYTICS=1 JAVA_TOOL_OPTIONS="-Duser.home=$WORK/home" exec maestro --device "$UDID" hierarchy 2>/dev/null) | python3 "$CHECK" "$ENV_FILE" "$ACCOUNT" "$1"
   local code=$?
   purge
   return "$code"
@@ -107,7 +109,7 @@ check() {
 
 abort() {
   echo "aborting: cancelling the login sheet"
-  (cd "$WORK" && unset XDG_STATE_HOME && mkdir -p "$WORK/home" && MAESTRO_CLI_NO_ANALYTICS=1 JAVA_TOOL_OPTIONS="-Duser.home=$WORK/home" exec maestro --device "$UDID" test --debug-output "$WORK/out/debug" "$ROOT/e2e/maestro/subflows/cancel-universal-login.yaml" > /dev/null 2>&1)
+  (cd "$WORK" && unset XDG_STATE_HOME _JAVA_OPTIONS JDK_JAVA_OPTIONS JAVA_OPTS MAESTRO_OPTS && mkdir -p "$WORK/home" && MAESTRO_CLI_NO_ANALYTICS=1 JAVA_TOOL_OPTIONS="-Duser.home=$WORK/home" exec maestro --device "$UDID" test --debug-output "$WORK/out/debug" "$ROOT/e2e/maestro/subflows/cancel-universal-login.yaml" > /dev/null 2>&1)
   finish 1
 }
 

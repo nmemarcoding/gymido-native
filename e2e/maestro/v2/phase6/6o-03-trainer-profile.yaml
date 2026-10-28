@@ -24,8 +24,11 @@ tags:
     selected: true
 - assertVisible:
     id: "trainer-profile-eyebrow"
+# DECLARED (QA candidate 2941880, PM 28 Oct 2026): was trainer-profile-avatar,
+# which is hidden from accessibility (so iOS Maestro never sees it). The hero's
+# own heading beside it instead.
 - assertVisible:
-    id: "trainer-profile-avatar"
+    text: "Trainer profile"
 - scrollUntilVisible:
     element:
       id: "trainer-profile-bio"

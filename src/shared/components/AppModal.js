@@ -67,6 +67,8 @@ export function isTabletWidth(width) {
 // `pinnedHeader` (optional, default none; T-62 27 Oct 2026): a node rendered
 // right after the title (row) and OUTSIDE the ScrollView, e.g. a find field
 // that stays put while the list scrolls.
+// `scrollRef` (optional; QA M1 28 Oct 2026): a ref to the body ScrollView, so
+// the caller can scroll it (the filter sheet jumps to the top on a new find).
 // UX native final audit 27 Oct 2026, ruling 12 (A141, A142, A150, A151,
 // B225, B250): a dialog with a field rises above the keyboard and keeps its
 // buttons visible; on a landscape tablet it scrolls with its title pinned.
@@ -79,7 +81,7 @@ export function isTabletWidth(width) {
 // and title sit in a fixed header above the scroll (iOS scrolls a focused
 // field into view, which took the title off the top); the description and
 // content scroll.
-export default function AppModal({ isOpen, onClose, title, description, size = 'lg', footer, children, testID, entrance = 'slide', compact = false, hideClose = false, footerDismiss = false, role, eyebrow, pinnedHeader, sheetTopGap = SHEET_TOP_GAP }) {
+export default function AppModal({ isOpen, onClose, title, description, size = 'lg', footer, children, testID, entrance = 'slide', compact = false, hideClose = false, footerDismiss = false, role, eyebrow, pinnedHeader, scrollRef, sheetTopGap = SHEET_TOP_GAP }) {
   const { width, height, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const tablet = isTabletWidth(width);
@@ -261,6 +263,7 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
               </View>
             ) : null}
             <ScrollView
+              ref={scrollRef}
               style={styles.scroll}
               onScroll={
                 tablet
