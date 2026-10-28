@@ -116,16 +116,19 @@ export function weekByDate({ week, completed = [], startedOn, now = new Date() }
   });
 }
 
-// "X of Y done": X = /week days with status "done" (distinct planned
-// workouts done this week, on any day); Y = training days on or after
-// started_on. Week complete = Y > 0 && X == Y. null without a valid week.
+// "X of Y done": X = /week slots with status "done" (distinct planned
+// workouts done this week, on any day); Y = training slots on or after
+// started_on, PLUS any pre-start slot that is "done" (PM rule fix, 28 Oct:
+// "3 of 1 done" on web), so X ≤ Y always (clamped too). Week complete =
+// Y > 0 && X == Y. null without a valid week.
 export function weekProgressByDate({ week, startedOn }) {
   if (!isValidWeek(week)) {
     return null;
   }
   const start = startDateKey(startedOn);
-  const done = week.filter((item) => item?.status === 'done').length;
-  const total = week.filter((item) => item?.is_workout_day === true && (!start || String(item.date) >= start)).length;
+  const isDone = (item) => item?.status === 'done';
+  const total = week.filter((item) => item?.is_workout_day === true && (!start || String(item.date) >= start || isDone(item))).length;
+  const done = Math.min(week.filter(isDone).length, total);
   return { done, total, complete: total > 0 && done === total };
 }
 

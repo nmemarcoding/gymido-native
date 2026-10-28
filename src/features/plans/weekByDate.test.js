@@ -85,6 +85,35 @@ describe('weekProgressByDate: X of Y, week complete', () => {
   });
 });
 
+describe('PM rule fix: pre-start slots that are done count in Y (never "3 of 1")', () => {
+  it('started Wednesday; Mon/Tue/Wed plan days all done ON Wednesday → Mon/Tue Not started, Wed Done ×3; 3 of 3, complete', () => {
+    const week = [
+      item(1, '2026-10-26', 'done', true, day(1, 'A')),
+      item(2, '2026-10-27', 'done', true, day(2, 'B')),
+      item(3, '2026-10-28', 'done', true, day(3, 'C')),
+      item(4, '2026-10-29', 'rest', false),
+      item(5, '2026-10-30', 'rest', false),
+      item(6, '2026-10-31', 'rest', false),
+      item(7, '2026-11-01', 'rest', false),
+    ];
+    const completed = [1, 2, 3].map((hour) => ({ started_at: at(2026, 10, 28, 8 + hour) }));
+    const cells = weekByDate({ week, completed, startedOn: STARTED, now: NOW });
+    expect(cells.slice(0, 3).map((cell) => [cell.kind, cell.count])).toEqual([
+      ['notStarted', 0],
+      ['notStarted', 0],
+      ['done', 3],
+    ]);
+    expect(cells[2].a11y).toBe('Wed: done, 3 workouts');
+    expect(weekProgressByDate({ week, startedOn: STARTED })).toEqual({ done: 3, total: 3, complete: true });
+  });
+
+  it('X is clamped to Y', () => {
+    const odd = WEEK.map((entry, index) => (index === 2 ? { ...entry, status: 'done', is_workout_day: false } : entry));
+    const progress = weekProgressByDate({ week: odd, startedOn: STARTED });
+    expect(progress.done).toBeLessThanOrEqual(progress.total);
+  });
+});
+
 describe('caption + helpers', () => {
   it('"Your plan started {Weekday}." only while a Not-started day is in view', () => {
     const cells = weekByDate({ week: WEEK, startedOn: STARTED, now: NOW });

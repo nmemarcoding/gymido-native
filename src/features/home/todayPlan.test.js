@@ -760,9 +760,10 @@ describe('T-81 Today week strip by date + ring', () => {
     expect(texts(host(tree.root, 'home-week-caption'))).toEqual(['Your plan started Wednesday.']);
     expect(styleOf(host(tree.root, 'home-week-caption'))).toMatchObject({ fontSize: 13, lineHeight: 18, marginTop: 10, color: colors.textMuted });
     // The ring: X = 1 (/week Monday "done"), Y = 2 (Thu, Fri: training days on/after started_on).
-    expect(host(tree.root, 'home-stat-this-week').findByType(ProgressRing).props).toMatchObject({ value: 1, total: 2, label: '1 of 2 planned workouts done' });
-    expect(texts(host(tree.root, 'home-stat-caption'))).toEqual(['1 done · 2 planned']);
-    expect(host(tree.root, 'home-stat-this-week').props.accessibilityLabel).toBe('This week 1 /2 Planned');
+    // DECLARED (PM Y-rule fix): Monday's DONE pre-start slot now counts in Y: 1 of 2 → 1 of 3.
+    expect(host(tree.root, 'home-stat-this-week').findByType(ProgressRing).props).toMatchObject({ value: 1, total: 3, label: '1 of 3 planned workouts done' });
+    expect(texts(host(tree.root, 'home-stat-caption'))).toEqual(['1 done · 3 planned']);
+    expect(host(tree.root, 'home-stat-this-week').props.accessibilityLabel).toBe('This week 1 /3 Planned');
   });
 
   it('started_on with a time part: only its first 10 characters count (never converted to local)', () => {

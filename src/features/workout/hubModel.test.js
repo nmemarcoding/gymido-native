@@ -189,16 +189,21 @@ describe('T-81 hubWeek + hubState by date', () => {
     expect(hubState({ currentPlan: plan, todayStatus: rest, planDays: DAYS, week: doneAfterStart })).toBe('weekComplete');
     // Without started_on, Mon/Tue still count: 2 of 4, not complete.
     expect(hubState({ currentPlan: PLAN, todayStatus: rest, planDays: DAYS, week: doneAfterStart })).toBe('rest');
-    // Y = 0 (every training day before the start) is never complete.
+    // DECLARED (PM Y-rule fix, 28 Oct): pre-start slots that are DONE now count in Y ("3 of 1" on web).
+    // Was: a late start with Thu + Sat done → 'rest' (Y = 0). Now 2 of 2 → 'weekComplete'.
     const late = { ...PLAN, enrollment: { ...PLAN.enrollment, started_on: '2026-11-02' } };
-    expect(hubState({ currentPlan: late, todayStatus: rest, planDays: DAYS, week: doneAfterStart })).toBe('rest');
+    expect(hubState({ currentPlan: late, todayStatus: rest, planDays: DAYS, week: doneAfterStart })).toBe('weekComplete');
+    // Y = 0 (every training day before the start, none done) is never complete.
+    expect(hubState({ currentPlan: late, todayStatus: rest, planDays: DAYS, week: preStart })).toBe('rest');
   });
 
   it('the fallback (byDate false) keeps the pre-T-81 week-complete rule', () => {
     const allDone = WEEK.map((entry) => (entry.plan_day ? { ...entry, status: 'done' } : entry));
     const plan = { ...PLAN, enrollment: { ...PLAN.enrollment, started_on: '2026-11-02' } };
     expect(hubState({ currentPlan: plan, todayStatus: { is_workout_day: false }, planDays: DAYS, week: allDone, byDate: false })).toBe('weekComplete');
-    expect(hubState({ currentPlan: plan, todayStatus: { is_workout_day: false }, planDays: DAYS, week: allDone })).toBe('rest');
+    // DECLARED (PM Y-rule fix): was 'rest' by date (Y = 0 before the start); the done pre-start slots now
+    // count in Y, so by date it is complete too.
+    expect(hubState({ currentPlan: plan, todayStatus: { is_workout_day: false }, planDays: DAYS, week: allDone })).toBe('weekComplete');
   });
 });
 
