@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { TOKEN_TEXT } from '../../../shared/components/largeText';
 import { colors, font, radii, spacing, textScale, typography } from '../../../shared/theme/tokens';
 import { WEEKDAYS, selectedWeekdaysLabel } from '../libraryFormat';
 
@@ -34,7 +35,11 @@ export default function WeekdayGrid({ selected, onToggle, testIDPrefix, fullName
                 isSelected ? styles.selected : pressed ? styles.pressed : detail ? styles.idleDetail : styles.idle,
               ]}
             >
+              {/* Ruling 5 (UX native final audit 27 Oct 2026, B208): the
+                  label never breaks inside the word ("Mo/n"); in a narrow
+                  card it shrinks to the chip. The cap stays as it was. */}
               <Text
+                {...TOKEN_TEXT}
                 maxFontSizeMultiplier={detail ? textScale.pill : undefined}
                 style={[styles.text, detail && styles.textDetail, isSelected ? styles.textOn : detail ? styles.textOffDetail : styles.textOff]}
               >

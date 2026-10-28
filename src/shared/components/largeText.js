@@ -33,6 +33,22 @@ export const NAME_TEXT = Object.freeze({ ...NAME_RULE, maxFontSizeMultiplier: te
 export const NAME_TITLE_TEXT = Object.freeze({ ...NAME_RULE, maxFontSizeMultiplier: textScale.title });
 export const LINE_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body, numberOfLines: 1, ellipsizeMode: 'tail' });
 
+// UX native final audit 27 Oct 2026, ruling 5: TOKEN_TEXT is one value that
+// must never break inside itself (a date "10/15/1978", a weekday chip "Mon").
+// One line; when it doesn't fit it shrinks (to 0.75) instead of splitting,
+// and only past that ends in a tail ellipsis (never a silent cut).
+// Android splits a word that is wider than the line whatever the break
+// strategy, so the guard is the one-line cap + shrink, not textBreakStrategy
+// alone (kept 'simple' so a fitting token never hyphenates or rebalances).
+export const TOKEN_TEXT = Object.freeze({
+  maxFontSizeMultiplier: textScale.body,
+  numberOfLines: 1,
+  ellipsizeMode: 'tail',
+  adjustsFontSizeToFit: true,
+  minimumFontScale: 0.75,
+  textBreakStrategy: 'simple',
+});
+
 // True when the system text size is past the reflow point (§9 rule 4): button
 // pairs stack and trailing actions drop below the text. Read from
 // useWindowDimensions so a live font-size change re-renders the layout.

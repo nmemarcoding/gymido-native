@@ -95,4 +95,42 @@ describe('DateInput (v2 look)', () => {
     const message = tree.root.findAll((node) => node.type === Text && node.props.children === 'Enter a valid date.')[0];
     expect(message.props.accessibilityRole).toBe('alert');
   });
+
+  // UX native final audit 27 Oct 2026, ruling 5 (A100 Create profile, A154
+  // Edit profile): the date never breaks inside the value ("10/15/197" / "8")
+  // or the placeholder ("mm/dd/ / yyyy"); one line that shrinks to fit.
+  const TOKEN_PROPS = { numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 0.75, textBreakStrategy: 'simple' };
+  const layout = (tree, width) => act(() => host(tree).props.onLayout({ nativeEvent: { layout: { width, height: 52, x: 0, y: 0 } } }));
+  const host = (tree) => tree.root.find((node) => node.type === 'View' && node.props.testID === 'dob');
+  const valueText = (tree, text) => tree.root.findAll((node) => node.type === Text && node.props.children === text)[0];
+
+  it('ruling 5: the value and the placeholder stay one line and shrink instead of breaking', () => {
+    Platform.OS = 'android';
+    const filled = render({ value: '1978-10-15' });
+    const shown = filled.root.findAll((node) => node.type === Text && /1978/.test(String(node.props.children)))[0];
+    expect(shown.props).toMatchObject(TOKEN_PROPS);
+    expect(valueText(render(), 'mm/dd/yyyy').props).toMatchObject(TOKEN_PROPS);
+  });
+
+  it('ruling 5: in a half-width cell the inline Clear drops to a 44-target × icon and the value keeps the room', () => {
+    const onChange = jest.fn();
+    const tree = render({ value: '1978-10-15', onChange });
+    layout(tree, 150);
+    expect(valueText(tree, 'Clear')).toBeUndefined();
+    const clear = tree.root.findAll((node) => node.props.testID === 'dob-clear' && typeof node.props.onPress === 'function')[0];
+    expect(clear.props.accessibilityLabel).toBe('Clear');
+    expect(clear.props.hitSlop).toBe(13);
+    expect(clear.findAll((node) => node.props.viewBox === '0 0 24 24' && node.props.width === 16)).not.toHaveLength(0);
+    // The × only: the calendar icon steps aside while there's a value.
+    expect(svgCount(tree)).toBe(0);
+    act(() => clear.props.onPress());
+    expect(onChange).toHaveBeenCalledWith('');
+  });
+
+  it('ruling 5: a wide box keeps the gold "Clear" word and the calendar icon', () => {
+    const tree = render({ value: '1978-10-15' });
+    layout(tree, 600);
+    expect(valueText(tree, 'Clear')).toBeDefined();
+    expect(svgCount(tree)).toBe(1);
+  });
 });

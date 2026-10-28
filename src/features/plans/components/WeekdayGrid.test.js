@@ -122,4 +122,15 @@ describe('WeekdayGrid detail variant (UX H Plan detail)', () => {
     });
     expect(SS.flatten(chipOf(tree, 1).props.style({ pressed: false })).maxWidth).toBe(52);
   });
+
+  // UX native final audit 27 Oct 2026, ruling 5 (B208, Plan detail start
+  // card): a weekday label never breaks inside the word ("Mo/n"); it stays
+  // one line and shrinks to the chip. Chips have no fixed width (7 flex columns).
+  it.each(['default', 'detail'])('ruling 5 (%s): labels one line, simple breaking, shrink to fit; no fixed chip width', (variant) => {
+    const tree = render({ variant });
+    ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach((label) => {
+      expect(texts(tree, label)[0].props).toMatchObject({ numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 0.75, textBreakStrategy: 'simple' });
+    });
+    expect(chipStyle(tree, 2).width).toBeUndefined();
+  });
 });

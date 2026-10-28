@@ -151,9 +151,12 @@ describe('type (§2)', () => {
     Object.values(typography).forEach((style) => expect(style.fontWeight).toBeUndefined());
   });
 
+  // DECLARED (UX native final audit 27 Oct 2026, ruling 5, C302 / C305):
+  // displayTimer −5.52 → −3.68 and displayXl −2.8 → −2.24 (−0.06 / −0.05em
+  // clamped to the −0.04em floor).
   it.each([
-    ['displayTimer', 92, 92, 'Geist-Bold', -5.52],
-    ['displayXl', 56, 58, 'Geist-Bold', -2.8],
+    ['displayTimer', 92, 92, 'Geist-Bold', -3.68],
+    ['displayXl', 56, 58, 'Geist-Bold', -2.24],
     ['titleXl', 36, 40, 'Geist-Bold', -1.44],
     // FINAL-AUDIT batch 1: the phone sheet title 26/30 700 (tracking −0.03em).
     ['titleSheet', 26, 30, 'Geist-Bold', -0.78],
@@ -167,6 +170,26 @@ describe('type (§2)', () => {
     ['micro', 11, 14, 'Geist-Medium', 0],
   ])('%s = %d/%d %s, tracking %d px', (key, size, line, family, tracking) => {
     expect(typography[key]).toEqual({ fontFamily: family, fontSize: size, lineHeight: line, letterSpacing: tracking });
+  });
+
+  // UX native final audit 27 Oct 2026, ruling 5 (Android title letter-squash):
+  // big titles keep letter-spacing ≥ −0.04em, so every display / title step
+  // follows (the em → px conversion never goes past the floor).
+  it('ruling 5: every display / title step tracks at −0.04em or looser', () => {
+    const steps = Object.entries(typography).filter(([key]) => /^(display|title)/.test(key));
+    expect(steps.length).toBeGreaterThan(8);
+    steps.forEach(([key, style]) => {
+      expect([key, style.letterSpacing >= -0.04 * style.fontSize - 1e-9]).toEqual([key, true]);
+    });
+  });
+
+  it('ruling 5: titleTracking converts em to px and clamps at −0.04em', () => {
+    const { TITLE_TRACKING_MIN_EM, titleTracking } = require('./tokens');
+    expect(TITLE_TRACKING_MIN_EM).toBe(-0.04);
+    expect(titleTracking(48, -0.055)).toBe(-1.92);
+    expect(titleTracking(60, -0.06)).toBe(-2.4);
+    expect(titleTracking(24, -0.03)).toBe(-0.72);
+    expect(titleTracking(16)).toBe(0);
   });
 
   it('keeps every size at the 11 px minimum', () => {

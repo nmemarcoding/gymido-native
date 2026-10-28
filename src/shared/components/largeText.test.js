@@ -12,7 +12,7 @@ import Banner, { BannerText } from './Banner';
 import Card from './Card';
 import Chip from './Chip';
 import ConfirmDialog from './ConfirmDialog';
-import DateInput from './DateInput';
+import DateInput, { formatDateInput } from './DateInput';
 import EmptyState from './EmptyState';
 import ErrorAlert, { RetryButton } from './ErrorAlert';
 import ErrorBox from './ErrorBox';
@@ -20,7 +20,7 @@ import ExerciseImage from './ExerciseImage';
 import { InlineError, SuccessState } from './FeedbackBox';
 import FormField from './FormField';
 import GlassSurface from './GlassSurface';
-import { CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT, LINE_TEXT, NAME_TEXT, NAME_TITLE_TEXT, TITLE_TEXT, useLargeTextReflow } from './largeText';
+import { CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT, LINE_TEXT, NAME_TEXT, NAME_TITLE_TEXT, TITLE_TEXT, TOKEN_TEXT, useLargeTextReflow } from './largeText';
 import Loader from './Loader';
 import PillButton from './PillButton';
 import SegmentedSwitch from './SegmentedSwitch';
@@ -126,6 +126,20 @@ describe('largeText roles (UX §9)', () => {
     expect(LINE_TEXT).toEqual({ maxFontSizeMultiplier: textScale.body, numberOfLines: 1, ellipsizeMode: 'tail' });
   });
 
+  // UX native final audit 27 Oct 2026, ruling 5 (A100 / A154, B208): one
+  // unbreakable value (a date, a weekday chip) stays on one line; when it
+  // doesn't fit it shrinks (to 0.75) instead of breaking inside the token.
+  it('ruling 5: TOKEN_TEXT is one line, simple breaking, shrinks to 0.75 (never splits the token)', () => {
+    expect(TOKEN_TEXT).toEqual({
+      maxFontSizeMultiplier: textScale.body,
+      numberOfLines: 1,
+      ellipsizeMode: 'tail',
+      adjustsFontSizeToFit: true,
+      minimumFontScale: 0.75,
+      textBreakStrategy: 'simple',
+    });
+  });
+
   it.each([
     [1, false],
     [1.3, false],
@@ -194,7 +208,10 @@ describe.each(SCALES)('kit at fontScale %s', (scale) => {
     expect(flat(host(date, 'dob'))).toMatchObject({ minHeight: 52 });
     expect(flat(host(date, 'dob')).height).toBeUndefined();
     expect(textNode(date, 'Clear').props.maxFontSizeMultiplier).toBe(2);
-    expectAllCapped(date);
+    // DECLARED (UX native final audit 27 Oct 2026, ruling 5, A100 / A154): was
+    // expectAllCapped(date) (the date wrapped). The date value is now one line
+    // (TOKEN_TEXT: it shrinks instead of breaking inside "10/15/1978").
+    expectAllCapped(date, [formatDateInput('1990-04-02')]);
   });
 
   it('Chip and SegmentedSwitch: labels capped 2.0, never cut to one line; Chip grows from 38', () => {

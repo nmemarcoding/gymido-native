@@ -8,6 +8,7 @@ import StatusPill from '../../shared/components/StatusPill';
 import { addToast } from '../../shared/components/toastStore';
 import { colors, gradients, muscle, radii, textScale } from '../../shared/theme/tokens';
 import { getMyTrainerApplication, getTrainer, listTrainers, requestCoaching, submitTrainerApplication } from './api/trainersApi';
+import { PageHeading } from './components/CoachingPage';
 import TrainerCard from './components/TrainerCard';
 import TrainerApplyScreen, { applicationPill } from './screens/TrainerApplyScreen';
 import TrainerDetailScreen, { detailGlow } from './screens/TrainerDetailScreen';
@@ -474,5 +475,28 @@ describe('Trainer detail pinned CTA (UX native final audit 27 Oct 2026, ruling 1
       expect(dockOf(tree)).toBeUndefined();
       expect(tree.root.findAll((node) => node.type === PillButton && node.props.testID === 'trainer-detail-ask')).toHaveLength(1);
     }
+  });
+});
+
+// UX native final audit 27 Oct 2026, ruling 5 (carried from batch j): the
+// coaching page headings keep letter-spacing ≥ −0.04em. Was: Apply 48/48
+// −2.64 (−0.055em), tablet Find a trainer 60/60 −3.6 (−0.06em).
+describe('Coaching page headings: ruling 5 tracking floor', () => {
+  const headingStyle = async (props) => {
+    const tree = await render(<PageHeading testID="h" title="Become a" accent="trainer" {...props} />);
+    return flat(tree.root.find((node) => node.type === 'Text' && node.props.accessibilityRole === 'header'));
+  };
+
+  it.each([
+    ['phone apply', { size: 'apply' }, 48, -1.92],
+    ['tablet apply', { size: 'apply', tablet: true }, 48, -1.92],
+    ['phone list', { size: 'list' }, 44, -1.76],
+    ['tablet list', { size: 'list', tablet: true }, 60, -2.4],
+  ])('%s: −0.04em at its size, not tighter', async (_name, props, size, tracking) => {
+    setWindow(390);
+    const style = await headingStyle(props);
+    expect(style.fontSize).toBe(size);
+    expect(style.letterSpacing).toBe(tracking);
+    expect(style.letterSpacing).toBeGreaterThanOrEqual(-0.04 * style.fontSize);
   });
 });
