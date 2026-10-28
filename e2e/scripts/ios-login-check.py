@@ -56,6 +56,17 @@ def field(root, label):
     return (attributes.get("value") or attributes.get("text") or "").strip()
 
 
+def parse_hierarchy(raw):
+    """The first JSON value on stdin. With the private Maestro home (E4) every
+    run is a first run, and Maestro 2.10 prints notices around the JSON (the
+    analytics one before it, "Analyze with AI" after it; confirm 2941880)."""
+    start = raw.find("{")
+    if start < 0:
+        raise ValueError("no JSON object")
+    root, _ = json.JSONDecoder().raw_decode(raw, start)
+    return root
+
+
 def main():
     env_file, account, stage = sys.argv[1:4]
     email, password = read_env(env_file, account)
@@ -63,7 +74,7 @@ def main():
         return fail(stage, "account not found in the env file")
     raw = sys.stdin.read()
     try:
-        root = json.loads(raw)
+        root = parse_hierarchy(raw)
     except ValueError:
         return fail(stage, "no hierarchy")
     email_value = field(root, "Email address")
