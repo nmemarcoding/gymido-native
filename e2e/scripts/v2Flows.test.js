@@ -396,10 +396,14 @@ describe('QA candidate 2941880 flow fixes', () => {
     expect(body(`phase5/${name}.yaml`).startsWith('- runFlow: k-subflows/open-profile.yaml\n')).toBe(true);
   });
 
-  it('generator-preview: after the preview back, a FRESH Step 1 (the hint, the goal unchecked), not the review', () => {
+  // DECLARED (640 dp confirm, 28 Oct 2026): was "the hint, the goal unchecked"; the fresh questionnaire is
+  // seeded from the saved generator profile, so the goal stays chosen. Step 1 = its goal rows + the hint (scrolled to).
+  it('generator-preview: after the preview back, a FRESH Step 1 (its goal rows, then the Step 1 hint), not the review', () => {
     const flow = steps('phase4/generator-preview.yaml');
-    expect(flow.slice(flow.indexOf('id: "generator-preview-back"'))).not.toMatch(/generator-review-1/);
-    expect(flow).toMatch(/- tapOn:\n\s+id: "generator-preview-back"\n\s+- extendedWaitUntil:\n\s+visible:\n\s+id: "generator-step1-hint"\n\s+timeout: 15000\n\s+- assertVisible:\n\s+id: "generator-goal-BUILD_MUSCLE"\n\s+checked: false\n/);
+    const after = flow.slice(flow.indexOf('id: "generator-preview-back"'));
+    expect(after).not.toMatch(/generator-review-1/);
+    expect(after).not.toMatch(/checked: false/);
+    expect(flow).toMatch(/- tapOn:\n\s+id: "generator-preview-back"\n\s+- extendedWaitUntil:\n\s+visible:\n\s+id: "generator-goal-BUILD_MUSCLE"\n\s+timeout: 15000\n\s+- scrollUntilVisible:\n\s+element:\n\s+id: "generator-step1-hint"\n\s+direction: DOWN\n\s+timeout: 15000\n/);
   });
 
   it('member-workspace asserts per form factor: tab-Today on phone, rail-Today on tablet, never an either/or', () => {
@@ -417,6 +421,22 @@ describe('QA candidate 2941880 flow fixes', () => {
   it('6o-02: on iOS a Return tap closes the keyboard after inputText, before the scroll to the docked submit', () => {
     const flow = steps('phase6/6o-02-trainer-plan-create-form.yaml');
     expect(flow).toMatch(/- inputText: "QA Draft"\n- runFlow:\n\s+when:\n\s+platform: iOS\n\s+commands:\n\s+- pressKey: Enter\n- scrollUntilVisible:\n\s+element:\n\s+id: "create-plan-submit"/);
+  });
+
+  it('640 dp phone: 03b scrolls the reps stepper into view before the tap; on any end it discards its own open session', () => {
+    const raw = steps('phase3/03b-workout-session.yaml');
+    expect(body('phase3/03b-workout-session.yaml')).toMatch(/- scrollUntilVisible:\n\s+element:\n\s+id: "set-reps-plus-\.\*"\n\s+direction: DOWN\n\s+centerElement: true\n\s+timeout: 10000\n- tapOn:\n\s+id: "set-reps-plus-\.\*"/);
+    const hook = raw.slice(raw.indexOf('onFlowComplete:'), raw.indexOf('\n---\n'));
+    expect(hook.indexOf('- runFlow: ../subflows/dismiss-session-dialogs.yaml')).toBeGreaterThan(-1);
+    expect(hook.indexOf('- runFlow: ../subflows/dismiss-session-dialogs.yaml')).toBeLessThan(hook.indexOf('id: "session-chrome"'));
+    expect(hook).toMatch(/when:\n\s+visible:\n\s+id: "session-chrome"\n\s+commands:\n\s+- runFlow: \.\.\/subflows\/discard-workout\.yaml/);
+    expect(body('phase3/03b-workout-session.yaml').trim().endsWith('- runFlow: ../subflows/discard-workout.yaml')).toBe(true);
+  });
+
+  it('640 dp phone: generator-preview scrolls to Day 1 before asserting it, then back UP to the preview back', () => {
+    const flow = steps('phase4/generator-preview.yaml');
+    expect(flow).toMatch(/- scrollUntilVisible:\n\s+element:\n\s+id: "generator-day-1"\n\s+direction: DOWN\n\s+centerElement: true\n\s+timeout: 15000\n\s+- assertVisible:\n\s+id: "generator-day-1"/);
+    expect(flow).toMatch(/- scrollUntilVisible:\n\s+element:\n\s+id: "generator-preview-back"\n\s+direction: UP\n\s+timeout: 15000\n\s+- tapOn:\n\s+id: "generator-preview-back"/);
   });
 
   it('6o-03: asserts the hero heading "Trainer profile", not the a11y-hidden avatar', () => {

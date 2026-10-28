@@ -70,22 +70,41 @@ appId: com.gymido.app
           id: "generator-sticky-row"
       - assertVisible:
           id: "generator-bar-change"
+      # The 640 dp phone: Day 1 sits under the plan notes, behind the bar.
+      - scrollUntilVisible:
+          element:
+            id: "generator-day-1"
+          direction: DOWN
+          centerElement: true
+          timeout: 15000
       - assertVisible:
           id: "generator-day-1"
-      # Back to the answers with the phone back icon button.
+      # Back to the answers with the phone back icon button (it scrolls with
+      # the content, so back up to it after the Day 1 scroll).
+      - scrollUntilVisible:
+          element:
+            id: "generator-preview-back"
+          direction: UP
+          timeout: 15000
       - tapOn:
           id: "generator-preview-back"
       # DECLARED (QA candidate 2941880, PM 28 Oct 2026): was "back on the
       # review, scroll UP to generator-review-1". By the G1 design (review M1)
-      # "Back to your answers" pushes a FRESH questionnaire at Step 1: the
-      # Step 1 hint shows and the goal picked above is not checked.
+      # "Back to your answers" pushes a FRESH questionnaire at Step 1, seeded
+      # from the saved generator profile (so the goal picked above stays
+      # chosen). DECLARED (640 dp confirm, 28 Oct): the dfd9b85 check
+      # `generator-goal-BUILD_MUSCLE checked: false` is removed (it contradicts
+      # that seeding); Step 1 is proven by its goal rows + the Step 1 hint,
+      # which sits below the fold on a 640 dp phone (scroll to it).
       - extendedWaitUntil:
           visible:
-            id: "generator-step1-hint"
+            id: "generator-goal-BUILD_MUSCLE"
           timeout: 15000
-      - assertVisible:
-          id: "generator-goal-BUILD_MUSCLE"
-          checked: false
+      - scrollUntilVisible:
+          element:
+            id: "generator-step1-hint"
+          direction: DOWN
+          timeout: 15000
 - runFlow:
     when:
       visible:

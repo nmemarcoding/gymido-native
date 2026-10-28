@@ -14,6 +14,26 @@ tags:
   - v2
   - phase3
   - member
+# Confirm dfd9b85 (PM 28 Oct 2026): a failed step left the session open, so
+# the next flows stopped at signed-in-start. The hook runs after a pass OR a
+# fail and discards the session only while it is still open (after a pass the
+# flow's own discard already ended it).
+# A one-time session dialog can hide the chrome, so it is dismissed first.
+onFlowComplete:
+  - runFlow: ../subflows/dismiss-session-dialogs.yaml
+  - runFlow:
+      when:
+        visible:
+          id: "how-to-close"
+      commands:
+        - tapOn:
+            id: "how-to-close"
+  - runFlow:
+      when:
+        visible:
+          id: "session-chrome"
+      commands:
+        - runFlow: ../subflows/discard-workout.yaml
 ---
 - runFlow: ../subflows/signed-in-start.yaml
 - runFlow: ../subflows/member-workspace.yaml
@@ -35,6 +55,13 @@ tags:
 # step clears). Values are not saved until "Did it".
 - tapOn:
     id: "set-weight-plus-.*"
+# The 640 dp phone: the reps stepper sits just below the fold.
+- scrollUntilVisible:
+    element:
+      id: "set-reps-plus-.*"
+    direction: DOWN
+    centerElement: true
+    timeout: 10000
 - tapOn:
     id: "set-reps-plus-.*"
 - tapOn:
