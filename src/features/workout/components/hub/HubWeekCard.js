@@ -25,6 +25,7 @@ export const MISSED_WRAP_BELOW = 320;
 export default function HubWeekCard({ strip, progress, caption = null, reflow = false, style }) {
   const [width, setWidth] = useState(0);
   const ratio = progress.total > 0 ? Math.min(progress.done / progress.total, 1) : 0;
+  const countHidden = progress.total === 0;
   const columns = reflow ? 3 : width > 0 && width < MISSED_WRAP_BELOW && strip.some((cell) => cell.kind === 'missed') ? 4 : 7;
   const wrapped = columns < 7;
   return (
@@ -33,11 +34,14 @@ export default function HubWeekCard({ strip, progress, caption = null, reflow = 
         <Text accessibilityRole="header" {...CAP_BODY} style={styles.title}>
           This week
         </Text>
-        <Text testID="workout-week-count" {...CAP_BODY} style={styles.count}>
-          <Text style={styles.countStrong}>{`${progress.done} of ${progress.total}`}</Text> done
-        </Text>
+        {/* L3 (UX, web = native): Y = 0 hides the count and the bar; the card keeps its height. */}
+        {countHidden ? null : (
+          <Text testID="workout-week-count" {...CAP_BODY} style={styles.count}>
+            <Text style={styles.countStrong}>{`${progress.done} of ${progress.total}`}</Text> done
+          </Text>
+        )}
       </View>
-      <View style={styles.track} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <View testID="workout-week-track" style={[styles.track, countHidden && styles.hiddenKeepSpace]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <View testID="workout-week-bar" style={[styles.fill, { width: `${Math.round(ratio * 100)}%` }]} />
       </View>
       <View testID="workout-week-strip" style={[styles.strip, wrapped && styles.stripWrap]} onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
@@ -88,6 +92,9 @@ function DayCircle({ cell }) {
 }
 
 const styles = StyleSheet.create({
+  hiddenKeepSpace: {
+    opacity: 0,
+  },
   card: {
     borderRadius: radii.xl,
     paddingTop: spacing[4],

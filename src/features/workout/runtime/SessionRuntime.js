@@ -161,6 +161,9 @@ export default function SessionRuntime({
     pendingSets.current = createPendingSets();
   }
   const [pendingSetIds, setPendingSetIds] = useState(() => new Set());
+  // T-89 (QA, web = native): the set PATCHes in flight, so Complete can wait
+  // for them to settle; a set saved after POST /complete is lost.
+  const setRequests = useRef(new Map());
   const [highlightedSetKey, setHighlightedSetKey] = useState('');
   const [viewingIndex, setViewingIndex] = useState(null);
   const [showSheet, setShowSheet] = useState(false);
@@ -285,7 +288,14 @@ export default function SessionRuntime({
     // U3: the reps the member entered go with the weight draft.
     const body = buildSetPatch(set, { ...draft, actualReps: repsDrafts[set.id] });
     try {
-      const result = await updateSessionSet(session.id, exercise.id, set.id, body);
+      const request = updateSessionSet(session.id, exercise.id, set.id, body);
+      setRequests.current.set(set.id, request);
+      let result;
+      try {
+        result = await request;
+      } finally {
+        setRequests.current.delete(set.id);
+      }
       const saved = body.is_completed ? result?.workout_session_exercise_set : null;
       if (saved) {
         const sentUnit = body.actual_weight_unit || draft?.actualWeightUnit || 'lb';
@@ -348,6 +358,9 @@ export default function SessionRuntime({
     rest.clear();
     setHighlightedSetKey('');
     try {
+      // T-89: never complete ahead of a set save (its result doesn't matter
+      // here: a failed save shows its own error and stays unlogged).
+      await Promise.allSettled([...setRequests.current.values()]);
       const result = await completeWorkout(session.id);
       endSessionState();
       setSuccessMessage('Workout completed.');
@@ -572,7 +585,7 @@ export default function SessionRuntime({
     <View style={styles.endActions}>
       {isActiveView && isLastIncomplete ? <LastExerciseNote /> : null}
       {/* ND4: primary when no live set is left, else glass (3c's button). */}
-      <CompleteWorkoutButton primary={!liveSetLeft} completing={isCompleting} onPress={dismiss(handleComplete)} />
+      <CompleteWorkoutButton primary={!liveSetLeft} completing={isCompleting} disabled={pendingSetIds.size > 0} onPress={dismiss(handleComplete)} />
       <DiscardWorkoutAction abandoning={isAbandoning} onPress={dismiss(() => setShowDiscard(true))} />
     </View>
   );

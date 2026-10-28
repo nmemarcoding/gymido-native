@@ -28,7 +28,7 @@ import { getCurrentWeek, getDashboard } from './api/homeApi';
 import { getCurrentPlan, listPlanDays } from '../plans/api/libraryApi';
 import HomeScreen from './HomeScreen';
 import { exerciseCountText, heroDayTitle, isSessionOpen, todayCard, todayExerciseCount, heroImageUrl, memberVolume, weekRing, weekStrip, workoutInitials } from './homeFormat';
-import { TodayHero } from './TodayPlanView';
+import { TodayHero, TodayStats } from './TodayPlanView';
 
 const { getCurrentWorkout, listCompletedWorkouts } = jest.requireMock('../workout/api/workoutApi');
 
@@ -169,6 +169,35 @@ describe('homeFormat (Phase 3 Today)', () => {
       doneTotalText: '37',
     });
     expect(weekRing(DASH, { done: 0, total: 0, complete: false })).toMatchObject({ thisWeekText: '0', plannedText: '/0', caption: '0 done · 0 planned' });
+  });
+
+  // L3 (UX ruling for QA, web = native): Y = 0 hides the count + ring; the
+  // tile keeps its height and its a11y name drops the count. Y ≥ 1 unchanged.
+  it('L3: Y = 0 → countHidden; Y ≥ 1 and the no-/week fallback → shown', () => {
+    expect(weekRing(DASH, { done: 0, total: 0, complete: false }).countHidden).toBe(true);
+    expect(weekRing(DASH, { done: 0, total: 1, complete: false }).countHidden).toBe(false);
+    expect(weekRing(DASH, null).countHidden).toBe(false);
+  });
+
+  it.each([false, true])('L3: TodayStats with Y = 0 (tablet %s): ring row + caption kept but invisible, a11y "This week"', (tablet) => {
+    let tree;
+    act(() => {
+      tree = create(<TodayStats ring={weekRing(DASH, { done: 0, total: 0, complete: false })} tablet={tablet} />);
+    });
+    const tile = tree.root.findAll((node) => node.props.testID === 'home-stat-this-week' && typeof node.type === 'string')[0];
+    expect(tile.props.accessibilityLabel).toBe('This week');
+    const row = tree.root.findAll((node) => node.props.testID === 'home-stat-this-week-row' && typeof node.type === 'string')[0];
+    expect(StyleSheet.flatten(row.props.style).opacity).toBe(0);
+    const caption = tree.root.findAll((node) => node.props.testID === 'home-stat-caption' && typeof node.type === 'string')[0];
+    if (!tablet) {
+      expect(StyleSheet.flatten(caption.props.style).opacity).toBe(0);
+    }
+    act(() => {
+      tree.update(<TodayStats ring={weekRing(DASH, { done: 1, total: 2, complete: false })} tablet={tablet} />);
+    });
+    expect(tile.props.accessibilityLabel).toBe('This week 1 /2 Planned');
+    expect(StyleSheet.flatten(row.props.style).opacity).toBeUndefined();
+    act(() => tree.unmount());
   });
 });
 

@@ -212,13 +212,14 @@ export function TodayStats({ ring, tablet, reflow }) {
       <View
         testID="home-stat-this-week"
         accessible
-        accessibilityLabel={`This week ${ring.thisWeekText} ${ring.plannedText} Planned`}
+        accessibilityLabel={ring.countHidden ? 'This week' : `This week ${ring.thisWeekText} ${ring.plannedText} Planned`}
         style={[styles.tile, tablet && styles.tileTablet, reflow && styles.flat]}
       >
         <Text {...LT.body} style={tablet ? styles.tileLabelTablet : styles.tileLabel}>
           This week
         </Text>
-        <View testID="home-stat-this-week-row" style={[styles.ringRow, tablet && styles.ringRowTablet, reflow && styles.ringRowStacked]}>
+        {/* L3: Y = 0 hides the ring, count and caption; the tile keeps its height. */}
+        <View testID="home-stat-this-week-row" style={[styles.ringRow, tablet && styles.ringRowTablet, reflow && styles.ringRowStacked, ring.countHidden && styles.hiddenKeepSpace]}>
           <ProgressRing flat value={ring.thisWeek} total={ring.planned} size={size} thickness={(stroke * 100) / size} label={ring.ringLabel} />
           <Text {...LT.number} style={tablet ? styles.numberTablet : styles.number}>
             {ring.thisWeekText}
@@ -226,7 +227,7 @@ export function TodayStats({ ring, tablet, reflow }) {
           </Text>
         </View>
         {tablet ? null : (
-          <Text testID="home-stat-caption" {...LT.body} style={styles.ringCaption}>
+          <Text testID="home-stat-caption" {...LT.body} style={[styles.ringCaption, ring.countHidden && styles.hiddenKeepSpace]}>
             {ring.caption}
           </Text>
         )}
@@ -470,6 +471,9 @@ export function RecentWorkouts({ recent, metaOf, tablet, reflow }) {
 }
 
 const styles = StyleSheet.create({
+  hiddenKeepSpace: {
+    opacity: 0,
+  },
   // Hero
   hero: {
     borderRadius: radii.xxl,

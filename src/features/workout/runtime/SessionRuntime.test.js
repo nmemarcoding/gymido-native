@@ -191,6 +191,48 @@ describe('SessionRuntime', () => {
     await act(async () => resolve());
   });
 
+  // T-89 (QA, web = native): Complete while a set save is in flight finished
+  // the workout without that set. Complete is disabled while a PATCH is
+  // pending, and a Complete already started waits for the PATCH to settle.
+  it('T-89: Complete is disabled while a set save is pending', async () => {
+    updateSessionSet.mockClear();
+    let resolve;
+    updateSessionSet.mockImplementationOnce(() => new Promise((done) => (resolve = done)));
+    const { tree } = render();
+    expect(byId(tree, 'complete-workout').props.disabled).toBe(false);
+    await act(async () => byId(tree, 'set-action-12').props.onPress());
+    expect(byId(tree, 'complete-workout').props.disabled).toBe(true);
+    await act(async () => resolve());
+    expect(byId(tree, 'complete-workout').props.disabled).toBe(false);
+  });
+
+  it('T-89: a Complete started with a set save in flight POSTs /complete only after the save settles (also a failed one)', async () => {
+    updateSessionSet.mockClear();
+    completeWorkout.mockClear();
+    const order = [];
+    let reject;
+    updateSessionSet.mockImplementationOnce(() => new Promise((_done, fail) => (reject = fail)));
+    completeWorkout.mockImplementationOnce(() => {
+      order.push('complete');
+      return Promise.resolve();
+    });
+    const { tree } = render();
+    const complete = byId(tree, 'complete-workout').props.onPress;
+    await act(async () => byId(tree, 'set-action-12').props.onPress());
+    let finishing;
+    await act(async () => {
+      finishing = complete();
+    });
+    expect(completeWorkout).not.toHaveBeenCalled();
+    await act(async () => {
+      order.push('save settled');
+      reject({ response: { status: 500, data: { message: 'Server error' } } });
+      await finishing;
+    });
+    expect(order).toEqual(['save settled', 'complete']);
+    expect(completeWorkout).toHaveBeenCalledTimes(1);
+  });
+
   it('browsing: a done row of the browsed exercise can still be undone (Batch 2 item 2)', async () => {
     const session = {
       ...SESSION,

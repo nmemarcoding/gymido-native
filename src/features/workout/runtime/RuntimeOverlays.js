@@ -23,7 +23,8 @@ import BlurLayer from '../../../shared/components/BlurLayer';
 import ExerciseImage from '../../../shared/components/ExerciseImage';
 import GradientFill from '../../../shared/components/GradientFill';
 import IconButton from '../../../shared/components/IconButton';
-import PillButton from '../../../shared/components/PillButton';
+import PillButton, { BUTTON_HEIGHTS } from '../../../shared/components/PillButton';
+import PinnedDock from '../../../shared/components/PinnedDock';
 import TextLink from '../../../shared/components/TextLink';
 import { isTabletWidth } from '../../../shared/components/AppModal';
 import { CAP_BODY, DISPLAY_TITLE_TEXT, useLargeTextReflow } from '../../../shared/components/largeText';
@@ -264,12 +265,12 @@ function SkipButton({ onSkip, tablet }) {
   );
 }
 
-function RingFace({ timer, ringSize, tablet }) {
+function RingFace({ timer, ringSize, tablet, digitsStyle = null }) {
   return (
     <View testID="rest-ring-box" style={[styles.ringBox, { width: ringSize, height: ringSize }]}>
       <RestRing size={ringSize} geometry={REST_RING} secondsLeft={timer.secondsLeft} totalSeconds={timer.totalSeconds} />
       <View style={styles.ringCentre}>
-        <Countdown seconds={timer.secondsLeft} style={tablet ? styles.digitsTablet : null} />
+        <Countdown seconds={timer.secondsLeft} style={tablet ? styles.digitsTablet : digitsStyle} />
         <Text testID="rest-total" {...CAP_BODY} style={[styles.total, tablet && styles.totalTablet]}>
           {restTotalLabel(timer.totalSeconds)}
         </Text>
@@ -279,10 +280,28 @@ function RingFace({ timer, ringSize, tablet }) {
 }
 
 // Phone (native and < 768): the full-screen Rest board. Column: header
-// (spacer · "Resting" · minimise), ring 300, ±5 s, then Next card + Skip
-// rest at the bottom. It scrolls when large text needs the room.
+// (spacer · "Resting" · minimise), gap 64 (under 700 tall 24), ring 300,
+// gap 44 (20), ±5 s, the Next card; Skip rest
+// is pinned in a dock at every height (T-88, UX short-phone ruling): the dock
+// rule (12 + insets.bottom, the 32 fade, then solid), and the scroll's bottom
+// padding is the dock's height. Under 700 tall the ring shrinks so the whole
+// board fits (restRingSize); below its 200 floor the middle scrolls.
 function PhoneRest({ timer, next, onMinimize, onAdjust, onSkip, window, insets }) {
-  const ringSize = Math.min(REST_RING.viewBox, window.width - 2 * layout.gutter);
+  const board = Math.min(REST_RING.viewBox, window.width - 2 * layout.gutter);
+  const [dockHeight, setDockHeight] = useState(REST_DOCK_ESTIMATE + insets.bottom);
+  const [parts, setParts] = useState(REST_PARTS_ESTIMATE);
+  const measure = (key) => (event) => {
+    const height = event.nativeEvent.layout.height;
+    setParts((current) => (current[key] === height ? current : { ...current, [key]: height }));
+  };
+  const short = window.height < REST_SHORT_BELOW;
+  const ringGap = short ? REST_RING_GAP_SHORT : REST_RING_GAP;
+  const adjustGap = short ? REST_ADJUST_GAP_SHORT : REST_ADJUST_GAP;
+  const ringSize = restRingSize({
+    board,
+    windowHeight: window.height,
+    fixed: insets.top + spacing[3] + parts.header + ringGap + adjustGap + parts.adjust + parts.bottom + dockHeight,
+  });
   return (
     <View testID="rest-timer" accessibilityViewIsModal role="dialog" accessibilityLabel="Rest timer" style={styles.full}>
       <RestGlow />
@@ -290,26 +309,68 @@ function PhoneRest({ timer, next, onMinimize, onAdjust, onSkip, window, insets }
         bounces={false}
         contentContainerStyle={[
           styles.fullContent,
-          { paddingTop: insets.top + spacing[3], paddingBottom: insets.bottom + spacing[7] + spacing['0_5'], paddingLeft: insets.left + layout.gutter, paddingRight: insets.right + layout.gutter },
+          { paddingTop: insets.top + spacing[3], paddingBottom: dockHeight, paddingLeft: insets.left + layout.gutter, paddingRight: insets.right + layout.gutter },
         ]}
       >
-        <View style={styles.header}>
+        <View style={styles.header} onLayout={measure('header')}>
           <View style={styles.headerSpacer} />
           <Text {...CAP_BODY} accessibilityRole="header" style={styles.resting}>Resting</Text>
           <MinimizeButton onMinimize={onMinimize} />
         </View>
-        <View style={styles.ringGap} />
-        <RingFace timer={timer} ringSize={ringSize} />
-        <View style={styles.adjustRow}>
+        <View style={[styles.ringGap, short && { height: ringGap }]} />
+        <RingFace timer={timer} ringSize={ringSize} digitsStyle={ringSize < REST_RING.viewBox ? restDigitsStyle(ringSize) : null} />
+        <View style={[styles.adjustRow, short && { marginTop: adjustGap }]} onLayout={measure('adjust')}>
           <AdjustButtons onAdjust={onAdjust} />
         </View>
-        <View style={styles.bottomStack}>
+        <View style={styles.bottomStack} onLayout={measure('bottom')}>
           <NextCard next={next} />
-          <SkipButton onSkip={onSkip} />
         </View>
       </ScrollView>
+      <PinnedDock
+        testID="rest-dock"
+        overTabBar={false}
+        bottomGap={spacing[3]}
+        onHeight={setDockHeight}
+        estimate={BUTTON_HEIGHTS.cta}
+        contentStyle={{ paddingLeft: insets.left + layout.gutter, paddingRight: insets.right + layout.gutter }}
+      >
+        <SkipButton onSkip={onSkip} />
+      </PinnedDock>
     </View>
   );
+}
+
+// T-88 (UX short-phone ruling, 28 Oct 2026): the phone board's fixed gaps
+// (styles.ringGap, styles.adjustRow's marginTop) and the first-frame
+// estimates of the measured parts (header = the 44 minimise target, ±5 row =
+// one 44 pill row, the bottom stack = its 24 top padding + a Next card).
+const REST_RING_GAP = 64;
+const REST_ADJUST_GAP = 44;
+// UX option (b), web = native: under 700 tall the two gaps shrink.
+const REST_RING_GAP_SHORT = 24;
+const REST_ADJUST_GAP_SHORT = 20;
+const REST_PARTS_ESTIMATE = Object.freeze({ header: layout.touchMin, adjust: layout.touchMin, bottom: spacing[6] + 64 });
+const REST_DOCK_ESTIMATE = 32 + BUTTON_HEIGHTS.cta + spacing[3];
+export const REST_SHORT_BELOW = 700;
+export const REST_RING_FLOOR = 200;
+export const REST_DIGITS_FLOOR = 40;
+
+// The phone ring: the board size at 700+ tall; shorter, the height left after
+// everything else (`fixed`: the top padding, header, gaps, ±5 row, Next and
+// the dock), never above the board, never below the 200 floor.
+export function restRingSize({ board, windowHeight, fixed }) {
+  if (windowHeight >= REST_SHORT_BELOW) {
+    return board;
+  }
+  return Math.max(Math.min(board, REST_RING_FLOOR), Math.min(board, Math.floor(windowHeight - fixed)));
+}
+
+// The digits scale with the ring (displayTimer 92/92 at the 300 board, the
+// same ratio and tracking), never below 40. Countdown's ink padding is
+// derived from this style, so the T-72 padding holds at every size.
+export function restDigitsStyle(ringSize) {
+  const fontSize = Math.max(REST_DIGITS_FLOOR, Math.round((typography.displayTimer.fontSize * ringSize) / REST_RING.viewBox));
+  return { fontSize, lineHeight: fontSize, letterSpacing: titleTracking(fontSize, -0.06) };
 }
 
 // Tablet: the centred 600 card over scrim-strong (the scrim never
@@ -773,7 +834,8 @@ export function SpeakIntroDialog({ open, onKeepOn, onTurnOff, onOpenAnnounceSett
 // §23.1 manual completion. `primary` (SessionRuntime): true when no live set
 // is left (the forward action, flat gold); otherwise the glass secondary, so
 // "Did it" stays the one gold action. Defaults to v1's gold.
-export function CompleteWorkoutButton({ completing, onPress, primary = true }) {
+// T-89: `disabled` while a set save is in flight (SessionRuntime).
+export function CompleteWorkoutButton({ completing, onPress, primary = true, disabled = false }) {
   return (
     <PillButton
       testID="complete-workout"
@@ -782,6 +844,7 @@ export function CompleteWorkoutButton({ completing, onPress, primary = true }) {
       size="cta"
       fullWidth
       loading={completing}
+      disabled={disabled}
       onPress={onPress}
     />
   );
@@ -861,7 +924,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   ringGap: {
-    height: 64,
+    height: REST_RING_GAP,
   },
   ringGapTablet: {
     height: spacing[6],
@@ -895,7 +958,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: spacing[3],
-    marginTop: 44,
+    marginTop: REST_ADJUST_GAP,
   },
   adjustRowTablet: {
     marginTop: spacing[8] + spacing[1],

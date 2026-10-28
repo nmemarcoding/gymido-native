@@ -212,6 +212,9 @@ export function weekRing(dashboard, progress = null) {
     ...stats,
     thisWeek,
     planned,
+    // L3 (UX ruling for QA, web = native): with /week, Y = 0 (no training day
+    // on or after started_on yet) hides the count and the ring.
+    countHidden: Boolean(progress) && planned === 0,
     thisWeekText,
     plannedText: `/${formatNumber(planned, 0)}`,
     caption: `${thisWeekText} done · ${formatNumber(planned, 0)} planned`,
