@@ -84,7 +84,10 @@ function clampPosition(position, size, window, insets, bottom = insets.bottom + 
   return { x: Math.min(Math.max(minX, position.x), maxX), y: Math.min(Math.max(minY, position.y), maxY) };
 }
 
-// UX F2 Rest minimised: the disc is 92 on both. Phone at right 20 / top 112.
+// UX F2 Rest minimised: the disc is 92 on both. Phone at top 112, LEFT 20
+// (UX native final audit 27 Oct 2026, row A121, T §5 "never covers a
+// control"): at the board's right 20 it sat on the stage's right-aligned
+// "How to" pill; on the left it floats over the photo only.
 // Tablet (UX verdict I2, iPad 15e819a; P8: "92 at 24 (T §5)", the 132 board
 // disc is superseded): right 24, docked just ABOVE the session's opaque dock,
 // so it never covers "Complete workout" or the Did it.
@@ -94,7 +97,7 @@ function defaultDiscPosition(tablet, size, window, insets, bottom) {
   if (tablet) {
     return { x: window.width - insets.right - 24 - size, y: window.height - bottom - size };
   }
-  return { x: window.width - insets.right - 20 - size, y: Math.max(insets.top + MARGIN, 112) };
+  return { x: insets.left + 20, y: Math.max(insets.top + MARGIN, 112) };
 }
 
 const EXPAND_ACTIONS = [{ name: 'activate', label: 'Expand rest timer' }];

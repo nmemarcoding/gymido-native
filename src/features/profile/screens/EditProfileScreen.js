@@ -19,7 +19,7 @@ import { colors, font, gradients, motion, radii, spacing, typography } from '../
 import { useAuthStore } from '../../auth/authStore';
 import ShellPage from '../../shell/ShellPage';
 import { updateProfile } from '../api/profileApi';
-import { numberValue } from '../createProfileForm';
+import { SEX_OPTIONS, numberValue } from '../createProfileForm';
 import {
   buildEditProfilePayload,
   editFormFromProfile,
@@ -45,14 +45,9 @@ const WEIGHT_UNITS = [
   { value: 'lb', label: 'lb' },
 ];
 // Owner D2 (23 Oct, retires ⚠P-8; UX K): "Not set" (sends null) first,
-// "Prefer not to say" once, last.
-export const SEX_OPTIONS = [
-  { value: '', label: 'Not set' },
-  { value: 'male', label: 'Male' },
-  { value: 'female', label: 'Female' },
-  { value: 'other', label: 'Other' },
-  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
-];
+// "Prefer not to say" once, last. UX native final audit 27 Oct 2026, ruling 7:
+// one list, shared with Create profile (createProfileForm.js).
+export { SEX_OPTIONS };
 const NUMBER_FIELDS = ['height_value', 'height_feet', 'height_inches', 'current_weight_value', 'goal_weight_value'];
 const NUMBER_KEYBOARD = Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'numeric';
 // T-16: the weights are text with a decimal keypad, kept exactly as typed.

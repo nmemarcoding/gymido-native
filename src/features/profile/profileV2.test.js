@@ -729,6 +729,15 @@ describe('p5fix: Edit profile weight unit chip (M5) and Sex options (D2)', () =>
     expect(sex.props.options.filter((option) => option.label === 'Prefer not to say')).toHaveLength(1);
   });
 
+  // UX native final audit 27 Oct 2026, ruling 7 (A99): Create and Edit profile
+  // draw the Sex Select from one shared list.
+  it('ruling 7: the Sex options are the shared createProfileForm list (Create profile uses it too)', async () => {
+    const { SEX_OPTIONS } = require('./createProfileForm');
+    setStoredProfile(PROFILE);
+    const tree = await renderAsync(<EditProfileScreen />);
+    expect(unitSelect(tree.root, 'sex').props.options).toBe(SEX_OPTIONS);
+  });
+
   it.each([
     ['', null],
     ['prefer_not_to_say', 'prefer_not_to_say'],
