@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { LayoutAnimation, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { CardSurface } from '../../shared/components/Card';
+import ConfirmDialog from '../../shared/components/ConfirmDialog';
 import EmptyState from '../../shared/components/EmptyState';
 import { InlineError } from '../../shared/components/FeedbackBox';
 import Loader from '../../shared/components/Loader';
@@ -10,19 +11,24 @@ import PillButton from '../../shared/components/PillButton';
 import StateSlot from '../../shared/components/StateSlot';
 import StatusPill from '../../shared/components/StatusPill';
 import { InlineToast } from '../../shared/components/ToastHost';
-import { ToastTone } from '../../shared/components/toastStore';
+import { ToastTone, addToast } from '../../shared/components/toastStore';
 import { CAP_BODY, CAP_PILL, TITLE_TEXT } from '../../shared/components/largeText';
 import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
+import { useReducedMotion } from '../../shared/hooks/useReducedMotion';
+import { SHEET_FOCUS_DELAY_MS, focusNode } from '../../shared/hooks/useSheetFocus';
 import { formatNumber } from '../../shared/format/numbers';
-import { breakpoints, colors, font, radii, textScale, titleTracking, typography } from '../../shared/theme/tokens';
+import { breakpoints, colors, font, motion, radii, textScale, titleTracking, typography } from '../../shared/theme/tokens';
 import { memberVolume, workoutInitials } from '../home/homeFormat';
 import WeightLogModal from '../home/WeightLogModal';
 import { applySavedWeightLog, useProfileStore } from '../profile/profileStore';
 import ShellPage from '../shell/ShellPage';
 import { logsSince } from '../trainer/clients/weightChartData';
+import { MoreIcon } from '../trainer/plans/components/pickerIcons';
+import { deleteWorkout } from '../workout/api/workoutApi';
 import ProgressRing from '../workout/components/ProgressRing';
 import { getWeightLogsInRange, loadProgress } from './api/progressApi';
 import ProgressWeightChart from './ProgressWeightChart';
+import WorkoutActionsSheet from './WorkoutActionsSheet';
 import {
   DEFAULT_RANGE,
   PHONE_RANGES,
@@ -41,6 +47,11 @@ import {
   rangeDelta,
   recentLogRows,
   recentWorkoutRows,
+  DELETE_COPY,
+  deleteWorkoutBody,
+  deleteWorkoutOutcome,
+  isThisWeekRow,
+  workoutActionsLabel,
   toGoalLine,
   weeklyBars,
   weightStats,
@@ -79,10 +90,26 @@ function Progress() {
   const [modalOpen, setModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const mounted = useRef(true);
+  // T-82: the row's Menu → confirm → DELETE /workouts/{id}.
+  const reducedMotion = useReducedMotion();
+  const [menuRow, setMenuRow] = useState(null);
+  // The row stays set after closing, so the copy holds through the exit.
+  const [confirmRow, setConfirmRow] = useState(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  // Rows the server refused (409 older week): their ⋯ goes away (§3).
+  const [lockedIds, setLockedIds] = useState(() => new Set());
+  const deletingRef = useRef(false);
+  const actionRows = useRef([]);
+  const actionRefs = useRef(new Map());
+  const recentHeadingRef = useRef(null);
+  const focusTimers = useRef([]);
 
   useEffect(
     () => () => {
       mounted.current = false;
+      focusTimers.current.forEach(clearTimeout);
     },
     []
   );
@@ -198,8 +225,30 @@ function Progress() {
             planDaysPerWeek={planDaysPerWeek}
             tablet={tablet}
             reflow={reflow}
+            rowActions={{ refFor: actionRefFor, headingRef: recentHeadingRef, onOpen: openActions, locked: lockedIds }}
           />
         )}
+
+        {/* T-82 (UX §1–§3): the row's Menu, then the danger confirm. */}
+        <WorkoutActionsSheet isOpen={menuRow !== null} onClose={closeActions} onDelete={() => openConfirm(menuRow)} />
+        <ConfirmDialog
+          testID="delete-workout-dialog"
+          isOpen={confirmOpen}
+          onClose={cancelConfirm}
+          onConfirm={confirmDelete}
+          title={DELETE_COPY.title}
+          description={confirmRow ? deleteWorkoutBody(confirmRow) : ''}
+          confirmLabel={deleting ? DELETE_COPY.sending : DELETE_COPY.confirm}
+          tone="danger"
+          loading={deleting}
+          dismissible={!deleting}
+        >
+          {deleteError ? (
+            <Text testID="delete-workout-error" {...CAP_BODY} accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.deleteError}>
+              {deleteError}
+            </Text>
+          ) : null}
+        </ConfirmDialog>
 
         {/* PR2: Home §H2 with Progress' unit; no defaultRecordedOn (23 Oct). */}
         <WeightLogModal
@@ -217,6 +266,146 @@ function Progress() {
       </View>
     </ShellPage>
   );
+
+  // ---- T-82 handlers -------------------------------------------------------
+
+  function actionRefFor(key) {
+    return (node) => {
+      if (node) {
+        actionRefs.current.set(key, node);
+      } else {
+        actionRefs.current.delete(key);
+      }
+    };
+  }
+
+  // Screen-reader focus once the sheet / dialog has gone (the app's 300 ms).
+  function focusLater(target) {
+    const timer = setTimeout(() => {
+      focusTimers.current = focusTimers.current.filter((item) => item !== timer);
+      if (mounted.current) {
+        focusNode({ current: target() });
+      }
+    }, SHEET_FOCUS_DELAY_MS);
+    focusTimers.current.push(timer);
+  }
+
+  function openActions(row, rows) {
+    if (deletingRef.current) {
+      return;
+    }
+    actionRows.current = rows;
+    setMenuRow(row);
+  }
+
+  // Cancel / scrim / back → focus back on the ⋯; the Delete row hands off.
+  function closeActions(options) {
+    const row = menuRow;
+    setMenuRow(null);
+    if (row && !options?.handoff) {
+      focusLater(() => actionRefs.current.get(row.key));
+    }
+  }
+
+  function openConfirm(row) {
+    if (!row || deletingRef.current || !mounted.current) {
+      return;
+    }
+    setDeleteError('');
+    setConfirmRow(row);
+    setConfirmOpen(true);
+  }
+
+  // Blocked while the request runs (dismissible false does the scrim/back).
+  function cancelConfirm() {
+    if (deletingRef.current) {
+      return;
+    }
+    const row = confirmRow;
+    setConfirmOpen(false);
+    setDeleteError('');
+    if (row) {
+      focusLater(() => actionRefs.current.get(row.key));
+    }
+  }
+
+  // §4: the next row's ⋯, else the previous row's, else the heading.
+  function focusKeyAfter(row) {
+    const rows = actionRows.current;
+    const index = rows.findIndex((item) => item.key === row.key);
+    const deletable = (item) => item.key !== row.key && isThisWeekRow(item, week) && !lockedIds.has(item.workoutId);
+    const next = rows.slice(index + 1).find(deletable);
+    const previous = rows.slice(0, Math.max(index, 0)).reverse().find(deletable);
+    return (next ?? previous)?.key ?? null;
+  }
+
+  // Refetch everything Progress shows without the full-screen loader (the
+  // tab, the range and the open dialogs stay); a failure keeps what's shown.
+  function quietReload() {
+    return loadProgress().then(
+      (data) => {
+        if (mounted.current) {
+          setLoad({ status: 'loaded', data, error: null });
+        }
+      },
+      () => {}
+    );
+  }
+
+  async function confirmDelete() {
+    const row = confirmRow;
+    if (!confirmOpen || !row || deletingRef.current) {
+      return;
+    }
+    deletingRef.current = true;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await deleteWorkout(row.workoutId);
+    } catch (error) {
+      deletingRef.current = false;
+      if (!mounted.current) {
+        return;
+      }
+      setDeleting(false);
+      const outcome = deleteWorkoutOutcome(error);
+      if (outcome === 'failed') {
+        // §3: the dialog stays open with the inline error.
+        setDeleteError(DELETE_COPY.failed);
+        return;
+      }
+      // §3 older week (409) / 404 (gone or not yours): close, toast, refresh.
+      setConfirmOpen(false);
+      if (outcome === 'locked') {
+        setLockedIds((current) => new Set(current).add(row.workoutId));
+      }
+      addToast(ToastTone.error, outcome === 'locked' ? DELETE_COPY.locked : DELETE_COPY.failed);
+      quietReload().then(() => focusLater(() => recentHeadingRef.current));
+      return;
+    }
+    deletingRef.current = false;
+    if (!mounted.current) {
+      return;
+    }
+    const focusKey = focusKeyAfter(row);
+    setDeleting(false);
+    setConfirmOpen(false);
+    addToast(ToastTone.success, DELETE_COPY.success);
+    // §4: removed in place once the server confirmed (not optimistic):
+    // height + opacity collapse 200 ms, instant with reduced motion.
+    if (!reducedMotion) {
+      LayoutAnimation.configureNext(
+        LayoutAnimation.create(motion.durationBase, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity)
+      );
+    }
+    setLoad((current) =>
+      current.data
+        ? { ...current, data: { ...current.data, recentWorkouts: (current.data.recentWorkouts ?? []).filter((item) => item?.id !== row.workoutId) } }
+        : current
+    );
+    // Totals, the week strip and the records refresh too.
+    quietReload().then(() => focusLater(() => (focusKey && actionRefs.current.get(focusKey)) || recentHeadingRef.current));
+  }
 }
 
 // "Progress view" switch. Same on phone (the phone board draws none; ND-5
@@ -556,7 +745,7 @@ function TwelveWeeks({ frequency, tablet }) {
 }
 
 // PR1.5 Activity + #23 (Workouts per week, Consistency) + U8 (phone).
-function ActivityTab({ overview, history, frequency, missed, week, recentWorkouts, planDaysPerWeek = null, tablet, reflow }) {
+function ActivityTab({ overview, history, frequency, missed, week, recentWorkouts, planDaysPerWeek = null, tablet, reflow, rowActions = null }) {
   const profile = useProfileStore((state) => state.profile);
   const unit = profile?.current_weight_unit || profile?.goal_weight_unit || 'kg';
   const bars = weeklyBars(frequency);
@@ -663,7 +852,7 @@ function ActivityTab({ overview, history, frequency, missed, week, recentWorkout
       <TwelveWeeks frequency={frequency} tablet={tablet} />
       {!tablet && rows.length > 0 ? (
         <View testID="progress-recent" style={[styles.card, styles.recentCard]}>
-          <Text accessibilityRole="header" {...TITLE_TEXT} style={[styles.h2, styles.recentTitle]}>
+          <Text ref={rowActions?.headingRef} accessibilityRole="header" {...TITLE_TEXT} style={[styles.h2, styles.recentTitle]}>
             Recent workouts
           </Text>
           {rows.map((row, index) => (
@@ -689,6 +878,20 @@ function ActivityTab({ overview, history, frequency, missed, week, recentWorkout
                 <Text {...CAP_BODY} style={styles.volume}>
                   {row.volume}
                 </Text>
+              ) : null}
+              {/* T-82 (UX §1): this week's rows only; older rows draw nothing. */}
+              {rowActions && isThisWeekRow(row, week) && !rowActions.locked?.has(row.workoutId) ? (
+                <Pressable
+                  ref={rowActions.refFor(row.key)}
+                  testID={`progress-recent-actions-${row.key}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={workoutActionsLabel(row)}
+                  hitSlop={4}
+                  onPress={() => rowActions.onOpen(row, rows)}
+                  style={({ pressed }) => [styles.rowActions, pressed && styles.rowActionsPressed]}
+                >
+                  <MoreIcon color={colors.textPrimary} size={18} />
+                </Pressable>
               ) : null}
             </View>
           ))}
@@ -1225,6 +1428,27 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 20,
     color: colors.textPrimary,
+  },
+  // T-82 (UX §1): a 36 glass circle (white 0.08 + 1 px 0.12), 44 hit area.
+  rowActions: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.hairlineButton,
+    backgroundColor: colors.fillButton,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowActionsPressed: {
+    backgroundColor: colors.hairlineButton,
+  },
+  // UX §3: the inline error under the body, 13/600 danger.
+  deleteError: {
+    ...font(600),
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.dangerText,
   },
   volume: {
     ...font(400),

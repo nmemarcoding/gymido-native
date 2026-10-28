@@ -39,3 +39,10 @@ export async function completeWorkout(sessionId) {
 export async function abandonWorkout(sessionId) {
   return data(await apiClient.post(`/workouts/${sessionId}/abandon`));
 }
+
+// T-82: delete a finished workout (this week's only; the server answers 409
+// WORKOUT_DELETE_WEEK_LOCKED for older weeks, 404 when it isn't yours or is
+// already deleted). The body is ignored (the caller reloads).
+export async function deleteWorkout(sessionId) {
+  return data(await apiClient.delete(`/workouts/${sessionId}`));
+}
