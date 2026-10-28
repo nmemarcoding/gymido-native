@@ -361,6 +361,18 @@ describe('state 2: rest day', () => {
     expect(hosts(tree.root, 'workout-day-start-3')).toHaveLength(1);
     expect(host(tree.root, 'workout-week-day-4').props.accessibilityLabel).toBe('Thu: today, rest');
   });
+
+  it('T-80 (review): on a rest day, Repeat of the NEXT workout (already done this week) is not "today": the week + rest-day copy', async () => {
+    // /today on a rest day names the next workout (Upper B); started early, it is done this week.
+    const tree = await renderScreen(hub({ todayStatus: REST, week: restWeek, completedThisWeekDayIds: [1, 2, 3] }));
+    const row = dayButtons(tree.root).find((node) => node.props.accessibilityLabel === 'Repeat Upper B');
+    act(() => row.props.onPress());
+    expect(confirmDialog(tree).props).toMatchObject({
+      title: 'Do Upper B again?',
+      description: 'You already did Upper B this week. Today is a rest day. This starts a live workout.',
+      playTile: true,
+    });
+  });
 });
 
 describe('state 3: today done', () => {

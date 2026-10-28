@@ -81,7 +81,10 @@ export function isTabletWidth(width) {
 // and title sit in a fixed header above the scroll (iOS scrolls a focused
 // field into view, which took the title off the top); the description and
 // content scroll.
-export default function AppModal({ isOpen, onClose, title, description, size = 'lg', footer, children, testID, entrance = 'slide', compact = false, hideClose = false, footerDismiss = false, role, eyebrow, pinnedHeader, scrollRef, sheetTopGap = SHEET_TOP_GAP }) {
+// `tile` (opt-in, T-80): ({ tablet }) => a decorative tile drawn above the
+// title, 20 above it: centred on the phone sheet, left-aligned on the tablet
+// dialog; hidden from screen readers.
+export default function AppModal({ isOpen, onClose, title, description, size = 'lg', footer, children, testID, entrance = 'slide', compact = false, hideClose = false, footerDismiss = false, role, eyebrow, pinnedHeader, scrollRef, sheetTopGap = SHEET_TOP_GAP, tile }) {
   const { width, height, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const tablet = isTabletWidth(width);
@@ -193,6 +196,16 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
       {pinnedHeader}
     </View>
   ) : null;
+  const tileView = tile ? (
+    <View
+      testID="app-modal-tile"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={[styles.tile, tablet ? styles.tileTablet : styles.tilePhone]}
+    >
+      {tile({ tablet })}
+    </View>
+  ) : null;
   const tabletTitle = (
     <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.titleTablet}>
       {title}
@@ -235,6 +248,7 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
             )}
             {tablet ? null : (
               <View testID="app-modal-header" style={styles.header}>
+                {tileView}
                 {eyebrowView}
                 {phoneClose ? (
                   <View testID="app-modal-title-row" style={styles.titleRow}>
@@ -256,6 +270,7 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
                 word, max 3 lines, and a long word shrinks. */}
             {tablet ? (
               <View testID="app-modal-header" style={styles.header}>
+                {tileView}
                 {eyebrowView}
                 {tabletTitle}
                 {pinnedView}
@@ -334,6 +349,15 @@ export function ModalActions({ children, fill = false }) {
 }
 
 const styles = StyleSheet.create({
+  tile: {
+    marginBottom: 20,
+  },
+  tilePhone: {
+    alignSelf: 'center',
+  },
+  tileTablet: {
+    alignSelf: 'flex-start',
+  },
   scrim: {
     flex: 1,
     alignItems: 'center',

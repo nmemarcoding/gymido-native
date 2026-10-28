@@ -440,7 +440,7 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
   const requestStart = (day, ref) => {
     confirmReturnRef.current = ref?.current ?? null;
     setConfirmMounted(true);
-    setConfirm({ dayId: day.dayId, ...startConfirmCopy({ state, title: day.title, done: Boolean(day.done), isToday: day.dayId === todayDayId, todayTitle }) });
+    setConfirm({ dayId: day.dayId, ...startConfirmCopy({ state, title: day.title, done: Boolean(day.done), isToday: Boolean(todayStatus?.already_completed) && day.dayId === todayDayId, todayTitle }) });
   };
   const confirmDialog = confirmMounted ? (
     <ConfirmDialog
@@ -458,6 +458,7 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
       confirmLabel="Start workout"
       tone="primary"
       hideClose
+      playTile
     />
   ) : null;
   const todayCard =

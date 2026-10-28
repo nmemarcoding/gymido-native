@@ -1,3 +1,7 @@
+import { StyleSheet, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
+
+import { colors } from '../theme/tokens';
 import AppModal, { ModalActions } from './AppModal';
 import PillButton from './PillButton';
 
@@ -27,6 +31,9 @@ export default function ConfirmDialog({
   compact,
   boardClose = false,
   hideClose = false,
+  // T-80 (opt-in; UX, web parity): the gold play tile above the title (phone
+  // 56 r16 centred with a 20 glyph; tablet 72 r18 left with a 24 glyph).
+  playTile = false,
 }) {
   const close = () => {
     if (dismissible) {
@@ -47,6 +54,7 @@ export default function ConfirmDialog({
       // FINAL-AUDIT batch 1 (5): the footer has the dismiss, so no phone ×.
       footerDismiss={!boardClose}
       hideClose={hideClose}
+      tile={playTile ? renderPlayTile : undefined}
       footer={
         <ModalActions>
           <PillButton testID={cancelTestID ?? (testID ? `${testID}-cancel` : undefined)} title={cancelLabel} variant="secondary" onPress={close} />
@@ -64,3 +72,32 @@ export default function ConfirmDialog({
     </AppModal>
   );
 }
+
+function renderPlayTile({ tablet }) {
+  const glyph = tablet ? 24 : 20;
+  return (
+    <View testID="confirm-play-tile" style={[tileStyles.tile, tablet ? tileStyles.tablet : tileStyles.phone]}>
+      <Svg width={glyph} height={glyph} viewBox="0 0 24 24" fill={colors.gold}>
+        <Path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" />
+      </Svg>
+    </View>
+  );
+}
+
+const tileStyles = StyleSheet.create({
+  tile: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.goldTint,
+  },
+  phone: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+  },
+  tablet: {
+    width: 72,
+    height: 72,
+    borderRadius: 18,
+  },
+});
