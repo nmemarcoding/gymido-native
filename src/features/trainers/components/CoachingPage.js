@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { CAP_BODY, DISPLAY_TITLE_TEXT } from '../../../shared/components/largeText';
 import TextLink from '../../../shared/components/TextLink';
-import { colors, font, spacing, typography } from '../../../shared/theme/tokens';
+import { colors, font, spacing, titleTracking, typography } from '../../../shared/theme/tokens';
 import { HeroTitleMark } from '../../shell/heroTitle';
 
 // v2 Phase 5 L shared page parts for the coaching pages (Find a trainer,
@@ -39,18 +39,20 @@ export function PageHeading({ title, accent, subtitle, tablet = false, size = 'l
   );
 }
 
-// Phone: Trainers "display-md" 44/44 −0.05em; Apply 48/48 −0.055em (no token
-// at 48: font() + the drawn size). Tablet: Trainers 60/60 −0.06em.
+// Phone: Trainers "display-md" 44/44; Apply 48/48 (no token at 48: font() +
+// the drawn size). Tablet: Trainers 60/60. The boards draw −0.05 / −0.055 /
+// −0.06em; ruling 5 (UX native final audit 27 Oct 2026) holds every title at
+// −0.04em (titleTracking clamps).
 const PHONE_SIZES = {
   list: { title: typography.displayMd, subtitle: { marginTop: spacing['1_5'], fontSize: 15, lineHeight: 22 } },
   apply: {
-    title: { ...font(700), fontSize: 48, lineHeight: 48, letterSpacing: -2.64 },
+    title: { ...font(700), fontSize: 48, lineHeight: 48, letterSpacing: titleTracking(48, -0.055) },
     subtitle: { marginTop: spacing['1_5'], fontSize: 15, lineHeight: 22 },
   },
 };
 const TABLET_SIZES = {
   list: {
-    title: { ...font(700), fontSize: 60, lineHeight: 60, letterSpacing: -3.6 },
+    title: { ...font(700), fontSize: 60, lineHeight: 60, letterSpacing: titleTracking(60, -0.06) },
     subtitle: { marginTop: spacing['2_5'], fontSize: 17, lineHeight: 26 },
   },
   apply: PHONE_SIZES.apply,

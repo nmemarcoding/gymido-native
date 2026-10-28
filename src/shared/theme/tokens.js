@@ -459,9 +459,20 @@ export function font(weight = 400) {
   return { fontFamily: FONT_FAMILY[w] ?? FONT_FAMILY[400] };
 }
 
+// UX native final audit 27 Oct 2026, ruling 5 (Android title letter-squash):
+// big titles keep letter-spacing ≥ −0.04em. Tighter tracking (−0.045 /
+// −0.05 / −0.055em as drawn) converted to px goes past Geist's glyph advance
+// on Android and the letters collide ("Findatrainer"). titleTracking is the
+// one em → px conversion for titles: it clamps at the floor, so a drawn
+// −0.055em becomes −0.04em.
+export const TITLE_TRACKING_MIN_EM = -0.04;
+export function titleTracking(fontSize, trackingEm = 0) {
+  return Math.round(Math.max(trackingEm, TITLE_TRACKING_MIN_EM) * fontSize * 100) / 100;
+}
+
 // One scale step: size / line height in px, tracking in em (→ px for RN).
 function step(fontSize, lineHeight, weight, trackingEm = 0) {
-  return Object.freeze({ ...font(weight), fontSize, lineHeight, letterSpacing: Math.round(trackingEm * fontSize * 100) / 100 });
+  return Object.freeze({ ...font(weight), fontSize, lineHeight, letterSpacing: titleTracking(fontSize, trackingEm) });
 }
 
 // §2 scale. Every changing number also sets fontVariant ['tabular-nums'].
@@ -482,10 +493,11 @@ export const textScale = Object.freeze({
 });
 
 export const typography = Object.freeze({
-  displayTimer: step(92, 92, 700, -0.06),
-  displayXl: step(56, 58, 700, -0.05),
-  displayLg: step(52, 52, 700, -0.045),
-  displayMd: step(44, 44, 700, -0.05),
+  // Ruling 5: drawn −0.06 / −0.05 / −0.045em, held at the −0.04em floor.
+  displayTimer: step(92, 92, 700, -0.04),
+  displayXl: step(56, 58, 700, -0.04),
+  displayLg: step(52, 52, 700, -0.04),
+  displayMd: step(44, 44, 700, -0.04),
   titleXl: step(36, 40, 700, -0.04),
   titleLg: step(30, 32, 700, -0.04),
   titleMd: step(24, 28, 700, -0.03),

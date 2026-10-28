@@ -1,13 +1,13 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useState } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Svg, { Path, Rect } from 'react-native-svg';
 
-import { colors, font, spacing, typography } from '../theme/tokens';
+import { colors, font, spacing, textScale, typography } from '../theme/tokens';
 import { FIELD_HEIGHT, FieldFrame, fieldBoxStyle } from './FormField';
-import { CAP_BODY } from './largeText';
+import { CAP_BODY, TOKEN_TEXT } from './largeText';
 
 // §4.5 DateInput: the input style + an 18 px calendar icon at right.
 function CalendarIcon() {
@@ -18,6 +18,22 @@ function CalendarIcon() {
     </Svg>
   );
 }
+
+// The inline "Clear" as an × (16 px): the compact box's only trailing mark.
+function ClearIcon() {
+  return (
+    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Path d="M6 6l12 12M18 6L6 18" stroke={colors.gold} strokeWidth={2.5} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+// UX native final audit 27 Oct 2026, ruling 5 (A100 / A154): a box narrower
+// than this (× the capped font scale) can't hold "10/15/1978" + "Clear" + the
+// icon on one line (16 padding, ~86 value, 8 gap, ~36 Clear, 12 gap, 18 icon,
+// 14 padding ≈ 190), so it goes compact: Clear becomes the × and the calendar
+// icon steps aside while there's a value. The value is TOKEN_TEXT either way.
+const COMPACT_BELOW = 200;
 
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -43,7 +59,10 @@ export function formatDateInput(value) {
 // the dialog), no min/max, and a "Clear" button while it has a value.
 export default function DateInput({ label, value, onChange, error, testID, labelStyle, accessibilityLabel }) {
   const [open, setOpen] = useState(false);
+  const [boxWidth, setBoxWidth] = useState(null);
+  const { fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const compact = boxWidth !== null && boxWidth < COMPACT_BELOW * Math.min(fontScale, textScale.body);
   const pickerDate = value ? fromLocalDateString(value) : new Date();
 
   const onPicked = (event, date) => {
@@ -63,21 +82,34 @@ export default function DateInput({ label, value, onChange, error, testID, label
         accessibilityLabel={accessibilityLabel ?? label}
         accessibilityValue={{ text: value ? formatDateInput(value) : '' }}
         onPress={() => setOpen(true)}
+        onLayout={(event) => setBoxWidth(event.nativeEvent.layout.width)}
         style={[fieldBoxStyle({ focused: open, error: Boolean(error), disabled: false }), styles.box]}
       >
         {value ? (
-          <Text {...CAP_BODY} style={styles.value}>{formatDateInput(value)}</Text>
+          <Text {...TOKEN_TEXT} style={styles.value}>{formatDateInput(value)}</Text>
         ) : (
-          <Text {...CAP_BODY} style={styles.placeholder}>{Platform.OS === 'android' ? 'mm/dd/yyyy' : ''}</Text>
+          <Text {...TOKEN_TEXT} style={styles.placeholder}>{Platform.OS === 'android' ? 'mm/dd/yyyy' : ''}</Text>
         )}
         <View style={styles.trailing}>
-          {value ? (
+          {value && compact ? (
+            // hitSlop 13 around the 18 px box: a 44 target.
+            <Pressable
+              testID={testID ? `${testID}-clear` : undefined}
+              accessibilityRole="button"
+              accessibilityLabel="Clear"
+              onPress={() => onChange('')}
+              hitSlop={13}
+              style={styles.clearIcon}
+            >
+              <ClearIcon />
+            </Pressable>
+          ) : value ? (
             // hitSlop 12 around the 20 px line: a 44 target.
             <Pressable testID={testID ? `${testID}-clear` : undefined} accessibilityRole="button" onPress={() => onChange('')} hitSlop={12}>
               <Text {...CAP_BODY} style={styles.clear}>Clear</Text>
             </Pressable>
           ) : null}
-          <CalendarIcon />
+          {value && compact ? null : <CalendarIcon />}
         </View>
       </Pressable>
       {open && Platform.OS === 'android' ? <DateTimePicker value={pickerDate} mode="date" onChange={onPicked} /> : null}
@@ -125,9 +157,16 @@ const styles = StyleSheet.create({
     color: colors.textFaint,
   },
   trailing: {
+    flexShrink: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[3],
+  },
+  clearIcon: {
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   clear: {
     ...font(600),
