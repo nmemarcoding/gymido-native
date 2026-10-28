@@ -4,7 +4,7 @@
 // to the caller's --debug-output or a private temp folder and deletes those
 // logs (and maestro.log / commands*.json) after every run: a pass, a failure
 // or a signal. A log it can't delete fails the run (exit 5).
-const { spawnSync } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -89,6 +89,37 @@ describe('maestro-guarded.sh deletes Maestro debug logs after every run', () => 
     const left = files(dir);
     LOGS.forEach((name) => expect(left.some((file) => file.endsWith(name))).toBe(false));
   });
+
+  // Reviewer MEDIUM (ea27f77): a second signal while scrub runs must not
+  // kill it before the logs are gone. A slow `find` marks "scrub started";
+  // the test then sends TERM to the script itself.
+  it('a TERM DURING scrub is ignored: the private folder is still removed whole and the exit stays maestro\'s', async () => {
+    const box = make({ exitCode: 1 });
+    const marker = path.join(box.root, 'in-scrub');
+    const realFind = spawnSync('bash', ['-c', 'command -v find'], { encoding: 'utf8' }).stdout.trim();
+    fs.writeFileSync(path.join(box.root, 'bin', 'find'), `#!/usr/bin/env bash\ntouch ${JSON.stringify(marker)}\nsleep 1\nexec ${realFind} "$@"\n`, { mode: 0o755 });
+    const child = spawn('bash', [path.join(box.root, 'e2e', 'scripts', 'maestro-guarded.sh'), 'emulator-5594', 'flow.yaml'], { env: box.env });
+    const done = new Promise((resolve) => child.on('exit', (code, signal) => resolve({ code, signal })));
+    const started = Date.now();
+    while (!fs.existsSync(marker) && Date.now() - started < 10000) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    expect(fs.existsSync(marker)).toBe(true);
+    child.kill('SIGTERM');
+    const result = await done;
+    expect(result).toEqual({ code: 1, signal: null });
+    const dir = fs.readFileSync(box.seen, 'utf8');
+    expect(fs.existsSync(dir)).toBe(false);
+  }, 20000);
+
+  it.each(['maestro-guarded.sh', 'android-sign-in.sh', 'invite.sh', 'ios-safe-sign-in.sh'])(
+    '%s: its cleanup IGNORES INT/TERM/HUP (never resets them to the default, which kills it)',
+    (name) => {
+      const src = fs.readFileSync(path.join(__dirname, name), 'utf8');
+      expect(src).not.toMatch(/trap - [^\n]*(INT|TERM|HUP)/);
+      expect(src).toMatch(/trap '' INT TERM HUP/);
+    },
+  );
 
   it('a log it cannot delete fails the run (exit 5) and names the folder, not the contents', () => {
     const box = make();

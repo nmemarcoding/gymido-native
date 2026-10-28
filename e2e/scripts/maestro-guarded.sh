@@ -79,7 +79,10 @@ CLEANED=""
 scrub() {
   [ -n "$CLEANED" ] && return
   CLEANED=1
-  trap - EXIT INT TERM HUP
+  # Ignore further signals (a second Ctrl-C / kill must not stop the
+  # cleanup before the logs are gone); the EXIT trap is done.
+  trap '' INT TERM HUP
+  trap - EXIT
   # Maestro may still be writing.
   [ -n "$MPID" ] && kill "$MPID" 2>/dev/null && wait "$MPID" 2>/dev/null
   find "$DEBUG" -type f \( "${LOGS[@]}" \) -delete 2>/dev/null

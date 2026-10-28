@@ -111,7 +111,9 @@ FINISHED=""
 finish() {
   [ -n "$FINISHED" ] && return
   FINISHED=1
-  trap - INT TERM HUP
+  # Ignore further signals: a second Ctrl-C / kill must not stop the
+  # cleanup before the sweep.
+  trap '' INT TERM HUP
   # A stage interrupted mid-run may still be writing.
   pkill -P $$ 2>/dev/null
   purge
