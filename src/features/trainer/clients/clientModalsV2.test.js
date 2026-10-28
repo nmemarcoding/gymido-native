@@ -249,9 +249,11 @@ describe('Client weight modal (UX M)', () => {
 
   // PM ruling (RN-SPEC TRAINER-CLIENTS, audit b4; exact web parity): the
   // CLIENT weight chart line is gold on the phone and teal on the tablet.
+  // Reviewer LOW (TRAINER-CLIENTS:631): teal only at 768 ≤ w < 1280.
   it.each([
     [390, colors.gold],
     [834, colors.chartLine],
+    [1366, colors.gold],
   ])('the client weight chart at %s draws its line in %s', async (width, color) => {
     setWindow(width);
     listClientWeightLogs.mockResolvedValue(LOGS);

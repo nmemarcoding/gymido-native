@@ -11,7 +11,7 @@ import { CAP_BODY, useLargeTextReflow } from '../../../../shared/components/larg
 import Loader from '../../../../shared/components/Loader';
 import PillButton from '../../../../shared/components/PillButton';
 import { formatDateWithOffset } from '../../../../shared/time/format';
-import { colors, font, gradients, radii, spacing, textScale, typography } from '../../../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, radii, spacing, textScale, typography } from '../../../../shared/theme/tokens';
 import { listClientWeightLogs } from '../api/clientsApi';
 import { formatSigned, formatWeight, weightDelta } from '../clientFormat';
 import { chartUnit, logsSince } from '../weightChartData';
@@ -149,7 +149,8 @@ export default function WeightHistoryModal({ isOpen, clientUserId, profile, onCl
           {/* UX M ruling 1: the dashed goal line from the client's goal
               (the label below). Still open (6n): the gold line look and the
               150 / 200 heights. */}
-          <WeightHistoryChart logs={logs} profile={profile} showGoal lineColor={tablet ? colors.chartLine : colors.gold} />
+          {/* RN-SPEC TRAINER-CLIENTS:631: teal only at 768 ≤ w < 1280; phone and ≥ 1280 gold. */}
+          <WeightHistoryChart logs={logs} profile={profile} showGoal lineColor={width >= breakpoints.md && width < breakpoints.xl ? colors.chartLine : colors.gold} />
           {goalText ? (
             <Text {...CAP_BODY} testID="weight-history-goal-label" style={[styles.goalLabel, tablet && styles.goalLabelTablet]}>
               {goalText}

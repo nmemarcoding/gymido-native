@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useKeyboardHeight } from '../../../shared/hooks/useKeyboardHeight';
+import { useKeyboardOverlap } from '../../../shared/hooks/useKeyboardHeight';
 import { colors, radii, spacing } from '../../../shared/theme/tokens';
 import { findFacets } from '../exerciseFilters';
 import ExerciseFilterList, { FilterFindField } from './ExerciseFilterList';
@@ -27,8 +27,9 @@ export default function ExerciseFilterPanel({ facets, filters, onSelect, loading
   const shown = useMemo(() => findFacets(facets, query), [facets, query]);
   const variantB = facets.equipment !== null;
   const insets = useSafeAreaInsets();
-  const keyboardHeight = useKeyboardHeight();
-  const bottomInset = keyboardHeight > 0 ? keyboardHeight : insets.bottom;
+  // The part of the window the keyboard covers (a floating keyboard: none).
+  const keyboardOverlap = useKeyboardOverlap();
+  const bottomInset = keyboardOverlap > 0 ? keyboardOverlap : insets.bottom;
   return (
     <View testID="exercises-filter-panel-frame" style={[styles.frame, { paddingBottom: PANEL_GAP + bottomInset }, style]}>
       <View testID="exercises-filter-panel" style={[styles.panel, { width: width >= 1280 ? 280 : 256 }]}>
@@ -52,6 +53,9 @@ export default function ExerciseFilterPanel({ facets, filters, onSelect, loading
 
 // UX T62 §5: top 24, max height viewport − 48 (24 under the card too).
 const PANEL_GAP = spacing[6];
+// Reviewer LOW: never shorter than its padding + the find field (44) + 8 +
+// one row (44), so the find field and a result always show.
+const PANEL_MIN_HEIGHT = 16 + 44 + spacing[2] + 44 + 16;
 
 const styles = StyleSheet.create({
   // As tall as the results row (the row stretches it); the card hugs its
@@ -64,6 +68,7 @@ const styles = StyleSheet.create({
   panel: {
     alignSelf: 'flex-start',
     flexShrink: 1,
+    minHeight: PANEL_MIN_HEIGHT,
     borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: colors.hairline,

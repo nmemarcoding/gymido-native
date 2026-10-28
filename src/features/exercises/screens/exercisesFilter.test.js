@@ -29,8 +29,9 @@ jest.mock('@react-navigation/native', () => {
 jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn(() => Promise.resolve()) }));
 let mockInsets = { top: 0, bottom: 0, left: 0, right: 0 };
 let mockKeyboard = 0;
+let mockOverlap = 0;
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => mockInsets }));
-jest.mock('../../../shared/hooks/useKeyboardHeight', () => ({ useKeyboardHeight: () => mockKeyboard }));
+jest.mock('../../../shared/hooks/useKeyboardHeight', () => ({ useKeyboardHeight: () => mockKeyboard, useKeyboardOverlap: () => mockOverlap }));
 jest.mock('../api/exercisesApi', () => ({ listExercisesPage: jest.fn(), listEquipmentTypes: jest.fn(), listMuscleGroups: jest.fn() }));
 jest.mock('../../shell/AppHeader', () => () => null);
 jest.mock('../../shell/TabletFrame', () => ({ children }) => children);
@@ -80,6 +81,7 @@ beforeEach(() => {
   mockFontScale = 1;
   mockInsets = { top: 0, bottom: 0, left: 0, right: 0 };
   mockKeyboard = 0;
+  mockOverlap = 0;
   listExercisesPage.mockResolvedValue({ items: ITEMS, pagination: { total_pages: 1 } });
   listEquipmentTypes.mockResolvedValue(TYPES);
   listMuscleGroups.mockResolvedValue([]);
@@ -667,10 +669,13 @@ describe('T-62 final audit: panel insets + keyboard, the search field, the sheet
     expect(flat(frame(tree.root))).toMatchObject({ marginLeft: 20, marginRight: 4 });
   });
 
-  it('panel: an open keyboard replaces the bottom inset, so the card (find field + its own list) ends 24 above the keyboard', async () => {
+  // DECLARED (reviewer LOW): the panel uses the keyboard's OVERLAP with the
+  // window (was its full height).
+  it('panel: the keyboard overlap replaces the bottom inset, so the card (find field + its own list) ends 24 above the keyboard', async () => {
     mockWidth = 1280;
     mockInsets = { top: 24, bottom: 48, left: 0, right: 0 };
     mockKeyboard = 320;
+    mockOverlap = 320;
     const tree = await render();
     expect(flat(frame(tree.root)).paddingBottom).toBe(24 + 320);
     // The find field stays at the top of the card, outside the list's scroll.
@@ -678,6 +683,21 @@ describe('T-62 final audit: panel insets + keyboard, the search field, the sheet
     expect(scroll.findAll((node) => node.props.testID === 'exercise-filter-find')).toHaveLength(0);
     expect(hosts(panel(tree.root), 'exercise-filter-find')).toHaveLength(1);
     expect(flat(host(tree.root, 'exercise-filter-find-box')).flexShrink ?? 0).toBe(0);
+  });
+
+  it('panel: an open keyboard that does not overlap the window (floating / short window) does not shrink it', async () => {
+    mockWidth = 1280;
+    mockInsets = { top: 24, bottom: 48, left: 0, right: 0 };
+    mockKeyboard = 320;
+    mockOverlap = 0;
+    const tree = await render();
+    expect(flat(frame(tree.root)).paddingBottom).toBe(24 + 48);
+  });
+
+  it('panel: the card never shrinks below the find field + one row (minHeight 128)', async () => {
+    mockWidth = 1280;
+    const tree = await render();
+    expect(flat(panel(tree.root)).minHeight).toBe(128);
   });
 
   it.each([
