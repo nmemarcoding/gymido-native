@@ -105,13 +105,26 @@ describe('loadWorkoutPage: T-81 completed workouts for the /week dates', () => {
     expect(result.data).toMatchObject({ completedThisWeek: fresh, completedThisWeekDayIds: [8] });
   });
 
-  it('a failed /week keeps the local-week list; a failed refetch is an empty list, never a failed page', async () => {
+  // DECLARED (T-74, T-81 reviewer carry): the title said "a failed refetch is an empty list"; a failed refetch now
+  // keeps the device-range list (as web).
+  it('a failed /week keeps the local-week list; a failed refetch keeps the local-week list too, never a failed page', async () => {
     const calls = api({ getCurrentWeek: jest.fn(() => fail(500)) });
     expect((await loadWorkoutPage({ api: calls, now: new Date(2026, 9, 22) })).data.completedThisWeekDayIds).toEqual([7]);
     expect(calls.listCompletedWorkouts).toHaveBeenCalledTimes(1);
     const failing = jest.fn(({ startDate }) => (startDate === '2026-10-26' ? fail(500) : Promise.resolve([{ workout_plan_day_id: 7 }])));
     const result = await loadWorkoutPage({ api: api({ getCurrentWeek: jest.fn(() => Promise.resolve(weekFrom(NEXT_WEEK))), listCompletedWorkouts: failing }), now: new Date(2026, 9, 22) });
     expect(result.ok).toBe(true);
+    // DECLARED (T-74): was toMatchObject({ completedThisWeek: [], completedThisWeekDayIds: [] }); web keeps the
+    // device-range items when the /week-dates re-read fails, so the ✓ Done ids and the done-by-date still load.
+    expect(failing.mock.calls).toEqual([[{ startDate: '2026-10-19', endDate: '2026-10-25' }], [{ startDate: '2026-10-26', endDate: '2026-11-01' }]]);
+    expect(result.data).toMatchObject({ completedThisWeek: [{ workout_plan_day_id: 7 }], completedThisWeekDayIds: [7] });
+  });
+
+  it('a failed refetch with a failed local list too: an empty list, never a failed page', async () => {
+    const calls = api({ getCurrentWeek: jest.fn(() => Promise.resolve(weekFrom(NEXT_WEEK))), listCompletedWorkouts: jest.fn(() => fail(500)) });
+    const result = await loadWorkoutPage({ api: calls, now: new Date(2026, 9, 22) });
+    expect(result.ok).toBe(true);
+    expect(calls.listCompletedWorkouts).toHaveBeenCalledTimes(2);
     expect(result.data).toMatchObject({ completedThisWeek: [], completedThisWeekDayIds: [] });
   });
 });

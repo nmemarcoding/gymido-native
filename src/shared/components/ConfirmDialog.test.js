@@ -127,6 +127,19 @@ describe('ConfirmDialog (v2 §6)', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  // T-82 b: `cancelDisabled` (opt-in) draws Cancel disabled while a request
+  // runs; the confirm button and every other prop are unchanged.
+  it('cancelDisabled: Cancel is drawn disabled (PillButton disabled, a11y disabled); default false; confirm unchanged', () => {
+    const plain = render(dialog());
+    expect(button(plain, 'confirm-cancel').props.disabled).toBe(false);
+    expect(host(plain, 'confirm-cancel').props.accessibilityState).toMatchObject({ disabled: false });
+    const busy = render(dialog({ cancelDisabled: true, dismissible: false, loading: true }));
+    expect(button(busy, 'confirm-cancel').props.disabled).toBe(true);
+    expect(host(busy, 'confirm-cancel').props.accessibilityState).toMatchObject({ disabled: true });
+    expect(button(busy, 'confirm-confirm').props).toMatchObject({ loading: true });
+    expect(button(busy, 'confirm-confirm').props.disabled).toBeUndefined();
+  });
+
   it('takes explicit button testIDs, a custom cancel label and children', () => {
     const tree = render(
       dialog({ cancelTestID: 'keep', confirmTestID: 'go', cancelLabel: 'Keep going', children: <Text testID="extra">Extra</Text> }),

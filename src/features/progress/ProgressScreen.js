@@ -250,6 +250,8 @@ function Progress() {
           tone="danger"
           loading={deleting}
           dismissible={!deleting}
+          // T-82 b: Cancel is drawn disabled while the delete runs.
+          cancelDisabled={deleting}
         >
           {deleteError ? (
             <Text testID="delete-workout-error" {...CAP_BODY} accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.deleteError}>

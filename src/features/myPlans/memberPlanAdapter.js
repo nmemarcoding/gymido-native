@@ -1,5 +1,5 @@
 import { createPlanWrites } from '../trainer/plans/api/plansApi';
-import { getTrainerPlanCapabilities } from '../trainer/plans/trainerPlanBuilder';
+import { getTrainerPlanCapabilities, openListAfterDelete } from '../trainer/plans/trainerPlanBuilder';
 import { copyToMyPlans, getMyPlan } from './api/myPlansApi';
 import { myPlanRoutes } from './myPlanRoutes';
 
@@ -54,9 +54,10 @@ export function createMemberPlanAdapter(planId, ui = {}) {
     backLinkHitArea: true,
     // T-65 (PHONE-NAV spec §3): "‹ My plans" goes back, else replaces to this parent.
     backPath: '/plans/mine',
-    // T-79: back to the list already in the stack (the deleted plan leaves
-    // the history); a deep link replaces the deleted plan with the list.
-    openAfterDelete: (navigation) => navigation.popTo(myPlanRoutes.MyPlans),
+    // T-79 / T-74 (web parity): back to My plans when it is below in the
+    // stack, else back (e.g. to the Plans library), else replace with it; the
+    // deleted plan leaves the history (openListAfterDelete).
+    openAfterDelete: (navigation) => openListAfterDelete(navigation, myPlanRoutes.MyPlans),
     openCreate: (navigation) => navigation.push(myPlanRoutes.MyPlanCreate),
     // §M5 / C10: the copy's builder (named before it was created; no dialog
     // opens there); T-16: no id → My plans.

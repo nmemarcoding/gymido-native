@@ -34,6 +34,10 @@ export default function ConfirmDialog({
   // T-80 (opt-in; UX, web parity): the gold play tile above the title (phone
   // 56 r16 centred with a 20 glyph; tablet 72 r18 left with a 24 glyph).
   playTile = false,
+  // T-82 b (opt-in, default false): Cancel is DRAWN disabled (PillButton
+  // `disabled`: dimmed, accessibilityState disabled) while a request runs.
+  // Pair it with `dismissible` false, which also blocks the scrim and back.
+  cancelDisabled = false,
 }) {
   const close = () => {
     if (dismissible) {
@@ -57,7 +61,7 @@ export default function ConfirmDialog({
       tile={playTile ? renderPlayTile : undefined}
       footer={
         <ModalActions>
-          <PillButton testID={cancelTestID ?? (testID ? `${testID}-cancel` : undefined)} title={cancelLabel} variant="secondary" onPress={close} />
+          <PillButton testID={cancelTestID ?? (testID ? `${testID}-cancel` : undefined)} title={cancelLabel} variant="secondary" disabled={cancelDisabled} onPress={close} />
           <PillButton
             testID={confirmTestID ?? (testID ? `${testID}-confirm` : undefined)}
             title={confirmLabel}

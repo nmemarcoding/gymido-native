@@ -297,6 +297,7 @@ describe('T-82 Recent workouts ⋯ → delete', () => {
   it('single-flight: a second tap while deleting does nothing; Cancel / dismissal are blocked; "Deleting…" + busy', async () => {
     const tree = await renderActivity();
     await openConfirm(tree);
+    expect(dialog(tree.root).props.cancelDisabled).toBe(false);
     let resolve;
     apiClient.delete.mockReturnValue(new Promise((done) => (resolve = done)));
     let first;
@@ -308,6 +309,10 @@ describe('T-82 Recent workouts ⋯ → delete', () => {
     });
     const busy = dialog(tree.root);
     expect(busy.props).toMatchObject({ loading: true, confirmLabel: 'Deleting…', dismissible: false });
+    // T-82 b: Cancel is DRAWN disabled while the delete runs (the shared ConfirmDialog cancelDisabled).
+    expect(busy.props.cancelDisabled).toBe(true);
+    const cancelHost = tree.root.findAll((node) => node.props.testID === 'delete-workout-dialog-cancel' && typeof node.type === 'string')[0];
+    expect(cancelHost.props.accessibilityState).toMatchObject({ disabled: true });
     press(tree.root, 'delete-workout-dialog-cancel');
     act(() => busy.props.onClose());
     expect(dialog(tree.root).props.isOpen).toBe(true);

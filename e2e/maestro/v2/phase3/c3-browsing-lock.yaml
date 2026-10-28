@@ -105,19 +105,11 @@ tags:
         text: "Exercise 1 of .*"
     times: 10
     commands:
-      # A weighted set needs weight > 0 ("Weight must be greater than 0"); bodyweight sets have no field.
-      - tapOn:
-          id: "set-weight-plus-.*"
-          optional: true
-      - tapOn:
-          id: "set-action-.*"
-          text: "Did it"
-          enabled: true
-      - extendedWaitUntil:
-          notVisible:
-            id: "set-action-.*"
-            text: "Saving…"
-          timeout: 15000
+      # Weight + (centred, clear of the dock), the dock's "Did it" only (the
+      # strip's done chips share set-action-<id> and are "Undo"), the PATCH
+      # wait and the session dialogs, before and after the tap (T-69 / T-82;
+      # DECLARED, was a plain weight tap + "Did it" on any set-action-.*).
+      - runFlow: ../subflows/log-current-set.yaml
       - waitForAnimationToEnd:
           timeout: 3000
       - runFlow: ../subflows/dismiss-session-dialogs.yaml

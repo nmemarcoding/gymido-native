@@ -45,13 +45,20 @@ tags:
     timeout: 20000
 
 # Phone grid: the dashed tile is the same action (tablets have no tile).
-- scrollUntilVisible:
-    element:
-      id: "plans-create-tile"
-    direction: DOWN
-    centerElement: true
-    timeout: 15000
-    optional: true
+# Carry 4 (PM 28 Oct 2026; DECLARED): the optional scroll now runs on a phone
+# only (no tablet-rail); on a tablet it sat out its full 15 s every run.
+- runFlow:
+    when:
+      notVisible:
+        id: "tablet-rail"
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "plans-create-tile"
+          direction: DOWN
+          centerElement: true
+          timeout: 15000
+          optional: true
 - runFlow:
     when:
       visible:

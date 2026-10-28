@@ -363,7 +363,8 @@ describe('final pass 5f53f3d flow fixes', () => {
 
   it('E1: start-workout declines the notifications prompt only when visible, before the unchanged session wait', () => {
     const flow = steps(path.join(V2, 'subflows', 'start-workout.yaml'));
-    const prompt = flow.indexOf('visible: ".*[Ss]end [Yy]ou [Nn]otifications.*"\n    timeout: 6000\n    optional: true');
+    // DECLARED (T-69 batch, carry 4): timeout 6000 → 3000 (the prompt is asked at the Start tap).
+    const prompt = flow.indexOf('visible: ".*[Ss]end [Yy]ou [Nn]otifications.*"\n    timeout: 3000\n    optional: true');
     expect(prompt).toBeGreaterThan(-1);
     expect(flow).toMatch(/when:\n\s+visible: "\.\*\[Ss\]end \[Yy\]ou \[Nn\]otifications\.\*"\n\s+commands:\n\s+- tapOn: "Don\.t \[Aa\]llow"/);
     expect(prompt).toBeLessThan(flow.indexOf('id: "session-chrome"\n    timeout: 30000'));
@@ -430,7 +431,9 @@ describe('QA candidate 2941880 flow fixes', () => {
     expect(hook.indexOf('- runFlow: ../subflows/dismiss-session-dialogs.yaml')).toBeGreaterThan(-1);
     expect(hook.indexOf('- runFlow: ../subflows/dismiss-session-dialogs.yaml')).toBeLessThan(hook.indexOf('id: "session-chrome"'));
     expect(hook).toMatch(/when:\n\s+visible:\n\s+id: "session-chrome"\n\s+commands:\n\s+- runFlow: \.\.\/subflows\/discard-workout\.yaml/);
-    expect(body('phase3/03b-workout-session.yaml').trim().endsWith('- runFlow: ../subflows/discard-workout.yaml')).toBe(true);
+    // DECLARED (T-69 batch, carry 1): was "the body ends with discard-workout"; it now discards, then
+    // restores the workspace (03b switches a trainer to Personal through member-workspace).
+    expect(body('phase3/03b-workout-session.yaml')).toMatch(/- runFlow: \.\.\/subflows\/discard-workout\.yaml\n[\s\S]*- runFlow: \.\.\/subflows\/restore-workspace\.yaml\s*$/);
   });
 
   it('640 dp phone: generator-preview scrolls to Day 1 before asserting it, then back UP to the preview back', () => {
@@ -497,5 +500,231 @@ describe('T-78 member make-a-copy flow', () => {
     expect(save).toBeGreaterThan(cancel);
     expect(flow).not.toMatch(/visible:\n\s+id: "edit-plan-modal"\n\s+timeout/);
     expect(flow).not.toMatch(/id: "edit-plan-cancel"/);
+  });
+});
+
+// T-69 batch (PM 28 Oct 2026; QA candidate-dfd9b85, confirm dfd9b85 640 dp
+// re-runs, T-82 device check): short-screen stepper taps, exact set taps, the
+// session dialogs before a set tap, the Rest minimised before Exit, 03b's
+// workspace restore, ensure-signed-out on a tablet and the optional waits.
+describe('T-69 batch flow fixes', () => {
+  const ROOT = path.join(__dirname, '..', '..');
+  const read = (rel) => fs.readFileSync(path.join(V2, rel), 'utf8');
+  const steps = (src) => src.split('\n').filter((line) => !line.trim().startsWith('#')).join('\n');
+  const body = (rel) => steps(read(rel)).split('\n---\n')[1];
+  const hook = (rel) => {
+    const raw = steps(read(rel));
+    return raw.slice(raw.indexOf('onFlowComplete:'), raw.indexOf('\n---\n'));
+  };
+  const src = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+  // Every `<command>:` block of a flow: its own selector lines only (deeper
+  // indented, up to the next list item), joined.
+  const blocks = (text, command) => {
+    const lines = text.split('\n');
+    const out = [];
+    lines.forEach((line, i) => {
+      const head = line.match(new RegExp(`^(\\s*)- ${command}:\\s*$`));
+      if (!head) return;
+      const own = [];
+      for (let j = i + 1; j < lines.length; j += 1) {
+        const indent = lines[j].match(/^\s*/)[0].length;
+        if (indent <= head[1].length || /^\s*- /.test(lines[j])) break;
+        own.push(lines[j]);
+      }
+      out.push(own.join('\n'));
+    });
+    return out;
+  };
+  const taps = (text) => blocks(text, 'tapOn');
+  const LOGGERS = ['phase3/c1-rest-screen.yaml', 'phase3/c3-browsing-lock.yaml', 'phase3/c5-android-back-rest.yaml'];
+
+  describe('item 1 (T-69): 03b on a 640 dp phone', () => {
+    const flow = body('phase3/03b-workout-session.yaml');
+
+    it('centres the CURRENT set\'s weight + (the live editor) before its tap, then the reps stepper', () => {
+      expect(flow).toMatch(
+        /- scrollUntilVisible:\n\s+element:\n\s+id: "set-weight-plus-\.\*"\n\s+childOf:\n\s+id: "set-editor"\n\s+direction: DOWN\n\s+centerElement: true\n\s+timeout: 10000\n- tapOn:\n\s+id: "set-weight-plus-\.\*"\n\s+childOf:\n\s+id: "set-editor"\n- scrollUntilVisible:\n\s+element:\n\s+id: "set-reps-plus-\.\*"/
+      );
+      // No stepper is tapped without its scroll first.
+      expect(flow.indexOf('scrollUntilVisible:\n    element:\n      id: "set-weight-plus-.*"')).toBeLessThan(flow.indexOf('- tapOn:\n    id: "set-weight-plus-.*"'));
+    });
+
+    it('never taps a set action, and proves no set was logged (no Rest, the dock still offers Did it)', () => {
+      expect(taps(flow).filter((sel) => /set-action-/.test(sel))).toEqual([]);
+      const guard = flow.indexOf('- assertNotVisible:\n    id: "rest-timer"');
+      expect(guard).toBeGreaterThan(flow.indexOf('id: "set-reps-minus-.*"'));
+      expect(flow).toMatch(/- assertVisible:\n\s+id: "set-action-\.\*"\n\s+text: "Did it"\n\s+childOf:\n\s+id: "session-dock"/);
+    });
+
+    it('checks How to before the stepper scrolls move the stage off screen', () => {
+      expect(flow.indexOf('id: "how-to-open"')).toBeGreaterThan(-1);
+      expect(flow.indexOf('id: "how-to-open"')).toBeLessThan(flow.indexOf('id: "set-weight-plus-.*"'));
+    });
+
+    it('keeps its onFlowComplete cleanup: dialogs, How to, the Rest minimised, then the discard when the chrome shows', () => {
+      const h = hook('phase3/03b-workout-session.yaml');
+      const order = [
+        '- runFlow: ../subflows/dismiss-session-dialogs.yaml',
+        'id: "how-to-close"',
+        '- runFlow: ../subflows/minimize-rest.yaml',
+        'id: "session-chrome"',
+      ].map((needle) => h.indexOf(needle));
+      order.forEach((at) => expect(at).toBeGreaterThan(-1));
+      expect([...order].sort((a, b) => a - b)).toEqual(order);
+      expect(h).toMatch(/when:\n\s+visible:\n\s+id: "session-chrome"\n\s+commands:\n\s+- runFlow: \.\.\/subflows\/discard-workout\.yaml/);
+    });
+  });
+
+  describe('item 2: set taps are exact (the dock\'s Did it, never a strip chip\'s Undo)', () => {
+    it('the app still gives the strip chips and Did it the same set-action-<id>, with Did it inside session-dock', () => {
+      const parts = src('src/features/workout/runtime/RuntimeParts.js');
+      const runtime = src('src/features/workout/runtime/SessionRuntime.js');
+      expect(parts.match(/testID=\{`set-action-\$\{set\.id\}`\}/g)).toHaveLength(3);
+      expect(parts).toContain("accessibilityLabel={pending ? 'Saving…' : 'Undo'}");
+      expect(parts).toContain("const label = isPending ? 'Saving…' : 'Did it';");
+      expect(runtime.match(/testID="session-dock"/g)).toHaveLength(2);
+      expect(parts).toContain('testID="set-editor"');
+    });
+
+    it('log-current-set taps "Did it" scoped to the session dock, enabled', () => {
+      const flow = body('subflows/log-current-set.yaml');
+      expect(flow).toMatch(/- tapOn:\n\s+id: "set-action-\.\*"\n\s+text: "Did it"\n\s+enabled: true\n\s+childOf:\n\s+id: "session-dock"\n/);
+    });
+
+    it.each(FLOWS.map(rel))('%s: every set-action tap is the dock\'s Did it or an explicit Undo', (name) => {
+      taps(steps(read(name)))
+        .filter((sel) => /set-action-/.test(sel))
+        .forEach((sel) => {
+          const didIt = /text: "Did it"/.test(sel) && /childOf:\n\s+id: "session-dock"/.test(sel);
+          const undo = /text: "Undo"/.test(sel);
+          expect(didIt || undo).toBe(true);
+        });
+    });
+
+    it('the tap scan sees the set taps it checks (not vacuous)', () => {
+      expect(taps(body('subflows/log-current-set.yaml')).filter((sel) => /set-action-/.test(sel))).toHaveLength(1);
+      expect(taps(body('phase3/c3-browsing-lock.yaml')).filter((sel) => /text: "Undo"/.test(sel))).toHaveLength(1);
+      const optional = FLOWS.flatMap((file) => blocks(steps(fs.readFileSync(file, 'utf8')), 'extendedWaitUntil')).filter((b) => /optional: true/.test(b));
+      expect(optional.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it.each(LOGGERS)('%s logs its sets through log-current-set only', (name) => {
+      const flow = body(name);
+      expect(flow).toMatch(/- runFlow: \.\.\/subflows\/log-current-set\.yaml/);
+      expect(taps(flow).filter((sel) => /set-action-/.test(sel) && !/text: "Undo"/.test(sel))).toEqual([]);
+      // T-69: no bare weight tap left (it could land on the dock's Did it).
+      expect(taps(flow).filter((sel) => /set-weight-plus-/.test(sel))).toEqual([]);
+    });
+
+    it('log-current-set centres the editor\'s weight + before its tap, and waits for the PATCH after Did it', () => {
+      const flow = body('subflows/log-current-set.yaml');
+      const scroll = flow.indexOf('- scrollUntilVisible:\n    element:\n      id: "set-weight-plus-.*"\n      childOf:\n        id: "set-editor"\n    direction: DOWN\n    centerElement: true');
+      const weight = flow.indexOf('- tapOn:\n    id: "set-weight-plus-.*"\n    childOf:\n      id: "set-editor"');
+      const didIt = flow.indexOf('text: "Did it"');
+      expect(scroll).toBeGreaterThan(-1);
+      expect(weight).toBeGreaterThan(scroll);
+      expect(didIt).toBeGreaterThan(weight);
+      expect(flow.slice(didIt)).toMatch(/extendedWaitUntil:\n\s+notVisible:\n\s+id: "set-action-\.\*"\n\s+text: "Saving…"\n\s+timeout: 15000/);
+    });
+  });
+
+  describe('item 3: 03b restores the workspace', () => {
+    it('after its discard it goes back to Today (only when it switched) and runs restore-workspace', () => {
+      const flow = body('phase3/03b-workout-session.yaml');
+      expect(flow).toMatch(
+        /- runFlow: \.\.\/subflows\/discard-workout\.yaml\n- runFlow:\n\s+when:\n\s+true: \$\{output\.v2SwitchedToMember === true\}\n\s+commands:\n\s+- tapOn:\n\s+id: "workout-back-today"\n\s+- extendedWaitUntil:\n\s+visible:\n\s+id: "tab-Today\|rail-Today"\n\s+timeout: 20000\n- runFlow: \.\.\/subflows\/restore-workspace\.yaml\s*$/
+      );
+    });
+
+    it('its onFlowComplete restores too, after the discard, so a failed run leaves no trainer in Personal', () => {
+      const h = hook('phase3/03b-workout-session.yaml');
+      expect(h.indexOf('- runFlow: ../subflows/restore-workspace.yaml')).toBeGreaterThan(h.indexOf('discard-workout.yaml'));
+      expect(h).toMatch(/true: \$\{output\.v2SwitchedToMember === true\}[\s\S]*visible:\n\s+id: "workout-back-today"\n\s+commands:\n\s+- tapOn:\n\s+id: "workout-back-today"/);
+    });
+
+    it('the back pill id is rendered by the Workout hub', () => {
+      expect(src('src/features/workout/screens/WorkoutScreen.js')).toContain('testID="workout-back-today"');
+    });
+  });
+
+  describe('item 4: ensure-signed-out (ios-safe-sign-in stage 0) works on a tablet', () => {
+    const flow = steps(fs.readFileSync(path.join(V2, '..', 'subflows', 'ensure-signed-out.yaml'), 'utf8'));
+
+    it('ios-safe-sign-in stage 0 signs out through ensure-signed-out', () => {
+      expect(fs.readFileSync(path.join(V2, '..', 'ios-sign-in', 'stage-0-open-form.yaml'), 'utf8')).toMatch(/- runFlow: \.\.\/subflows\/ensure-signed-out\.yaml/);
+      expect(fs.readFileSync(path.join(__dirname, 'ios-safe-sign-in.sh'), 'utf8')).toMatch(/stage stage-0-open-form \|\| finish 1/);
+    });
+
+    it('a trainer on the rail switches to Personal through rail-TProfile and waits for rail-Profile', () => {
+      expect(flow).toMatch(
+        /when:\n\s+visible:\n\s+id: "rail-TProfile"\n\s+commands:\n\s+- tapOn:\n\s+id: "rail-TProfile"\n\s+- scrollUntilVisible:\n\s+element:\n\s+id: "mode-switch-member"\n[\s\S]*?- tapOn:\n\s+id: "mode-switch-member"\n\s+- extendedWaitUntil:\n\s+visible:\n\s+id: "rail-Profile"/
+      );
+    });
+
+    it('a member on the rail opens rail-Profile and scrolls to sign out, before the shared sign-out tap', () => {
+      const rail = flow.search(/when:\n\s+visible:\n\s+id: "rail-Profile"\n\s+commands:\n\s+- tapOn:\n\s+id: "rail-Profile"\n\s+- scrollUntilVisible:\n\s+element:\n\s+id: "settings-sign-out"/);
+      expect(rail).toBeGreaterThan(-1);
+      expect(rail).toBeLessThan(flow.indexOf('- tapOn:\n          id: "settings-sign-out"'));
+      // The phone branches are unchanged and still come first.
+      expect(flow.indexOf('id: "tab-TProfile"')).toBeLessThan(flow.indexOf('id: "rail-TProfile"'));
+      expect(flow.indexOf('id: "tab-Profile"\n    commands:')).toBeLessThan(rail);
+    });
+  });
+
+  describe('item 5 (carry 4): optional waits cost less', () => {
+    it('generator-preview waits for EITHER outcome, not optionally for the plan name alone', () => {
+      const flow = steps(read('phase4/generator-preview.yaml'));
+      expect(flow).toMatch(/- extendedWaitUntil:\n\s+visible:\n\s+id: "generator-plan-name\|generator-not-feasible"\n\s+timeout: 45000\n- runFlow:/);
+      expect(flow).not.toMatch(/id: "generator-plan-name"\n\s+timeout: 45000\n\s+optional: true/);
+    });
+
+    it('6o-01 runs the optional create-tile scroll on a phone only', () => {
+      expect(steps(read('phase6/6o-01-trainer-plans-browse.yaml'))).toMatch(
+        /- runFlow:\n\s+when:\n\s+notVisible:\n\s+id: "tablet-rail"\n\s+commands:\n\s+- scrollUntilVisible:\n\s+element:\n\s+id: "plans-create-tile"/
+      );
+    });
+
+    it('no v2 optional extendedWaitUntil waits longer than 3 s, and the dialog wait after a set runs only with a Rest up', () => {
+      FLOWS.forEach((file) => {
+        blocks(steps(fs.readFileSync(file, 'utf8')), 'extendedWaitUntil')
+          .filter((block) => /optional: true/.test(block))
+          .forEach((block) => expect(Number(block.match(/timeout: (\d+)/)[1])).toBeLessThanOrEqual(3000));
+      });
+      expect(body('subflows/log-current-set.yaml')).toMatch(
+        /when:\n\s+visible:\n\s+id: "rest-timer"\n\s+commands:\n\s+- extendedWaitUntil:\n\s+visible:\n\s+id: "exact-alarm-dialog\|speak-intro-dialog"\n\s+timeout: 1500\n\s+optional: true/
+      );
+    });
+  });
+
+  describe('item 6: the Android exact-alarm dialog is dismissed BEFORE every set tap', () => {
+    it('dismiss-session-dialogs taps the exact-alarm "Not now" by id, and the app renders those ids', () => {
+      expect(body('subflows/dismiss-session-dialogs.yaml')).toMatch(/when:\n\s+visible:\n\s+id: "exact-alarm-dialog"\n\s+commands:\n\s+- tapOn:\n\s+id: "exact-alarm-not-now"/);
+      const overlays = src('src/features/workout/runtime/RuntimeOverlays.js');
+      ['exact-alarm-dialog', 'exact-alarm-not-now', 'speak-intro-dialog', 'speak-intro-keep-on', 'rest-timer-minimize'].forEach((id) => expect(overlays).toContain(`testID="${id}"`));
+    });
+
+    it('log-current-set runs it right before the Did it tap (after the weight tap) and again after', () => {
+      const flow = body('subflows/log-current-set.yaml');
+      const didIt = flow.indexOf('- tapOn:\n    id: "set-action-.*"');
+      const before = flow.slice(0, didIt).trimEnd();
+      expect(before.endsWith('- runFlow: dismiss-session-dialogs.yaml')).toBe(true);
+      expect(flow.trim().endsWith('- runFlow: dismiss-session-dialogs.yaml')).toBe(true);
+      expect(flow.startsWith('- runFlow: dismiss-session-dialogs.yaml\n')).toBe(true);
+    });
+  });
+
+  describe('item 7: the Rest is minimised before every session-exit tap', () => {
+    it('minimize-rest taps rest-timer-minimize only when it is visible', () => {
+      expect(body('subflows/minimize-rest.yaml')).toMatch(/^- runFlow:\n\s+when:\n\s+visible:\n\s+id: "rest-timer-minimize"\n\s+commands:\n\s+- tapOn:\n\s+id: "rest-timer-minimize"/);
+    });
+
+    it.each(FLOWS.map(rel))('%s: every session-exit tap follows minimize-rest', (name) => {
+      const flow = steps(read(name));
+      const re = /- tapOn:\n\s+id: "session-exit"/g;
+      let m;
+      while ((m = re.exec(flow))) {
+        expect(flow.slice(0, m.index).trimEnd()).toMatch(/- runFlow: (?:\.\.\/subflows\/)?minimize-rest\.yaml$/);
+      }
+    });
   });
 });

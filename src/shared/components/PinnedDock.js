@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePhoneTabBar, useScreenFocused } from '../../features/shell/phoneTabBar';
 import { usePhoneChromeStore } from '../../features/shell/phoneChromeStore';
 import { TAB_BAR_CLEARANCE } from '../../features/shell/tabBarMetrics';
+import { useKeyboardOverlap } from '../hooks/useKeyboardHeight';
 import { breakpoints, colors, gradients, spacing } from '../theme/tokens';
 import GradientFill from './GradientFill';
 import { BUTTON_HEIGHTS } from './PillButton';
@@ -34,6 +35,13 @@ import { BUTTON_HEIGHTS } from './PillButton';
 // dock reports an ESTIMATE (fade + the body's top padding + `estimate`, the
 // screen's buttons, + the bottom room), before the first paint, so no frame
 // shows content under the dock while the page's scroll room is unknown.
+// `liftWithKeyboard` (opt-in; T-74, QA L1 candidate 2941880): while the
+// keyboard covers the window, the buttons sit DOCK_TAB_BAR_GAP above its top
+// edge (the overlap, as AppModal lifts its footer) instead of over the tab bar
+// / safe area, so a form's dock (trainer Create plan) stays visible above the
+// keyboard. The page's scroll room (`onHeight`) stays the un-lifted height:
+// iOS already insets the scroll by the keyboard and ShellPage pads Android by
+// the overlap, so the lift is not counted twice. The toasts get the full one.
 export const DOCK_FADE_HEIGHT = 32;
 export const DOCK_TAB_BAR_GAP = 12;
 // 21rem: below it the pair stacks, gold 52 over glass 52, gap 10.
@@ -48,6 +56,15 @@ export function dockButtonsHeight({ rows = 1, buttonHeight = BUTTON_HEIGHTS.defa
   return rows * buttonHeight + (rows - 1) * gap;
 }
 
+// The extra bottom padding that lifts the buttons above an open keyboard
+// (0 when closed, or when the normal padding already clears it).
+export function dockKeyboardLift({ keyboardOverlap = 0, paddingBottom = 0 }) {
+  if (!(keyboardOverlap > 0)) {
+    return 0;
+  }
+  return Math.max(0, keyboardOverlap + DOCK_TAB_BAR_GAP - paddingBottom);
+}
+
 export function dockBottomPadding({ width, insetBottom = 0, overTabBar = true, bottomGap = 0, innerPage = false }) {
   if (width < breakpoints.md) {
     if (overTabBar) {
@@ -60,7 +77,7 @@ export function dockBottomPadding({ width, insetBottom = 0, overTabBar = true, b
   return insetBottom + bottomGap;
 }
 
-export default function PinnedDock({ children, testID = 'pinned-dock', onHeight, overTabBar, bottomGap = 0, contentStyle, estimate = dockButtonsHeight() }) {
+export default function PinnedDock({ children, testID = 'pinned-dock', onHeight, overTabBar, bottomGap = 0, contentStyle, estimate = dockButtonsHeight(), liftWithKeyboard = false }) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const phoneTabBar = usePhoneTabBar();
@@ -72,6 +89,8 @@ export default function PinnedDock({ children, testID = 'pinned-dock', onHeight,
     bottomGap,
     innerPage: derived && !phoneTabBar,
   });
+  const keyboardOverlap = useKeyboardOverlap();
+  const lift = liftWithKeyboard ? dockKeyboardLift({ keyboardOverlap, paddingBottom }) : 0;
   const body = StyleSheet.flatten(contentStyle) ?? {};
   const seed = DOCK_FADE_HEIGHT + (body.paddingTop ?? body.paddingVertical ?? body.padding ?? 0) + estimate + paddingBottom;
   const measured = useRef(false);
@@ -81,7 +100,7 @@ export default function PinnedDock({ children, testID = 'pinned-dock', onHeight,
       onHeight?.(seed);
     }
   }, [onHeight, seed]);
-  usePublishedDock(height ?? seed);
+  usePublishedDock(height ?? seed + lift);
   return (
     <View
       testID={testID}
@@ -90,13 +109,14 @@ export default function PinnedDock({ children, testID = 'pinned-dock', onHeight,
       onLayout={(event) => {
         measured.current = true;
         setHeight(event.nativeEvent.layout.height);
-        onHeight?.(event.nativeEvent.layout.height);
+        // The scroll room leaves the keyboard lift out (see liftWithKeyboard).
+        onHeight?.(Math.max(0, event.nativeEvent.layout.height - lift));
       }}
     >
       <View testID={`${testID}-fade`} pointerEvents="none" style={styles.fade}>
         <GradientFill angle={gradients.ctaBarFade.angle} colors={gradients.ctaBarFade.colors} stops={FADE_STOPS} />
       </View>
-      <View testID={`${testID}-body`} style={[styles.body, contentStyle, { paddingBottom }]}>
+      <View testID={`${testID}-body`} style={[styles.body, contentStyle, { paddingBottom: paddingBottom + lift }]}>
         {children}
       </View>
     </View>

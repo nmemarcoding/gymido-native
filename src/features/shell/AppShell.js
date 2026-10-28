@@ -67,6 +67,10 @@ const SCREENS = {
   [routes.TrainerProfile]: TrainerProfileScreen,
 };
 
+// The screen names this shell registers; shellNavigation's SHELL_SCREENS (the
+// route table) must name the same set (T-65 reviewer carry, a test checks).
+export const APP_SHELL_SCREENS = Object.freeze(Object.keys(SCREENS));
+
 // Extra screens stacked above a tab's root (5-tab nav, 23 Oct): Workout only
 // in the Today stack, the trainer hub only in the Profile stack.
 const STACK_EXTRAS = {

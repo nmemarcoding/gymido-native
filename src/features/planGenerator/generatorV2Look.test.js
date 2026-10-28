@@ -998,4 +998,51 @@ describe('G1 generator exit above the preview (no step ↔ preview loop)', () =>
     expect(mockNavigation.push).not.toHaveBeenCalled();
     expect(stack).toEqual(['PlansLibrary']);
   });
+
+  // Reviewer carry (native-final-pass-f85daeb, 1): canGoBack() is TRUE (tab
+  // history) while the preview is alone in its stack: the getState "no
+  // screen below" branch still leaves to Plans.
+  it('canGoBack true (tab history) with the preview alone in the stack → the top back and Android back leave to Plans', async () => {
+    stack = ['PlanGeneratorPreview'];
+    mockNavigation.canGoBack.mockImplementation(() => true);
+    const preview = await openPreview();
+    expect(backHandlers).toHaveLength(1);
+    await act(async () => one(preview, 'generator-preview-back').props.onPress());
+    expect(mockNavigation.push).not.toHaveBeenCalled();
+    expect(mockNavigation.goBack).not.toHaveBeenCalled();
+    expect(mockNavigation.reset).toHaveBeenCalledWith(ONLY_PLANS);
+    expect(stack).toEqual(['PlansLibrary']);
+    stack = ['PlanGeneratorPreview'];
+    let handled;
+    act(() => {
+      handled = backHandlers[0]();
+    });
+    expect(handled).toBe(true);
+    expect(mockNavigation.reset).toHaveBeenCalledTimes(2);
+    expect(stack).toEqual(['PlansLibrary']);
+  });
+
+  // T-74 carry: a top back that LEAVES reads "Plans" (the labelled back
+  // pill), never the icon named "Back to your answers".
+  it.each([
+    ['no screen below', ['PlanGeneratorPreview']],
+    ['a looping questionnaire below', ['PlansLibrary', 'PlanGenerator', 'PlanGeneratorPreview', 'PlanGenerator', 'PlanGeneratorPreview']],
+  ])('leaving (%s): the top back is the "‹ Plans" pill, no "Back to your answers" icon', async (_label, below) => {
+    stack = below;
+    const preview = await openPreview();
+    const pill = preview.root.findByType(BackPill);
+    expect(pill.props).toMatchObject({ testID: 'generator-preview-back', label: 'Plans' });
+    const link = host(preview, 'generator-preview-back');
+    expect(link.props.accessibilityRole).toBe('link');
+    expect(link.props.accessibilityLabel).toBe('Plans');
+    expect(preview.root.findAll((node) => node.type === IconButton && node.props.testID === 'generator-preview-back')).toHaveLength(0);
+    expect(preview.root.findAll((node) => node.props.accessibilityLabel === 'Back to your answers')).toHaveLength(0);
+  });
+
+  it('not leaving (a first questionnaire below): the top back stays the icon "Back to your answers", no Plans pill', async () => {
+    const preview = await openPreview();
+    const back = preview.root.find((node) => node.type === IconButton && node.props.testID === 'generator-preview-back');
+    expect(back.props.accessibilityLabel).toBe('Back to your answers');
+    expect(preview.root.findAll((node) => node.type === BackPill && node.props.testID === 'generator-preview-back')).toHaveLength(0);
+  });
 });

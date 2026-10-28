@@ -17,6 +17,27 @@ appId: com.gymido.app
           visible:
             id: "tab-Profile"
           timeout: 20000
+# Tablet (QA candidate-dfd9b85 carry 2: ios-safe-sign-in failed here on an
+# iPad): the rail instead of the tabs, the same switch as member-workspace.
+- runFlow:
+    when:
+      visible:
+        id: "rail-TProfile"
+    commands:
+      - tapOn:
+          id: "rail-TProfile"
+      - scrollUntilVisible:
+          element:
+            id: "mode-switch-member"
+          direction: DOWN
+          centerElement: true
+          timeout: 10000
+      - tapOn:
+          id: "mode-switch-member"
+      - extendedWaitUntil:
+          visible:
+            id: "rail-Profile"
+          timeout: 20000
 # Member mode (5-tab nav): the Profile tab root holds the account actions.
 - runFlow:
     when:
@@ -27,6 +48,20 @@ appId: com.gymido.app
           id: "tab-Profile"
       # On a small phone (iPhone SE) sign-out starts below the fold, so
       # scroll to it rather than wait for it.
+      - scrollUntilVisible:
+          element:
+            id: "settings-sign-out"
+          direction: DOWN
+          centerElement: true
+          timeout: 20000
+# Tablet member mode: the rail's Profile item opens the same page.
+- runFlow:
+    when:
+      visible:
+        id: "rail-Profile"
+    commands:
+      - tapOn:
+          id: "rail-Profile"
       - scrollUntilVisible:
           element:
             id: "settings-sign-out"

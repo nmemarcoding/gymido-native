@@ -1,0 +1,52 @@
+# Logs the CURRENT set of the live session ("Did it"): writes one set PATCH,
+# so only use it inside a session the flow discards (start-workout +
+# discard-workout). Shared by c1, c3 and c5.
+#
+# - The one-time session dialogs (Android's exact-alarm "Get rest alerts on
+#   time?", the speak intro) are dismissed BEFORE the set tap: one left over
+#   from the previous rest covers the dock (T-82 device check, 28 Oct 2026).
+# - T-69 (640 dp phone): the weight + stepper can sit under the pinned dock,
+#   so a plain tap on it lands on "Did it". It is scrolled to the centre first.
+# - Exact set tap: `set-action-<id>` is also every strip chip's id (a done
+#   chip is the "Undo" button), so the tap is the dock's "Did it" only.
+appId: com.gymido.app
+---
+- runFlow: dismiss-session-dialogs.yaml
+# A weighted set needs weight > 0 ("Weight must be greater than 0").
+- scrollUntilVisible:
+    element:
+      id: "set-weight-plus-.*"
+      childOf:
+        id: "set-editor"
+    direction: DOWN
+    centerElement: true
+    timeout: 10000
+- tapOn:
+    id: "set-weight-plus-.*"
+    childOf:
+      id: "set-editor"
+- runFlow: dismiss-session-dialogs.yaml
+- tapOn:
+    id: "set-action-.*"
+    text: "Did it"
+    enabled: true
+    childOf:
+      id: "session-dock"
+- extendedWaitUntil:
+    notVisible:
+      id: "set-action-.*"
+      text: "Saving…"
+    timeout: 15000
+# The exact-alarm offer / speak intro open a moment after a rest starts
+# (async permission reads), so wait briefly for one, only while a rest is up.
+- runFlow:
+    when:
+      visible:
+        id: "rest-timer"
+    commands:
+      - extendedWaitUntil:
+          visible:
+            id: "exact-alarm-dialog|speak-intro-dialog"
+          timeout: 1500
+          optional: true
+- runFlow: dismiss-session-dialogs.yaml

@@ -4,6 +4,7 @@ import { AccessibilityInfo, Pressable, StyleSheet, Text, View, findNodeHandle, u
 
 import { routes } from '../../../navigation/routes';
 import { getServerMessage } from '../../../shared/api/apiError';
+import BackPill from '../../../shared/components/BackPill';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import ErrorAlert from '../../../shared/components/ErrorAlert';
 import ExerciseImage from '../../../shared/components/ExerciseImage';
@@ -258,6 +259,7 @@ function PlanGeneratorPreview() {
               // questionnaire that refetches the profile, never goBack to the
               // stale one (its old split would be PUT again on "See my plan").
               onBack={topBack}
+              backLeaves={backLeaves}
               tablet={tablet}
               reflow={reflow}
               footer={pinned ? null : bar}
@@ -288,7 +290,7 @@ function PlanGeneratorPreview() {
 // 44/42, the split name sub-line + "Change split" pill select, featured first
 // row); tablet = TabletGeneratorPreview (plan name 60/60, the split card,
 // 120 × 92 photo rows). UX N1: the plan name is ONE server string.
-function Feasible({ preview, notice, changingSplit, onSplitChange, onOpenExercise, onBack, tablet, reflow, footer }) {
+function Feasible({ preview, notice, changingSplit, onSplitChange, onOpenExercise, onBack, backLeaves = false, tablet, reflow, footer }) {
   const splitOptions = preview.split_options ?? [];
   const weekly = weeklyVolumeRows(preview);
   const select =
@@ -311,9 +313,16 @@ function Feasible({ preview, notice, changingSplit, onSplitChange, onOpenExercis
     >
       {!tablet ? (
         <View testID="generator-preview-top-row" style={styles.topRow}>
-          <IconButton testID="generator-preview-back" accessibilityLabel={COPY.backToAnswers} onPress={onBack}>
-            {({ color }) => <ChevronLeftIcon size={20} color={color} />}
-          </IconButton>
+          {backLeaves ? (
+            // T-74 carry: when the top back LEAVES to Plans (G1: no screen
+            // below, or a looping questionnaire below), an icon named "Back
+            // to your answers" was wrong; it is the labelled "‹ Plans" pill.
+            <BackPill testID="generator-preview-back" label={COPY.previewBackPlans} onPress={onBack} />
+          ) : (
+            <IconButton testID="generator-preview-back" accessibilityLabel={COPY.backToAnswers} onPress={onBack}>
+              {({ color }) => <ChevronLeftIcon size={20} color={color} />}
+            </IconButton>
+          )}
         </View>
       ) : null}
       <View style={tablet ? null : styles.headerPhone}>

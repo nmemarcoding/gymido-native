@@ -3,6 +3,7 @@ import { act, create } from 'react-test-renderer';
 
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { NBSP } from '../../../shared/format/counts';
+import { keepSeparatorsWithText } from '../components/hub/HubDayRows';
 import { colors, radii, textScale } from '../../../shared/theme/tokens';
 import { listDayExercises } from '../../plans/api/libraryApi';
 import { openShellPath } from '../../shell/shellLinks';
@@ -65,6 +66,8 @@ jest.mock('../api/workoutApi', () => ({ startWorkout: jest.fn(() => Promise.reso
 jest.mock('../runtime/restAlertPlatform', () => ({ getPermission: jest.fn(() => Promise.resolve('granted')), requestPermission: jest.fn(() => Promise.resolve('granted')) }));
 
 const s = (text) => text.replace(/(\d) /g, `$1${NBSP}`);
+// T-74: a row's meta keeps each "·" with the text before it (NBSP + "· ").
+const m = (text) => s(text).replace(/ · /g, `${NBSP}· `);
 function textOf(node) {
   return []
     .concat(node.props.children)
@@ -287,8 +290,26 @@ describe('state 1: training day (main board)', () => {
     const schedule = [...SCHEDULE, { weekday: wd(6), plan_day: DAYS[0] }, { weekday: wd(4), plan_day: DAYS[3] }, { weekday: wd(2), plan_day: DAYS[3] }];
     const tree = await renderScreen(hub({ currentPlan: { ...PLAN, schedule } }));
     const all = texts(host(tree.root, 'workout-other-days'));
-    expect(all).toEqual(expect.arrayContaining([s('Thursday · 5 exercises'), s('· Saturday · 5 exercises'), s('· Tuesday · 5 exercises')]));
+    // DECLARED (T-74): was s('Thursday · 5 exercises'), s('· Saturday · 5 exercises'), s('· Tuesday · 5 exercises'). The
+    // done rows' "·" moved into the "✓ Done ·" group and each " · " is NBSP + "· " (no line starts with "·").
+    expect(all).toEqual(expect.arrayContaining([m('Thursday · 5 exercises'), m('Saturday · 5 exercises'), m('Tuesday · 5 exercises')]));
+    expect(all.filter((text) => text.startsWith('·'))).toEqual(['·', '·']);
     expect(all.filter((text) => / and /.test(text) && /day/.test(text))).toEqual([]);
+  });
+
+  // T-74 carry (iPad, large text): a wrapped done-row meta never starts a line with "·".
+  it('T-74: a done row keeps "✓ Done ·" in one group; the meta joins each "·" to the text before it with an NBSP', async () => {
+    const tree = await renderScreen();
+    const done = host(tree.root, 'workout-day-done-1');
+    expect(texts(done)).toEqual(['Done', '·']);
+    expect(hosts(done, 'workout-day-done-separator-1')).toHaveLength(1);
+    expect(flat(done)).toMatchObject({ flexDirection: 'row' });
+    expect(flat(done).flexWrap).toBeUndefined();
+    const rowTexts = texts(host(tree.root, 'workout-other-days'));
+    rowTexts.filter((text) => text.includes('·')).forEach((text) => expect(text).not.toMatch(/ ·/));
+    expect(keepSeparatorsWithText('Any day · 6 exercises')).toBe(`Any day${NBSP}· 6 exercises`);
+    expect(keepSeparatorsWithText('Mon · Tue · 3 exercises')).toBe(`Mon${NBSP}· Tue${NBSP}· 3 exercises`);
+    expect(keepSeparatorsWithText(null)).toBe('');
   });
 
   it('T-80: Start {Day} instead? on a not-done row; Cancel (every dismiss) starts nothing; Start starts it once', async () => {
@@ -435,7 +456,8 @@ describe('state 5: no schedule (C2 inline setup)', () => {
       expect.arrayContaining(['Set up your week', 'Choose the days you train. We will put each workout on a day and show you what is next.', 'Choose training days'])
     );
     expect(hosts(tree.root, 'workout-week')).toHaveLength(0);
-    expect(texts(host(tree.root, 'workout-other-days'))).toEqual(expect.arrayContaining(['Or start now', 'Tap any day to start it.', s('Any day · 6 exercises')]));
+    // DECLARED (T-74): was s('Any day · 6 exercises'); the " · " is now NBSP + "· " (m), so "·" never starts a line.
+    expect(texts(host(tree.root, 'workout-other-days'))).toEqual(expect.arrayContaining(['Or start now', 'Tap any day to start it.', m('Any day · 6 exercises')]));
   });
 
   it('"Choose training days" opens the setup in place; Cancel goes back; Save reloads', async () => {

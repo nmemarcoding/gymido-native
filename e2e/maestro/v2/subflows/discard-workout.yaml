@@ -17,6 +17,9 @@ appId: com.gymido.app
           notVisible:
             id: "exercise-sheet"
           timeout: 5000
+# QA candidate-dfd9b85 §4: an expanded Rest hides the Exit (the tap does
+# nothing), so it is minimised first.
+- runFlow: minimize-rest.yaml
 - tapOn:
     id: "session-exit"
 - extendedWaitUntil:

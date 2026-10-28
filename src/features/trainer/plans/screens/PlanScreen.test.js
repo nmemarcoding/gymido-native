@@ -616,6 +616,8 @@ describe('builder confirms (a11y ruling: alert-style, Cancel first, blocked whil
   it('T-79: a deleted plan pops to My plans (it leaves the back history), never a push', async () => {
     jest.useFakeTimers();
     mockNavigation.popTo = jest.fn();
+    // T-74 (setup only): My plans is below this builder in the stack.
+    mockNavigation.getState = jest.fn(() => ({ index: 2, routes: [{ name: 'PlansLibrary' }, { name: 'MyPlans' }, { name: 'MyPlan' }] }));
     apiClient.delete.mockReturnValueOnce(ok({ plan: { id: 9 } }));
     const tree = await renderMember();
     await press(tree, 'plan-overflow');
@@ -628,7 +630,37 @@ describe('builder confirms (a11y ruling: alert-style, Cancel first, blocked whil
     expect(mockNavigation.popTo).toHaveBeenCalledWith('MyPlans');
     expect(mockNavigation.push).not.toHaveBeenCalledWith('MyPlans');
     delete mockNavigation.popTo;
+    delete mockNavigation.getState;
     // The closed dialog's return-focus timer runs here, not after the test.
+    await act(async () => jest.runOnlyPendingTimers());
+    jest.useRealTimers();
+  });
+
+  // T-74 (T-79 carry, web parity: web goes BACK after a delete): opened from
+  // the Plans LIBRARY (no My plans below), the deleted builder goes back.
+  it('T-74: a plan opened from the Plans library goes BACK after a delete (no popTo, no replace, no push)', async () => {
+    jest.useFakeTimers();
+    mockNavigation.popTo = jest.fn();
+    mockNavigation.canGoBack = jest.fn(() => true);
+    mockNavigation.getState = jest.fn(() => ({ index: 1, routes: [{ name: 'PlansLibrary' }, { name: 'MyPlan' }] }));
+    mockNavigation.goBack.mockClear();
+    mockNavigation.replace.mockClear();
+    apiClient.delete.mockReturnValueOnce(ok({ plan: { id: 9 } }));
+    const tree = await renderMember();
+    await press(tree, 'plan-overflow');
+    await press(tree, 'plan-overflow-delete');
+    await act(async () => jest.advanceTimersByTime(OVERFLOW_HANDOFF_MS));
+    await flush();
+    await press(tree, 'plan-action-dialog-confirm');
+    await flush();
+    expect(apiClient.delete).toHaveBeenCalledWith('/my-custom-plans/9');
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.popTo).not.toHaveBeenCalled();
+    expect(mockNavigation.replace).not.toHaveBeenCalled();
+    expect(mockNavigation.push).not.toHaveBeenCalledWith('MyPlans');
+    delete mockNavigation.popTo;
+    delete mockNavigation.canGoBack;
+    delete mockNavigation.getState;
     await act(async () => jest.runOnlyPendingTimers());
     jest.useRealTimers();
   });

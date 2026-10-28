@@ -1,0 +1,17 @@
+# Minimises an EXPANDED rest timer, a no-op otherwise. The full-screen Rest
+# has no Exit of its own and hides the session behind it, so a tap on
+# session-exit does nothing while it is up (QA candidate-dfd9b85 §4 note).
+# Run it before every session-exit tap.
+appId: com.gymido.app
+---
+- runFlow:
+    when:
+      visible:
+        id: "rest-timer-minimize"
+    commands:
+      - tapOn:
+          id: "rest-timer-minimize"
+      - extendedWaitUntil:
+          notVisible:
+            id: "rest-ring-box"
+          timeout: 5000

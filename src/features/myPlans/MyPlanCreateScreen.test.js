@@ -326,6 +326,11 @@ describe('My plan create pinned dock (UX native final audit 27 Oct 2026, ruling 
     expect(flat(host(tree.root, 'create-plan-dock-body')[0].props.style)).toMatchObject({ backgroundColor: colors.ground, paddingBottom: 86 + 12 });
   });
 
+  // T-74 (QA L1): the same create form, so its dock lifts with the keyboard too.
+  it('phone: the dock lifts with the keyboard (liftWithKeyboard)', async () => {
+    expect(dockOf(await render()).props.liftWithKeyboard).toBe(true);
+  });
+
   // Reviewer carry (final batch, 27 Oct 2026): until the dock is measured the
   // scroll room is its estimate, so no frame shows content under the dock.
   it.each([

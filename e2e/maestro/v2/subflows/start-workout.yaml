@@ -92,9 +92,12 @@ appId: com.gymido.app
 # E1 (final pass 5f53f3d): on a fresh install the first start asks for
 # notifications (iOS: “Gymido” Would Like to Send You Notifications), which
 # covers the session. Optional, when visible only: declined, nothing changes.
+# Carry 4 (PM 28 Oct 2026; DECLARED, was 6000): the prompt is asked at the
+# Start tap itself (WorkoutScreen handleStart), so 3 s is ample, and the
+# session-chrome wait below (30 s) still covers a slow session.
 - extendedWaitUntil:
     visible: ".*[Ss]end [Yy]ou [Nn]otifications.*"
-    timeout: 6000
+    timeout: 3000
     optional: true
 - runFlow:
     when:

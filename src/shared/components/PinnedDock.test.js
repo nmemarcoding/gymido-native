@@ -4,7 +4,7 @@ import { act, create } from 'react-test-renderer';
 import { TAB_BAR, TAB_BAR_CLEARANCE } from '../../features/shell/tabBarMetrics';
 import { colors, gradients } from '../theme/tokens';
 import GradientFill from './GradientFill';
-import PinnedDock, { DOCK_FADE_HEIGHT, DOCK_STACK_BELOW, DOCK_TAB_BAR_GAP, dockBottomPadding, dockButtonsHeight, dockStacks } from './PinnedDock';
+import PinnedDock, { DOCK_FADE_HEIGHT, DOCK_STACK_BELOW, DOCK_TAB_BAR_GAP, dockBottomPadding, dockButtonsHeight, dockKeyboardLift, dockStacks } from './PinnedDock';
 
 // UX native final audit 27 Oct 2026, ruling 1 (+ the GENERATOR-FADE ruling):
 // ONE dock layer for every pinned footer. It runs from 32 above the top button
@@ -15,6 +15,8 @@ import PinnedDock, { DOCK_FADE_HEIGHT, DOCK_STACK_BELOW, DOCK_TAB_BAR_GAP, dockB
 let mockInsets = { top: 0, bottom: 34, left: 0, right: 0 };
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => mockInsets }));
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({ __esModule: true, default: jest.fn() }));
+let mockOverlap = 0;
+jest.mock('../hooks/useKeyboardHeight', () => ({ useKeyboardOverlap: () => mockOverlap }));
 
 const host = (tree, id) => tree.root.findAll((node) => node.props.testID === id && typeof node.type === 'string')[0];
 const flat = (node) => StyleSheet.flatten(node.props.style) ?? {};
@@ -33,6 +35,7 @@ function render(props = {}) {
 
 beforeEach(() => {
   mockInsets = { top: 0, bottom: 34, left: 0, right: 0 };
+  mockOverlap = 0;
   useWindowDimensions.mockReturnValue({ width: 390, height: 844, scale: 3, fontScale: 1 });
 });
 
@@ -127,5 +130,42 @@ describe('PinnedDock (UX native final audit 27 Oct 2026, ruling 1)', () => {
     expect(dockStacks(320)).toBe(true);
     expect(dockStacks(336)).toBe(false);
     expect(dockStacks(390)).toBe(false);
+  });
+});
+
+// T-74 (QA L1, candidate 2941880): the trainer Create plan keyboard covered
+// the docked Cancel / "Create and add days". `liftWithKeyboard` (opt-in) puts
+// the buttons 12 above the keyboard's top edge (its overlap with the window).
+describe('PinnedDock liftWithKeyboard (T-74, QA L1)', () => {
+  it('keyboard open (overlap 336): the buttons end 12 above its top; closed: back over the tab bar', () => {
+    mockOverlap = 336;
+    expect(flat(host(render({ liftWithKeyboard: true }), 'dock-body')).paddingBottom).toBe(336 + 12);
+    mockOverlap = 0;
+    expect(flat(host(render({ liftWithKeyboard: true }), 'dock-body')).paddingBottom).toBe(34 + TAB_BAR_CLEARANCE + 12);
+  });
+
+  it('opt-in: without the prop an open keyboard changes nothing (the session dock and the others)', () => {
+    mockOverlap = 336;
+    expect(flat(host(render(), 'dock-body')).paddingBottom).toBe(34 + TAB_BAR_CLEARANCE + 12);
+    expect(flat(host(render({ overTabBar: false, bottomGap: 28 }), 'dock-body')).paddingBottom).toBe(34 + 28);
+  });
+
+  it('the page scroll room leaves the lift out (iOS insets the scroll, Android ShellPage pads by the overlap); the toasts get the full height', () => {
+    mockOverlap = 336;
+    const onHeight = jest.fn();
+    const tree = render({ onHeight, liftWithKeyboard: true });
+    // The seed is the un-lifted estimate.
+    expect(onHeight).toHaveBeenLastCalledWith(DOCK_FADE_HEIGHT + 52 + dockBottomPadding({ width: 390, insetBottom: 34 }));
+    const lift = 336 + 12 - dockBottomPadding({ width: 390, insetBottom: 34 });
+    act(() => host(tree, 'dock').props.onLayout({ nativeEvent: { layout: { height: 254 + lift } } }));
+    expect(onHeight).toHaveBeenLastCalledWith(254);
+  });
+
+  it('pure helper: the lift is the overlap + 12 past the normal padding, never negative, 0 when closed', () => {
+    expect(dockKeyboardLift({ keyboardOverlap: 0, paddingBottom: 132 })).toBe(0);
+    expect(dockKeyboardLift({ keyboardOverlap: 336, paddingBottom: 132 })).toBe(216);
+    expect(dockKeyboardLift({ keyboardOverlap: 100, paddingBottom: 132 })).toBe(0);
+    expect(dockKeyboardLift({ keyboardOverlap: 120, paddingBottom: 132 })).toBe(0);
+    expect(dockKeyboardLift({ keyboardOverlap: 121, paddingBottom: 132 })).toBe(1);
   });
 });

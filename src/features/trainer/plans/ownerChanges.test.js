@@ -90,10 +90,26 @@ describe('Part C copy', () => {
   });
 
   it('T-79: after a delete it pops to the plans list (the deleted plan leaves the back history)', () => {
-    const navigation = { popTo: jest.fn(), push: jest.fn() };
+    // T-74 (setup only): the plans list is below the builder in the stack.
+    const navigation = { popTo: jest.fn(), push: jest.fn(), getState: () => ({ index: 1, routes: [{ name: 'TrainerPlans' }, { name: 'TrainerPlan' }] }) };
     createTrainerPlanAdapter('5').openAfterDelete(navigation);
     expect(navigation.popTo).toHaveBeenCalledWith('TrainerPlans');
     expect(navigation.push).not.toHaveBeenCalled();
+  });
+
+  // T-74 (web parity): no list below → goBack when it can; else replace(list).
+  it('T-74: no plans list below → goBack when canGoBack, else replace(TrainerPlans)', () => {
+    const adapter = createTrainerPlanAdapter('5');
+    const back = { popTo: jest.fn(), goBack: jest.fn(), replace: jest.fn(), canGoBack: () => true, getState: () => ({ index: 1, routes: [{ name: 'TrainerDashboard' }, { name: 'TrainerPlan' }] }) };
+    adapter.openAfterDelete(back);
+    expect(back.goBack).toHaveBeenCalledTimes(1);
+    expect(back.popTo).not.toHaveBeenCalled();
+    expect(back.replace).not.toHaveBeenCalled();
+    const alone = { popTo: jest.fn(), goBack: jest.fn(), replace: jest.fn(), canGoBack: () => false, getState: () => ({ index: 0, routes: [{ name: 'TrainerPlan' }] }) };
+    adapter.openAfterDelete(alone);
+    expect(alone.replace.mock.calls).toEqual([['TrainerPlans']]);
+    expect(alone.goBack).not.toHaveBeenCalled();
+    expect(alone.popTo).not.toHaveBeenCalled();
   });
 
   it('uses the not-yours copy for a 404', () => {

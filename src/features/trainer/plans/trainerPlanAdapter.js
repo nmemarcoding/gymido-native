@@ -1,6 +1,6 @@
 import { routes } from '../../../navigation/routes';
 import { getTrainerPlan, probeIsOwnPlan } from './api/plansApi';
-import { canCopyTrainerPlan, createTrainerPlanMutations, getTrainerPlanCapabilities } from './trainerPlanBuilder';
+import { canCopyTrainerPlan, createTrainerPlanMutations, getTrainerPlanCapabilities, openListAfterDelete } from './trainerPlanBuilder';
 
 // C6: the plan screen is one screen driven by an adapter (loaders,
 // ownership, capabilities, mutations, text, links). This is the trainer's;
@@ -52,9 +52,10 @@ export function createTrainerPlanAdapter(planId) {
     // T-65 (PHONE-NAV spec §3, 27 Oct 2026): "‹ All plans" goes back, else
     // replaces to this parent (it pushed a fresh T1, ⚠T3-3; T1 reloads on focus).
     backPath: '/trainer/plans',
-    // T-79 (was ⚠B-3, a push): back to the list already in the stack, so the
-    // deleted plan leaves the history; a deep link replaces it with the list.
-    openAfterDelete: (navigation) => navigation.popTo(routes.TrainerPlans),
+    // T-79 (was ⚠B-3, a push) / T-74: back to the list when it is below in
+    // the stack, else back, else replace with it (openListAfterDelete), so
+    // the deleted plan leaves the history.
+    openAfterDelete: (navigation) => openListAfterDelete(navigation, routes.TrainerPlans),
     openCreate: (navigation) => navigation.push(routes.TrainerPlanCreate),
     // §CP2 / C10: a fresh T3 for the copy (named before it was created).
     openCopy: (navigation, copyId) => navigation.push(routes.TrainerPlan, { planId: copyId }),

@@ -120,6 +120,8 @@ export const COPY = Object.freeze({
   step1Hint: "Next: how long you've been lifting, days a week, session length, where you train, and anything to focus on or avoid.",
   // v2 Phase 4 J: the phone preview's back icon button; the tablet split card.
   backToAnswers: 'Back to your answers',
+  // T-74: the preview's top back when it leaves to Plans (the "‹ Plans" pill).
+  previewBackPlans: 'Plans',
   split: 'Split',
   // Review row 6 / 4 line labels (the code summary split for layout, J review).
   focusPrefix: 'Focus:',

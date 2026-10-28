@@ -9,6 +9,8 @@ tags:
 - runFlow: ../subflows/signed-in-start.yaml
 - runFlow: ../subflows/start-workout.yaml
 - runFlow: ../subflows/dismiss-session-dialogs.yaml
+# An expanded Rest would hide the Exit (QA candidate-dfd9b85 §4).
+- runFlow: ../subflows/minimize-rest.yaml
 - tapOn:
     id: "session-exit"
 - extendedWaitUntil:

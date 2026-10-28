@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import ExerciseImage from '../../../../shared/components/ExerciseImage';
 import { CAP_BODY, TITLE_TEXT } from '../../../../shared/components/largeText';
 import Spinner from '../../../../shared/components/Spinner';
+import { NBSP } from '../../../../shared/format/counts';
 import { colors, font, radii, spacing, titleTracking } from '../../../../shared/theme/tokens';
 import { CheckIcon, ChevronRightIcon } from './HubIcons';
 
@@ -27,6 +28,13 @@ export function rowPhotoSize(contentWidth, fontScale = 1) {
     return 0;
   }
   return contentWidth < 320 * fontScale ? 40 : 56;
+}
+
+// T-74 carry (iPad, large text): a wrapped meta line must never START with
+// "·". Each " · " becomes NBSP + "· ", so the separator stays on the line of
+// the text before it and a break can only fall after it.
+export function keepSeparatorsWithText(text) {
+  return String(text ?? '').replace(/ · /g, `${NBSP}· `);
 }
 
 export default function HubDayRows({ copy, rows, exercisesByDay, startingDayId, onStart, cards = false, contentWidth = 0, fontScale = 1, style }) {
@@ -118,12 +126,16 @@ function DayRow({ row, last, exercises, photoSize = 56, starting, disabled, onPr
                   <Text {...CAP_BODY} style={[styles.meta, styles.doneText]}>
                     Done
                   </Text>
+                  {/* The "·" stays with "✓ Done" (one unbreakable group). */}
+                  <Text {...CAP_BODY} testID={`workout-day-done-separator-${row.dayId}`} style={styles.meta}>
+                    ·
+                  </Text>
                 </View>
-                <Text {...CAP_BODY} style={[styles.meta, styles.metaAfter]}>{`· ${row.meta}`}</Text>
+                <Text {...CAP_BODY} style={[styles.meta, styles.metaAfter]}>{keepSeparatorsWithText(row.meta)}</Text>
               </View>
             ) : (
               <Text {...CAP_BODY} style={[styles.meta, styles.metaGap]}>
-                {row.meta}
+                {keepSeparatorsWithText(row.meta)}
               </Text>
             )}
           </View>

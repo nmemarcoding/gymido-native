@@ -19,6 +19,10 @@ tags:
 # fail and discards the session only while it is still open (after a pass the
 # flow's own discard already ended it).
 # A one-time session dialog can hide the chrome, so it is dismissed first.
+# An expanded Rest hides the chrome too (a stray "Did it" started one in the
+# dfd9b85 640 dp re-runs), so it is minimised before the check. T-69 carry 1:
+# a trainer switched to Personal is put back (restore-workspace needs a main
+# page, so the Workout hub goes back to Today first).
 onFlowComplete:
   - runFlow: ../subflows/dismiss-session-dialogs.yaml
   - runFlow:
@@ -28,12 +32,29 @@ onFlowComplete:
       commands:
         - tapOn:
             id: "how-to-close"
+  - runFlow: ../subflows/minimize-rest.yaml
   - runFlow:
       when:
         visible:
           id: "session-chrome"
       commands:
         - runFlow: ../subflows/discard-workout.yaml
+  - runFlow:
+      when:
+        true: ${output.v2SwitchedToMember === true}
+      commands:
+        - runFlow:
+            when:
+              visible:
+                id: "workout-back-today"
+            commands:
+              - tapOn:
+                  id: "workout-back-today"
+              - extendedWaitUntil:
+                  visible:
+                    id: "tab-Today|rail-Today"
+                  timeout: 20000
+  - runFlow: ../subflows/restore-workspace.yaml
 ---
 - runFlow: ../subflows/signed-in-start.yaml
 - runFlow: ../subflows/member-workspace.yaml
@@ -51,23 +72,9 @@ onFlowComplete:
 - assertVisible:
     id: "set-editor"
 
-# Steppers on the live set (weight optional: + then − back down; − at one
-# step clears). Values are not saved until "Did it".
-- tapOn:
-    id: "set-weight-plus-.*"
-# The 640 dp phone: the reps stepper sits just below the fold.
-- scrollUntilVisible:
-    element:
-      id: "set-reps-plus-.*"
-    direction: DOWN
-    centerElement: true
-    timeout: 10000
-- tapOn:
-    id: "set-reps-plus-.*"
-- tapOn:
-    id: "set-reps-minus-.*"
-
-# How to (only when the library has content for this exercise).
+# How to (only when the library has content for this exercise). DECLARED
+# (T-69): moved before the steppers; it sits on the stage, which the stepper
+# scrolls move off a short screen (the when-visible then skipped silently).
 - runFlow:
     when:
       visible:
@@ -87,6 +94,44 @@ onFlowComplete:
           timeout: 5000
       - assertVisible:
           id: "set-editor"
+
+# Steppers on the CURRENT set (the one live editor; weight optional: + only;
+# reps + then − back down). Values are not saved until "Did it".
+# T-69 (640 dp phone; DECLARED, was a plain tap): the weight + can sit under
+# the pinned dock, so a plain tap landed on "Did it" and logged a set. Each
+# stepper is scrolled to the centre of the screen before its tap.
+- scrollUntilVisible:
+    element:
+      id: "set-weight-plus-.*"
+      childOf:
+        id: "set-editor"
+    direction: DOWN
+    centerElement: true
+    timeout: 10000
+- tapOn:
+    id: "set-weight-plus-.*"
+    childOf:
+      id: "set-editor"
+# The 640 dp phone: the reps stepper sits just below the fold.
+- scrollUntilVisible:
+    element:
+      id: "set-reps-plus-.*"
+    direction: DOWN
+    centerElement: true
+    timeout: 10000
+- tapOn:
+    id: "set-reps-plus-.*"
+- tapOn:
+    id: "set-reps-minus-.*"
+# No set was logged: no Rest, and the dock still offers the current set's
+# "Did it" (a stepper tap that reached the dock would have logged it).
+- assertNotVisible:
+    id: "rest-timer"
+- assertVisible:
+    id: "set-action-.*"
+    text: "Did it"
+    childOf:
+      id: "session-dock"
 
 # Browsing: Up next (when there is a later exercise) → bar, stats, nav; Resume.
 - runFlow:
@@ -111,7 +156,9 @@ onFlowComplete:
             id: "browsing-bar"
           timeout: 5000
 
-# Exit → Discard dialog; Keep going keeps the session.
+# Exit → Discard dialog; Keep going keeps the session. An expanded Rest
+# would hide the Exit, so it is minimised first (a no-op without one).
+- runFlow: ../subflows/minimize-rest.yaml
 - tapOn:
     id: "session-exit"
 - extendedWaitUntil:
@@ -131,3 +178,16 @@ onFlowComplete:
 
 # Cleanup: discard the session this flow started.
 - runFlow: ../subflows/discard-workout.yaml
+# QA candidate-dfd9b85 carry 1: put a trainer back on the Trainer workspace
+# (a no-op for a member). The Workout hub is an inner page, so back to Today.
+- runFlow:
+    when:
+      true: ${output.v2SwitchedToMember === true}
+    commands:
+      - tapOn:
+          id: "workout-back-today"
+      - extendedWaitUntil:
+          visible:
+            id: "tab-Today|rail-Today"
+          timeout: 20000
+- runFlow: ../subflows/restore-workspace.yaml

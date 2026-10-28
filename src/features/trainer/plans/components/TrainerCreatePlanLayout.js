@@ -111,6 +111,8 @@ export default function TrainerCreatePlanLayout({ tablet, stacked = false, docke
         <PinnedDock
           testID="create-plan-dock"
           onHeight={setDockHeight}
+          // T-74 (QA L1): Cancel / Create stay visible above the keyboard.
+          liftWithKeyboard
           contentStyle={styles.dockContent}
           // Until measured: the stacked pair below 21rem, else the 54 phone pair.
           estimate={dockStacked ? dockButtonsHeight({ rows: 2 }) : dockButtonsHeight({ buttonHeight: styles.submitPhone.minHeight })}

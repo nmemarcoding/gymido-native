@@ -425,6 +425,8 @@ function CreatePlanV2({ tablet, stacked = false, docked = false, narrow = false,
         <PinnedDock
           testID="create-plan-dock"
           onHeight={setDockHeight}
+          // T-74 (QA L1): Cancel / Create stay visible above the keyboard.
+          liftWithKeyboard
           contentStyle={v2.dockContent}
           // Until measured: Create (52) over Cancel (52) below 21rem, else the 56 phone pair.
           estimate={dockStacked ? dockButtonsHeight({ rows: 2 }) : dockButtonsHeight({ buttonHeight: v2.buttonPhone.minHeight })}

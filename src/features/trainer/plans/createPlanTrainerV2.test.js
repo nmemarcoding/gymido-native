@@ -311,6 +311,12 @@ describe('Trainer plan create pinned dock (UX native final audit 27 Oct 2026, ru
     expect(mockShellProps.dockHeight).toBe(160);
   });
 
+  // T-74 (QA L1, candidate 2941880): the keyboard covered the docked buttons.
+  it('phone: the dock lifts with the keyboard (liftWithKeyboard), so Cancel / Create stay above it', async () => {
+    const tree = await render();
+    expect(dockOf(tree).props.liftWithKeyboard).toBe(true);
+  });
+
   it('tablet and large text: no dock', async () => {
     setWindow(834);
     expect(dockOf(await render())).toBeUndefined();

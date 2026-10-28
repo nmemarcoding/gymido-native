@@ -43,7 +43,10 @@ async function completedForWeek(api, completed, week, range) {
   if (weekRange.startDate === range.startDate && weekRange.endDate === range.endDate) {
     return completed;
   }
-  return nullOnAny(api.listCompletedWorkouts(weekRange));
+  // T-81 reviewer carry (native-t81-c650c0a): a failed re-read keeps the
+  // device-range list (as web), not null, so the strip's done-by-date and
+  // the "✓ Done" ids still load.
+  return api.listCompletedWorkouts(weekRange).catch(() => completed);
 }
 
 // RN-SPEC-workout §6.1: five calls in parallel with their own failure rules,

@@ -66,6 +66,11 @@ import {
   submitSearch,
 } from '../exercisesCatalog';
 
+// The tallest keyboard overlap that is only an iPad shortcuts / predictions
+// bar (a hidden software keyboard with the field still focused), not a
+// docked keyboard (UIKit's bar is about 55-72 pt; a docked keyboard 260+).
+const KEYBOARD_BAR_MAX_OVERLAP = 120;
+
 // RN-SPEC-exercises §E1 (Exercises tab root, `/exercises`). §E1.1a (T-12
 // F3): a tab press or link (a new `entry` from openShellPath) is a fresh
 // mount, so search, filter and scroll reset. A pop back from an exercise
@@ -107,7 +112,12 @@ function ExercisesCatalog() {
     // The panel unmounted (a rotation, large text) without a blur.
     setPanelFindFocused(false);
   }
-  const headerCollapsed = panelShown && panelFindFocused && keyboardOverlap > 0;
+  // T-74 (iOS iPad final pass 5f53f3d): iPad's "Hide keyboard" key leaves
+  // the field focused and only the shortcuts bar at the bottom, so the
+  // overlap stays a bar's height and the header stayed collapsed. Only a
+  // docked KEYBOARD (more than a bar) collapses it; the bar alone restores it
+  // (the panel still ends above the bar).
+  const headerCollapsed = panelShown && panelFindFocused && keyboardOverlap > KEYBOARD_BAR_MAX_OVERLAP;
   const sm = width >= breakpoints.sm;
   // The page cancels the shell's horizontal padding (web -mx-4 / ≥ 640 -mx-5)
   // and pads its own blocks with the same amount.

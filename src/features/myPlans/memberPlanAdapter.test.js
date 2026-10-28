@@ -69,7 +69,8 @@ describe('member adapter (§M3.1)', () => {
   });
 
   it('goes back and after delete to M1, and takes the UI pieces it is given', () => {
-    const navigation = { push: jest.fn(), popTo: jest.fn() };
+    // T-74 (setup only): My plans is below the builder in the stack.
+    const navigation = { push: jest.fn(), popTo: jest.fn(), getState: () => ({ index: 1, routes: [{ name: 'MyPlans' }, { name: 'MyPlan' }] }) };
     // DECLARED (T-65, PHONE-NAV spec §3): was adapter.openBack(navigation) → push('MyPlans') too. The back pill
     // goes back, else replaces to backPath (useInnerBack); openBack is gone.
     expect(adapter.backPath).toBe('/plans/mine');
@@ -83,6 +84,50 @@ describe('member adapter (§M3.1)', () => {
     const withUi = createMemberPlanAdapter('9', { renderOnHold, useExtension });
     expect(withUi.renderOnHold).toBe(renderOnHold);
     expect(withUi.useExtension).toBe(useExtension);
+  });
+});
+
+// T-74 (T-79 carry, web parity): popTo(list) when it is below in the stack;
+// else goBack when canGoBack; else replace(list).
+describe('openAfterDelete (T-74, web parity)', () => {
+  const nav = (stack, canGoBack) => ({
+    popTo: jest.fn(),
+    goBack: jest.fn(),
+    replace: jest.fn(),
+    push: jest.fn(),
+    canGoBack: jest.fn(() => canGoBack),
+    getState: () => ({ index: stack.length - 1, routes: stack.map((name) => ({ name })) }),
+  });
+  const adapter = createMemberPlanAdapter('9');
+  const calls = (navigation) => ({
+    popTo: navigation.popTo.mock.calls,
+    goBack: navigation.goBack.mock.calls.length,
+    replace: navigation.replace.mock.calls,
+    push: navigation.push.mock.calls.length,
+  });
+
+  it('My plans below in the stack → popTo(MyPlans), even with canGoBack', () => {
+    const navigation = nav(['PlansLibrary', 'MyPlans', 'MyPlan'], true);
+    adapter.openAfterDelete(navigation);
+    expect(calls(navigation)).toEqual({ popTo: [['MyPlans']], goBack: 0, replace: [], push: 0 });
+  });
+
+  it('opened from the Plans LIBRARY (no My plans below) → goBack, as web navigate(-1)', () => {
+    const navigation = nav(['PlansLibrary', 'MyPlan'], true);
+    adapter.openAfterDelete(navigation);
+    expect(calls(navigation)).toEqual({ popTo: [], goBack: 1, replace: [], push: 0 });
+  });
+
+  it('nothing to go back to (a deep link alone, canGoBack false) → replace(MyPlans)', () => {
+    const navigation = nav(['MyPlan'], false);
+    adapter.openAfterDelete(navigation);
+    expect(calls(navigation)).toEqual({ popTo: [], goBack: 0, replace: [['MyPlans']], push: 0 });
+  });
+
+  it('a My plans ABOVE the focused route (index) does not count as below', () => {
+    const navigation = { ...nav(['PlansLibrary', 'MyPlan', 'MyPlans'], true), getState: () => ({ index: 1, routes: [{ name: 'PlansLibrary' }, { name: 'MyPlan' }, { name: 'MyPlans' }] }) };
+    adapter.openAfterDelete(navigation);
+    expect(calls(navigation)).toEqual({ popTo: [], goBack: 1, replace: [], push: 0 });
   });
 });
 

@@ -902,6 +902,35 @@ describe('T-62 panel find field + keyboard: the page header collapses', () => {
     expect(collapsed(tree.root)).toBe(false);
   });
 
+  // T-74 (iOS final pass 5f53f3d, iPad): "Hide keyboard" leaves the field
+  // focused and only the shortcuts bar (a small overlap) → restored.
+  it('keyboard hidden to the iPad shortcuts bar (overlap ≤ 120) while still focused → restored; the panel still ends above the bar', async () => {
+    mockWidth = 1194;
+    mockOverlap = 300;
+    const tree = await render();
+    focusPanelFind(tree.root);
+    expect(collapsed(tree.root)).toBe(true);
+    mockOverlap = 55;
+    await rerender(tree);
+    expect(collapsed(tree.root)).toBe(false);
+    expect(hiddenFromA11y(host(tree.root, 'exercises-title'))).toBe(false);
+    expect(flat(host(tree.root, 'exercises-filter-panel-frame')).paddingBottom).toBe(24 + 55);
+    mockOverlap = 120;
+    await rerender(tree);
+    expect(collapsed(tree.root)).toBe(false);
+    mockOverlap = 121;
+    await rerender(tree);
+    expect(collapsed(tree.root)).toBe(true);
+  });
+
+  it('focus with only the shortcuts bar up (overlap 60) → NOT collapsed', async () => {
+    mockWidth = 1280;
+    mockOverlap = 60;
+    const tree = await render();
+    focusPanelFind(tree.root);
+    expect(collapsed(tree.root)).toBe(false);
+  });
+
   it('focus with overlap 0 (floating / undocked keyboard) → NOT collapsed', async () => {
     mockWidth = 1280;
     mockKeyboard = 320;
@@ -971,5 +1000,37 @@ describe('M1: a new find query scrolls the filter list to the top (no animation)
     expect(spy).not.toHaveBeenCalled();
     typeInto(find, 'tr');
     expect(spy.mock.calls).toEqual([[{ y: 0, animated: false }]]);
+  });
+
+  // Reviewer carry (native-final-dfd9b85, 1): a filter toggle keeps the same
+  // query, so it never scrolls.
+  it('phone sheet: a filter toggle with the same query does NOT scroll', async () => {
+    const tree = await render();
+    await press(tree.root, 'exercises-filter');
+    const body = scrollOf(sheet(tree.root), () => true);
+    const spy = jest.spyOn(body, 'scrollTo');
+    await press(tree.root, 'exercise-filter-muscle-Chest');
+    await press(tree.root, 'exercise-filter-equipment-1');
+    expect(spy).not.toHaveBeenCalled();
+    typeInto(() => host(tree.root, 'exercise-filter-find'), 'c');
+    expect(spy.mock.calls).toEqual([[{ y: 0, animated: false }]]);
+    await press(tree.root, 'exercise-filter-muscle-Chest');
+    expect(spy.mock.calls).toEqual([[{ y: 0, animated: false }]]);
+  });
+
+  // Reviewer carry (native-final-dfd9b85, 1): the 768–1023 tablet dialog uses
+  // the same AppModal body ScrollView.
+  it('768–1023 tablet dialog: a new query jumps the dialog body to y 0; a toggle does not', async () => {
+    mockWidth = 834;
+    const tree = await render();
+    await press(tree.root, 'exercises-filter');
+    expect(sheet(tree.root).props.size).toBe('md');
+    const body = scrollOf(sheet(tree.root), () => true);
+    const spy = jest.spyOn(body, 'scrollTo');
+    await press(tree.root, 'exercise-filter-muscle-Chest');
+    expect(spy).not.toHaveBeenCalled();
+    typeInto(() => host(tree.root, 'exercise-filter-find'), 'tr');
+    typeInto(() => host(tree.root, 'exercise-filter-find'), '');
+    expect(spy.mock.calls).toEqual([[{ y: 0, animated: false }], [{ y: 0, animated: false }]]);
   });
 });
