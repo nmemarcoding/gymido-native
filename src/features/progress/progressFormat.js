@@ -2,6 +2,8 @@ import { formatNumber, formatToGoal, formatWeight } from '../../shared/format/nu
 import { convertWeight } from '../../shared/format/weight';
 import { formatDate, formatDateWithOffset, formatDuration } from '../../shared/time/format';
 import { formatCount } from '../../shared/format/counts';
+import { isValidWeek, localDateKey } from '../plans/libraryFormat';
+import { weekdayNameOf } from '../plans/weekByDate';
 
 // Derived values of RN-SPEC-progress §PR1.2, kept apart from the screen so
 // they can be tested.
@@ -258,6 +260,9 @@ export function recentWorkoutRows(recent, missedItems, unit, memberVolume) {
   const done = (recent ?? []).map((workout, index) => ({
     key: `w${workout.id ?? index}`,
     kind: 'done',
+    // T-82: the delete action needs the id and the started_at (its week).
+    workoutId: workout.id ?? null,
+    startedAt: workout.started_at ?? null,
     title: workout.workout_plan_day?.title || 'Workout session',
     sortKey: String(workout.completed_at || workout.started_at || ''),
     when: instantMs(workout.completed_at || workout.started_at),
@@ -299,4 +304,79 @@ function localMidnightMs(date) {
     return -Infinity;
   }
   return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])).getTime();
+}
+
+// ---- T-82 (owner, 28 Oct 2026; UX T82-delete-workout-ux): delete a finished
+// workout from Recent workouts. Only THIS WEEK's rows can be deleted: the
+// row's LOCAL started_at date within /my-plans/current/week's
+// week[0].date..week[6].date. No valid /week, no id or no readable started_at
+// → not deletable (never guessed).
+
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function startedLocalDate(startedAt) {
+  if (typeof startedAt !== 'string' || !startedAt) {
+    return null;
+  }
+  const at = new Date(startedAt);
+  return Number.isNaN(at.getTime()) ? null : at;
+}
+
+export function isThisWeekRow(row, week) {
+  if (row?.kind !== 'done' || row.workoutId === null || row.workoutId === undefined || !isValidWeek(week)) {
+    return false;
+  }
+  const first = week[0]?.date;
+  const last = week[6]?.date;
+  const at = startedLocalDate(row.startedAt);
+  if (typeof first !== 'string' || typeof last !== 'string' || !at) {
+    return false;
+  }
+  const key = localDateKey(at);
+  return key >= first.slice(0, 10) && key <= last.slice(0, 10);
+}
+
+// "Monday" / "Monday, Oct 27" for the row's local started_at date.
+export function workoutWeekday(startedAt) {
+  const at = startedLocalDate(startedAt);
+  return at ? weekdayNameOf(localDateKey(at)) : '';
+}
+
+export function workoutWeekdayDate(startedAt) {
+  const at = startedLocalDate(startedAt);
+  return at ? `${weekdayNameOf(localDateKey(at))}, ${SHORT_MONTHS[at.getMonth()]} ${at.getDate()}` : '';
+}
+
+export const DELETE_COPY = Object.freeze({
+  menuTitle: 'Workout actions',
+  menuItem: 'Delete workout',
+  title: 'Delete this workout?',
+  confirm: 'Delete workout',
+  sending: 'Deleting\u2026',
+  success: 'Workout deleted.',
+  locked: "Only this week's workouts can be deleted.",
+  failed: "Couldn't delete the workout. Please try again.",
+});
+
+export function workoutActionsLabel(row) {
+  return `${DELETE_COPY.menuTitle}, ${row.title}, ${workoutWeekday(row.startedAt)}`;
+}
+
+export function deleteWorkoutBody(row) {
+  return `${row.title} on ${workoutWeekdayDate(row.startedAt)} will be removed from your history, this week's progress and your exercise records. Personal records are recalculated. This can't be undone.`;
+}
+
+// DELETE /workouts/{id} failures: 409 WORKOUT_DELETE_WEEK_LOCKED → 'locked';
+// 404 (not yours / already deleted) → 'gone'; anything else → 'failed'.
+export function deleteWorkoutOutcome(error) {
+  const status = error?.response?.status;
+  const reasons = error?.response?.data?.errors?.reason;
+  const reason = Array.isArray(reasons) ? reasons[0] : reasons;
+  if (status === 409 && reason === 'WORKOUT_DELETE_WEEK_LOCKED') {
+    return 'locked';
+  }
+  if (status === 404) {
+    return 'gone';
+  }
+  return 'failed';
 }
