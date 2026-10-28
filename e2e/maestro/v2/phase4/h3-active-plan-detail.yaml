@@ -78,4 +78,7 @@ appId: com.gymido.app
           timeout: 20000
       - tapOn:
           id: "plan-detail-back"
-      
+      - extendedWaitUntil:
+          visible:
+            id: "plans-library-screen"
+          timeout: 30000
