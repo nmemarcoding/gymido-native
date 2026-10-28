@@ -232,6 +232,20 @@ describe('state 1: training day (main board)', () => {
     expect(textOf(host(tree.root, 'workout-week-count'))).toBe('1 of 4 done');
   });
 
+  it('a week with a missed day wraps the strip to 4 columns while the card is under 352 (web 219447b5)', async () => {
+    const missed = WEEK.map((entry, index) => (index === 1 ? { ...entry, status: 'missed' } : entry));
+    const tree = await renderScreen(hub({ week: missed }));
+    const layoutCard = (width) => act(() => host(tree.root, 'workout-week').props.onLayout({ nativeEvent: { layout: { width } } }));
+    layoutCard(351);
+    expect(flat(host(tree.root, 'workout-week-strip')).flexWrap).toBe('wrap');
+    expect(flat(host(tree.root, 'workout-week-day-1')).width).toBe('25%');
+    layoutCard(352);
+    expect(flat(host(tree.root, 'workout-week-strip')).flexWrap).toBeUndefined();
+    const plain = await renderScreen();
+    act(() => host(plain.root, 'workout-week').props.onLayout({ nativeEvent: { layout: { width: 300 } } }));
+    expect(flat(host(plain.root, 'workout-week-strip')).flexWrap).toBeUndefined();
+  });
+
   it('other days: today left out (b); not done first; done last, faded, teal "Done", "Repeat"', async () => {
     const tree = await renderScreen();
     expect(texts(host(tree.root, 'workout-other-days'))).toEqual(expect.arrayContaining(['Other days', "Not feeling today's? Tap any day to start it instead."]));
@@ -425,7 +439,7 @@ describe('layout per size', () => {
     const tree = await renderScreen();
     expect(hosts(tree.root, 'workout-split')).toHaveLength(0);
     expect(flat(host(tree.root, 'workout-week-strip')).flexWrap).toBe('wrap');
-    expect(flat(host(tree.root, 'workout-week-day-1')).width).toBe('33.333%');
+    expect(flat(host(tree.root, 'workout-week-day-1')).width).toBe(`${100 / 3}%`);
   });
 
   it('no /week: the week is rebuilt from the schedule + this week\'s history (shared rule)', async () => {
