@@ -1,10 +1,13 @@
+import { BlurView } from 'expo-blur';
 import { Platform, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import ShellPage from './ShellPage';
+import StatusBarBackdrop from './StatusBarBackdrop';
 
 jest.mock('@react-navigation/native', () => ({ useRoute: () => ({ name: 'EditProfile', params: {} }) }));
-jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }) }));
+const mockInsets = { top: 0, bottom: 34, left: 0, right: 0 };
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => mockInsets }));
 jest.mock('react-native-draggable-flatlist', () => ({ NestableScrollContainer: 'NestableScrollContainer' }));
 const mockHeaderMounts = [];
 const mockHeaderProps = [];
@@ -172,5 +175,117 @@ describe('ShellPage header-actions slot (FE batch 1)', () => {
     mockHeaderProps.length = 0;
     render();
     expect(mockHeaderProps[mockHeaderProps.length - 1].headerActions).toBeUndefined();
+  });
+});
+
+// UX native final audit 27 Oct 2026, ruling 2 (rows A101, A105, C318): every
+// scrolled screen gets a status-bar backdrop, one fixed layer the height of
+// the top inset over the scroll: solid ground (#0A0B0F) with the blur where
+// it is available, the 0.96 ground on low-end Android (no blur there).
+describe('status-bar backdrop (UX native final audit 27 Oct 2026, ruling 2)', () => {
+  const backdrop = (tree) => tree.root.findAll((node) => node.props.testID === 'status-bar-backdrop' && typeof node.type === 'string');
+  const pageRoot = (tree) => tree.root.findAll((node) => node.props.testID === 'app-root' && typeof node.type === 'string')[0];
+  const { Version } = Platform;
+  const setVersion = (value) => Object.defineProperty(Platform, 'Version', { value, configurable: true });
+
+  beforeEach(() => {
+    mockInsets.top = 47;
+  });
+  afterEach(() => {
+    mockInsets.top = 0;
+    setVersion(Version);
+  });
+
+  it('phone: one backdrop, exactly the top inset tall', () => {
+    Platform.OS = 'ios';
+    const found = backdrop(render());
+    expect(found).toHaveLength(1);
+    expect(StyleSheet.flatten(found[0].props.style).height).toBe(47);
+  });
+
+  it('is fixed at the top edge across the full width, outside the scroll', () => {
+    Platform.OS = 'ios';
+    const tree = render();
+    const style = StyleSheet.flatten(backdrop(tree)[0].props.style);
+    expect(style).toMatchObject({ position: 'absolute', top: 0, left: 0, right: 0 });
+    expect(tree.root.findByType(ScrollView).findAll((node) => node.props.testID === 'status-bar-backdrop')).toHaveLength(0);
+  });
+
+  it('never takes a touch and is hidden from screen readers', () => {
+    Platform.OS = 'ios';
+    const node = backdrop(render())[0];
+    expect(node.props.pointerEvents).toBe('none');
+    expect(node.props.importantForAccessibility).toBe('no-hide-descendants');
+    expect(node.props.accessibilityElementsHidden).toBe(true);
+  });
+
+  it('sits above the scroll: drawn after the scroller in the same parent', () => {
+    Platform.OS = 'ios';
+    const tree = render();
+    const children = pageRoot(tree).props.children.filter(Boolean);
+    const scrollAt = children.findIndex((child) => child.type === ScrollView);
+    const backdropAt = children.findIndex((child) => child.type === StatusBarBackdrop);
+    expect(scrollAt).toBeGreaterThan(-1);
+    expect(backdropAt).toBeGreaterThan(scrollAt);
+  });
+
+  it('stays below the overlays: no zIndex or elevation (the tab bar, toasts and Modal windows draw over it)', () => {
+    Platform.OS = 'android';
+    setVersion(34);
+    const style = StyleSheet.flatten(backdrop(render())[0].props.style);
+    expect(style.zIndex).toBeUndefined();
+    expect(style.elevation).toBeUndefined();
+  });
+
+  it('iOS: solid ground #0A0B0F over the blur', () => {
+    Platform.OS = 'ios';
+    const node = backdrop(render())[0];
+    expect(StyleSheet.flatten(node.props.style).backgroundColor).toBe('#0A0B0F');
+    expect(node.findAllByType(BlurView)).toHaveLength(1);
+  });
+
+  it('Android 12+ (API 31): solid ground #0A0B0F over the blur', () => {
+    Platform.OS = 'android';
+    setVersion(31);
+    const node = backdrop(render())[0];
+    expect(StyleSheet.flatten(node.props.style).backgroundColor).toBe('#0A0B0F');
+    expect(node.findAllByType(BlurView)).toHaveLength(1);
+  });
+
+  it('low-end Android (below API 31): the 0.96 ground fallback and no blur', () => {
+    Platform.OS = 'android';
+    setVersion(29);
+    const node = backdrop(render())[0];
+    expect(StyleSheet.flatten(node.props.style).backgroundColor).toBe('rgba(10, 11, 15, 0.96)');
+    expect(node.findAllByType(BlurView)).toHaveLength(0);
+  });
+
+  it('tablet: the backdrop spans the content column only, never the rail column', () => {
+    Platform.OS = 'ios';
+    useWindowDimensions.mockReturnValue({ width: 834, height: 1194, scale: 2, fontScale: 1 });
+    const tree = render();
+    const column = tree.root.findAll((node) => node.props.testID === 'tablet-frame-column' && typeof node.type === 'string')[0];
+    const inColumn = column.findAll((node) => node.props.testID === 'status-bar-backdrop' && typeof node.type === 'string');
+    expect(inColumn).toHaveLength(1);
+    expect(backdrop(tree)).toHaveLength(1);
+    expect(StyleSheet.flatten(inColumn[0].props.style)).toMatchObject({ position: 'absolute', top: 0, left: 0, right: 0, height: 47 });
+    // The column starts after the 88 reserved for the rail, so left: 0 is the column's edge.
+    const frame = tree.root.findAll((node) => node.props.testID === 'tablet-frame' && typeof node.type === 'string')[0];
+    expect(StyleSheet.flatten(frame.props.style).paddingLeft).toBe(88);
+  });
+
+  it('tablet: drawn after the scroller inside the column', () => {
+    Platform.OS = 'ios';
+    useWindowDimensions.mockReturnValue({ width: 1024, height: 768, scale: 2, fontScale: 1 });
+    const tree = render();
+    const column = tree.root.findAll((node) => node.props.testID === 'tablet-frame-column' && typeof node.type === 'string')[0];
+    const children = [].concat(column.props.children).filter(Boolean);
+    expect(children.findIndex((child) => child.type === StatusBarBackdrop)).toBeGreaterThan(children.findIndex((child) => child.type === ScrollView));
+  });
+
+  it('no inset (no status bar): nothing drawn', () => {
+    Platform.OS = 'ios';
+    mockInsets.top = 0;
+    expect(backdrop(render())).toHaveLength(0);
   });
 });

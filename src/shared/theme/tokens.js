@@ -144,6 +144,9 @@ const V2_COLORS = {
   onGoldMuted: 'rgba(10, 11, 15, 0.72)',
   // Sticky bars on the ground (blur.groundBar).
   groundBar: 'rgba(10, 11, 15, 0.88)',
+  // UX native final audit 27 Oct 2026, ruling 2: the status-bar backdrop's
+  // low-end Android fallback (no blur there); elsewhere it is solid ground.
+  groundFallback: 'rgba(10, 11, 15, 0.96)',
   // The ink ladder (dark on gold): 0.08 / 0.10 tint (inkTint) / 0.30 / 0.60.
   inkFaint: 'rgba(10, 11, 15, 0.08)',
   // MT1.6 (27 Oct 2026): the ink 0.12 chip / Decline fill on the gold card.

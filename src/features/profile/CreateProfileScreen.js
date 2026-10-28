@@ -19,6 +19,7 @@ import { useReducedMotion } from '../../shared/hooks/useReducedMotion';
 import { breakpoints, colors, font, gradients, motion, radii, spacing, textScale, typography } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
 import { getScreenTab } from '../shell/shellNavigation';
+import StatusBarBackdrop from '../shell/StatusBarBackdrop';
 import { createProfile } from './api/profileApi';
 import DeleteAccountAction from './DeleteAccountAction';
 import { fetchProfile, setCreatedProfile, useProfileStore } from './profileStore';
@@ -505,6 +506,9 @@ export default function CreateProfileScreen() {
           )}
         </Animated.View>
       </ScrollView>
+      {/* UX native final audit 27 Oct 2026, ruling 2 (A101): the form scrolls
+          under the status bar, so the band gets the backdrop. */}
+      <StatusBarBackdrop />
       {tablet ? null : (
         <View
           testID="profile-cta-bar"
