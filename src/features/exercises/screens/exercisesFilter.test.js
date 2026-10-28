@@ -778,13 +778,22 @@ describe('T-62 final audit: panel insets + keyboard, the search field, the sheet
 // card below the find field, because the title, toolbar and active line sat
 // above the [panel | results] row. While the PANEL's find field is focused
 // AND the keyboard overlaps the window, that header block collapses (height
-// 0, still mounted: the H1 stays in the accessibility tree), so the panel
-// sits at the top 24 of the content area. Blur or a hidden keyboard restore
+// 0, still mounted, hidden from screen readers; a screen-reader-only H1
+// stands in), so the panel sits at the top 24 of the content area. Blur or a hidden keyboard restore
 // it; a floating keyboard (overlap 0) never collapses it.
 describe('T-62 panel find field + keyboard: the page header collapses', () => {
   const block = (root) => host(root, 'exercises-panel-header');
   const panelFind = (root) => host(host(root, 'exercises-filter-panel'), 'exercise-filter-find');
   const collapsed = (root) => (flat(block(root)) ?? {}).height === 0;
+  const hiddenFromA11y = (target) => {
+    for (let node = target; node; node = node.parent) {
+      if (node.props.importantForAccessibility === 'no-hide-descendants' || node.props.accessibilityElementsHidden) return true;
+    }
+    return false;
+  };
+  // Host Text headers reading "Exercises" that a screen reader can reach.
+  const a11yHeaders = (root) =>
+    root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && textOf(node) === 'Exercises' && !hiddenFromA11y(node));
   const focusPanelFind = (root) => act(() => panelFind(root).props.onFocus({}));
   const blurPanelFind = (root) => act(() => panelFind(root).props.onBlur({}));
   const rerender = async (tree) => {
@@ -793,7 +802,7 @@ describe('T-62 panel find field + keyboard: the page header collapses', () => {
     });
   };
 
-  it('focus with the keyboard overlapping → the header block is collapsed and the row is the top block; the H1 stays for screen readers', async () => {
+  it('focus with the keyboard overlapping → the header block is collapsed and the row is the top block; the block leaves the accessibility tree', async () => {
     mockWidth = 1280;
     const tree = await render();
     expect(collapsed(tree.root)).toBe(false);
@@ -802,27 +811,66 @@ describe('T-62 panel find field + keyboard: the page header collapses', () => {
     await rerender(tree);
     expect(collapsed(tree.root)).toBe(true);
     expect(flat(block(tree.root))).toMatchObject({ height: 0, overflow: 'hidden' });
-    // The header block, then the row: nothing else takes height above it.
+    // The header block, then the row: nothing else takes height above it
+    // (the screen-reader heading is absolute, see below).
     // (host → its View element → the content column)
     const content = block(tree.root).parent.parent;
-    expect(content.children.map((node) => node.props.testID)).toEqual(['exercises-panel-header', 'exercises-panel-row']);
-    // The H1 is still mounted and still a header; the hidden toolbar and line
-    // leave the accessibility tree while collapsed.
-    const title = host(tree.root, 'exercises-title');
-    expect(title.props.accessibilityRole).toBe('header');
-    const hiddenBox = (id) => {
-      let node = host(tree.root, id);
-      while (node && node !== block(tree.root)) {
-        if (node.props.importantForAccessibility === 'no-hide-descendants' && node.props.accessibilityElementsHidden) return true;
-        node = node.parent;
-      }
-      return false;
-    };
-    expect(hiddenBox('exercises-title')).toBe(false);
-    expect(hiddenBox('exercises-toolbar')).toBe(true);
-    expect(hiddenBox('exercises-active-line')).toBe(true);
+    const inFlow = content.children.filter((node) => (flat(node) ?? {}).position !== 'absolute');
+    expect(inFlow.map((node) => node.props.testID)).toEqual(['exercises-panel-header', 'exercises-panel-row']);
+    // The whole collapsed block leaves the accessibility tree (device, 27 Oct:
+    // TalkBack dropped the H1 inside the height-0 box anyway).
+    expect(hiddenFromA11y(host(tree.root, 'exercises-title'))).toBe(true);
+    expect(hiddenFromA11y(host(tree.root, 'exercises-toolbar'))).toBe(true);
+    expect(hiddenFromA11y(host(tree.root, 'exercises-active-line'))).toBe(true);
     // The panel keeps its keyboard frame (24 + overlap).
     expect(flat(host(tree.root, 'exercises-filter-panel-frame')).paddingBottom).toBe(24 + 320);
+  });
+
+  // v2 fix (device check a90f405, 27 Oct 2026; PM GO): with the header
+  // collapsed TalkBack found no "Exercises" heading (only the rail tab), so a
+  // screen-reader-only H1 sits OUTSIDE the collapsed box while collapsed: not
+  // visible, absolute (takes no room, the panel keeps its clearance).
+  it('collapsed → exactly ONE reachable "Exercises" header, the screen-reader-only one; expanded → ONE, the visible title', async () => {
+    mockWidth = 1280;
+    mockOverlap = 320;
+    const tree = await render();
+    expect(a11yHeaders(tree.root).map((node) => node.props.testID)).toEqual(['exercises-title']);
+    expect(hosts(tree.root, 'exercises-title-a11y')).toHaveLength(0);
+    focusPanelFind(tree.root);
+    expect(collapsed(tree.root)).toBe(true);
+    expect(a11yHeaders(tree.root).map((node) => node.props.testID)).toEqual(['exercises-title-a11y']);
+    const srOnly = host(tree.root, 'exercises-title-a11y');
+    expect(srOnly.props.accessibilityRole).toBe('header');
+    // Outside the collapsed box.
+    let node = srOnly;
+    while (node && node !== block(tree.root)) node = node.parent;
+    expect(node).toBe(null);
+    expect(flat(srOnly)).toMatchObject({ position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' });
+    blurPanelFind(tree.root);
+    expect(a11yHeaders(tree.root).map((node) => node.props.testID)).toEqual(['exercises-title']);
+    expect(hosts(tree.root, 'exercises-title-a11y')).toHaveLength(0);
+  });
+
+  // The optional reset test (reviewer, a90f405): the panel unmounts without a
+  // blur on a rotation or a large-text change; coming back, the header is not
+  // collapsed, though the keyboard frame still overlaps.
+  it.each([
+    ['rotation to portrait', () => { mockWidth = 800; }],
+    ['large text', () => { mockFontScale = 1.5; }],
+  ])('%s while collapsed, then back → restored, one visible H1', async (_label, leave) => {
+    mockWidth = 1280;
+    mockOverlap = 320;
+    const tree = await render();
+    focusPanelFind(tree.root);
+    expect(collapsed(tree.root)).toBe(true);
+    leave();
+    await rerender(tree);
+    expect(hosts(tree.root, 'exercises-panel-header')).toHaveLength(0);
+    mockWidth = 1280;
+    mockFontScale = 1;
+    await rerender(tree);
+    expect(collapsed(tree.root)).toBe(false);
+    expect(a11yHeaders(tree.root).map((node) => node.props.testID)).toEqual(['exercises-title']);
   });
 
   it('blur → restored', async () => {
@@ -834,7 +882,7 @@ describe('T-62 panel find field + keyboard: the page header collapses', () => {
     blurPanelFind(tree.root);
     expect(collapsed(tree.root)).toBe(false);
     expect(flat(block(tree.root)) ?? {}).not.toHaveProperty('overflow');
-    expect(host(tree.root, 'exercises-title').props.accessibilityElementsHidden).toBeFalsy();
+    expect(hiddenFromA11y(host(tree.root, 'exercises-title'))).toBe(false);
   });
 
   it('keyboard hides (overlap 0) while still focused → restored', async () => {

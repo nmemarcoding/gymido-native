@@ -603,14 +603,23 @@ function ExercisesCatalog() {
                 <>
                   {/* Web parity (≥ 1024): the title, toolbar and active line above a [256 | 1fr] row.
                       Collapsed (height 0, still mounted) while the panel's find field
-                      has the keyboard; the H1 stays in the accessibility tree, the
-                      hidden toolbar and line leave it. */}
-                  <View testID="exercises-panel-header" style={headerCollapsed ? styles.panelHeaderCollapsed : null}>
+                      has the keyboard, and hidden from screen readers: TalkBack drops
+                      the H1 inside the height-0 box (device, a90f405), so a
+                      screen-reader-only H1 stands in, outside it and taking no room. */}
+                  {headerCollapsed ? (
+                    <Text testID="exercises-title-a11y" accessibilityRole="header" style={styles.srOnlyTitle}>
+                      Exercises
+                    </Text>
+                  ) : null}
+                  <View
+                    testID="exercises-panel-header"
+                    style={headerCollapsed ? styles.panelHeaderCollapsed : null}
+                    accessibilityElementsHidden={headerCollapsed}
+                    importantForAccessibility={headerCollapsed ? 'no-hide-descendants' : 'auto'}
+                  >
                     {renderItem({ item: { type: 'header' } })}
-                    <View accessibilityElementsHidden={headerCollapsed} importantForAccessibility={headerCollapsed ? 'no-hide-descendants' : 'auto'}>
-                      {renderItem({ item: { type: 'bar' } })}
-                      {renderItem({ item: { type: 'line' } })}
-                    </View>
+                    {renderItem({ item: { type: 'bar' } })}
+                    {renderItem({ item: { type: 'line' } })}
                   </View>
                   <View testID="exercises-panel-row" style={styles.panelRow}>
                     <ExerciseFilterPanel
@@ -803,6 +812,17 @@ const styles = StyleSheet.create({
   panelHeaderCollapsed: {
     height: 0,
     overflow: 'hidden',
+  },
+  // The collapsed header's H1 for screen readers: 1 × 1, transparent (an
+  // alpha-0 or zero-size view is not "visible to user" on Android).
+  srOnlyTitle: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 1,
+    height: 1,
+    overflow: 'hidden',
+    color: 'transparent',
   },
   panelRow: {
     flex: 1,
