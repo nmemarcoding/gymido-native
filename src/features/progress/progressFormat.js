@@ -263,6 +263,8 @@ export function recentWorkoutRows(recent, missedItems, unit, memberVolume) {
     // T-82: the delete action needs the id and the started_at (its week).
     workoutId: workout.id ?? null,
     startedAt: workout.started_at ?? null,
+    // Web review: only a finished (completed) workout gets the ⋯.
+    completed: workout.status ? workout.status === 'completed' : Boolean(workout.completed_at),
     title: workout.workout_plan_day?.title || 'Workout session',
     sortKey: String(workout.completed_at || workout.started_at || ''),
     when: instantMs(workout.completed_at || workout.started_at),
@@ -310,7 +312,8 @@ function localMidnightMs(date) {
 // workout from Recent workouts. Only THIS WEEK's rows can be deleted: the
 // row's LOCAL started_at date within /my-plans/current/week's
 // week[0].date..week[6].date. No valid /week, no id or no readable started_at
-// → not deletable (never guessed).
+// → not deletable (never guessed). Abandoned (any status but "completed";
+// no status → needs a completed_at) → not deletable either.
 
 const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -323,7 +326,7 @@ function startedLocalDate(startedAt) {
 }
 
 export function isThisWeekRow(row, week) {
-  if (row?.kind !== 'done' || row.workoutId === null || row.workoutId === undefined || !isValidWeek(week)) {
+  if (row?.kind !== 'done' || row.completed !== true || row.workoutId === null || row.workoutId === undefined || !isValidWeek(week)) {
     return false;
   }
   const first = week[0]?.date;

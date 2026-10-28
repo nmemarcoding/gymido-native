@@ -9,7 +9,9 @@ import { deleteWorkout } from '../workout/api/workoutApi';
 import { loadProgress } from './api/progressApi';
 import ProgressScreen from './ProgressScreen';
 import { OVERFLOW_HANDOFF_MS } from '../trainer/plans/components/PlanOverflowSheet';
-import { deleteWorkoutBody, deleteWorkoutOutcome, isThisWeekRow, workoutActionsLabel, workoutWeekdayDate } from './progressFormat';
+import { deleteWorkoutBody, deleteWorkoutOutcome, isThisWeekRow, recentWorkoutRows, workoutActionsLabel, workoutWeekdayDate } from './progressFormat';
+import { memberVolume } from '../home/homeFormat';
+import { SHEET_FOCUS_DELAY_MS, focusNode } from '../../shared/hooks/useSheetFocus';
 
 // T-82 (UX T82-delete-workout-ux): delete a finished workout from Progress →
 // Recent workouts (⋯ on this week's rows → Menu → confirm → DELETE).
@@ -26,6 +28,7 @@ jest.mock('../../shared/hooks/useFocusRemountKey', () => ({ useFocusRemountKey: 
 jest.mock('../../shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('./api/progressApi', () => ({ loadProgress: jest.fn(), getWeightLogsInRange: jest.fn(() => Promise.resolve([])) }));
+jest.mock('../../shared/hooks/useSheetFocus', () => ({ ...jest.requireActual('../../shared/hooks/useSheetFocus'), focusNode: jest.fn() }));
 jest.mock('../../shared/components/toastStore', () => ({ ...jest.requireActual('../../shared/components/toastStore'), addToast: jest.fn() }));
 
 function textOf(node) {
@@ -39,6 +42,8 @@ const hostIds = (root, prefix) =>
   root.findAll((node) => typeof node.type === 'string' && String(node.props.testID ?? '').startsWith(prefix)).map((node) => node.props.testID);
 const pressable = (root, id) => root.find((node) => node.props.testID === id && typeof node.props.onPress === 'function');
 const press = (root, id) => act(() => pressable(root, id).props.onPress());
+// The focused ref's testID (the mocked Text ref is a class instance: never print it).
+const lastFocusedTestID = () => focusNode.mock.calls.at(-1)?.[0]?.current?.props?.testID ?? null;
 const flush = () => act(() => new Promise((resolve) => setImmediate(resolve)));
 const wait = (ms) => act(() => new Promise((resolve) => setTimeout(resolve, ms)));
 const dialog = (root) => root.findByType(ConfirmDialog);
@@ -51,9 +56,9 @@ const dayAt = (offset, hour = 12) => new Date(monday.getFullYear(), monday.getMo
 const WEEK = Array.from({ length: 7 }, (_, index) => ({ date: localDateKey(dayAt(index)), is_workout_day: index % 2 === 0, weekday: { id: index + 1 } }));
 const iso = (date) => date.toISOString();
 
-const THIS_WEEK_A = { id: 41, workout_plan_day: { title: 'Push A' }, started_at: iso(dayAt(0, 9)), completed_at: iso(dayAt(0, 10)), duration_seconds: 3000, total_volume_kg: 900 };
-const THIS_WEEK_B = { id: 42, workout_plan_day: { title: 'Pull B' }, started_at: iso(dayAt(0, 7)), completed_at: iso(dayAt(0, 8)), duration_seconds: 2400, total_volume_kg: 800 };
-const OLDER = { id: 30, workout_plan_day: { title: 'Legs' }, started_at: iso(dayAt(-3, 9)), completed_at: iso(dayAt(-3, 10)), duration_seconds: 3600, total_volume_kg: 1200 };
+const THIS_WEEK_A = { id: 41, status: 'completed', workout_plan_day: { title: 'Push A' }, started_at: iso(dayAt(0, 9)), completed_at: iso(dayAt(0, 10)), duration_seconds: 3000, total_volume_kg: 900 };
+const THIS_WEEK_B = { id: 42, status: 'completed', workout_plan_day: { title: 'Pull B' }, started_at: iso(dayAt(0, 7)), completed_at: iso(dayAt(0, 8)), duration_seconds: 2400, total_volume_kg: 800 };
+const OLDER = { id: 30, status: 'completed', workout_plan_day: { title: 'Legs' }, started_at: iso(dayAt(-3, 9)), completed_at: iso(dayAt(-3, 10)), duration_seconds: 3600, total_volume_kg: 1200 };
 
 const DATA = {
   weightProgress: {},
@@ -102,7 +107,7 @@ async function openConfirm(tree, key = 'w41') {
 }
 
 describe('T-82 progressFormat helpers', () => {
-  const row = { kind: 'done', workoutId: 41, title: 'Push A', startedAt: THIS_WEEK_A.started_at };
+  const row = { kind: 'done', completed: true, workoutId: 41, title: 'Push A', startedAt: THIS_WEEK_A.started_at };
 
   it('isThisWeekRow: LOCAL started_at within week[0].date..week[6].date; never guessed', () => {
     expect(isThisWeekRow(row, WEEK)).toBe(true);
@@ -115,6 +120,23 @@ describe('T-82 progressFormat helpers', () => {
     expect(isThisWeekRow({ ...row, startedAt: 'junk' }, WEEK)).toBe(false);
     expect(isThisWeekRow({ ...row, workoutId: null }, WEEK)).toBe(false);
     expect(isThisWeekRow({ ...row, kind: 'missed' }, WEEK)).toBe(false);
+    expect(isThisWeekRow({ ...row, completed: false }, WEEK)).toBe(false);
+  });
+
+  it('recentWorkoutRows: completed = status "completed" (no status → a completed_at); abandoned → not', () => {
+    const rows = recentWorkoutRows(
+      [
+        { id: 1, status: 'completed', started_at: THIS_WEEK_A.started_at, completed_at: THIS_WEEK_A.completed_at },
+        { id: 2, status: 'abandoned', started_at: THIS_WEEK_A.started_at, completed_at: THIS_WEEK_A.completed_at },
+        { id: 3, started_at: THIS_WEEK_A.started_at, completed_at: THIS_WEEK_A.completed_at },
+        { id: 4, started_at: THIS_WEEK_A.started_at },
+      ],
+      [],
+      'kg',
+      memberVolume
+    );
+    expect(Object.fromEntries(rows.map((item) => [item.workoutId, item.completed]))).toEqual({ 1: true, 2: false, 3: true, 4: false });
+    expect(rows.filter((item) => isThisWeekRow(item, WEEK)).map((item) => item.workoutId).sort()).toEqual([1, 3]);
   });
 
   it('copy: the ⋯ label, the confirm body ({Day name} on {Weekday, Mon D})', () => {
@@ -215,6 +237,8 @@ describe('T-82 Recent workouts ⋯ → delete', () => {
     expect(addToast).toHaveBeenCalledWith(ToastTone.error, "Only this week's workouts can be deleted.");
     expect(loadProgress).toHaveBeenCalledTimes(2);
     expect(hostIds(tree.root, 'progress-recent-actions-')).toEqual([]);
+    await wait(SHEET_FOCUS_DELAY_MS + 20);
+    expect(lastFocusedTestID()).toBe('progress-recent-title');
   });
 
   it('409 with /week still listing the row → that row’s ⋯ still goes away (server refused it)', async () => {
@@ -243,6 +267,8 @@ describe('T-82 Recent workouts ⋯ → delete', () => {
     expect(addToast).toHaveBeenCalledWith(ToastTone.error, "Couldn't delete the workout. Please try again.");
     expect(loadProgress).toHaveBeenCalledTimes(2);
     expect(hosts(tree.root, 'progress-recent-w41')).toHaveLength(0);
+    await wait(SHEET_FOCUS_DELAY_MS + 20);
+    expect(lastFocusedTestID()).toBe('progress-recent-title');
   });
 
   it('network / other → the dialog stays open with the inline error; the button returns', async () => {
@@ -286,5 +312,47 @@ describe('T-82 Recent workouts ⋯ → delete', () => {
     expect(apiClient.delete).toHaveBeenCalledTimes(1);
     expect(addToast).toHaveBeenCalledTimes(1);
     expect(dialog(tree.root).props.isOpen).toBe(false);
+  });
+
+  it('abandoned rows (this week) get no ⋯', async () => {
+    loadProgress.mockResolvedValue({ ...DATA, recentWorkouts: [{ ...THIS_WEEK_A, status: 'abandoned' }, THIS_WEEK_B] });
+    const tree = await renderActivity();
+    expect(hosts(tree.root, 'progress-recent-w41')).toHaveLength(1);
+    expect(hostIds(tree.root, 'progress-recent-actions-')).toEqual(['progress-recent-actions-w42']);
+  });
+
+  async function deleteWith(tree, reload) {
+    await openConfirm(tree);
+    apiClient.delete.mockResolvedValue({ data: { data: {} } });
+    loadProgress.mockImplementation(reload);
+    await act(async () => {
+      await dialog(tree.root).props.onConfirm();
+    });
+    await flush();
+  }
+
+  it('a slow reload: the deleted row stays hidden throughout; released once a reload omits it', async () => {
+    const tree = await renderActivity();
+    let finish;
+    // The re-read is slow AND still lists the row (it must not come back).
+    await deleteWith(tree, () => new Promise((done) => (finish = done)));
+    expect(hosts(tree.root, 'progress-recent-w41')).toHaveLength(0);
+    await wait(50);
+    expect(hosts(tree.root, 'progress-recent-w41')).toHaveLength(0);
+    await act(async () => {
+      finish(DATA);
+    });
+    await flush();
+    expect(hosts(tree.root, 'progress-recent-w41')).toHaveLength(0);
+    expect(hosts(tree.root, 'progress-recent-w42')).toHaveLength(1);
+  });
+
+  it('a failed reload: the deleted row stays hidden', async () => {
+    const tree = await renderActivity();
+    await deleteWith(tree, () => Promise.reject(new Error('Network Error')));
+    expect(loadProgress).toHaveBeenCalledTimes(2);
+    expect(addToast).toHaveBeenCalledWith(ToastTone.success, 'Workout deleted.');
+    expect(hosts(tree.root, 'progress-recent-w41')).toHaveLength(0);
+    expect(hosts(tree.root, 'progress-recent-w42')).toHaveLength(1);
   });
 });
