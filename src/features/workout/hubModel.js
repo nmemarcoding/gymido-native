@@ -215,7 +215,9 @@ export function upNext({ week, schedule, planDays = [], now = new Date() }) {
 export function weekCompleteDetail(progress, schedule) {
   const total = progress?.total ?? 0;
   const first = scheduleDays(schedule)[0];
-  const done = `All ${formatCount(total, 'workout', 'workouts')} done.`;
+  // UX T-81 LOW: "1 workout done." for one; "All N workouts done." for N ≥ 2.
+  const count = formatCount(total, 'workout', 'workouts');
+  const done = total === 1 ? `${count} done.` : `All ${count} done.`;
   return first ? `${done} Next week starts ${first.weekday.name} with ${planDayTitle(first.planDay)}.` : done;
 }
 

@@ -489,7 +489,7 @@ describe('Stats, week, weight and recent', () => {
     expect(tree.root.findByProps({ testID: 'progress-ring-arc' }).props.stroke).toBe(colors.gold);
   });
 
-  it('Your week: 7 labelled display cells; done gold, today ring, missed planned fill + amber dot, rest dashed', async () => {
+  it('Your week: 7 labelled display cells; done gold, today ring, missed 0.08 fill + muted bar (no dot), rest dashed', async () => {
     const tree = await render();
     expect(texts(host(tree.root, 'home-week-days'))).toEqual(['Mon, Tue, Thu, Fri']);
     const cell = (date) => host(tree.root, `home-week-cell-${date}`);
@@ -499,7 +499,11 @@ describe('Stats, week, weight and recent', () => {
     expect(styleOf(cell('2026-10-26'))).toMatchObject({ width: 34, backgroundColor: colors.gold });
     expect(styleOf(cell('2026-10-29'))).toMatchObject({ borderWidth: 2, borderColor: colors.gold });
     expect(styleOf(cell('2026-10-27')).backgroundColor).toBe(colors.track);
-    expect(queryHost(cell('2026-10-27'), 'home-week-missed-dot')).toHaveLength(1);
+    // DECLARED (UX T-81 B1 / ruling 6): was the amber 'home-week-missed-dot' (length 1);
+    // now the centred muted 12 × 2.5 r2 bar, and no gold/amber dot on the missed cell.
+    expect(styleOf(host(cell('2026-10-27'), 'home-week-missed-bar-2026-10-27'))).toEqual({ width: 12, height: 2.5, borderRadius: 2, backgroundColor: colors.textMuted });
+    expect(cell('2026-10-27').findAll((node) => typeof node.type === 'string' && styleOf(node)?.backgroundColor === colors.gold)).toHaveLength(0);
+    expect(cell('2026-10-27').findAll((node) => typeof node.type === 'string' && styleOf(node)?.backgroundColor === colors.warning)).toHaveLength(0);
     expect(styleOf(cell('2026-10-28'))).toMatchObject({ borderStyle: 'dashed', borderColor: colors.hairlineStrong });
     // Display only.
     expect(cell('2026-10-26').props.onPress).toBeUndefined();
@@ -744,9 +748,12 @@ describe('T-81 Today week strip by date + ring', () => {
     ]) {
       expect(cell(tree.root, date).props.accessibilityLabel).toBe(a11y);
       const style = styleOf(cell(tree.root, date));
-      expect(style).toMatchObject({ width: 34, height: 34, backgroundColor: colors.fillSkeleton });
-      expect(style.borderWidth).toBeUndefined();
-      expect(queryHost(cell(tree.root, date), 'home-week-missed-dot')).toHaveLength(0);
+      // DECLARED (UX T-81 B1 / ruling 6): was backgroundColor fillSkeleton (0.07) + borderWidth undefined;
+      // now a TRANSPARENT tile (no fill) with a 1 px SOLID white 0.10 border.
+      expect(style).toMatchObject({ width: 34, height: 34, borderWidth: 1, borderStyle: 'solid', borderColor: colors.hairlineStrong });
+      expect(style.backgroundColor).toBeUndefined();
+      // DECLARED: was queryHost 'home-week-missed-dot' length 0 (that dot no longer exists); now no missed bar.
+      expect(queryHost(cell(tree.root, date), `home-week-missed-bar-${date}`)).toHaveLength(0);
     }
     const monLetter = host(tree.root, 'home-week-strip').findAll((node) => node.type === 'Text')[0];
     expect(textOf(monLetter)).toBe('M');
@@ -755,6 +762,19 @@ describe('T-81 Today week strip by date + ring', () => {
     expect(cell(tree.root, '2026-10-28').props.accessibilityLabel).toBe('Wed: today, done');
     expect(styleOf(cell(tree.root, '2026-10-28'))).toMatchObject({ backgroundColor: colors.gold });
     expect(queryHost(tree.root, 'home-week-count-2026-10-28')).toHaveLength(0);
+    // UX T-81 ruling 2: a done TODAY keeps the board's 2 px gold today ring, 2 px outside the gold square.
+    expect(styleOf(host(cell(tree.root, '2026-10-28'), 'home-week-today-ring-2026-10-28'))).toEqual({
+      borderWidth: 2,
+      borderColor: colors.gold,
+      position: 'absolute',
+      top: -4,
+      left: -4,
+      right: -4,
+      bottom: -4,
+      borderRadius: 16,
+    });
+    // A done day that is not today has no ring.
+    expect(queryHost(tree.root, 'home-week-today-ring-2026-10-26')).toHaveLength(0);
     expect(cell(tree.root, '2026-10-29').props.accessibilityLabel).toBe('Thu: training');
     // The caption, once, under the strip.
     expect(texts(host(tree.root, 'home-week-caption'))).toEqual(['Your plan started Wednesday.']);

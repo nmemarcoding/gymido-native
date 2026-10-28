@@ -855,7 +855,7 @@ describe('T-81 Your week = the date strip (PM ruling 4; UX T81-week-strip-states
     expect(host(tree, 'plans-week-day-4').props.accessibilityLabel).toBe('Thu: training, today');
   });
 
-  it('done = teal tick on the day you trained (also a non-training day); missed = dashed text-muted + "Missed"; today ring; SR from the cells', async () => {
+  it('done = teal tick on the day you trained (also a non-training day); missed = SOLID 1.5 text-muted ring + "Missed"; today ring; SR from the cells', async () => {
     // Mon's plan day done on Tue (a rest day): Tue ticks, Mon is missed.
     listCompletedWorkouts.mockResolvedValue([did('2026-10-27')]);
     const tree = await render();
@@ -866,12 +866,31 @@ describe('T-81 Your week = the date strip (PM ruling 4; UX T81-week-strip-states
     expect(host(tree, 'plans-week-badge-2')).toBeUndefined();
     expect(textOf(host(tree, 'plans-week-label-2'))).toBe('Done');
     expect(flat(host(tree, 'plans-week-label-2'))).toEqual(expect.objectContaining({ fontSize: 11, color: colors.teal }));
-    expect(flat(host(tree, 'plans-week-circle-1'))).toEqual(expect.objectContaining({ borderStyle: 'dashed', borderColor: colors.textMuted }));
+    // DECLARED (UX T-81 ruling 1): was borderStyle 'dashed' + borderColor textMuted; Rest is the
+    // dashed one on this card, so Missed is a SOLID 1.5 px textMuted ring (+ width now pinned).
+    expect(flat(host(tree, 'plans-week-circle-1'))).toEqual(expect.objectContaining({ borderStyle: 'solid', borderWidth: 1.5, borderColor: colors.textMuted }));
+    expect(flat(host(tree, 'plans-week-circle-1')).backgroundColor).toBeUndefined();
+    expect(flat(host(tree, 'plans-week-letter-1'))).toEqual(expect.objectContaining({ color: colors.textMuted }));
     expect(textOf(host(tree, 'plans-week-label-1'))).toBe('Missed');
+    // Ruling 5: the T-60 label size (11) and the 56 box are kept for "Missed".
+    expect(flat(host(tree, 'plans-week-label-1'))).toEqual(expect.objectContaining({ fontSize: 11, width: 56, color: colors.textMuted }));
     expect(flat(host(tree, 'plans-week-circle-3'))).toEqual(expect.objectContaining({ borderStyle: 'dashed', borderColor: colors.hairlineBright }));
     expect(flat(host(tree, 'plans-week-circle-4'))).toEqual(expect.objectContaining({ backgroundColor: colors.gold }));
     expect(flat(host(tree, 'plans-week-ring-4'))).toEqual(expect.objectContaining({ borderColor: colors.gold }));
     expect(host(tree, 'plans-week-caption')).toBeUndefined();
+  });
+
+  it('done TODAY keeps the gold today ring around the teal Done disc (UX T-81 ruling 2)', async () => {
+    listCompletedWorkouts.mockResolvedValue([did('2026-10-29')]);
+    const tree = await render();
+    expect(host(tree, 'plans-week-day-4').props.accessibilityLabel).toBe('Thu: today, done');
+    expect(host(tree, 'plans-week-day-4').props.accessibilityState).toEqual({ selected: true });
+    expect(flat(host(tree, 'plans-week-circle-4'))).toEqual(expect.objectContaining({ width: 36, height: 36, backgroundColor: colors.teal }));
+    expect(host(tree, 'plans-week-tick-4')).toBeDefined();
+    expect(flat(host(tree, 'plans-week-ring-4'))).toEqual(expect.objectContaining({ width: 46, height: 46, borderWidth: 2, borderColor: colors.gold, top: -5, left: -5 }));
+    expect(textOf(host(tree, 'plans-week-label-4'))).toBe('Done');
+    // Only today carries the ring.
+    expect(host(tree, 'plans-week-ring-1')).toBeUndefined();
   });
 
   it('×n: two workouts on one date → the badge (20h, min 22, pad 5, full radius, surface fill, 1.5 teal ring, "×2" 13/600 teal tabular), SR-hidden', async () => {

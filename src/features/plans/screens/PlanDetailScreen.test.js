@@ -290,7 +290,21 @@ describe('Plan detail "This week", T-81 (PM ruling 3: per-slot cards; slotState)
     expect(texts(tree)).not.toContain('Missed');
     const card = host(tree, 'plan-week-notStarted-2-53');
     expect(card.props.accessibilityLabel).toBe('Tue: not started, Upper B');
-    expect(flat(host(tree, 'plan-week-notStarted-tile-2-53'))).toEqual(expect.objectContaining({ backgroundColor: colors.fillSkeleton }));
+    // DECLARED (UX T-81 B2 / ruling 3): was backgroundColor colors.fillSkeleton (0.07); now the
+    // white 0.06 (colors.sheenCard), plus the muted tile text, text-secondary title and "Not started" meta.
+    const tile = host(tree, 'plan-week-notStarted-tile-2-53');
+    expect(flat(tile)).toEqual(expect.objectContaining({ backgroundColor: colors.sheenCard }));
+    expect(tile.findAll((node) => node.type === 'Text').map((node) => [textOf(node), flat(node).color])).toEqual([
+      ['TUE', colors.textMuted],
+      ['27', colors.textMuted],
+    ]);
+    expect(textOf(host(tree, 'plan-week-notStarted-title-2-53'))).toBe('Upper B');
+    expect(flat(host(tree, 'plan-week-notStarted-title-2-53')).color).toBe(colors.textSecondary);
+    const meta = host(tree, 'plan-week-notStarted-meta-2-53');
+    expect(textOf(meta)).toBe('Not started');
+    expect(flat(meta)).toEqual(expect.objectContaining({ fontSize: 13, color: colors.textMuted }));
+    // No photos on the Not-started card.
+    expect(card.findAll((node) => typeof node.props.testID === 'string' && node.props.testID.startsWith('plan-week-thumb-'))).toHaveLength(0);
     expect(textOf(host(tree, 'plan-week-caption'))).toBe('Your plan started Wednesday.');
     // Done stays the slot status: Mon (before the start) is still Done.
     expect(host(tree, 'plan-week-done').props.accessibilityLabel).toBe('Lower A, Done Mon');

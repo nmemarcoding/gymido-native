@@ -201,10 +201,11 @@ function UpcomingCard({ card }) {
   );
 }
 
-// T-81 (UX T81-week-strip-states §1/§4, RN-SPEC T-81): a slot before the
-// plan's start. Quieter than Missed: the white 0.07 date tile, muted text, no
-// pill and no thumbnails; the caption under the list says when the plan
-// started. SR "Mon: not started, {title}".
+// T-81 (UX T81-week-strip-states B2 / ruling 3, RN-SPEC T-81): a slot before
+// the plan's start, listed LAST. Quieter than Missed: the white 0.06 date tile
+// with muted text, the title in text-secondary, the meta "Not started" 13
+// text-muted, no pill and no photos; the caption under the list says when the
+// plan started. SR "Tue: not started, {title}".
 function NotStartedCard({ card }) {
   return (
     <View
@@ -224,11 +225,11 @@ function NotStartedCard({ card }) {
         ) : null}
       </View>
       <View style={styles.middle}>
-        <Text {...NAME_TEXT} style={[styles.cardTitle, styles.mutedText]}>
+        <Text {...NAME_TEXT} testID={`plan-week-notStarted-title-${card.key}`} style={[styles.cardTitle, styles.secondaryText]}>
           {card.title}
         </Text>
-        <Text {...CAP_BODY} {...ONE_LINE} style={styles.meta}>
-          {card.meta}
+        <Text {...CAP_BODY} {...ONE_LINE} testID={`plan-week-notStarted-meta-${card.key}`} style={styles.meta}>
+          Not started
         </Text>
       </View>
     </View>
@@ -324,13 +325,16 @@ const styles = StyleSheet.create({
   doneTile: {
     backgroundColor: colors.goldTint,
   },
-  // T-81 Not started: the web's white 0.07 fill (fillSkeleton is the 0.07
+  // T-81 Not started (UX B2): white 0.06 (sheenCard is the only 0.06 white
   // fill token), no outline.
   notStartedTile: {
-    backgroundColor: colors.fillSkeleton,
+    backgroundColor: colors.sheenCard,
   },
   mutedText: {
     color: colors.textMuted,
+  },
+  secondaryText: {
+    color: colors.textSecondary,
   },
   // T-81: "Your plan started {Weekday}." 13/18 text-muted, margin-top 10
   // under the list (the section gap 12 already separates it; −2 → 10).

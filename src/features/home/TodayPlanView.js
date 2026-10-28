@@ -257,9 +257,12 @@ export function TodayStats({ ring, tablet, reflow }) {
 
 // T-81 (UX T81-week-strip-states, on Today's own look and sizes): the
 // weekByDate kinds. done = gold + check (also on a non-training day; "×n"
-// badge when count > 1), today = gold ring + dot, missed = planned fill +
-// amber dot, train = planned fill, rest / todayRest = dashed, notStarted =
-// the 0.07 fill, no outline, letter text-muted.
+// badge when count > 1; a done TODAY keeps the board's 2 px gold today ring,
+// drawn 2 px outside the gold square so it shows: UX ruling 2), today = gold
+// ring + dot, missed = the 0.08 fill + a centred muted 12 × 2.5 bar (no gold:
+// gold = today only, UX B1), train = planned fill, rest / todayRest = dashed,
+// notStarted = a transparent tile with a 1 px SOLID white 0.10 border and a
+// muted letter (UX B1: unlike Rest's dashed border).
 function WeekCell({ cell, tablet }) {
   const done = cell.kind === 'done';
   const today = cell.kind === 'today';
@@ -283,14 +286,18 @@ function WeekCell({ cell, tablet }) {
           tablet && styles.cellTablet,
           done && styles.cellDone,
           today && styles.cellToday,
-          (missed || cell.kind === 'train') && (tablet ? styles.cellPlannedTablet : styles.cellPlanned),
+          cell.kind === 'train' && (tablet ? styles.cellPlannedTablet : styles.cellPlanned),
+          missed && styles.cellMissed,
           rest && styles.cellRest,
           notStarted && styles.cellNotStarted,
         ]}
       >
+        {done && cell.isToday ? (
+          <View testID={`home-week-today-ring-${cell.key}`} style={[styles.cellToday, styles.cellTodayRing, tablet && styles.cellTodayRingTablet]} />
+        ) : null}
         {done ? <CheckIcon size={tablet ? 18 : 15} color={colors.onGold} /> : null}
         {today ? <View style={[styles.cellDot, tablet && styles.cellDotTablet, styles.cellDotGold]} /> : null}
-        {missed ? <View testID="home-week-missed-dot" style={[styles.cellDot, styles.cellDotWarning]} /> : null}
+        {missed ? <View testID={`home-week-missed-bar-${cell.key}`} style={styles.cellMissedBar} /> : null}
         {done && cell.count > 1 ? (
           <View
             testID={`home-week-count-${cell.key}`}
@@ -889,6 +896,19 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.gold,
   },
+  // T-81 done today: the same 2 px gold today ring, 2 px outside the gold
+  // Done square (an inset ring would vanish on the gold fill).
+  cellTodayRing: {
+    position: 'absolute',
+    top: -4,
+    left: -4,
+    right: -4,
+    bottom: -4,
+    borderRadius: radii.sm + 4,
+  },
+  cellTodayRingTablet: {
+    borderRadius: radii.md + 4,
+  },
   cellPlanned: {
     backgroundColor: colors.track,
   },
@@ -901,9 +921,23 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     borderColor: colors.hairlineStrong,
   },
-  // T-81 Not started: the 0.07 fill (fillSkeleton; web white 0.07), no outline.
+  // T-81 Not started (UX B1): transparent, a 1 px SOLID white 0.10 border
+  // (hairlineStrong), no glyph.
   cellNotStarted: {
-    backgroundColor: colors.fillSkeleton,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: colors.hairlineStrong,
+  },
+  // T-81 Missed (UX B1): the white 0.08 fill (track, the board's workout-day
+  // fill token) at every size, plus a centred muted bar.
+  cellMissed: {
+    backgroundColor: colors.track,
+  },
+  cellMissedBar: {
+    width: 12,
+    height: 2.5,
+    borderRadius: 2,
+    backgroundColor: colors.textMuted,
   },
   // T-81 "×n": top-right of the Done cell, may overhang the cell (not the column).
   countBadge: {
@@ -949,9 +983,6 @@ const styles = StyleSheet.create({
   },
   cellDotGold: {
     backgroundColor: colors.gold,
-  },
-  cellDotWarning: {
-    backgroundColor: colors.warning,
   },
   // Weight
   weightCard: {

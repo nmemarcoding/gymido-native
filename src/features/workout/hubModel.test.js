@@ -247,7 +247,10 @@ describe('upNext: the first upcoming after today, else next week from the schedu
 describe('copy helpers', () => {
   it('week complete names the total and next week\'s first day', () => {
     expect(weekCompleteDetail({ done: 4, total: 4 }, SCHEDULE)).toBe(s('All 4 workouts done. Next week starts Monday with Upper A.'));
-    expect(weekCompleteDetail({ done: 1, total: 1 }, [])).toBe(s('All 1 workout done.'));
+    // DECLARED (UX T-81 LOW): was s('All 1 workout done.'); one workout reads "1 workout done.".
+    expect(weekCompleteDetail({ done: 1, total: 1 }, [])).toBe(s('1 workout done.'));
+    expect(weekCompleteDetail({ done: 1, total: 1 }, SCHEDULE)).toBe(s('1 workout done. Next week starts Monday with Upper A.'));
+    expect(weekCompleteDetail({ done: 2, total: 2 }, [])).toBe(s('All 2 workouts done.'));
   });
 
   it('today done: exercises and whole minutes; no duration → no minutes', () => {

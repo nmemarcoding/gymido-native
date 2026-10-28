@@ -199,9 +199,11 @@ export default function PhoneActivePlanCard({ plan, meta, circles, weekCaption =
 // its circle, badge and label are hidden from the screen reader.
 // T-81 (PM ruling 4; UX T81-week-strip-states): the date strip's states at
 // this view's scale — done = teal tick (+ "×n" when count > 1), notStarted =
-// a filled white 0.07 disc with a muted letter and no label, missed = dashed
-// (text-muted, brighter than Rest's faint dash) + "Missed", today = the gold
-// ring, train / rest as before. The caption follows the list as plain text.
+// a filled white 0.07 disc with a muted letter and no label, missed = a solid
+// text-muted ring + "Missed" (UX ruling 1: Rest is the dashed one here),
+// today = the gold ring (around any kind, so a done today keeps it round the
+// teal disc: UX ruling 2), train / rest as before. The caption follows the
+// list as plain text.
 function YourWeek({ circles, caption, compact, size: cardSize }) {
   const wide = cardSize === 'wide';
   const size = compact ? CIRCLE.compact : CIRCLE[cardSize] ?? CIRCLE.phone;
@@ -504,10 +506,11 @@ const styles = StyleSheet.create({
   circleDone: {
     backgroundColor: colors.teal,
   },
-  // T-81 missed: dashed like Rest but in text-muted, with a muted letter.
+  // T-81 missed (UX T-81 ruling 1): Rest is the dashed one on this card, so
+  // Missed is a SOLID 1.5 px text-muted ring, with a muted letter.
   circleMissed: {
     borderWidth: 1.5,
-    borderStyle: 'dashed',
+    borderStyle: 'solid',
     borderColor: colors.textMuted,
   },
   letterMissed: {
