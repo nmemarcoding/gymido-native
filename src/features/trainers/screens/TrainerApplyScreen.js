@@ -1,20 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
 
 import { getServerMessage, getStatus } from '../../../shared/api/apiError';
 import { CardHeroFill } from '../../../shared/components/Card';
 import ErrorAlert from '../../../shared/components/ErrorAlert';
 import FormField from '../../../shared/components/FormField';
 import GradientFill from '../../../shared/components/GradientFill';
-import { CAP_BODY, DISPLAY_TITLE_TEXT, TITLE_TEXT } from '../../../shared/components/largeText';
+import { CAP_BODY, TITLE_TEXT } from '../../../shared/components/largeText';
 import Loader from '../../../shared/components/Loader';
 import PillButton from '../../../shared/components/PillButton';
 import StateSlot from '../../../shared/components/StateSlot';
 import StatusPill from '../../../shared/components/StatusPill';
 import { ToastTone, addToast } from '../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
-import { breakpoints, colors, font, gradients, radii, shadows, spacing, typography } from '../../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, radii, spacing, typography } from '../../../shared/theme/tokens';
 import { useAuthStore } from '../../auth/authStore';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
@@ -29,7 +28,6 @@ import {
   applicationErrorMessage,
   applicationView,
 } from '../trainersFormat';
-import { HeroTitleMark } from '../../shell/heroTitle';
 
 export const APPLY_COLUMN_MAX = 620;
 // The form card's gold corner glow (a 220 circle at the top-right).
@@ -100,7 +98,10 @@ function TrainerApply() {
     <View style={[styles.page, tablet && styles.pageTablet]}>
       {/* §3 back-link rule (newly added): "← Coaching" → /my-trainer. */}
       <PageBackLink testID="trainer-apply-back" label="Coaching" onPress={() => openShellPath('/my-trainer')} />
-      {tablet ? <GoldHero subtitle={subtitle} /> : <PageHeading testID="trainer-apply-heading" size="apply" title="Become a" accent="trainer" subtitle={subtitle} />}
+      {/* UX native final audit 27 Oct 2026, ruling 4 (C311): no gold hero
+          card on tablets (web parity); every size draws the plain H1 with
+          "trainer" in gold. */}
+      <PageHeading testID="trainer-apply-heading" size="apply" tablet={tablet} title="Become a" accent="trainer" subtitle={subtitle} />
       {renderBody()}
     </View>
   );
@@ -143,31 +144,6 @@ function TrainerApply() {
         return <StatusPanel application={state.application} sentence={STATUS_SENTENCES[view]} tablet={tablet} />;
     }
   }
-}
-
-// Tablet: the solid gold hero (150°, the gold gradient's three stops) with
-// the decorative ring and person-check icon (aria-hidden), ink text.
-function GoldHero({ subtitle }) {
-  return (
-    <View testID="trainer-apply-hero" style={styles.hero}>
-      <GradientFill angle={150} colors={gradients.gold.colors} stops={gradients.gold.stops} />
-      <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.heroRing} />
-      <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.heroIcon}>
-        <Svg width={88} height={88} viewBox="0 0 88 88" fill="none">
-          <Circle cx={34} cy={30} r={14} stroke={colors.onGold} strokeWidth={5} />
-          <Path d="M10 72a24 24 0 0 1 48 0" stroke={colors.onGold} strokeWidth={5} strokeLinecap="round" />
-          <Path d="M62 30l5 5 11-11" stroke={colors.onGold} strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" />
-        </Svg>
-      </View>
-      <HeroTitleMark />
-      <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.heroTitle}>
-        Become a trainer
-      </Text>
-      <Text {...CAP_BODY} style={styles.heroSub}>
-        {subtitle}
-      </Text>
-    </View>
-  );
 }
 
 // The card every body state uses: phone radius 28 / padding 22, tablet
@@ -307,44 +283,6 @@ const styles = StyleSheet.create({
   loader: {
     alignSelf: 'center',
     paddingVertical: 48,
-  },
-  hero: {
-    overflow: 'hidden',
-    borderRadius: radii.xxxxl,
-    padding: spacing[8],
-    boxShadow: shadows.goldGlowLarge,
-  },
-  heroRing: {
-    position: 'absolute',
-    right: -60,
-    bottom: -110,
-    width: 280,
-    height: 280,
-    borderRadius: radii.full,
-    borderWidth: 34,
-    borderColor: colors.inkFaint,
-  },
-  heroIcon: {
-    position: 'absolute',
-    right: 30,
-    top: 28,
-  },
-  heroTitle: {
-    ...font(700),
-    maxWidth: 420,
-    fontSize: 58,
-    lineHeight: 58,
-    letterSpacing: -3.48,
-    color: colors.onGold,
-  },
-  // The drawn ink 0.78 folds to onGoldMuted 0.72 (reported).
-  heroSub: {
-    ...font(400),
-    maxWidth: 440,
-    marginTop: spacing['3_5'],
-    fontSize: 17,
-    lineHeight: 26,
-    color: colors.onGoldMuted,
   },
   card: {
     overflow: 'hidden',
