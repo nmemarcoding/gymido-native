@@ -249,11 +249,14 @@ describe('Rest, tablet (UX F2 Tablet: Rest)', () => {
 });
 
 describe('Rest minimised (UX F2 Rest minimised)', () => {
-  it('phone: a 92 dark disc at right 20 / top 112 with the r40 ring and 24 digits', () => {
+  // DECLARED change (UX native final audit 27 Oct 2026, row A121; T §5 "never covers a control"): was
+  // "phone: a 92 dark disc at right 20 / top 112" with left: 390 - 20 - 92. At right 20 the disc sat on the
+  // stage's right-aligned "How to" pill (iPhone); it now keeps top 112 at LEFT 20, over the photo only.
+  it('phone: a 92 dark disc at left 20 / top 112 with the r40 ring and 24 digits', () => {
     const tree = renderTree({ minimized: true });
     const disc = host(tree, 'rest-timer');
     const style = StyleSheet.flatten(disc.props.style);
-    expect(style).toEqual(expect.objectContaining({ width: 92, height: 92, borderRadius: 46, left: 390 - 20 - 92, top: 112, borderColor: colors.hairlineBright }));
+    expect(style).toEqual(expect.objectContaining({ width: 92, height: 92, borderRadius: 46, left: 20, top: 112, borderColor: colors.hairlineBright }));
     const arc = tree.root.findAll((node) => node.props.testID === 'rest-mini-ring-arc')[0];
     expect(arc.props.r).toBe(40);
     expect(arc.props.strokeWidth).toBe(6);
@@ -290,6 +293,15 @@ describe('Rest minimised (UX F2 Rest minimised)', () => {
     // A stored position below the dock is pulled back up (the re-clamp on each tick).
     const below = renderTree({ minimized: true, dockRoom, onPosition, position: { x: 600, y: 1100 } });
     expect(StyleSheet.flatten(host(below, 'rest-timer').props.style).top).toBe(1194 - dockRoom - 92);
+  });
+
+  // UX native final audit 27 Oct 2026, row A121: the phone stage's "How to" pill is right-aligned
+  // (RuntimeParts howToRow), so the default disc stays on the left half at every phone width.
+  it.each([320, 390, 430])('phone %s: the default disc sits on the left half, clear of the right-aligned "How to"', (width) => {
+    mockWidth = width;
+    const tree = renderTree({ minimized: true });
+    const style = StyleSheet.flatten(host(tree, 'rest-timer').props.style);
+    expect(style.left + style.width).toBeLessThanOrEqual(width / 2);
   });
 
   it('phone keeps its disc and clamp (the dock room is tablet only)', () => {
