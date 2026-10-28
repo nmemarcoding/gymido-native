@@ -825,38 +825,47 @@ describe('opaque dock + scroll room (P3-2)', () => {
   };
   const layout = (node, height) => act(() => node.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 390, height } } }));
 
-  it.each([0, 34])('phone (inset %s): the dock is an opaque ground band to the screen bottom, padded by the safe area', (inset) => {
+  // DECLARED change (UX native final audit 27 Oct 2026, ruling 1, row A115): the phone dock is now the shared
+  // PinnedDock. Was: the dock View itself drew the ground with paddingTop 12 / paddingHorizontal 16 /
+  // paddingBottom 28 + inset. Now: the root is the full-width layer to the screen bottom, a 32 fade sits above
+  // Did it (no 12 band), and the SOLID ground body holds Did it + Up next (16 sides, 28 + inset below).
+  it.each([0, 34])('phone (inset %s): the dock is the shared layer: 32 fade, then an opaque ground body to the screen bottom', (inset) => {
     mockInsetBottom = inset;
     const { tree } = render();
-    const dock = host(tree, 'session-dock');
-    const style = flat(dock);
-    expect(style).toMatchObject({ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.ground });
+    expect(flat(host(tree, 'session-dock'))).toMatchObject({ position: 'absolute', left: 0, right: 0, bottom: 0 });
+    expect(flat(host(tree, 'session-dock-fade')).height).toBe(32);
+    const style = flat(host(tree, 'session-dock-body'));
+    expect(style.backgroundColor).toBe(colors.ground);
     expect(style.backgroundColor).not.toMatch(/rgba/);
     expect(style.opacity).toBeUndefined();
     expect(style.paddingBottom).toBe(spacing[7] + inset);
-    expect(style.paddingTop).toBe(spacing[3]);
+    expect(style.paddingTop ?? 0).toBe(0);
     expect(style.paddingHorizontal).toBe(spacing[4]);
+    expect(host(tree, 'session-dock-body').findAll((node) => /^set-action-/.test(node.props.testID ?? '')).length).toBeGreaterThan(0);
   });
 
-  it.each([0, 34])('phone (inset %s): the scroll room = the measured dock (with the safe area) + a gap', (inset) => {
+  // DECLARED change (ruling 1, A115): was dockHeight + spacing[4]; the room is now exactly the measured dock
+  // (which includes the 32 fade and the safe area), so Complete / Discard scroll fully clear above the fade.
+  it.each([0, 34])('phone (inset %s): the scroll room = the measured dock height (fade + Did it + Up next + safe area)', (inset) => {
     mockInsetBottom = inset;
     const { tree } = render();
-    const dockHeight = 64 + 44 + spacing[3] + spacing[7] + inset;
+    const dockHeight = 32 + 64 + 44 + spacing[7] + inset;
     layout(host(tree, 'session-dock'), dockHeight);
-    expect(scrollPad(tree)).toBe(dockHeight + spacing[4]);
+    expect(scrollPad(tree)).toBe(dockHeight);
   });
 
   it.each([0, 34])('phone (inset %s): before the dock is measured the room already covers its padding + the safe area', (inset) => {
     mockInsetBottom = inset;
     const { tree } = render();
-    expect(scrollPad(tree)).toBeGreaterThanOrEqual(64 + spacing[3] + spacing[7] + inset);
+    expect(scrollPad(tree)).toBeGreaterThanOrEqual(32 + 64 + spacing[7] + inset);
   });
 
   it('during a rest the dock stays opaque and Did it shows the disabled glass look, not a dim gold', async () => {
     const RESTING = { ...SESSION, exercises: [{ ...SESSION.exercises[0], sets: [set(11, true), { ...set(12), rest_seconds_planned: 60 }] }, SESSION.exercises[1]] };
     const { tree } = render({ session: RESTING });
     await act(async () => byId(tree, 'set-action-12').props.onPress());
-    expect(flat(host(tree, 'session-dock')).backgroundColor).toBe(colors.ground);
+    // DECLARED (ruling 1): the ground is on the shared dock's body now (was on 'session-dock' itself).
+    expect(flat(host(tree, 'session-dock-body')).backgroundColor).toBe(colors.ground);
     const button = flat(byId(tree, 'set-action-12'));
     expect(button).toMatchObject({ backgroundColor: colors.fillChip, borderWidth: 1, borderColor: colors.choiceBorder });
     expect(button.opacity).toBeUndefined();
@@ -902,19 +911,23 @@ describe('opaque dock + scroll room (P3-2)', () => {
     const RESTING = { ...SESSION, exercises: [{ ...SESSION.exercises[0], sets: [set(11, true), { ...set(12), rest_seconds_planned: 60 }] }, SESSION.exercises[1]] };
     it.each([
       ['tablet', 1024, 64 + spacing[3] + 40 + 20],
-      ['phone', 750, 64 + 44 + spacing[3] + spacing[7] + 20],
-    ])('%s: no disc → dock + 16; disc minimised → tablet dock + 92 + 24 + 16, phone unchanged; expanded → dock + 16', async (kind, width, dockHeight) => {
+      ['phone', 750, 32 + 64 + 44 + spacing[7] + 20],
+    ])('%s: no disc → dock room; disc minimised → room + 92 + 24 (phone too, A121); expanded → dock room', async (kind, width, dockHeight) => {
       mockWidth = width;
       mockInsetBottom = 20;
+      // DECLARED (ruling 1, A115): the phone room is the measured dock itself (was dock + 16); tablet unchanged.
+      const room = kind === 'tablet' ? dockHeight + spacing[4] : dockHeight;
       const { tree } = render({ session: RESTING });
       layout(host(tree, 'session-dock'), dockHeight);
-      expect(scrollPad(tree)).toBe(dockHeight + spacing[4]);
+      expect(scrollPad(tree)).toBe(room);
       await act(async () => byId(tree, 'set-action-12').props.onPress());
-      expect(scrollPad(tree)).toBe(dockHeight + spacing[4]);
+      expect(scrollPad(tree)).toBe(room);
       act(() => tree.root.findByType(RestTimerWidget).props.onMinimize());
-      expect(scrollPad(tree)).toBe(kind === 'tablet' ? dockHeight + 92 + 24 + spacing[4] : dockHeight + spacing[4]);
+      // DECLARED (UX ruling A121, option B, 27 Oct 2026): the phone was "unchanged" (room only) with the disc
+      // minimised; the phone disc now docks above the dock too, so the phone room also keeps the disc 92 + 24.
+      expect(scrollPad(tree)).toBe(room + 92 + 24);
       // The disc itself still docks just above the dock (the room it is given is unchanged).
-      expect(tree.root.findByType(RestTimerWidget).props.dockRoom).toBe(dockHeight + spacing[4]);
+      expect(tree.root.findByType(RestTimerWidget).props.dockRoom).toBe(room);
     });
   });
 

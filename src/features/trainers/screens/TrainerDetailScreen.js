@@ -12,11 +12,12 @@ import ErrorAlert from '../../../shared/components/ErrorAlert';
 import { CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT, TITLE_TEXT } from '../../../shared/components/largeText';
 import Loader from '../../../shared/components/Loader';
 import PillButton from '../../../shared/components/PillButton';
+import PinnedDock from '../../../shared/components/PinnedDock';
 import StateSlot from '../../../shared/components/StateSlot';
 import StatusPill from '../../../shared/components/StatusPill';
 import { ToastTone, addToast } from '../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
-import { breakpoints, colors, font, muscleGlow, radii, shadows, spacing, typography } from '../../../shared/theme/tokens';
+import { breakpoints, colors, font, muscleGlow, radii, shadows, spacing, textScale, typography } from '../../../shared/theme/tokens';
 import { statusPill, trainerDisplayName, trainerInitials } from '../../myTrainer/myTrainerFormat';
 import ShellPage from '../../shell/ShellPage';
 import { getTrainer, requestCoaching } from '../api/trainersApi';
@@ -45,18 +46,33 @@ export function detailGlow(trainerUserId, tablet) {
 export default function TrainerDetailScreen() {
   const remountKey = useFocusRemountKey();
   const route = useRoute();
-  const tablet = useWindowDimensions().width >= breakpoints.md;
+  const { width, fontScale } = useWindowDimensions();
+  const tablet = width >= breakpoints.md;
   const trainerUserId = route.params?.trainerUserId;
+  return <TrainerDetail key={remountKey} trainerUserId={trainerUserId} tablet={tablet} reflow={fontScale > textScale.reflowAbove} />;
+}
+
+// The page frame. UX native final audit 27 Oct 2026, ruling 1 (PM: nothing
+// under the tab bar): the TrainerDetail board pins "Ask … to coach me" above
+// the phone tab bar, so on phones at ≤ 1.3× it sits in the shared PinnedDock
+// (`dock`), and the scroll room is the dock's measured height.
+function DetailFrame({ trainerUserId, tablet, dock = null, children }) {
+  const [dockHeight, setDockHeight] = useState(null);
   return (
-    <ShellPage testID="trainer-detail-screen" glow={detailGlow(trainerUserId, tablet)}>
-      <View style={styles.column}>
-        <TrainerDetail key={remountKey} trainerUserId={trainerUserId} tablet={tablet} />
-      </View>
-    </ShellPage>
+    <View style={styles.screen}>
+      <ShellPage testID="trainer-detail-screen" glow={detailGlow(trainerUserId, tablet)} dockHeight={dock ? dockHeight : null}>
+        <View style={styles.column}>{children}</View>
+      </ShellPage>
+      {dock ? (
+        <PinnedDock testID="trainer-detail-dock" onHeight={setDockHeight} contentStyle={styles.dockContent}>
+          {dock}
+        </PinnedDock>
+      ) : null}
+    </View>
   );
 }
 
-function TrainerDetail({ trainerUserId, tablet }) {
+function TrainerDetail({ trainerUserId, tablet, reflow }) {
   const navigation = useNavigation();
   const [state, setState] = useState({ loading: true, error: null, notFound: false, trainer: null });
   const [requested, setRequested] = useState(null);
@@ -121,38 +137,44 @@ function TrainerDetail({ trainerUserId, tablet }) {
 
   if (state.loading) {
     return (
-      <View style={styles.page}>
-        {back}
-        <StateSlot>
-          <Loader label="Loading trainer" style={styles.loader} />
-        </StateSlot>
-      </View>
+      <DetailFrame trainerUserId={trainerUserId} tablet={tablet}>
+        <View style={styles.page}>
+          {back}
+          <StateSlot>
+            <Loader label="Loading trainer" style={styles.loader} />
+          </StateSlot>
+        </View>
+      </DetailFrame>
     );
   }
   if (state.notFound) {
     return (
-      <View style={styles.page}>
-        {back}
-        <StateSlot>
-          <EmptyState
-            title="Trainer not found"
-            message="This trainer isn’t available. They may have removed their profile."
-            actionLabel="Back to trainers"
-            actionTestID="trainer-detail-back"
-            onAction={openList}
-          />
-        </StateSlot>
-      </View>
+      <DetailFrame trainerUserId={trainerUserId} tablet={tablet}>
+        <View style={styles.page}>
+          {back}
+          <StateSlot>
+            <EmptyState
+              title="Trainer not found"
+              message="This trainer isn’t available. They may have removed their profile."
+              actionLabel="Back to trainers"
+              actionTestID="trainer-detail-back"
+              onAction={openList}
+            />
+          </StateSlot>
+        </View>
+      </DetailFrame>
     );
   }
   if (state.error || !state.trainer) {
     return (
-      <View style={styles.page}>
-        {back}
-        <StateSlot>
-          <ErrorAlert title="Could not load this trainer" description={state.error} onRetry={load} />
-        </StateSlot>
-      </View>
+      <DetailFrame trainerUserId={trainerUserId} tablet={tablet}>
+        <View style={styles.page}>
+          {back}
+          <StateSlot>
+            <ErrorAlert title="Could not load this trainer" description={state.error} onRetry={load} />
+          </StateSlot>
+        </View>
+      </DetailFrame>
     );
   }
 
@@ -171,65 +193,68 @@ function TrainerDetail({ trainerUserId, tablet }) {
     // ⚠TR-5: shown whatever the relationship with this trainer.
     <PillButton testID="trainer-detail-ask" title={`Ask ${name} to coach me`} size="cta" fullWidth style={tablet && styles.ctaTablet} onPress={() => setDialogOpen(true)} />
   );
+  const docked = !requested && !tablet && !reflow;
 
   return (
-    <View style={[styles.page, tablet && styles.pageTablet]}>
-      {back}
-      {tablet ? (
-        <View testID="trainer-detail-card" style={styles.heroCard}>
-          <CardHeroFill />
-          <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.heroGlow}>
-            <PersonGlow userId={userId} />
+    <DetailFrame trainerUserId={trainerUserId} tablet={tablet} dock={docked ? action : null}>
+      <View style={[styles.page, tablet && styles.pageTablet]}>
+        {back}
+        {tablet ? (
+          <View testID="trainer-detail-card" style={styles.heroCard}>
+            <CardHeroFill />
+            <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.heroGlow}>
+              <PersonGlow userId={userId} />
+            </View>
+            <PersonAvatar testID="trainer-detail-avatar" userId={userId} name={name} initials={initials} size={132} initialsSize={46} style={styles.avatarShadow} />
+            <Text {...CAP_BODY} style={styles.eyebrowTablet}>
+              Trainer
+            </Text>
+            <HeroTitleMark />
+            <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.nameTablet}>
+              {name}
+            </Text>
+            {trainer.email ? <ContactLink email={trainer.email} /> : null}
           </View>
-          <PersonAvatar testID="trainer-detail-avatar" userId={userId} name={name} initials={initials} size={132} initialsSize={46} style={styles.avatarShadow} />
-          <Text {...CAP_BODY} style={styles.eyebrowTablet}>
-            Trainer
-          </Text>
-          <HeroTitleMark />
-          <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.nameTablet}>
-            {name}
-          </Text>
-          {trainer.email ? <ContactLink email={trainer.email} /> : null}
-        </View>
-      ) : (
-        <View testID="trainer-detail-card" style={styles.identity}>
-          <PersonAvatar testID="trainer-detail-avatar" userId={userId} name={name} initials={initials} size={104} initialsSize={38} ring={{ gap: 5, alpha: 0.45 }} />
-          <StatusPill label="Trainer" tone="gold" style={styles.trainerPill} />
-          <HeroTitleMark />
-          <Text {...TITLE_TEXT} accessibilityRole="header" style={styles.name}>
-            {name}
-          </Text>
-        </View>
-      )}
-      <View testID="trainer-detail-about" style={[styles.about, tablet && styles.aboutTablet]}>
-        <Text {...TITLE_TEXT} style={tablet ? styles.aboutTitleTablet : styles.aboutTitle}>
-          About
-        </Text>
-        {trainer.bio ? (
-          <Text {...CAP_BODY} style={[styles.bio, tablet && styles.bioTablet]}>
-            {trainer.bio}
-          </Text>
         ) : (
-          <Text {...CAP_BODY} style={[styles.bio, tablet && styles.bioTablet, styles.noBio]}>
-            This trainer hasn’t written a bio yet.
-          </Text>
+          <View testID="trainer-detail-card" style={styles.identity}>
+            <PersonAvatar testID="trainer-detail-avatar" userId={userId} name={name} initials={initials} size={104} initialsSize={38} ring={{ gap: 5, alpha: 0.45 }} />
+            <StatusPill label="Trainer" tone="gold" style={styles.trainerPill} />
+            <HeroTitleMark />
+            <Text {...TITLE_TEXT} accessibilityRole="header" style={styles.name}>
+              {name}
+            </Text>
+          </View>
         )}
+        <View testID="trainer-detail-about" style={[styles.about, tablet && styles.aboutTablet]}>
+          <Text {...TITLE_TEXT} style={tablet ? styles.aboutTitleTablet : styles.aboutTitle}>
+            About
+          </Text>
+          {trainer.bio ? (
+            <Text {...CAP_BODY} style={[styles.bio, tablet && styles.bioTablet]}>
+              {trainer.bio}
+            </Text>
+          ) : (
+            <Text {...CAP_BODY} style={[styles.bio, tablet && styles.bioTablet, styles.noBio]}>
+              This trainer hasn’t written a bio yet.
+            </Text>
+          )}
+        </View>
+        {docked ? null : <View style={styles.action}>{action}</View>}
+        <ConfirmDialog
+          testID="trainer-detail-dialog"
+          isOpen={dialogOpen}
+          onClose={() => setDialogOpen(false)}
+          onConfirm={sendRequest}
+          title={`Ask ${name} to coach you?`}
+          description="They can accept or decline. You can hold more than one pending request, but only one trainer at a time."
+          confirmLabel="Send request"
+          tone="brand"
+          loading={sending}
+          // UX R2-2: the Request coaching board draws the × and Cancel.
+          boardClose
+        />
       </View>
-      <View style={styles.action}>{action}</View>
-      <ConfirmDialog
-        testID="trainer-detail-dialog"
-        isOpen={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        onConfirm={sendRequest}
-        title={`Ask ${name} to coach you?`}
-        description="They can accept or decline. You can hold more than one pending request, but only one trainer at a time."
-        confirmLabel="Send request"
-        tone="brand"
-        loading={sending}
-        // UX R2-2: the Request coaching board draws the × and Cancel.
-        boardClose
-      />
-    </View>
+    </DetailFrame>
   );
 }
 
@@ -267,6 +292,13 @@ function ContactLink({ email }) {
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  // The docked CTA keeps the phone's 16 sides (the dock is edge to edge).
+  dockContent: {
+    paddingHorizontal: spacing[4],
+  },
   column: {
     width: '100%',
     maxWidth: DETAIL_COLUMN_MAX,

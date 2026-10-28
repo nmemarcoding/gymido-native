@@ -19,7 +19,10 @@ import { ArrowRightIcon } from './GeneratorIcons';
 // focus/avoid). Each card's question + answer reads as ONE string (the code
 // summary); "Change" → that step. §9 reflow: the two small cards stack and
 // the button pair stacks, primary on top.
-export default function GeneratorReview({ answers, options, stepErrors, saveError, saving, reflow, knownExercises, onChange, onBack, onSave, titleRef }) {
+// `buttonsPinned` (phone at ≤ 1.3×): the screen draws ReviewButtons in the
+// shared PinnedDock (UX native final audit 27 Oct 2026, ruling 1, B242), so
+// the review leaves them out of its flow.
+export default function GeneratorReview({ answers, options, stepErrors, saveError, saving, reflow, knownExercises, onChange, onBack, onSave, titleRef, buttonsPinned = false }) {
   const rows = reviewSummaries(answers, options);
   const details = reviewDetails(answers, options);
   const summary = (step) => rows[step - 1];
@@ -165,24 +168,33 @@ export default function GeneratorReview({ answers, options, stepErrors, saveErro
           {COPY.disclaimer}
         </Text>
       </View>
-      <View testID="generator-buttons" style={[styles.buttons, reflow && styles.buttonsStacked]}>
-        {reflow ? null : (
-          <PillButton key="back" testID="generator-back" title={COPY.back} variant="secondary" disabled={saving} onPress={() => onBack(STEP_COUNT)} />
-        )}
-        <PillButton
-          key="see"
-          testID="generator-see-plan"
-          title={COPY.seeMyPlan}
-          fullWidth={reflow}
-          style={reflow ? null : styles.flex}
-          loading={saving}
-          icon={saving ? undefined : ({ color }) => <ArrowRightIcon size={18} color={color} />}
-          onPress={onSave}
-        />
-        {reflow ? (
-          <PillButton key="back" testID="generator-back" title={COPY.back} variant="secondary" fullWidth disabled={saving} onPress={() => onBack(STEP_COUNT)} />
-        ) : null}
-      </View>
+      {buttonsPinned ? null : <ReviewButtons saving={saving} stacked={reflow} onBack={onBack} onSave={onSave} />}
+    </View>
+  );
+}
+
+// Back + "See my plan →" (row: Back, then See my plan taking the rest, gap 10).
+// `stacked` (§9 reflow, or below 21rem in the dock): See my plan over Back,
+// both full width.
+export function ReviewButtons({ saving, stacked, onBack, onSave }) {
+  return (
+    <View testID="generator-buttons" style={[styles.buttons, stacked && styles.buttonsStacked]}>
+      {stacked ? null : (
+        <PillButton key="back" testID="generator-back" title={COPY.back} variant="secondary" disabled={saving} onPress={() => onBack(STEP_COUNT)} />
+      )}
+      <PillButton
+        key="see"
+        testID="generator-see-plan"
+        title={COPY.seeMyPlan}
+        fullWidth={stacked}
+        style={stacked ? null : styles.flex}
+        loading={saving}
+        icon={saving ? undefined : ({ color }) => <ArrowRightIcon size={18} color={color} />}
+        onPress={onSave}
+      />
+      {stacked ? (
+        <PillButton key="back" testID="generator-back" title={COPY.back} variant="secondary" fullWidth disabled={saving} onPress={() => onBack(STEP_COUNT)} />
+      ) : null}
     </View>
   );
 }

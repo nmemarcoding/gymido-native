@@ -7,6 +7,7 @@ import { getServerMessage, getStatus } from '../../../shared/api/apiError';
 import { formatNumber, formatWeight } from '../../../shared/format/numbers';
 import { formatDuration } from '../../../shared/time/format';
 import { InlineToast } from '../../../shared/components/ToastHost';
+import PinnedDock, { DOCK_FADE_HEIGHT } from '../../../shared/components/PinnedDock';
 import { useLargeTextReflow } from '../../../shared/components/largeText';
 import { useKeyboardHeight } from '../../../shared/hooks/useKeyboardHeight';
 import { ToastTone } from '../../../shared/components/toastStore';
@@ -561,13 +562,18 @@ export default function SessionRuntime({
   const upNext = !tablet && isActiveView && laterIncomplete !== -1 ? exercises[laterIncomplete] : null;
   const showDock = !browsing && (Boolean(didIt) || Boolean(upNext));
   // P3-2: the dock is an opaque band down to the screen bottom; its measured
-  // height already holds the safe area, so the room is that height + a gap.
-  const dockHeight = measuredDock ?? DID_IT_HEIGHT + 32 + spacing[3] + (tablet ? TABLET_DOCK_BOTTOM : spacing[7]) + insets.bottom;
-  const bottomRoom = browsing ? navHeight + spacing[5] + insets.bottom : showDock ? dockHeight + spacing[4] : spacing[6] + insets.bottom;
-  // I2 follow-up (a) + UX I2-r ruling: on tablets the minimised disc docks
-  // just above `bottomRoom`; while it shows, the scroll also keeps the disc
-  // (92) + its 24 gap, so every row, the last included, scrolls fully clear.
-  const discRoom = tablet && rest.timer && rest.minimized ? DISC_SIZE + spacing[6] : 0;
+  // height already holds the safe area. Tablet: the room is that height + a
+  // gap. Phone (UX native final audit 27 Oct 2026, ruling 1, A115): the dock
+  // is the shared PinnedDock (32 fade, then solid ground to the edge) and the
+  // room is exactly its measured height, so "Complete workout" and "Discard
+  // workout" scroll fully clear above the fade.
+  const dockHeight = measuredDock ?? (tablet ? DID_IT_HEIGHT + 32 + spacing[3] + TABLET_DOCK_BOTTOM : DOCK_FADE_HEIGHT + DID_IT_HEIGHT + 32 + spacing[7]) + insets.bottom;
+  const bottomRoom = browsing ? navHeight + spacing[5] + insets.bottom : showDock ? dockHeight + (tablet ? spacing[4] : 0) : spacing[6] + insets.bottom;
+  // I2 follow-up (a) + UX I2-r ruling: the minimised disc docks just above
+  // `bottomRoom`; while it shows, the scroll also keeps the disc (92) + its 24
+  // gap, so every row, the last included, scrolls fully clear. Phones too
+  // since UX ruling A121 (option B, 27 Oct 2026).
+  const discRoom = rest.timer && rest.minimized ? DISC_SIZE + spacing[6] : 0;
 
   // M6: the expanded Rest is modal for TalkBack too (accessibilityViewIsModal
   // is iOS-only): hide what is behind it while it is open.
@@ -647,10 +653,10 @@ export default function SessionRuntime({
         {body}
         {chromeOverlay ? chrome : null}
         {showDock && !tablet ? (
-          <View testID="session-dock" onLayout={(event) => setDockHeight(event.nativeEvent.layout.height)} style={[styles.dock, { paddingBottom: spacing[7] + insets.bottom }]}>
+          <PinnedDock testID="session-dock" onHeight={setDockHeight} overTabBar={false} bottomGap={spacing[7]} contentStyle={styles.dockContent}>
             {didIt}
             {upNext ? <UpNextLink exercise={upNext} onPress={dismiss(() => setViewingIndex(laterIncomplete))} /> : null}
-          </View>
+          </PinnedDock>
         ) : null}
         {browsing ? (
           <WorkoutExerciseNav
@@ -760,16 +766,11 @@ const styles = StyleSheet.create({
     gap: spacing[3],
     marginTop: spacing[4],
   },
-  // UX verdict P3-2: OPAQUE (the ground token), edge to edge and down to the
-  // screen bottom, so nothing scrolls behind or shows through it.
-  dock: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingTop: spacing[3],
+  // UX verdict P3-2 + ruling 1: the phone dock is the shared PinnedDock
+  // (opaque ground, edge to edge, down to the screen bottom); Did it + Up next
+  // keep the phone's 16 sides.
+  dockContent: {
     paddingHorizontal: spacing[4],
-    backgroundColor: colors.ground,
   },
   splitRow: {
     flex: 1,

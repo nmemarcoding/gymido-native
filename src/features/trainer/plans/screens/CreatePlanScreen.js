@@ -8,6 +8,7 @@ import ErrorAlert from '../../../../shared/components/ErrorAlert';
 import FormField from '../../../../shared/components/FormField';
 import GradientFill from '../../../../shared/components/GradientFill';
 import PillButton from '../../../../shared/components/PillButton';
+import PinnedDock, { dockStacks } from '../../../../shared/components/PinnedDock';
 import Select from '../../../../shared/components/Select';
 import { ToastTone, addToast } from '../../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../../shared/hooks/useFocusRemountKey';
@@ -233,11 +234,20 @@ export function CreatePlanForm({ variant }) {
   ) : null;
   const goBack = () => navigation.push(variant.backRoute);
 
+  // UX native final audit 27 Oct 2026, ruling 1 (B218, D365): on phones at
+  // ≤ 1.3× the Cancel / Create pair sits in the shared PinnedDock above the tab
+  // bar (below 21rem it stacks, Create on top); tablets and large text keep
+  // it at the end of the card.
+  const docked = width < breakpoints.md && fontScale <= textScale.reflowAbove;
+  const narrow = dockStacks(width);
+
   if (variant.look === 'trainerV2') {
     return (
       <TrainerCreatePlanLayout
         tablet={width >= breakpoints.md}
         stacked={fontScale > textScale.reflowAbove}
+        docked={docked}
+        narrow={narrow}
         variant={variant}
         saving={saving}
         onSubmit={submit}
@@ -253,6 +263,8 @@ export function CreatePlanForm({ variant }) {
       <CreatePlanV2
         tablet={width >= breakpoints.md}
         stacked={fontScale > textScale.reflowAbove}
+        docked={docked}
+        narrow={narrow}
         variant={variant}
         saving={saving}
         onSubmit={submit}
@@ -323,8 +335,14 @@ const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
 
 // `stacked` (font scale > 1.3, UX §9 reflow): the paired fields become one
 // column and the button pair stacks with the primary on top, full width.
-function CreatePlanV2({ tablet, stacked = false, variant, saving, onSubmit, onBack, formErrorAlert, fields }) {
+// `docked` (phone, ≤ 1.3×): the pair sits in the shared PinnedDock (ruling 1,
+// B218); `narrow` (< 21rem): there it stacks, Create (52) over Cancel (52).
+function CreatePlanV2({ tablet, stacked = false, docked = false, narrow = false, variant, saving, onSubmit, onBack, formErrorAlert, fields }) {
   const { nameField, categoryField, daysField, difficultyField, descriptionField } = fields;
+  // The dock's live height (null until measured): the page's scroll room.
+  const [dockHeight, setDockHeight] = useState(null);
+  const dockStacked = docked && narrow;
+  const buttonsStacked = stacked || dockStacked;
   const pairStyle = [v2.pair, tablet && v2.pairTablet, stacked && v2.pairStacked];
   const cellStyle = stacked ? null : v2.pairCell;
   const cancel = (
@@ -334,7 +352,7 @@ function CreatePlanV2({ tablet, stacked = false, variant, saving, onSubmit, onBa
       title="Cancel"
       variant="secondary"
       onPress={onBack}
-      style={stacked ? v2.buttonStacked : tablet ? null : v2.buttonPhone}
+      style={stacked ? v2.buttonStacked : dockStacked ? v2.buttonDockStacked : tablet ? null : v2.buttonPhone}
     />
   );
   const submit = (
@@ -344,61 +362,71 @@ function CreatePlanV2({ tablet, stacked = false, variant, saving, onSubmit, onBa
       title="Create and add days"
       loading={saving}
       onPress={onSubmit}
-      style={stacked ? v2.buttonStacked : tablet ? null : [v2.buttonPhone, v2.submitPhone]}
+      style={stacked ? v2.buttonStacked : dockStacked ? v2.buttonDockStacked : tablet ? null : [v2.buttonPhone, v2.submitPhone]}
     />
   );
+  const buttons = (
+    <View testID="create-plan-buttons" style={[v2.buttons, tablet && v2.buttonsTablet, buttonsStacked && v2.buttonsStacked, docked && v2.buttonsDocked]}>
+      {buttonsStacked ? [submit, cancel] : [cancel, submit]}
+    </View>
+  );
   return (
-    <ShellPage testID="create-plan-screen" glow={tablet ? TABLET_CREATE_GLOW : CREATE_GLOW}>
-      <View testID="create-plan-column" style={[v2.column, tablet && v2.columnTablet]}>
-        <View>
-          <Pressable testID="create-plan-all-plans" accessibilityRole="link" onPress={onBack} style={v2.back}>
-            {({ pressed }) => (
-              <Text {...BODY_TEXT} style={[v2.backText, tablet && v2.backTextTablet, pressed && v2.backTextPressed]}>
-                {variant.backLabel}
-              </Text>
-            )}
-          </Pressable>
-          <HeroTitleMark />
-          <Text {...TITLE_TEXT} accessibilityRole="header" style={tablet ? v2.titleTablet : v2.title}>
-            Create a plan
-          </Text>
-          <Text {...BODY_TEXT} style={[v2.subtitle, tablet && v2.subtitleTablet]}>
-            {variant.subtitle}
-          </Text>
-        </View>
-        <View testID="create-plan-card" style={[v2.card, tablet && v2.cardTablet]}>
-          <GradientFill
-            angle={tablet ? TABLET_CARD_FILL.angle : gradients.card.angle}
-            colors={tablet ? TABLET_CARD_FILL.colors : gradients.card.colors}
-          />
-          {formErrorAlert}
-          <View style={[v2.fields, tablet && v2.fieldsTablet]}>
-            {nameField}
-            {tablet ? (
-              <>
-                {categoryField}
-                <View testID="create-plan-pair" style={pairStyle}>
-                  <View style={cellStyle}>{daysField}</View>
-                  <View style={cellStyle}>{difficultyField}</View>
-                </View>
-              </>
-            ) : (
-              <>
-                <View testID="create-plan-pair" style={pairStyle}>
-                  <View style={cellStyle}>{categoryField}</View>
-                  <View style={cellStyle}>{daysField}</View>
-                </View>
-                {difficultyField}
-              </>
-            )}
-            {descriptionField(tablet ? 4 : 2)}
+    <View style={v2.screen}>
+      <ShellPage testID="create-plan-screen" glow={tablet ? TABLET_CREATE_GLOW : CREATE_GLOW} dockHeight={docked ? dockHeight : null}>
+        <View testID="create-plan-column" style={[v2.column, tablet && v2.columnTablet]}>
+          <View>
+            <Pressable testID="create-plan-all-plans" accessibilityRole="link" onPress={onBack} style={v2.back}>
+              {({ pressed }) => (
+                <Text {...BODY_TEXT} style={[v2.backText, tablet && v2.backTextTablet, pressed && v2.backTextPressed]}>
+                  {variant.backLabel}
+                </Text>
+              )}
+            </Pressable>
+            <HeroTitleMark />
+            <Text {...TITLE_TEXT} accessibilityRole="header" style={tablet ? v2.titleTablet : v2.title}>
+              Create a plan
+            </Text>
+            <Text {...BODY_TEXT} style={[v2.subtitle, tablet && v2.subtitleTablet]}>
+              {variant.subtitle}
+            </Text>
           </View>
-          <View testID="create-plan-buttons" style={[v2.buttons, tablet && v2.buttonsTablet, stacked && v2.buttonsStacked]}>
-            {stacked ? [submit, cancel] : [cancel, submit]}
+          <View testID="create-plan-card" style={[v2.card, tablet && v2.cardTablet]}>
+            <GradientFill
+              angle={tablet ? TABLET_CARD_FILL.angle : gradients.card.angle}
+              colors={tablet ? TABLET_CARD_FILL.colors : gradients.card.colors}
+            />
+            {formErrorAlert}
+            <View style={[v2.fields, tablet && v2.fieldsTablet]}>
+              {nameField}
+              {tablet ? (
+                <>
+                  {categoryField}
+                  <View testID="create-plan-pair" style={pairStyle}>
+                    <View style={cellStyle}>{daysField}</View>
+                    <View style={cellStyle}>{difficultyField}</View>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View testID="create-plan-pair" style={pairStyle}>
+                    <View style={cellStyle}>{categoryField}</View>
+                    <View style={cellStyle}>{daysField}</View>
+                  </View>
+                  {difficultyField}
+                </>
+              )}
+              {descriptionField(tablet ? 4 : 2)}
+            </View>
+            {docked ? null : buttons}
           </View>
         </View>
-      </View>
-    </ShellPage>
+      </ShellPage>
+      {docked ? (
+        <PinnedDock testID="create-plan-dock" onHeight={setDockHeight} contentStyle={v2.dockContent}>
+          {buttons}
+        </PinnedDock>
+      ) : null}
+    </View>
   );
 }
 
@@ -425,6 +453,13 @@ const styles = StyleSheet.create({
 });
 
 const v2 = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  // The docked pair keeps the phone's 16 sides (the dock is edge to edge).
+  dockContent: {
+    paddingHorizontal: spacing[4],
+  },
   column: {
     width: '100%',
     maxWidth: 672,
@@ -527,6 +562,13 @@ const v2 = StyleSheet.create({
   buttonStacked: {
     width: '100%',
     minHeight: 56,
+  },
+  // In the dock below 21rem: full width at the kit's 52.
+  buttonDockStacked: {
+    width: '100%',
+  },
+  buttonsDocked: {
+    marginTop: 0,
   },
   buttonPhone: {
     minHeight: 56,

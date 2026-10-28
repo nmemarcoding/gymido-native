@@ -34,7 +34,12 @@ import { TAB_BAR_CONTENT_PADDING } from './tabBarMetrics';
 // programmatically (the generator's Review opens at the top, G1.3).
 // `headerActions` (optional): drawn right-aligned on the shell header's title
 // row (AppHeader); tablet Progress puts its Body/Activity switch there.
-export default function ShellPage({ children, nestable = false, glow = false, testID = 'app-root', scrollRef, headerActions }) {
+// `dockHeight` (optional): the measured height of the page's PinnedDock (UX
+// native final audit 27 Oct 2026, ruling 1). The scroll's contentContainer
+// bottom padding is then exactly that height (it already holds the tab bar,
+// the gap and the safe area) instead of the tab-bar padding; null = not
+// measured yet / no dock.
+export default function ShellPage({ children, nestable = false, glow = false, testID = 'app-root', scrollRef, headerActions, dockHeight = null }) {
   const route = useRoute();
   const path = getScreenPath(route.name, route.params);
   const { width, fontScale } = useWindowDimensions();
@@ -52,9 +57,11 @@ export default function ShellPage({ children, nestable = false, glow = false, te
   const keyboardPad = Platform.OS === 'android' ? keyboardHeight : 0;
   // §6.1 (audit b1 X1): the page's hero title, if any, registers here.
   const { registry, heroTitleShown } = useHeroTitleRegistry();
+  const docked = dockHeight !== null && dockHeight !== undefined;
+  const dockPad = docked ? dockHeight : 0;
 
   const content = (
-    <View style={[styles.content, { paddingBottom: (tablet ? 40 : TAB_BAR_CONTENT_PADDING) + insets.bottom + keyboardPad }]}>
+    <View style={[styles.content, { paddingBottom: (docked ? 0 : (tablet ? 40 : TAB_BAR_CONTENT_PADDING) + insets.bottom) + keyboardPad }]}>
       {/* QA F1, iOS: after a live text-size change, React's next commit lays
           out unchanged texts with their old measurements (clipped until they
           remount). So the header and the page content remount on a new text
@@ -90,6 +97,7 @@ export default function ShellPage({ children, nestable = false, glow = false, te
             {...scrollerProps}
             contentContainerStyle={{
               paddingTop: 24,
+              paddingBottom: dockPad,
               paddingLeft: RAIL.contentGutter,
               paddingRight: RAIL.contentGutter + insets.right,
             }}
@@ -112,6 +120,7 @@ export default function ShellPage({ children, nestable = false, glow = false, te
         {...scrollerProps}
         contentContainerStyle={{
           paddingTop: 0,
+          paddingBottom: dockPad,
           paddingLeft: gutter + insets.left,
           paddingRight: gutter + insets.right,
         }}
