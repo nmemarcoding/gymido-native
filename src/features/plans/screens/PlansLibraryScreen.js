@@ -7,25 +7,23 @@ import { getStatus } from '../../../shared/api/apiError';
 import EmptyState from '../../../shared/components/EmptyState';
 import { RetryButton } from '../../../shared/components/ErrorAlert';
 import { InlineError } from '../../../shared/components/FeedbackBox';
-import { CAP_BODY, CAP_PILL } from '../../../shared/components/largeText';
+import { CAP_BODY } from '../../../shared/components/largeText';
 import PillButton from '../../../shared/components/PillButton';
 import StateSlot from '../../../shared/components/StateSlot';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
-import { colors, font, radii, spacing } from '../../../shared/theme/tokens';
+import { breakpoints, colors, font, layout, spacing } from '../../../shared/theme/tokens';
 import { listMyPlans } from '../../myPlans/api/myPlansApi';
 import { myPlanRoutes } from '../../myPlans/myPlanRoutes';
+import { RAIL } from '../../shell/railMetrics';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
 import { getCurrentPlan, getCurrentToday, getCurrentWeek, listDifficultyLevels, listPlanDays, listPlans } from '../api/libraryApi';
-import ActivePlanCard from '../components/ActivePlanCard';
 import PhoneActivePlanCard from '../components/PhoneActivePlanCard';
 import PlanCatalogCard from '../components/PlanCatalogCard';
-import PlanEntryTiles from '../components/PlanEntryTiles';
 import PlanIcon from '../components/planIcons';
 import PlanOwnRows from '../components/PlanOwnRows';
 import PlansSkeleton from '../components/PlansSkeleton';
-import PlanTile from '../components/PlanTile';
-import { useIsTablet, useReflow } from '../components/planUi';
+import { gridColumns, rowsOf, useIsTablet, useReflow } from '../components/planUi';
 import {
   activePlanMetaParts,
   catalogMeta,
@@ -36,11 +34,11 @@ import {
   nextWorkout,
   planCountLabel,
   planDayTitle,
-  weekChips,
   weekCircles,
 } from '../libraryFormat';
 
-// S1 (RN-SPEC-plans §3), v2 look per UX H (Plans #21, Tablet: Plans #88).
+// S1 (RN-SPEC-plans §3), v2 look per UX H (Plans #21); T-60 on the phone and,
+// since the UX native final audit (27 Oct 2026, B203/B204), on the tablet.
 // Every focus remounts and reloads (§8.1).
 export default function PlansLibraryScreen() {
   const remountKey = useFocusRemountKey();
@@ -90,14 +88,15 @@ function useCanCreatePlan(enabled) {
 // existing GETs, each FAIL-SOFT (a failure hides only its part; the page
 // never errors on them). /week, /today and the plan's days only with a
 // current plan; the level names once per load. Each value is undefined while
-// pending and null when the call failed. The tablet makes none (unchanged).
+// pending and null when the call failed. The tablet makes the same calls
+// (UX native final audit 27 Oct 2026, B203/B204: T-60 §6 on the tablet).
 const SIDE_PENDING = { week: undefined, today: undefined, days: undefined, levels: undefined };
 
-function useSideData(load, enabled) {
+function useSideData(load) {
   const [side, setSide] = useState(SIDE_PENDING);
   useEffect(() => {
     setSide(SIDE_PENDING);
-    if (!enabled || load.status !== 'loaded') {
+    if (load.status !== 'loaded') {
       return undefined;
     }
     let alive = true;
@@ -121,7 +120,7 @@ function useSideData(load, enabled) {
     return () => {
       alive = false;
     };
-  }, [load, enabled]);
+  }, [load]);
   return side;
 }
 
@@ -132,8 +131,12 @@ function PlansLibrary() {
   const canCreate = useCanCreatePlan(tablet);
   const [reloadCount, setReloadCount] = useState(0);
   const [load, setLoad] = useState({ status: 'loading', plans: [], currentPlan: null, error: null });
-  const side = useSideData(load, !tablet);
+  const side = useSideData(load);
   const { width } = useWindowDimensions();
+  // The tablet column's width (T-60 §6 grids): measured, else the window
+  // less the rail and its two content gutters, capped at the content max.
+  const [measured, setMeasured] = useState(null);
+  const columnWidth = measured ?? Math.min(layout.contentMax, width - layout.railWidth - 2 * RAIL.contentGutter);
 
   useEffect(() => {
     let alive = true;
@@ -196,72 +199,44 @@ function PlansLibrary() {
 
   const library = deriveLibrary(load.plans, load.currentPlan);
   const openPlan = (planId) => navigation.push(routes.PlanDetail, { planId: String(planId) });
-  const columns = reflow ? 1 : 2;
 
   if (!tablet) {
-    return <PhonePlans library={library} load={load} side={side} compact={width < 360} openPlan={openPlan} />;
+    return <T60Plans library={library} load={load} side={side} compact={width < 360} openPlan={openPlan} />;
   }
 
+  // UX native final audit 27 Oct 2026, B203/B204 (T-60 §6): the tablet draws
+  // the same page in its column at the web ≥768 sizes. Two-column card body
+  // at ≥1024; above 1.3× text everything stacks (§9 rule 4).
   return (
-    <View style={[styles.page, tablet && styles.pageTablet]}>
+    <>
       {header}
-      {library.hasActivePlan ? (
-        <ActivePlanCard plan={library.activePlanDetail} chips={weekChips(load.currentPlan?.schedule)} onView={openPlan} />
-      ) : null}
-      {/* M4, then G-E1 right after it (RN-SPEC-MEMBER-PLANS §M4, PLAN-GENERATOR §G0). */}
-      <PlanEntryTiles />
-      {library.noPlansAtAll ? (
-        <EmptyState title="No plans available" message="No active workout plans were returned by the backend." />
-      ) : null}
-      {library.browseCount > 0 ? (
-        <View style={[styles.section, tablet && styles.sectionTablet]}>
-          <View style={[styles.sectionRow, reflow && styles.sectionRowStacked]}>
-            <Text {...CAP_BODY} accessibilityRole="header" style={tablet ? styles.headingTablet : styles.heading}>
-              {library.hasActivePlan ? 'Switch your plan' : 'Choose your next plan'}
-            </Text>
-            {tablet ? (
-              <View style={styles.countPill}>
-                <Text {...CAP_PILL} style={styles.countPillText}>
-                  {planCountLabel(library.browseCount)}
-                </Text>
-              </View>
-            ) : (
-              <Text {...CAP_BODY} style={styles.count}>
-                {planCountLabel(library.browseCount)}
-              </Text>
-            )}
-          </View>
-          {library.groups.map(([category, plans]) => (
-            <View key={category} style={[styles.section, tablet && styles.sectionTablet]}>
-              {library.showCategoryHeaders ? (
-                <Text {...CAP_BODY} style={styles.category}>
-                  {category}
-                </Text>
-              ) : null}
-              {rowsOf(plans, columns).map((row) => (
-                <View key={row.map((plan) => plan.id).join('-')} testID="plans-tile-row" style={[styles.tileRow, tablet && styles.tileRowTablet]}>
-                  {row.map((plan) => (
-                    <PlanTile key={plan.id} plan={plan} tablet={tablet} style={styles.tileCell} onPress={() => openPlan(plan.id)} />
-                  ))}
-                  {row.length < columns ? <View style={styles.tileCell} /> : null}
-                </View>
-              ))}
-            </View>
-          ))}
-        </View>
-      ) : !library.hasActivePlan && !library.noPlansAtAll ? (
-        <Text {...CAP_BODY} accessibilityRole="header" style={[tablet ? styles.headingTablet : styles.heading, styles.headingAlone]}>
-          Choose your next plan
-        </Text>
-      ) : null}
-    </View>
+      <T60Plans
+        library={library}
+        load={load}
+        side={side}
+        openPlan={openPlan}
+        tablet={{
+          size: !reflow && width >= breakpoints.lg ? 'wide' : 'tablet',
+          ownColumns: reflow ? 1 : gridColumns(columnWidth, OWN_MIN, GRID_GAP),
+          catalogColumns: reflow ? 1 : gridColumns(columnWidth, CATALOG_MIN, GRID_GAP),
+          onLayout: (event) => setMeasured(event.nativeEvent.layout.width),
+        }}
+      />
+    </>
   );
 }
+
+// T-60 §6 grid minimums: "Make it your own" auto-fit 340, the catalog
+// auto-fill 360, both gap 16.
+const OWN_MIN = 340;
+const CATALOG_MIN = 360;
+const GRID_GAP = spacing[4];
 
 // Dated change (27 Oct 2026, owner T-60; UX T60-plans-spec §1–§5): the PHONE
 // page: the active plan card, "Make it your own", the catalog (no category
 // sub-headings; the same plans in the same order). Same destinations.
-function PhonePlans({ library, load, side, compact, openPlan }) {
+// `tablet` (null on the phone): { size, ownColumns, catalogColumns, onLayout }.
+function T60Plans({ library, load, side, compact = false, openPlan, tablet = null }) {
   const schedule = load.currentPlan?.schedule;
   const now = new Date();
   const plan = library.activePlanDetail;
@@ -272,9 +247,10 @@ function PhonePlans({ library, load, side, compact, openPlan }) {
   const plans = catalogPlans(library);
 
   return (
-    <View style={styles.page}>
+    <View testID="plans-page" style={[styles.page, tablet && styles.pageTablet]} onLayout={tablet?.onLayout}>
       {library.hasActivePlan ? (
         <PhoneActivePlanCard
+          size={tablet?.size ?? 'phone'}
           plan={plan}
           meta={activePlanMetaParts(plan, levelNameOf(plan, side.levels))}
           circles={circles}
@@ -284,12 +260,12 @@ function PhonePlans({ library, load, side, compact, openPlan }) {
           onView={openPlan}
         />
       ) : null}
-      <PlanOwnRows />
+      <PlanOwnRows tablet={Boolean(tablet)} columns={tablet?.ownColumns} />
       {library.noPlansAtAll ? (
         <EmptyState title="No plans available" message="No active workout plans were returned by the backend." />
       ) : null}
       {plans.length > 0 ? (
-        <View testID="plans-catalog" style={styles.section}>
+        <View testID="plans-catalog" style={[styles.section, tablet && styles.sectionTablet]}>
           <View style={styles.catalogHeader}>
             <Text {...CAP_BODY} testID="plans-catalog-heading" accessibilityRole="header" style={styles.phoneHeading}>
               {library.hasActivePlan ? 'Try a different plan' : 'Choose your next plan'}
@@ -298,9 +274,28 @@ function PhonePlans({ library, load, side, compact, openPlan }) {
               {planCountLabel(plans.length)}
             </Text>
           </View>
-          {plans.map((item) => (
-            <PlanCatalogCard key={item.id} plan={item} meta={catalogMeta(item, levelNameOf(item, side.levels))} onPress={() => openPlan(item.id)} />
-          ))}
+          {tablet
+            ? // auto-fill: the last line keeps its empty cells.
+              rowsOf(plans, tablet.catalogColumns).map((line) => (
+                <View key={line.map((item) => item.id).join('-')} testID="plans-catalog-row" style={styles.gridLine}>
+                  {line.map((item) => (
+                    <PlanCatalogCard
+                      key={item.id}
+                      tablet
+                      plan={item}
+                      meta={catalogMeta(item, levelNameOf(item, side.levels))}
+                      style={styles.gridCell}
+                      onPress={() => openPlan(item.id)}
+                    />
+                  ))}
+                  {Array.from({ length: tablet.catalogColumns - line.length }, (_, index) => (
+                    <View key={`empty-${index}`} style={styles.gridCell} />
+                  ))}
+                </View>
+              ))
+            : plans.map((item) => (
+                <PlanCatalogCard key={item.id} plan={item} meta={catalogMeta(item, levelNameOf(item, side.levels))} onPress={() => openPlan(item.id)} />
+              ))}
         </View>
       ) : !library.hasActivePlan && !library.noPlansAtAll ? (
         <Text {...CAP_BODY} accessibilityRole="header" style={[styles.phoneHeading, styles.headingAlone]}>
@@ -309,14 +304,6 @@ function PhonePlans({ library, load, side, compact, openPlan }) {
       ) : null}
     </View>
   );
-}
-
-function rowsOf(items, size) {
-  const rows = [];
-  for (let index = 0; index < items.length; index += size) {
-    rows.push(items.slice(index, index + size));
-  }
-  return rows;
 }
 
 const styles = StyleSheet.create({
@@ -341,75 +328,15 @@ const styles = StyleSheet.create({
   sectionTablet: {
     gap: spacing[4],
   },
-  // margin 12 4 0, baseline row.
-  sectionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: spacing[3],
-    marginTop: spacing[3],
-    paddingHorizontal: spacing[1],
-  },
-  sectionRowStacked: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: spacing[1],
-  },
-  // 15/600 (phone) · 18/600 (tablet).
-  heading: {
-    ...font(600),
-    flexShrink: 1,
-    fontSize: 15,
-    lineHeight: 20,
-    color: colors.textPrimary,
-  },
-  headingTablet: {
-    ...font(600),
-    flexShrink: 1,
-    fontSize: 18,
-    lineHeight: 24,
-    color: colors.textPrimary,
-  },
   headingAlone: {
     paddingHorizontal: spacing[1],
   },
-  count: {
-    ...font(400),
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.textMuted,
-  },
-  countPill: {
-    minHeight: 28,
-    justifyContent: 'center',
-    paddingHorizontal: spacing[3],
-    borderRadius: radii.full,
-    backgroundColor: colors.fillSkeleton,
-  },
-  countPillText: {
-    ...font(500),
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.textSecondary,
-  },
-  // Undrawn, kept: 13/600 secondary, padding 4 4 0.
-  category: {
-    ...font(600),
-    paddingTop: spacing[1],
-    paddingHorizontal: spacing[1],
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.textSecondary,
-  },
-  tileRow: {
+  // T-60 §6 grids: gap 16.
+  gridLine: {
     flexDirection: 'row',
-    gap: spacing[3],
-  },
-  tileRowTablet: {
     gap: spacing[4],
   },
-  tileCell: {
+  gridCell: {
     flex: 1,
     minWidth: 0,
   },

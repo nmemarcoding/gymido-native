@@ -196,3 +196,18 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 });
+
+// Splits items into lines of `size` (a grid drawn as rows of flex cells).
+export function rowsOf(items, size) {
+  const lines = [];
+  for (let index = 0; index < items.length; index += size) {
+    lines.push(items.slice(index, index + size));
+  }
+  return lines;
+}
+
+// CSS repeat(auto-fill/auto-fit, minmax(min(100%, min), 1fr)): how many
+// `min`-wide columns with `gap` between them fit `width` (at least one).
+export function gridColumns(width, min, gap) {
+  return Math.max(1, Math.floor((width + gap) / (min + gap)));
+}

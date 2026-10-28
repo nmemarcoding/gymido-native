@@ -585,12 +585,16 @@ describe('T-60 phone: text sizes and tablet split', () => {
     expect(small).toHaveLength(7);
   });
 
-  it('tablet makes none of the side calls (unchanged)', async () => {
+  // UX native final audit 27 Oct 2026, B203/B204 (T-60 §6): the tablet now
+  // draws the T-60 page too, so it makes the same fail-soft side calls.
+  // Was: "tablet makes none of the side calls (unchanged)".
+  it('tablet makes the same side calls as the phone (T-60 §6)', async () => {
     mockWindow = { width: 834, height: 1194, fontScale: 1 };
     await render();
-    expect(getCurrentWeek).not.toHaveBeenCalled();
-    expect(getCurrentToday).not.toHaveBeenCalled();
-    expect(listDifficultyLevels).not.toHaveBeenCalled();
+    expect(getCurrentWeek).toHaveBeenCalledTimes(1);
+    expect(getCurrentToday).toHaveBeenCalledTimes(1);
+    expect(listPlanDays).toHaveBeenCalledWith(1);
+    expect(listDifficultyLevels).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -615,23 +619,156 @@ describe('Tablet: Plans', () => {
     tree = await render();
     expect(pressable(tree, 'plans-new-plan')).toBeDefined();
   });
+});
 
-  it('the active card: radius 32, padding 32, the 7-day grid with the day titles, the 56 pair', async () => {
+// UX native final audit 27 Oct 2026, rows B203 / B204: the tablet Plans page
+// is T-60 §6 (phone content in the tablet column at the web ≥768 sizes), not
+// the old solid-gold TabletPlans card and the photo-less tile grid.
+describe('Tablet: Plans T-60 §6 (B203 / B204)', () => {
+  const PORTRAIT = { width: 834, height: 1194, fontScale: 1 };
+  const LANDSCAPE = { width: 1194, height: 834, fontScale: 1 };
+
+  it('the old gold card is gone: no Go to workout / View plan / weekday chips; the T-60 card with Start + See full plan', async () => {
+    mockWindow = PORTRAIT;
     const tree = await render();
-    expect(flat(host(tree, 'plans-active-card'))).toEqual(expect.objectContaining({ borderRadius: radii.xxxl, padding: 32 }));
-    expect(texts(tree)).toEqual(expect.arrayContaining(['Strength · 4\u00a0days / week', 'Upper A', 'Lower A']));
-    expect(host(tree, 'plans-week-grid').props.accessibilityLabel).toBe('Training days: Monday, Thursday');
-    expect(flat(host(tree, 'plans-week-cell-4')).backgroundColor).toBe(colors.ground);
-    expect(flat(pressableEl(tree, 'plans-go-to-workout')).minHeight).toBe(56);
+    for (const id of ['plans-view-active', 'plans-go-to-workout', 'plans-week-grid', 'plans-week-chips', 'plans-entry-tiles', 'generator-entry-card']) {
+      expect(host(tree, id)).toBeUndefined();
+    }
+    expect(flat(host(tree, 'plans-active-card'))).toEqual(expect.objectContaining({ backgroundColor: colors.surface, borderColor: colors.goldBorder, borderWidth: 1 }));
+    expect(textOf(host(tree, 'plans-active-badge'))).toBe('Your active plan');
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Next workout · Today', 'Lower A', ' · 5\u00a0exercises', 'Start Lower A', 'See full plan']));
+    await act(async () => pressable(tree, 'plans-start').props.onPress());
+    expect(openShellPath).toHaveBeenCalledWith('/workout');
+    await act(async () => pressable(tree, 'plans-see-full-plan').props.onPress());
+    expect(mockNavigation.push).toHaveBeenCalledWith('PlanDetail', { planId: '1' });
   });
 
-  it('entry rows side by side with "Get started" as a TextLink; plan cards 2 per row at radius 28', async () => {
+  it('card: radius 32, a 220 photo header, body padding 0 32 32 pulled up 40; meta with the level', async () => {
+    mockWindow = PORTRAIT;
     const tree = await render();
-    expect(host(tree, 'generator-entry-card')).toBeDefined();
-    expect(texts(tree)).toContain('Get started →');
-    const tile = pressable(tree, 'plans-card-2');
-    expect(flat(tile)).toEqual(expect.objectContaining({ borderRadius: radii.xxl, padding: 22, gap: 36 }));
-    expect(hosts(tree, 'plans-tile-row')).toHaveLength(1);
+    expect(flat(host(tree, 'plans-active-card')).borderRadius).toBe(radii.xxxl);
+    expect(flat(host(tree, 'plans-active-photo')).height).toBe(220);
+    expect(flat(host(tree, 'plans-active-body'))).toEqual(expect.objectContaining({ marginTop: -40, paddingHorizontal: 32, paddingBottom: 32 }));
+    expect(host(tree, 'plans-active-meta').props.accessibilityLabel).toBe('Strength · 4\u00a0days a week · Intermediate');
+  });
+
+  it('768–1023 (portrait): one column, circles 40, the actions stacked', async () => {
+    mockWindow = PORTRAIT;
+    const tree = await render();
+    expect(host(tree, 'plans-active-columns')).toBeUndefined();
+    expect(flat(host(tree, 'plans-week-circle-1'))).toEqual(expect.objectContaining({ width: 40, height: 40 }));
+    expect(flat(host(tree, 'plans-active-actions')).flexDirection).toBe('column');
+  });
+
+  it('≥1024 (landscape): two columns, gap 32; name 40/44; week inset max 520, circles 44, letters 15, labels 12', async () => {
+    mockWindow = LANDSCAPE;
+    const tree = await render();
+    expect(flat(host(tree, 'plans-active-columns'))).toEqual(expect.objectContaining({ flexDirection: 'row', gap: 32 }));
+    expect(host(tree, 'plans-active-main').findAll((node) => node.props.testID === 'plans-active-name')).not.toHaveLength(0);
+    expect(host(tree, 'plans-active-side').findAll((node) => node.props.testID === 'plans-week')).not.toHaveLength(0);
+    expect(flat(host(tree, 'plans-active-name'))).toEqual(expect.objectContaining({ fontSize: 40, lineHeight: 44 }));
+    expect(flat(host(tree, 'plans-active-meta-days'))).toEqual(expect.objectContaining({ fontSize: 16, lineHeight: 24 }));
+    expect(flat(host(tree, 'plans-week')).maxWidth).toBe(520);
+    expect(flat(host(tree, 'plans-week-circle-1'))).toEqual(expect.objectContaining({ width: 44, height: 44 }));
+    expect(flat(host(tree, 'plans-week-letter-1')).fontSize).toBe(15);
+    expect(flat(host(tree, 'plans-week-label-1')).fontSize).toBe(12);
+    expect(flat(host(tree, 'plans-week-label-4'))).toEqual(expect.objectContaining({ fontSize: 12, color: colors.gold }));
+  });
+
+  it('≥1024: the actions side by side: gold Start min-width 220 × 54, outline See full plan 50 (auto width)', async () => {
+    mockWindow = LANDSCAPE;
+    const tree = await render();
+    expect(flat(host(tree, 'plans-active-actions')).flexDirection).toBe('row');
+    expect(flat(pressableEl(tree, 'plans-start'))).toEqual(expect.objectContaining({ minWidth: 220, minHeight: 54, backgroundColor: colors.gold }));
+    const outline = flat(pressableEl(tree, 'plans-see-full-plan'));
+    expect(outline.minHeight).toBe(50);
+    expect(outline.flexGrow ?? 0).toBe(0);
+  });
+
+  it('Make it your own: two cards side by side, radius 24, row padding 20, tile 52 r16, title 18/600, body 15/22', async () => {
+    mockWindow = PORTRAIT;
+    const tree = await render();
+    expect(textOf(host(tree, 'plans-own-heading'))).toBe('Make it your own');
+    expect(hosts(tree, 'plans-own-row-line')).toHaveLength(1);
+    expect(flat(host(tree, 'plans-own-row-line'))).toEqual(expect.objectContaining({ flexDirection: 'row', gap: 16 }));
+    expect(host(tree, 'plans-own-divider')).toBeUndefined();
+    const card = flat(host(tree, 'plans-own-card-my-plans-entry'));
+    expect(card).toEqual(expect.objectContaining({ borderRadius: radii.xl, backgroundColor: colors.surface, borderColor: colors.hairline }));
+    expect(host(tree, 'plans-own-card-generator-entry-start')).toBeDefined();
+    expect(flat(pressable(tree, 'my-plans-entry')).padding).toBe(20);
+    expect(flat(host(tree, 'plans-own-tile-my-plans-entry'))).toEqual(expect.objectContaining({ width: 52, height: 52, borderRadius: radii.md }));
+    expect(flat(textNode(tree, 'My plans'))).toEqual(expect.objectContaining({ fontSize: 18 }));
+    expect(flat(textNode(tree, 'Build your own, or copy one from the catalog to change it.'))).toEqual(expect.objectContaining({ fontSize: 15, lineHeight: 22 }));
+    await act(async () => pressable(tree, 'my-plans-entry').props.onPress());
+    expect(mockNavigation.push).toHaveBeenCalledWith('MyPlans');
+  });
+
+  it('Make it your own: generator unavailable → the one My plans card fills the row', async () => {
+    mockWindow = PORTRAIT;
+    getGeneratorProfile.mockResolvedValue({ available: false });
+    const tree = await render();
+    expect(host(tree, 'plans-own-card-generator-entry-start')).toBeUndefined();
+    expect(flat(host(tree, 'plans-own-card-my-plans-entry')).flex).toBe(1);
+  });
+
+  it('catalog: "Try a different plan" + count; the row card with a 96 photo, radius 20 (18 → lg fold), padding 14; no tile grid', async () => {
+    mockWindow = PORTRAIT;
+    const tree = await render();
+    expect(textOf(host(tree, 'plans-catalog-heading'))).toBe('Try a different plan');
+    expect(textOf(host(tree, 'plans-catalog-count'))).toBe('2 plans');
+    expect(texts(tree)).not.toContain('Switch your plan');
+    expect(hosts(tree, 'plans-tile-row')).toHaveLength(0);
+    const card = pressable(tree, 'plans-card-2');
+    expect(flat(card)).toEqual(expect.objectContaining({ padding: 14, borderRadius: radii.lgPlus, flexDirection: 'row' }));
+    const photo = tree.root.findAll((node) => node.type === ExerciseImage && node.props.testID === 'plans-card-photo-2')[0];
+    expect(photo.props).toEqual(expect.objectContaining({ size: 96, url: THUMB.url }));
+    expect(StyleSheet.flatten(photo.props.style).borderRadius).toBe(radii.lg);
+    expect(textOf(host(tree, 'plans-card-category-2'))).toBe('Hypertrophy');
+    expect(host(tree, 'plans-card-description-2').props.numberOfLines).toBe(2);
+  });
+
+  it('catalog grid auto-fill min 360, gap 16: 1 per row in portrait (≈698), 2 per row in landscape (≈1058)', async () => {
+    mockWindow = PORTRAIT;
+    let tree = await render();
+    expect(hosts(tree, 'plans-catalog-row')).toHaveLength(2);
+    mockWindow = LANDSCAPE;
+    tree = await render();
+    const rows = hosts(tree, 'plans-catalog-row');
+    expect(rows).toHaveLength(1);
+    expect(flat(rows[0])).toEqual(expect.objectContaining({ flexDirection: 'row', gap: 16 }));
+  });
+
+  it('the grids follow the measured column width (onLayout)', async () => {
+    mockWindow = PORTRAIT;
+    const tree = await render();
+    await act(async () => host(tree, 'plans-page').props.onLayout({ nativeEvent: { layout: { width: 1120, height: 2000 } } }));
+    // 1120: three 360 columns fit (3 × 360 + 2 × 16 = 1112).
+    expect(hosts(tree, 'plans-catalog-row')).toHaveLength(1);
+    await act(async () => host(tree, 'plans-page').props.onLayout({ nativeEvent: { layout: { width: 700, height: 2000 } } }));
+    expect(hosts(tree, 'plans-own-row-line')).toHaveLength(1);
+    await act(async () => host(tree, 'plans-page').props.onLayout({ nativeEvent: { layout: { width: 500, height: 2000 } } }));
+    // 500 < 2 × 340 + 16 = 696: the own cards stack.
+    expect(hosts(tree, 'plans-own-row-line')).toHaveLength(2);
+  });
+
+  it('no active plan: "Choose your next plan"; no card', async () => {
+    mockWindow = PORTRAIT;
+    getCurrentPlan.mockRejectedValue({ response: { status: 404 } });
+    const tree = await render();
+    expect(host(tree, 'plans-active-card')).toBeUndefined();
+    expect(textOf(host(tree, 'plans-catalog-heading'))).toBe('Choose your next plan');
+    expect(textOf(host(tree, 'plans-catalog-count'))).toBe('3 plans');
+  });
+
+  it('every text on the tablet page is ≥ 13 px except the seven week labels', async () => {
+    mockWindow = LANDSCAPE;
+    const tree = await render();
+    const small = tree.root
+      .findAll((node) => node.type === 'Text')
+      .filter((node) => (flat(node)?.fontSize ?? 13) < 13)
+      .map((node) => node.props.testID ?? textOf(node));
+    expect(small.every((id) => /^plans-week-label-/.test(id))).toBe(true);
+    expect(small).toHaveLength(7);
   });
 });
 
@@ -647,10 +784,16 @@ describe('Plans large text (§9)', () => {
     expect(label.props).toEqual(expect.objectContaining({ numberOfLines: 1, ellipsizeMode: 'tail' }));
   });
 
-  it('tablet past 1.3×: the week grid becomes the wrapping chip row', async () => {
-    mockWindow = { width: 834, height: 1194, fontScale: 2 };
+  // UX native final audit 27 Oct 2026, B203/B204: the chip row went with
+  // the old tablet card. Was: "tablet past 1.3×: the week grid becomes the
+  // wrapping chip row".
+  it('tablet landscape past 1.3×: one column (no side-by-side card body, actions or grids); the week stays circles', async () => {
+    mockWindow = { width: 1194, height: 834, fontScale: 2 };
     const tree = await render();
-    expect(host(tree, 'plans-week-grid')).toBeUndefined();
-    expect(flat(host(tree, 'plans-week-chips')).flexWrap).toBe('wrap');
+    expect(host(tree, 'plans-active-columns')).toBeUndefined();
+    expect(flat(host(tree, 'plans-active-actions')).flexDirection).toBe('column');
+    expect(hosts(tree, 'plans-own-row-line')).toHaveLength(2);
+    expect(hosts(tree, 'plans-catalog-row')).toHaveLength(2);
+    expect(host(tree, 'plans-week-circle-1')).toBeDefined();
   });
 });

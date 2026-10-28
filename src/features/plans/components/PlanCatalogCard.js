@@ -9,6 +9,7 @@ import PlanIcon from './planIcons';
 import { PressOverlay } from './planUi';
 
 const PHOTO = 84;
+const PHOTO_TABLET = 96;
 // The board's 28/700 initials (UX T60 §4), not the shared 0.36 × 84.
 const INITIALS = 28;
 
@@ -18,7 +19,10 @@ const INITIALS = 28;
 // the neutral initials tile; the gold category kicker (13/600); the name (2
 // lines, never shrinks); "{n} days a week · {level}" (1 line); the full
 // description clamped to 2 lines + an ellipsis; a chevron.
-export default function PlanCatalogCard({ plan, meta, onPress }) {
+// UX native final audit 27 Oct 2026, B203/B204 (T-60 §6): the tablet uses the
+// same row card with a 96 photo (radius 18 → radius-lg 20, the T-60 fold) and
+// padding 14.
+export default function PlanCatalogCard({ plan, meta, tablet = false, style, onPress }) {
   const category = plan.category?.name;
   const label = [plan.name, category, meta, plan.description].filter(Boolean).join(', ');
   return (
@@ -27,7 +31,7 @@ export default function PlanCatalogCard({ plan, meta, onPress }) {
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.card, tablet && styles.cardTablet, style, pressed && styles.pressed]}
     >
       {({ pressed }) => (
         <>
@@ -37,9 +41,9 @@ export default function PlanCatalogCard({ plan, meta, onPress }) {
             testID={`plans-card-photo-${plan.id}`}
             name={plan.name}
             muscleCode={null}
-            size={PHOTO}
+            size={tablet ? PHOTO_TABLET : PHOTO}
             initialsFontSize={INITIALS}
-            style={styles.photo}
+            style={tablet ? styles.photoTablet : styles.photo}
           />
           <View style={styles.text}>
             {category ? (
@@ -79,11 +83,17 @@ const styles = StyleSheet.create({
     borderColor: colors.hairline,
     backgroundColor: colors.surface,
   },
+  cardTablet: {
+    padding: spacing['3_5'],
+  },
   pressed: {
     borderColor: colors.goldLine,
   },
   photo: {
     borderRadius: radii.md,
+  },
+  photoTablet: {
+    borderRadius: radii.lg,
   },
   text: {
     flex: 1,
