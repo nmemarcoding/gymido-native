@@ -114,8 +114,11 @@ describe('T-82 progressFormat helpers', () => {
     expect(isThisWeekRow({ ...row, startedAt: iso(dayAt(6, 23)) }, WEEK)).toBe(true);
     expect(isThisWeekRow({ ...row, startedAt: OLDER.started_at }, WEEK)).toBe(false);
     expect(isThisWeekRow({ ...row, startedAt: iso(dayAt(7, 1)) }, WEEK)).toBe(false);
-    expect(isThisWeekRow(row, null)).toBe(false);
-    expect(isThisWeekRow(row, WEEK.slice(0, 3))).toBe(false);
+    // DECLARED (review M1, web parity): without a valid /week the local Mon–Sun is used (was: false).
+    expect(isThisWeekRow(row, null)).toBe(true);
+    expect(isThisWeekRow(row, WEEK.slice(0, 3))).toBe(true);
+    expect(isThisWeekRow({ ...row, startedAt: OLDER.started_at }, null)).toBe(false);
+    expect(isThisWeekRow({ ...row, startedAt: iso(dayAt(7, 1)) }, null)).toBe(false);
     expect(isThisWeekRow({ ...row, startedAt: null }, WEEK)).toBe(false);
     expect(isThisWeekRow({ ...row, startedAt: 'junk' }, WEEK)).toBe(false);
     expect(isThisWeekRow({ ...row, workoutId: null }, WEEK)).toBe(false);
@@ -173,14 +176,17 @@ describe('T-82 Recent workouts ⋯ → delete', () => {
     expect(pressable(tree.root, 'progress-recent-actions-w41').props.accessibilityLabel).toBe('Workout actions, Push A, Monday');
   });
 
-  it('no /week (null or invalid) → no ⋯ at all', async () => {
+  // DECLARED (review M1, web parity; RN-SPEC-progress T-82): was "no /week → no ⋯ at all". Now no /week
+  // (no active plan, a failed read) falls back to the device's local Mon–Sun: this week's completed rows
+  // keep the ⋯, older rows still get none.
+  it('no /week (no plan, or null / invalid) → the local Mon–Sun: this week\'s rows keep the ⋯, older ones none', async () => {
     loadProgress.mockResolvedValue({ ...DATA, week: null });
     const tree = await renderActivity();
     expect(hosts(tree.root, 'progress-recent-w41')).toHaveLength(1);
-    expect(hostIds(tree.root, 'progress-recent-actions-')).toEqual([]);
+    expect(hostIds(tree.root, 'progress-recent-actions-').sort()).toEqual(['progress-recent-actions-w41', 'progress-recent-actions-w42']);
     loadProgress.mockResolvedValue({ ...DATA, week: WEEK.slice(0, 6) });
     const partial = await renderActivity();
-    expect(hostIds(partial.root, 'progress-recent-actions-')).toEqual([]);
+    expect(hostIds(partial.root, 'progress-recent-actions-').sort()).toEqual(['progress-recent-actions-w41', 'progress-recent-actions-w42']);
   });
 
   it('Menu → confirm → DELETE /workouts/{id} → "Workout deleted." toast + reload; the row goes', async () => {
@@ -236,7 +242,8 @@ describe('T-82 Recent workouts ⋯ → delete', () => {
     expect(dialog(tree.root).props.isOpen).toBe(false);
     expect(addToast).toHaveBeenCalledWith(ToastTone.error, "Only this week's workouts can be deleted.");
     expect(loadProgress).toHaveBeenCalledTimes(2);
-    expect(hostIds(tree.root, 'progress-recent-actions-')).toEqual([]);
+    // DECLARED (review M1): was [] (no /week → no ⋯); with the local Mon–Sun fallback only the LOCKED row loses it.
+    expect(hostIds(tree.root, 'progress-recent-actions-')).toEqual(['progress-recent-actions-w42']);
     await wait(SHEET_FOCUS_DELAY_MS + 20);
     expect(lastFocusedTestID()).toBe('progress-recent-title');
   });

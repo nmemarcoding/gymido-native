@@ -4,6 +4,7 @@ import { formatDate, formatDateWithOffset, formatDuration } from '../../shared/t
 import { formatCount } from '../../shared/format/counts';
 import { isValidWeek, localDateKey } from '../plans/libraryFormat';
 import { weekdayNameOf } from '../plans/weekByDate';
+import { currentWeekRange } from '../workout/workoutFormat';
 
 // Derived values of RN-SPEC-progress §PR1.2, kept apart from the screen so
 // they can be tested.
@@ -325,12 +326,16 @@ function startedLocalDate(startedAt) {
   return Number.isNaN(at.getTime()) ? null : at;
 }
 
-export function isThisWeekRow(row, week) {
-  if (row?.kind !== 'done' || row.completed !== true || row.workoutId === null || row.workoutId === undefined || !isValidWeek(week)) {
+// RN-SPEC-progress T-82 (review M1, web parity): the week is /week's dates;
+// without a valid /week (no active plan, a failed read) the device's local
+// Mon–Sun. The server still enforces it (409 WORKOUT_DELETE_WEEK_LOCKED).
+export function isThisWeekRow(row, week, now = new Date()) {
+  if (row?.kind !== 'done' || row.completed !== true || row.workoutId === null || row.workoutId === undefined) {
     return false;
   }
-  const first = week[0]?.date;
-  const last = week[6]?.date;
+  const local = currentWeekRange(now);
+  const first = isValidWeek(week) ? week[0]?.date : local.startDate;
+  const last = isValidWeek(week) ? week[6]?.date : local.endDate;
   const at = startedLocalDate(row.startedAt);
   if (typeof first !== 'string' || typeof last !== 'string' || !at) {
     return false;
