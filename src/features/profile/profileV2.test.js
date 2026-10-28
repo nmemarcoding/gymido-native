@@ -575,6 +575,25 @@ describe('Reset password dialog look', () => {
 describe('Edit profile (UX K Edit profile / Tablet: Edit profile)', () => {
   const field = (root, id) => root.find((node) => node.props.testID === id && node.props.onChangeText);
 
+  // UX native final audit 27 Oct 2026, row A153 (MUST): ONE title. The page's
+  // "Edit profile" heading registers as the hero title, so the shell header
+  // (back pill "‹ Profile") draws no second title over it.
+  it('A153: the "Edit profile" heading is the page\'s hero title (HeroTitleMark beside it), at both widths', async () => {
+    const { HeroTitleMark } = require('../shell/heroTitle');
+    for (const width of [390, 834]) {
+      mockWidth = width;
+      setStoredProfile(PROFILE);
+      const tree = await renderAsync(<EditProfileScreen />);
+      const heading = tree.root.find((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === 'Edit profile');
+      let box = heading.parent;
+      while (box.type !== 'View') {
+        box = box.parent;
+      }
+      expect(box.parent.findAllByType(HeroTitleMark)).toHaveLength(1);
+      expect(tree.root.findAllByType(HeroTitleMark)).toHaveLength(1);
+    }
+  });
+
   it('phone: 88 avatar header, segmented height unit (cm · ft/in · in) switching to Feet + Inches', async () => {
     setStoredProfile(PROFILE);
     const tree = await renderAsync(<EditProfileScreen />);
@@ -691,6 +710,33 @@ describe('p5fix: stat tiles web parity (M3 / M4)', () => {
     });
     expect(tiles.slice(1).map((tile) => tile.value)).toEqual(['181.4', '80.1']);
     expect(tiles.slice(1).every((tile) => !/kg|lb/.test(tile.value))).toBe(true);
+  });
+});
+
+// UX ruling f1 (27 Oct 2026, batch k): Edit profile draws the same Date of
+// Birth + Sex pair, so the same rule: below 336 it stacks, DOB first; the
+// "Date of Birth (optional)" label wraps only at a word boundary.
+describe('f1: Edit profile Date of Birth + Sex pair', () => {
+  const pairOf = (tree) => host(tree.root, 'edit-profile-dob-sex-pair');
+  it('320: one column, DOB above Sex, both full width; the label keeps "(optional)" and breaks between words', async () => {
+    mockWidth = 320;
+    setStoredProfile(PROFILE);
+    const tree = await renderAsync(<EditProfileScreen />);
+    const pair = pairOf(tree);
+    expect(flat(pair.props.style).flexDirection).toBe('column');
+    expect(pair.children.map((cell) => cell.props.testID)).toEqual(['edit-profile-date-of-birth-field', 'edit-profile-sex-field']);
+    pair.children.forEach((cell) => expect((flat(cell.props.style) ?? {}).flex).toBeUndefined());
+    const label = tree.root.findAll((n) => n.type === 'Text' && [].concat(n.props.children).some((c) => c === 'Date of Birth'))[0];
+    expect(label.props.textBreakStrategy).toBe('simple');
+    expect(label.findAll((n) => n.type === 'Text' && n.props.children === ' (optional)')).toHaveLength(1);
+  });
+
+  it.each([336, 390])('%i: side by side (unchanged)', async (width) => {
+    mockWidth = width;
+    setStoredProfile(PROFILE);
+    const tree = await renderAsync(<EditProfileScreen />);
+    expect(flat(pairOf(tree).props.style).flexDirection).toBe('row');
+    pairOf(tree).children.forEach((cell) => expect(flat(cell.props.style).flex).toBe(1));
   });
 });
 

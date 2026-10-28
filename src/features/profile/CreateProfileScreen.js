@@ -14,7 +14,7 @@ import GradientFill from '../../shared/components/GradientFill';
 import PillButton from '../../shared/components/PillButton';
 import { AmbientGlow } from '../../shared/components/Screen';
 import SegmentedSwitch from '../../shared/components/SegmentedSwitch';
-import { useKeyboardHeight } from '../../shared/hooks/useKeyboardHeight';
+import { useKeyboardOverlap } from '../../shared/hooks/useKeyboardHeight';
 import { useReducedMotion } from '../../shared/hooks/useReducedMotion';
 import { breakpoints, colors, font, gradients, motion, radii, spacing, textScale, typography } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
@@ -85,7 +85,9 @@ const TEXT_TARGETS = ['first_name', 'last_name', 'height_value', 'height_feet', 
 export default function CreateProfileScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const keyboardHeight = useKeyboardHeight();
+  // Batch k (PM, 27 Oct 2026): what the keyboard COVERS; the raw height
+  // leaves out the Android nav bar under an edge-to-edge window.
+  const keyboardHeight = useKeyboardOverlap();
   const { width, fontScale } = useWindowDimensions();
   // §9 reflow (live): the 2-column pairs become one column and the weight
   // unit switch drops below its label.
@@ -311,6 +313,11 @@ export default function CreateProfileScreen() {
   // §9: past 1.3 every 2-column pair is one column.
   const pair = reflow ? styles.pairStacked : tablet ? styles.pairTablet : styles.pair;
   const cell = reflow ? styles.cellStacked : styles.cell;
+  // UX ruling f1 (27 Oct 2026, batch k): below 21rem (336 at 1×) the Date of
+  // Birth + Sex pair stacks full width, DOB first.
+  const dobSexStacked = !tablet && width < DOB_SEX_STACK_BELOW * fontScale;
+  const dobSexPair = dobSexStacked ? styles.pairStacked : pair;
+  const dobSexCell = dobSexStacked ? styles.cellStacked : cell;
   const heightFields = ftIn ? (
     <View testID="profile-height-pair" style={reflow ? styles.pairStacked : styles.pair}>
       <View style={cell}>
@@ -472,7 +479,7 @@ export default function CreateProfileScreen() {
                   <View style={cell}>{currentWeight}</View>
                   <View style={cell}>{goalWeight}</View>
                 </View>
-                <View style={pair}>
+                <View testID="profile-dob-sex-pair" style={pair}>
                   <View style={cell}>{dateOfBirth}</View>
                   <View style={cell}>{sex}</View>
                 </View>
@@ -498,9 +505,9 @@ export default function CreateProfileScreen() {
                 <View style={cell}>{currentWeight}</View>
                 <View style={cell}>{goalWeight}</View>
               </View>
-              <View style={pair}>
-                <View style={cell}>{dateOfBirth}</View>
-                <View style={cell}>{sex}</View>
+              <View testID="profile-dob-sex-pair" style={dobSexPair}>
+                <View style={dobSexCell}>{dateOfBirth}</View>
+                <View style={dobSexCell}>{sex}</View>
               </View>
             </>
           )}
@@ -524,6 +531,9 @@ export default function CreateProfileScreen() {
     </View>
   );
 }
+
+// f1: 21rem (16 × 21) at 1× text.
+const DOB_SEX_STACK_BELOW = 336;
 
 const styles = StyleSheet.create({
   screen: {

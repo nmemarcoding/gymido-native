@@ -215,6 +215,20 @@ describe('PlanDayCard (v2)', () => {
     expect(flat(host(tree.root, 'workout-day-done-3')).backgroundColor).toBe(colors.gold);
   });
 
+  // UX native final audit 27 Oct 2026, row A110 (MUST): at 320 the 2-up day
+  // card's "Done this week" pill wrapped to 2 lines and the text ran out of
+  // the pill. It is ONE line: the label shrinks to fit (down to 0.8×) and
+  // never wraps; the pill never grows past its card.
+  it.each([320, 390, 834])('A110 (width %i): "Done this week" is one line inside its pill (shrinks, never wraps)', (width) => {
+    mockWidth = width;
+    const tree = render(<PlanDayCard day={day} weekdays={[{ id: 1, name: 'Monday' }]} isDone starting={false} onStart={jest.fn()} index={0} />);
+    const pill = host(tree.root, 'workout-day-done-3');
+    expect(flat(pill)).toMatchObject({ flexDirection: 'row', alignSelf: 'flex-start', maxWidth: '100%' });
+    const label = pill.find((node) => node.type === 'Text' && textOf(node) === 'Done this week');
+    expect(label.props).toMatchObject({ numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 0.8 });
+    expect(flat(label).flexShrink).toBe(1);
+  });
+
   it('not done: surface layer on, hairline edge, no pill, "Unscheduled" when no weekday', () => {
     const tree = render(<PlanDayCard day={day} weekdays={[]} isDone={false} starting={false} onStart={jest.fn()} index={0} />);
     expect(flat(host(tree.root, 'workout-day-3')).borderColor).toBe(colors.hairline);

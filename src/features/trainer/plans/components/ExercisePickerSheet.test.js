@@ -531,3 +531,43 @@ describe.each([390, 834])('X7 exercise picker rows (%i)', (width) => {
     nodes.forEach(expectName);
   });
 });
+
+// UX native final audit 27 Oct 2026, ruling 12 + batch k (PM, the batch g bug
+// class): the picker (a sheet with a field) lifts by what the keyboard COVERS
+// (useKeyboardOverlap), not the raw height, which on an edge-to-edge Android
+// window leaves out the 48 nav bar under the IME. Real geometry: window 915
+// tall, the IME's top at 915 − 336 − 48 = 531 (overlap 384), raw height 336.
+describe('keyboard: the sheet sits above the keyboard top (Android phone, 48 nav bar)', () => {
+  const { Dimensions, Keyboard, StyleSheet } = require('react-native');
+  const WINDOW = { width: 412, height: 915, scale: 2.625, fontScale: 1 };
+  const FRAME = { height: 336, screenY: 915 - 336 - 48 };
+  let listeners;
+  beforeEach(() => {
+    listeners = {};
+    jest.spyOn(Keyboard, 'addListener').mockImplementation((name, cb) => {
+      listeners[name] = cb;
+      return { remove: () => delete listeners[name] };
+    });
+    jest.spyOn(Dimensions, 'get').mockImplementation(() => WINDOW);
+    jest.spyOn(Dimensions, 'addEventListener').mockImplementation(() => ({ remove: () => {} }));
+  });
+  afterEach(() => jest.restoreAllMocks());
+
+  it('the sheet bottom is at or above the keyboard top and its height fits the room above it', () => {
+    useWindowDimensions.mockReturnValue(WINDOW);
+    const { tree } = render();
+    const show = listeners.keyboardWillShow ?? listeners.keyboardDidShow;
+    act(() => show({ endCoordinates: FRAME }));
+    const sheet = host(tree.root, 'exercise-picker')[0];
+    // The scrim: the nearest host ancestor that pads its bottom for the keyboard.
+    let scrim = sheet.parent;
+    while (!(typeof scrim.type === 'string' && StyleSheet.flatten(scrim.props.style)?.paddingBottom !== undefined)) {
+      scrim = scrim.parent;
+    }
+    const scrimStyle = StyleSheet.flatten(scrim.props.style);
+    const sheetBottom = WINDOW.height - scrimStyle.paddingBottom;
+    expect(sheetBottom).toBeLessThanOrEqual(FRAME.screenY);
+    expect(StyleSheet.flatten(sheet.props.style).height).toBeLessThanOrEqual(sheetBottom);
+    expect(host(tree.root, 'exercise-picker-search')).not.toHaveLength(0);
+  });
+});

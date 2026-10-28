@@ -54,12 +54,20 @@ function MyPlansList() {
   // UX §9 rule 4: above 1.3× text button pairs stack, full width ("Create a
   // plan" stays on top), and the tablet grid becomes one column.
   const stackEmpty = fontScale > textScale.reflowAbove;
-  const reflow = stackEmpty;
+  // UX native final audit 27 Oct 2026, B215 (button-pair rule): the labels
+  // never wrap. The pair needs PAIR_ONE_LINE × the font scale for both on one
+  // line (wider than 21rem), so a narrower row (every phone) stacks: gold
+  // "Create a plan" full width over the glass "Build me a plan". The row is
+  // measured; until then it is the window minus the phone gutters.
+  const [rowWidth, setRowWidth] = useState(null);
+  const pairRow = rowWidth ?? width - layout.gutter * 2;
+  const [generator, setGenerator] = useState(false);
+  const pairTooNarrow = Boolean(generator && myPlanRoutes.PlanGenerator) && pairRow < PAIR_ONE_LINE * fontScale;
+  const reflow = stackEmpty || pairTooNarrow;
   const [page, setPage] = useState(1);
   const [reloadCount, setReloadCount] = useState(0);
   // status: loading | loaded | error | onHold
   const [state, setState] = useState({ status: 'loading', result: null, message: '' });
-  const [generator, setGenerator] = useState(false);
   const mounted = useRef(true);
 
   useEffect(() => {
@@ -111,7 +119,11 @@ function MyPlansList() {
         </Text>
       </View>
       {onHold ? null : (
-        <View testID="my-plans-actions" style={[styles.actions, tablet && styles.actionsTablet, reflow && styles.actionsStacked]}>
+        <View
+          testID="my-plans-actions"
+          onLayout={(event) => setRowWidth(event.nativeEvent.layout.width)}
+          style={[styles.actions, tablet && styles.actionsTablet, reflow && styles.actionsStacked]}
+        >
           <PillButton
             testID="my-plans-create"
             title="Create a plan"
@@ -192,7 +204,7 @@ function MyPlansList() {
         {/* ⚠M-6: server order, active and inactive mixed. Tablet: the first
             card is featured (full width), the rest a 2-column grid. */}
         <View testID="my-plans-list" accessibilityRole="list" style={[styles.list, tablet && styles.listTablet]}>
-          {listRows(items, tablet && !reflow).map((row) => (
+          {listRows(items, tablet && !stackEmpty).map((row) => (
             <View key={row.map((plan) => plan.id).join('-')} style={[styles.row, tablet && styles.rowTablet]}>
               {row.map((plan) => (
                 <MyPlanCard
@@ -204,7 +216,7 @@ function MyPlansList() {
                   onOpen={() => navigation.push(myPlanRoutes.MyPlan, { planId: plan.id })}
                 />
               ))}
-              {tablet && !reflow && row.length === 1 && row[0] !== items[0] ? <View style={styles.cell} /> : null}
+              {tablet && !stackEmpty && row.length === 1 && row[0] !== items[0] ? <View style={styles.cell} /> : null}
             </View>
           ))}
         </View>
@@ -250,6 +262,11 @@ function listRows(items, paired) {
   }
   return rows;
 }
+
+// B215: two 52 pills (24 + 24 padding, 18 icon + 8 gap) with the 16/600
+// labels "Create a plan" (≈ 108) and "Build me a plan" (≈ 125), + the 8 gap
+// ≈ 389; rounded up.
+const PAIR_ONE_LINE = 400;
 
 const styles = StyleSheet.create({
   column: {

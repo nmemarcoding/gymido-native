@@ -42,7 +42,7 @@ jest.mock('../auth/authStore', () => ({ useAuthStore: (select) => select({ user:
 jest.mock('./shellLinks', () => ({ openShellPath: jest.fn() }));
 jest.mock('../workspace/workspacePreference', () => ({ setWorkspace: jest.fn(() => Promise.resolve()) }));
 jest.mock('react-native-draggable-flatlist', () => ({ NestableScrollContainer: 'NestableScrollContainer' }));
-jest.mock('../../shared/hooks/useKeyboardHeight', () => ({ useKeyboardHeight: () => 0 }));
+jest.mock('../../shared/hooks/useKeyboardHeight', () => ({ useKeyboardHeight: () => 0, useKeyboardOverlap: () => 0 }));
 // A live window: every subscriber re-renders on a resize (as RN's Dimensions events).
 const mockWindow = { value: { width: 834, height: 1194, scale: 2, fontScale: 1 }, listeners: new Set() };
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => {

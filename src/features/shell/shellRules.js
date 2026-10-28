@@ -26,12 +26,20 @@ const TITLES = [
 // §6.1 dated change (27 Oct 2026, audit b1 X1): the coaching / trainer pages'
 // header title while the page draws no hero title (loading, error, not
 // found), so no state is title-less. AppHeader shows it only then.
+// UX native final audit 27 Oct 2026, row A153: Edit profile draws its one
+// title "Edit profile" (X1, phase5 Q2) the same way; the header shows it only
+// while the page's heading is not on screen (loading, error).
 export function getHeroFallbackTitle(path) {
+  if (path === EDIT_PROFILE) {
+    return 'Edit profile';
+  }
   return path.startsWith('/trainer') ? 'Coaching' : '';
 }
 
+const EDIT_PROFILE = '/profile/edit';
+
 export function getHeaderTitle(path, isSessionActive = false) {
-  if (path === '/' || path === '/workout' || path.startsWith('/trainer')) {
+  if (path === '/' || path === '/workout' || path === EDIT_PROFILE || path.startsWith('/trainer')) {
     return '';
   }
   if (isSessionActive && path.startsWith('/workout')) {
@@ -43,10 +51,15 @@ export function getHeaderTitle(path, isSessionActive = false) {
 
 // §6.1 back links: the exact path only, never during a session. The Workout
 // hub's "← Today" is drawn by the page itself (P3-1: one header, not two).
+// UX native final audit 27 Oct 2026: A153 Edit profile "← Profile" (phase5
+// Q2); A157 Notifications (hidden, opened from the bell on any page) goes back
+// where it came from (`history`), Today when there is no history.
 const BACK_LINKS = Object.freeze({
   '/my-trainer': { label: '← Profile', path: '/profile' },
   // Dated change (23 Oct 2026): the Trainers list only; /trainers/:id has none.
   '/trainers': { label: '← Coaching', path: '/my-trainer' },
+  [EDIT_PROFILE]: { label: '← Profile', path: '/profile' },
+  '/notifications': { label: 'Back', path: '/', history: true },
 });
 
 export function getHeaderBackLink(path, isSessionActive = false) {

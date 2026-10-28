@@ -132,7 +132,9 @@ describe('§E1.2 step 4: a later page fails (T-16)', () => {
     listExercisesPage.mockRejectedValue(failure);
     const tree = await render();
     expect(texts(tree.root)).toEqual(expect.arrayContaining(['Exercises unavailable', 'Request failed with status code 500']));
-    expect(tree.root.findAll((node) => node.props.placeholder === 'Search exercises')).not.toHaveLength(0);
+    // DECLARED (UX native final audit 27 Oct 2026, B251): was findAll(placeholder === 'Search exercises'); the field is
+    // found by its testID now (the placeholder is our own Text over it). The toolbar still stays.
+    expect(tree.root.findAll((node) => node.props.testID === 'exercises-search')).not.toHaveLength(0);
     listExercisesPage.mockClear();
     listExercisesPage.mockResolvedValue(page([ex(1)], 1));
     await act(async () => {
@@ -204,7 +206,7 @@ describe('§E1.1a session cache and return (T-12 F3)', () => {
   it('starts fresh on a new entry (tab press or link), from the cache', async () => {
     listExercisesPage.mockImplementation((n) => Promise.resolve(page([ex(n)], 1)));
     const tree = await render();
-    const input = () => tree.root.find((node) => node.props.placeholder === 'Search exercises' && node.props.onChangeText);
+    const input = () => tree.root.find((node) => node.props.testID === 'exercises-search' && node.props.onChangeText);
     act(() => input().props.onChangeText('row'));
     await act(async () => {
       input().props.onSubmitEditing();
@@ -271,7 +273,7 @@ describe('§E1.2 step 1: a search reload keeps the list (T-12 F2)', () => {
     });
     return { promise, resolve, reject };
   };
-  const input = (tree) => tree.root.find((node) => node.props.placeholder === 'Search exercises' && node.props.onChangeText);
+  const input = (tree) => tree.root.find((node) => node.props.testID === 'exercises-search' && node.props.onChangeText);
   const spinners = (tree) => tree.root.findAll((node) => node.props.testID === 'exercises-search-spinner' && typeof node.type === 'string');
   async function searchFor(tree, text) {
     act(() => input(tree).props.onChangeText(text));
@@ -389,7 +391,7 @@ describe('§E1.2 step 1: a search reload keeps the list (T-12 F2)', () => {
 // `exercises-chip-Chest` chip), and the no-match body names the filter
 // (was "Try a different search term." for a kept muscle filter).
 describe('⚠E-6: a muscle filter + a search with no match in that group', () => {
-  const input = (tree) => tree.root.find((node) => node.props.placeholder === 'Search exercises' && node.props.onChangeText);
+  const input = (tree) => tree.root.find((node) => node.props.testID === 'exercises-search' && node.props.onChangeText);
   const back = (id) => ({ id, name: `Row ${id}`, primary_muscle_group: { name: 'Back' } });
   const pressID = (tree, id) => act(() => tree.root.find((node) => node.props.testID === id && typeof node.props.onPress === 'function').props.onPress());
 

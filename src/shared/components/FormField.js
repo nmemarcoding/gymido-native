@@ -27,16 +27,21 @@ export const FIELD_VARIANTS = Object.freeze(['default', 'well', 'pill', 'raised'
 
 // OptionalLabel (§4.5): a label ending in " (optional)" draws that part in
 // text-faint 400. The words are unchanged, so screen readers read the same.
+// UX ruling f1 (27 Oct 2026): a label breaks only between words ("simple").
 function LabelText({ label, style }) {
   if (typeof label === 'string' && label.endsWith(OPTIONAL)) {
     return (
-      <Text {...CAP_BODY} style={style}>
+      <Text {...CAP_BODY} textBreakStrategy="simple" style={style}>
         {label.slice(0, -OPTIONAL.length)}
         <Text style={styles.optional}>{OPTIONAL}</Text>
       </Text>
     );
   }
-  return <Text {...CAP_BODY} style={style}>{label}</Text>;
+  return (
+    <Text {...CAP_BODY} textBreakStrategy="simple" style={style}>
+      {label}
+    </Text>
+  );
 }
 
 // The label, field box, helper and error (§4.5). `kind` (input | select |
