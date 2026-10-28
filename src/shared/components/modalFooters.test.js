@@ -14,7 +14,7 @@ import WorkoutDetailModal from '../../features/trainer/clients/components/Workou
 // tablet row stacks (primary on top, full width; UX §9 rule 4).
 
 jest.mock('../hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
-jest.mock('../hooks/useKeyboardHeight', () => ({ useKeyboardHeight: () => 0 }));
+jest.mock('../hooks/useKeyboardHeight', () => ({ useKeyboardHeight: () => 0, useKeyboardOverlap: () => 0 }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('./BlurLayer', () => () => null);
 jest.mock('../../features/profile/api/profileApi', () => ({ sendPasswordResetEmail: jest.fn(() => new Promise(() => {})) }));

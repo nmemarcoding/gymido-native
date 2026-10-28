@@ -12,7 +12,7 @@ let mockInsets;
 let mockKeyboard;
 let mockReduced;
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => mockInsets }));
-jest.mock('../hooks/useKeyboardHeight', () => ({ useKeyboardHeight: () => mockKeyboard }));
+jest.mock('../hooks/useKeyboardHeight', () => ({ useKeyboardHeight: () => mockKeyboard, useKeyboardOverlap: () => mockKeyboard }));
 jest.mock('../hooks/useReducedMotion', () => ({ useReducedMotion: () => mockReduced }));
 jest.mock('./BlurLayer', () => () => null);
 
@@ -433,11 +433,16 @@ describe('AppModal phone pinned header (FINAL-AUDIT batch 1)', () => {
     expect(ids).toEqual(['app-modal-grab-handle', 'app-modal-header']);
   });
 
-  it('tablet unchanged: no fixed header, the title scrolls with the content', () => {
+  // UX native final audit 27 Oct 2026, ruling 12 (A142, A151): was "tablet
+  // unchanged: no fixed header, the title scrolls". A landscape tablet dialog
+  // scrolls under a PINNED title, so the tablet title sits in the fixed header
+  // too; the description still scrolls.
+  it('tablet: the title sits in a fixed header; the description scrolls', () => {
     atWidth(TABLET);
     const tree = render(modal());
-    expect(host(tree, 'app-modal-header')).toBeUndefined();
-    expect(inScroll(tree, (n) => n.type === Text && n.props.children === 'Discard this workout?')).toBe(true);
+    expect(host(tree, 'app-modal-header')).toBeTruthy();
+    expect(inScroll(tree, (n) => n.type === Text && n.props.children === 'Discard this workout?')).toBe(false);
+    expect(inScroll(tree, (n) => n.type === Text && n.props.children === 'Logged sets will be lost.')).toBe(true);
   });
 });
 
@@ -719,10 +724,16 @@ describe('AppModal footer and the keyboard (UX Phase 1 review)', () => {
     return scroll.findAll((n) => n.type === Text && n.props.children === 'Save weight').length > 0;
   };
 
-  it('phone, keyboard open: the footer scrolls with the content, so the last field keeps its height', () => {
+  // UX native final audit 27 Oct 2026, ruling 12 (A141, A150, B225, B250):
+  // was "the footer scrolls with the content". In the scroll the buttons
+  // scrolled out of sight above the keyboard; they now stay fixed (the fields
+  // scroll in the room left).
+  it('phone, keyboard open: the footer stays fixed under the content, always visible', () => {
     atWidth(PHONE);
     mockKeyboard = 320;
-    expect(footerInScroll(render(footerModal()))).toBe(true);
+    const tree = render(footerModal());
+    expect(footerInScroll(tree)).toBe(false);
+    expect(tree.root.findAll((n) => n.type === Text && n.props.children === 'Save weight')).toHaveLength(1);
   });
 
   it('phone, keyboard closed: the footer stays fixed under the content', () => {

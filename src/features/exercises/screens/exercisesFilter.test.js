@@ -760,6 +760,9 @@ describe('T-62 final audit: panel insets + keyboard, the search field, the sheet
     const tree = await render();
     await press(tree.root, 'exercises-filter');
     mockKeyboard = 336;
+    // UX native final audit 27 Oct 2026, ruling 12: AppModal lifts by the
+    // keyboard OVERLAP (on an iPhone it equals the height).
+    mockOverlap = 336;
     await act(async () => {
       tree.update(<ExercisesScreen />);
     });
@@ -770,6 +773,9 @@ describe('T-62 final audit: panel insets + keyboard, the search field, the sheet
     const scroll = tree.root.findAllByType(require('react-native').ScrollView).find((node) => node.findAll((child) => child.props.testID === 'exercise-filter-muscle-Chest').length > 0);
     expect(scroll).toBeDefined();
     expect(scroll.findAll((node) => node.props.testID === 'exercise-filter-find')).toHaveLength(0);
+    // Ruling 12 (B250): the "Show n" footer stays fixed under the list, not in it.
+    expect(hosts(tree.root, 'exercise-filter-show').length).toBeGreaterThan(0);
+    expect(scroll.findAll((node) => node.props.testID === 'exercise-filter-show')).toHaveLength(0);
   });
 });
 

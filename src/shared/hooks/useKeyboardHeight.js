@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Dimensions, Keyboard, Platform } from 'react-native';
 
 // Height of the on-screen keyboard (0 when hidden). Edge-to-edge Modals are
-// not resized by the OS, so sheets use this to stay above the keyboard.
+// not resized by the OS. Note: on Android RN reports the IME height MINUS the
+// nav bar / taskbar, so anything drawn to the screen bottom (AppModal) lifts
+// by useKeyboardOverlap below instead (UX native final audit, ruling 12).
 export function useKeyboardHeight() {
   const [height, setHeight] = useState(0);
 

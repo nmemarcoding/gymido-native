@@ -29,7 +29,7 @@ jest.mock('./shellUiStore', () => ({
   closePanel: jest.fn(),
   useShellUiStore: (select) => select({ panelOpen: false, isSessionActive: false }),
 }));
-jest.mock('../../shared/hooks/useKeyboardHeight', () => ({ useKeyboardHeight: () => 0 }));
+jest.mock('../../shared/hooks/useKeyboardHeight', () => ({ useKeyboardHeight: () => 0, useKeyboardOverlap: () => 0 }));
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({ __esModule: true, default: jest.fn() }));
 
 const { openShellPath } = require('./shellLinks');
