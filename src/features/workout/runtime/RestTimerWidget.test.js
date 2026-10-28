@@ -460,3 +460,31 @@ describe('T-72: the countdown digits keep their ink inside the Text box', () => 
     expect(digitsInkPad(null)).toBe(0);
   });
 });
+
+// T-72 round 2: on the owner's iPhone the TOPS of the digits were cut flat too. lineHeight = fontSize put the
+// Geist digit tops (0.726 em over a 0.295 em descent) ~1.9 pt above the Text box, and iOS clips ink to the box.
+describe('T-72 round 2: the digit tops and bottoms stay inside the Text box, with no layout shift', () => {
+  const { digitsInkPadVertical } = require('./RestParts');
+  const cases = [
+    ['phone full screen', { minimized: false }, 390],
+    ['tablet card', { minimized: false }, 834],
+    ['phone disc', { minimized: true, dockRoom: 202 }, 390],
+    ['tablet disc', { minimized: true, dockRoom: 152 }, 834],
+  ];
+
+  it.each(cases)('%s: top/bottom padding covers the Geist digit span over the lineHeight + 5 %%, cancelled by margin', (_name, props, width) => {
+    mockWidth = width;
+    const style = StyleSheet.flatten(host(renderTree(props), 'rest-countdown').props.style);
+    expect(style.paddingVertical).toBeGreaterThanOrEqual(1.03 * style.fontSize - style.lineHeight + style.fontSize * 0.05);
+    expect(style.paddingVertical).toBeGreaterThan(0);
+    expect(style.marginVertical).toBe(-style.paddingVertical);
+  });
+
+  it('digitsInkPadVertical: 92/92 → 8, 100/100 → 8, the 24/28 disc → 2, no lineHeight → 5 % only', () => {
+    expect(digitsInkPadVertical({ fontSize: 92, lineHeight: 92 })).toBe(8);
+    expect(digitsInkPadVertical({ fontSize: 100, lineHeight: 100 })).toBe(8);
+    expect(digitsInkPadVertical({ fontSize: 24, lineHeight: 28 })).toBe(2);
+    expect(digitsInkPadVertical({ fontSize: 20 })).toBe(1);
+    expect(digitsInkPadVertical(null)).toBe(0);
+  });
+});

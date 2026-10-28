@@ -138,10 +138,25 @@ export function digitsInkPad(style) {
   return Math.ceil(Math.max(-letterSpacing, 0) + fontSize * 0.05);
 }
 
+// T-72 round 2: the tops were cut too. With lineHeight = fontSize (92/92,
+// tablet 100/100), iOS puts the baseline one Geist descent (0.295 em) above
+// the box bottom, so the digit tops (0.726 em) rise ~1.9 pt above the box and
+// are clipped. Geist Bold digits span 1.03 em from the box bottom; the excess
+// over the lineHeight plus 5 % of the size is padded top and bottom, and an
+// equal negative margin keeps the layout, so the digits and "of m:ss" stay put.
+const DIGIT_SPAN_EM = 1.03;
+
+export function digitsInkPadVertical(style) {
+  const { fontSize = 0, lineHeight } = StyleSheet.flatten(style) || {};
+  const excess = lineHeight ? Math.max(DIGIT_SPAN_EM * fontSize - lineHeight, 0) : 0;
+  return Math.ceil(excess + fontSize * 0.05);
+}
+
 export function Countdown({ seconds, style, testID = 'rest-countdown' }) {
   const reducedMotion = useReducedMotion();
   const pulse = useRef(new Animated.Value(1)).current;
   const finalTen = isFinalTen(seconds);
+  const padVertical = digitsInkPadVertical([styles.digits, style]);
   useEffect(() => {
     if (!finalTen || reducedMotion) {
       pulse.setValue(1);
@@ -168,7 +183,11 @@ export function Countdown({ seconds, style, testID = 'rest-countdown' }) {
       style={[
         styles.digits,
         style,
-        { paddingHorizontal: digitsInkPad([styles.digits, style]) },
+        {
+          paddingHorizontal: digitsInkPad([styles.digits, style]),
+          paddingVertical: padVertical,
+          marginVertical: -padVertical,
+        },
         finalTen && styles.danger,
         { transform: [{ scale: pulse }] },
       ]}
