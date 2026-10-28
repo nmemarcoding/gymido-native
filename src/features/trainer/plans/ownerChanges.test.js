@@ -45,9 +45,11 @@ describe('trainer adapter (C6)', () => {
     expect(adapter.text).toBe(TRAINER_PLAN_TEXT);
     expect(adapter.getCapabilities({ isOwnPlan: true }).reorderExercises).toBe(true);
     const navigation = { push: jest.fn() };
-    adapter.openBack(navigation);
+    // DECLARED (T-65, PHONE-NAV spec §3): was adapter.openBack(navigation) → push('TrainerPlans'). The builder's
+    // back pill goes back, else replaces to the adapter's backPath (useInnerBack); openBack is gone.
+    expect(adapter.backPath).toBe('/trainer/plans');
     adapter.openCreate(navigation);
-    expect(navigation.push.mock.calls).toEqual([['TrainerPlans'], ['TrainerPlanCreate']]);
+    expect(navigation.push.mock.calls).toEqual([['TrainerPlanCreate']]);
   });
 
   it('feeds the audience-specific dialog descriptions', () => {

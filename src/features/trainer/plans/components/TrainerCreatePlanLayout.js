@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
+import BackPill, { backPillLabel } from '../../../../shared/components/BackPill';
 import GradientFill from '../../../../shared/components/GradientFill';
 import { CAP_BODY, DISPLAY_TITLE_TEXT } from '../../../../shared/components/largeText';
 import PillButton from '../../../../shared/components/PillButton';
 import PinnedDock, { dockButtonsHeight } from '../../../../shared/components/PinnedDock';
-import { colors, font, gradients, radii, spacing, typography } from '../../../../shared/theme/tokens';
+import { colors, gradients, radii, spacing, typography } from '../../../../shared/theme/tokens';
 import ShellPage from '../../../shell/ShellPage';
 import { HeroTitleMark } from '../../../shell/heroTitle';
 
@@ -73,23 +74,8 @@ export default function TrainerCreatePlanLayout({ tablet, stacked = false, docke
     <View style={styles.screen}>
       <ShellPage testID="create-plan-screen" glow={tablet ? TRAINER_TABLET_CREATE_GLOW : TRAINER_CREATE_GLOW} dockHeight={docked ? dockHeight : null}>
         <View testID="create-plan-column" style={[styles.column, tablet && styles.columnTablet]}>
-          <Pressable
-            testID="create-plan-all-plans"
-            accessibilityRole="link"
-            accessibilityLabel={variant.backLabel}
-            onPress={onBack}
-            hitSlop={BACK_SLOP}
-            style={[styles.back, tablet && styles.backTablet]}
-          >
-            {({ pressed }) => (
-              <>
-                {pressed ? <View testID="create-plan-all-plans-pressed" pointerEvents="none" style={[StyleSheet.absoluteFill, styles.backPressed]} /> : null}
-                <Text {...CAP_BODY} style={[styles.backText, tablet && styles.backTextTablet]}>
-                  {variant.backLabel}
-                </Text>
-              </>
-            )}
-          </Pressable>
+          {/* T-65 (PHONE-NAV spec §3): the kit glass back pill "‹ All plans" (BackPill), a straight swap for the 40-tall pill. */}
+          <BackPill testID="create-plan-all-plans" label={backPillLabel(variant.backLabel)} onPress={onBack} />
           <View>
             <HeroTitleMark />
             <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={tablet ? styles.titleTablet : styles.title}>
@@ -136,9 +122,6 @@ export default function TrainerCreatePlanLayout({ tablet, stacked = false, docke
   );
 }
 
-// The glass back pill is 40 tall; 2 + 2 makes the 44 touch target.
-const BACK_SLOP = Object.freeze({ top: 2, bottom: 2, left: 0, right: 0 });
-
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -157,32 +140,6 @@ const styles = StyleSheet.create({
   columnTablet: {
     maxWidth: 620,
     gap: spacing['4_5'],
-  },
-  back: {
-    alignSelf: 'flex-start',
-    minHeight: 40,
-    justifyContent: 'center',
-    paddingLeft: spacing['2_5'],
-    paddingRight: spacing['3_5'],
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.hairlineButton,
-    backgroundColor: colors.fillGlass,
-  },
-  backTablet: {
-    paddingHorizontal: spacing[4],
-  },
-  backPressed: {
-    borderRadius: radii.full,
-    backgroundColor: colors.pressOverlay,
-  },
-  backText: {
-    ...typography.bodySm,
-    ...font(600),
-    color: colors.textPrimary,
-  },
-  backTextTablet: {
-    color: colors.textStrong2,
   },
   // display-md 44/44 (phone board).
   title: {

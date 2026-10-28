@@ -189,3 +189,59 @@ describe('session top band (UX native final audit 27 Oct 2026, A116 + ruling 2 a
     expect(flat(band(tree)).opacity).toBe(1);
   });
 });
+
+// A116 device FAIL (iPhone, Release cc3b39b, 27 Oct 2026): the band waited for
+// the whole stage to clear the pills. A short live page scrolls about 100, so
+// it never came while "Current exercise" and How to ran under the floating
+// Exit / plan / timer / All pills. The band now shows as soon as content
+// passes under the PILLS: the open photo's bottom edge (where the stage's How
+// to + caption block starts, minus the scroll) above the pills' bottom.
+describe('A116 fix: the band follows the content under the pills, on a short scroll', () => {
+  const PHONE_STAGE = 330;
+  const CONTENT_TOP = 180; // the How to + caption block's top inside the stage (the open photo ends there)
+  const SCROLL_RANGE = 100;
+  const realTop = mockInsets.top;
+  afterEach(() => {
+    mockInsets.top = realTop;
+  });
+
+  function layOutShort(tree) {
+    act(() => host(tree, 'session-chrome').props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 390, height: CHROME_HEIGHT } } }));
+    act(() => host(tree, 'exercise-stage').props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 390, height: PHONE_STAGE } } }));
+    act(() => host(tree, 'exercise-stage-content').props.onLayout({ nativeEvent: { layout: { x: 0, y: CONTENT_TOP, width: 390, height: PHONE_STAGE - CONTENT_TOP } } }));
+  }
+
+  it.each([
+    ['375 × 667', { width: 375, height: 667, scale: 2, fontScale: 1 }, 20],
+    ['390 × 844', { width: 390, height: 844, scale: 3, fontScale: 1 }, 47],
+  ])('%s: the band comes within the short scroll, the moment the content reaches the pills\' bottom', (_name, window, top) => {
+    mockWindow = window;
+    mockInsets.top = top;
+    const tree = render();
+    layOutShort(tree);
+    const pillsBottom = flat(band(tree)).height;
+    expect(pillsBottom).toBe(top + spacing['2_5'] + CHROME_HEIGHT);
+    const edge = CONTENT_TOP - pillsBottom;
+    // Reached inside the short page's scroll range; the old whole-stage rule could not be.
+    expect(edge).toBeLessThan(SCROLL_RANGE);
+    expect(PHONE_STAGE - pillsBottom).toBeGreaterThan(SCROLL_RANGE);
+    scrollTo(tree, edge - 1);
+    expect(flat(band(tree)).opacity).toBe(0);
+    scrollTo(tree, edge);
+    expect(flat(band(tree)).opacity).toBe(1);
+    scrollTo(tree, SCROLL_RANGE);
+    expect(flat(band(tree)).opacity).toBe(1);
+    scrollTo(tree, 0);
+    expect(flat(band(tree)).opacity).toBe(0);
+  });
+
+  it('the same fade: 150 ms without reduced motion (none with it, above)', () => {
+    mockReducedMotion = false;
+    const timing = jest.spyOn(Animated, 'timing');
+    const tree = render();
+    layOutShort(tree);
+    timing.mockClear();
+    scrollTo(tree, CONTENT_TOP - flat(band(tree)).height);
+    expect(timing).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ toValue: 1, duration: motion.durationFast }));
+  });
+});

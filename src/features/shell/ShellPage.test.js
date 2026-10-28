@@ -26,8 +26,10 @@ jest.mock('./TabletRail', () => (props) => mockRail(props));
 jest.mock('./ModeSwitch', () => () => null);
 jest.mock('../workspace/workspacePreference', () => ({ setWorkspace: jest.fn(() => Promise.resolve()) }));
 jest.mock('../auth/authStore', () => ({ useAuthStore: (select) => select({ user: null, workspace: null }) }));
-jest.mock('./shellNavigation', () => ({ getScreenPath: () => '/profile/edit' }));
-jest.mock('./shellRules', () => ({ resolveMode: () => 'member', showsMobileModeSwitch: () => false }));
+// T-65: the path is switchable (Edit profile, an inner page, by default; /profile is a main page).
+let mockPath = '/profile/edit';
+jest.mock('./shellNavigation', () => ({ getScreenPath: () => mockPath }));
+jest.mock('./shellRules', () => ({ ...jest.requireActual('./shellRules'), resolveMode: () => 'member', showsMobileModeSwitch: () => false }));
 // DECLARED (batch k, 27 Oct 2026): the mock was useKeyboardHeight: () => 300; ShellPage reads useKeyboardOverlap now.
 jest.mock('../../shared/hooks/useKeyboardHeight', () => ({ useKeyboardOverlap: () => 300 }));
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({ __esModule: true, default: jest.fn() }));
@@ -61,13 +63,15 @@ describe('ShellPage keyboard handling (E1)', () => {
     Platform.OS = 'ios';
     const tree = render();
     expect(tree.root.findByType(ScrollView).props.automaticallyAdjustKeyboardInsets).toBe(true);
-    expect(bottomPadding(tree)).toBe(104 + 34);
+    // DECLARED (T-65, PHONE-NAV spec §4 / §7, PM to decide): was 104 + 34. Edit profile is an inner page (no bar): 24 + 34.
+    expect(bottomPadding(tree)).toBe(24 + 34);
   });
 
   it('pads the content by the keyboard height on Android', () => {
     Platform.OS = 'android';
     const tree = render();
-    expect(bottomPadding(tree)).toBe(104 + 34 + 300);
+    // DECLARED (T-65, spec §7, PM to decide): was 104 + 34 + 300 (Edit profile has no tab bar now).
+    expect(bottomPadding(tree)).toBe(24 + 34 + 300);
   });
 });
 
@@ -80,7 +84,11 @@ describe('ShellPage v2 ground, tab-bar clearance and glow', () => {
 
   it('phone content clears the floating tab bar: 104 + the safe area (bar 66 + 20 above it)', () => {
     Platform.OS = 'ios';
+    // DECLARED (T-65, spec §7, PM to decide): this rendered Edit profile; the bar is on the main pages only now,
+    // so it renders Profile (/profile). The expected 104 + 34 is unchanged.
+    mockPath = '/profile';
     expect(bottomPadding(render())).toBe(104 + 34);
+    mockPath = '/profile/edit';
     expect(104).toBeGreaterThan(66 + 20);
   });
 
@@ -332,7 +340,8 @@ describe('ShellPage pinned dock room (UX native final audit 27 Oct 2026, ruling 
 
   it('no dock (or not measured yet): the standard tab-bar padding, as before', () => {
     Platform.OS = 'ios';
-    expect(bottomPadding(render({ dockHeight: null }))).toBe(104 + 34);
+    // DECLARED (T-65, spec §7, PM to decide): was 104 + 34. Edit profile (inner, no bar): the inner-page 24 + 34.
+    expect(bottomPadding(render({ dockHeight: null }))).toBe(24 + 34);
     expect(containerPad(render())).toBe(0);
   });
 });

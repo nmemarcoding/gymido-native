@@ -15,6 +15,9 @@ import { CAP_BODY } from './largeText';
 const TABLET_HEIGHT = 40;
 const TABLET_HIT_SLOP = { top: (layout.touchMin - TABLET_HEIGHT) / 2, bottom: (layout.touchMin - TABLET_HEIGHT) / 2 };
 
+// A back link's words as the pill shows them: the chevron replaces a leading "←".
+export const backPillLabel = (label) => String(label ?? '').replace(/^←\s*/, '');
+
 export default function BackPill({ label, onPress, testID, accessibilityLabel, style }) {
   const { width } = useWindowDimensions();
   const tablet = width >= breakpoints.md;

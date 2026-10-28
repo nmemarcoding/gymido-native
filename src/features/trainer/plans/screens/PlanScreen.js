@@ -46,6 +46,7 @@ import { useExerciseCatalog } from '../useExerciseCatalog';
 import { canEditPlan } from '../trainerPlanBuilder';
 import { keepUnitsTogether } from '../../../../shared/format/counts';
 import { HeroTitleMark } from '../../../shell/heroTitle';
+import { useInnerBack } from '../../../shell/useInnerBack';
 
 const EDIT_PLAN_FIELDS = ['name', 'category_id', 'days_per_week', 'difficulty_level_id', 'description'];
 
@@ -83,6 +84,8 @@ function PlanBuilder({ planId, adapter }) {
   // C9: set only by a copy landing; consumed on the first load.
   const nameTheCopy = Boolean(useRoute().params?.nameTheCopy);
   const navigation = useNavigation();
+  // T-65 (PHONE-NAV spec §3): the builder's one back control; Android back the same.
+  const goBack = useInnerBack(navigation, adapter.backPath);
   const { tablet, reflow } = useBuilderLayout();
   const mounted = useRef(true);
   const confirming = useRef(false);
@@ -584,7 +587,7 @@ function PlanBuilder({ planId, adapter }) {
     );
   }
   if (status === 'onHold') {
-    return <PlanPage testID="plan-screen">{adapter.renderOnHold({ message: loadError, navigation })}</PlanPage>;
+    return <PlanPage testID="plan-screen">{adapter.renderOnHold({ message: loadError, navigation, goBack })}</PlanPage>;
   }
   if (status === 'error') {
     return (
@@ -644,7 +647,7 @@ function PlanBuilder({ planId, adapter }) {
     );
 
   const backLink = (
-    <BackLink testID="plan-all-plans" label={text.backLabel} pill={trainer} onPress={() => adapter.openBack(navigation)} />
+    <BackLink testID="plan-all-plans" label={text.backLabel} onPress={goBack} />
   );
   const overflowButton =
     !tablet && planActions.length > 0 ? (
@@ -670,7 +673,6 @@ function PlanBuilder({ planId, adapter }) {
   return (
     <PlanPage testID="plan-screen" nestable maxWidth={tablet ? layout.contentMax : undefined} gap={tablet ? spacing['4_5'] : spacing[3]}>
       <View style={styles.topRow}>
-        {/* ⚠T3-3: pushes a fresh list rather than going back. */}
         {backLink}
         {overflowButton}
       </View>

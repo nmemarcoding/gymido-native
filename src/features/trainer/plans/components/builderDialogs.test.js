@@ -348,8 +348,10 @@ describe('builder parts', () => {
     const link = await render(<BackLink testID="b" label="My plans" onPress={jest.fn()} />);
     expect(tap(link, 'b').props).toMatchObject({ accessibilityRole: 'link', accessibilityLabel: 'My plans' });
     expect(flat(tap(link, 'b')).minHeight).toBe(44);
-    const back = await render(<BackLink testID="b" label="All plans" pill onPress={jest.fn()} />);
-    expect(flat(tap(back, 'b')).backgroundColor).toBe(colors.fillButton);
+    // DECLARED (T-65, PHONE-NAV spec §3): was the trainer `pill` → backgroundColor colors.fillButton (its own 40 pill).
+    // Both audiences draw the kit BackPill now (white 7 % fill, colors.hairline).
+    const back = await render(<BackLink testID="b" label="All plans" onPress={jest.fn()} />);
+    expect(flat(tap(back, 'b')).backgroundColor).toBe(colors.hairline);
   });
 
   it('WarningNotice / AffectedClients: hidden at null / 0; the amber card otherwise', async () => {

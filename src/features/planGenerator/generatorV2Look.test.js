@@ -1,6 +1,7 @@
 import { StyleSheet, Text } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
+import BackPill from '../../shared/components/BackPill';
 import { getGeneratorProfile, previewGeneratedPlan, saveGeneratorProfile, searchExercises } from './api/generatorApi';
 import PlanGeneratorPreviewScreen from './screens/PlanGeneratorPreviewScreen';
 import PlanGeneratorScreen, { stepBarPlacement } from './screens/PlanGeneratorScreen';
@@ -15,7 +16,8 @@ jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   default: () => mockWindow,
 }));
 
-const mockNavigation = { push: jest.fn(), replace: jest.fn(), goBack: jest.fn(), addListener: jest.fn(() => () => {}) };
+// T-65 (declared mock change): canGoBack, so step 1's ✕ goes back in history (backOrReplace).
+const mockNavigation = { push: jest.fn(), replace: jest.fn(), goBack: jest.fn(), canGoBack: jest.fn(() => true), addListener: jest.fn(() => () => {}) };
 let mockParams = {};
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => mockNavigation,
@@ -852,5 +854,39 @@ describe('Generator pinned dock (UX native final audit 27 Oct 2026, ruling 1)', 
     expect(has(await openStep(2), 'generator-step-bar')).toBe(false);
     expect(has(await openReview(), 'generator-review-bar')).toBe(false);
     expect(has(await openPreview(), 'generator-sticky-bar-fade')).toBe(false);
+  });
+});
+
+// T-65 (PHONE-NAV spec §3 + the PM correction, 27 Oct 2026): no extra
+// "‹ Plans" pill on the generator; step 1's ✕ Cancel (top row and dock) is
+// the page's one back control: back in history, else REPLACE to Plans.
+describe('T-65 generator exit (step 1 ✕ Cancel)', () => {
+  afterEach(() => {
+    mockNavigation.canGoBack.mockImplementation(() => true);
+    delete mockNavigation.getState;
+  });
+
+  it('no back pill is added; the ✕ goes back with history and REPLACES to Plans with none', async () => {
+    mockNavigation.getState = jest.fn(() => ({ routeNames: ['PlansLibrary', 'MyPlans', 'PlanGenerator'] }));
+    const tree = await openStep(1);
+    expect(tree.root.findAll((node) => node.type === BackPill)).toHaveLength(0);
+    const close = tree.root.find((node) => node.type === IconButton);
+    mockNavigation.goBack.mockClear();
+    await act(async () => close.props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.replace).not.toHaveBeenCalled();
+    mockNavigation.canGoBack.mockImplementation(() => false);
+    await act(async () => close.props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.replace).toHaveBeenCalledWith('PlansLibrary');
+  });
+
+  it('the dock Cancel is the same exit', async () => {
+    mockNavigation.getState = jest.fn(() => ({ routeNames: ['PlansLibrary', 'PlanGenerator'] }));
+    mockNavigation.canGoBack.mockImplementation(() => false);
+    const tree = await openStep(1);
+    const cancel = tree.root.findAll((node) => node.props.testID === 'generator-cancel' && typeof node.props.onPress === 'function')[0];
+    await act(async () => cancel.props.onPress());
+    expect(mockNavigation.replace).toHaveBeenCalledWith('PlansLibrary');
   });
 });

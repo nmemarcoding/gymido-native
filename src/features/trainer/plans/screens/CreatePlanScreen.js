@@ -1,9 +1,10 @@
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { routes } from '../../../../navigation/routes';
 import { getServerMessage, getStatus } from '../../../../shared/api/apiError';
+import BackPill, { backPillLabel } from '../../../../shared/components/BackPill';
 import ErrorAlert from '../../../../shared/components/ErrorAlert';
 import FormField from '../../../../shared/components/FormField';
 import GradientFill from '../../../../shared/components/GradientFill';
@@ -15,7 +16,6 @@ import { useFocusRemountKey } from '../../../../shared/hooks/useFocusRemountKey'
 import {
   breakpoints,
   colors,
-  font,
   gradients,
   radii,
   shadows,
@@ -25,6 +25,7 @@ import {
   typography,
 } from '../../../../shared/theme/tokens';
 import ShellPage from '../../../shell/ShellPage';
+import { useInnerBack } from '../../../shell/useInnerBack';
 import TrainerOnly from '../../TrainerOnly';
 import { createTrainerPlan, listDifficultyLevels, listPlanCategories } from '../api/plansApi';
 import { PageSubtitle, PageTitle, PlanPage, TextLink } from '../components/PlanPage';
@@ -39,7 +40,8 @@ const DAYS_OPTIONS = [1, 2, 3, 4, 5, 6, 7].map((n) => ({ value: String(n), label
 // variant lives with My plans).
 const TRAINER_VARIANT = {
   backLabel: '← All plans',
-  backRoute: routes.TrainerPlans,
+  // T-65 (PHONE-NAV spec §3): the back pill's parent when there is no history.
+  backPath: '/trainer/plans',
   subtitle: 'Private to you. Only clients you assign it to will see it.',
   namePlaceholder: 'Client A – Hypertrophy',
   showSlug: true,
@@ -233,7 +235,9 @@ export function CreatePlanForm({ variant }) {
   const formErrorAlert = formError ? (
     <ErrorAlert title="Could not create the plan" description={formError} style={styles.formError} />
   ) : null;
-  const goBack = () => navigation.push(variant.backRoute);
+  // T-65 (PHONE-NAV spec §3 / §5): back (the pill and Cancel) goes back in
+  // history, else replaces to the variant's parent; Android back the same.
+  const goBack = useInnerBack(navigation, variant.backPath);
 
   // UX native final audit 27 Oct 2026, ruling 1 (B218, D365): on phones at
   // ≤ 1.3× the Cancel / Create pair sits in the shared PinnedDock above the tab
@@ -376,13 +380,8 @@ function CreatePlanV2({ tablet, stacked = false, docked = false, narrow = false,
       <ShellPage testID="create-plan-screen" glow={tablet ? TABLET_CREATE_GLOW : CREATE_GLOW} dockHeight={docked ? dockHeight : null}>
         <View testID="create-plan-column" style={[v2.column, tablet && v2.columnTablet]}>
           <View>
-            <Pressable testID="create-plan-all-plans" accessibilityRole="link" onPress={onBack} style={v2.back}>
-              {({ pressed }) => (
-                <Text {...BODY_TEXT} style={[v2.backText, tablet && v2.backTextTablet, pressed && v2.backTextPressed]}>
-                  {variant.backLabel}
-                </Text>
-              )}
-            </Pressable>
+            {/* T-65 (PHONE-NAV spec §3): the kit glass back pill "‹ My plans" (was the gold text link). */}
+            <BackPill testID="create-plan-all-plans" label={backPillLabel(variant.backLabel)} onPress={onBack} />
             <HeroTitleMark />
             <Text {...TITLE_TEXT} accessibilityRole="header" style={tablet ? v2.titleTablet : v2.title}>
               Create a plan
@@ -478,26 +477,7 @@ const v2 = StyleSheet.create({
     maxWidth: 600,
     gap: spacing[4],
   },
-  back: {
-    minHeight: 44,
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-  },
-  backText: {
-    ...typography.bodySm,
-    ...font(600),
-    color: colors.gold,
-  },
-  // Tablet: "‹ My plans" 15/600 muted on the board; the code's glyph is kept.
-  backTextTablet: {
-    ...typography.body,
-    ...font(600),
-    color: colors.textMuted,
-  },
-  backTextPressed: {
-    color: colors.goldDeep,
-    textDecorationLine: 'underline',
-  },
+
   // 46/44 is between title-xl and display-md: display-md (UX).
   title: {
     ...typography.displayMd,

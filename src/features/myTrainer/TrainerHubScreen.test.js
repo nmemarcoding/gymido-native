@@ -26,7 +26,7 @@ jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => mockNavigation }));
 jest.mock('../shell/ShellPage', () => jest.fn(({ children }) => children));
 jest.mock('../shell/shellLinks', () => ({ openShellPath: jest.fn() }));
-jest.mock('../shell/shellRules', () => ({ isTrainerUser: () => mockIsTrainer }));
+jest.mock('../shell/shellRules', () => ({ ...jest.requireActual('../shell/shellRules'), isTrainerUser: () => mockIsTrainer }));
 jest.mock('../auth/authStore', () => ({ useAuthStore: (select) => select({ user: {} }) }));
 jest.mock('../../shared/components/BlurLayer', () => () => null);
 jest.mock('../../shared/components/GradientFill', () => () => null);

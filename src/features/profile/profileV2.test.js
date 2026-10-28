@@ -836,3 +836,57 @@ describe('audit b1 X4: Profile side reads fail in place', () => {
     expect(shown).toEqual(expect.arrayContaining(['Asad Khan', '82.5', '78', 'Account', 'Workout', 'Logout']));
   });
 });
+
+// PM FIX (27 Oct 2026, T-65 batch; device: Edit profile at 320 dp showed
+// "78" / "70" for 178 / 170 lb): side by side, each weight card left the
+// input ~31 of text room between its 14 left padding and the 64 kept for the
+// in-field unit select, so the single-line input scrolled to the caret and
+// clipped the first digit. Wrong data on screen. Where the pair has no room
+// for a weight (4 tabular digits at the field's text scale) it stacks full
+// width; 390 at 1× keeps the pair.
+describe('Edit profile weights: the full value always shows (320, 1×/1.3×)', () => {
+  const PHONE_GUTTER = 16;
+  const DIGIT_EM = 0.62; // a Geist 700 tabular digit, about 0.6 em
+  const field = (root, id) => root.find((node) => node.props.testID === id && node.props.onChangeText);
+  const lbProfile = { ...PROFILE, current_weight_value: 178, current_weight_unit: 'lb', goal_weight_value: 170, goal_weight_unit: 'lb' };
+
+  // The text room of a weight input from the rendered styles: the card width (full column when stacked, else
+  // half after the gap) minus the card's padding + border, the field box border and the input's paddings.
+  function textRoom(tree, width) {
+    const pairStyle = flat(host(tree.root, 'edit-profile-weights-pair').props.style);
+    const column = width - 2 * PHONE_GUTTER;
+    const stacked = pairStyle.flexDirection === 'column';
+    const cardWidth = stacked ? column : (column - pairStyle.gap) / 2;
+    const card = flat(host(tree.root, 'edit-profile-current_weight_value-card').props.style);
+    const input = flat(field(tree.root, 'edit-profile-current_weight_value').props.style);
+    return { stacked, room: cardWidth - 2 * card.padding - 2 * card.borderWidth - 2 - input.paddingLeft - input.paddingRight, fontSize: input.fontSize };
+  }
+
+  it.each([
+    [320, 1],
+    [320, 1.3],
+  ])('%i at %s×: 178 / 170 lb stack full width and each input has the room for the whole value', async (width, scale) => {
+    mockWidth = width;
+    mockFontScale = scale;
+    setStoredProfile(lbProfile);
+    const tree = await renderAsync(<EditProfileScreen />);
+    expect(field(tree.root, 'edit-profile-current_weight_value').props.value).toBe('178');
+    expect(field(tree.root, 'edit-profile-goal_weight_value').props.value).toBe('170');
+    const { stacked, room, fontSize } = textRoom(tree, width);
+    expect(stacked).toBe(true);
+    expect(room).toBeGreaterThanOrEqual('178'.length * DIGIT_EM * fontSize * scale);
+    // Nothing shifts or hides the value: no right alignment, no negative inset, no scroll offset.
+    const input = flat(field(tree.root, 'edit-profile-current_weight_value').props.style);
+    expect(input.textAlign).not.toBe('right');
+    expect(input.marginLeft ?? 0).toBeGreaterThanOrEqual(0);
+    expect(input.textIndent).toBeUndefined();
+  });
+
+  it('390 at 1×: the pair stays side by side (the board), still with the room for 178', async () => {
+    setStoredProfile(lbProfile);
+    const tree = await renderAsync(<EditProfileScreen />);
+    const { stacked, room, fontSize } = textRoom(tree, 390);
+    expect(stacked).toBe(false);
+    expect(room).toBeGreaterThanOrEqual('178'.length * DIGIT_EM * fontSize);
+  });
+});

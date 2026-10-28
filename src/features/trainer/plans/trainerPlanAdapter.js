@@ -46,8 +46,10 @@ export function createTrainerPlanAdapter(planId) {
     // v2: the trainer boards (phase6 O) and their "Sets" display toggle.
     look: 'trainer',
     setsToggle: true,
-    // ⚠T3-3 / ⚠B-3: both push a fresh T1.
-    openBack: (navigation) => navigation.push(routes.TrainerPlans),
+    // T-65 (PHONE-NAV spec §3, 27 Oct 2026): "‹ All plans" goes back, else
+    // replaces to this parent (it pushed a fresh T1, ⚠T3-3; T1 reloads on focus).
+    backPath: '/trainer/plans',
+    // ⚠B-3: a fresh T1 after a delete.
     openAfterDelete: (navigation) => navigation.push(routes.TrainerPlans),
     openCreate: (navigation) => navigation.push(routes.TrainerPlanCreate),
     // §CP2 / C9: a fresh T3 for the copy that opens Edit details once.

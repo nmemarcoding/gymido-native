@@ -23,3 +23,7 @@ export const TAB_BAR_CLEARANCE = TAB_BAR.height + TAB_BAR.bottomGap;
 // Scrolling content keeps this much bottom padding (plus the safe area) so
 // nothing ends under the bar.
 export const TAB_BAR_CONTENT_PADDING = 104;
+
+// T-65 (PHONE-NAV spec §4): an inner page (no tab bar) without a dock keeps
+// this much bottom padding (plus the safe area) under its content.
+export const INNER_PAGE_CONTENT_PADDING = 24;

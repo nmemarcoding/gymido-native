@@ -15,7 +15,7 @@ import SegmentedSwitch from '../../../shared/components/SegmentedSwitch';
 import Select from '../../../shared/components/Select';
 import { CAP_BODY, TITLE_TEXT, useLargeTextReflow } from '../../../shared/components/largeText';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
-import { colors, font, gradients, motion, radii, spacing, typography } from '../../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, motion, radii, spacing, typography } from '../../../shared/theme/tokens';
 import { useAuthStore } from '../../auth/authStore';
 import { HeroTitleMark } from '../../shell/heroTitle';
 import ShellPage from '../../shell/ShellPage';
@@ -34,6 +34,7 @@ import {
 } from '../editProfileForm';
 import ProfileAvatar from '../ProfileAvatar';
 import { ProfileStatus, fetchProfile, setStoredProfile, useProfileStore } from '../profileStore';
+import { weightPairStacks } from '../weightPairLayout';
 
 const EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
 const HEIGHT_UNITS = [
@@ -438,6 +439,11 @@ function EditProfileForm({ profile, scrollRef }) {
     </View>
   );
 
+  // PM fix (27 Oct 2026, "78" for 178 lb at 320): the phone pair stacks where
+  // a side-by-side input has no room for a whole weight (weightPairStacks).
+  const weightsStacked = !tablet && !reflow && weightPairStacks({ column: phoneColumnWidth(width), gap: styles.pair.gap, chrome: PHONE_WEIGHT_CHROME, fontSize: styles.bigInput.fontSize, fontScale });
+  const weightsPair = weightsStacked ? styles.stacked : pair;
+  const weightCell = weightsStacked ? null : cell;
   const weightLabel = (key) => (key === 'current_weight_value' ? 'Current Weight' : isGoalWeightOptional(profile) ? 'Goal Weight (optional)' : 'Goal Weight');
   const unitName = (unitKey) => (unitKey === 'current_weight_unit' ? 'Current weight unit' : 'Goal weight unit');
   // Phone: each weight is a card; the unit select sits INSIDE the input at
@@ -463,7 +469,7 @@ function EditProfileForm({ profile, scrollRef }) {
         </View>
       </View>
     ) : (
-      <View testID={`edit-profile-${key}-card`} style={[styles.fieldCard, cell]}>
+      <View testID={`edit-profile-${key}-card`} style={[styles.fieldCard, weightCell]}>
         {number(key, {
           label: weightLabel(key),
           helperText: `In ${form[unitKey]}.`,
@@ -539,7 +545,7 @@ function EditProfileForm({ profile, scrollRef }) {
       {errorMessage ? <ErrorAlert testID="edit-profile-error" title="Something went wrong" description={errorMessage} /> : null}
       {names}
       {tablet ? tabletHeight : phoneHeight}
-      <View style={pair}>
+      <View testID="edit-profile-weights-pair" style={weightsPair}>
         {weightField('current_weight_value', 'current_weight_unit')}
         {weightField('goal_weight_value', 'goal_weight_unit')}
       </View>
@@ -571,6 +577,9 @@ function EditProfileForm({ profile, scrollRef }) {
     </Animated.View>
   );
 }
+
+// ShellPage's phone column: max 430, gutters 16 (20 from 640).
+const phoneColumnWidth = (width) => Math.min(width - 2 * (width >= breakpoints.sm ? spacing[5] : spacing[4]), 430);
 
 // f1: 21rem (16 × 21) at 1× text.
 const DOB_SEX_STACK_BELOW = 336;
@@ -752,3 +761,9 @@ const styles = StyleSheet.create({
     gap: spacing['2_5'],
   },
 });
+
+// What a phone weight card spends around the value: its padding and border,
+// the field box's 1 + 1 border and the input's paddings (14 | 64 for the unit).
+const FIELD_BOX_BORDER = 2;
+const PHONE_WEIGHT_CHROME =
+  2 * styles.fieldCard.padding + 2 * styles.fieldCard.borderWidth + FIELD_BOX_BORDER + styles.bigInput.paddingLeft + styles.bigInputWithUnit.paddingRight;

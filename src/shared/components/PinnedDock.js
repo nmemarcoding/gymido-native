@@ -1,7 +1,9 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { usePhoneTabBar, useScreenFocused } from '../../features/shell/phoneTabBar';
+import { usePhoneChromeStore } from '../../features/shell/phoneChromeStore';
 import { TAB_BAR_CLEARANCE } from '../../features/shell/tabBarMetrics';
 import { breakpoints, colors, gradients, spacing } from '../theme/tokens';
 import GradientFill from './GradientFill';
@@ -22,6 +24,13 @@ import { BUTTON_HEIGHTS } from './PillButton';
 // that (ShellPage `dockHeight`), so the last row scrolls clear above the fade.
 // The buttons keep each screen's layout; below 21rem they stack (dockStacks).
 // Reviewer carry (final batch, 27 Oct 2026): until the first onLayout the
+// T-65 (PHONE-NAV spec §4, 27 Oct 2026): the tab bar is on the main tab pages
+// only, so by default the dock follows the same rule (usePhoneTabBar of its
+// screen's route): over the bar on a main page; on an inner page (no bar) the
+// buttons end 12 above the safe area (`innerPage`, the edge gap). An explicit
+// `overTabBar` still overrides it (the session dock: false + its own gap).
+// The focused page's dock height is published (phoneChromeStore.pageDock) so the
+// toasts sit above it.
 // dock reports an ESTIMATE (fade + the body's top padding + `estimate`, the
 // screen's buttons, + the bottom room), before the first paint, so no frame
 // shows content under the dock while the page's scroll room is unknown.
@@ -39,25 +48,40 @@ export function dockButtonsHeight({ rows = 1, buttonHeight = BUTTON_HEIGHTS.defa
   return rows * buttonHeight + (rows - 1) * gap;
 }
 
-export function dockBottomPadding({ width, insetBottom = 0, overTabBar = true, bottomGap = 0 }) {
-  if (overTabBar && width < breakpoints.md) {
-    return insetBottom + TAB_BAR_CLEARANCE + DOCK_TAB_BAR_GAP;
+export function dockBottomPadding({ width, insetBottom = 0, overTabBar = true, bottomGap = 0, innerPage = false }) {
+  if (width < breakpoints.md) {
+    if (overTabBar) {
+      return insetBottom + TAB_BAR_CLEARANCE + DOCK_TAB_BAR_GAP;
+    }
+    if (innerPage) {
+      return insetBottom + DOCK_TAB_BAR_GAP;
+    }
   }
   return insetBottom + bottomGap;
 }
 
-export default function PinnedDock({ children, testID = 'pinned-dock', onHeight, overTabBar = true, bottomGap = 0, contentStyle, estimate = dockButtonsHeight() }) {
+export default function PinnedDock({ children, testID = 'pinned-dock', onHeight, overTabBar, bottomGap = 0, contentStyle, estimate = dockButtonsHeight() }) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const paddingBottom = dockBottomPadding({ width, insetBottom: insets.bottom, overTabBar, bottomGap });
+  const phoneTabBar = usePhoneTabBar();
+  const derived = overTabBar === undefined;
+  const paddingBottom = dockBottomPadding({
+    width,
+    insetBottom: insets.bottom,
+    overTabBar: derived ? phoneTabBar : overTabBar,
+    bottomGap,
+    innerPage: derived && !phoneTabBar,
+  });
   const body = StyleSheet.flatten(contentStyle) ?? {};
   const seed = DOCK_FADE_HEIGHT + (body.paddingTop ?? body.paddingVertical ?? body.padding ?? 0) + estimate + paddingBottom;
   const measured = useRef(false);
+  const [height, setHeight] = useState(null);
   useLayoutEffect(() => {
     if (!measured.current) {
       onHeight?.(seed);
     }
   }, [onHeight, seed]);
+  usePublishedDock(height ?? seed);
   return (
     <View
       testID={testID}
@@ -65,6 +89,7 @@ export default function PinnedDock({ children, testID = 'pinned-dock', onHeight,
       style={styles.dock}
       onLayout={(event) => {
         measured.current = true;
+        setHeight(event.nativeEvent.layout.height);
         onHeight?.(event.nativeEvent.layout.height);
       }}
     >
@@ -76,6 +101,22 @@ export default function PinnedDock({ children, testID = 'pinned-dock', onHeight,
       </View>
     </View>
   );
+}
+
+// The focused screen's dock (its full height, edge included) for the toasts;
+// a blurred or unmounted dock withdraws it.
+function usePublishedDock(height) {
+  const id = useId();
+  const focused = useScreenFocused();
+  const setPageDock = usePhoneChromeStore((state) => state.setPageDock);
+  const clearPageDock = usePhoneChromeStore((state) => state.clearPageDock);
+  useEffect(() => {
+    if (!focused) {
+      return undefined;
+    }
+    setPageDock({ id, height });
+    return () => clearPageDock(id);
+  }, [focused, height, id, setPageDock, clearPageDock]);
 }
 
 const styles = StyleSheet.create({

@@ -435,3 +435,29 @@ describe('Exercise detail large text (UX §9)', () => {
     }
   });
 });
+
+// T-65 "phone bottom nav on main pages only" (PHONE-NAV spec §3 / §5, 27 Oct
+// 2026): Exercise detail "← Back" (its photo-glass pill, the code's words). Back in history when there is a previous entry, else REPLACE
+// this screen with the parent (no push, no loop).
+describe('T-65 back control (exercise detail)', () => {
+  const saved = { ...mockNavigation };
+  afterEach(() => {
+    Object.keys(mockNavigation).forEach((key) => delete mockNavigation[key]);
+    Object.assign(mockNavigation, saved);
+  });
+  const press = (tree) => tree.root.findAll((node) => node.props.testID === 'exercise-detail-back' && typeof node.props.onPress === 'function')[0];
+
+  it('"Back": with history it goes back; with none it replaces to Exercises', async () => {
+    Object.assign(mockNavigation, { canGoBack: jest.fn(() => true), goBack: jest.fn(), replace: jest.fn(), getState: jest.fn(() => ({ routeNames: ['Exercises', 'ExerciseDetail'] })) });
+    const tree = await render();
+    expect(press(tree).findAllByType(Text).map((node) => node.props.children)).toContain('← Back');
+    await act(async () => press(tree).props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.replace).not.toHaveBeenCalled();
+    mockNavigation.canGoBack.mockReturnValue(false);
+    await act(async () => press(tree).props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.replace).toHaveBeenCalledWith('Exercises');
+    expect(mockNavigation.push).not.toHaveBeenCalledWith('Exercises');
+  });
+});

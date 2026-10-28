@@ -14,6 +14,7 @@ import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
 import { colors, font, radii, spacing, titleTracking } from '../../../shared/theme/tokens';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
+import { useInnerBack } from '../../shell/useInnerBack';
 import { getGeneratorProfile, saveGeneratorProfile } from '../api/generatorApi';
 import FocusAvoidStep from '../components/FocusAvoidStep';
 import { Checkbox, Choice, ChoiceList, OptionPill, PillRow, ProgressSegments } from '../components/GeneratorControls';
@@ -92,6 +93,10 @@ const GOAL_TONES = Object.freeze({ GENERAL_FITNESS: 'teal' });
 
 function PlanGenerator() {
   const navigation = useNavigation();
+  // T-65 (PHONE-NAV spec §3, PM correction 27 Oct 2026): no extra pill here;
+  // step 1's ✕ Cancel (top row + dock) is the exit: back in history, else
+  // REPLACE to Plans; Android back the same.
+  const exit = useInnerBack(navigation, '/plans');
   const route = useRoute();
   const { width, fontScale } = useWindowDimensions();
   const reflow = isReflow(fontScale);
@@ -262,7 +267,7 @@ function PlanGenerator() {
       const placement = stepBarPlacement({ step, tablet, reflow });
       const secondary =
         step === 1
-          ? { testID: 'generator-cancel', title: COPY.cancel, onPress: () => navigation.goBack() }
+          ? { testID: 'generator-cancel', title: COPY.cancel, onPress: exit }
           : { testID: 'generator-back', title: COPY.back, onPress: () => goTo(step - 1) };
       const primary = {
         testID: 'generator-next',

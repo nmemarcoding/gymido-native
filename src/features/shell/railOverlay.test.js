@@ -211,7 +211,9 @@ describe('phones (< 768): the floating tab bar, unchanged', () => {
     await mount(width, 844);
     expect(hostAll('bottom-nav')).toHaveLength(1);
     await act(async () => navRef.navigate(routes.PlanDetail, { planId: 7 }));
-    expect(hostAll('bottom-nav')).toHaveLength(1);
+    // DECLARED (T-65, PHONE-NAV spec §2 / §7, PM to decide): was toHaveLength(1). Plan detail is an inner page:
+    // no tab bar on phones now (the rail checks below are unchanged).
+    expect(hostAll('bottom-nav')).toHaveLength(0);
     expect(hostAll('tablet-rail')).toHaveLength(0);
     expect(hostAll('tablet-frame')).toHaveLength(0);
   });

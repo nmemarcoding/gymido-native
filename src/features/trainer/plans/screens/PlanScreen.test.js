@@ -591,3 +591,44 @@ describe('§9 large text (fontScale 1 / 2 / 3.1)', () => {
   });
 });
 
+// T-65 "phone bottom nav on main pages only" (PHONE-NAV spec §3 / §5, 27 Oct
+// 2026): the builder: member "‹ My plans", trainer "‹ All plans" (the kit pill). Back in history when there is a previous entry, else REPLACE
+// this screen with the parent (no push, no loop).
+describe('T-65 back control (builder)', () => {
+  const saved = { ...mockNavigation };
+  afterEach(() => {
+    Object.keys(mockNavigation).forEach((key) => delete mockNavigation[key]);
+    Object.assign(mockNavigation, saved);
+  });
+  const press = (tree) => tree.root.findAll((node) => node.props.testID === 'plan-all-plans' && typeof node.props.onPress === 'function')[0];
+
+  it('"My plans": with history it goes back; with none it replaces to MyPlans', async () => {
+    Object.assign(mockNavigation, { canGoBack: jest.fn(() => true), goBack: jest.fn(), replace: jest.fn(), getState: jest.fn(() => ({ routeNames: ['PlansLibrary', 'MyPlans', 'MyPlan'] })) });
+    setRoutes();
+    const tree = await renderMember();
+    expect(press(tree).props.accessibilityLabel ?? press(tree).props.label).toBe('My plans');
+    await act(async () => press(tree).props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.replace).not.toHaveBeenCalled();
+    mockNavigation.canGoBack.mockReturnValue(false);
+    await act(async () => press(tree).props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.replace).toHaveBeenCalledWith('MyPlans');
+    expect(mockNavigation.push).not.toHaveBeenCalledWith('MyPlans');
+  });
+  it('"All plans": with history it goes back; with none it replaces to TrainerPlans', async () => {
+    Object.assign(mockNavigation, { canGoBack: jest.fn(() => true), goBack: jest.fn(), replace: jest.fn(), getState: jest.fn(() => ({ routeNames: ['TrainerPlans', 'TrainerPlan'] })) });
+    mockRoute = { key: 'r', name: 'TrainerPlan', params: { planId: '9' } };
+    setRoutes({ root: '/trainer/plans/9' });
+    const tree = await renderTrainer();
+    expect(press(tree).props.accessibilityLabel ?? press(tree).props.label).toBe('All plans');
+    await act(async () => press(tree).props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.replace).not.toHaveBeenCalled();
+    mockNavigation.canGoBack.mockReturnValue(false);
+    await act(async () => press(tree).props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.replace).toHaveBeenCalledWith('TrainerPlans');
+    expect(mockNavigation.push).not.toHaveBeenCalledWith('TrainerPlans');
+  });
+});

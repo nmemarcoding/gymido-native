@@ -206,7 +206,9 @@ function StagePhoto({ exercise, variant }) {
 // 'browse' (phone or tablet browsing), 'split' (the tablet live stage
 // column). `top` is the room the overlaid chrome takes; `chrome` an in-flow
 // chrome (large text). Notes (v1 §19.2) stay under the name. `onLayout`
-// reports the stage's frame (the session's top band, A116).
+// reports the stage's frame (the session's top band, A116); `onContentLayout`
+// the frame of its bottom block (How to + the caption) inside the stage: the
+// open photo ends where it starts (A116 device FAIL, 27 Oct 2026).
 export function ExerciseStage({
   exercise,
   index,
@@ -221,6 +223,7 @@ export function ExerciseStage({
   howTo = null,
   segments = null,
   onLayout,
+  onContentLayout,
 }) {
   const notes = exerciseNotes(exercise);
   const name = exerciseName(exercise);
@@ -240,24 +243,26 @@ export function ExerciseStage({
       <StagePhoto exercise={exercise} variant={variant} />
       {chrome}
       <View style={styles.flex} />
-      {howTo ? <View style={[styles.howToRow, split && styles.howToRowSplit]}>{howTo}</View> : null}
-      <View style={[styles.caption, browse && styles.captionBrowse, tablet && browse && styles.captionBrowseTablet, split && styles.captionSplit]}>
-        <View style={styles.captionText}>
-          <Text {...CAP_BODY} style={[styles.eyebrow, browse && styles.eyebrowBrowse, tablet && browse && styles.eyebrowBrowseTablet, split && styles.eyebrowSplit]}>
-            {eyebrow}
-          </Text>
-          <Text
-            {...DISPLAY_TITLE_TEXT}
-            accessibilityRole="header"
-            style={[styles.stageName, browse && styles.stageNameBrowse, tablet && browse && styles.stageNameBrowseTablet, split && styles.stageNameSplit]}
-          >
-            {name}
-          </Text>
-          {browse ? <MuscleChip exercise={exercise} tablet={tablet} /> : null}
-          {notes ? <Text {...CAP_BODY} style={styles.stageNotes}>{notes}</Text> : null}
-          {segments}
+      <View testID="exercise-stage-content" onLayout={onContentLayout}>
+        {howTo ? <View style={[styles.howToRow, split && styles.howToRowSplit]}>{howTo}</View> : null}
+        <View style={[styles.caption, browse && styles.captionBrowse, tablet && browse && styles.captionBrowseTablet, split && styles.captionSplit]}>
+          <View style={styles.captionText}>
+            <Text {...CAP_BODY} style={[styles.eyebrow, browse && styles.eyebrowBrowse, tablet && browse && styles.eyebrowBrowseTablet, split && styles.eyebrowSplit]}>
+              {eyebrow}
+            </Text>
+            <Text
+              {...DISPLAY_TITLE_TEXT}
+              accessibilityRole="header"
+              style={[styles.stageName, browse && styles.stageNameBrowse, tablet && browse && styles.stageNameBrowseTablet, split && styles.stageNameSplit]}
+            >
+              {name}
+            </Text>
+            {browse ? <MuscleChip exercise={exercise} tablet={tablet} /> : null}
+            {notes ? <Text {...CAP_BODY} style={styles.stageNotes}>{notes}</Text> : null}
+            {segments}
+          </View>
+          {browse ? <StageRing exercise={exercise} tablet={tablet} /> : null}
         </View>
-        {browse ? <StageRing exercise={exercise} tablet={tablet} /> : null}
       </View>
     </View>
   );

@@ -54,4 +54,11 @@ appId: com.gymido.app
           index: 0
 - assertVisible:
     id: "plan-all-plans"
+# T-65 (27 Oct 2026): the builder has no tab bar on phones; back to the Plans list (a main page) before the restore.
+- tapOn:
+    id: "plan-all-plans"
+- extendedWaitUntil:
+    visible:
+      id: "plans-create"
+    timeout: 30000
 - runFlow: ../subflows/restore-workspace.yaml

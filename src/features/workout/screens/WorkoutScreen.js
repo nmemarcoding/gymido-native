@@ -1,11 +1,12 @@
 import { useFocusEffect, useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { getServerMessage } from '../../../shared/api/apiError';
+import BackPill from '../../../shared/components/BackPill';
 import { InlineToast } from '../../../shared/components/ToastHost';
 import { ToastTone } from '../../../shared/components/toastStore';
-import { CAP_BODY, DISPLAY_TITLE_TEXT, TITLE_TEXT } from '../../../shared/components/largeText';
+import { DISPLAY_TITLE_TEXT, TITLE_TEXT } from '../../../shared/components/largeText';
 import { breakpoints, colors, font, spacing, textScale, titleTracking, typography } from '../../../shared/theme/tokens';
 import ScheduleSetupCard from '../../plans/components/ScheduleSetupCard';
 import ShellPage from '../../shell/ShellPage';
@@ -268,18 +269,15 @@ function WorkoutPage() {
   );
 }
 
-// U5 "← Today" + the page title (UX G: 52 phone / 64 tablet), above every
-// loaded hub state. The link is drawn 32 tall with a 44 hit area.
+// U5 "‹ Today" + the page title (UX G: 52 phone / 64 tablet), above every
+// loaded hub state. T-65 (PHONE-NAV spec §3, 27 Oct 2026): the page's one
+// back control is the kit glass pill (BackPill, 44 phone / 40 tablet with a
+// 44 hit area) in place of the gold "← Today" text link; it still opens the
+// Today root (M1).
 function HubHeader({ tablet, onBack }) {
   return (
     <View testID="workout-hub-header" style={styles.header}>
-      <Pressable testID="workout-back-today" accessibilityRole="link" accessibilityLabel="Today" onPress={onBack} hitSlop={6} style={styles.backLink}>
-        {({ pressed }) => (
-          <Text {...CAP_BODY} style={[tablet ? styles.backTextTablet : styles.backText, pressed && styles.backPressed]}>
-            ← Today
-          </Text>
-        )}
-      </Pressable>
+      <BackPill testID="workout-back-today" label="Today" onPress={onBack} />
       <Text testID="workout-title" accessibilityRole="header" {...DISPLAY_TITLE_TEXT} style={tablet ? styles.titleTablet : styles.title}>
         Workout
       </Text>
@@ -396,26 +394,6 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: spacing[1],
-  },
-  backLink: {
-    alignSelf: 'flex-start',
-    minHeight: 32,
-    justifyContent: 'center',
-  },
-  backText: {
-    ...font(600),
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.gold,
-  },
-  backTextTablet: {
-    ...font(600),
-    fontSize: 15,
-    lineHeight: 20,
-    color: colors.gold,
-  },
-  backPressed: {
-    textDecorationLine: 'underline',
   },
   title: {
     ...typography.displayLg,

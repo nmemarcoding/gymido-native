@@ -7,9 +7,9 @@ import { breakpoints, colors, spacing, textScale, typography } from '../../share
 import { mountBell } from '../notifications/bellPolling';
 import NotificationBell from '../notifications/NotificationBell';
 import ModeSwitch from './ModeSwitch';
-import { openShellPath } from './shellLinks';
 import { getHeaderBackLink, getHeaderTitle, getHeroFallbackTitle, isCompactHeader } from './shellRules';
 import { useShellUiStore } from './shellUiStore';
+import { useInnerBack } from './useInnerBack';
 
 // App-shell spec §6.1; v2 look RN-SPEC-v2-foundation §7.4 (title-xl on
 // phones, display-md on tablets; back pill (ruling 6); bell top-right). The bell lives in a different spot in the full and
@@ -40,10 +40,11 @@ export default function AppHeader({ path, query = '', mode, headerActions = null
   const sm = width >= breakpoints.sm;
   const isSessionActive = useShellUiStore((state) => state.isSessionActive);
   const title = getHeaderTitle(path, isSessionActive) || (heroTitleShown ? '' : getHeroFallbackTitle(path));
-  const backLink = getHeaderBackLink(path, isSessionActive);
+  const backLink = getHeaderBackLink(path, isSessionActive, mode);
   const navigation = useNavigation();
-  // A157: a `history` back link goes back (Today when there is none).
-  const goBack = (link) => (link.history && navigation.canGoBack() ? navigation.goBack() : openShellPath(link.path));
+  // A157 / T-65 (PHONE-NAV spec §3 / §5): the back pill goes back in history,
+  // else REPLACES to the link's parent; Android back the same (useInnerBack).
+  const goBack = useInnerBack(navigation, backLink?.path ?? null);
 
   useEffect(() => {
     if (isFocused) {
@@ -88,7 +89,7 @@ export default function AppHeader({ path, query = '', mode, headerActions = null
         {title || backLink ? (
           // X1: a page that draws its own title keeps the back link, untitled.
           <View style={styles.titleColumn}>
-            {backLink ? <BackLink label={backLink.label} onPress={() => goBack(backLink)} /> : null}
+            {backLink ? <BackLink label={backLink.label} onPress={goBack} /> : null}
             {title ? (
               <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.title, tablet && styles.titleTablet]}>
                 {title}

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { AccessibilityInfo, Animated, Easing, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { usePhoneChromeStore } from '../../features/shell/phoneChromeStore';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { breakpoints, colors, font, layout, motion, radii, spacing } from '../theme/tokens';
 import FeedbackIcon from './FeedbackIcon';
@@ -29,9 +30,15 @@ export const TAB_BAR_CLEARANCE = TAB_BAR_HEIGHT + TAB_BAR_BOTTOM_OFFSET;
 export const TOAST_GAP = spacing[3];
 export const TOAST_TABLET_MAX_WIDTH = 384;
 
+// T-65 (PHONE-NAV spec §4, 27 Oct 2026): on an inner page (no tab bar,
+// `tabBar` false) 16 above the safe area; with the page's pinned dock on
+// screen (`dockHeight`, its full height to the edge) the dock height + 12.
+export const TOAST_EDGE_GAP = spacing[4];
+
 // Where the stack sits: phones, bottom-centre ABOVE the floating tab bar
-// (never under it); tablets, bottom-right. Safe-area insets added [O2].
-export function toastPlacement({ width, insets }) {
+// (never under it) on the main pages, above the edge or the dock on inner
+// pages; tablets, bottom-right. Safe-area insets added [O2].
+export function toastPlacement({ width, insets, tabBar = true, dockHeight = null }) {
   if (width >= breakpoints.md) {
     const edge = spacing[6];
     return {
@@ -41,9 +48,13 @@ export function toastPlacement({ width, insets }) {
       right: edge + insets.right,
     };
   }
+  let bottom = TAB_BAR_CLEARANCE + TOAST_GAP + insets.bottom;
+  if (!tabBar) {
+    bottom = dockHeight !== null && dockHeight !== undefined ? dockHeight + TOAST_GAP : TOAST_EDGE_GAP + insets.bottom;
+  }
   return {
     tablet: false,
-    bottom: TAB_BAR_CLEARANCE + TOAST_GAP + insets.bottom,
+    bottom,
     left: layout.gutter + insets.left,
     right: layout.gutter + insets.right,
   };
@@ -57,13 +68,15 @@ export default function ToastHost({ hostId } = {}) {
   const removeToast = useToastStore((state) => state.removeToast);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const tabBar = usePhoneChromeStore((state) => state.phoneTabBar);
+  const dockHeight = usePhoneChromeStore((state) => state.pageDock?.height ?? null);
 
   // Only one host draws the stack: the topmost open modal, else the app.
   if (toasts.length === 0 || (hostId ? topModalHost !== hostId : topModalHost !== undefined)) {
     return null;
   }
 
-  const place = toastPlacement({ width, insets });
+  const place = toastPlacement({ width, insets, tabBar, dockHeight });
   return (
     <View
       testID="toast-stack"

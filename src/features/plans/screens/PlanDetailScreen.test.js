@@ -6,7 +6,7 @@ jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   __esModule: true,
   default: () => ({ scale: 3, ...mockWindow }),
 }));
-const mockNavigation = { push: jest.fn(), addListener: jest.fn(() => () => {}) };
+const mockNavigation = { push: jest.fn(), addListener: jest.fn(() => () => {}), canGoBack: jest.fn(() => true), goBack: jest.fn() };
 let mockRoute = { key: 'PlanDetail-1', name: 'PlanDetail', params: { planId: '5' } };
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => mockNavigation,
@@ -206,7 +206,9 @@ describe('Plan detail (phone), the current plan', () => {
   it('back pill → Plans; the gold "Current plan" pill; summary, stats and the × / week pill', async () => {
     const tree = await render();
     await act(async () => pressable(tree, 'plan-detail-back').props.onPress());
-    expect(mockNavigation.push).toHaveBeenCalledWith('PlansLibrary');
+    // DECLARED (T-65, PHONE-NAV spec §3 / §5): was push('PlansLibrary'). The pill goes back in history (else replaces to Plans).
+    expect(mockNavigation.goBack).toHaveBeenCalled();
+    expect(mockNavigation.push).not.toHaveBeenCalledWith('PlansLibrary');
     const pill = tree.root.findAllByType(StatusPill).find((node) => node.props.testID === 'plan-detail-current');
     expect([pill.props.label, pill.props.tone]).toEqual(['Current plan', 'gold']);
     expect(texts(tree)).toEqual(expect.arrayContaining(['Strength', 'Upper / Lower Split', 'Four days a week.', '3', 'Days', '6', 'Exercises', 'Intermediate', 'Level', '3× / week']));
@@ -466,5 +468,31 @@ describe('Plan detail stat tiles: no mid-word break (UX N2)', () => {
     const tree = await render();
     expect(valueText(tree, 'days', '3').props).toMatchObject({ numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 0.75 });
     expect(valueText(tree, 'exercises', '6').props).toMatchObject({ numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 0.75 });
+  });
+});
+
+// T-65 "phone bottom nav on main pages only" (PHONE-NAV spec §3 / §5, 27 Oct
+// 2026): Plan detail "‹ Plans" (the kit BackPill). Back in history when there is a previous entry, else REPLACE
+// this screen with the parent (no push, no loop).
+describe('T-65 back control (Plan detail)', () => {
+  const saved = { ...mockNavigation };
+  afterEach(() => {
+    Object.keys(mockNavigation).forEach((key) => delete mockNavigation[key]);
+    Object.assign(mockNavigation, saved);
+  });
+  const press = (tree) => tree.root.findAll((node) => node.props.testID === 'plan-detail-back' && typeof node.props.onPress === 'function')[0];
+
+  it('"Plans": with history it goes back; with none it replaces to PlansLibrary', async () => {
+    Object.assign(mockNavigation, { canGoBack: jest.fn(() => true), goBack: jest.fn(), replace: jest.fn(), getState: jest.fn(() => ({ routeNames: ['PlansLibrary', 'PlanDetail'] })) });
+    const tree = await render();
+    expect(press(tree).props.accessibilityLabel ?? press(tree).props.label).toBe('Plans');
+    await act(async () => press(tree).props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.replace).not.toHaveBeenCalled();
+    mockNavigation.canGoBack.mockReturnValue(false);
+    await act(async () => press(tree).props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.replace).toHaveBeenCalledWith('PlansLibrary');
+    expect(mockNavigation.push).not.toHaveBeenCalledWith('PlansLibrary');
   });
 });

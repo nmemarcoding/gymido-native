@@ -75,7 +75,8 @@ describe('My plans (phone)', () => {
     const tree = await render();
     expect(host(tree, 'my-plans-screen').props.glow).toBe(MY_PLANS_GLOW);
     expect(MY_PLANS_GLOW.colors).toBe(gradients.accountGlow.colors);
-    expect(texts(tree)).toEqual(expect.arrayContaining(['← All plans', 'My plans', 'Plans you build or copy from the catalog. Only you can see them.']));
+    // DECLARED (T-65, PHONE-NAV spec §3): was '← All plans' (gold text link); the back pill draws a chevron + 'All plans'.
+    expect(texts(tree)).toEqual(expect.arrayContaining(['All plans', 'My plans', 'Plans you build or copy from the catalog. Only you can see them.']));
     const title = tree.root.findAll((node) => node.type === 'Text' && textOf(node) === 'My plans')[0];
     expect(flat(title).fontSize).toBe(46);
     const create_ = button(tree, 'my-plans-create');
@@ -259,5 +260,31 @@ describe('Entry card + copy card (v2)', () => {
     expect(error.props.accessibilityRole).toBe('alert');
     expect(flat(error).color).toBe(colors.dangerText);
     expect(textOf(error)).toMatch(/^Unavailable\. They’re kept safe/);
+  });
+});
+
+// T-65 "phone bottom nav on main pages only" (PHONE-NAV spec §3 / §5, 27 Oct
+// 2026): My plans "‹ All plans" (the code's words, now the kit pill). Back in history when there is a previous entry, else REPLACE
+// this screen with the parent (no push, no loop).
+describe('T-65 back control (My plans)', () => {
+  const saved = { ...mockNavigation };
+  afterEach(() => {
+    Object.keys(mockNavigation).forEach((key) => delete mockNavigation[key]);
+    Object.assign(mockNavigation, saved);
+  });
+  const press = (tree) => tree.root.findAll((node) => node.props.testID === 'my-plans-all-plans' && typeof node.props.onPress === 'function')[0];
+
+  it('"All plans": with history it goes back; with none it replaces to PlansLibrary', async () => {
+    Object.assign(mockNavigation, { canGoBack: jest.fn(() => true), goBack: jest.fn(), replace: jest.fn(), getState: jest.fn(() => ({ routeNames: ['PlansLibrary', 'MyPlans'] })) });
+    const tree = await render();
+    expect(press(tree).props.accessibilityLabel ?? press(tree).props.label).toBe('All plans');
+    await act(async () => press(tree).props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.replace).not.toHaveBeenCalled();
+    mockNavigation.canGoBack.mockReturnValue(false);
+    await act(async () => press(tree).props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.replace).toHaveBeenCalledWith('PlansLibrary');
+    expect(mockNavigation.push).not.toHaveBeenCalledWith('PlansLibrary');
   });
 });

@@ -20,13 +20,14 @@ jest.mock('./ModeSwitch', () => () => null);
 jest.mock('../workspace/workspacePreference', () => ({ setWorkspace: jest.fn(() => Promise.resolve()) }));
 jest.mock('../auth/authStore', () => ({ useAuthStore: (select) => select({ user: null, workspace: null }) }));
 jest.mock('./shellNavigation', () => ({ getScreenPath: () => '/profile/edit' }));
-jest.mock('./shellRules', () => ({ resolveMode: () => 'member', showsMobileModeSwitch: () => false }));
+jest.mock('./shellRules', () => ({ ...jest.requireActual('./shellRules'), resolveMode: () => 'member', showsMobileModeSwitch: () => false }));
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({ __esModule: true, default: jest.fn() }));
 
 const WINDOW = { width: 412, height: 915, scale: 2.625, fontScale: 1 };
 const FRAME = { height: 336, screenY: 915 - 336 - 48 };
-// The phone's tab-bar clearance (bar 66 + 20 + 18, ShellPage) + the inset.
-const TAB_CLEARANCE = 104 + mockInsets.bottom;
+// DECLARED (T-65, PHONE-NAV spec §4 / §7, PM to decide): was 104 + the inset, the phone's tab-bar clearance
+// (bar 66 + 20 + 18). This page is Edit profile, an inner page with no tab bar now: 24 + the inset.
+const TAB_CLEARANCE = 24 + mockInsets.bottom;
 
 const realOS = Platform.OS;
 let listeners;

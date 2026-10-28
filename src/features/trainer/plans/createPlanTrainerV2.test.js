@@ -87,13 +87,15 @@ describe('Trainer plan create, phone (TrainerPlanCreate)', () => {
     expect(mockShellProps.glow).toBe(TRAINER_CREATE_GLOW);
     expect(TRAINER_CREATE_GLOW.colors).toBe(gradients.accountGlow.colors);
     expect(texts(tree.root)).toEqual(
-      expect.arrayContaining(['← All plans', 'Create a plan', 'Private to you. Only clients you assign it to will see it.']),
+      // DECLARED (T-65, PHONE-NAV spec §3): was '← All plans'; the kit BackPill draws a chevron + 'All plans'.
+      expect.arrayContaining(['All plans', 'Create a plan', 'Private to you. Only clients you assign it to will see it.']),
     );
-    const back = comp(tree.root, 'create-plan-all-plans');
+    // DECLARED (T-65, spec §3: existing glass pills become the kit BackPill): was the screen's own 40-tall pill
+    // (hitSlop 2/2, fillGlass, hairlineButton). The kit pill: 44 tall on phones, white 7 % fill + hairlineStrong.
+    const back = host(tree.root, 'create-plan-all-plans');
     expect(back.props.accessibilityRole).toBe('link');
-    expect(back.props.hitSlop).toEqual(expect.objectContaining({ top: 2, bottom: 2 }));
     expect(flat(back.props.style)).toEqual(
-      expect.objectContaining({ minHeight: 40, borderRadius: radii.full, backgroundColor: colors.fillGlass, borderColor: colors.hairlineButton }),
+      expect.objectContaining({ minHeight: 44, borderRadius: radii.full, backgroundColor: colors.hairline, borderColor: colors.hairlineStrong }),
     );
     const title = tree.root.findAllByType(Text).find((node) => node.props.children === 'Create a plan');
     expect(title.props.accessibilityRole).toBe('header');
@@ -202,15 +204,22 @@ describe('Trainer plan create, phone (TrainerPlanCreate)', () => {
 
   it('Back and Cancel go to All plans', async () => {
     const tree = await render();
+    // DECLARED (T-65, PHONE-NAV spec §3 / §5): was push('TrainerPlans') twice. Both go back in history (the mock has
+    // a previous entry); with none they replace to the list (the T-65 block at the end of this file).
+    mockNavigation.canGoBack = jest.fn(() => true);
+    mockNavigation.goBack = jest.fn();
     comp(tree.root, 'create-plan-all-plans').props.onPress();
     comp(tree.root, 'create-plan-cancel').props.onPress();
-    expect(mockNavigation.push).toHaveBeenNthCalledWith(1, 'TrainerPlans');
-    expect(mockNavigation.push).toHaveBeenNthCalledWith(2, 'TrainerPlans');
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(2);
+    expect(mockNavigation.push).not.toHaveBeenCalledWith('TrainerPlans');
+    delete mockNavigation.canGoBack;
+    delete mockNavigation.goBack;
   });
 
   it('back pill pressed: the 4 % overlay', async () => {
     const tree = await render();
-    const back = comp(tree.root, 'create-plan-all-plans');
+    // DECLARED (T-65): the press overlay is the kit BackPill's (same testID suffix); read from its Pressable.
+    const back = tree.root.find((node) => node.props.testID === 'create-plan-all-plans' && typeof node.props.children === 'function');
     let pressed;
     act(() => {
       pressed = create(<View>{back.props.children({ pressed: true })}</View>);
@@ -267,7 +276,8 @@ describe('Trainer plan create large text (UX §9)', () => {
     if (stacked) {
       expect(flat(comp(tree.root, 'create-plan-submit').props.style).alignSelf).toBe('stretch');
     }
-    const back = tree.root.findAllByType(Text).find((node) => node.props.children === '← All plans');
+    // DECLARED (T-65): was the text '← All plans'; the pill's label is 'All plans'.
+    const back = tree.root.findAllByType(Text).find((node) => node.props.children === 'All plans');
     expect(back.props.maxFontSizeMultiplier).toBe(textScale.body);
   });
 });
@@ -306,5 +316,31 @@ describe('Trainer plan create pinned dock (UX native final audit 27 Oct 2026, ru
     expect(dockOf(await render())).toBeUndefined();
     setWindow(390, 2);
     expect(dockOf(await render())).toBeUndefined();
+  });
+});
+
+// T-65 "phone bottom nav on main pages only" (PHONE-NAV spec §3 / §5, 27 Oct
+// 2026): trainer Create plan "‹ All plans" (the kit pill). Back in history when there is a previous entry, else REPLACE
+// this screen with the parent (no push, no loop).
+describe('T-65 back control (trainer create)', () => {
+  const saved = { ...mockNavigation };
+  afterEach(() => {
+    Object.keys(mockNavigation).forEach((key) => delete mockNavigation[key]);
+    Object.assign(mockNavigation, saved);
+  });
+  const press = (tree) => tree.root.findAll((node) => node.props.testID === 'create-plan-all-plans' && typeof node.props.onPress === 'function')[0];
+
+  it('"All plans": with history it goes back; with none it replaces to TrainerPlans', async () => {
+    Object.assign(mockNavigation, { canGoBack: jest.fn(() => true), goBack: jest.fn(), replace: jest.fn(), getState: jest.fn(() => ({ routeNames: ['TrainerPlans', 'TrainerPlanCreate'] })) });
+    const tree = await render();
+    expect(press(tree).props.accessibilityLabel ?? press(tree).props.label).toBe('All plans');
+    await act(async () => press(tree).props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.replace).not.toHaveBeenCalled();
+    mockNavigation.canGoBack.mockReturnValue(false);
+    await act(async () => press(tree).props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.replace).toHaveBeenCalledWith('TrainerPlans');
+    expect(mockNavigation.push).not.toHaveBeenCalledWith('TrainerPlans');
   });
 });

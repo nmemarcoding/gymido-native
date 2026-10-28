@@ -10,7 +10,8 @@ export const MEMBER_CREATE_VARIANT = {
   backLabel: '← My plans',
   // v2 Phase 2 C3: the member form's own look (CreatePlanForm → CreatePlanV2).
   look: 'v2',
-  backRoute: myPlanRoutes.MyPlans,
+  // T-65 (PHONE-NAV spec §3): the back pill's parent when there is no history.
+  backPath: '/plans/mine',
   subtitle: 'Private to you. Build it out, then start it.',
   namePlaceholder: 'My strength plan',
   // D1: no slug field; a fresh random-suffixed slug on every submit.

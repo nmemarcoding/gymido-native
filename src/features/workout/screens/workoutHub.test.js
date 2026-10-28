@@ -94,8 +94,11 @@ describe('Workout hub page (UX G)', () => {
   it('"← Today" (U5, 44 hit) always opens the Today root, never goBack (M1); H1 "Workout" 52 phone', async () => {
     const tree = await renderScreen();
     const back = tree.root.find((node) => node.props.testID === 'workout-back-today' && node.props.onPress);
-    expect(back.props.accessibilityRole).toBe('link');
-    expect(flat(host(tree.root, 'workout-back-today')).minHeight + 2 * back.props.hitSlop).toBeGreaterThanOrEqual(44);
+    // DECLARED (T-65, PHONE-NAV spec §3): was back.props.accessibilityRole; the role sits on the pill's host view now.
+    expect(host(tree.root, 'workout-back-today').props.accessibilityRole).toBe('link');
+    // DECLARED (T-65, PHONE-NAV spec §3): was minHeight + 2 × hitSlop ≥ 44 (the 32-tall gold text link). The kit
+    // BackPill is 44 tall on phones itself (no hit slop).
+    expect(flat(host(tree.root, 'workout-back-today')).minHeight).toBeGreaterThanOrEqual(44);
     // DECLARED bug-fix change (review M1, PM-approved): was expect(mockNavigation.goBack).toHaveBeenCalled(); goBack
     // with backBehavior="history" could land on another tab. "← Today" ALWAYS opens the Today root.
     require('../../shell/shellLinks').openShellPath.mockClear();
@@ -116,7 +119,8 @@ describe('Workout hub page (UX G)', () => {
     loadWorkoutPage.mockResolvedValue(data());
     const tree = await renderScreen();
     expect(queryHost(tree.root, 'workout-hub-header')).toHaveLength(1);
-    expect(tree.root.findAll((node) => node.type === 'Text' && textOf(node) === '← Today')).toHaveLength(1);
+    // DECLARED (T-65, PHONE-NAV spec §3): was the text '← Today'. The back pill draws a chevron + the word "Today".
+    expect(tree.root.findAll((node) => node.type === 'Text' && textOf(node) === 'Today')).toHaveLength(1);
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && textOf(node) === 'Workout')).toHaveLength(1);
     require('../../shell/shellLinks').openShellPath.mockClear();
     act(() => tree.root.find((node) => node.props.testID === 'workout-back-today' && node.props.onPress).props.onPress());

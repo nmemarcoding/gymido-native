@@ -27,6 +27,7 @@ import {
 import GymIcon from '../../shell/GymIcon';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
+import { useInnerBack } from '../../shell/useInnerBack';
 import { getExercise, getExerciseProfile } from '../api/exercisesApi';
 import {
   equipmentLines,
@@ -129,6 +130,9 @@ export default function ExerciseDetailScreen() {
 
 function ExerciseDetail() {
   const navigation = useNavigation();
+  // T-65 (PHONE-NAV spec §3): "← Back" (its own photo-glass pill, the code's
+  // words) goes back, else REPLACES to /exercises; Android back the same.
+  const goBack = useInnerBack(navigation, '/exercises');
   const route = useRoute();
   const { width, fontScale } = useWindowDimensions();
   const tablet = width >= breakpoints.md;
@@ -186,7 +190,6 @@ function ExerciseDetail() {
   const chips = factChips(profile);
   const equipment = equipmentLines(profile?.equipment);
   const substitutes = (profile?.substitutes ?? []).slice(0, MAX_ALTERNATIVES);
-  const goBack = () => (navigation.canGoBack() ? navigation.goBack() : openShellPath('/exercises'));
   const openSubstitute = (id) => navigation.push(routes.ExerciseDetail, { exerciseId: String(id) });
   const steps = howToSteps(exercise?.instructions);
 

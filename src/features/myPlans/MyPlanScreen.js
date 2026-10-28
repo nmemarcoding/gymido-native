@@ -5,15 +5,14 @@ import { BackLink } from '../trainer/plans/components/builderParts';
 import { SharedPlanScreen } from '../trainer/plans/screens/PlanScreen';
 import OnHoldBox from './components/OnHoldBox';
 import { createMemberPlanAdapter } from './memberPlanAdapter';
-import { myPlanRoutes } from './myPlanRoutes';
 import { useMemberStart } from './useMemberStart';
 
 // §M3.3: no header, no retry — just the back link and the on-hold box.
-function renderOnHold({ message, navigation }) {
+function renderOnHold({ message, goBack }) {
   return (
     <>
-      {/* v2: the builder's back link (chevron + "My plans", 44 tall). */}
-      <BackLink testID="my-plan-back" label="My plans" onPress={() => navigation.push(myPlanRoutes.MyPlans)} />
+      {/* v2: the builder's back link; T-65: the kit pill "‹ My plans", back else replace to /plans/mine. */}
+      <BackLink testID="my-plan-back" label="My plans" onPress={goBack} />
       <OnHoldBox message={message} />
     </>
   );

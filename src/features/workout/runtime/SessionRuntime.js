@@ -181,6 +181,11 @@ export default function SessionRuntime({
   // whether it has scrolled out from under the top band.
   const reducedMotion = useReducedMotion();
   const [stageBottom, setStageBottom] = useState(null);
+  // A116 device FAIL (iPhone, Release cc3b39b): the stage frame's top and its
+  // bottom block's (How to + caption) top inside it, so the band can follow
+  // the content rather than the whole stage.
+  const [stageY, setStageY] = useState(null);
+  const [contentY, setContentY] = useState(null);
   const [pastPhoto, setPastPhoto] = useState(false);
   const bandOpacity = useRef(new Animated.Value(0)).current;
 
@@ -475,9 +480,17 @@ export default function SessionRuntime({
   // starts below the pills and its stage column does not scroll.
   const oneScroll = !(tablet && !browsing);
   const bandHeight = oneScroll ? (chromeOverlay ? chromeTop + chromeHeight : header ? 0 : insets.top) : 0;
-  const bandOn = bandHeight > 0 && stageBottom !== null && pastPhoto;
+  // A116 device FAIL (27 Oct 2026, iPhone Release cc3b39b): the band waited
+  // for the whole stage to clear the pills, so on a short live page (about
+  // 100 of scroll) it never came while "Current exercise" and How to ran
+  // under them. It now shows as soon as content passes under the PILLS: when
+  // the open photo's bottom edge (the stage's How to + caption block starts
+  // there; photoEdge − scrollY) goes above the pills' bottom. The stage
+  // bottom stands in until that block has been measured.
+  const photoEdge = stageY !== null && contentY !== null ? stageY + contentY : stageBottom;
+  const bandOn = bandHeight > 0 && photoEdge !== null && pastPhoto;
   const onPageScroll = (event) => {
-    const past = stageBottom !== null && event.nativeEvent.contentOffset.y + bandHeight >= stageBottom;
+    const past = photoEdge !== null && photoEdge - event.nativeEvent.contentOffset.y <= bandHeight;
     setPastPhoto((current) => (current === past ? current : past));
   };
   useEffect(() => {
@@ -583,8 +596,10 @@ export default function SessionRuntime({
       segments={tablet && showSegments ? <ExerciseSegments exercises={exercises} viewingIndex={viewing} tablet /> : null}
       onLayout={(event) => {
         const { y, height } = event.nativeEvent.layout;
+        setStageY(y);
         setStageBottom(y + height);
       }}
+      onContentLayout={(event) => setContentY(event.nativeEvent.layout.y)}
     />
   ) : null;
 

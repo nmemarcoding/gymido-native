@@ -17,7 +17,7 @@ import TrainersScreen, { TRAINERS_GLOW } from './screens/TrainersScreen';
 // v2 Phase 5 L (p5l): Find a trainer, Trainer detail, Trainer apply: look,
 // the avatar colour rule, the back-link rule, ND4 and large text.
 
-const mockNavigation = { push: jest.fn(), addListener: jest.fn(() => () => {}) };
+const mockNavigation = { push: jest.fn(), addListener: jest.fn(() => () => {}), canGoBack: jest.fn(() => true), goBack: jest.fn() };
 let mockRoute = { key: 'TrainerDetail-1', name: 'TrainerDetail', params: { trainerUserId: '8' } };
 let mockIsTrainer = false;
 const mockShellPage = jest.fn();
@@ -34,7 +34,7 @@ jest.mock('../shell/ShellPage', () => (props) => {
   return props.children;
 });
 jest.mock('../shell/shellLinks', () => ({ openShellPath: jest.fn() }));
-jest.mock('../shell/shellRules', () => ({ isTrainerUser: () => mockIsTrainer }));
+jest.mock('../shell/shellRules', () => ({ ...jest.requireActual('../shell/shellRules'), isTrainerUser: () => mockIsTrainer }));
 jest.mock('../auth/authStore', () => ({ useAuthStore: (select) => select({ user: {} }) }));
 jest.mock('../../shared/components/toastStore', () => ({ ...jest.requireActual('../../shared/components/toastStore'), ToastTone: { success: 'success', error: 'error' }, addToast: jest.fn() }));
 jest.mock('./api/trainersApi', () => ({
@@ -207,8 +207,11 @@ describe('Trainer detail (UX L §Trainer detail)', () => {
     // DECLARED (UX native final audit 27 Oct 2026, ruling 6): was toContain('← All trainers') (the gold text link);
     // the glass back pill draws a chevron icon, so its one text is the parent's name.
     expect(textsOf(link)).toEqual(['All trainers']);
+    // DECLARED (T-65, PHONE-NAV spec §3 / §5): was push('Trainers') (⚠TR-4). The pill goes back in history, else
+    // replaces to /trainers.
     act(() => link.props.onPress());
-    expect(mockNavigation.push).toHaveBeenCalledWith('Trainers');
+    expect(mockNavigation.goBack).toHaveBeenCalled();
+    expect(mockNavigation.push).not.toHaveBeenCalledWith('Trainers');
   });
 
   it('the page glow takes the trainer colour from the route id (present from the first render)', async () => {
@@ -361,6 +364,11 @@ describe('Trainer apply (UX L §Trainer apply)', () => {
     const tree = await render(<TrainerApplyScreen />);
     const link = tree.root.find((node) => node.props.testID === 'trainer-apply-back' && node.props.accessibilityRole === 'link');
     expect(link.props.accessibilityLabel).toBe('Coaching');
+    // DECLARED (T-65, PHONE-NAV spec §3 / §5): was openShellPath('/my-trainer') on every tap. Back in history first;
+    // with no previous entry it opens /my-trainer.
+    act(() => link.props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalled();
+    mockNavigation.canGoBack.mockReturnValueOnce(false);
     act(() => link.props.onPress());
     expect(openShellPath).toHaveBeenCalledWith('/my-trainer');
   });
@@ -549,5 +557,26 @@ describe('Coaching page headings: ruling 5 tracking (f2)', () => {
     expect(style.fontSize).toBe(size);
     expect(style.letterSpacing).toBe(android);
     expect(style.letterSpacing).toBeGreaterThanOrEqual(-0.04 * style.fontSize);
+  });
+});
+
+// T-65 "phone bottom nav on main pages only" (PHONE-NAV spec §3 / §5, 27 Oct
+// 2026): "‹ All trainers" goes back with history, else REPLACES to /trainers.
+describe('T-65 back control (trainer detail)', () => {
+  it('with history it goes back; with none it replaces to Trainers (no push)', async () => {
+    getTrainer.mockReturnValue(new Promise(() => {}));
+    mockNavigation.replace = jest.fn();
+    mockNavigation.getState = jest.fn(() => ({ routeNames: ['Settings', 'MyTrainer', 'Trainers', 'TrainerDetail'] }));
+    const tree = await render(<TrainerDetailScreen />);
+    const link = tree.root.find((node) => node.props.testID === 'trainer-detail-all' && node.props.accessibilityRole === 'link');
+    mockNavigation.goBack.mockClear();
+    act(() => link.props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    mockNavigation.canGoBack.mockReturnValueOnce(false);
+    act(() => link.props.onPress());
+    expect(mockNavigation.replace).toHaveBeenCalledWith('Trainers');
+    expect(mockNavigation.push).not.toHaveBeenCalledWith('Trainers');
+    delete mockNavigation.replace;
+    delete mockNavigation.getState;
   });
 });

@@ -95,7 +95,8 @@ describe('My plan create v2 look (C3), phone', () => {
     const shown = texts(tree.root);
     expect(shown).toEqual(
       expect.arrayContaining([
-        '← My plans',
+        // DECLARED (T-65, PHONE-NAV spec §3): was '← My plans' (gold text link); the kit pill shows 'My plans'.
+        'My plans',
         'Create a plan',
         'Private to you. Build it out, then start it.',
         'Cancel',
@@ -106,8 +107,10 @@ describe('My plan create v2 look (C3), phone', () => {
     const title = tree.root.find((node) => node.type === 'Text' && node.props.children === 'Create a plan');
     expect(title.props.accessibilityRole).toBe('header');
     expect(flat(title.props.style).fontSize).toBe(44);
-    const back = tree.root.find((node) => node.type === 'Text' && node.props.children === '← My plans');
-    expect(flat(back.props.style).color).toBe(colors.gold);
+    // DECLARED (T-65, PHONE-NAV spec §3): was the gold '← My plans' text (colors.gold). The kit BackPill's label is
+    // primary text on the glass pill.
+    const back = tree.root.find((node) => node.type === 'Text' && node.props.children === 'My plans');
+    expect(flat(back.props.style).color).toBe(colors.textPrimary);
     expect(flat(host(tree.root, 'create-plan-card')[0].props.style)).toMatchObject({ borderRadius: radii.xxl, padding: 18 });
   });
 
@@ -179,13 +182,19 @@ describe('My plan create v2 look (C3), phone', () => {
   });
 
   it('Back and Cancel go to My plans', async () => {
+    mockNavigation.canGoBack = jest.fn(() => true);
+    mockNavigation.goBack = jest.fn();
     const tree = await render();
     act(() =>
       tree.root.find((n) => n.props.testID === 'create-plan-all-plans' && typeof n.props.onPress === 'function').props.onPress(),
     );
     act(() => comp(tree.root, 'create-plan-cancel').props.onPress());
-    expect(mockNavigation.push).toHaveBeenNthCalledWith(1, 'MyPlans');
-    expect(mockNavigation.push).toHaveBeenNthCalledWith(2, 'MyPlans');
+    // DECLARED (T-65, PHONE-NAV spec §3 / §5): was push('MyPlans') twice. Both go back in history (the mock has a
+    // previous entry); with none they replace to My plans (the T-65 block at the end of this file).
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(2);
+    expect(mockNavigation.push).not.toHaveBeenCalledWith('MyPlans');
+    delete mockNavigation.canGoBack;
+    delete mockNavigation.goBack;
   });
 });
 
@@ -346,5 +355,31 @@ describe('My plan create pinned dock (UX native final audit 27 Oct 2026, ruling 
     expect(dockOf(await render())).toBeUndefined();
     setWidth(390, 2);
     expect(dockOf(await render())).toBeUndefined();
+  });
+});
+
+// T-65 "phone bottom nav on main pages only" (PHONE-NAV spec §3 / §5, 27 Oct
+// 2026): Create a plan (member) "‹ My plans" (the kit pill). Back in history when there is a previous entry, else REPLACE
+// this screen with the parent (no push, no loop).
+describe('T-65 back control (My plan create)', () => {
+  const saved = { ...mockNavigation };
+  afterEach(() => {
+    Object.keys(mockNavigation).forEach((key) => delete mockNavigation[key]);
+    Object.assign(mockNavigation, saved);
+  });
+  const press = (tree) => tree.root.findAll((node) => node.props.testID === 'create-plan-all-plans' && typeof node.props.onPress === 'function')[0];
+
+  it('"My plans": with history it goes back; with none it replaces to MyPlans', async () => {
+    Object.assign(mockNavigation, { canGoBack: jest.fn(() => true), goBack: jest.fn(), replace: jest.fn(), getState: jest.fn(() => ({ routeNames: ['PlansLibrary', 'MyPlans', 'MyPlanCreate'] })) });
+    const tree = await render();
+    expect(press(tree).props.accessibilityLabel ?? press(tree).props.label).toBe('My plans');
+    await act(async () => press(tree).props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.replace).not.toHaveBeenCalled();
+    mockNavigation.canGoBack.mockReturnValue(false);
+    await act(async () => press(tree).props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.replace).toHaveBeenCalledWith('MyPlans');
+    expect(mockNavigation.push).not.toHaveBeenCalledWith('MyPlans');
   });
 });

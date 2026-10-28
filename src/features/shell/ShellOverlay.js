@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { usesRail } from '../../shared/hooks/useLayoutClass';
@@ -8,7 +9,8 @@ import BottomNav from './BottomNav';
 import { useShowsRail } from './TabletFrame';
 import TabletRail from './TabletRail';
 import { TAB_ROOTS, getScreenPath } from './shellNavigation';
-import { resolveMode } from './shellRules';
+import { resolveMode, showsPhoneTabBar } from './shellRules';
+import { usePhoneChromeStore } from './phoneChromeStore';
 import { closePanel, useShellUiStore } from './shellUiStore';
 
 // The current web path from the tab navigator's state.
@@ -39,6 +41,16 @@ export default function ShellOverlay({ state }) {
   const tablet = usesRail(width);
   // T-56: the same rule pages use to reserve the space (no rail during a live workout).
   const showsRail = useShowsRail();
+  // T-65 (PHONE-NAV spec §1 / §2): phones draw the bar on the main tab pages
+  // only (the allowlist); a pushed inner page has none from its first frame
+  // (this render), with no animation. The session flag still hides it.
+  const phoneTabBar = !tablet && !isSessionActive && showsPhoneTabBar(path);
+  const setPhoneTabBar = usePhoneChromeStore((s) => s.setPhoneTabBar);
+  // Mirrored for the app-level toasts (outside the navigator); outside the shell they keep the bar's clearance.
+  useEffect(() => {
+    setPhoneTabBar(phoneTabBar);
+  }, [setPhoneTabBar, phoneTabBar]);
+  useEffect(() => () => setPhoneTabBar(true), [setPhoneTabBar]);
 
   return (
     <View pointerEvents="box-none" style={styles.layer}>
@@ -56,7 +68,7 @@ export default function ShellOverlay({ state }) {
           style={[styles.layer, !tablet && styles.scrim]}
         />
       ) : null}
-      {!tablet && !isSessionActive ? <BottomNav mode={mode} path={path} /> : null}
+      {phoneTabBar ? <BottomNav mode={mode} path={path} /> : null}
       {panelOpen ? <NotificationPanel /> : null}
     </View>
   );

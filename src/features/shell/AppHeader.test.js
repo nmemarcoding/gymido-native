@@ -92,6 +92,11 @@ describe('AppHeader v2 look (§7.4)', () => {
     expect(StyleSheet.flatten(pill.findAllByType(Text)[0].props.style)).toMatchObject({ fontSize: 14, fontFamily: 'Geist-SemiBold', color: colors.textPrimary });
     const link = backLink(tree);
     expect(link.props).toMatchObject({ accessibilityRole: 'link', accessibilityLabel: label });
+    // DECLARED (T-65, PHONE-NAV spec §3 / §5): was a plain openShellPath(target) on every tap. The pill goes back in
+    // history first; only with no previous entry does it open (replace to) the parent.
+    act(() => link.props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalled();
+    mockNavigation.canGoBack.mockReturnValueOnce(false);
     act(() => link.props.onPress());
     expect(openShellPath).toHaveBeenCalledWith(target);
   });

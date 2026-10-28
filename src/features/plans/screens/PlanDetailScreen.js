@@ -34,6 +34,7 @@ import PlanScheduleCard, { TrainerLockBanner } from '../components/PlanScheduleC
 import { PlanHero, PlanSummary } from '../components/PlanSummary';
 import ThisWeek from '../components/ThisWeek';
 import { BackToPlans, useIsTablet } from '../components/planUi';
+import { useInnerBack } from '../../shell/useInnerBack';
 import {
   buildScheduleItems,
   exerciseDetailId,
@@ -72,6 +73,8 @@ const settle = (call) => Promise.resolve().then(call);
 
 function PlanDetail() {
   const navigation = useNavigation();
+  // T-65 (PHONE-NAV spec §3): "‹ Plans" goes back, else replaces to /plans (Android back the same).
+  const goBack = useInnerBack(navigation, '/plans');
   const route = useRoute();
   const planId = route.params?.planId;
   const [load, setLoad] = useState({ status: 'loading' });
@@ -158,7 +161,7 @@ function PlanDetail() {
     // the one Retry style under it re-runs the page load; the back stays.
     return (
       <View style={styles.page}>
-        <BackToPlans tablet={tablet} onPress={() => navigation.push(routes.PlansLibrary)} />
+        <BackToPlans tablet={tablet} onPress={goBack} />
         <StateSlot>
           <InlineError testID="plan-detail-error" title="Plan unavailable" message={load.error?.message || 'Please try again.'} />
           <RetryButton
@@ -251,7 +254,7 @@ function PlanDetail() {
 
   const topBar = (
     <View style={styles.topBar}>
-      <BackToPlans tablet={tablet} onPress={() => navigation.push(routes.PlansLibrary)} />
+      <BackToPlans tablet={tablet} onPress={goBack} />
       {isCurrentPlan ? <StatusPill testID="plan-detail-current" label="Current plan" tone={tablet ? 'active' : 'gold'} /> : null}
     </View>
   );

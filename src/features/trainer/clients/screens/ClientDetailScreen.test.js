@@ -26,7 +26,8 @@ import ClientDetailScreen from './ClientDetailScreen';
 // RN-SPEC-v2-phase6 §2 Client detail (UX N): phone + tablet page + pane,
 // every state and action; Email (approved), VOLUME RULE, each action once.
 
-const mockNavigation = { push: jest.fn() };
+// T-65 (declared mock change): a previous entry, so the back pill goes back.
+const mockNavigation = { push: jest.fn(), canGoBack: jest.fn(() => true), goBack: jest.fn() };
 let mockParams = { clientUserId: 12 };
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => mockNavigation, useRoute: () => ({ params: mockParams }) }));
@@ -125,8 +126,10 @@ describe('ruling 6 (D364): the "‹ All clients" glass back pill', () => {
     expect(host(tree, 'client-all-clients-chevron')).toBeTruthy();
     expect(texts({ root: pill })).toEqual(['All clients']);
     expect(pill.props).toMatchObject({ accessibilityRole: 'link', accessibilityLabel: 'All clients' });
+    // DECLARED (T-65, PHONE-NAV spec §3 / §5): was push('TrainerClients') (⚠C-5). Back in history, else replace.
+    mockNavigation.goBack.mockClear();
     await act(async () => byTestID(tree, 'client-all-clients').props.onPress());
-    expect(mockNavigation.push).toHaveBeenCalledWith('TrainerClients');
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -138,8 +141,10 @@ describe('Client detail, phone', () => {
     const name = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Sara Lopez')[0];
     expect(name.props.accessibilityRole).toBe('header');
     expect(name.props.maxFontSizeMultiplier).toBe(textScale.title);
+    // DECLARED (T-65, PHONE-NAV spec §3 / §5): was push('TrainerClients'). The back pill goes back in history.
+    mockNavigation.goBack.mockClear();
     await act(async () => byTestID(tree, 'client-all-clients').props.onPress());
-    expect(mockNavigation.push).toHaveBeenCalledWith('TrainerClients');
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
   });
 
   it('actions once: glass Email (mailto, "Email {name}") + gold Change plan; the plan card has no second button', async () => {
@@ -408,5 +413,31 @@ describe('Client detail, large text (§9)', () => {
     expect(order).toEqual(reflow ? ['client-assign-plan', 'client-email'] : ['client-email', 'client-assign-plan']);
     expect(byTestID(tree, 'client-assign-plan').props.fullWidth).toBe(reflow);
     tree.root.findAllByType(StatTile).forEach((tile) => expect(tile.props.row).toBe(reflow));
+  });
+});
+
+// T-65 "phone bottom nav on main pages only" (PHONE-NAV spec §3 / §5, 27 Oct
+// 2026): Client detail "‹ All clients". Back in history when there is a previous entry, else REPLACE
+// this screen with the parent (no push, no loop).
+describe('T-65 back control (client detail)', () => {
+  const saved = { ...mockNavigation };
+  afterEach(() => {
+    Object.keys(mockNavigation).forEach((key) => delete mockNavigation[key]);
+    Object.assign(mockNavigation, saved);
+  });
+  const press = (tree) => tree.root.findAll((node) => node.props.testID === 'client-all-clients' && typeof node.props.onPress === 'function')[0];
+
+  it('"All clients": with history it goes back; with none it replaces to TrainerClients', async () => {
+    Object.assign(mockNavigation, { canGoBack: jest.fn(() => true), goBack: jest.fn(), replace: jest.fn(), getState: jest.fn(() => ({ routeNames: ['TrainerClients', 'TrainerClient'] })) });
+    const tree = await render();
+    expect(press(tree).props.accessibilityLabel ?? press(tree).props.label).toBe('All clients');
+    await act(async () => press(tree).props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.replace).not.toHaveBeenCalled();
+    mockNavigation.canGoBack.mockReturnValue(false);
+    await act(async () => press(tree).props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.replace).toHaveBeenCalledWith('TrainerClients');
+    expect(mockNavigation.push).not.toHaveBeenCalledWith('TrainerClients');
   });
 });

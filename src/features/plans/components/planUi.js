@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
+import BackPill from '../../../shared/components/BackPill';
 import { CAP_BODY } from '../../../shared/components/largeText';
 import { breakpoints, colors, font, layout, radii, spacing, textScale } from '../../../shared/theme/tokens';
 import PlanIcon from './planIcons';
@@ -35,20 +36,23 @@ export function PressOverlay({ pressed, ink = false, radius = radii.full }) {
 
 // Phone Plan detail: the glass back pill (44, icon + "Plans"). Tablet: the
 // plain secondary text link with the icon. Both are links to Plans.
+// T-65 (PHONE-NAV spec §3, 27 Oct 2026): the phone pill is the kit BackPill.
 export function BackToPlans({ onPress, tablet = false, label = 'Plans', testID = 'plan-detail-back' }) {
+  if (!tablet) {
+    return <BackPill testID={testID} label={label} onPress={onPress} />;
+  }
   return (
     <Pressable
       testID={testID}
       accessibilityRole="link"
       accessibilityLabel={label}
       onPress={onPress}
-      style={tablet ? styles.backLink : styles.backPill}
+      style={styles.backLink}
     >
       {({ pressed }) => (
         <>
-          {tablet ? null : <PressOverlay pressed={pressed} />}
-          <PlanIcon name="back" size={18} color={tablet ? colors.textSecondary : colors.textPrimary} />
-          <Text {...CAP_BODY} style={[styles.backText, tablet && styles.backTextTablet, tablet && pressed && styles.backTextPressed]}>
+          <PlanIcon name="back" size={18} color={colors.textSecondary} />
+          <Text {...CAP_BODY} style={[styles.backText, styles.backTextTablet, pressed && styles.backTextPressed]}>
             {label}
           </Text>
         </>
@@ -58,21 +62,6 @@ export function BackToPlans({ onPress, tablet = false, label = 'Plans', testID =
 }
 
 const styles = StyleSheet.create({
-  // 44 tall, pad 0 14 0 8, glass fill + hairline-strong (0.07 folds into the
-  // glass button fill, U8).
-  backPill: {
-    minHeight: layout.touchMin,
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: spacing[1],
-    paddingLeft: spacing[2],
-    paddingRight: spacing['3_5'],
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.hairlineStrong,
-    backgroundColor: colors.fillGlass,
-  },
   backLink: {
     minHeight: layout.touchMin,
     flexDirection: 'row',

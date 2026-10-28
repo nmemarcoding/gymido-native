@@ -1,3 +1,4 @@
+import { useNavigation } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
@@ -16,7 +17,7 @@ import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
 import { breakpoints, colors, font, gradients, radii, spacing, typography } from '../../../shared/theme/tokens';
 import { useAuthStore } from '../../auth/authStore';
 import ShellPage from '../../shell/ShellPage';
-import { openShellPath } from '../../shell/shellLinks';
+import { useInnerBack } from '../../shell/useInnerBack';
 import { isTrainerUser } from '../../shell/shellRules';
 import { formatTrainerDate } from '../../trainer/clients/clientFormat';
 import { getMyTrainerApplication, submitTrainerApplication } from '../api/trainersApi';
@@ -59,6 +60,8 @@ export default function TrainerApplyScreen() {
 
 function TrainerApply() {
   const tablet = useWindowDimensions().width >= breakpoints.md;
+  // T-65 (PHONE-NAV spec §3 / §5): "‹ Coaching" goes back, else replaces to /my-trainer.
+  const goBack = useInnerBack(useNavigation(), '/my-trainer');
   // Live token role (my-trainer §MT1.2).
   const isTrainer = isTrainerUser(useAuthStore((state) => state.user));
   const [state, setState] = useState({ loading: true, error: null, application: null });
@@ -97,7 +100,7 @@ function TrainerApply() {
   return (
     <View style={[styles.page, tablet && styles.pageTablet]}>
       {/* §3 back-link rule (newly added): "← Coaching" → /my-trainer. */}
-      <PageBackLink testID="trainer-apply-back" label="Coaching" onPress={() => openShellPath('/my-trainer')} />
+      <PageBackLink testID="trainer-apply-back" label="Coaching" onPress={goBack} />
       {/* UX native final audit 27 Oct 2026, ruling 4 (C311): no gold hero
           card on tablets (web parity); every size draws the plain H1 with
           "trainer" in gold. */}

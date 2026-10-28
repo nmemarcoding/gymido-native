@@ -1,10 +1,11 @@
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { isTabletWidth } from '../../../../shared/components/AppModal';
+import BackPill from '../../../../shared/components/BackPill';
 import { CAP_BODY, useLargeTextReflow } from '../../../../shared/components/largeText';
 import Spinner from '../../../../shared/components/Spinner';
 import { colors, font, layout, motion, radii, spacing } from '../../../../shared/theme/tokens';
-import { ChevronLeftIcon, InfoIcon } from './pickerIcons';
+import { InfoIcon } from './pickerIcons';
 
 // Small pieces of the v2 builder (UX phase4 I §0-§3, phase6 O builder).
 // Kept here so the screen, the lists and the dialogs share one look.
@@ -77,29 +78,11 @@ export function DangerTintButton({ title, onPress, loading = false, disabled = f
   );
 }
 
-// The back link of the builder: member = gold text link with a chevron
-// (14/600, 44 tall); trainer = the glass "All plans" pill (40 drawn, 44 hit).
-export function BackLink({ label, pill = false, onPress, testID }) {
-  return (
-    <Pressable
-      testID={testID}
-      accessibilityRole="link"
-      accessibilityLabel={label}
-      onPress={onPress}
-      hitSlop={pill ? slopFor(40) : { left: 8, right: 8 }}
-      style={[styles.back, pill && styles.backPill]}
-    >
-      {({ pressed }) => (
-        <>
-          {pill && pressed ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.overlay]} /> : null}
-          <ChevronLeftIcon color={pill ? colors.textPrimary : colors.gold} size={16} />
-          <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.backLabel, pill && styles.backLabelPill, !pill && pressed && styles.underline]}>
-            {label}
-          </Text>
-        </>
-      )}
-    </Pressable>
-  );
+// The back link of the builder. T-65 (PHONE-NAV spec §3, 27 Oct 2026): the
+// kit glass back pill for both audiences ("‹ My plans" / "‹ All plans"), in
+// place of the member's gold text link and the trainer's own 40-tall pill.
+export function BackLink({ label, onPress, testID }) {
+  return <BackPill testID={testID} label={label} onPress={onPress} />;
 }
 
 // The trainer eyebrow chip ("Builder" / "Plan"): teal on teal 14 %, a 6 dot.
@@ -214,34 +197,6 @@ const styles = StyleSheet.create({
   },
   inactive: {
     opacity: 0.5,
-  },
-  back: {
-    minHeight: layout.touchMin,
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: spacing[1],
-    paddingHorizontal: spacing[1],
-  },
-  backPill: {
-    minHeight: 40,
-    paddingLeft: spacing['2_5'],
-    paddingRight: spacing['3_5'],
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.hairlineButton,
-    backgroundColor: colors.fillButton,
-    overflow: 'hidden',
-  },
-  backLabel: {
-    ...font(600),
-    flexShrink: 1,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.gold,
-  },
-  backLabelPill: {
-    color: colors.textPrimary,
   },
   chip: {
     alignSelf: 'flex-start',

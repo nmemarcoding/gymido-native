@@ -3,17 +3,18 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { routes } from '../../navigation/routes';
+import BackPill from '../../shared/components/BackPill';
 import EmptyState from '../../shared/components/EmptyState';
 import ErrorAlert from '../../shared/components/ErrorAlert';
 import { CAP_BODY, DISPLAY_TITLE_TEXT } from '../../shared/components/largeText';
 import Loader from '../../shared/components/Loader';
 import PillButton from '../../shared/components/PillButton';
 import StateSlot from '../../shared/components/StateSlot';
-import TextLink from '../../shared/components/TextLink';
 import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
 import { breakpoints, colors, font, gradients, layout, spacing, textScale, titleTracking, typography } from '../../shared/theme/tokens';
 import PlanIcon from '../plans/components/planIcons';
 import ShellPage from '../shell/ShellPage';
+import { useInnerBack } from '../shell/useInnerBack';
 import { isGeneratorAvailable, listMyPlans } from './api/myPlansApi';
 import MyPlanCard from './components/MyPlanCard';
 import OnHoldBox from './components/OnHoldBox';
@@ -102,13 +103,15 @@ function MyPlansList() {
   const retry = useCallback(() => setReloadCount((count) => count + 1), []);
   const openCreate = () => navigation.push(myPlanRoutes.MyPlanCreate);
   const openCatalog = () => navigation.push(routes.PlansLibrary);
+  // T-65 (PHONE-NAV spec §3): "‹ All plans" (the code's words) goes back, else replaces to /plans.
+  const goBack = useInnerBack(navigation, '/plans');
   const onHold = state.status === 'onHold';
 
   const showGenerator = generator && myPlanRoutes.PlanGenerator;
 
   return (
     <View testID="my-plans-content" style={[styles.column, tablet && styles.columnTablet]}>
-      <TextLink testID="my-plans-all-plans" label="← All plans" onPress={openCatalog} />
+      <BackPill testID="my-plans-all-plans" label="All plans" onPress={goBack} />
       <View style={styles.header}>
         {/* Batch A: no "Library" eyebrow; the title is the first line. */}
         <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={tablet ? styles.titleTablet : styles.title}>

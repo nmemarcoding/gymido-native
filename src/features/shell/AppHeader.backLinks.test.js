@@ -70,6 +70,11 @@ describe('AppHeader back links (A153, A157)', () => {
   it('A153: Edit profile draws "‹ Profile" (→ /profile) and no "Profile" title', () => {
     const shown = render({ path: '/profile/edit', heroTitleShown: true });
     expect(shown.root.findAll((node) => node.props.accessibilityRole === 'header')).toHaveLength(0);
+    // DECLARED (T-65, PHONE-NAV spec §3 / §5): was openShellPath('/profile') on the tap. The pill goes back in history
+    // first (the mock has a previous entry); with none it opens /profile.
+    act(() => backLink(shown).props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    mockNavigation.canGoBack.mockReturnValueOnce(false);
     act(() => backLink(shown).props.onPress());
     expect(openShellPath).toHaveBeenCalledWith('/profile');
     expect(backLink(shown).props.accessibilityLabel).toBe('Profile');
@@ -77,4 +82,42 @@ describe('AppHeader back links (A153, A157)', () => {
     expect(title(loading).props.children).toBe('Edit profile');
   });
 
+});
+
+// T-65 "phone bottom nav on main pages only" (PHONE-NAV spec §3 / §5, 27 Oct
+// 2026): the shell header's back pill on these inner pages is the page's one
+// back control: back in history, else the parent (opened by path = a tab root).
+describe('T-65 header back pills (spec §3)', () => {
+  function tree(path, mode, width = 390) {
+    useWindowDimensions.mockReturnValue({ width, height: 844, scale: 3, fontScale: 1 });
+    let rendered;
+    act(() => {
+      rendered = create(<AppHeader mode={mode} path={path} />);
+    });
+    return rendered;
+  }
+
+  it.each([
+    ['/notifications', 'member', 'Back', '/'],
+    ['/notifications', 'trainer', 'Back', '/trainer'],
+    ['/profile/edit', 'member', 'Profile', '/profile'],
+    ['/my-trainer', 'member', 'Profile', '/profile'],
+    ['/trainers', 'member', 'Coaching', '/my-trainer'],
+  ])('%s (%s): one pill "‹ %s"; with history it goes back, with none it opens %s', (path, mode, label, target) => {
+    const rendered = tree(path, mode);
+    expect(byTestId(rendered, 'header-back-link')).toHaveLength(1);
+    const link = backLink(rendered);
+    expect(link.props.accessibilityLabel).toBe(label);
+    act(() => link.props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(openShellPath).not.toHaveBeenCalled();
+    mockNavigation.canGoBack.mockReturnValueOnce(false);
+    act(() => link.props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(openShellPath).toHaveBeenCalledWith(target);
+  });
+
+  it('main pages draw no back pill', () => {
+    ['/', '/plans', '/progress', '/profile'].forEach((path) => expect(backLink(tree(path, 'member'))).toBeUndefined());
+  });
 });

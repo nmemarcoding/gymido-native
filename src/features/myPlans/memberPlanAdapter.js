@@ -49,7 +49,8 @@ export function createMemberPlanAdapter(planId, ui = {}) {
     text: MEMBER_PLAN_TEXT,
     // Batch A: "← My plans" gets the 44 pt hit area.
     backLinkHitArea: true,
-    openBack: (navigation) => navigation.push(myPlanRoutes.MyPlans),
+    // T-65 (PHONE-NAV spec §3): "‹ My plans" goes back, else replaces to this parent.
+    backPath: '/plans/mine',
     openAfterDelete: (navigation) => navigation.push(myPlanRoutes.MyPlans),
     openCreate: (navigation) => navigation.push(myPlanRoutes.MyPlanCreate),
     // §M5 / C9: the copy's builder, Edit details opening once; T-16: no id → My plans.

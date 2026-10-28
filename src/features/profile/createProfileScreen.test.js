@@ -1012,3 +1012,51 @@ describe('f1: the Date of Birth + Sex pair stacks below 336', () => {
     expect(label.props.adjustsFontSizeToFit).toBeUndefined();
   });
 });
+
+// PM FIX (27 Oct 2026, T-65 batch; Edit profile showed "78" for 178 lb at
+// 320): Create profile's weight pair, the same check. Side by side at 320 ×
+// 1.3 its 32/700 inputs had less room than 178 needs; where the pair has no
+// room for a whole weight it stacks full width (390 keeps the pair).
+describe('Create profile weights: the full value always shows (320, 1×/1.3×)', () => {
+  const DIGIT_EM = 0.62;
+  function textRoom(tree, width) {
+    const pairStyle = flat(host(tree.root, 'profile-weights-pair').props.style);
+    const column = width - 2 * 16;
+    const stacked = pairStyle.flexDirection === 'column';
+    const cellWidth = stacked ? column : (column - pairStyle.gap) / 2;
+    const input = flat(textInput(tree.root, 'profile-current_weight_value').props.style);
+    return { stacked, room: cellWidth - 2 - input.paddingLeft - input.paddingRight, fontSize: input.fontSize };
+  }
+
+  it.each([
+    [320, 1],
+    [320, 1.3],
+    [390, 1],
+    [390, 1.3],
+  ])('%i at %s×: 178 / 170 have the room for every digit', (width, scale) => {
+    mockWidth = width;
+    mockFontScale = scale;
+    const tree = render();
+    type(tree, 'profile-current_weight_value', '178');
+    type(tree, 'profile-goal_weight_value', '170');
+    expect(textInput(tree.root, 'profile-current_weight_value').props.value).toBe('178');
+    expect(textInput(tree.root, 'profile-goal_weight_value').props.value).toBe('170');
+    const { room, fontSize } = textRoom(tree, width);
+    expect(room).toBeGreaterThanOrEqual('178'.length * DIGIT_EM * fontSize * scale);
+    expect(flat(textInput(tree.root, 'profile-current_weight_value').props.style).textAlign).not.toBe('right');
+  });
+
+  // 178 itself fit here (81 of room for 77); a decimal kept as typed (T-16), 178.5, did not. Same rule as Edit profile.
+  it('320 at 1.3×: the pair stacks, room for 4 digits (178.5); 390 at 1×: side by side (unchanged)', () => {
+    mockWidth = 320;
+    mockFontScale = 1.3;
+    const narrow = render();
+    type(narrow, 'profile-current_weight_value', '178.5');
+    const { stacked, room, fontSize } = textRoom(narrow, 320);
+    expect(stacked).toBe(true);
+    expect(room).toBeGreaterThanOrEqual(4 * DIGIT_EM * fontSize * 1.3);
+    mockWidth = 390;
+    mockFontScale = 1;
+    expect(textRoom(render(), 390).stacked).toBe(false);
+  });
+});

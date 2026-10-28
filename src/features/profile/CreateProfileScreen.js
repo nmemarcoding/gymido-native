@@ -24,6 +24,7 @@ import StatusBarBackdrop from '../shell/StatusBarBackdrop';
 import { createProfile } from './api/profileApi';
 import DeleteAccountAction from './DeleteAccountAction';
 import { fetchProfile, setCreatedProfile, useProfileStore } from './profileStore';
+import { weightPairStacks } from './weightPairLayout';
 import {
   INITIAL_PROFILE_FORM,
   SEX_OPTIONS,
@@ -317,6 +318,12 @@ export default function CreateProfileScreen() {
   // UX ruling f1 (27 Oct 2026, batch k): below 21rem (336 at 1×) the Date of
   // Birth + Sex pair stacks full width, DOB first.
   const dobSexStacked = !tablet && width < DOB_SEX_STACK_BELOW * fontScale;
+  // PM fix (27 Oct 2026, Edit profile "78" for 178 lb at 320): the phone
+  // weight pair stacks where a side-by-side input has no room for a whole
+  // weight (weightPairStacks; the 16 gutters, the box border, 16 | 40 paddings).
+  const weightsStacked = !tablet && !reflow && weightPairStacks({ column: width - 2 * spacing[4], gap: styles.pair.gap, chrome: PHONE_WEIGHT_CHROME, fontSize: styles.bigInput.fontSize, fontScale });
+  const weightsPair = weightsStacked ? styles.pairStacked : pair;
+  const weightCell = weightsStacked ? styles.cellStacked : cell;
   const dobSexPair = dobSexStacked ? styles.pairStacked : pair;
   const dobSexCell = dobSexStacked ? styles.cellStacked : cell;
   const heightFields = ftIn ? (
@@ -511,9 +518,9 @@ export default function CreateProfileScreen() {
               </View>
               {heightFields}
               {weightUnitRow}
-              <View testID="profile-weights-pair" style={pair}>
-                <View style={cell}>{currentWeight}</View>
-                <View style={cell}>{goalWeight}</View>
+              <View testID="profile-weights-pair" style={weightsPair}>
+                <View style={weightCell}>{currentWeight}</View>
+                <View style={weightCell}>{goalWeight}</View>
               </View>
               <View testID="profile-dob-sex-pair" style={dobSexPair}>
                 <View style={dobSexCell}>{dateOfBirth}</View>
@@ -714,3 +721,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
 });
+
+// What a phone weight input spends around the value: the field box's 1 + 1
+// border and its paddings (16 | 40, the unit inside the 40).
+const PHONE_WEIGHT_CHROME = 2 + styles.bigInput.paddingLeft + styles.bigInput.paddingRight;

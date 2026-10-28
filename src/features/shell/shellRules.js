@@ -62,11 +62,18 @@ const BACK_LINKS = Object.freeze({
   '/notifications': { label: 'Back', path: '/', history: true },
 });
 
-export function getHeaderBackLink(path, isSessionActive = false) {
+// T-65 (PHONE-NAV spec §3 / §5): every link goes back in history first (the
+// AppHeader's useInnerBack); `path` is the parent without history. Notifications'
+// parent is the workspace's Today: / (member) or /trainer (Trainer mode).
+export function getHeaderBackLink(path, isSessionActive = false, mode = Workspace.member) {
   if (isSessionActive && path.startsWith('/workout')) {
     return null;
   }
-  return BACK_LINKS[path] ?? null;
+  const link = BACK_LINKS[path] ?? null;
+  if (link && path === '/notifications' && mode === Workspace.trainer) {
+    return { ...link, path: '/trainer' };
+  }
+  return link;
 }
 
 export function isCompactHeader(path, query = '') {
@@ -149,6 +156,25 @@ function matches(path, prefix) {
 export function isNavItemActive(item, path) {
   const own = item.exact ? path === item.path : matches(path, item.path);
   return own || (item.extra ?? []).some((prefix) => matches(path, prefix));
+}
+
+// T-65 (PHONE-NAV spec §1 / §2, owner decision 27 Oct 2026): phones (< 768)
+// draw the bottom tab bar on the main tab pages ONLY. An allowlist of exact
+// paths: the pathname alone (query and hash ignored, a trailing slash
+// normalised). Every other path (an inner page) has no bar; its back pill
+// replaces it. The `extra` prefixes above only light the tablet rail now.
+export const PHONE_TAB_BAR_PATHS = Object.freeze([
+  ...MEMBER_TABS.map((tab) => tab.path),
+  ...TRAINER_TABS.map((tab) => tab.path),
+]);
+
+export function normalisePath(path) {
+  const pathname = String(path ?? '').split(/[?#]/)[0];
+  return pathname.length > 1 ? pathname.replace(/\/+$/, '') || '/' : pathname || '/';
+}
+
+export function showsPhoneTabBar(path) {
+  return PHONE_TAB_BAR_PATHS.includes(normalisePath(path));
 }
 
 // §6.4 / RN-SPEC-v2-foundation §7.2 (T-55): tablets draw the icon rail with

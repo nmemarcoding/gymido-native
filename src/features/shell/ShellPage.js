@@ -15,9 +15,9 @@ import ModeSwitch from './ModeSwitch';
 import { RAIL } from './railMetrics';
 import StatusBarBackdrop from './StatusBarBackdrop';
 import { getScreenPath } from './shellNavigation';
-import { resolveMode, showsMobileModeSwitch } from './shellRules';
+import { resolveMode, showsMobileModeSwitch, showsPhoneTabBar } from './shellRules';
 import TabletFrame from './TabletFrame';
-import { TAB_BAR_CONTENT_PADDING } from './tabBarMetrics';
+import { INNER_PAGE_CONTENT_PADDING, TAB_BAR_CONTENT_PADDING } from './tabBarMetrics';
 
 // App-shell spec §4: every shell screen scrolls its header and content
 // together. Phone: a centred column (max 430) above the tab bar. Tablet
@@ -29,7 +29,8 @@ import { TAB_BAR_CONTENT_PADDING } from './tabBarMetrics';
 // reserves its width (TabletFrame).
 // `nestable` hosts a draggable list (T3's sortable exercises).
 // v2 (RN-SPEC-v2-foundation §7): the ground colour; phones keep 104 px (+ the
-// safe area) under the content so nothing ends under the floating tab bar;
+// safe area) under the content so nothing ends under the floating tab bar
+// (T-65: on the main tab pages; inner pages 24, no bar there);
 // `glow` draws the ambient gold glow where a board has one (see Screen.js).
 // `scrollRef` (optional): the page's ScrollView, for screens that scroll
 // programmatically (the generator's Review opens at the top, G1.3).
@@ -62,9 +63,13 @@ export default function ShellPage({ children, nestable = false, glow = false, te
   const { registry, heroTitleShown } = useHeroTitleRegistry();
   const docked = dockHeight !== null && dockHeight !== undefined;
   const dockPad = docked ? dockHeight : 0;
+  // T-65 (PHONE-NAV spec §4): the tab-bar clearance only where the bar is
+  // (showsPhoneTabBar, ShellOverlay's rule); an inner page without a dock
+  // ends 24 above the safe area. Tablets keep 40.
+  const bottomRoom = tablet ? 40 : showsPhoneTabBar(path) ? TAB_BAR_CONTENT_PADDING : INNER_PAGE_CONTENT_PADDING;
 
   const content = (
-    <View style={[styles.content, { paddingBottom: (docked ? 0 : (tablet ? 40 : TAB_BAR_CONTENT_PADDING) + insets.bottom) + keyboardPad }]}>
+    <View style={[styles.content, { paddingBottom: (docked ? 0 : bottomRoom + insets.bottom) + keyboardPad }]}>
       {/* QA F1, iOS: after a live text-size change, React's next commit lays
           out unchanged texts with their old measurements (clipped until they
           remount). So the header and the page content remount on a new text

@@ -25,6 +25,7 @@ import { PageBackLink } from '../components/CoachingPage';
 import PersonAvatar, { avatarColor } from '../personAvatar';
 import { requestErrorMessage } from '../trainersFormat';
 import { HeroTitleMark } from '../../shell/heroTitle';
+import { useInnerBack } from '../../shell/useInnerBack';
 
 export const DETAIL_COLUMN_MAX = 640;
 
@@ -110,8 +111,10 @@ function TrainerDetail({ trainerUserId, tablet, reflow }) {
     load();
   }, [load]);
 
-  // ⚠TR-4: both links push a new list instead of going back.
+  // ⚠TR-4: the not-found link pushes a new list instead of going back.
   const openList = () => navigation.push(routes.Trainers);
+  // T-65 (PHONE-NAV spec §3 / §5): the "‹ All trainers" pill goes back, else replaces to /trainers.
+  const goBack = useInnerBack(navigation, '/trainers');
 
   // TR2a. ⚠TR-9: the dialog closes on failure too.
   async function sendRequest() {
@@ -133,7 +136,7 @@ function TrainerDetail({ trainerUserId, tablet, reflow }) {
   }
 
   // §3 back-link rule: "← All trainers" (→ /trainers) on every state.
-  const back = <PageBackLink testID="trainer-detail-all" label="All trainers" onPress={openList} />;
+  const back = <PageBackLink testID="trainer-detail-all" label="All trainers" onPress={goBack} />;
 
   if (state.loading) {
     return (

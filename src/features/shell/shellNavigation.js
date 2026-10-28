@@ -48,6 +48,9 @@ const SCREENS = {
   [routes.TrainerProfile]: [ShellTab.TProfile, () => '/trainer/profile'],
 };
 
+// Every shell screen name (the route table above), for checks that walk it.
+export const SHELL_SCREENS = Object.freeze(Object.keys(SCREENS));
+
 export const TAB_ROOTS = Object.freeze({
   [ShellTab.Today]: routes.Home,
   [ShellTab.Plans]: routes.PlansLibrary,
