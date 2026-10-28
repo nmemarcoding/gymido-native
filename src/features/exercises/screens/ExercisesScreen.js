@@ -106,7 +106,8 @@ function ExercisesCatalog() {
   // window, that header block collapses, so the panel sits at the top 24 of
   // the content area; a blur or a hidden keyboard restores it, and a
   // floating keyboard (no overlap) never collapses it.
-  const keyboardOverlap = useKeyboardOverlap();
+  // frameChanges: the hide key only resizes the keyboard to its bar (T-74).
+  const keyboardOverlap = useKeyboardOverlap({ frameChanges: true });
   const [panelFindFocused, setPanelFindFocused] = useState(false);
   if (!panelShown && panelFindFocused) {
     // The panel unmounted (a rotation, large text) without a blur.

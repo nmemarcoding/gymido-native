@@ -130,8 +130,6 @@ onFlowComplete:
 - assertVisible:
     id: "set-action-.*"
     text: "Did it"
-    childOf:
-      id: "session-dock"
 
 # Browsing: Up next (when there is a later exercise) → bar, stats, nav; Resume.
 - runFlow:

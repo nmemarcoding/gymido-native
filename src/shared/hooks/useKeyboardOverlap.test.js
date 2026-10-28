@@ -1,4 +1,4 @@
-import { Dimensions, Keyboard } from 'react-native';
+import { Dimensions, Keyboard, Platform } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { useKeyboardOverlap } from './useKeyboardHeight';
@@ -79,5 +79,45 @@ describe('useKeyboardOverlap', () => {
     });
     show(endCoordinates);
     expect(value).toBe(0);
+  });
+
+  // T-74 device check (28 Oct, iPad): "Hide keyboard" shrinks the keyboard to
+  // its shortcuts bar with only a willChangeFrame (no willHide).
+  describe('frameChanges (iOS opt-in)', () => {
+    let opts;
+    function FrameProbe() {
+      value = useKeyboardOverlap(opts);
+      return null;
+    }
+    const mount = () =>
+      act(() => {
+        create(<FrameProbe />);
+      });
+    beforeEach(() => jest.spyOn(Dimensions, 'get').mockReturnValue({ width: 1194, height: 834, scale: 2, fontScale: 1 }));
+
+    it('on iOS: a frame change to the shortcuts bar drops the overlap to the bar height', () => {
+      jest.replaceProperty(Platform, 'OS', 'ios');
+      opts = { frameChanges: true };
+      mount();
+      act(() => listeners.keyboardWillShow({ endCoordinates: { height: 320, screenY: 514 } }));
+      expect(value).toBe(320);
+      act(() => listeners.keyboardWillChangeFrame({ endCoordinates: { height: 55, screenY: 779 } }));
+      expect(value).toBe(55);
+      hide();
+      expect(value).toBe(0);
+    });
+
+    it('off by default, and never on Android: no frame-change listener', () => {
+      jest.replaceProperty(Platform, 'OS', 'ios');
+      opts = undefined;
+      mount();
+      expect(listeners.keyboardWillChangeFrame).toBeUndefined();
+      jest.replaceProperty(Platform, 'OS', 'android');
+      listeners = {};
+      opts = { frameChanges: true };
+      mount();
+      expect(listeners.keyboardWillChangeFrame).toBeUndefined();
+      expect(listeners.keyboardDidShow).toBeDefined();
+    });
   });
 });

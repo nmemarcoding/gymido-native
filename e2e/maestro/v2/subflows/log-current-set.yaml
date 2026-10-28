@@ -8,7 +8,10 @@
 # - T-69 (640 dp phone): the weight + stepper can sit under the pinned dock,
 #   so a plain tap on it lands on "Did it". It is scrolled to the centre first.
 # - Exact set tap: `set-action-<id>` is also every strip chip's id (a done
-#   chip is the "Undo" button), so the tap is the dock's "Did it" only.
+#   chip is "Undo", a pending one "Set N"), so the tap needs the text
+#   "Did it", which only the dock's button has. No `childOf: session-dock`:
+#   the dock's wrapper is not the button's parent in the native hierarchy on
+#   either platform (T-74 device check, 28 Oct 2026).
 appId: com.gymido.app
 ---
 - runFlow: dismiss-session-dialogs.yaml
@@ -30,8 +33,6 @@ appId: com.gymido.app
     id: "set-action-.*"
     text: "Did it"
     enabled: true
-    childOf:
-      id: "session-dock"
 - extendedWaitUntil:
     notVisible:
       id: "set-action-.*"

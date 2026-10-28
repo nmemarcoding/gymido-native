@@ -35,17 +35,25 @@ export function overlapOf(frame, windowHeight) {
   return Math.max(0, windowHeight - frame.screenY);
 }
 
-export function useKeyboardOverlap() {
+//
+// `frameChanges` (opt-in, iOS): also follow keyboardWillChangeFrame. iPad's
+// "Hide keyboard" key shrinks the keyboard to its shortcuts bar with the
+// field still focused and sends only a frame change, no willHide (T-74
+// device check, 28 Oct 2026), so without it the overlap stays the docked
+// keyboard's height.
+export function useKeyboardOverlap({ frameChanges = false } = {}) {
   const [overlap, setOverlap] = useState(0);
   const frame = useRef(null);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const show = Keyboard.addListener(showEvent, (event) => {
+    const onFrame = (event) => {
       frame.current = event.endCoordinates;
       setOverlap(overlapOf(frame.current, Dimensions.get('window').height));
-    });
+    };
+    const show = Keyboard.addListener(showEvent, onFrame);
+    const change = frameChanges && Platform.OS === 'ios' ? Keyboard.addListener('keyboardWillChangeFrame', onFrame) : null;
     const hide = Keyboard.addListener(hideEvent, () => {
       frame.current = null;
       setOverlap(0);
@@ -53,10 +61,11 @@ export function useKeyboardOverlap() {
     const resize = Dimensions.addEventListener('change', ({ window }) => setOverlap(overlapOf(frame.current, window.height)));
     return () => {
       show.remove();
+      change?.remove();
       hide.remove();
       resize.remove();
     };
-  }, []);
+  }, [frameChanges]);
 
   return overlap;
 }

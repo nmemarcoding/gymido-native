@@ -553,7 +553,8 @@ describe('T-69 batch flow fixes', () => {
       expect(taps(flow).filter((sel) => /set-action-/.test(sel))).toEqual([]);
       const guard = flow.indexOf('- assertNotVisible:\n    id: "rest-timer"');
       expect(guard).toBeGreaterThan(flow.indexOf('id: "set-reps-minus-.*"'));
-      expect(flow).toMatch(/- assertVisible:\n\s+id: "set-action-\.\*"\n\s+text: "Did it"\n\s+childOf:\n\s+id: "session-dock"/);
+      // DECLARED (T-74 device check): was + childOf session-dock; the dock wrapper isn't the button's native parent.
+      expect(flow).toMatch(/- assertVisible:\n\s+id: "set-action-\.\*"\n\s+text: "Did it"\n/);
     });
 
     it('checks How to before the stepper scrolls move the stage off screen', () => {
@@ -576,26 +577,31 @@ describe('T-69 batch flow fixes', () => {
   });
 
   describe('item 2: set taps are exact (the dock\'s Did it, never a strip chip\'s Undo)', () => {
-    it('the app still gives the strip chips and Did it the same set-action-<id>, with Did it inside session-dock', () => {
+    it('the app still gives the strip chips and Did it the same set-action-<id>; only Did it has the text "Did it"', () => {
       const parts = src('src/features/workout/runtime/RuntimeParts.js');
       const runtime = src('src/features/workout/runtime/SessionRuntime.js');
       expect(parts.match(/testID=\{`set-action-\$\{set\.id\}`\}/g)).toHaveLength(3);
       expect(parts).toContain("accessibilityLabel={pending ? 'Saving…' : 'Undo'}");
       expect(parts).toContain("const label = isPending ? 'Saving…' : 'Did it';");
-      expect(runtime.match(/testID="session-dock"/g)).toHaveLength(2);
+      // DECLARED (T-74 device check): was runtime has 2 testID="session-dock" (the flows no longer scope to it).
+      expect(parts.match(/'Did it'/g)).toHaveLength(1);
+      expect(parts).toContain('accessibilityLabel={`Set ${set.set_number}`}');
       expect(parts).toContain('testID="set-editor"');
     });
 
-    it('log-current-set taps "Did it" scoped to the session dock, enabled', () => {
+    it('log-current-set taps "Did it" (its exact text), enabled', () => {
       const flow = body('subflows/log-current-set.yaml');
-      expect(flow).toMatch(/- tapOn:\n\s+id: "set-action-\.\*"\n\s+text: "Did it"\n\s+enabled: true\n\s+childOf:\n\s+id: "session-dock"\n/);
+      // DECLARED (T-74 device check): was + childOf session-dock; now asserts no session-dock scope.
+      expect(flow).toMatch(/- tapOn:\n\s+id: "set-action-\.\*"\n\s+text: "Did it"\n\s+enabled: true\n/);
+      expect(flow).not.toMatch(/id: "session-dock"/);
     });
 
     it.each(FLOWS.map(rel))('%s: every set-action tap is the dock\'s Did it or an explicit Undo', (name) => {
       taps(steps(read(name)))
         .filter((sel) => /set-action-/.test(sel))
         .forEach((sel) => {
-          const didIt = /text: "Did it"/.test(sel) && /childOf:\n\s+id: "session-dock"/.test(sel);
+          // DECLARED (T-74 device check): was "Did it" AND childOf session-dock.
+          const didIt = /text: "Did it"/.test(sel);
           const undo = /text: "Undo"/.test(sel);
           expect(didIt || undo).toBe(true);
         });
