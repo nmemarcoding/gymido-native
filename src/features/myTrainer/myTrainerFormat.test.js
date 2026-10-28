@@ -1,17 +1,31 @@
-import { acceptErrorMessage, coachingStatus, deriveHub, trainerDisplayName } from './myTrainerFormat';
+import { acceptErrorMessage, coachingStatus, deriveHub, trainerDisplayName, trainerInitials } from './myTrainerFormat';
 
 describe('trainerDisplayName', () => {
-  it('uses the display name, then the email local part, then "Trainer"', () => {
+  // T-64 (27 Oct 2026, PM): the email's local part is no longer a fallback.
+  it('uses the display name, else "Trainer" (never the email local part, T-64)', () => {
     expect(trainerDisplayName({ display_name: '  Asad  ', email: 'a@x.com' })).toBe('Asad');
-    expect(trainerDisplayName({ display_name: ' ', email: ' coach@x.com' })).toBe('coach');
+    expect(trainerDisplayName({ display_name: ' ', email: ' coach@x.com' })).toBe('Trainer');
+    expect(trainerDisplayName({ email: 'coach@x.com' })).toBe('Trainer');
     expect(trainerDisplayName({ email: '@x.com' })).toBe('Trainer');
     expect(trainerDisplayName(null)).toBe('Trainer');
+  });
+});
+
+describe('trainerInitials (T-64)', () => {
+  it('initials only from the display name (an address-shaped one drops its domain), else the neutral "T"', () => {
+    expect(trainerInitials({ display_name: 'Alex Kim', email: 'zz@x.com' })).toBe('AK');
+    expect(trainerInitials({ display_name: 'sara.lopez@example.com' })).toBe('SL');
+    expect(trainerInitials({ display_name: '  ', email: 'coach@x.com' })).toBe('T');
+    expect(trainerInitials({ email: 'coach@x.com' })).toBe('T');
+    expect(trainerInitials(null)).toBe('T');
   });
 });
 
 describe('coachingStatus (Profile P1.3 2a)', () => {
   it('names an active trainer', () => {
     expect(coachingStatus({ relationship: { status: 'active' }, trainer: { display_name: 'Asad' } }, [])).toBe('Coached by Asad');
+    // T-64: the Profile coaching card never shows part of the address.
+    expect(coachingStatus({ relationship: { status: 'active' }, trainer: { email: 'coach@x.com' } }, [])).toBe('Coached by Trainer');
   });
 
   it('counts only invitations sent by a trainer', () => {

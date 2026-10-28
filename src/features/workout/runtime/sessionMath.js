@@ -298,6 +298,17 @@ export function completionSnapshot(session, planName, elapsedSeconds, unit = 'kg
   };
 }
 
+// T-64 (27 Oct 2026, PM): the popup's Time = the complete response's stored
+// `session.duration_seconds` (start → last completed set, what Today /
+// Progress / history show); a stored 0 stays 0. The client clock only when
+// the response carries no number there.
+export function completionDurationSeconds(result, elapsedSeconds) {
+  const stored = result?.session?.duration_seconds;
+  const missing = stored === null || stored === undefined || (typeof stored === 'string' && stored.trim() === '');
+  const seconds = Number(stored);
+  return missing || !Number.isFinite(seconds) ? elapsedSeconds : seconds;
+}
+
 export function exerciseName(exercise) {
   return exercise?.exercise_name_snapshot || exercise?.exercise?.name || '';
 }

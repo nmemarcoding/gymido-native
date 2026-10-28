@@ -790,6 +790,21 @@ describe('3c hand-off (lead, 27 Oct)', () => {
     expect(onCompleted.mock.calls[0][0]).toMatchObject({ personalRecords: records, volumeUnit: 'kg', exerciseImages: { 3: 'https://example.com/a.gif' } });
   });
 
+  it('T-64: the popup Time is the complete response session.duration_seconds (0 stays 0); the clock only without it', async () => {
+    const run = async (result) => {
+      completeWorkout.mockResolvedValueOnce(result);
+      const onCompleted = jest.fn();
+      const { tree } = render({ onCompleted });
+      await act(async () => byId(tree, 'complete-workout').props.onPress());
+      return onCompleted.mock.calls[0][0].durationSeconds;
+    };
+    expect(await run({ session: { id: 1, duration_seconds: 2712 }, new_personal_records: [] })).toBe(2712);
+    expect(await run({ session: { id: 1, duration_seconds: 0 } })).toBe(0);
+    const clock = await run({ session: { id: 1 } });
+    expect(typeof clock).toBe('number');
+    expect(clock).not.toBe(2712);
+  });
+
   it('builds the image map from library ids with a photo only', () => {
     expect(exerciseImageMap({ exercises: [{ exercise: { id: 1, thumbnail: { url: 'u' } } }, { exercise: { id: 2 } }, {}] })).toEqual({ 1: 'u' });
     expect(exerciseImageMap(null)).toEqual({});

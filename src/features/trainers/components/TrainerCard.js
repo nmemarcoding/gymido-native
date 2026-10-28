@@ -6,7 +6,7 @@ import GradientFill from '../../../shared/components/GradientFill';
 import { CAP_BODY, CAP_PILL, NAME_TITLE_TEXT } from '../../../shared/components/largeText';
 import StatusPill from '../../../shared/components/StatusPill';
 import { colors, font, muscleGlow, radii, spacing, typography } from '../../../shared/theme/tokens';
-import { trainerDisplayName } from '../../myTrainer/myTrainerFormat';
+import { trainerDisplayName, trainerInitials } from '../../myTrainer/myTrainerFormat';
 import PersonAvatar, { avatarColor } from '../personAvatar';
 
 // The tablet card's soft corner glow: a 200 circle of the person's colour.
@@ -71,6 +71,7 @@ function PhoneBody({ trainer, name }) {
         testID={`trainers-card-${trainer.user_id}-avatar`}
         userId={trainer.user_id}
         name={name}
+        initials={trainerInitials(trainer)}
         size={64}
         radius={radii.lgPlus}
         initialsSize={22}
@@ -103,6 +104,7 @@ function TabletBody({ trainer, name }) {
         testID={`trainers-card-${trainer.user_id}-avatar`}
         userId={trainer.user_id}
         name={name}
+        initials={trainerInitials(trainer)}
         size={72}
         initialsSize={24}
         ring={{ gap: 4, gapColor: colors.surfaceInput, alpha: 0.5 }}

@@ -1,5 +1,5 @@
 import { formatDuration, formatLocalDateForInput } from '../time/format';
-import { formatNumber, formatSignedNumber, formatWeight, parseDecimal } from './numbers';
+import { formatNumber, formatSignedChange, formatSignedNumber, formatToGoal, formatWeight, parseDecimal } from './numbers';
 
 describe('en-US number formats (home §H1.5)', () => {
   it('formats numbers, weights and signed differences', () => {
@@ -13,6 +13,33 @@ describe('en-US number formats (home §H1.5)', () => {
     expect(formatSignedNumber(-3, 'kg')).toBe('-3 kg');
     expect(formatSignedNumber(0, 'kg')).toBe('0 kg');
     expect(formatSignedNumber(NaN, 'kg')).toBe('—');
+  });
+});
+
+// T-64 (27 Oct 2026): one minus app-wide (U+2212), "+" for a gain, no sign
+// once the value rounds to 0 at one decimal.
+describe('formatSignedChange / formatToGoal (T-64)', () => {
+  const MINUS = '\u2212';
+  it('signs a change with a real minus, "+" above 0, nothing at a rounded 0', () => {
+    expect(formatSignedChange(-1.5, 'kg')).toBe(`${MINUS}1.5 kg`);
+    expect(formatSignedChange(2.25, 'lb')).toBe('+2.3 lb');
+    expect(formatSignedChange(0, 'kg')).toBe('0 kg');
+    expect(formatSignedChange(-0.04, 'kg')).toBe('0 kg');
+    expect(formatSignedChange(0.04, 'kg')).toBe('0 kg');
+    expect(formatSignedChange(-1234.5, 'lb')).toBe(`${MINUS}1,234.5 lb`);
+    expect(formatSignedChange(null, 'kg')).toBe('—');
+    expect(formatSignedChange('x', 'kg')).toBe('—');
+  });
+
+  it('To goal = −difference_to_goal (goal − current): a loss goal "−10 lb", a gain goal "+5 kg", "0 kg" at 0', () => {
+    expect(formatToGoal(10, 'lb')).toBe(`${MINUS}10 lb`);
+    expect(formatToGoal(-5, 'kg')).toBe('+5 kg');
+    expect(formatToGoal('4.1', 'kg')).toBe(`${MINUS}4.1 kg`);
+    expect(formatToGoal(0, 'kg')).toBe('0 kg');
+    expect(formatToGoal(0.04, 'kg')).toBe('0 kg');
+    expect(formatToGoal(-0.04, 'kg')).toBe('0 kg');
+    expect(formatToGoal(undefined, 'kg')).toBe('—');
+    expect(formatToGoal(NaN, 'kg')).toBe('—');
   });
 });
 

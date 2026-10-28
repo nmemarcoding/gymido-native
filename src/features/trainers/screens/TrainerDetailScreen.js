@@ -17,7 +17,7 @@ import StatusPill from '../../../shared/components/StatusPill';
 import { ToastTone, addToast } from '../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
 import { breakpoints, colors, font, muscleGlow, radii, shadows, spacing, typography } from '../../../shared/theme/tokens';
-import { statusPill, trainerDisplayName } from '../../myTrainer/myTrainerFormat';
+import { statusPill, trainerDisplayName, trainerInitials } from '../../myTrainer/myTrainerFormat';
 import ShellPage from '../../shell/ShellPage';
 import { getTrainer, requestCoaching } from '../api/trainersApi';
 import { PageBackLink } from '../components/CoachingPage';
@@ -158,6 +158,7 @@ function TrainerDetail({ trainerUserId, tablet }) {
 
   const { trainer } = state;
   const name = trainerDisplayName(trainer);
+  const initials = trainerInitials(trainer);
   const userId = trainer.user_id ?? trainerUserId;
 
   const action = requested ? (
@@ -180,7 +181,7 @@ function TrainerDetail({ trainerUserId, tablet }) {
           <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.heroGlow}>
             <PersonGlow userId={userId} />
           </View>
-          <PersonAvatar testID="trainer-detail-avatar" userId={userId} name={name} size={132} initialsSize={46} style={styles.avatarShadow} />
+          <PersonAvatar testID="trainer-detail-avatar" userId={userId} name={name} initials={initials} size={132} initialsSize={46} style={styles.avatarShadow} />
           <Text {...CAP_BODY} style={styles.eyebrowTablet}>
             Trainer
           </Text>
@@ -188,21 +189,16 @@ function TrainerDetail({ trainerUserId, tablet }) {
           <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.nameTablet}>
             {name}
           </Text>
-          {trainer.email ? <EmailLink email={trainer.email} /> : null}
+          {trainer.email ? <ContactLink email={trainer.email} /> : null}
         </View>
       ) : (
         <View testID="trainer-detail-card" style={styles.identity}>
-          <PersonAvatar testID="trainer-detail-avatar" userId={userId} name={name} size={104} initialsSize={38} ring={{ gap: 5, alpha: 0.45 }} />
+          <PersonAvatar testID="trainer-detail-avatar" userId={userId} name={name} initials={initials} size={104} initialsSize={38} ring={{ gap: 5, alpha: 0.45 }} />
           <StatusPill label="Trainer" tone="gold" style={styles.trainerPill} />
           <HeroTitleMark />
           <Text {...TITLE_TEXT} accessibilityRole="header" style={styles.name}>
             {name}
           </Text>
-          {trainer.email ? (
-            <Text {...CAP_BODY} testID="trainer-detail-email" style={styles.email}>
-              {trainer.email}
-            </Text>
-          ) : null}
         </View>
       )}
       <View testID="trainer-detail-about" style={[styles.about, tablet && styles.aboutTablet]}>
@@ -241,26 +237,28 @@ function PersonGlow({ userId }) {
   return <GradientFill {...muscleGlow(avatarColor(userId))} />;
 }
 
-// UX L ND4 (approved): the tablet email is a mailto: link chip, the same
-// action as My trainer's "Contact".
-function EmailLink({ email }) {
+// UX L ND4 (approved): the tablet mailto: link chip, the same action as My
+// trainer's "Contact". T-64 (27 Oct 2026, owner): members never see a
+// trainer's email, so the chip reads "Contact" and the address is never
+// printed (nor read out); the phone shows nothing.
+function ContactLink({ email }) {
   return (
     <Pressable
-      testID="trainer-detail-email"
+      testID="trainer-detail-contact"
       accessibilityRole="link"
-      accessibilityLabel={`Email ${email}`}
+      accessibilityLabel="Contact"
       hitSlop={{ top: 4, bottom: 4 }}
       // Like My trainer's Contact: no mail handler → the rejection is caught.
       onPress={() => {
         Linking.openURL(`mailto:${email}`).catch(() => {});
       }}
-      style={styles.emailChip}
+      style={styles.contactChip}
     >
       {({ pressed }) => (
         <>
           {pressed ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.chipPressed]} /> : null}
-          <Text {...CAP_PILL} style={styles.emailChipText}>
-            {email}
+          <Text {...CAP_PILL} style={styles.contactChipText}>
+            Contact
           </Text>
         </>
       )}
@@ -303,12 +301,6 @@ const styles = StyleSheet.create({
     letterSpacing: -1.36,
     textAlign: 'center',
     color: colors.textPrimary,
-  },
-  email: {
-    ...typography.body,
-    marginTop: spacing['1_5'],
-    textAlign: 'center',
-    color: colors.textMuted,
   },
   about: {
     borderRadius: radii.xl,
@@ -407,7 +399,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: colors.textPrimary,
   },
-  emailChip: {
+  contactChip: {
     minHeight: 36,
     marginTop: spacing[1],
     justifyContent: 'center',
@@ -419,7 +411,7 @@ const styles = StyleSheet.create({
   chipPressed: {
     backgroundColor: colors.pressOverlay,
   },
-  emailChipText: {
+  contactChipText: {
     ...typography.body,
     color: colors.textStrong2,
   },

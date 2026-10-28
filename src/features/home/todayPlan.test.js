@@ -490,8 +490,8 @@ describe('Stats, week, weight and recent', () => {
   });
 
   it('weight card: Current big + faint unit, Goal, To goal teal; the glass 46 "Add weight log" opens the modal', async () => {
-    const tree = await render({ ...DASH, current_weight: 82.1, goal_progress: { goal_weight: 78, difference_to_goal: -4.1 } });
-    expect(texts(host(tree.root, 'home-weight-values'))).toEqual(['82.1 kg', ' kg', 'Current', '78 kg', 'Goal', '-4.1 kg', 'To goal']);
+    const tree = await render({ ...DASH, current_weight: 82.1, goal_progress: { goal_weight: 78, difference_to_goal: 4.1 } });
+    expect(texts(host(tree.root, 'home-weight-values'))).toEqual(['82.1 kg', ' kg', 'Current', '78 kg', 'Goal', '\u22124.1 kg', 'To goal']);
     const add = host(tree.root, 'home-add-weight');
     expect(styleOf(add)).toMatchObject({ minHeight: 46, backgroundColor: colors.fillGlass });
     act(() => pressable(tree.root, 'home-add-weight').props.onPress());

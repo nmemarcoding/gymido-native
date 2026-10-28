@@ -1,5 +1,6 @@
 // Labels and number formats of RN-SPEC-TRAINER-CLIENTS, exact.
 import { convertWeight } from '../../../shared/format/weight';
+import { formatSignedChange } from '../../../shared/format/numbers';
 
 // §C1.1
 export function clientDisplayName(client) {
@@ -53,13 +54,13 @@ export function formatHeight(value, unit) {
   return formatWeight(value, unit);
 }
 
-// §C5.2 signed(): "+" only above 0.
+// §C5.2 signed(): a real minus U+2212 for a loss, "+" for a gain, no sign
+// at 0 (T-64, one minus app-wide).
 export function formatSigned(change) {
   if (!change) {
     return '—';
   }
-  const prefix = change.value > 0 ? '+' : '';
-  return `${prefix}${oneDecimal.format(change.value)} ${change.unit ?? ''}`.trim();
+  return formatSignedChange(change.value, change.unit);
 }
 
 const normUnit = (unit) => String(unit ?? '').trim().toLowerCase();

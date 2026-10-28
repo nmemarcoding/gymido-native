@@ -66,7 +66,7 @@ const LOGS_DESC = [
 ];
 const RANGE_ASC = [...LOGS_DESC].reverse();
 const DATA = {
-  weightProgress: { current_weight: 82.1, goal_weight: 78, difference_to_goal: -4.1, total_change: -2.4 },
+  weightProgress: { current_weight: 82.1, goal_weight: 78, difference_to_goal: 4.1, total_change: -2.4 },
   weightLogs: LOGS_DESC,
   overview: { current_streak: 3, workouts_completed: 12 },
   history: { total_workouts: 10, completed_workouts: 8, total_duration_seconds: 24000 },
@@ -127,8 +127,11 @@ describe('progressFormat (Phase 3)', () => {
   });
 
   it('toGoalLine / goalInUnit: the code sign; goal unit converted for the chart', () => {
-    expect(toGoalLine(DATA.weightProgress, { goal: 'kg' })).toBe('-4.1 kg to goal (78 kg)');
+    expect(toGoalLine(DATA.weightProgress, { goal: 'kg' })).toBe('\u22124.1 kg to goal (78 kg)');
     expect(toGoalLine({}, { goal: 'kg' })).toBeNull();
+    // T-64: −difference_to_goal; a gain goal "+", no sign at a rounded 0.
+    expect(toGoalLine({ goal_weight: 80, difference_to_goal: -5 }, { goal: 'kg' })).toBe('+5 kg to goal (80 kg)');
+    expect(toGoalLine({ goal_weight: 80, difference_to_goal: 0.04 }, { goal: 'kg' })).toBe('0 kg to goal (80 kg)');
     expect(goalInUnit({ goal_weight: 100 }, { goal: 'kg', current: 'lb' })).toBeCloseTo(220.46, 1);
     expect(goalInUnit({}, { goal: 'kg', current: 'kg' })).toBeNull();
   });
@@ -230,7 +233,7 @@ describe('Progress phone (UX G)', () => {
   it('Body: Current 82.1 + faint unit, the teal delta line, the gold 44 "Add weight" circle', async () => {
     const tree = await render();
     expect(texts(host(tree.root, 'progress-current'))).toEqual(['82.1 kg', ' kg']);
-    expect(texts(host(tree.root, 'progress-delta'))).toEqual(['↓ 2.4 kg in this range · -4.1 kg to goal (78 kg)']);
+    expect(texts(host(tree.root, 'progress-delta'))).toEqual(['↓ 2.4 kg in this range · \u22124.1 kg to goal (78 kg)']);
     expect(flat(host(tree.root, 'progress-delta')).color).toBe(colors.teal);
     const add = host(tree.root, 'progress-add-weight');
     expect(add.props.accessibilityLabel).toBe('Add weight');
@@ -249,7 +252,7 @@ describe('Progress phone (UX G)', () => {
     expect(host(tree.root, 'progress-range-7D').props.accessibilityState).toEqual({ selected: true });
     expect(texts(host(tree.root, 'progress-log-count'))).toEqual(['1 log']);
     expect(texts(tree.root)).toContain('Not enough weight history yet');
-    expect(queryHost(tree.root, 'progress-delta')[0] && texts(host(tree.root, 'progress-delta'))).toEqual(['-4.1 kg to goal (78 kg)']);
+    expect(queryHost(tree.root, 'progress-delta')[0] && texts(host(tree.root, 'progress-delta'))).toEqual(['\u22124.1 kg to goal (78 kg)']);
   });
 
   it('batch 3 (e): while a new range loads the chart keeps the previous data dimmed (busy, 0.6), no skeleton; the new chip is already selected', async () => {

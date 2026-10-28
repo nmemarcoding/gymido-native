@@ -81,7 +81,7 @@ export default function WeightHistoryModal({ isOpen, clientUserId, profile, onCl
         ) : undefined
       }
       title="Weight history"
-      description="Every weigh-in this client has logged, oldest first."
+      description="Every weigh-in this client has logged, newest first."
       size="2xl"
       // The board draws the × as well as the footer dismiss (UX, 28 Oct).
       footer={
@@ -162,7 +162,7 @@ export default function WeightHistoryModal({ isOpen, clientUserId, profile, onCl
             message="This client hasn’t recorded a weigh-in, so there is no trend to show."
           />
         ) : (
-          // ⚠C-7: newest first, though the description says oldest first.
+          // Newest first, as the description says (T-64 retired ⚠C-7; the chart stays oldest → newest).
           <View testID="weight-history-logs" style={styles.list}>
             {[...logs].reverse().map((log, index) => (
               <View key={log.id ?? index} style={[styles.row, index > 0 && styles.divider]}>

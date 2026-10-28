@@ -192,7 +192,8 @@ describe('Trainer detail (UX L §Trainer detail)', () => {
     expect(glow.colors[0]).toBe('rgba(79, 216, 196, 0.30)');
   });
 
-  it('phone: centred identity (104 avatar + ring, gold "Trainer" pill, 34/38 name h2, muted email), About card, full-width 60 CTA', async () => {
+  // DECLARED (T-64, owner): was "muted email" under the name; no address is printed now.
+  it('phone: centred identity (104 avatar + ring, gold "Trainer" pill, 34/38 name h2, no email), About card, full-width 60 CTA', async () => {
     getTrainer.mockResolvedValue(SARA);
     const tree = await render(<TrainerDetailScreen />);
     expect(flat(byId(tree, 'trainer-detail-avatar'))).toMatchObject({ width: 104 });
@@ -200,10 +201,30 @@ describe('Trainer detail (UX L §Trainer detail)', () => {
     const name = tree.root.find((node) => node.type === 'Text' && node.props.accessibilityRole === 'header');
     expect(name.props.children).toBe('Sara Lopez');
     expect(flat(name)).toMatchObject({ fontSize: 34, lineHeight: 38, textAlign: 'center' });
-    expect(flat(byId(tree, 'trainer-detail-email')).color).toBe(colors.textMuted);
+    expect(allById(tree, 'trainer-detail-email')).toHaveLength(0);
+    expect(allById(tree, 'trainer-detail-contact')).toHaveLength(0);
+    expect(allText(tree)).not.toContain('@');
     expect(flat(byId(tree, 'trainer-detail-about'))).toMatchObject({ borderRadius: radii.xl, backgroundColor: colors.surface });
     const ask = tree.root.find((node) => node.type === PillButton && node.props.testID === 'trainer-detail-ask');
     expect(ask.props).toMatchObject({ title: 'Ask Sara Lopez to coach me', size: 'cta', fullWidth: true });
+  });
+
+  // T-64 (PM): no display_name → "Trainer" and the neutral "T", never the email's local part (detail + TR1 cards).
+  it.each([390, 834])('T-64 at %s: an email-only trainer reads "Trainer" with the "T" avatar; tablet keeps Contact', async (width) => {
+    setWindow(width);
+    const EMAIL_ONLY = { user_id: 8, email: 'coach.mike@example.com', bio: null };
+    getTrainer.mockResolvedValue(EMAIL_ONLY);
+    const tree = await render(<TrainerDetailScreen />);
+    const name = tree.root.find((node) => node.type === 'Text' && node.props.accessibilityRole === 'header');
+    expect(name.props.children).toBe('Trainer');
+    expect(textsOf(byId(tree, 'trainer-detail-avatar'))).toEqual(['T']);
+    expect(allText(tree)).not.toMatch(/@|coach\.mike|mike/i);
+    expect(allById(tree, 'trainer-detail-contact')).toHaveLength(width >= 834 ? 1 : 0);
+    listTrainers.mockResolvedValue(page([EMAIL_ONLY]));
+    const list = await render(<TrainersScreen />);
+    expect(textsOf(byId(list, 'trainers-card-8-avatar'))).toEqual(['T']);
+    expect(allText(list)).toContain('Trainer');
+    expect(allText(list)).not.toMatch(/coach\.mike|mike/i);
   });
 
   it('no bio: the italic faint line', async () => {
@@ -248,7 +269,8 @@ describe('Trainer detail (UX L §Trainer detail)', () => {
     expect(tree.root.findByType(ConfirmDialog).props.isOpen).toBe(false);
   });
 
-  it('tablet: the hero card (radius 36, 132 avatar, 56/58 name), ND4 email = a mailto link chip', async () => {
+  // DECLARED (T-64, owner): the ND4 chip read the address; it now reads "Contact" and opens mailto: without printing it.
+  it('tablet: the hero card (radius 36, 132 avatar, 56/58 name), ND4 = a "Contact" mailto chip, no address', async () => {
     setWindow(834);
     getTrainer.mockResolvedValue(SARA);
     const spy = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
@@ -257,8 +279,11 @@ describe('Trainer detail (UX L §Trainer detail)', () => {
     expect(flat(byId(tree, 'trainer-detail-avatar'))).toMatchObject({ width: 132 });
     const name = tree.root.find((node) => node.type === 'Text' && node.props.accessibilityRole === 'header');
     expect(flat(name)).toMatchObject({ fontSize: 56, lineHeight: 58 });
-    const email = tree.root.find((node) => node.props.testID === 'trainer-detail-email' && node.props.accessibilityRole === 'link');
-    act(() => email.props.onPress());
+    const contact = tree.root.find((node) => node.props.testID === 'trainer-detail-contact' && node.props.accessibilityRole === 'link');
+    expect(contact.props.accessibilityLabel).toBe('Contact');
+    expect(textsOf(contact)).toEqual(['Contact']);
+    expect(allText(tree)).not.toContain('@');
+    act(() => contact.props.onPress());
     expect(spy).toHaveBeenCalledWith('mailto:sara.lopez@example.com');
     const ask = tree.root.find((node) => node.type === PillButton && node.props.testID === 'trainer-detail-ask');
     expect(flat({ props: { style: ask.props.style } }).minHeight).toBe(64);
@@ -277,8 +302,8 @@ describe('Trainer detail (UX L §Trainer detail)', () => {
       return rejected;
     });
     const tree = await render(<TrainerDetailScreen />);
-    const email = tree.root.find((node) => node.props.testID === 'trainer-detail-email' && node.props.accessibilityRole === 'link');
-    await act(async () => email.props.onPress());
+    const contact = tree.root.find((node) => node.props.testID === 'trainer-detail-contact' && node.props.accessibilityRole === 'link');
+    await act(async () => contact.props.onPress());
     expect(caught).toHaveBeenCalledTimes(1);
     spy.mockRestore();
   });

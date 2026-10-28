@@ -39,10 +39,18 @@ describe('number formats', () => {
   it('signs deltas only above 0 and needs matching units', () => {
     const a = { weight_value: 80, weight_unit: 'kg' };
     const b = { weight_value: 78.5, weight_unit: 'KG' };
-    expect(formatSigned(weightDelta(a, b))).toBe('-1.5 KG');
+    expect(formatSigned(weightDelta(a, b))).toBe('\u22121.5 KG');
     expect(formatSigned(weightDelta(b, a))).toBe('+1.5 kg');
     expect(formatSigned(weightDelta(a, a))).toBe('—');
     expect(weightDelta(a, { weight_value: 170, weight_unit: 'lb' })).toBeNull();
+  });
+
+  // T-64 (27 Oct 2026): a real minus U+2212 for a loss, "+" for a gain, no sign at 0.
+  it('signed(): a real minus for a loss and no sign once the change rounds to 0 (T-64)', () => {
+    expect(formatSigned({ value: -2, unit: 'kg' })).toBe('\u22122 kg');
+    expect(formatSigned({ value: -0.04, unit: 'kg' })).toBe('0 kg');
+    expect(formatSigned({ value: 0, unit: 'lb' })).toBe('0 lb');
+    expect(formatSigned({ value: 0.25, unit: 'lb' })).toBe('+0.3 lb');
   });
 
   // Audit b1 PM decision (RN-SPEC-TRAINER-CLIENTS §C5.2, 27 Oct 2026):
@@ -50,11 +58,11 @@ describe('number formats', () => {
   it('delta(a, b, unit): kg/lb pairs convert into the display unit (the chart conversion)', () => {
     const lb190 = { weight_value: 190, weight_unit: 'lb' };
     const kg74 = { weight_value: 74, weight_unit: 'kg' };
-    expect(formatSigned(weightDelta(lb190, kg74, 'kg'))).toBe('-12.2 kg');
+    expect(formatSigned(weightDelta(lb190, kg74, 'kg'))).toBe('\u221212.2 kg');
     const toLb = weightDelta(lb190, kg74, 'lb');
     expect(toLb.unit).toBe('lb');
     expect(toLb.value).toBeCloseTo(74 / 0.45359237 - 190, 6);
-    expect(formatSigned(weightDelta({ weight_value: 80, weight_unit: 'kg' }, { weight_value: 78.5, weight_unit: 'KG' }, 'kg'))).toBe('-1.5 kg');
+    expect(formatSigned(weightDelta({ weight_value: 80, weight_unit: 'kg' }, { weight_value: 78.5, weight_unit: 'KG' }, 'kg'))).toBe('\u22121.5 kg');
     expect(formatSigned(weightDelta({ weight_value: 100, weight_unit: 'lb' }, { weight_value: 110, weight_unit: 'lb' }, 'kg'))).toBe('+4.5 kg');
   });
 

@@ -2,7 +2,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
-import { breakpoints, colors, font, textScale, typography } from '../../shared/theme/tokens';
+import { breakpoints, colors, font, spacing, textScale, typography } from '../../shared/theme/tokens';
 import { mountBell } from '../notifications/bellPolling';
 import NotificationBell from '../notifications/NotificationBell';
 import ModeSwitch from './ModeSwitch';
@@ -102,12 +102,29 @@ export default function AppHeader({ path, query = '', mode, headerActions = null
 
 // §6.1 back link (5-tab nav): above the H1, v2 §7.4: 14/600 gold, min-height
 // 32 with a 44 hit area; underlined (and the pressed gold) while pressed.
-// Goes to that tab's root.
+// Goes to that tab's root. my-trainer:327 (audit b4 (3), 27 Oct 2026): an 8
+// gap between the arrow and the label (it sat flush); the arrow is
+// decorative, the link's name is the label.
 function BackLink({ label, onPress }) {
+  const text = label.replace(/^←\s*/, '');
   return (
     <View style={styles.backBlock}>
-      <Pressable testID="header-back-link" accessibilityRole="link" onPress={onPress} hitSlop={BACK_HIT_SLOP} style={styles.backLink}>
-        {({ pressed }) => <Text style={[styles.backText, pressed && styles.backPressed]}>{label}</Text>}
+      <Pressable
+        testID="header-back-link"
+        accessibilityRole="link"
+        accessibilityLabel={text}
+        onPress={onPress}
+        hitSlop={BACK_HIT_SLOP}
+        style={styles.backLink}
+      >
+        {({ pressed }) => (
+          <View style={styles.backRow}>
+            <Text accessibilityElementsHidden importantForAccessibility="no" style={[styles.backText, pressed && styles.backArrowPressed]}>
+              ←
+            </Text>
+            <Text style={[styles.backText, pressed && styles.backPressed]}>{text}</Text>
+          </View>
+        )}
       </Pressable>
     </View>
   );
@@ -134,9 +151,17 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: colors.gold,
   },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
   backPressed: {
     color: colors.goldDeep,
     textDecorationLine: 'underline',
+  },
+  backArrowPressed: {
+    color: colors.goldDeep,
   },
   full: {
     paddingTop: 8,

@@ -47,7 +47,9 @@ const BADGE_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.badge });
 // `radius` defaults to a circle; the phone Trainers card draws a rounded
 // square (radii.lgPlus). `ring` draws the boards' gap + 1 px colour ring
 // (detail: 5 px ground gap, colour at 0.45; card: 4 px surface gap, 0.5).
-export default function PersonAvatar({ userId, name, size, radius, initialsSize, ring = null, testID = 'person-avatar', style }) {
+// `initials` overrides personInitials(name) (T-64: a trainer's come from
+// trainerInitials, never the email).
+export default function PersonAvatar({ userId, name, initials, size, radius, initialsSize, ring = null, testID = 'person-avatar', style }) {
   const color = avatarColor(userId);
   const corner = radius ?? size / 2;
   const fontSize = initialsSize ?? Math.round(size * 0.36);
@@ -60,7 +62,7 @@ export default function PersonAvatar({ userId, name, size, radius, initialsSize,
     >
       <View testID={`${testID}-fill`} style={[StyleSheet.absoluteFill, { backgroundColor: color, opacity: AVATAR_FILL_ALPHA }]} />
       <Text {...BADGE_TEXT} style={[styles.initials, { color, fontSize, lineHeight: Math.round(fontSize * 1.2) }]}>
-        {personInitials(name)}
+        {initials ?? personInitials(name)}
       </Text>
     </View>
   );

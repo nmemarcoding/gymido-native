@@ -15,6 +15,7 @@ import {
   rejectTrainerRequest,
 } from './api/myTrainerApi';
 import EndCoachingDialog from '../trainers/components/EndCoachingDialog';
+import { avatarColor } from '../trainers/personAvatar';
 import TrainerHubScreen, { goldAction, initialsOf, LINK_FILL, ORB_PHONE, ORB_TABLET, statusPill } from './TrainerHubScreen';
 
 const mockNavigation = { push: jest.fn(), addListener: jest.fn(() => () => {}) };
@@ -216,7 +217,6 @@ describe('My trainer v2 look (C5), phone', () => {
       expect.arrayContaining([
         'Your trainer',
         'Sara Lopez',
-        'sara@example.com',
         'Active',
         'Strength coach.',
         'Contact',
@@ -226,6 +226,8 @@ describe('My trainer v2 look (C5), phone', () => {
       ]),
     );
     expect(shown).not.toContain('Find a trainer');
+    // T-64 (owner): no address is printed; Contact still opens mailto.
+    expect(shown.filter((text) => text.includes('@'))).toEqual([]);
     expect(comp(tree.root, 'trainer-hub-contact').props.variant).toBe('primary');
     // UX §8.3: the 18 px mail icon, in the button's text colour.
     const icon = comp(tree.root, 'trainer-hub-contact').props.icon({ color: '#0A0B0F' });
@@ -411,17 +413,52 @@ describe('My trainer tokens (Phase 2 exact match)', () => {
     expect(styleOfHost(tree.root, 'trainer-hub-avatar-ring-line')).toMatchObject({ borderWidth: 1, borderColor: '#9DB0CF', opacity: 0.6 });
   });
 
-  // DECLARED (27 Oct 2026, audit b3 MT1.6): was the person-colour rounded tile (#C79BFF for id 4). On the gold
-  // card the invitation tile is the 60 r20 ink tile with gold initials (decorative), no person colour.
-  it('the invitation avatar: the 60 r20 ink tile with gold initials, hidden from AT, no ring', async () => {
+  // DECLARED (27 Oct 2026, my-trainer:327 audit b4, wins over the earlier MT1.6 / audit b3 gold initials): the
+  // 60 r20 ink tile shows the trainer's PERSON COLOUR (16 % tint + coloured initials, user_id mod 6) at every width.
+  it.each([390, 834])('the invitation avatar at %s: the 60 r20 ink tile in the person colour (16 %% tint + initials), hidden from AT', async (width) => {
+    setWidth(width);
     listPendingTrainerRequests.mockResolvedValue([{ ...invitation, trainer: { ...invitation.trainer, user_id: 4 } }]);
     const tree = await render();
     const tile = host(tree.root, 'trainer-hub-invite-avatar-5')[0];
     expect(flatStyle(tile.props.style)).toMatchObject({ width: 60, height: 60, borderRadius: 20, backgroundColor: colors.onGold });
     expect(tile.props).toMatchObject({ accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' });
+    expect(styleOfHost(tree.root, 'trainer-hub-invite-avatar-5-fill')).toMatchObject({ backgroundColor: avatarColor(4), opacity: 0.16 });
     const initials = tile.findAll((node) => node.type === Text)[0];
-    expect([initials.props.children, flatStyle(initials.props.style).color]).toEqual(['AK', colors.gold]);
+    expect([initials.props.children, flatStyle(initials.props.style).color]).toEqual(['AK', avatarColor(4)]);
+    expect(flatStyle(initials.props.style).color).not.toBe(colors.gold);
     expect(host(tree.root, 'trainer-hub-avatar')).toHaveLength(0);
+  });
+
+  // T-64 (27 Oct 2026, owner + PM): a member never sees a trainer's email: no display_name → "Trainer"
+  // and the neutral "T" (card, invitations, sent requests); Contact still opens mailto: without printing it.
+  it('T-64: an email-only trainer reads "Trainer" with the neutral "T"; no address anywhere', async () => {
+    const emailOnly = { email: 'coach.mike@example.com' };
+    getMyTrainer.mockResolvedValue({ relationship: { status: 'active', trainer_user_id: 9 }, trainer: { ...emailOnly, user_id: 9 } });
+    listPendingTrainerRequests.mockResolvedValue([
+      { ...invitation, trainer: emailOnly },
+      { ...outgoing, trainer: emailOnly },
+    ]);
+    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    const tree = await render();
+    const shown = texts(tree.root);
+    expect(shown.filter((text) => /@|coach\.mike|mike|example/i.test(text))).toEqual([]);
+    expect(host(tree.root, 'trainer-hub-avatar')[0].findByType(Text).props.children).toBe('T');
+    expect(host(tree.root, 'trainer-hub-invite-avatar-5')[0].findAll((node) => node.type === Text)[0].props.children).toBe('T');
+    expect(texts(host(tree.root, 'trainer-hub-invitation-5')[0])).toContain('Trainer');
+    expect(texts(host(tree.root, 'trainer-hub-request-6')[0])).toContain('Trainer');
+    await act(async () => {
+      await comp(tree.root, 'trainer-hub-contact').props.onPress();
+    });
+    expect(openURL).toHaveBeenCalledWith('mailto:coach.mike@example.com');
+    openURL.mockRestore();
+  });
+
+  it('T-64: no trainer object → "Trainer #id" with the neutral "T" avatar', async () => {
+    getMyTrainer.mockResolvedValue({ relationship: { status: 'active', trainer_user_id: 12 }, trainer: null });
+    listPendingTrainerRequests.mockResolvedValue([]);
+    const tree = await render();
+    expect(texts(tree.root)).toContain('Trainer #12');
+    expect(host(tree.root, 'trainer-hub-avatar')[0].findByType(Text).props.children).toBe('T');
   });
 
   it('link cards: 150° tint → faint wash with the line edge; pressed = the 4 % overlay (no opacity)', async () => {

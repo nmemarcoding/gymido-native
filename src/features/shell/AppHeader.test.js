@@ -80,12 +80,20 @@ describe('AppHeader v2 look (§7.4)', () => {
     act(() => {
       inner = create(link.props.children({ pressed: false }));
     });
-    expect(inner.root.findByType(Text).props.children).toBe('← Profile');
-    expect(StyleSheet.flatten(inner.root.findByType(Text).props.style)).toMatchObject({
-      fontSize: 14,
-      fontFamily: 'Geist-SemiBold',
-      color: '#FFC21A',
-    });
+    // DECLARED (my-trainer:327 audit b4 (3), 27 Oct 2026): was ONE Text '← Profile' (arrow flush, a space);
+    // now the decorative arrow + the label with an 8 gap; the link's name is the label.
+    const parts = inner.root.findAllByType(Text);
+    expect(parts.map((node) => node.props.children)).toEqual(['←', 'Profile']);
+    expect(StyleSheet.flatten(parts[0].parent.props.style)).toMatchObject({ flexDirection: 'row', alignItems: 'center', gap: 8 });
+    expect(parts[0].props).toMatchObject({ accessibilityElementsHidden: true, importantForAccessibility: 'no' });
+    expect(link.props.accessibilityLabel).toBe('Profile');
+    parts.forEach((part) =>
+      expect(StyleSheet.flatten(part.props.style)).toMatchObject({
+        fontSize: 14,
+        fontFamily: 'Geist-SemiBold',
+        color: '#FFC21A',
+      }),
+    );
     act(() => link.props.onPress());
     expect(openShellPath).toHaveBeenCalledWith('/profile');
   });
@@ -96,7 +104,8 @@ describe('AppHeader v2 look (§7.4)', () => {
     act(() => {
       inner = create(link.props.children({ pressed: true }));
     });
-    expect(StyleSheet.flatten(inner.root.findByType(Text).props.style)).toMatchObject({
+    // DECLARED (audit b4 (3)): the label is the second Text now (the arrow is the first).
+    expect(StyleSheet.flatten(inner.root.findAllByType(Text)[1].props.style)).toMatchObject({
       color: '#F4A300',
       textDecorationLine: 'underline',
     });

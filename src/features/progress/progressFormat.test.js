@@ -45,10 +45,10 @@ describe('weightStats (T-34)', () => {
     expect(stats.map((s) => [s.label, s.value])).toEqual([
       ['Current', '170 lb'],
       ['Goal', '75 kg'],
-      ['To goal', '+2.1 kg'],
+      ['To goal', '\u22122.1 kg'],
     ]);
     const same = { current: 'kg', goal: 'kg' };
-    expect(weightStats({ current_weight: '80.25', goal_weight: 170, difference_to_goal: -5.5 }, same).map((s) => s.value)).toEqual(['80.3 kg', '170 kg', '-5.5 kg']);
+    expect(weightStats({ current_weight: '80.25', goal_weight: 170, difference_to_goal: -5.5 }, same).map((s) => s.value)).toEqual(['80.3 kg', '170 kg', '+5.5 kg']);
     expect(weightStats(null, same).map((s) => s.value)).toEqual(['—', '—', '—']);
   });
 });
@@ -60,7 +60,7 @@ describe('profileAfterWeightLog (T-34 F1)', () => {
     expect(patched).toEqual({ ...profile, current_weight_value: 170, current_weight_unit: 'lb' });
     const units = weightUnits(patched, [{ weight_unit: 'lb' }]);
     const stats = weightStats({ current_weight: 170, goal_weight: 75, difference_to_goal: -2.1 }, units);
-    expect(stats.map((s) => s.value)).toEqual(['170 lb', '75 kg', '-2.1 kg']);
+    expect(stats.map((s) => s.value)).toEqual(['170 lb', '75 kg', '+2.1 kg']);
   });
 
   it('leaves the store alone without a profile or without both saved fields', () => {

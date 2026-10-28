@@ -1,13 +1,22 @@
+import { personInitials } from '../trainers/personAvatar';
+
 // Text rules of RN-SPEC-my-trainer and Profile's Coaching card.
 
-// display_name, else the email's local part, else "Trainer" (each trimmed).
+function displayNameOf(trainer) {
+  return typeof trainer?.display_name === 'string' ? trainer.display_name.trim() : '';
+}
+
+// display_name trimmed, else "Trainer". T-64 (27 Oct 2026, PM): the email's
+// local part is no longer a fallback (it leaked part of the address); a
+// member never sees a trainer's email anywhere.
 export function trainerDisplayName(trainer) {
-  const name = typeof trainer?.display_name === 'string' ? trainer.display_name.trim() : '';
-  if (name) {
-    return name;
-  }
-  const local = typeof trainer?.email === 'string' ? trainer.email.split('@')[0].trim() : '';
-  return local || 'Trainer';
+  return displayNameOf(trainer) || 'Trainer';
+}
+
+// T-64: a trainer's avatar initials come only from the display name (an
+// address typed as one still drops its domain); else the neutral "T".
+export function trainerInitials(trainer) {
+  return personInitials(displayNameOf(trainer)) || 'T';
 }
 
 // Profile P1.3 2a status line.

@@ -1,4 +1,4 @@
-import { formatNumber, formatSignedNumber, formatWeight, parseDecimal } from '../../shared/format/numbers';
+import { formatNumber, formatToGoal, formatWeight, parseDecimal } from '../../shared/format/numbers';
 import { convertWeight } from '../../shared/format/weight';
 import { formatDate, formatDuration, formatLocalDateForInput } from '../../shared/time/format';
 import { formatCount } from '../../shared/format/counts';
@@ -85,7 +85,7 @@ export function defaultWeightUnit(profile) {
   return profile?.current_weight_unit || profile?.goal_weight_unit || 'kg';
 }
 
-// H1.5. ⚠H-5: "Current" uses the profile's unit.
+// H1.5. ⚠H-5: "Current" uses the profile's unit. T-64: To goal = −difference_to_goal.
 export function weightCard(dashboard, profile) {
   const goal = dashboard?.goal_progress;
   const goalUnit = profile?.goal_weight_unit || 'kg';
@@ -93,7 +93,7 @@ export function weightCard(dashboard, profile) {
     hasData: Boolean(goal || dashboard?.current_weight),
     current: formatWeight(dashboard?.current_weight, defaultWeightUnit(profile)),
     goal: formatWeight(goal?.goal_weight, goalUnit),
-    toGoal: formatSignedNumber(goal?.difference_to_goal, goalUnit),
+    toGoal: formatToGoal(goal?.difference_to_goal, goalUnit),
   };
 }
 

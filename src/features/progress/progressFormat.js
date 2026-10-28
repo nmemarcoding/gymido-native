@@ -1,4 +1,4 @@
-import { formatNumber, formatSignedNumber, formatWeight } from '../../shared/format/numbers';
+import { formatNumber, formatToGoal, formatWeight } from '../../shared/format/numbers';
 import { convertWeight } from '../../shared/format/weight';
 import { formatDate, formatDateWithOffset, formatDuration } from '../../shared/time/format';
 import { formatCount } from '../../shared/format/counts';
@@ -72,11 +72,12 @@ export function barHeight(count, max) {
 }
 
 // T-34: Current in the current unit; Goal and To goal in the goal's unit.
+// T-64: To goal = −difference_to_goal (goal − current), formatToGoal.
 export function weightStats(weightProgress, units) {
   return [
     { label: 'Current', value: formatWeight(weightProgress?.current_weight, units.current) },
     { label: 'Goal', value: formatWeight(weightProgress?.goal_weight, units.goal) },
-    { label: 'To goal', value: formatSignedNumber(weightProgress?.difference_to_goal, units.goal), brand: true },
+    { label: 'To goal', value: formatToGoal(weightProgress?.difference_to_goal, units.goal), brand: true },
   ];
 }
 
@@ -163,13 +164,13 @@ export function rangeDelta(logs, unit) {
   return `${arrow} ${formatNumber(Math.abs(change))} ${unit} in this range`;
 }
 
-// "−4.1 kg to goal (78 kg)" with the code's sign and numbers (T-34: goal
-// unit); null without a goal.
+// "−4.1 kg to goal (78 kg)": T-64 −difference_to_goal with a real minus
+// (T-34: goal unit); null without a goal.
 export function toGoalLine(weightProgress, units) {
   if (weightProgress?.goal_weight == null || weightProgress?.difference_to_goal == null) {
     return null;
   }
-  return `${formatSignedNumber(weightProgress.difference_to_goal, units.goal)} to goal (${formatWeight(weightProgress.goal_weight, units.goal)})`;
+  return `${formatToGoal(weightProgress.difference_to_goal, units.goal)} to goal (${formatWeight(weightProgress.goal_weight, units.goal)})`;
 }
 
 // U9: the goal weight in the chart's unit (null without a goal).

@@ -27,8 +27,8 @@ import {
   rejectTrainerRequest,
 } from './api/myTrainerApi';
 import EndCoachingDialog from '../trainers/components/EndCoachingDialog';
-import PersonAvatar, { personInitials } from '../trainers/personAvatar';
-import { acceptErrorMessage, deriveHub, statusPill, trainerDisplayName } from './myTrainerFormat';
+import PersonAvatar, { AVATAR_FILL_ALPHA, avatarColor, personInitials } from '../trainers/personAvatar';
+import { acceptErrorMessage, deriveHub, statusPill, trainerDisplayName, trainerInitials } from './myTrainerFormat';
 
 // v2 Phase 2 C5 (UX C §My trainer / §Tablet): LOOK only. Behaviour is
 // RN-SPEC-my-trainer MT1.4–MT1.5 (Contact, End coaching + confirm, View
@@ -65,7 +65,7 @@ export const LINK_FILL = Object.freeze({
 // The active trainer avatar's 5 px card-coloured gap (tablet board).
 const AVATAR_GAP = 5;
 
-// Initials (§3 a11y rule): the first and last word of the name/email.
+// Initials (§3 a11y rule): the first and last word of a name (an address drops its domain).
 export const initialsOf = personInitials;
 
 // The status pill rule lives in myTrainerFormat (shared with Trainer detail).
@@ -264,7 +264,11 @@ function TrainerHub() {
           return (
             <View key={request.id} testID={`trainer-hub-invitation-${request.id}`} style={styles.invitation}>
               <View style={styles.invitationTop}>
-                <InviteTile testID={`trainer-hub-invite-avatar-${request.id}`} name={name} />
+                <InviteTile
+                  testID={`trainer-hub-invite-avatar-${request.id}`}
+                  userId={request.trainer?.user_id ?? request.trainer_user_id}
+                  initials={trainerInitials(request.trainer)}
+                />
                 <View style={styles.textColumn}>
                   {/* MT1.6 (27 Oct 2026, wins over X7 here): the name wraps, no truncation. */}
                   <Text {...INVITE_NAME_TEXT} style={styles.invitationName}>
@@ -352,6 +356,7 @@ function TrainerHub() {
         tablet={tablet}
         stacked={stacked}
         name={hub.trainerName}
+        initials={trainerInitials(state.trainer)}
         trainer={state.trainer}
         status={state.relationship?.status}
         userId={state.trainer?.user_id ?? state.relationship?.trainer_user_id}
@@ -463,12 +468,13 @@ function TrainerHub() {
 // colour = user_id mod 6, 16 % fill + that colour for the initials. The
 // active trainer keeps the board's card-coloured gap and 1 px ring (in the
 // person's colour); an invitation keeps the rounded-square tile.
-function Avatar({ name, userId, size, ring = false }) {
+function Avatar({ name, initials, userId, size, ring = false }) {
   return (
     <PersonAvatar
       testID="trainer-hub-avatar"
       userId={userId}
       name={name}
+      initials={initials}
       size={size}
       radius={ring ? undefined : radii.lg}
       initialsSize={Math.round(size / 3)}
@@ -478,13 +484,18 @@ function Avatar({ name, userId, size, ring = false }) {
   );
 }
 
-// MT1.6 (27 Oct 2026): the invitation's 60 r20 ink tile with the trainer's
-// initials in gold, on the gold card. Decorative: the name beside it labels.
-function InviteTile({ testID, name }) {
+// MT1.6 (27 Oct 2026): the invitation's 60 r20 ink tile on the gold card.
+// my-trainer:327 (audit b4, 27 Oct, wins over MT1.6's gold initials): the
+// trainer's person colour (16 % tint + coloured initials, user_id mod 6) at
+// every width. Decorative: the name beside it labels.
+// T-64: trainerInitials (display name only, else the neutral "T").
+function InviteTile({ testID, userId, initials }) {
+  const color = avatarColor(userId);
   return (
     <View testID={testID} style={styles.inviteTile} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <Text allowFontScaling={false} maxFontSizeMultiplier={1} style={styles.inviteTileText}>
-        {initialsOf(name)}
+      <View testID={`${testID}-fill`} style={[StyleSheet.absoluteFill, { backgroundColor: color, opacity: AVATAR_FILL_ALPHA }]} />
+      <Text allowFontScaling={false} maxFontSizeMultiplier={1} style={[styles.inviteTileText, { color }]}>
+        {initials}
       </Text>
     </View>
   );
@@ -544,14 +555,16 @@ function LinkCard({ testID, title, icon, tone, tablet, onPress }) {
 }
 
 // MT1.4
-function ActiveTrainerCard({ tablet, stacked = false, name, userId, trainer, status, contactVariant, onEnd }) {
+// T-64 (27 Oct 2026, owner): no address is printed; Contact (only with an
+// email) still opens mailto: without showing it.
+function ActiveTrainerCard({ tablet, stacked = false, name, initials, userId, trainer, status, contactVariant, onEnd }) {
   const pill = statusPill(status);
   return (
     <View testID="trainer-hub-active" style={[styles.heroCard, styles.activeCard, tablet && styles.activeCardTablet]}>
       <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
       <TealOrb testID="trainer-hub-active-orb" orb={tablet ? ORB_TABLET : ORB_PHONE} />
       <View style={[styles.activeTop, tablet && styles.activeTopTablet]}>
-        <Avatar name={name} userId={userId} size={tablet ? 104 : 64} ring />
+        <Avatar name={name} initials={initials} userId={userId} size={tablet ? 104 : 64} ring />
         <View style={styles.textColumn}>
           <Text {...BODY_TEXT} style={styles.yourTrainer}>
             Your trainer
@@ -563,11 +576,6 @@ function ActiveTrainerCard({ tablet, stacked = false, name, userId, trainer, sta
           >
             {name}
           </Text>
-          {trainer?.email ? (
-            <Text {...BODY_TEXT} style={styles.email}>
-              {trainer.email}
-            </Text>
-          ) : null}
           {pill.label ? (
             <View style={styles.mt8}>
               <StatusPill testID="trainer-hub-active-status" label={pill.label} tone={pill.tone} compact />
@@ -715,13 +723,14 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
     backgroundColor: colors.onGold,
   },
+  // The colour is the person's (InviteTile).
   inviteTileText: {
     ...font(700),
     fontSize: 20,
     lineHeight: 24,
-    color: colors.gold,
   },
   invitationButton: {
     minHeight: 50,
@@ -989,11 +998,6 @@ const styles = StyleSheet.create({
     ...typography.displayLg,
     lineHeight: 54,
     color: colors.textPrimary,
-  },
-  email: {
-    ...typography.bodySm,
-    marginTop: spacing[1],
-    color: colors.textMuted,
   },
   bio: {
     ...typography.body,

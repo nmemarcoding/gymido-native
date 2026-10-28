@@ -36,7 +36,7 @@ it('stores the created profile, so Home greets by name and labels the weight car
   });
   await flush();
   const shown = texts(tree.root);
-  expect(shown).toEqual(expect.arrayContaining(['Welcome back, Sam', '170 lb', '75 kg', '+2.1 kg']));
+  expect(shown).toEqual(expect.arrayContaining(['Welcome back, Sam', '170 lb', '75 kg', '\u22122.1 kg']));
   expect(getProfile).not.toHaveBeenCalled();
   act(() => tree.unmount());
 });

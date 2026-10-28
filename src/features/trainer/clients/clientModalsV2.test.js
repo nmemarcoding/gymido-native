@@ -208,14 +208,16 @@ describe('Client weight modal (UX M)', () => {
     listClientWeightLogs.mockResolvedValue(LOGS);
     const tree = await render(<WeightHistoryModal isOpen clientUserId={7} profile={PROFILE} onClose={jest.fn()} clientName="Sara" />);
     expect(tree.root.findByType(AppModal).props.eyebrow).toBeUndefined();
+    // T-64 (retires ⚠C-7): the list is newest first and the copy now says so.
+    expect(tree.root.findByType(AppModal).props.description).toBe('Every weigh-in this client has logged, newest first.');
     const current = host(tree, 'weight-history-current');
     expect(current.props.accessibilityLabel).toBe('Current, 64.2 kg');
     expect(flat(current)).toMatchObject({ borderRadius: radii.xl });
     const value = current.findAll((node) => node.type === 'Text' && flat(node).fontSize === 56)[0];
     expect(flat(value).fontVariant).toEqual(['tabular-nums']);
-    expect(deepText(host(tree, 'weight-history-30d-value'))).toBe('-1.1 kg');
+    expect(deepText(host(tree, 'weight-history-30d-value'))).toBe('\u22121.1 kg');
     expect(flat(host(tree, 'weight-history-30d-value')).color).toBe(colors.teal);
-    expect(deepText(host(tree, 'weight-history-total-value'))).toBe('-3.4 kg');
+    expect(deepText(host(tree, 'weight-history-total-value'))).toBe('\u22123.4 kg');
     expect(flat(host(tree, 'weight-history-total-value')).color).toBe(colors.teal);
     expect(host(tree, 'weight-history-goal').props.accessibilityLabel).toBe('Goal, 60 kg');
     expect(flat(host(tree, 'weight-history-goal-value')).color).toBe(colors.textPrimary);
@@ -234,14 +236,14 @@ describe('Client weight modal (UX M)', () => {
 
   // Audit b1 PM decision (§C5.2, 27 Oct 2026): mixed kg/lb logs convert into
   // the chart unit (the profile's current unit) instead of "—".
-  it('mixed lb → kg logs: the change tiles convert into the chart unit ("-12.2 kg"), never "—"', async () => {
+  it('mixed lb → kg logs: the change tiles convert into the chart unit ("\u221212.2 kg"), never "—"', async () => {
     listClientWeightLogs.mockResolvedValue([
       { ...LOGS[2], id: 11, weight_value: 190, weight_unit: 'lb' },
       { ...LOGS[2], id: 12, weight_value: 74, weight_unit: 'kg' },
     ]);
     const tree = await render(<WeightHistoryModal isOpen clientUserId={7} profile={PROFILE} onClose={jest.fn()} />);
-    expect(deepText(host(tree, 'weight-history-total-value'))).toBe('-12.2 kg');
-    expect(deepText(host(tree, 'weight-history-30d-value'))).toBe('-12.2 kg');
+    expect(deepText(host(tree, 'weight-history-total-value'))).toBe('\u221212.2 kg');
+    expect(deepText(host(tree, 'weight-history-30d-value'))).toBe('\u221212.2 kg');
   });
 
   it('positive change keeps the "+" (the sign carries the meaning)', async () => {

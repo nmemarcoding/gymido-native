@@ -294,7 +294,7 @@ describe('B3 empty: tiles, weight and recent (v1 content)', () => {
   it('weight with data: the v1 Current / Goal / To goal values', async () => {
     setStoredProfile({ first_name: 'Nima', current_weight_unit: 'kg', goal_weight_unit: 'kg' });
     const tree = await render({ ...EMPTY, current_weight: 80, goal_progress: { goal_weight: 75, difference_to_goal: 5 } });
-    expect(texts(host(tree.root, 'home-weight'))).toEqual(expect.arrayContaining(['80 kg', '75 kg', '+5 kg', 'Current', 'Goal', 'To goal']));
+    expect(texts(host(tree.root, 'home-weight'))).toEqual(expect.arrayContaining(['80 kg', '75 kg', '\u22125 kg', 'Current', 'Goal', 'To goal']));
   });
 
   it('recent workouts: the dashed empty box; a list when there are workouts', async () => {

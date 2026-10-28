@@ -29,6 +29,28 @@ export function formatSignedNumber(value, unit) {
   return `${sign}${formatNumber(value)} ${unit ?? ''}`.trim();
 }
 
+// T-64 (27 Oct 2026, one minus app-wide; web `formatSignedChange`): a real
+// minus U+2212 below 0, "+" above, no sign once it rounds to 0 at `decimals`.
+export function formatSignedChange(value, unit, decimals = 1) {
+  if (isMissing(value)) {
+    return '—';
+  }
+  const number = Number(value);
+  const magnitude = formatNumber(Math.abs(number), decimals);
+  let sign = '';
+  if (magnitude !== '0') {
+    sign = number > 0 ? '+' : '\u2212';
+  }
+  return `${sign}${magnitude} ${unit ?? ''}`.trim();
+}
+
+// T-64 (UX/PM, web `formatToGoal`): "To goal" = the change still needed =
+// goal − current = −difference_to_goal ("−10 lb" for a loss goal, "+5 kg"
+// for a gain goal, "0 kg" once it rounds to 0).
+export function formatToGoal(differenceToGoal, unit) {
+  return isMissing(differenceToGoal) ? '—' : formatSignedChange(-Number(differenceToGoal), unit);
+}
+
 const DECIMAL_TEXT = /^(?:\d+(?:[.,]\d*)?|[.,]\d+)$/;
 
 // Typed weights (dated change 25 Oct 2026, T-16): a comma decimal reads as a

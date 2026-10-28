@@ -2,6 +2,7 @@ import {
   applyOverlay,
   buildSetPatch,
   centeredScrollOffset,
+  completionDurationSeconds,
   completionSnapshot,
   createPendingSets,
   draftFromSavedSet,
@@ -253,6 +254,20 @@ describe('labels', () => {
     expect(snapshot).toMatchObject({ planName: 'Workout', durationSeconds: 125, totalReps: 10, completedSets: 1, totalSets: 4, volumeUnit: 'kg' });
     expect(snapshot.totalVolume).toBeCloseTo(500 / 2.20462, 5);
     expect(completionSnapshot(session, '', 125, 'lb').totalVolume).toBeCloseTo(500, 5);
+  });
+
+  // T-64 (27 Oct 2026, PM): the popup's Time is the complete response's
+  // session.duration_seconds; the client clock only when it is missing or not a number.
+  it('Time = the server duration_seconds (a stored 0 stays 0), else the elapsed clock (T-64)', () => {
+    expect(completionDurationSeconds({ session: { duration_seconds: 1500 } }, 125)).toBe(1500);
+    expect(completionDurationSeconds({ session: { duration_seconds: 0 } }, 125)).toBe(0);
+    expect(completionDurationSeconds({ session: { duration_seconds: '90' } }, 125)).toBe(90);
+    expect(completionDurationSeconds({ session: {} }, 125)).toBe(125);
+    expect(completionDurationSeconds({ session: { duration_seconds: null } }, 125)).toBe(125);
+    expect(completionDurationSeconds({ session: { duration_seconds: 'abc' } }, 125)).toBe(125);
+    expect(completionDurationSeconds({ session: { duration_seconds: '' } }, 125)).toBe(125);
+    expect(completionDurationSeconds({ new_personal_records: [] }, 125)).toBe(125);
+    expect(completionDurationSeconds(undefined, 125)).toBe(125);
   });
 });
 

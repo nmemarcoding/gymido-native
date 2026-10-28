@@ -71,9 +71,9 @@ describe('quick stats, weight and recent workouts', () => {
       hasData: true,
       current: '180 lb',
       goal: '75 kg',
-      toGoal: '-3 kg',
+      toGoal: '+3 kg',
     });
-    expect(weightCard({ goal_progress: { goal_weight: 75, difference_to_goal: 2.5 } }, null)).toMatchObject({ current: '—', toGoal: '+2.5 kg' });
+    expect(weightCard({ goal_progress: { goal_weight: 75, difference_to_goal: 2.5 } }, null)).toMatchObject({ current: '—', toGoal: '\u22122.5 kg' });
     expect(weightCard({}, null).hasData).toBe(false);
   });
 

@@ -37,6 +37,7 @@ import restAlertPlatform from './restAlertPlatform';
 import {
   buildSetPatch,
   centeredScrollOffset,
+  completionDurationSeconds,
   completionSnapshot,
   createPendingSets,
   draftFromSavedSet,
@@ -332,8 +333,14 @@ export default function SessionRuntime({
       endSessionState();
       setSuccessMessage('Workout completed.');
       // #15 (3c's PB card) and the photos it can show; volumeUnit per the
-      // VOLUME RULE is already in the snapshot.
-      onCompleted({ ...snapshot, personalRecords: result?.new_personal_records, exerciseImages: exerciseImageMap(session) });
+      // VOLUME RULE is already in the snapshot. T-64: Time = the server's
+      // stored duration (the snapshot's clock only when it is missing).
+      onCompleted({
+        ...snapshot,
+        durationSeconds: completionDurationSeconds(result, snapshot.durationSeconds),
+        personalRecords: result?.new_personal_records,
+        exerciseImages: exerciseImageMap(session),
+      });
       await reload();
     } catch (error) {
       if (getStatus(error) === 409) {

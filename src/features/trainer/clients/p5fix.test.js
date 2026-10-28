@@ -1,5 +1,5 @@
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
-import { Line } from 'react-native-svg';
+import { Circle, Line, Path, Stop } from 'react-native-svg';
 import { act, create } from 'react-test-renderer';
 
 import AppModal from '../../../shared/components/AppModal';
@@ -245,6 +245,17 @@ describe('Weight chart goal line (M6, UX M ruling 1 + §9a)', () => {
     expect(lines).toHaveLength(1);
     expect(lines[0].props).toMatchObject({ stroke: colors.tealStrong, strokeDasharray: '4 5', x1: 44, x2: 308 });
     expect(lines[0].props.y1).toBe(lines[0].props.y2);
+  });
+
+  // TRAINER-CLIENTS:629 (audit b4, 27 Oct 2026): the client weight modal's line, fill and end dot are teal #4FD8C4.
+  it('audit b4: the client weight chart line, fill and dots are teal #4FD8C4', async () => {
+    const tree = await chart({ profile: { current_weight_value: 78, current_weight_unit: 'kg', goal_weight_value: 70, goal_weight_unit: 'kg' }, showGoal: true });
+    const line = tree.root.findAll((node) => node.type === Path && node.props.fill === 'none');
+    expect(line.map((node) => node.props.stroke)).toEqual(['#4FD8C4']);
+    expect(tree.root.findAll((node) => node.type === Stop).map((node) => node.props.stopColor)).toEqual(['#4FD8C4', '#4FD8C4']);
+    const dots = tree.root.findAll((node) => node.type === Circle);
+    expect(dots.length).toBeGreaterThan(0);
+    dots.forEach((dot) => expect(dot.props.fill).toBe('#4FD8C4'));
   });
 
   it('no goal line on Progress (no showGoal) or when the client has no goal', async () => {
