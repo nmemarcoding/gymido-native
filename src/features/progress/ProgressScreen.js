@@ -397,7 +397,12 @@ function Progress() {
       if (outcome === 'locked') {
         setLockedIds((current) => new Set(current).add(row.workoutId));
       }
-      addToast(ToastTone.error, outcome === 'locked' ? DELETE_COPY.locked : DELETE_COPY.failed);
+      // UX (T-82 a): a 404 gets the NEUTRAL "already deleted" toast.
+      if (outcome === 'locked') {
+        addToast(ToastTone.error, DELETE_COPY.locked);
+      } else {
+        addToast(ToastTone.info, DELETE_COPY.gone);
+      }
       quietReload().then(() => focusLater(() => recentHeadingRef.current));
       return;
     }
