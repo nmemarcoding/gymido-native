@@ -200,6 +200,22 @@ describe('sign-in runners keep Maestro debug output private', () => {
     runs.forEach((line) => expect(line).toMatch(/test --debug-output "\$WORK\/[^"]+"/));
   });
 
+  // E4 (final pass 5f53f3d, PM 28 Oct 2026): `maestro hierarchy` has no
+  // --debug-output and left 3 log folders per sign-in in ~/.maestro/tests; the
+  // form checks run it with a private user.home under $WORK (purged whole) and
+  // pipe the JSON, never saving it.
+  it('ios-safe-sign-in.sh: every `maestro … hierarchy` runs with a private user.home under $WORK, piped', () => {
+    const src = code(read('ios-safe-sign-in.sh'));
+    const runs = src.split('\n').filter((line) => /maestro --device "\$UDID" hierarchy/.test(line));
+    expect(runs.length).toBe(1);
+    runs.forEach((line) => {
+      expect(line).toMatch(/JAVA_TOOL_OPTIONS="-Duser\.home=\$WORK\/home" exec maestro/);
+      expect(line).toMatch(/2>\/dev\/null\) \| python3 "\$CHECK"/);
+      expect(line).not.toMatch(/>\s*"\$WORK/);
+    });
+    expect(src).toMatch(/purge\(\) \{\n  rm -rf "\$WORK\/out" "\$WORK\/home"/);
+  });
+
   it.each(['ios-safe-sign-in.sh', 'android-sign-in.sh', 'invite.sh'])('%s: no age-based delete in ~/.maestro/tests; the byte sweep stays', (name) => {
     const src = code(read(name));
     expect(src).not.toMatch(/find "\$HOME\/\.maestro\/tests"[^\n]*-newer/);

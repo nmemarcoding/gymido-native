@@ -890,3 +890,112 @@ describe('T-65 generator exit (step 1 ✕ Cancel)', () => {
     expect(mockNavigation.replace).toHaveBeenCalledWith('PlansLibrary');
   });
 });
+
+// G1 (final pass 5f53f3d, PM + UX 28 Oct 2026): "Back to your answers" pushes
+// a fresh questionnaire ABOVE the preview; going back from it would land on
+// the preview and loop (no tab bar on phone). Above the preview, Cancel and
+// Android back reset the Plans stack to Plans alone; the preview's top back
+// does the same with no screen below or a looping questionnaire below.
+describe('G1 generator exit above the preview (no step ↔ preview loop)', () => {
+  let stack;
+  let backHandlers;
+  let backSpy;
+  beforeEach(() => {
+    stack = ['PlansLibrary', 'PlanGenerator', 'PlanGeneratorPreview'];
+    backHandlers = [];
+    backSpy = jest.spyOn(ReactNative.BackHandler, 'addEventListener').mockImplementation((name, handler) => {
+      backHandlers.push(handler);
+      return { remove: () => (backHandlers = backHandlers.filter((item) => item !== handler)) };
+    });
+    mockNavigation.getState = jest.fn(() => ({ index: stack.length - 1, routes: stack.map((name) => ({ name })) }));
+    mockNavigation.canGoBack.mockImplementation(() => stack.length > 1);
+    mockNavigation.push.mockImplementation((name) => (stack = [...stack, name]));
+    mockNavigation.goBack.mockImplementation(() => (stack = stack.slice(0, -1)));
+    mockNavigation.reset = jest.fn(({ routes }) => (stack = routes.map((route) => route.name)));
+  });
+  afterEach(() => {
+    backSpy.mockRestore();
+    mockNavigation.canGoBack.mockImplementation(() => true);
+    mockNavigation.push.mockImplementation(() => {});
+    mockNavigation.goBack.mockImplementation(() => {});
+    delete mockNavigation.getState;
+    delete mockNavigation.reset;
+  });
+
+  const cancelOf = (tree) =>
+    tree.root.findAll((node) => node.props.testID === 'generator-cancel' && typeof node.props.onPress === 'function')[0];
+  const ONLY_PLANS = { index: 0, routes: [{ name: 'PlansLibrary' }] };
+
+  it('preview → Back to your answers → Cancel lands on Plans; back from Plans never returns to the generator', async () => {
+    const preview = await openPreview();
+    await act(async () => one(preview, 'generator-preview-back').props.onPress());
+    expect(stack).toEqual(['PlansLibrary', 'PlanGenerator', 'PlanGeneratorPreview', 'PlanGenerator']);
+    const answers = await openStep(1);
+    await act(async () => cancelOf(answers).props.onPress());
+    expect(mockNavigation.reset).toHaveBeenCalledWith(ONLY_PLANS);
+    expect(mockNavigation.goBack).not.toHaveBeenCalled();
+    expect(stack).toEqual(['PlansLibrary']);
+    expect(mockNavigation.canGoBack()).toBe(false);
+  });
+
+  it('the step 1 ✕ and Android back on a later step leave the same way above the preview', async () => {
+    stack = [...stack, 'PlanGenerator'];
+    const answers = await openStep(1);
+    const close = answers.root.find((node) => node.type === IconButton);
+    await act(async () => close.props.onPress());
+    expect(stack).toEqual(['PlansLibrary']);
+    act(() => answers.unmount());
+    mounted.splice(mounted.indexOf(answers), 1);
+    stack = ['PlansLibrary', 'PlanGenerator', 'PlanGeneratorPreview', 'PlanGenerator'];
+    await openStep(3);
+    expect(backHandlers).toHaveLength(1);
+    let handled;
+    act(() => {
+      handled = backHandlers[0]();
+    });
+    expect(handled).toBe(true);
+    expect(stack).toEqual(['PlansLibrary']);
+  });
+
+  it('opened from Plans (no preview below), Cancel keeps the T-65 exit and Android back keeps its default pop', async () => {
+    stack = ['PlansLibrary', 'PlanGenerator'];
+    const answers = await openStep(1);
+    expect(backHandlers.map((handler) => handler())).toEqual([false]);
+    await act(async () => cancelOf(answers).props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.reset).not.toHaveBeenCalled();
+  });
+
+  it('the preview top back stays "Back to your answers" (a push) above a first questionnaire', async () => {
+    const preview = await openPreview();
+    expect(backHandlers).toHaveLength(0);
+    await act(async () => one(preview, 'generator-preview-back').props.onPress());
+    expect(mockNavigation.push).toHaveBeenCalledWith('PlanGenerator');
+    expect(mockNavigation.reset).not.toHaveBeenCalled();
+  });
+
+  it('the preview top back and Android back leave to Plans above a looping questionnaire', async () => {
+    stack = ['PlansLibrary', 'PlanGenerator', 'PlanGeneratorPreview', 'PlanGenerator', 'PlanGeneratorPreview'];
+    const preview = await openPreview();
+    expect(backHandlers).toHaveLength(1);
+    await act(async () => one(preview, 'generator-preview-back').props.onPress());
+    expect(mockNavigation.push).not.toHaveBeenCalled();
+    expect(mockNavigation.reset).toHaveBeenCalledWith(ONLY_PLANS);
+    expect(stack).toEqual(['PlansLibrary']);
+  });
+
+  it('the preview top back and Android back leave to Plans with no screen below', async () => {
+    stack = ['PlanGeneratorPreview'];
+    const preview = await openPreview();
+    let handled;
+    act(() => {
+      handled = backHandlers[0]();
+    });
+    expect(handled).toBe(true);
+    expect(stack).toEqual(['PlansLibrary']);
+    stack = ['PlanGeneratorPreview'];
+    await act(async () => one(preview, 'generator-preview-back').props.onPress());
+    expect(mockNavigation.push).not.toHaveBeenCalled();
+    expect(stack).toEqual(['PlansLibrary']);
+  });
+});

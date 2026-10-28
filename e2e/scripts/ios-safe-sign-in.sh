@@ -60,7 +60,7 @@ MAESTRO_LOGS="$HOME/Library/Logs/maestro"
 # log folder (per-run logs and zips). The shared ~/.maestro/tests is no longer
 # swept by age (another lane's files); nothing of ours goes there now.
 purge() {
-  rm -rf "$WORK/out"
+  rm -rf "$WORK/out" "$WORK/home"
   find "$MAESTRO_LOGS" -mindepth 1 -maxdepth 1 -newer "$MARK" -exec rm -rf {} + 2>/dev/null
 }
 
@@ -91,8 +91,15 @@ stage() {
   echo "PASS stage $name"
 }
 
+# `maestro hierarchy` has no --debug-output: it wrote maestro.log and the
+# xctest runner logs (the filled form's screen) into the shared
+# ~/.maestro/tests, 3 folders per sign-in (final pass 5f53f3d, E4). So it runs
+# with a private user.home under $WORK, which purge (and finish) delete whole.
 check() {
-  maestro --device "$UDID" hierarchy 2>/dev/null | python3 "$CHECK" "$ENV_FILE" "$ACCOUNT" "$1"
+  # Piped, never saved (the JSON may hold the typed form); exec keeps maestro
+  # a direct child, which finish's pkill stops.
+  mkdir -p "$WORK/home"
+  (JAVA_TOOL_OPTIONS="-Duser.home=$WORK/home" exec maestro --device "$UDID" hierarchy 2>/dev/null) | python3 "$CHECK" "$ENV_FILE" "$ACCOUNT" "$1"
   local code=$?
   purge
   return "$code"

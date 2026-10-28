@@ -63,6 +63,32 @@ appId: com.gymido.app
       - tapOn:
           text: "Continue"
           optional: true
+# F2 (final pass 5f53f3d): clearSession opens Chrome, and on an emulator
+# whose Chrome was cleared (android-sign-in.sh) its first-run screen comes up
+# a few seconds later and covers Welcome. Optional, when visible only.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - extendedWaitUntil:
+          visible: "Use without an account"
+          timeout: 8000
+          optional: true
+      - runFlow:
+          when:
+            visible: "Use without an account"
+          commands:
+            - tapOn: "Use without an account"
+      - runFlow:
+          when:
+            visible: "No thanks"
+          commands:
+            - tapOn: "No thanks"
+      - runFlow:
+          when:
+            visible: "Got it"
+          commands:
+            - tapOn: "Got it"
 - extendedWaitUntil:
     visible:
       id: "welcome-log-in"

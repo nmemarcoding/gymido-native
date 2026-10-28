@@ -333,3 +333,40 @@ describe('signed-in-start resets to a main page (T-65)', () => {
     expect(flow).toMatch(/visible: "Resume workout"\n\s+commands:\n\s+- assertTrue:\n\s+condition: \$\{false\}/);
   });
 });
+
+// Final pass 5f53f3d (PM 28 Oct 2026): F1 discard ends on the Workout hub
+// (T-65: no tab bar there; declared, was bottom-nav); F2 / E1 add optional,
+// when-visible dismisses only, no assertion changes.
+describe('final pass 5f53f3d flow fixes', () => {
+  const steps = (file) =>
+    fs
+      .readFileSync(file, 'utf8')
+      .split('\n')
+      .filter((line) => !line.trim().startsWith('#'))
+      .join('\n');
+
+  it('F1: discard-workout ends on the Workout hub header, not the tab bar or an either/or', () => {
+    const flow = steps(path.join(V2, 'subflows', 'discard-workout.yaml'));
+    expect(flow.trim().endsWith('extendedWaitUntil:\n    visible:\n      id: "workout-hub-header"\n    timeout: 30000')).toBe(true);
+    expect(flow).not.toMatch(/bottom-nav/);
+    expect(flow).not.toMatch(/id: "[^"]*\|[^"]*"\n\s+timeout: 30000\s*$/);
+  });
+
+  it('F2: 06-sign-out dismisses Chrome first-run only when visible (Android), before the unchanged Welcome wait', () => {
+    const flow = steps(path.join(V2, '..', '06-sign-out.yaml'));
+    const dismiss = flow.indexOf('tapOn: "Use without an account"');
+    expect(dismiss).toBeGreaterThan(-1);
+    expect(flow).toMatch(/visible: "Use without an account"\n\s+timeout: 8000\n\s+optional: true/);
+    expect(dismiss).toBeLessThan(flow.indexOf('id: "welcome-log-in"'));
+    expect(flow).toMatch(/extendedWaitUntil:\n\s+visible:\n\s+id: "welcome-log-in"\n\s+timeout: 60000\n- assertNotVisible: "Continue with Google\|Reset password"/);
+  });
+
+  it('E1: start-workout declines the notifications prompt only when visible, before the unchanged session wait', () => {
+    const flow = steps(path.join(V2, 'subflows', 'start-workout.yaml'));
+    const prompt = flow.indexOf('visible: ".*[Ss]end [Yy]ou [Nn]otifications.*"\n    timeout: 6000\n    optional: true');
+    expect(prompt).toBeGreaterThan(-1);
+    expect(flow).toMatch(/when:\n\s+visible: "\.\*\[Ss\]end \[Yy\]ou \[Nn\]otifications\.\*"\n\s+commands:\n\s+- tapOn: "Don\.t \[Aa\]llow"/);
+    expect(prompt).toBeLessThan(flow.indexOf('id: "session-chrome"\n    timeout: 30000'));
+    expect(flow.trim().endsWith('- assertNotVisible:\n    id: "bottom-nav"')).toBe(true);
+  });
+});

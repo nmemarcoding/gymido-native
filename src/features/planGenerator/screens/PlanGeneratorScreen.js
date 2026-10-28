@@ -21,6 +21,7 @@ import { Checkbox, Choice, ChoiceList, OptionPill, PillRow, ProgressSegments } f
 import { ArrowRightIcon, ChevronLeftIcon, CloseIcon, GoalIcon } from '../components/GeneratorIcons';
 import GeneratorReview, { ReviewButtons } from '../components/GeneratorReview';
 import { GENERATOR_STATE_MAX_WIDTH, GeneratorUnavailable } from '../components/GeneratorStates';
+import { leaveToPlans, sitsAbovePreview, useLeaveOnBack } from '../generatorExit';
 import {
   COPY,
   QUESTIONS,
@@ -96,7 +97,12 @@ function PlanGenerator() {
   // T-65 (PHONE-NAV spec §3, PM correction 27 Oct 2026): no extra pill here;
   // step 1's ✕ Cancel (top row + dock) is the exit: back in history, else
   // REPLACE to Plans; Android back the same.
-  const exit = useInnerBack(navigation, '/plans');
+  // G1 (PM 28 Oct): opened from the preview, the ✕ / Cancel and Android back
+  // (any step) reset the stack to Plans instead (no step ↔ preview loop).
+  const abovePreview = sitsAbovePreview(navigation);
+  const innerBack = useInnerBack(navigation, abovePreview ? null : '/plans');
+  useLeaveOnBack(navigation, abovePreview);
+  const exit = abovePreview ? () => leaveToPlans(navigation) : innerBack;
   const route = useRoute();
   const { width, fontScale } = useWindowDimensions();
   const reflow = isReflow(fontScale);

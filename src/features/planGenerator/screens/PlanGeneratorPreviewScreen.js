@@ -23,6 +23,7 @@ import { acceptGeneratedPlan, getGeneratorProfile, previewGeneratedPlan, saveGen
 import { Callout, MuscleLabel, WhyLine } from '../components/GeneratorControls';
 import { ChevronLeftIcon } from '../components/GeneratorIcons';
 import { GeneratorUnavailable } from '../components/GeneratorStates';
+import { leaveToPlans, previewBackLeaves, useLeaveOnBack } from '../generatorExit';
 import {
   COPY,
   activeNotice,
@@ -197,6 +198,11 @@ function PlanGeneratorPreview() {
   }
 
   const openAnswers = () => navigation.push(generatorRoutes.PlanGenerator);
+  // G1 (UX 28 Oct): with no screen below, or a questionnaire below that sits
+  // above an earlier preview, the top back (and Android back) leaves to Plans.
+  const backLeaves = previewBackLeaves(navigation);
+  useLeaveOnBack(navigation, backLeaves);
+  const topBack = backLeaves ? () => leaveToPlans(navigation) : openAnswers;
   // T-18 deep links: `step` is the web's 0-based `state.step`.
   const openStep = (step) => navigation.push(generatorRoutes.PlanGenerator, { step });
   const preview = view.preview;
@@ -251,7 +257,7 @@ function PlanGeneratorPreview() {
               // Review M1: as web (navigate to /plans/generate), a FRESH
               // questionnaire that refetches the profile, never goBack to the
               // stale one (its old split would be PUT again on "See my plan").
-              onBack={openAnswers}
+              onBack={topBack}
               tablet={tablet}
               reflow={reflow}
               footer={pinned ? null : bar}

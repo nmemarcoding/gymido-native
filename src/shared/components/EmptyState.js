@@ -76,6 +76,8 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: colors.textPrimary,
     textAlign: 'center',
+    // E3: the full card width, so Android measures the wrapped lines in full.
+    alignSelf: 'stretch',
   },
   message: {
     ...font(400),
@@ -83,6 +85,8 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: colors.textMuted,
     textAlign: 'center',
+    // E3: the full card width, so Android measures the wrapped lines in full.
+    alignSelf: 'stretch',
   },
   action: {
     marginTop: spacing[2],

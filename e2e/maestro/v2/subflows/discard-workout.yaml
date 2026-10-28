@@ -1,6 +1,7 @@
 # Discards the running session (the cleanup half of start-workout.yaml):
 # Exit opens "Discard this workout?", Discard abandons the session server-side,
-# so nothing is recorded. Ends back on the shell with the tab bar.
+# so nothing is recorded. Ends on the Workout hub (T-65: an inner page, no
+# tab bar on phone; the tablet never had bottom-nav).
 appId: com.gymido.app
 ---
 - runFlow: dismiss-session-dialogs.yaml
@@ -28,7 +29,8 @@ appId: com.gymido.app
     notVisible:
       id: "session-chrome"
     timeout: 30000
+# F1 (final pass 5f53f3d, PM 28 Oct 2026; declared): was bottom-nav.
 - extendedWaitUntil:
     visible:
-      id: "bottom-nav"
+      id: "workout-hub-header"
     timeout: 30000

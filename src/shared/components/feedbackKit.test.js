@@ -231,6 +231,17 @@ describe('EmptyState (§5)', () => {
     expect(flat(host(tree, 'empty-state-error-icon'))).toMatchObject({ borderRadius: radii.full, backgroundColor: colors.dangerTextTint });
     expect(tree.root.findByType(FeedbackIcon).props).toMatchObject({ name: 'error', color: colors.dangerText });
   });
+
+  // E3 (final pass 5f53f3d, PM 28 Oct 2026): in the centred card Android
+  // measured the message one line tall, so its second line was cut at 390
+  // ("…appear here."); title + message take the card's full width and wrap.
+  it('the title and message stretch to the card width; the message wraps in full (no line cap)', () => {
+    const tree = render(<EmptyState title="No notifications" message="You’re all caught up. New updates will appear here." />);
+    const [title, message] = tree.root.findAllByType(Text);
+    expect(flat(title)).toMatchObject({ alignSelf: 'stretch', textAlign: 'center' });
+    expect(flat(message)).toMatchObject({ alignSelf: 'stretch', textAlign: 'center' });
+    expect(message.props.numberOfLines).toBeUndefined();
+  });
 });
 
 describe('FeedbackBox: InlineError / SuccessState / ErrorBox (§5)', () => {
