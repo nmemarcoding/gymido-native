@@ -579,7 +579,6 @@ describe('T-69 batch flow fixes', () => {
   describe('item 2: set taps are exact (the dock\'s Did it, never a strip chip\'s Undo)', () => {
     it('the app still gives the strip chips and Did it the same set-action-<id>; only Did it has the text "Did it"', () => {
       const parts = src('src/features/workout/runtime/RuntimeParts.js');
-      const runtime = src('src/features/workout/runtime/SessionRuntime.js');
       expect(parts.match(/testID=\{`set-action-\$\{set\.id\}`\}/g)).toHaveLength(3);
       expect(parts).toContain("accessibilityLabel={pending ? 'Saving…' : 'Undo'}");
       expect(parts).toContain("const label = isPending ? 'Saving…' : 'Did it';");
