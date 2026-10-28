@@ -76,3 +76,26 @@ describe('Exercises in the tablet shell', () => {
     expect(StyleSheet.flatten(host(tree, 'exercises-screen')[0].props.style).paddingTop).toBe(24);
   });
 });
+
+// UX native final audit 27 Oct 2026, ruling 2: Exercises scrolls without
+// ShellPage, so it draws the status-bar backdrop itself (phone) or gets it
+// from TabletFrame's column (tablet, beside the rail).
+describe('status-bar backdrop (UX native final audit 27 Oct 2026, ruling 2)', () => {
+  it.each([
+    [390, 844],
+    [834, 1194],
+    [1194, 834],
+  ])('%i × %i: one backdrop, the top inset tall, fixed at the top', async (width, height) => {
+    const tree = await render(width, height);
+    const found = host(tree, 'status-bar-backdrop');
+    expect(found).toHaveLength(1);
+    expect(StyleSheet.flatten(found[0].props.style)).toMatchObject({ position: 'absolute', top: 0, left: 0, right: 0, height: 24 });
+    expect(found[0].props.pointerEvents).toBe('none');
+  });
+
+  it('tablet: inside the content column, not over the rail', async () => {
+    const tree = await render(834, 1194);
+    const column = host(tree, 'tablet-frame-column')[0];
+    expect(column.findAll((node) => node.props?.testID === 'status-bar-backdrop' && typeof node.type === 'string')).toHaveLength(1);
+  });
+});

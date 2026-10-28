@@ -928,3 +928,25 @@ describe('DOB and Sex server errors under their fields (⚠P4 narrowed)', () => 
     expect(host(tree.root, 'profile-sex-field').findAll((node) => node.props.accessibilityRole === 'alert')).toHaveLength(0);
   });
 });
+
+// UX native final audit 27 Oct 2026, ruling 2 (row A101): the form scrolls
+// under the status bar (no ShellPage), so the screen draws the backdrop.
+describe('status-bar backdrop (UX native final audit 27 Oct 2026, ruling 2, A101)', () => {
+  it.each([390, 834])('width %i: one backdrop, the top inset tall, fixed at the top, no touches', (width) => {
+    mockWidth = width;
+    const tree = render();
+    const found = queryHost(tree.root, 'status-bar-backdrop');
+    expect(found).toHaveLength(1);
+    expect(flat(found[0].props.style)).toMatchObject({ position: 'absolute', top: 0, left: 0, right: 0, height: 47 });
+    expect(found[0].props.pointerEvents).toBe('none');
+  });
+
+  it('is drawn over the form scroll (after it in the screen root)', () => {
+    const { ScrollView } = require('react-native');
+    const StatusBarBackdrop = require('../shell/StatusBarBackdrop').default;
+    const children = [].concat(host(render().root, 'create-profile-root').props.children).filter(Boolean);
+    const scrollAt = children.findIndex((child) => child.type === ScrollView);
+    expect(scrollAt).toBeGreaterThan(-1);
+    expect(children.findIndex((child) => child.type === StatusBarBackdrop)).toBeGreaterThan(scrollAt);
+  });
+});

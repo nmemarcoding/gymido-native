@@ -24,6 +24,8 @@ describe('v2 colours (§1)', () => {
     ['glass', 'rgba(30, 33, 41, 0.72)'],
     ['glassToast', 'rgba(30, 33, 41, 0.85)'],
     ['glassSolid', 'rgba(30, 33, 41, 0.96)'],
+    // UX native final audit 27 Oct 2026, ruling 2: the status-bar backdrop fallback.
+    ['groundFallback', 'rgba(10, 11, 15, 0.96)'],
     ['hairline', 'rgba(255, 255, 255, 0.07)'],
     ['hairlineStrong', 'rgba(255, 255, 255, 0.10)'],
     ['scrim', 'rgba(10, 11, 15, 0.6)'],

@@ -32,6 +32,7 @@ import AppHeader from '../../shell/AppHeader';
 import TabletFrame from '../../shell/TabletFrame';
 import ModeSwitch from '../../shell/ModeSwitch';
 import { getScreenPath } from '../../shell/shellNavigation';
+import StatusBarBackdrop from '../../shell/StatusBarBackdrop';
 import { resolveMode, showsMobileModeSwitch } from '../../shell/shellRules';
 import { listEquipmentTypes, listExercisesPage, listMuscleGroups } from '../api/exercisesApi';
 import { ActiveFilterLine, FilterButton, NoMatchState } from '../components/ExerciseFilterBar';
@@ -643,6 +644,9 @@ function ExercisesCatalog() {
       ) : (
         <View style={styles.phoneColumn}>{list}</View>
       )}
+      {/* UX native final audit 27 Oct 2026, ruling 2: phones draw the
+          status-bar backdrop here; on tablets TabletFrame draws it. */}
+      {tablet ? null : <StatusBarBackdrop />}
       <ExerciseFilterSheet
         // A rotation into the panel layout closes it.
         open={isFilterOpen && !panelShown}
