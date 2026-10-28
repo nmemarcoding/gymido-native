@@ -99,7 +99,8 @@ check() {
   # Piped, never saved (the JSON may hold the typed form); exec keeps maestro
   # a direct child, which finish's pkill stops.
   mkdir -p "$WORK/home"
-  (JAVA_TOOL_OPTIONS="-Duser.home=$WORK/home" exec maestro --device "$UDID" hierarchy 2>/dev/null) | python3 "$CHECK" "$ENV_FILE" "$ACCOUNT" "$1"
+  # XDG_STATE_HOME wins over user.home in Maestro's log path (review carry 2).
+  (unset XDG_STATE_HOME; JAVA_TOOL_OPTIONS="-Duser.home=$WORK/home" exec maestro --device "$UDID" hierarchy 2>/dev/null) | python3 "$CHECK" "$ENV_FILE" "$ACCOUNT" "$1"
   local code=$?
   purge
   return "$code"
