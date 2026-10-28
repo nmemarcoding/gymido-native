@@ -125,7 +125,16 @@ async function render() {
   return tree;
 }
 
+// T-81: the This week slot states depend on the local date (slotState), so
+// only Date is faked: Thursday 29 Oct 2026 (the WEEK's "today"); promises and
+// timers stay real.
+const REAL_TIMERS = ['hrtime', 'nextTick', 'performance', 'queueMicrotask', 'requestAnimationFrame', 'cancelAnimationFrame', 'requestIdleCallback', 'cancelIdleCallback', 'setImmediate', 'clearImmediate', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'];
+afterEach(() => {
+  jest.useRealTimers();
+});
+
 beforeEach(() => {
+  jest.useFakeTimers({ now: new Date(2026, 9, 29, 10, 0, 0), doNotFake: REAL_TIMERS });
   jest.clearAllMocks();
   mockWindow = { width: 390, height: 844, fontScale: 1 };
   mockRoute = { key: 'PlanDetail-1', name: 'PlanDetail', params: { planId: '5' } };
@@ -264,6 +273,48 @@ describe('Plan detail (phone), the current plan', () => {
     await act(async () => button(tree, 'plan-activate').props.onPress());
     expect(texts(tree)).toEqual(expect.arrayContaining(['Plan activation failed', 'Select 3\u00a0workout days to continue.']));
     expect(replaceSchedule).not.toHaveBeenCalled();
+  });
+});
+
+describe('Plan detail "This week", T-81 (PM ruling 3: per-slot cards; slotState)', () => {
+  const ids = (tree) =>
+    tree.root
+      .findAll((node) => typeof node.type === 'string' && /^plan-week-(today$|missed-\d|upcoming-|done$|notStarted-\d+-\d+$)/.test(node.props.testID ?? ''))
+      .map((node) => node.props.testID);
+
+  it('started Wed: Tue (a past slot before started_on) is Not started — no Missed pill, after Done, the caption, SR "Tue: not started"', async () => {
+    setup({ current: { ...CURRENT, enrollment: { ...CURRENT.enrollment, started_on: '2026-10-28' } } });
+    const tree = await render();
+    expect(ids(tree)).toEqual(['plan-week-today', 'plan-week-upcoming-5-52', 'plan-week-done', 'plan-week-notStarted-2-53']);
+    expect(host(tree, 'plan-week-missed-pill')).toBeUndefined();
+    expect(texts(tree)).not.toContain('Missed');
+    const card = host(tree, 'plan-week-notStarted-2-53');
+    expect(card.props.accessibilityLabel).toBe('Tue: not started, Upper B');
+    expect(flat(host(tree, 'plan-week-notStarted-tile-2-53'))).toEqual(expect.objectContaining({ backgroundColor: colors.fillSkeleton }));
+    expect(textOf(host(tree, 'plan-week-caption'))).toBe('Your plan started Wednesday.');
+    // Done stays the slot status: Mon (before the start) is still Done.
+    expect(host(tree, 'plan-week-done').props.accessibilityLabel).toBe('Lower A, Done Mon');
+  });
+
+  it('a training slot the server returns as "rest" before started_on gets a Not started card; started_on is date-only', async () => {
+    const week = WEEK.map((item) => (item.weekday.id === 2 ? { ...item, status: 'rest' } : item));
+    setup({ current: { ...CURRENT, enrollment: { ...CURRENT.enrollment, started_on: '2026-10-28T23:30:00Z' } }, week });
+    const tree = await render();
+    expect(host(tree, 'plan-week-notStarted-2-53')).toBeDefined();
+    expect(textOf(host(tree, 'plan-week-caption'))).toBe('Your plan started Wednesday.');
+  });
+
+  it('no started_on: no Not started card and no caption (missed stays missed)', async () => {
+    const tree = await render();
+    expect(ids(tree)).toEqual(['plan-week-missed-2-53', 'plan-week-today', 'plan-week-upcoming-5-52', 'plan-week-done']);
+    expect(host(tree, 'plan-week-caption')).toBeUndefined();
+  });
+
+  it('a past "upcoming" slot reads as Missed by the local date (slotState), not the stale server status', async () => {
+    jest.setSystemTime(new Date(2026, 9, 31, 9, 0, 0));
+    const tree = await render();
+    expect(host(tree, 'plan-week-missed-5-52')).toBeDefined();
+    expect(host(tree, 'plan-week-upcoming-5-52')).toBeUndefined();
   });
 });
 

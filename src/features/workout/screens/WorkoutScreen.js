@@ -33,16 +33,14 @@ import { applyOverlay, reconcileOverlay } from '../runtime/sessionMath';
 import {
   OTHER_DAYS_COPY,
   dayRows,
-  effectiveWeek,
   hubState,
+  hubWeek,
   startConfirmCopy,
   todayDoneDetail,
   todayDurationMinutes,
   todayMeta,
   upNext,
   weekCompleteDetail,
-  weekProgress,
-  weekStrip,
 } from '../hubModel';
 import useLeaveWorkoutGuard from './useLeaveWorkoutGuard';
 
@@ -427,10 +425,20 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
   }
 
   const now = new Date();
-  const weekNow = effectiveWeek({ week, schedule: currentPlan.schedule, doneIds: page.completedThisWeekDayIds, now });
-  const state = hubState({ ...page, week: weekNow });
-  const progress = weekProgress(weekNow);
-  const strip = state === 'noSchedule' ? null : weekStrip(weekNow, now);
+  // T-81: by date on the server's /week; the fallback stays as before.
+  const thisWeek = hubWeek({
+    week,
+    schedule: currentPlan.schedule,
+    doneIds: page.completedThisWeekDayIds,
+    completed: page.completedThisWeek,
+    startedOn: currentPlan.enrollment.started_on,
+    now,
+  });
+  const weekNow = thisWeek.week;
+  const state = hubState({ ...page, week: weekNow, byDate: thisWeek.byDate });
+  const progress = thisWeek.progress;
+  const strip = state === 'noSchedule' ? null : thisWeek.strip;
+  const caption = strip ? thisWeek.caption : null;
   const next = upNext({ week: weekNow, schedule: currentPlan.schedule, planDays, now });
   const todayTitle = planDayTitle(todayStatus?.plan_day);
   const todayCount = planDays.find((day) => day.id === todayDayId)?.exercises_count ?? todayStatus?.plan_day?.exercises_count;
@@ -498,7 +506,7 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
       />
     );
   const weekCard =
-    strip && progress ? <HubWeekCard strip={strip} progress={progress} reflow={reflow} style={split ? (landscape ? styles.sideWeek : styles.splitWeek) : null} /> : null;
+    strip && progress ? <HubWeekCard strip={strip} progress={progress} caption={caption} reflow={reflow} style={split ? (landscape ? styles.sideWeek : styles.splitWeek) : null} /> : null;
   const otherDays = rows.length ? (
     <HubDayRows
       copy={OTHER_DAYS_COPY[state]}

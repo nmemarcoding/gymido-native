@@ -2,7 +2,7 @@ jest.mock('../shell/ShellPage', () => ({ children }) => children);
 jest.mock('../shell/shellLinks', () => ({ openShellPath: jest.fn(), openPlanDetailAlone: jest.fn() }));
 jest.mock('./api/homeApi', () => ({ getDashboard: jest.fn(), logWeight: jest.fn(), getCurrentWeek: jest.fn() }));
 jest.mock('../plans/api/libraryApi', () => ({ getCurrentPlan: jest.fn(() => Promise.resolve(null)), listPlanDays: jest.fn() }));
-jest.mock('../workout/api/workoutApi', () => ({ getCurrentWorkout: jest.fn(() => Promise.resolve(null)) }));
+jest.mock('../workout/api/workoutApi', () => ({ getCurrentWorkout: jest.fn(() => Promise.resolve(null)), listCompletedWorkouts: jest.fn(() => Promise.resolve([])) }));
 jest.mock('../planGenerator/api/generatorApi', () => ({ getGeneratorProfile: jest.fn(() => Promise.resolve({ available: false })) }));
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ addListener: () => () => {} }) }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
@@ -19,7 +19,7 @@ import { act, create } from 'react-test-renderer';
 
 import RemoteImage from '../../shared/components/RemoteImage';
 import StatusPill from '../../shared/components/StatusPill';
-import { colors, shadows } from '../../shared/theme/tokens';
+import { colors, font, shadows } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
 import { resetProfileStore, setStoredProfile } from '../profile/profileStore';
 import { openPlanDetailAlone, openShellPath } from '../shell/shellLinks';
@@ -30,7 +30,7 @@ import HomeScreen from './HomeScreen';
 import { exerciseCountText, heroDayTitle, isSessionOpen, todayCard, todayExerciseCount, heroImageUrl, memberVolume, weekRing, weekStrip, workoutInitials } from './homeFormat';
 import { TodayHero } from './TodayPlanView';
 
-const { getCurrentWorkout } = jest.requireMock('../workout/api/workoutApi');
+const { getCurrentWorkout, listCompletedWorkouts } = jest.requireMock('../workout/api/workoutApi');
 
 function textOf(node) {
   return []
@@ -60,6 +60,9 @@ const WEEK = [
   { weekday: { id: 6, name: 'Saturday' }, is_workout_day: false, date: '2026-10-31', status: 'rest' },
   { weekday: { id: 7, name: 'Sunday' }, is_workout_day: false, date: '2026-11-01', status: 'rest' },
 ];
+// T-81: the strip is per DATE: Monday is Done because a workout STARTED that local date.
+const workoutOn = (day, hour = 10) => ({ status: 'completed', started_at: new Date(2026, 9, day, hour).toISOString() });
+const COMPLETED = [workoutOn(26)];
 
 const mounted = [];
 beforeEach(() => {
@@ -70,6 +73,7 @@ beforeEach(() => {
   setStoredProfile({ first_name: 'Nima', last_name: 'Memar', current_weight_unit: 'kg', goal_weight_unit: 'kg' });
   useAuthStore.setState({ user: { email: 'nima@example.com', roles: [] } });
   getCurrentWeek.mockResolvedValue(WEEK);
+  listCompletedWorkouts.mockResolvedValue(COMPLETED);
   jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] });
   jest.setSystemTime(new Date(2026, 9, 29, 9, 0, 0));
 });
@@ -90,33 +94,41 @@ async function render(dashboard = DASH) {
 }
 
 describe('homeFormat (Phase 3 Today)', () => {
-  it('weekStrip: statuses, labels "{weekday}, {status}", the training-days line and Day n of N', () => {
-    const strip = weekStrip(WEEK, new Date(2026, 9, 29));
-    expect(strip.cells.map((cell) => cell.status)).toEqual(['done', 'missed', 'rest', 'today', 'upcoming', 'rest', 'rest']);
-    expect(strip.cells.map((cell) => cell.label)).toEqual([
-      'Monday, Done',
-      'Tuesday, Missed',
-      'Wednesday, Rest day',
-      'Thursday, Today',
-      'Friday, Workout day',
-      'Saturday, Rest day',
-      'Sunday, Rest day',
+  // DECLARED (T-81): was weekStrip(WEEK, now) reading /week `status` (cells[].status, labels "Monday, Done"); now
+  // weekStrip({ week, completed, startedOn, now }) per DATE via plans/weekByDate (cells[].kind, a11y "Mon: done").
+  it('weekStrip: kinds per date, a11y "Mon: done", the training-days line and Day n of N (T-81)', () => {
+    const strip = weekStrip({ week: WEEK, completed: COMPLETED, now: new Date(2026, 9, 29) });
+    expect(strip.cells.map((cell) => cell.kind)).toEqual(['done', 'missed', 'rest', 'today', 'train', 'rest', 'rest']);
+    expect(strip.cells.map((cell) => cell.a11y)).toEqual([
+      'Mon: done',
+      'Tue: missed',
+      'Wed: rest',
+      'Thu: today, training',
+      'Fri: training',
+      'Sat: rest',
+      'Sun: rest',
     ]);
+    expect(strip.cells.map((cell) => cell.key)).toEqual(WEEK.map((day) => day.date));
     expect(strip.trainingDays).toBe('Mon, Tue, Thu, Fri');
     expect(strip.dayOfWeek).toBe('Day 3 of 4');
     expect(strip.cells[3].isToday).toBe(true);
+    expect(strip.caption).toBeNull();
   });
 
-  it('weekStrip: an older server without status derives rest/upcoming/today; none or empty → null', () => {
-    const plain = WEEK.map(({ weekday, is_workout_day }) => ({ weekday, is_workout_day }));
-    const strip = weekStrip(plain, new Date(2026, 9, 29));
-    expect(strip.cells.map((cell) => cell.status)).toEqual(['upcoming', 'upcoming', 'rest', 'today', 'upcoming', 'rest', 'rest']);
-    expect(weekStrip(null)).toBeNull();
-    expect(weekStrip([])).toBeNull();
+  // DECLARED (T-81): was "an older server without status derives rest/upcoming/today" (cells[].status from
+  // is_workout_day). Now /week `status` never drives a cell: a week without a done workout that date is not Done
+  // even when its status says "done"; and only a valid 7-day /week builds a strip.
+  it('weekStrip: /week "done" alone is not Done (no workout that date); none, empty or not 7 days → null', () => {
+    const strip = weekStrip({ week: WEEK, completed: [], now: new Date(2026, 9, 29) });
+    expect(strip.cells[0]).toMatchObject({ kind: 'missed', a11y: 'Mon: missed', count: 0 });
+    expect(weekStrip({ week: null })).toBeNull();
+    expect(weekStrip({ week: [] })).toBeNull();
+    expect(weekStrip({ week: WEEK.slice(0, 6) })).toBeNull();
+    expect(weekStrip()).toBeNull();
   });
 
   it('weekStrip: today on a rest day → no Day n of N', () => {
-    expect(weekStrip(WEEK, new Date(2026, 9, 28)).dayOfWeek).toBeNull();
+    expect(weekStrip({ week: WEEK, now: new Date(2026, 9, 28) }).dayOfWeek).toBeNull();
   });
 
   it('workoutInitials: two words → their first letters; one word → two letters; none → ""', () => {
@@ -140,8 +152,23 @@ describe('homeFormat (Phase 3 Today)', () => {
     expect(heroImageUrl(null)).toBeNull();
   });
 
+  // Without /week (progress null) the ring keeps the quick_stats numbers (the fallback).
   it('weekRing: "{done} done · {planned} planned" and the ring label', () => {
     expect(weekRing(DASH)).toMatchObject({ caption: '2 done · 4 planned', ringLabel: '2 of 4 planned workouts done', plannedText: '/4' });
+    expect(weekRing(DASH, null)).toMatchObject({ thisWeek: 2, planned: 4, thisWeekText: '2' });
+  });
+
+  it('weekRing: X of Y from weekProgressByDate, not quick_stats (T-81); Done total stays quick_stats', () => {
+    expect(weekRing(DASH, { done: 1, total: 2, complete: false })).toMatchObject({
+      thisWeek: 1,
+      planned: 2,
+      thisWeekText: '1',
+      plannedText: '/2',
+      caption: '1 done · 2 planned',
+      ringLabel: '1 of 2 planned workouts done',
+      doneTotalText: '37',
+    });
+    expect(weekRing(DASH, { done: 0, total: 0, complete: false })).toMatchObject({ thisWeekText: '0', plannedText: '/0', caption: '0 done · 0 planned' });
   });
 });
 
@@ -433,11 +460,14 @@ describe('Today hero with no image (Batch 2 item 4)', () => {
 });
 
 describe('Stats, week, weight and recent', () => {
-  it('stat tiles: the 64 flat ring + "2" "/4" + "2 done · 4 planned"; Done total 37 + teal "Last workout"', async () => {
+  // DECLARED (T-81, PM ruling 2): was value 2 / total 4 / "2 of 4 planned workouts done" / "2 done · 4 planned"
+  // (quick_stats 2 of 4); now /week + started_on: X = 1 /week day "done" (Mon), Y = 4 training days (no started_on).
+  it('stat tiles: the 64 flat ring + "1" "/4" + "1 done · 4 planned" from /week; Done total 37 + teal "Last workout"', async () => {
     const tree = await render();
     const ring = host(tree.root, 'home-stat-this-week').findByType(ProgressRing);
-    expect(ring.props).toMatchObject({ flat: true, size: 64, value: 2, total: 4, label: '2 of 4 planned workouts done' });
-    expect(texts(host(tree.root, 'home-stat-caption'))).toEqual(['2 done · 4 planned']);
+    expect(ring.props).toMatchObject({ flat: true, size: 64, value: 1, total: 4, label: '1 of 4 planned workouts done' });
+    expect(texts(host(tree.root, 'home-stat-caption'))).toEqual(['1 done · 4 planned']);
+    expect(host(tree.root, 'home-stat-this-week').props.accessibilityLabel).toBe('This week 1 /4 Planned');
     expect(texts(host(tree.root, 'home-stat-done'))).toEqual(expect.arrayContaining(['37']));
     expect(styleOf(host(tree.root, 'home-last-workout')).color).toBe(colors.teal);
   });
@@ -463,7 +493,9 @@ describe('Stats, week, weight and recent', () => {
     const tree = await render();
     expect(texts(host(tree.root, 'home-week-days'))).toEqual(['Mon, Tue, Thu, Fri']);
     const cell = (date) => host(tree.root, `home-week-cell-${date}`);
-    expect(cell('2026-10-26').props.accessibilityLabel).toBe('Monday, Done');
+    // DECLARED (T-81): was 'Monday, Done' (the UX T-81 SR form "Mon: done").
+    expect(cell('2026-10-26').props.accessibilityLabel).toBe('Mon: done');
+    expect(cell('2026-10-27').props.accessibilityLabel).toBe('Tue: missed');
     expect(styleOf(cell('2026-10-26'))).toMatchObject({ width: 34, backgroundColor: colors.gold });
     expect(styleOf(cell('2026-10-29'))).toMatchObject({ borderWidth: 2, borderColor: colors.gold });
     expect(styleOf(cell('2026-10-27')).backgroundColor).toBe(colors.track);
@@ -473,10 +505,13 @@ describe('Stats, week, weight and recent', () => {
     expect(cell('2026-10-26').props.onPress).toBeUndefined();
   });
 
-  it('Your week is hidden when the week call fails (null)', async () => {
+  it('Your week is hidden when the week call fails (null); the ring falls back to quick_stats (2 of 4)', async () => {
     getCurrentWeek.mockResolvedValue(null);
     const tree = await render();
     expect(queryHost(tree.root, 'home-week')).toHaveLength(0);
+    expect(listCompletedWorkouts).not.toHaveBeenCalled();
+    expect(host(tree.root, 'home-stat-this-week').findByType(ProgressRing).props).toMatchObject({ value: 2, total: 4 });
+    expect(texts(host(tree.root, 'home-stat-caption'))).toEqual(['2 done · 4 planned']);
   });
 
   it('tablet Your week: 52 cells, short names, a muted "See progress" (44) → Progress', async () => {
@@ -673,5 +708,120 @@ describe('T-63 phone button pair: stacks below 21rem of row width', () => {
     const tree = await render();
     expect(host(tree.root, 'home-today-buttons').props.onLayout).toBeUndefined();
     expect(styleOf(host(tree.root, 'home-today-buttons'))).toMatchObject({ flexDirection: 'row', maxWidth: 480 });
+  });
+});
+
+// T-81 (PM "DECIDED" 28 Oct 2026 ruling 2; UX T81-week-strip-states): Today's strip per DATE + the ring from /week + started_on.
+describe('T-81 Today week strip by date + ring', () => {
+  const OWNER_WEEK = [
+    { weekday: { id: 1, name: 'Monday' }, is_workout_day: true, date: '2026-10-26', status: 'done', plan_day: { id: 11 } },
+    { weekday: { id: 2, name: 'Tuesday' }, is_workout_day: true, date: '2026-10-27', status: 'missed', plan_day: { id: 12 } },
+    { weekday: { id: 3, name: 'Wednesday' }, is_workout_day: false, date: '2026-10-28', status: 'rest' },
+    { weekday: { id: 4, name: 'Thursday' }, is_workout_day: true, date: '2026-10-29', status: 'upcoming', plan_day: { id: 13 } },
+    { weekday: { id: 5, name: 'Friday' }, is_workout_day: true, date: '2026-10-30', status: 'upcoming', plan_day: { id: 14 } },
+    { weekday: { id: 6, name: 'Saturday' }, is_workout_day: false, date: '2026-10-31', status: 'rest' },
+    { weekday: { id: 7, name: 'Sunday' }, is_workout_day: false, date: '2026-11-01', status: 'rest' },
+  ];
+  const STARTED = { enrollment: { started_on: '2026-10-28', plan: { id: 4 } }, schedule: [{ weekday_id: 1 }] };
+  const cell = (root, date) => host(root, `home-week-cell-${date}`);
+  afterEach(() => {
+    getCurrentPlan.mockReset().mockImplementation(() => Promise.resolve(null));
+    listPlanDays.mockReset();
+  });
+
+  it('owner case: plan started Wed; Mon/Tue training = not started; Monday\'s workout done on Wednesday ticks Wednesday', async () => {
+    jest.setSystemTime(new Date(2026, 9, 28, 18, 0, 0));
+    getCurrentWeek.mockResolvedValue(OWNER_WEEK);
+    getCurrentPlan.mockResolvedValue(STARTED);
+    listPlanDays.mockResolvedValue([]);
+    // Monday's plan day (11), started Wednesday 08:00 local.
+    listCompletedWorkouts.mockResolvedValue([{ ...workoutOn(28, 8), workout_plan_day_id: 11 }]);
+    const tree = await render({ ...DASH, today_status: { is_workout_day: false } });
+    expect(listCompletedWorkouts).toHaveBeenCalledWith({ startDate: '2026-10-26', endDate: '2026-11-01' });
+    for (const [date, a11y] of [
+      ['2026-10-26', 'Mon: not started'],
+      ['2026-10-27', 'Tue: not started'],
+    ]) {
+      expect(cell(tree.root, date).props.accessibilityLabel).toBe(a11y);
+      const style = styleOf(cell(tree.root, date));
+      expect(style).toMatchObject({ width: 34, height: 34, backgroundColor: colors.fillSkeleton });
+      expect(style.borderWidth).toBeUndefined();
+      expect(queryHost(cell(tree.root, date), 'home-week-missed-dot')).toHaveLength(0);
+    }
+    const monLetter = host(tree.root, 'home-week-strip').findAll((node) => node.type === 'Text')[0];
+    expect(textOf(monLetter)).toBe('M');
+    expect(styleOf(monLetter).color).toBe(colors.textMuted);
+    // Wednesday (a rest day, today) is Done: the gold Done cell, no ×n.
+    expect(cell(tree.root, '2026-10-28').props.accessibilityLabel).toBe('Wed: today, done');
+    expect(styleOf(cell(tree.root, '2026-10-28'))).toMatchObject({ backgroundColor: colors.gold });
+    expect(queryHost(tree.root, 'home-week-count-2026-10-28')).toHaveLength(0);
+    expect(cell(tree.root, '2026-10-29').props.accessibilityLabel).toBe('Thu: training');
+    // The caption, once, under the strip.
+    expect(texts(host(tree.root, 'home-week-caption'))).toEqual(['Your plan started Wednesday.']);
+    expect(styleOf(host(tree.root, 'home-week-caption'))).toMatchObject({ fontSize: 13, lineHeight: 18, marginTop: 10, color: colors.textMuted });
+    // The ring: X = 1 (/week Monday "done"), Y = 2 (Thu, Fri: training days on/after started_on).
+    expect(host(tree.root, 'home-stat-this-week').findByType(ProgressRing).props).toMatchObject({ value: 1, total: 2, label: '1 of 2 planned workouts done' });
+    expect(texts(host(tree.root, 'home-stat-caption'))).toEqual(['1 done · 2 planned']);
+    expect(host(tree.root, 'home-stat-this-week').props.accessibilityLabel).toBe('This week 1 /2 Planned');
+  });
+
+  it('started_on with a time part: only its first 10 characters count (never converted to local)', () => {
+    const strip = weekStrip({ week: OWNER_WEEK, completed: [], startedOn: '2026-10-28T23:30:00-07:00', now: new Date(2026, 9, 28, 18) });
+    expect(strip.cells.map((item) => item.kind)).toEqual(['notStarted', 'notStarted', 'todayRest', 'train', 'train', 'rest', 'rest']);
+    expect(strip.cells[0].label).toBe('');
+    expect(strip.caption).toBe('Your plan started Wednesday.');
+  });
+
+  // UX T-81 §5: the Today strip's badge takes its gold Done colour (was teal in this new test).
+  it('×n: two workouts on a rest day → Done + a "×2" badge (20 high, min 22, GOLD 1.5 ring on surface), SR "Wed: done, 2 workouts"', async () => {
+    listCompletedWorkouts.mockResolvedValue([workoutOn(26), workoutOn(28, 9), workoutOn(28, 19)]);
+    const tree = await render();
+    const wed = cell(tree.root, '2026-10-28');
+    expect(wed.props.accessibilityLabel).toBe('Wed: done, 2 workouts');
+    expect(styleOf(wed)).toMatchObject({ width: 34, backgroundColor: colors.gold });
+    const badge = host(tree.root, 'home-week-count-2026-10-28');
+    expect(badge.props).toMatchObject({ accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' });
+    expect(styleOf(badge)).toMatchObject({
+      position: 'absolute',
+      height: 20,
+      minWidth: 22,
+      paddingHorizontal: 5,
+      borderRadius: 999,
+      backgroundColor: colors.surface,
+      borderWidth: 1.5,
+      borderColor: colors.gold,
+    });
+    const label = badge.findByType('Text');
+    expect(textOf(label)).toBe('×2');
+    expect(styleOf(label)).toMatchObject({ ...font(600), fontSize: 13, color: colors.gold, fontVariant: ['tabular-nums'] });
+    // One workout → no badge; the badge text is the only extra text (no label below the cell).
+    expect(queryHost(tree.root, 'home-week-count-2026-10-26')).toHaveLength(0);
+    expect(texts(host(tree.root, 'home-week-strip'))).toEqual(['M', 'T', 'W', '×2', 'T', 'F', 'S', 'S']);
+  });
+
+  it('no Not-started day in view → no caption (started before this week, or no started_on)', async () => {
+    getCurrentPlan.mockResolvedValue({ ...STARTED, enrollment: { ...STARTED.enrollment, started_on: '2026-10-01' } });
+    listPlanDays.mockResolvedValue([]);
+    const tree = await render();
+    expect(queryHost(tree.root, 'home-week-caption')).toHaveLength(0);
+    expect(cell(tree.root, '2026-10-27').props.accessibilityLabel).toBe('Tue: missed');
+    expect(host(tree.root, 'home-stat-this-week').findByType(ProgressRing).props).toMatchObject({ value: 1, total: 4 });
+  });
+
+  it('the completed-workouts read fails → the strip still shows from /week (no Done), the page renders', async () => {
+    listCompletedWorkouts.mockRejectedValue(new Error('boom'));
+    const tree = await render();
+    expect(queryHost(tree.root, 'home-week')).toHaveLength(1);
+    expect(cell(tree.root, '2026-10-26').props.accessibilityLabel).toBe('Mon: missed');
+    expect(texts(tree.root)).not.toContain('boom');
+    expect(host(tree.root, 'home-stat-this-week').findByType(ProgressRing).props).toMatchObject({ value: 1, total: 4 });
+  });
+
+  it('the /week call throws → strip hidden, ring on quick_stats, no workouts read', async () => {
+    getCurrentWeek.mockRejectedValue(new Error('down'));
+    const tree = await render();
+    expect(queryHost(tree.root, 'home-week')).toHaveLength(0);
+    expect(listCompletedWorkouts).not.toHaveBeenCalled();
+    expect(host(tree.root, 'home-stat-this-week').findByType(ProgressRing).props).toMatchObject({ value: 2, total: 4 });
   });
 });

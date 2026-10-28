@@ -183,7 +183,10 @@ function PlanDetail() {
   const currentEnrollmentId = current?.enrollment?.id;
   const isTrainerLocked = lockedEnrollmentId !== null && lockedEnrollmentId === current?.enrollment?.id;
   const totalExercises = days.reduce((sum, day) => sum + (exercisesByDay[day.id]?.length ?? 0), 0);
-  const weekCards = isCurrentPlan ? thisWeekCards(week, exercisesByDay) : null;
+  // T-81 (PM ruling 3, RN-SPEC T-81): per-slot states from the /week status
+  // + enrollment.started_on (already in GET /my-plans/current; absent → no
+  // Not started cards). No /workouts call.
+  const weekCards = isCurrentPlan ? thisWeekCards(week, exercisesByDay, { startedOn: current?.enrollment?.started_on, now: new Date() }) : null;
   // One gold action per page: the Today card's Start when it shows, else the
   // schedule CTA (UX H states; N6's rule on native).
   const scheduleGold = !weekCards?.today;

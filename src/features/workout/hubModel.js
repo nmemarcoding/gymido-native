@@ -1,17 +1,24 @@
 import { formatCount, keepUnitsTogether } from '../../shared/format/counts';
 import { WEEKDAYS, isValidWeek, joinWithAnd, localDateKey, muscleFocus, planDayTitle } from '../plans/libraryFormat';
+import { notStartedCaption, weekByDate, weekProgressByDate } from '../plans/weekByDate';
 import { needsScheduleSetup, scheduledWeekdaysByDayId } from './workoutFormat';
 
 // T-76 Workout hub redesign (owner brief + UX check + PM rulings, 28 Oct
-// 2026). Pure derivations, so web and native can be held to the same rules:
-// the week strip, "X of Y done" and Up next come from GET
-// /my-plans/current/week (never re-derived from history); /workouts
-// (completed, this week) gives only the ✓ Done rows and today's duration.
+// 2026). Pure derivations, so web and native can be held to the same rules.
+// T-81 (PM "DECIDED" + RN-SPEC T-81, 28 Oct): with a valid GET
+// /my-plans/current/week the strip is a calendar of what the member did
+// (plans/weekByDate: this week's completed workouts by the local date of
+// started_at, enrollment.started_on) and "X of Y" / week complete are
+// weekProgressByDate. Without /week the schedule + history fallback stays
+// exactly as before T-81 (weekStrip / weekProgress on effectiveWeek). Up next
+// still reads the /week slot status; the ✓ Done rows stay "a plan day done
+// this week".
 
 // The page's one state (RN-SPEC-workout T-76 "Hub state", shared with web).
 // Loading and failed are the screen's own; a live session never reaches the
-// hub (the runtime replaces it). `week` is the effective week (effectiveWeek).
-export function hubState({ currentPlan, todayStatus, planDays = [], week }) {
+// hub (the runtime replaces it). `week` is the effective week (effectiveWeek);
+// `byDate` = it is the server's /week (T-81 rule), false for the fallback.
+export function hubState({ currentPlan, todayStatus, planDays = [], week, byDate = true }) {
   if (!currentPlan?.enrollment?.plan) {
     return 'noPlan';
   }
@@ -21,8 +28,7 @@ export function hubState({ currentPlan, todayStatus, planDays = [], week }) {
   if (todayStatus?.is_workout_day && !todayStatus?.already_completed && todayStatus?.plan_day?.id) {
     return 'training';
   }
-  const progress = weekProgress(week);
-  if (progress && progress.total > 0 && progress.done >= progress.total) {
+  if (weekIsComplete({ week, byDate, startedOn: currentPlan.enrollment.started_on })) {
     return 'weekComplete';
   }
   if (todayStatus?.already_completed) {
@@ -56,13 +62,38 @@ export function effectiveWeek({ week, schedule, doneIds = [], now = new Date() }
   });
 }
 
+// Week complete: T-81 Y > 0 && X == Y (Y from started_on) on the server's
+// /week; the pre-T-81 rule (every non-rest slot done) on the fallback.
+function weekIsComplete({ week, byDate, startedOn }) {
+  if (byDate) {
+    return Boolean(weekProgressByDate({ week, startedOn })?.complete);
+  }
+  const progress = weekProgress(week);
+  return Boolean(progress && progress.total > 0 && progress.done >= progress.total);
+}
+
+// The hub's "This week" card: { week, byDate, progress, strip, caption }.
+// With a valid /week: weekByDate + weekProgressByDate + the Not-started
+// caption. Without it: the fallback week through weekStrip / weekProgress (no
+// Not started, no ×n, no caption). `week` is effectiveWeek's result (up next
+// and the state read it); strip / progress are null when there is none.
+export function hubWeek({ week, schedule, doneIds = [], completed = [], startedOn, now = new Date() }) {
+  const weekNow = effectiveWeek({ week, schedule, doneIds, now });
+  if (isValidWeek(week)) {
+    const strip = weekByDate({ week, completed, startedOn, now });
+    return { week: weekNow, byDate: true, progress: weekProgressByDate({ week, startedOn }), strip, caption: notStartedCaption(strip, startedOn) };
+  }
+  return { week: weekNow, byDate: false, progress: weekProgress(weekNow), strip: weekStrip(weekNow, now), caption: null };
+}
+
 function weekdayAt(item, index) {
   const id = Number(item?.weekday?.id);
   return WEEKDAYS[(id >= 1 && id <= 7 ? id : index + 1) - 1];
 }
 
-// "X of Y done": Y = this week's slots whose status is not rest, X = the done
-// ones (missed counts as not done). null without a week (the card hides).
+// The /week-failed FALLBACK's "X of Y done" (T-81 keeps it as is): Y = the
+// slots whose status is not rest, X = the done ones (missed = not done).
+// null without a week (the card hides).
 export function weekProgress(week) {
   if (!isValidWeek(week)) {
     return null;
@@ -80,7 +111,9 @@ const STRIP_LABELS = Object.freeze({
   rest: 'Rest',
 });
 
-// The Mon–Sun strip: [{ key, letter, label, kind, a11y }] or null. Kinds:
+// The /week-failed FALLBACK's Mon–Sun strip (T-81 keeps it as is; the
+// server's /week goes through weekByDate): [{ key, letter, label, kind, a11y }]
+// or null. Kinds:
 // done (teal tick), today (gold), todayRest (gold outline), missed (dashed),
 // train (outlined), rest (grey letter).
 export function weekStrip(week, now = new Date()) {

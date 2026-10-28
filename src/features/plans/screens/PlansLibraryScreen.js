@@ -17,6 +17,8 @@ import { myPlanRoutes } from '../../myPlans/myPlanRoutes';
 import { RAIL } from '../../shell/railMetrics';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
+import { listCompletedWorkouts } from '../../workout/api/workoutApi';
+import { notStartedCaption } from '../weekByDate';
 import { getCurrentPlan, getCurrentToday, getCurrentWeek, listDifficultyLevels, listPlanDays, listPlans } from '../api/libraryApi';
 import PhoneActivePlanCard from '../components/PhoneActivePlanCard';
 import PlanCatalogCard from '../components/PlanCatalogCard';
@@ -30,6 +32,7 @@ import {
   catalogPlans,
   deriveLibrary,
   exercisesCountLabel,
+  isValidWeek,
   levelNameOf,
   nextWorkout,
   planCountLabel,
@@ -90,7 +93,11 @@ function useCanCreatePlan(enabled) {
 // current plan; the level names once per load. Each value is undefined while
 // pending and null when the call failed. The tablet makes the same calls
 // (UX native final audit 27 Oct 2026, B203/B204: T-60 §6 on the tablet).
-const SIDE_PENDING = { week: undefined, today: undefined, days: undefined, levels: undefined };
+// T-81 (PM ruling 4): + the week's completed workouts (GET /workouts
+// ?status=completed for week[0].date..week[6].date, after /week answers) for
+// the date strip; null when /week or that call failed (the circles then keep
+// the pre-T-81 look).
+const SIDE_PENDING = { week: undefined, today: undefined, days: undefined, levels: undefined, completed: undefined };
 
 function useSideData(load) {
   const [side, setSide] = useState(SIDE_PENDING);
@@ -111,7 +118,13 @@ function useSideData(load) {
     settle('levels', listDifficultyLevels);
     const planId = load.currentPlan?.enrollment?.plan?.id;
     if (load.currentPlan?.enrollment?.plan) {
-      settle('week', getCurrentWeek);
+      const weekCall = Promise.resolve().then(getCurrentWeek);
+      settle('week', () => weekCall);
+      settle('completed', () =>
+        weekCall.then((week) =>
+          isValidWeek(week) && week[0]?.date && week[6]?.date ? listCompletedWorkouts({ startDate: week[0].date, endDate: week[6].date }) : null
+        )
+      );
       settle('today', getCurrentToday);
       if (planId != null) {
         settle('days', () => listPlanDays(planId));
@@ -240,7 +253,13 @@ function T60Plans({ library, load, side, compact = false, openPlan, tablet = nul
   const schedule = load.currentPlan?.schedule;
   const now = new Date();
   const plan = library.activePlanDetail;
-  const circles = side.week === undefined ? null : weekCircles({ week: side.week, schedule, now });
+  // T-81: the circles wait for the completed workouts too (no Missed → Done
+  // flicker); started_on is date-only (weekByDate takes its first 10 chars).
+  const circles =
+    side.week === undefined || side.completed === undefined
+      ? null
+      : weekCircles({ week: side.week, schedule, completed: side.completed, startedOn: load.currentPlan?.enrollment?.started_on, now });
+  const weekCaption = circles ? notStartedCaption(circles, load.currentPlan?.enrollment?.started_on) : null;
   const found = side.week === undefined || side.today === undefined ? null : nextWorkout({ today: side.today, week: side.week, schedule, now });
   const count = found && Array.isArray(side.days) ? side.days.find((day) => String(day?.id) === String(found.planDay?.id))?.exercises_count : null;
   const next = found ? { when: found.when, title: planDayTitle(found.planDay), count: exercisesCountLabel(count), gold: found.gold } : null;
@@ -254,6 +273,7 @@ function T60Plans({ library, load, side, compact = false, openPlan, tablet = nul
           plan={plan}
           meta={activePlanMetaParts(plan, levelNameOf(plan, side.levels))}
           circles={circles}
+          weekCaption={weekCaption}
           next={next}
           compact={compact}
           onStart={() => openShellPath('/workout')}

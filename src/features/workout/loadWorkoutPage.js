@@ -1,6 +1,7 @@
 import { getStatus } from '../../shared/api/apiError';
 import { isGeneratorAvailable } from '../myPlans/api/myPlansApi';
 import { getCurrentPlan, getCurrentWeek, listPlanDays } from '../plans/api/libraryApi';
+import { isValidWeek } from '../plans/libraryFormat';
 import { getCurrentWorkout, getTodayStatus, listCompletedWorkouts, listExerciseStats } from './api/workoutApi';
 import { buildExerciseStatsMap, completedDayIds, currentWeekRange } from './workoutFormat';
 import { reconcileSessionState } from './runtime/workoutSessionStore';
@@ -26,6 +27,25 @@ const nullOn404 = (promise) =>
 
 const nullOnAny = (promise) => promise.catch(() => null);
 
+// T-81: the completed list must cover the /week dates (week[0].date ..
+// week[6].date). The two calls run in parallel with the device's local
+// Mon–Sun, which is the same range except when they straddle a week change
+// (Sunday → Monday midnight between the device clock and the server, or a
+// time zone change): then the list is fetched again for the /week dates.
+async function completedForWeek(api, completed, week, range) {
+  if (!isValidWeek(week)) {
+    return completed;
+  }
+  const weekRange = { startDate: week[0]?.date, endDate: week[6]?.date };
+  if (typeof weekRange.startDate !== 'string' || typeof weekRange.endDate !== 'string') {
+    return completed;
+  }
+  if (weekRange.startDate === range.startDate && weekRange.endDate === range.endDate) {
+    return completed;
+  }
+  return nullOnAny(api.listCompletedWorkouts(weekRange));
+}
+
 // RN-SPEC-workout §6.1: five calls in parallel with their own failure rules,
 // then the plan's days when there is a plan. T-76 (28 Oct 2026): a sixth,
 // GET /my-plans/current/week (null on any failure: the week card hides),
@@ -34,16 +54,18 @@ const nullOnAny = (promise) => promise.catch(() => null);
 // reload from a good one.
 export async function loadWorkoutPage({ api = DEFAULT_API, now = new Date() } = {}) {
   try {
-    const [session, currentPlan, todayStatus, stats, completed, week] = await Promise.all([
+    const range = currentWeekRange(now);
+    const [session, currentPlan, todayStatus, stats, completedLocal, week] = await Promise.all([
       api.getCurrentWorkout(),
       nullOn404(api.getCurrentPlan()),
       nullOn404(api.getTodayStatus()),
       nullOnAny(api.listExerciseStats()),
-      nullOnAny(api.listCompletedWorkouts(currentWeekRange(now))),
+      nullOnAny(api.listCompletedWorkouts(range)),
       nullOnAny(api.getCurrentWeek()),
     ]);
     // T-59: a session that ended elsewhere drops its stored rest + alert.
     reconcileSessionState(session?.id ?? null);
+    const completed = await completedForWeek(api, completedLocal, week, range);
     const planId = currentPlan?.enrollment?.plan?.id;
     const planDays = planId ? await api.listPlanDays(planId) : [];
     const generatorAvailable = planId ? false : await api.isGeneratorAvailable().catch(() => false);

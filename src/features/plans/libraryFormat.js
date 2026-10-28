@@ -1,3 +1,4 @@
+import { notStartedCaption, slotState, weekByDate } from './weekByDate';
 import { formatCount } from '../../shared/format/counts';
 
 // Derived data and copy for S1 (plans list) and S2 (plan detail),
@@ -206,24 +207,37 @@ export function dayOfMonth(date) {
 
 // Approved #9 "This week" (GET /my-plans/current/week with BE's date +
 // status): the training days only (rest days have no card). Returns
-// { today, others, done } or null when the week carries no statuses (the
-// section is then hidden; the client never guesses a status).
-//   today  — the one "today" training day (or null)
-//   others — missed and upcoming days, in week order
-//   done   — the done days (shown as ONE summary card)
-export function thisWeekCards(week, exercisesByDay = {}) {
+// { today, others, open, done, notStarted, caption } or null when the week
+// carries no statuses (the section is then hidden; the client never guesses
+// a status).
+// T-81 (PM ruling 3, RN-SPEC T-81): each slot's state is slotState() — done =
+// the server's slot status "done" (that plan day done this week, any date),
+// notStarted = a slot dated before enrollment.started_on, missed = a past
+// slot not done, else today / upcoming. A training slot before started_on
+// comes back from the server as "rest"; it gets a (quiet) Not started card.
+//   today      — the one "today" training day (or null)
+//   others     — missed and upcoming days, in week order
+//   open       — today, missed and upcoming, in week order (M6)
+//   done       — the done days (shown as ONE summary card)
+//   notStarted — the slots before started_on, in week order, drawn LAST
+//                (after Done): they need no action and are not missed, so
+//                they never sit above Today or beside a Missed card
+//   caption    — "Your plan started {Weekday}." while a notStarted card shows
+export function thisWeekCards(week, exercisesByDay = {}, { startedOn = null, now = new Date() } = {}) {
   const items = Array.isArray(week) ? week : [];
   if (!items.some((item) => WEEK_STATUSES.has(item?.status))) {
     return null;
   }
   const cards = items
-    .filter((item) => item?.is_workout_day !== false && item?.plan_day && WEEK_STATUSES.has(item.status) && item.status !== 'rest')
-    .map((item) => {
+    .filter((item) => item?.is_workout_day !== false && item?.plan_day && WEEK_STATUSES.has(item.status))
+    .map((item) => ({ item, status: slotState({ item, startedOn, now }) }))
+    .filter(({ item, status }) => item.status !== 'rest' || (status === 'notStarted' && item.is_workout_day === true))
+    .map(({ item, status }) => {
       const weekday = weekdayOf(item);
       const exercises = exercisesByDay[item.plan_day.id] ?? [];
       return {
         key: `${weekday?.id ?? item.date}-${item.plan_day.id}`,
-        status: item.status,
+        status,
         weekday,
         date: dayOfMonth(item.date),
         dayId: item.plan_day.id,
@@ -233,6 +247,7 @@ export function thisWeekCards(week, exercisesByDay = {}) {
       };
     });
   const done = cards.filter((card) => card.status === 'done');
+  const notStarted = cards.filter((card) => card.status === 'notStarted');
   return {
     today: cards.find((card) => card.status === 'today') ?? null,
     others: cards.filter((card) => card.status === 'missed' || card.status === 'upcoming'),
@@ -246,6 +261,8 @@ export function thisWeekCards(week, exercisesByDay = {}) {
           label: `Done ${joinWithAnd(done.map((card) => card.weekday?.label).filter(Boolean))}`,
         }
       : null,
+    notStarted,
+    caption: notStartedCaption(notStarted.map(() => ({ kind: 'notStarted' })), startedOn),
   };
 }
 
@@ -313,17 +330,43 @@ function scheduledDays(schedule) {
   return [...byId.entries()].sort((a, b) => a[0] - b[0]).map(([weekdayId, planDay]) => ({ weekdayId, planDay }));
 }
 
-// "Your week": 7 circles Monday first [{ id, letter, label, training, today }]
-// or null (the week hides; never seven rest days).
-// - A VALID /week is used as is: training = is_workout_day AND status ≠ rest
-//   (a training weekday before the enrollment comes back as rest); today =
-//   the entry dated the device's local date. No training day → null.
+// "Your week": 7 circles Monday first or null (the week hides; never seven
+// rest days). Each circle: { id, key, letter, short, kind, label, count,
+// training, today, a11y } — `label` is the text under the circle, `a11y`
+// the day's screen-reader label.
+// - T-81 (PM ruling 4): with a valid /week AND the week's completed workouts
+//   (an array), the shared DATE strip = weekByDate(): done (on the day you
+//   trained, any workout, ×n when count > 1) · notStarted · missed · today ·
+//   train · rest. Null when no day is a training day and none is done.
+// - A valid /week without the completed workouts (that call failed) keeps the
+//   pre-T-81 strip: training = is_workout_day AND status ≠ rest (a training
+//   weekday before the enrollment comes back as rest); today = the entry
+//   dated the device's local date. No training day → null.
 // - Only a missing/failed /week falls back to the enrollment schedule (today
 //   = the local weekday); no schedule day → null.
-export function weekCircles({ week, schedule, now = new Date() }) {
+export function weekCircles({ week, schedule, completed, startedOn, now = new Date() }) {
+  if (isValidWeek(week) && Array.isArray(completed)) {
+    const cells = weekByDate({ week, completed, startedOn, now });
+    if (!cells || !cells.some((cell) => cell.training || cell.kind === 'done')) {
+      return null;
+    }
+    return cells.map((cell) => ({ ...cell, id: Number(cell.key), today: cell.isToday }));
+  }
   const circle = (id, training, today) => {
     const weekday = WEEKDAYS[id - 1];
-    return { id, letter: weekday.label[0], label: weekday.label, training, today };
+    const kind = today ? (training ? 'today' : 'todayRest') : training ? 'train' : 'rest';
+    return {
+      id,
+      key: String(id),
+      letter: weekday.label[0],
+      short: weekday.label,
+      kind,
+      label: today ? 'Today' : training ? 'Train' : 'Rest',
+      count: 0,
+      training,
+      today,
+      a11y: `${weekday.label}: ${training ? 'training' : 'rest'}${today ? ', today' : ''}`,
+    };
   };
   if (isValidWeek(week)) {
     const todayKey = localDateKey(now);
@@ -340,9 +383,10 @@ export function weekCircles({ week, schedule, now = new Date() }) {
   return WEEKDAYS.map((weekday) => circle(weekday.id, days.has(weekday.id), weekday.id === todayId));
 }
 
-// "Mon: training", "Wed: rest", "Thu: training, today", "Sat: rest, today".
+// The circle's screen-reader label: "Mon: training", "Thu: training, today"
+// (pre-T-81 strip), "Wed: done, 2 workouts", "Mon: not started" (T-81).
 export function weekDayLabel(circle) {
-  return `${circle.label}: ${circle.training ? 'training' : 'rest'}${circle.today ? ', today' : ''}`;
+  return circle.a11y;
 }
 
 // The day title as Today shows it: the title, else "Day {n}".

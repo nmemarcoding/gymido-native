@@ -96,6 +96,49 @@ describe('weekCircles (Your week)', () => {
   });
 });
 
+describe('weekCircles, T-81 date strip (PM ruling 4: weekByDate with the completed workouts)', () => {
+  // started_at at local noon, so the local date is the given one.
+  const did = (date, extra = {}) => ({ status: 'completed', started_at: new Date(`${date}T12:00:00`).toISOString(), ...extra });
+
+  it('done = the day you trained (any day, also a non-training day); missed = a past training day with none; train / rest / today', () => {
+    // Mon's plan day was done on Tue (a rest day): the tick goes on TUESDAY.
+    const circles = weekCircles({ week: week(), schedule: SCHEDULE, completed: [did('2026-10-27')], now: THU });
+    expect(circles.map((c) => c.kind)).toEqual(['missed', 'done', 'rest', 'today', 'rest', 'train', 'rest']);
+    expect(circles.map((c) => c.label)).toEqual(['Missed', 'Done', 'Rest', 'Today', 'Rest', 'Train', 'Rest']);
+    expect(circles.map(weekDayLabel)).toEqual(['Mon: missed', 'Tue: done', 'Wed: rest', 'Thu: today, training', 'Fri: rest', 'Sat: training', 'Sun: rest']);
+    expect(circles.map((c) => c.id)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(circles.map((c) => c.today)).toEqual([false, false, false, true, false, false, false]);
+  });
+
+  it('×n: two workouts on one date → count 2, SR "Wed: done, 2 workouts"; today done → "Thu: today, done"', () => {
+    const circles = weekCircles({ week: week(), schedule: SCHEDULE, completed: [did('2026-10-28'), did('2026-10-28'), did('2026-10-29')], now: THU });
+    expect([circles[2].kind, circles[2].count, circles[2].label]).toEqual(['done', 2, 'Done']);
+    expect(weekDayLabel(circles[2])).toBe('Wed: done, 2 workouts');
+    expect(weekDayLabel(circles[3])).toBe('Thu: today, done');
+    expect(circles[3].today).toBe(true);
+  });
+
+  it('notStarted: a training day before started_on (date-only), no label, SR "Mon: not started"', () => {
+    const circles = weekCircles({ week: week({ 1: { status: 'rest' } }), schedule: SCHEDULE, completed: [], startedOn: '2026-10-28T00:00:00Z', now: THU });
+    expect([circles[0].kind, circles[0].label, weekDayLabel(circles[0])]).toEqual(['notStarted', '', 'Mon: not started']);
+  });
+
+  it('null when no day trains and none is done; a done day alone keeps the week', () => {
+    const rest = DATES.map((date, index) => ({ weekday: wd(index + 1), is_workout_day: false, date, status: 'rest' }));
+    expect(weekCircles({ week: rest, schedule: SCHEDULE, completed: [], now: THU })).toBeNull();
+    expect(weekCircles({ week: rest, schedule: SCHEDULE, completed: [did('2026-10-27')], now: THU }).map((c) => c.kind)[1]).toBe('done');
+  });
+
+  it('completed failed (null / undefined) → the pre-T-81 strip (no done / missed); /week missing → the schedule', () => {
+    for (const completed of [null, undefined]) {
+      const circles = weekCircles({ week: week(), schedule: SCHEDULE, completed, now: THU });
+      expect(circles.map((c) => c.kind)).toEqual(['train', 'rest', 'rest', 'today', 'rest', 'train', 'rest']);
+      expect(circles.map((c) => c.count)).toEqual([0, 0, 0, 0, 0, 0, 0]);
+    }
+    expect(weekCircles({ week: null, schedule: SCHEDULE, completed: [did('2026-10-27')], now: THU }).map((c) => c.kind)).toEqual(['train', 'rest', 'rest', 'today', 'rest', 'train', 'rest']);
+  });
+});
+
 describe('nextWorkout (§2a)', () => {
   const todayDay = pd(12, 'Lower A');
 

@@ -7,6 +7,7 @@ import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
 import { breakpoints, colors, textScale, typography } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
 import { getCurrentPlan, listPlanDays } from '../plans/api/libraryApi';
+import { startDateKey, weekProgressByDate } from '../plans/weekByDate';
 import { applySavedWeightLog, useProfileStore } from '../profile/profileStore';
 import ShellPage from '../shell/ShellPage';
 import { openPlanDetailAlone, openShellPath } from '../shell/shellLinks';
@@ -29,7 +30,7 @@ import {
 } from './homeFormat';
 import { RecentWorkouts, TodayHero, TodayStats, WeekCard, WeightCard, WeightValues } from './TodayPlanView';
 import { LARGE_TEXT as LT, TodayEmpty, TodayError, TodayHeader, TodayLoading, useReflow } from './TodayStates';
-import { getCurrentWorkout } from '../workout/api/workoutApi';
+import { getCurrentWorkout, listCompletedWorkouts } from '../workout/api/workoutApi';
 import { verifySessionState } from '../workout/runtime/workoutSessionStore';
 import WeightLogModal from './WeightLogModal';
 
@@ -53,18 +54,50 @@ export default function HomeScreen() {
 // Batch B #3: days > 0 and no schedule → the day count, else null. Any
 // failure simply means no setup card. ND4: the same days request also
 // gives today's exercises_count (no second call); failure → no days.
+// T-81: the same /my-plans/current read gives enrollment.started_on (date
+// only, never converted to local); none / failure → null (no Not-started day).
 async function loadPlanDays() {
+  let startedOn = null;
   try {
     const current = await getCurrentPlan();
+    startedOn = startDateKey(current?.enrollment?.started_on);
     const planId = current?.enrollment?.plan?.id;
     if (!planId) {
-      return { setupDayCount: null, days: null };
+      return { setupDayCount: null, days: null, startedOn };
     }
     const days = await listPlanDays(planId);
     const setupDayCount = days.length > 0 && (current.schedule || []).length === 0 ? days.length : null;
-    return { setupDayCount, days };
+    return { setupDayCount, days, startedOn };
   } catch {
-    return { setupDayCount: null, days: null };
+    return { setupDayCount: null, days: null, startedOn };
+  }
+}
+
+// U1 + T-81: /my-plans/current/week, then the week's completed workouts
+// (GET /workouts?status=completed, week[0].date..week[6].date). Never
+// rejects: no week (404 / failure) → { week: null } (the strip hides, the
+// ring keeps quick_stats); a failed workouts read → [] (the strip still
+// shows from /week).
+export async function loadWeek() {
+  let week = null;
+  try {
+    week = await getCurrentWeek();
+  } catch {
+    week = null;
+  }
+  if (!Array.isArray(week) || week.length !== 7) {
+    return { week: null, completed: [] };
+  }
+  const startDate = week[0]?.date;
+  const endDate = week[6]?.date;
+  if (!startDate || !endDate) {
+    return { week, completed: [] };
+  }
+  try {
+    const completed = await listCompletedWorkouts({ startDate, endDate });
+    return { week, completed: Array.isArray(completed) ? completed : [] };
+  } catch {
+    return { week, completed: [] };
   }
 }
 
@@ -84,7 +117,10 @@ function Home() {
   // ND4: the plan's days (GET /plans/{id}/days), for today's exercise count.
   const [planDays, setPlanDays] = useState(null);
   // U1: the week strip; null (hidden) until loaded or on any failure.
+  // T-81: + the week's completed workouts and enrollment.started_on.
   const [week, setWeek] = useState(null);
+  const [completed, setCompleted] = useState([]);
+  const [startedOn, setStartedOn] = useState(null);
   // T-63: GET /workouts/current gave a session → "Resume workout".
   const [sessionOpen, setSessionOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -104,10 +140,18 @@ function Home() {
       if (mounted.current) {
         setSetupDayCount(result.setupDayCount);
         setPlanDays(result.days);
+        setStartedOn(result.startedOn);
       }
     });
-    // U1: optional, never blocks or fails the page.
-    getCurrentWeek().then((days) => mounted.current && setWeek(days));
+    // U1: optional, never fails the page. T-81: the page waits for it (and
+    // its workouts read) so the ring never switches from quick_stats to the
+    // /week numbers after it shows.
+    const weekLoad = loadWeek().then((result) => {
+      if (mounted.current) {
+        setWeek(result.week);
+        setCompleted(result.completed);
+      }
+    });
     // T-63 (H1.3 dated 27 Oct): one GET /workouts/current per load, in
     // parallel; a failed read keeps the usual label. The same read is the
     // T-59 re-check: a workout ended elsewhere must not leave its stored rest
@@ -118,7 +162,7 @@ function Home() {
       (session) => mounted.current && setSessionOpen(isSessionOpen(session)),
       () => {}
     );
-    Promise.allSettled([getDashboard(), setupLoad, sessionLoad]).then(([dashboard]) => {
+    Promise.allSettled([getDashboard(), setupLoad, sessionLoad, weekLoad]).then(([dashboard]) => {
       if (!mounted.current) {
         return;
       }
@@ -220,7 +264,7 @@ function Home() {
     );
   }
 
-  const strip = weekStrip(week);
+  const strip = weekStrip({ week, completed, startedOn });
   const card = todayCard(dashboard, setupDayCount, sessionOpen);
   return (
     <View style={[styles.page, tablet && styles.pageTablet]}>
@@ -238,7 +282,7 @@ function Home() {
         onPrimary={() => openShellPath('/workout')}
         onViewPlan={() => openPlanDetailAlone(plan.id)}
       />
-      <TodayStats ring={weekRing(dashboard)} tablet={tablet} reflow={reflow} />
+      <TodayStats ring={weekRing(dashboard, weekProgressByDate({ week, startedOn }))} tablet={tablet} reflow={reflow} />
       {strip ? <WeekCard strip={strip} tablet={tablet} reflow={reflow} onSeeProgress={() => openShellPath('/progress')} /> : null}
       <WeightCard
         hasData={weight.hasData}

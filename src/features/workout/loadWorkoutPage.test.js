@@ -80,6 +80,42 @@ describe('loadWorkoutPage: T-76 week + generator', () => {
   });
 });
 
+// T-81: the completed list covers the /week dates and keeps started_at.
+describe('loadWorkoutPage: T-81 completed workouts for the /week dates', () => {
+  const weekFrom = (dates) => dates.map((date, index) => ({ weekday: { id: index + 1 }, date, status: 'rest', is_workout_day: false }));
+  const THIS_WEEK = ['2026-10-19', '2026-10-20', '2026-10-21', '2026-10-22', '2026-10-23', '2026-10-24', '2026-10-25'];
+  const NEXT_WEEK = ['2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29', '2026-10-30', '2026-10-31', '2026-11-01'];
+
+  it('the same Mon–Sun as /week: one call, the rows as is (started_at kept)', async () => {
+    const rows = [{ workout_plan_day_id: 7, started_at: '2026-10-22T08:00:00Z', completed_at: '2026-10-22T09:00:00Z' }];
+    const calls = api({ getCurrentWeek: jest.fn(() => Promise.resolve(weekFrom(THIS_WEEK))), listCompletedWorkouts: jest.fn(() => Promise.resolve(rows)) });
+    const result = await loadWorkoutPage({ api: calls, now: new Date(2026, 9, 22) });
+    expect(calls.listCompletedWorkouts).toHaveBeenCalledTimes(1);
+    expect(result.data.completedThisWeek).toBe(rows);
+    expect(result.data.completedThisWeek[0].started_at).toBe('2026-10-22T08:00:00Z');
+  });
+
+  it('/week is another week (Sunday → Monday midnight between device and server): fetched again for week[0]..week[6]', async () => {
+    const old = [{ workout_plan_day_id: 7, started_at: '2026-10-25T20:00:00Z' }];
+    const fresh = [{ workout_plan_day_id: 8, started_at: '2026-10-26T00:10:00Z' }];
+    const listCompletedWorkouts = jest.fn(({ startDate }) => Promise.resolve(startDate === '2026-10-26' ? fresh : old));
+    const calls = api({ getCurrentWeek: jest.fn(() => Promise.resolve(weekFrom(NEXT_WEEK))), listCompletedWorkouts });
+    const result = await loadWorkoutPage({ api: calls, now: new Date(2026, 9, 25, 23, 59, 59) });
+    expect(listCompletedWorkouts.mock.calls).toEqual([[{ startDate: '2026-10-19', endDate: '2026-10-25' }], [{ startDate: '2026-10-26', endDate: '2026-11-01' }]]);
+    expect(result.data).toMatchObject({ completedThisWeek: fresh, completedThisWeekDayIds: [8] });
+  });
+
+  it('a failed /week keeps the local-week list; a failed refetch is an empty list, never a failed page', async () => {
+    const calls = api({ getCurrentWeek: jest.fn(() => fail(500)) });
+    expect((await loadWorkoutPage({ api: calls, now: new Date(2026, 9, 22) })).data.completedThisWeekDayIds).toEqual([7]);
+    expect(calls.listCompletedWorkouts).toHaveBeenCalledTimes(1);
+    const failing = jest.fn(({ startDate }) => (startDate === '2026-10-26' ? fail(500) : Promise.resolve([{ workout_plan_day_id: 7 }])));
+    const result = await loadWorkoutPage({ api: api({ getCurrentWeek: jest.fn(() => Promise.resolve(weekFrom(NEXT_WEEK))), listCompletedWorkouts: failing }), now: new Date(2026, 9, 22) });
+    expect(result.ok).toBe(true);
+    expect(result.data).toMatchObject({ completedThisWeek: [], completedThisWeekDayIds: [] });
+  });
+});
+
 describe('loadWorkoutPage reconciles the stored session (T-59)', () => {
   jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn(() => Promise.resolve()) }));
   const { endSessionState, peekSession, sessionEntry } = require('./runtime/workoutSessionStore');

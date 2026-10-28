@@ -25,6 +25,7 @@ jest.mock('../api/libraryApi', () => ({
   listDifficultyLevels: jest.fn(),
 }));
 jest.mock('../../myPlans/api/myPlansApi', () => ({ listMyPlans: jest.fn() }));
+jest.mock('../../workout/api/workoutApi', () => ({ listCompletedWorkouts: jest.fn() }));
 jest.mock('../../planGenerator/api/generatorApi', () => ({ getGeneratorProfile: jest.fn() }));
 
 import { StyleSheet } from 'react-native';
@@ -41,6 +42,9 @@ import { getGeneratorProfile } from '../../planGenerator/api/generatorApi';
 import { openShellPath } from '../../shell/shellLinks';
 import { getCurrentPlan, getCurrentToday, getCurrentWeek, listDifficultyLevels, listPlanDays, listPlans } from '../api/libraryApi';
 import PlansLibraryScreen from './PlansLibraryScreen';
+
+// T-81 (a requireMock, not one more body import).
+const { listCompletedWorkouts } = jest.requireMock('../../workout/api/workoutApi');
 
 function textOf(node) {
   return []
@@ -115,6 +119,9 @@ beforeEach(() => {
     { id: 13, title: 'Upper B', exercises_count: 1 },
   ]);
   listDifficultyLevels.mockResolvedValue([{ id: 2, name: 'Intermediate' }]);
+  // T-81: by default the completed-workouts read FAILS, so the suites above
+  // pin "a failure keeps today's circles"; the T-81 suite resolves it.
+  listCompletedWorkouts.mockRejectedValue(new Error('boom'));
 });
 
 describe('Plans states', () => {
@@ -825,5 +832,97 @@ describe('Plans large text (§9)', () => {
     expect(hosts(tree, 'plans-own-row-line')).toHaveLength(2);
     expect(hosts(tree, 'plans-catalog-row')).toHaveLength(2);
     expect(host(tree, 'plans-week-circle-1')).toBeDefined();
+  });
+});
+
+describe('T-81 Your week = the date strip (PM ruling 4; UX T81-week-strip-states)', () => {
+  const did = (date) => ({ status: 'completed', started_at: new Date(`${date}T12:00:00`).toISOString() });
+  const STARTED = { ...CURRENT, enrollment: { ...CURRENT.enrollment, started_on: '2026-10-28' } };
+
+  it('GET /workouts?status=completed for the /week range, after /week; the circles wait for it', async () => {
+    listCompletedWorkouts.mockReturnValue(pending());
+    const tree = await render();
+    expect(listCompletedWorkouts).toHaveBeenCalledTimes(1);
+    expect(listCompletedWorkouts).toHaveBeenCalledWith({ startDate: '2026-10-26', endDate: '2026-11-01' });
+    expect(getCurrentWeek).toHaveBeenCalledTimes(1);
+    expect(host(tree, 'plans-week')).toBeUndefined();
+  });
+
+  it('/week failed → no completed call; the schedule circles as before', async () => {
+    getCurrentWeek.mockRejectedValue(new Error('boom'));
+    const tree = await render();
+    expect(listCompletedWorkouts).not.toHaveBeenCalled();
+    expect(host(tree, 'plans-week-day-4').props.accessibilityLabel).toBe('Thu: training, today');
+  });
+
+  it('done = teal tick on the day you trained (also a non-training day); missed = dashed text-muted + "Missed"; today ring; SR from the cells', async () => {
+    // Mon's plan day done on Tue (a rest day): Tue ticks, Mon is missed.
+    listCompletedWorkouts.mockResolvedValue([did('2026-10-27')]);
+    const tree = await render();
+    expect([1, 2, 3, 4].map((id) => host(tree, `plans-week-day-${id}`).props.accessibilityLabel)).toEqual(['Mon: missed', 'Tue: done', 'Wed: rest', 'Thu: today, training']);
+    expect(flat(host(tree, 'plans-week-circle-2'))).toEqual(expect.objectContaining({ width: 36, height: 36, backgroundColor: colors.teal }));
+    expect(host(tree, 'plans-week-tick-2')).toBeDefined();
+    expect(host(tree, 'plans-week-letter-2')).toBeUndefined();
+    expect(host(tree, 'plans-week-badge-2')).toBeUndefined();
+    expect(textOf(host(tree, 'plans-week-label-2'))).toBe('Done');
+    expect(flat(host(tree, 'plans-week-label-2'))).toEqual(expect.objectContaining({ fontSize: 11, color: colors.teal }));
+    expect(flat(host(tree, 'plans-week-circle-1'))).toEqual(expect.objectContaining({ borderStyle: 'dashed', borderColor: colors.textMuted }));
+    expect(textOf(host(tree, 'plans-week-label-1'))).toBe('Missed');
+    expect(flat(host(tree, 'plans-week-circle-3'))).toEqual(expect.objectContaining({ borderStyle: 'dashed', borderColor: colors.hairlineBright }));
+    expect(flat(host(tree, 'plans-week-circle-4'))).toEqual(expect.objectContaining({ backgroundColor: colors.gold }));
+    expect(flat(host(tree, 'plans-week-ring-4'))).toEqual(expect.objectContaining({ borderColor: colors.gold }));
+    expect(host(tree, 'plans-week-caption')).toBeUndefined();
+  });
+
+  it('×n: two workouts on one date → the badge (20h, min 22, pad 5, full radius, surface fill, 1.5 teal ring, "×2" 13/600 teal tabular), SR-hidden', async () => {
+    listCompletedWorkouts.mockResolvedValue([did('2026-10-26'), did('2026-10-26')]);
+    const tree = await render();
+    expect(host(tree, 'plans-week-day-1').props.accessibilityLabel).toBe('Mon: done, 2 workouts');
+    const badge = host(tree, 'plans-week-badge-1');
+    expect(flat(badge)).toEqual(
+      expect.objectContaining({ position: 'absolute', top: -4, right: -6, height: 20, minWidth: 22, paddingHorizontal: 5, borderRadius: radii.full, backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.teal })
+    );
+    const text = badge.findAll((node) => node.type === 'Text')[0];
+    expect(textOf(text)).toBe('×2');
+    expect(flat(text)).toEqual(expect.objectContaining({ fontSize: 13, ...font(600), color: colors.teal, fontVariant: ['tabular-nums'] }));
+    // The badge sits inside the SR-hidden circle box.
+    let node = badge.parent;
+    while (node && node.props.accessibilityElementsHidden !== true) {
+      node = node.parent;
+    }
+    expect(node?.props.importantForAccessibility).toBe('no-hide-descendants');
+  });
+
+  it('notStarted: filled white 0.07 disc, muted letter, NO label, SR "Mon: not started"; the caption "Your plan started Wednesday."', async () => {
+    getCurrentPlan.mockResolvedValue(STARTED);
+    getCurrentWeek.mockResolvedValue(weekOf({ 1: { status: 'rest' } }));
+    listCompletedWorkouts.mockResolvedValue([]);
+    const tree = await render();
+    expect(host(tree, 'plans-week-day-1').props.accessibilityLabel).toBe('Mon: not started');
+    const circle = flat(host(tree, 'plans-week-circle-1'));
+    expect(circle).toEqual(expect.objectContaining({ backgroundColor: colors.fillSkeleton }));
+    expect(circle.borderWidth).toBeUndefined();
+    expect(flat(host(tree, 'plans-week-letter-1'))).toEqual(expect.objectContaining({ fontSize: 14, ...font(600), color: colors.textMuted }));
+    expect(textOf(host(tree, 'plans-week-label-1'))).toBe('');
+    const caption = host(tree, 'plans-week-caption');
+    expect(textOf(caption)).toBe('Your plan started Wednesday.');
+    expect(flat(caption)).toEqual(expect.objectContaining({ fontSize: 13, lineHeight: 18, color: colors.textMuted, marginTop: 10 }));
+    // Plain text after the list (not inside it).
+    const days = host(tree, 'plans-week-days');
+    expect(days.findAll((node) => node.props.testID === 'plans-week-caption')).toHaveLength(0);
+  });
+
+  it('the strip keeps this view\'s scale: 32 below 360, 40 tablet, 44 ≥ 1024', async () => {
+    listCompletedWorkouts.mockResolvedValue([did('2026-10-27')]);
+    for (const [window, px] of [
+      [{ width: 320, height: 640, fontScale: 1 }, 32],
+      [{ width: 834, height: 1194, fontScale: 1 }, 40],
+      [{ width: 1194, height: 834, fontScale: 1 }, 44],
+    ]) {
+      mockWindow = window;
+      const tree = await render();
+      expect(flat(host(tree, 'plans-week-circle-2'))).toEqual(expect.objectContaining({ width: px, height: px, backgroundColor: colors.teal }));
+      act(() => tree.unmount());
+    }
   });
 });

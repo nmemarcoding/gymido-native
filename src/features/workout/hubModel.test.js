@@ -4,6 +4,7 @@ import {
   dayRows,
   effectiveWeek,
   hubState,
+  hubWeek,
   muscleLine,
   startConfirmCopy,
   todayDoneDetail,
@@ -131,6 +132,73 @@ describe('weekStrip: Mon–Sun cells (C3 missed, SR labels)', () => {
 
   it('no valid week → null (the week card hides)', () => {
     expect(weekStrip(undefined, NOW)).toBeNull();
+  });
+});
+
+// T-81 (PM "DECIDED" + RN-SPEC T-81): the server's /week goes by date; the
+// /week-failed fallback stays exactly as before.
+describe('T-81 hubWeek + hubState by date', () => {
+  const at = (d, h = 10) => new Date(2026, 9, d, h).toISOString();
+  // The plan started Wednesday 28 Oct; /week says Mon/Tue were not slots yet.
+  const preStart = WEEK.map((entry, index) => (index < 2 ? { ...entry, status: 'rest' } : entry));
+  const STARTED = '2026-10-28';
+
+  it('Not started: training days before started_on, empty label, SR "Mon: not started", the caption; X of Y from started_on', () => {
+    const view = hubWeek({ week: preStart, schedule: SCHEDULE, completed: [], startedOn: STARTED, now: NOW });
+    expect(view.byDate).toBe(true);
+    expect(view.week).toBe(preStart);
+    expect(view.strip.map((cell) => cell.kind)).toEqual(['notStarted', 'notStarted', 'rest', 'today', 'rest', 'train', 'rest']);
+    expect(view.strip[0]).toMatchObject({ label: '', a11y: 'Mon: not started', letter: 'M' });
+    expect(view.caption).toBe('Your plan started Wednesday.');
+    expect(view.progress).toEqual({ done: 0, total: 2, complete: false });
+  });
+
+  it('×n and Done on a non-training day: the workouts by the LOCAL date of started_at', () => {
+    const completed = [
+      { workout_plan_day_id: 1, started_at: at(26) },
+      { workout_plan_day_id: 2, started_at: at(28, 8) },
+      { workout_plan_day_id: 3, started_at: at(28, 18) },
+    ];
+    const view = hubWeek({ week: WEEK, schedule: SCHEDULE, completed, startedOn: '2026-10-01', now: NOW });
+    expect(view.strip[2]).toMatchObject({ kind: 'done', label: 'Done', count: 2, training: false, a11y: 'Wed: done, 2 workouts' });
+    expect(view.strip[0]).toMatchObject({ kind: 'done', count: 1, a11y: 'Mon: done' });
+    // Tue's slot is "done" on /week but nothing was STARTED on Tue: Missed by date.
+    expect(view.strip[1]).toMatchObject({ kind: 'missed', a11y: 'Tue: missed' });
+    expect(view.caption).toBeNull();
+    // X = the /week slots done (any day): Mon + Tue.
+    expect(view.progress).toEqual({ done: 2, total: 4, complete: false });
+  });
+
+  it('no /week: the fallback week through weekStrip / weekProgress, no Not started, no ×n, no caption', () => {
+    const completed = [{ workout_plan_day_id: 1, started_at: at(28, 8) }, { workout_plan_day_id: 3, started_at: at(28, 18) }];
+    const view = hubWeek({ week: null, schedule: SCHEDULE, doneIds: [1], completed, startedOn: STARTED, now: NOW });
+    const built = effectiveWeek({ week: null, schedule: SCHEDULE, doneIds: [1], now: NOW });
+    expect(view.byDate).toBe(false);
+    expect(view.week).toEqual(built);
+    expect(view.strip).toEqual(weekStrip(built, NOW));
+    expect(view.strip.map((cell) => cell.kind)).toEqual(['done', 'missed', 'rest', 'today', 'rest', 'train', 'rest']);
+    expect(view.progress).toEqual({ done: 1, total: 4 });
+    expect(view.caption).toBeNull();
+    expect(hubWeek({ week: null, schedule: [], now: NOW })).toMatchObject({ week: null, strip: null, progress: null, caption: null });
+  });
+
+  it('week complete = Y > 0 && X == Y, Y counted from started_on (the plan days, on any days)', () => {
+    const plan = { ...PLAN, enrollment: { ...PLAN.enrollment, started_on: `${STARTED}T00:00:00Z` } };
+    const rest = { is_workout_day: false };
+    const doneAfterStart = preStart.map((entry, index) => (index === 3 || index === 5 ? { ...entry, status: 'done' } : entry));
+    expect(hubState({ currentPlan: plan, todayStatus: rest, planDays: DAYS, week: doneAfterStart })).toBe('weekComplete');
+    // Without started_on, Mon/Tue still count: 2 of 4, not complete.
+    expect(hubState({ currentPlan: PLAN, todayStatus: rest, planDays: DAYS, week: doneAfterStart })).toBe('rest');
+    // Y = 0 (every training day before the start) is never complete.
+    const late = { ...PLAN, enrollment: { ...PLAN.enrollment, started_on: '2026-11-02' } };
+    expect(hubState({ currentPlan: late, todayStatus: rest, planDays: DAYS, week: doneAfterStart })).toBe('rest');
+  });
+
+  it('the fallback (byDate false) keeps the pre-T-81 week-complete rule', () => {
+    const allDone = WEEK.map((entry) => (entry.plan_day ? { ...entry, status: 'done' } : entry));
+    const plan = { ...PLAN, enrollment: { ...PLAN.enrollment, started_on: '2026-11-02' } };
+    expect(hubState({ currentPlan: plan, todayStatus: { is_workout_day: false }, planDays: DAYS, week: allDone, byDate: false })).toBe('weekComplete');
+    expect(hubState({ currentPlan: plan, todayStatus: { is_workout_day: false }, planDays: DAYS, week: allDone })).toBe('rest');
   });
 });
 

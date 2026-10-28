@@ -2,6 +2,7 @@ import { formatNumber, formatToGoal, formatWeight, parseDecimal } from '../../sh
 import { convertWeight } from '../../shared/format/weight';
 import { formatDate, formatDuration, formatLocalDateForInput } from '../../shared/time/format';
 import { formatCount } from '../../shared/format/counts';
+import { notStartedCaption, weekByDate } from '../plans/weekByDate';
 
 // Rules and copy of RN-SPEC-home (dated changes of 23 Oct included). Pure.
 
@@ -170,61 +171,51 @@ export function heroDayTitle(dashboard, card) {
   return typeof title === 'string' && title.trim() ? title : null;
 }
 
-const WEEKDAY_LONG = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const CELL_LABELS = { done: 'Done', today: 'Today', upcoming: 'Workout day', missed: 'Missed', rest: 'Rest day' };
-
-function localIsoDate(now) {
-  return formatLocalDateForInput(now);
-}
-
-// U1 "Your week" (ND1, PM approved): GET /my-plans/current/week `week[]`
-// (Monday first) with BE #9 `date` + `status` (done | today | upcoming |
-// missed | rest). Without status (older server) a workout day is
-// "upcoming" (today's: "today") and any other day "rest". `isToday` drives
-// the gold day letter. Labels: "{weekday}, {status}" (UX E a11y).
-export function weekStrip(week, now = new Date()) {
-  if (!Array.isArray(week) || week.length === 0) {
+// T-81 (PM "DECIDED" 28 Oct 2026, ruling 2): Today's "Your week" strip is
+// the shared per-DATE week (plans/weekByDate): /my-plans/current/week +
+// the week's completed workouts (by the local date of started_at) +
+// enrollment.started_on. Kinds: done (count > 1 → "×n") · notStarted ·
+// missed · today / todayRest · train · rest. `a11y` = "Mon: not started",
+// "Wed: done, 2 workouts". Cells are keyed by date (the testIDs). `caption`
+// = "Your plan started {Weekday}." only while a Not-started day is in view.
+// null without a valid /week (the card hides; the client never guesses).
+export function weekStrip({ week, completed = [], startedOn = null, now = new Date() } = {}) {
+  const days = weekByDate({ week, completed, startedOn, now });
+  if (!days) {
     return null;
   }
-  const todayIso = localIsoDate(now);
-  const todayIndex = (now.getDay() + 6) % 7;
-  const cells = week.slice(0, 7).map((day, index) => {
-    const name = day?.weekday?.name || WEEKDAY_LONG[index] || '';
-    const isToday = day?.date ? day.date === todayIso : index === todayIndex;
-    let status = CELL_LABELS[day?.status] ? day.status : null;
-    if (!status) {
-      status = day?.is_workout_day ? (isToday ? 'today' : 'upcoming') : 'rest';
-    }
-    return {
-      key: day?.date || String(index),
-      name,
-      short: name.slice(0, 3),
-      letter: name.slice(0, 1),
-      status,
-      isToday,
-      workout: Boolean(day?.is_workout_day) || (status !== 'rest' && status !== null),
-      label: `${name}, ${CELL_LABELS[status]}`,
-    };
-  });
-  const training = cells.filter((cell) => cell.workout);
+  const cells = days.map((day) => ({ ...day, key: day.date || day.key }));
+  const training = cells.filter((cell) => cell.training);
   const todayCell = cells.find((cell) => cell.isToday);
-  const position = todayCell?.workout ? training.indexOf(todayCell) + 1 : 0;
+  const position = todayCell?.training ? training.indexOf(todayCell) + 1 : 0;
   return {
     cells,
     // The phone header's "Mon, Tue, Thu, Fri".
     trainingDays: training.map((cell) => cell.short).join(', '),
     // ND3 (tablet): "Day n of N" when today is a training day.
     dayOfWeek: position > 0 ? `Day ${position} of ${training.length}` : null,
+    caption: notStartedCaption(cells, startedOn),
   };
 }
 
-// ND8: the This-week ring tile: "{done} done · {planned} planned" and the ring label.
-export function weekRing(dashboard) {
+// ND8: the This-week ring tile: "{done} done · {planned} planned" and the ring
+// label. T-81 (PM ruling 2): X / Y from /week + started_on
+// (weekProgressByDate: X = /week days "done", Y = training days on or after
+// started_on), never quick_stats. Without a valid /week (`progress` null:
+// the call failed, no plan week) the ring keeps its old quick_stats numbers.
+export function weekRing(dashboard, progress = null) {
   const stats = todayEmptyStats(dashboard);
+  const thisWeek = progress ? progress.done : stats.thisWeek;
+  const planned = progress ? progress.total : stats.planned;
+  const thisWeekText = formatNumber(thisWeek, 0);
   return {
     ...stats,
-    caption: `${stats.thisWeekText} done · ${formatNumber(stats.planned, 0)} planned`,
-    ringLabel: `${stats.thisWeekText} of ${formatNumber(stats.planned, 0)} planned workouts done`,
+    thisWeek,
+    planned,
+    thisWeekText,
+    plannedText: `/${formatNumber(planned, 0)}`,
+    caption: `${thisWeekText} done · ${formatNumber(planned, 0)} planned`,
+    ringLabel: `${thisWeekText} of ${formatNumber(planned, 0)} planned workouts done`,
   };
 }
 

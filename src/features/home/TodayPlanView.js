@@ -255,32 +255,52 @@ export function TodayStats({ ring, tablet, reflow }) {
   );
 }
 
+// T-81 (UX T81-week-strip-states, on Today's own look and sizes): the
+// weekByDate kinds. done = gold + check (also on a non-training day; "×n"
+// badge when count > 1), today = gold ring + dot, missed = planned fill +
+// amber dot, train = planned fill, rest / todayRest = dashed, notStarted =
+// the 0.07 fill, no outline, letter text-muted.
 function WeekCell({ cell, tablet }) {
-  const done = cell.status === 'done';
-  const today = cell.status === 'today';
-  const missed = cell.status === 'missed';
-  const rest = cell.status === 'rest';
+  const done = cell.kind === 'done';
+  const today = cell.kind === 'today';
+  const missed = cell.kind === 'missed';
+  const rest = cell.kind === 'rest' || cell.kind === 'todayRest';
+  const notStarted = cell.kind === 'notStarted';
   return (
     <View style={[styles.weekColumn, tablet && styles.weekColumnTablet]}>
-      <Text {...LT.body} style={[tablet ? styles.weekLetterTablet : styles.weekLetter, cell.isToday && styles.weekLetterToday]}>
+      <Text
+        {...LT.body}
+        style={[tablet ? styles.weekLetterTablet : styles.weekLetter, notStarted && styles.weekLetterNotStarted, cell.isToday && styles.weekLetterToday]}
+      >
         {tablet ? cell.short : cell.letter}
       </Text>
       <View
         testID={`home-week-cell-${cell.key}`}
         accessible
-        accessibilityLabel={cell.label}
+        accessibilityLabel={cell.a11y}
         style={[
           styles.cell,
           tablet && styles.cellTablet,
           done && styles.cellDone,
           today && styles.cellToday,
-          (missed || cell.status === 'upcoming') && (tablet ? styles.cellPlannedTablet : styles.cellPlanned),
+          (missed || cell.kind === 'train') && (tablet ? styles.cellPlannedTablet : styles.cellPlanned),
           rest && styles.cellRest,
+          notStarted && styles.cellNotStarted,
         ]}
       >
         {done ? <CheckIcon size={tablet ? 18 : 15} color={colors.onGold} /> : null}
         {today ? <View style={[styles.cellDot, tablet && styles.cellDotTablet, styles.cellDotGold]} /> : null}
         {missed ? <View testID="home-week-missed-dot" style={[styles.cellDot, styles.cellDotWarning]} /> : null}
+        {done && cell.count > 1 ? (
+          <View
+            testID={`home-week-count-${cell.key}`}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={styles.countBadge}
+          >
+            <Text {...LT.badge} style={styles.countText}>{`\u00d7${cell.count}`}</Text>
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -311,6 +331,11 @@ export function WeekCard({ strip, tablet, reflow, onSeeProgress }) {
           <WeekCell key={cell.key} cell={cell} tablet={tablet} />
         ))}
       </View>
+      {strip.caption ? (
+        <Text testID="home-week-caption" {...LT.body} style={styles.weekCaption}>
+          {strip.caption}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -838,6 +863,9 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: colors.textFaint,
   },
+  weekLetterNotStarted: {
+    color: colors.textMuted,
+  },
   weekLetterToday: {
     ...font(600),
     color: colors.gold,
@@ -872,6 +900,42 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: colors.hairlineStrong,
+  },
+  // T-81 Not started: the 0.07 fill (fillSkeleton; web white 0.07), no outline.
+  cellNotStarted: {
+    backgroundColor: colors.fillSkeleton,
+  },
+  // T-81 "×n": top-right of the Done cell, may overhang the cell (not the column).
+  countBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    height: 20,
+    minWidth: 22,
+    paddingHorizontal: 5,
+    borderRadius: radii.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    // UX T-81 §5: one meaning, one colour per strip: Today's Done is gold, so
+    // its ×n badge is gold too (the hub's stays teal).
+    borderColor: colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countText: {
+    ...font(600),
+    fontSize: 13,
+    lineHeight: 16,
+    color: colors.gold,
+    fontVariant: ['tabular-nums'],
+  },
+  // T-81 "Your plan started {Weekday}." 13/18 text-muted, 10 under the strip.
+  weekCaption: {
+    ...font(400),
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: spacing['2_5'],
+    color: colors.textMuted,
   },
   cellDot: {
     width: 6,

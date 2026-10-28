@@ -3,7 +3,7 @@ import { act, create } from 'react-test-renderer';
 
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { NBSP } from '../../../shared/format/counts';
-import { colors, textScale } from '../../../shared/theme/tokens';
+import { colors, radii, textScale } from '../../../shared/theme/tokens';
 import { listDayExercises } from '../../plans/api/libraryApi';
 import { openShellPath } from '../../shell/shellLinks';
 import { startWorkout } from '../api/workoutApi';
@@ -112,6 +112,11 @@ const ex = (id, name, muscle) => ({ exercise: { id, name, primary_muscle_group: 
 const UPPER_B = [ex(1, 'Incline Press', 'Chest'), ex(2, 'Pull-up', 'Back'), ex(3, 'Push-up', 'Chest'), ex(4, 'Dumbbell Curl', 'Arms'), ex(5, 'Row', 'Back'), ex(6, 'Dip', 'Arms')];
 const PLAN = { enrollment: { id: 31, plan: { id: 9, name: 'Upper / Lower Split' } }, schedule: SCHEDULE };
 const TRAINING = { is_workout_day: true, already_completed: false, plan_day: DAYS[2] };
+// T-81: the strip goes by the LOCAL date of started_at, so the board's Mon/Tue
+// ticks need their completed workouts (Upper A Mon, Lower A Tue).
+const startedAt = (day, hour = 10) => new Date(2026, 9, day, hour).toISOString();
+const DONE_MON = { workout_plan_day_id: 1, started_at: startedAt(26), completed_at: startedAt(26, 11) };
+const DONE_TUE = { workout_plan_day_id: 2, started_at: startedAt(27), completed_at: startedAt(27, 11) };
 
 function hub(data = {}) {
   return {
@@ -123,7 +128,7 @@ function hub(data = {}) {
       planDays: DAYS,
       week: WEEK,
       generatorAvailable: false,
-      completedThisWeek: [],
+      completedThisWeek: [DONE_MON, DONE_TUE],
       completedThisWeekDayIds: [1, 2],
       exerciseStatsMap: {},
       ...data,
@@ -228,7 +233,7 @@ describe('state 1: training day (main board)', () => {
 
   it('week strip looks: 13/600 labels (N1), rest in text-muted (N2), missed dashed (C3)', async () => {
     const missed = WEEK.map((entry, index) => (index === 1 ? { ...entry, status: 'missed' } : entry));
-    const tree = await renderScreen(hub({ week: missed }));
+    const tree = await renderScreen(hub({ week: missed, completedThisWeek: [DONE_MON], completedThisWeekDayIds: [1] }));
     const label = (id) => host(tree.root, `workout-week-day-${id}`).findAll((node) => node.type === 'Text').at(-1);
     expect(flat(label(3))).toMatchObject({ fontSize: 13, color: colors.textMuted });
     expect(textOf(label(2))).toBe('Missed');
@@ -240,7 +245,7 @@ describe('state 1: training day (main board)', () => {
   // DECLARED (UX M1, web b6413372): the threshold is 320 (was 352): outer 349 wraps, 350 doesn't (was 381 / 382).
   it('a week with a missed day wraps the strip to 4 columns while the CONTENT width is under 320 (UX M1)', async () => {
     const missed = WEEK.map((entry, index) => (index === 1 ? { ...entry, status: 'missed' } : entry));
-    const tree = await renderScreen(hub({ week: missed }));
+    const tree = await renderScreen(hub({ week: missed, completedThisWeek: [DONE_MON], completedThisWeekDayIds: [1] }));
     // The strip is the card's content: outer width − 2 × (14 padding + 1 border).
     const card = flat(host(tree.root, 'workout-week'));
     const inset = 2 * (card.paddingHorizontal + card.borderWidth);
@@ -528,5 +533,107 @@ describe('layout per size', () => {
     expect(textOf(host(tree.root, 'workout-week-count'))).toBe('1 of 4 done');
     expect(host(tree.root, 'workout-week-day-2').props.accessibilityLabel).toBe('Tue: missed');
     expect(hosts(tree.root, 'workout-hero-start')).toHaveLength(1);
+  });
+});
+
+// T-81 (PM "DECIDED", UX T81-week-strip-states, RN-SPEC T-81).
+describe('T-81 week strip by date', () => {
+  const STARTED_WED = { ...PLAN, enrollment: { ...PLAN.enrollment, started_on: '2026-10-28T00:00:00Z' } };
+  // /week: Mon/Tue were before the plan started (no slot status yet).
+  const preStart = WEEK.map((entry, index) => (index < 2 ? { ...entry, status: 'rest' } : entry));
+  const label = (root, id) => host(root, `workout-week-day-${id}`).findAll((node) => node.type === 'Text').at(-1);
+
+  it('Not started: the filled disc, no outline, a muted 14/600 letter, an EMPTY label, SR "Mon: not started", the caption; X of Y from started_on', async () => {
+    const tree = await renderScreen(hub({ currentPlan: STARTED_WED, week: preStart, completedThisWeek: [], completedThisWeekDayIds: [] }));
+    const circle = flat(host(tree.root, 'workout-week-circle-1'));
+    expect(circle).toMatchObject({ width: 34, height: 34, backgroundColor: colors.fillSkeleton });
+    expect(circle.borderWidth).toBeUndefined();
+    const letter = host(tree.root, 'workout-week-circle-1').findAll((node) => node.type === 'Text')[0];
+    expect(textOf(letter)).toBe('M');
+    expect(flat(letter)).toMatchObject({ fontSize: 14, color: colors.textMuted, fontFamily: 'Geist-SemiBold' });
+    expect(textOf(label(tree.root, 1))).toBe('');
+    expect(host(tree.root, 'workout-week-day-1').props.accessibilityLabel).toBe('Mon: not started');
+    expect(host(tree.root, 'workout-week-day-2').props.accessibilityLabel).toBe('Tue: not started');
+    const caption = host(tree.root, 'workout-week-caption');
+    expect(textOf(caption)).toBe('Your plan started Wednesday.');
+    expect(flat(caption)).toMatchObject({ fontSize: 13, lineHeight: 18, color: colors.textMuted, marginTop: 10 });
+    expect(flat(caption).marginHorizontal).toBeUndefined();
+    // Y = Thu + Sat (on or after the start); nothing done yet.
+    expect(textOf(host(tree.root, 'workout-week-count'))).toBe('0 of 2 done');
+    expect(flat(host(tree.root, 'workout-week-bar')).width).toBe('0%');
+  });
+
+  it('no Not-started day in view → no caption', async () => {
+    const tree = await renderScreen();
+    expect(hosts(tree.root, 'workout-week-caption')).toHaveLength(0);
+  });
+
+  it('×n on a Done circle (also on a non-training day): the badge, hidden from screen readers; label "Done"; SR "Wed: done, 2 workouts"', async () => {
+    const extra = [
+      { workout_plan_day_id: 3, started_at: startedAt(28, 7) },
+      { workout_plan_day_id: 4, started_at: startedAt(28, 18) },
+    ];
+    const tree = await renderScreen(hub({ completedThisWeek: [DONE_MON, DONE_TUE, ...extra] }));
+    expect(flat(host(tree.root, 'workout-week-circle-3')).backgroundColor).toBe(colors.teal);
+    expect(textOf(label(tree.root, 3))).toBe('Done');
+    expect(flat(label(tree.root, 3)).color).toBe(colors.teal);
+    expect(host(tree.root, 'workout-week-day-3').props.accessibilityLabel).toBe('Wed: done, 2 workouts');
+    const badge = host(tree.root, 'workout-week-badge-3');
+    expect(badge.props.accessibilityElementsHidden).toBe(true);
+    expect(badge.props.importantForAccessibility).toBe('no-hide-descendants');
+    expect(flat(badge)).toMatchObject({
+      position: 'absolute',
+      top: -4,
+      right: -6,
+      height: 20,
+      minWidth: 22,
+      paddingHorizontal: 5,
+      borderRadius: radii.full,
+      backgroundColor: colors.surface,
+      borderWidth: 1.5,
+      borderColor: colors.teal,
+    });
+    const text = badge.findAll((node) => node.type === 'Text')[0];
+    expect(textOf(text)).toBe('×2');
+    expect(flat(text)).toMatchObject({ fontSize: 13, fontFamily: 'Geist-SemiBold', fontVariant: ['tabular-nums'], color: colors.teal });
+    // One workout → no badge.
+    expect(hosts(tree.root, 'workout-week-badge-1')).toHaveLength(0);
+    expect(host(tree.root, 'workout-week-day-1').props.accessibilityLabel).toBe('Mon: done');
+  });
+
+  it('Done goes on the day TRAINED: Monday\'s workout started Wednesday ticks Wednesday; X of Y still counts the plan day', async () => {
+    const monDoneOnWed = preStart.map((entry, index) => (index === 0 ? { ...entry, status: 'done' } : entry));
+    const tree = await renderScreen(
+      hub({ week: monDoneOnWed, completedThisWeek: [{ workout_plan_day_id: 1, started_at: startedAt(28) }], completedThisWeekDayIds: [1] })
+    );
+    const labels = [1, 2, 3, 4].map((id) => host(tree.root, `workout-week-day-${id}`).props.accessibilityLabel);
+    expect(labels).toEqual(['Mon: missed', 'Tue: missed', 'Wed: done', 'Thu: today, training']);
+    expect(textOf(host(tree.root, 'workout-week-count'))).toBe('1 of 4 done');
+  });
+
+  it('week complete with started_on: every training day from the start done → "Week complete", "2 of 2 done"', async () => {
+    const done = preStart.map((entry, index) => (index === 3 || index === 5 ? { ...entry, status: 'done' } : entry));
+    const tree = await renderScreen(
+      hub({
+        currentPlan: STARTED_WED,
+        todayStatus: { ...TRAINING, already_completed: true },
+        week: done,
+        completedThisWeek: [{ workout_plan_day_id: 3, started_at: startedAt(29, 7) }, { workout_plan_day_id: 4, started_at: startedAt(28, 7) }],
+        completedThisWeekDayIds: [3, 4],
+      })
+    );
+    expect(texts(host(tree.root, 'workout-hero'))).toEqual(expect.arrayContaining(['THIS WEEK', 'Week complete']));
+    expect(textOf(host(tree.root, 'workout-week-count'))).toBe('2 of 2 done');
+    expect(flat(host(tree.root, 'workout-week-bar')).width).toBe('100%');
+  });
+
+  it('no /week: the fallback is unchanged (no Not started, no ×n, no caption)', async () => {
+    const extra = [{ workout_plan_day_id: 3, started_at: startedAt(28, 7) }, { workout_plan_day_id: 4, started_at: startedAt(28, 18) }];
+    const tree = await renderScreen(hub({ currentPlan: STARTED_WED, week: null, completedThisWeek: extra, completedThisWeekDayIds: [1] }));
+    const labels = [1, 2, 3, 4, 5, 6, 7].map((id) => host(tree.root, `workout-week-day-${id}`).props.accessibilityLabel);
+    expect(labels).toEqual(['Mon: done', 'Tue: missed', 'Wed: rest', 'Thu: today, training', 'Fri: rest', 'Sat: training', 'Sun: rest']);
+    expect(hosts(tree.root, 'workout-week-caption')).toHaveLength(0);
+    expect(hosts(tree.root, 'workout-week-badge-3')).toHaveLength(0);
+    expect(textOf(host(tree.root, 'workout-week-count'))).toBe('1 of 4 done');
   });
 });

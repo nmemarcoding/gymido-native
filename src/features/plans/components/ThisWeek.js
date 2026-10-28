@@ -41,6 +41,9 @@ export default function ThisWeek({ cards, tablet = false, onStart, onOpenExercis
   if (cards.done) {
     items.push(<DoneCard key="done" done={cards.done} />);
   }
+  // T-81: the slots before started_on come last (after Done): no action is
+  // owed and they are not missed, so they never sit above Today.
+  (cards.notStarted ?? []).forEach((card) => items.push(<NotStartedCard key={card.key} card={card} />));
   if (items.length === 0) {
     return null;
   }
@@ -61,6 +64,11 @@ export default function ThisWeek({ cards, tablet = false, onStart, onOpenExercis
       ) : (
         <View style={styles.column}>{items}</View>
       )}
+      {cards.caption ? (
+        <Text {...CAP_BODY} testID="plan-week-caption" style={styles.caption}>
+          {cards.caption}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -193,6 +201,40 @@ function UpcomingCard({ card }) {
   );
 }
 
+// T-81 (UX T81-week-strip-states §1/§4, RN-SPEC T-81): a slot before the
+// plan's start. Quieter than Missed: the white 0.07 date tile, muted text, no
+// pill and no thumbnails; the caption under the list says when the plan
+// started. SR "Mon: not started, {title}".
+function NotStartedCard({ card }) {
+  return (
+    <View
+      testID={`plan-week-notStarted-${card.key}`}
+      accessible
+      accessibilityLabel={[`${card.weekday?.label ?? ''}: not started`, card.title].join(', ')}
+      style={styles.quietCard}
+    >
+      <View {...HIDDEN} testID={`plan-week-notStarted-tile-${card.key}`} style={[styles.dateTile, styles.notStartedTile]}>
+        <Text allowFontScaling={false} style={[styles.dateDay, styles.mutedText]}>
+          {(card.weekday?.label ?? '').toUpperCase()}
+        </Text>
+        {card.date ? (
+          <Text allowFontScaling={false} style={[styles.dateNumber, styles.mutedText]}>
+            {card.date}
+          </Text>
+        ) : null}
+      </View>
+      <View style={styles.middle}>
+        <Text {...NAME_TEXT} style={[styles.cardTitle, styles.mutedText]}>
+          {card.title}
+        </Text>
+        <Text {...CAP_BODY} {...ONE_LINE} style={styles.meta}>
+          {card.meta}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 function DoneCard({ done }) {
   return (
     <View testID="plan-week-done" accessible accessibilityLabel={`${done.titles}, ${done.label}`} style={[styles.quietCard, styles.doneCard]}>
@@ -281,6 +323,24 @@ const styles = StyleSheet.create({
   },
   doneTile: {
     backgroundColor: colors.goldTint,
+  },
+  // T-81 Not started: the web's white 0.07 fill (fillSkeleton is the 0.07
+  // fill token), no outline.
+  notStartedTile: {
+    backgroundColor: colors.fillSkeleton,
+  },
+  mutedText: {
+    color: colors.textMuted,
+  },
+  // T-81: "Your plan started {Weekday}." 13/18 text-muted, margin-top 10
+  // under the list (the section gap 12 already separates it; −2 → 10).
+  caption: {
+    ...font(400),
+    marginTop: -2,
+    paddingHorizontal: spacing[1],
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textMuted,
   },
   dateDay: {
     ...font(600),

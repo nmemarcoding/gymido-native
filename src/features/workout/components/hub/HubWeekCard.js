@@ -5,8 +5,14 @@ import { CAP_BODY, CAP_PILL } from '../../../../shared/components/largeText';
 import { colors, font, radii, spacing } from '../../../../shared/theme/tokens';
 import { CheckIcon } from './HubIcons';
 
-// T-76 "This week": "X of Y done", the teal bar and the Mon–Sun strip from
-// GET /my-plans/current/week (hubModel weekStrip / weekProgress). Labels are
+// T-76 "This week": "X of Y done", the teal bar and the Mon–Sun strip.
+// T-81: with a valid /week the cells come from plans/weekByDate (a calendar
+// of what was done when) and the count from weekProgressByDate (the /week
+// fallback keeps hubModel weekStrip / weekProgress). Not started = a filled
+// white 0.07 disc (fillSkeleton) with an EMPTY label, plus ONE caption under
+// the strip ("Your plan started {Weekday}."); a Done day with 2+ workouts
+// carries a "×n" badge (hidden from screen readers: the cell's label says
+// "n workouts"). Labels are
 // 13/600 (N1); rest and missed use text-muted (N2); missed is the dashed
 // circle (C3). Each day is one screen-reader stop ("Thu: today, training").
 // Past the large-text reflow the strip wraps to 3 columns. A week WITH a
@@ -16,7 +22,7 @@ import { CheckIcon } from './HubIcons';
 const CIRCLE = 34;
 export const MISSED_WRAP_BELOW = 320;
 
-export default function HubWeekCard({ strip, progress, reflow = false, style }) {
+export default function HubWeekCard({ strip, progress, caption = null, reflow = false, style }) {
   const [width, setWidth] = useState(0);
   const ratio = progress.total > 0 ? Math.min(progress.done / progress.total, 1) : 0;
   const columns = reflow ? 3 : width > 0 && width < MISSED_WRAP_BELOW && strip.some((cell) => cell.kind === 'missed') ? 4 : 7;
@@ -50,6 +56,11 @@ export default function HubWeekCard({ strip, progress, reflow = false, style }) 
           </View>
         ))}
       </View>
+      {caption ? (
+        <Text testID="workout-week-caption" {...CAP_BODY} style={styles.caption}>
+          {caption}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -59,6 +70,11 @@ function DayCircle({ cell }) {
     return (
       <View testID={`workout-week-circle-${cell.key}`} style={[styles.circle, styles.done]}>
         <CheckIcon size={13} color={colors.onGold} strokeWidth={3.2} />
+        {cell.count > 1 ? (
+          <View testID={`workout-week-badge-${cell.key}`} style={styles.badge} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            <Text {...CAP_PILL} style={styles.badgeText}>{`×${cell.count}`}</Text>
+          </View>
+        ) : null}
       </View>
     );
   }
@@ -144,6 +160,28 @@ const styles = StyleSheet.create({
   done: {
     backgroundColor: colors.teal,
   },
+  // UX T81 ×n: top-right, offset −4 / −6 (may overhang the circle).
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    height: 20,
+    minWidth: 22,
+    paddingHorizontal: 5,
+    borderRadius: radii.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.teal,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    ...font(600),
+    fontSize: 13,
+    lineHeight: 16,
+    fontVariant: ['tabular-nums'],
+    color: colors.teal,
+  },
   letter: {
     ...font(600),
     fontSize: 14,
@@ -155,9 +193,18 @@ const styles = StyleSheet.create({
   label: {
     ...font(600),
     width: 60,
+    minHeight: 18,
     fontSize: 13,
     lineHeight: 18,
     textAlign: 'center',
+  },
+  // UX T81: 13/18 text-muted, 10 below the strip, on the strip's left edge.
+  caption: {
+    ...font(400),
+    marginTop: 10,
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textMuted,
   },
 });
 
@@ -167,6 +214,8 @@ const CIRCLE_LOOKS = StyleSheet.create({
   // RN-SPEC T-76: 2px text-muted (the token for the board's white 0.35).
   train: { borderWidth: 2, borderColor: colors.textMuted },
   missed: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.hairlineBright },
+  // RN-SPEC T-81: web's white 0.07 = fill-skeleton.
+  notStarted: { backgroundColor: colors.fillSkeleton },
   rest: {},
 });
 
@@ -175,6 +224,7 @@ const LETTER_LOOKS = StyleSheet.create({
   todayRest: { ...font(700), color: colors.gold },
   train: { color: colors.textPrimary },
   missed: { color: colors.textMuted },
+  notStarted: { color: colors.textMuted },
   rest: { ...font(400), color: colors.textMuted },
 });
 
@@ -184,5 +234,6 @@ const LABEL_COLORS = StyleSheet.create({
   todayRest: { color: colors.gold },
   train: { color: colors.textSecondary },
   missed: { color: colors.textMuted },
+  notStarted: { color: colors.textMuted },
   rest: { color: colors.textMuted },
 });

@@ -7,7 +7,6 @@ import RemoteImage from '../../../shared/components/RemoteImage';
 import { keepUnitsTogether } from '../../../shared/format/counts';
 import { imageSourceProps, mediaUrl } from '../../../shared/images/remoteImageSources';
 import { colors, font, gradients, radii, shadows, spacing, textScale } from '../../../shared/theme/tokens';
-import { weekDayLabel } from '../libraryFormat';
 import PlanIcon from './planIcons';
 import { PressOverlay } from './planUi';
 
@@ -25,6 +24,7 @@ const CIRCLE = { phone: 36, compact: 32, tablet: 40, wide: 44 };
 // photo is never an empty box; the "Your active plan" badge; the name (one
 // line); the meta; "Your week"; the next workout row; Start + See full plan.
 //   circles — weekCircles() (null → no week)
+//   weekCaption — notStartedCaption() under the week (T-81; null → none)
 //   next    — { when, title, count, gold } (null → no row and no Start)
 //   size    — 'phone' · 'tablet' (768–1023, one column) · 'wide' (≥1024)
 // UX native final audit 27 Oct 2026, B203/B204 (T-60 §6): the tablet uses
@@ -33,13 +33,13 @@ const CIRCLE = { phone: 36, compact: 32, tablet: 40, wide: 44 };
 // (gap 32): name 40/44, meta 16/24, the next row and the actions side by side
 // on the left; the Your week inset (max 520, circles 44, letters 15, labels
 // 12/600) on the right.
-export default function PhoneActivePlanCard({ plan, meta, circles, next, compact = false, size = 'phone', onStart, onView }) {
+export default function PhoneActivePlanCard({ plan, meta, circles, weekCaption = null, next, compact = false, size = 'phone', onStart, onView }) {
   const photo = imageSourceProps(mediaUrl(plan?.thumbnail));
   const [failedUrl, setFailedUrl] = useState(null);
   const showPhoto = Boolean(photo.url) && failedUrl !== photo.url;
   const tablet = size !== 'phone';
   const wide = size === 'wide';
-  const week = circles ? <YourWeek circles={circles} compact={compact && !tablet} size={size} /> : null;
+  const week = circles ? <YourWeek circles={circles} caption={weekCaption} compact={compact && !tablet} size={size} /> : null;
 
   const main = (
     <>
@@ -194,9 +194,15 @@ export default function PhoneActivePlanCard({ plan, meta, circles, next, compact
 }
 
 // "Your week": 7 columns Monday first. Each day is one accessible item
-// ("Thu: training, today"; today also carries the selected = current-date
-// state); its circle and label are hidden from the screen reader.
-function YourWeek({ circles, compact, size: cardSize }) {
+// (its circle's `a11y`: "Thu: today, training", "Wed: done, 2 workouts",
+// "Mon: not started"; today also carries the selected = current-date state);
+// its circle, badge and label are hidden from the screen reader.
+// T-81 (PM ruling 4; UX T81-week-strip-states): the date strip's states at
+// this view's scale — done = teal tick (+ "×n" when count > 1), notStarted =
+// a filled white 0.07 disc with a muted letter and no label, missed = dashed
+// (text-muted, brighter than Rest's faint dash) + "Missed", today = the gold
+// ring, train / rest as before. The caption follows the list as plain text.
+function YourWeek({ circles, caption, compact, size: cardSize }) {
   const wide = cardSize === 'wide';
   const size = compact ? CIRCLE.compact : CIRCLE[cardSize] ?? CIRCLE.phone;
   return (
@@ -205,43 +211,58 @@ function YourWeek({ circles, compact, size: cardSize }) {
         Your week
       </Text>
       <View testID="plans-week-days" accessibilityRole="list" accessibilityLabel="Your week" style={styles.days}>
-        {circles.map((circle) => (
-          <View
-            key={circle.id}
-            testID={`plans-week-day-${circle.id}`}
-            accessible
-            accessibilityLabel={weekDayLabel(circle)}
-            accessibilityState={circle.today ? { selected: true } : undefined}
-            style={styles.day}
-          >
-            <View {...HIDDEN} style={{ width: size, height: size }}>
-              {circle.today ? <View testID={`plans-week-ring-${circle.id}`} style={[styles.ring, { width: size + 10, height: size + 10 }]} /> : null}
-              <View
-                testID={`plans-week-circle-${circle.id}`}
-                style={[styles.circle, { width: size, height: size }, circle.training ? styles.circleTraining : styles.circleRest]}
-              >
-                <Text
-                  testID={`plans-week-letter-${circle.id}`}
-                  maxFontSizeMultiplier={textScale.badge}
-                  style={[circle.training ? styles.letterTraining : styles.letterRest, compact && styles.letterCompact, wide && styles.letterWide]}
-                >
-                  {circle.letter}
-                </Text>
-              </View>
-            </View>
-            {/* 11 px: the owner's decision for these three labels only. */}
-            <Text
-              {...HIDDEN}
-              testID={`plans-week-label-${circle.id}`}
-              numberOfLines={1}
-              maxFontSizeMultiplier={textScale.badge}
-              style={[circle.today ? styles.labelToday : circle.training ? styles.labelTraining : styles.labelRest, wide && styles.labelWide]}
+        {circles.map((circle) => {
+          const look = CIRCLE_LOOK[circle.kind] ?? CIRCLE_LOOK.rest;
+          return (
+            <View
+              key={circle.id}
+              testID={`plans-week-day-${circle.id}`}
+              accessible
+              accessibilityLabel={circle.a11y}
+              accessibilityState={circle.today ? { selected: true } : undefined}
+              style={styles.day}
             >
-              {circle.today ? 'Today' : circle.training ? 'Train' : 'Rest'}
-            </Text>
-          </View>
-        ))}
+              <View {...HIDDEN} style={{ width: size, height: size }}>
+                {circle.today ? <View testID={`plans-week-ring-${circle.id}`} style={[styles.ring, { width: size + 10, height: size + 10 }]} /> : null}
+                <View testID={`plans-week-circle-${circle.id}`} style={[styles.circle, { width: size, height: size }, look.circle]}>
+                  {circle.kind === 'done' ? (
+                    <PlanIcon testID={`plans-week-tick-${circle.id}`} name="check" size={compact ? 13 : 15} color={colors.onGold} strokeWidth={3.2} />
+                  ) : (
+                    <Text
+                      testID={`plans-week-letter-${circle.id}`}
+                      maxFontSizeMultiplier={textScale.badge}
+                      style={[look.letter, compact && styles.letterCompact, wide && styles.letterWide]}
+                    >
+                      {circle.letter}
+                    </Text>
+                  )}
+                </View>
+                {circle.kind === 'done' && circle.count > 1 ? (
+                  <View testID={`plans-week-badge-${circle.id}`} style={styles.countBadge}>
+                    <Text allowFontScaling={false} style={styles.countBadgeText}>{`×${circle.count}`}</Text>
+                  </View>
+                ) : null}
+              </View>
+              {/* 11 px: the owner's decision for these labels only. A fixed box
+                  centred on the column, so "Missed" is never cut at 320. */}
+              <Text
+                {...HIDDEN}
+                testID={`plans-week-label-${circle.id}`}
+                numberOfLines={1}
+                maxFontSizeMultiplier={textScale.badge}
+                style={[styles.label, look.label, wide && styles.labelWide]}
+              >
+                {circle.label}
+              </Text>
+            </View>
+          );
+        })}
       </View>
+      {caption ? (
+        <Text {...CAP_BODY} testID="plans-week-caption" style={styles.weekCaption}>
+          {caption}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -461,6 +482,77 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     color: colors.gold,
   },
+  labelDone: {
+    ...font(600),
+    fontSize: 11,
+    lineHeight: 14,
+    color: colors.teal,
+  },
+  labelMissed: {
+    ...font(400),
+    fontSize: 11,
+    lineHeight: 14,
+    color: colors.textMuted,
+  },
+  // T-81: every label gets a fixed box centred on its day column (it may
+  // overhang the column gap), so "Missed" fits a 32 compact column.
+  label: {
+    width: 56,
+    textAlign: 'center',
+  },
+  // T-81 done: teal disc + the dark tick (the hub's Done look).
+  circleDone: {
+    backgroundColor: colors.teal,
+  },
+  // T-81 missed: dashed like Rest but in text-muted, with a muted letter.
+  circleMissed: {
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.textMuted,
+  },
+  letterMissed: {
+    ...font(600),
+    fontSize: 14,
+    lineHeight: 18,
+    color: colors.textMuted,
+  },
+  // T-81 not started: the web's white 0.07 (fillSkeleton is the 0.07 fill
+  // token), no outline; letter text-muted 14/600.
+  circleNotStarted: {
+    backgroundColor: colors.fillSkeleton,
+  },
+  // T-81 ×n: top-right of the Done circle, offset −4 / −6.
+  countBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    height: 20,
+    minWidth: 22,
+    paddingHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.full,
+    borderWidth: 1.5,
+    borderColor: colors.teal,
+    backgroundColor: colors.surface,
+  },
+  countBadgeText: {
+    ...font(600),
+    fontSize: 13,
+    lineHeight: 16,
+    color: colors.teal,
+    fontVariant: ['tabular-nums'],
+  },
+  // T-81: "Your plan started {Weekday}." 13/18 text-muted, margin-top 10,
+  // left-aligned with the heading.
+  weekCaption: {
+    ...font(400),
+    marginTop: 10,
+    marginHorizontal: spacing[1],
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textMuted,
+  },
   // ≥1024: 12/600 for every type (UX native final audit 27 Oct 2026,
   // "Batch (d)/(g) confirms" 2: §6 sets the weight too; the Rest 400 goes).
   labelWide: {
@@ -577,4 +669,15 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: colors.textPrimary,
   },
+});
+
+// T-81: each date-strip kind → its circle, letter and label styles.
+const CIRCLE_LOOK = Object.freeze({
+  done: { circle: styles.circleDone, letter: styles.letterTraining, label: styles.labelDone },
+  notStarted: { circle: styles.circleNotStarted, letter: styles.letterMissed, label: styles.labelRest },
+  missed: { circle: styles.circleMissed, letter: styles.letterMissed, label: styles.labelMissed },
+  today: { circle: styles.circleTraining, letter: styles.letterTraining, label: styles.labelToday },
+  todayRest: { circle: styles.circleRest, letter: styles.letterRest, label: styles.labelToday },
+  train: { circle: styles.circleTraining, letter: styles.letterTraining, label: styles.labelTraining },
+  rest: { circle: styles.circleRest, letter: styles.letterRest, label: styles.labelRest },
 });
