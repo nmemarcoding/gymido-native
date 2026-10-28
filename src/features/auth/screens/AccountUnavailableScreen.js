@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import PillButton from '../../../shared/components/PillButton';
 import Screen from '../../../shared/components/Screen';
-import { colors, font, gradients, spacing } from '../../../shared/theme/tokens';
+import { colors, font, gradients, spacing, titleTracking } from '../../../shared/theme/tokens';
 import { logout } from '../authService';
 import { BODY_TEXT, DISPLAY_TITLE_TEXT, AccountArt, IconTile, TabletAuthCard, boardTop, isTabletWidth } from '../components/AuthArt';
 
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     ...font(700),
     fontSize: 38,
     lineHeight: 40,
-    letterSpacing: -1.71,
+    letterSpacing: titleTracking(38, -0.045),
     color: colors.textPrimary,
   },
   body: {
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     ...font(700),
     fontSize: 46,
     lineHeight: 50,
-    letterSpacing: -2.07,
+    letterSpacing: titleTracking(46, -0.045),
     color: colors.textPrimary,
   },
   bodyTablet: {

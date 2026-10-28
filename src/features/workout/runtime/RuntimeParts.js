@@ -7,7 +7,7 @@ import GradientFill from '../../../shared/components/GradientFill';
 import PillButton, { useSwipeGuard } from '../../../shared/components/PillButton';
 import Select from '../../../shared/components/Select';
 import { CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT, TITLE_TEXT, useLargeTextReflow } from '../../../shared/components/largeText';
-import { colors, font, gradients, layout, radii, shadows, spacing, textInputColors, textScale, typography } from '../../../shared/theme/tokens';
+import { colors, font, gradients, layout, radii, shadows, spacing, textInputColors, textScale, titleTracking, typography } from '../../../shared/theme/tokens';
 import ProgressRing from '../components/ProgressRing';
 import { CheckIcon, PlayIcon } from './SessionIcons';
 import {
@@ -923,12 +923,12 @@ const styles = StyleSheet.create({
   },
   stageNameBrowse: {
     lineHeight: 36,
-    letterSpacing: -1.8,
+    letterSpacing: titleTracking(36, -0.05),
   },
   stageNameBrowseTablet: {
     fontSize: 64,
     lineHeight: 64,
-    letterSpacing: -3.2,
+    letterSpacing: titleTracking(64, -0.05),
   },
   stageNameSplit: {
     ...typography.displayXl,

@@ -6,7 +6,7 @@ import GradientFill from '../../../shared/components/GradientFill';
 import Spinner from '../../../shared/components/Spinner';
 import { CAP_BODY, CAP_PILL, TITLE_TEXT } from '../../../shared/components/largeText';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
-import { breakpoints, colors, font, gradients, radii, spacing } from '../../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, radii, spacing, titleTracking } from '../../../shared/theme/tokens';
 import { dayTitle } from '../workoutFormat';
 
 const RISE = Easing.bezier(0.22, 1, 0.36, 1);
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     ...font(700),
     fontSize: 28,
     lineHeight: 30,
-    letterSpacing: -1.26,
+    letterSpacing: titleTracking(28, -0.045),
     color: colors.textPrimary,
   },
   titleDone: {

@@ -37,6 +37,7 @@ import {
   spacing,
   textInputColors,
   textScale,
+  titleTracking,
   typography,
 } from '../../../../shared/theme/tokens';
 import { ALL_EQUIPMENT, ALL_MUSCLE_GROUPS, countLabel, filterCatalog } from '../planFormat';
@@ -716,7 +717,7 @@ const styles = StyleSheet.create({
     ...typography.titleXl,
     fontSize: 34,
     lineHeight: 36,
-    letterSpacing: -1.7,
+    letterSpacing: titleTracking(34, -0.05),
     color: colors.textPrimary,
   },
   titleTablet: {

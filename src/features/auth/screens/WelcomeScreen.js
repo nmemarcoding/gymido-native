@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PillButton from '../../../shared/components/PillButton';
 import Screen from '../../../shared/components/Screen';
 import { ToastTone, addToast } from '../../../shared/components/toastStore';
-import { colors, gradients, shadows, spacing, textScale, typography } from '../../../shared/theme/tokens';
+import { colors, gradients, shadows, spacing, textScale, titleTracking, typography } from '../../../shared/theme/tokens';
 import { login, signup, takeAccountDeletedNotice } from '../authService';
 import { AuthStatus, useAuthStore } from '../authStore';
 import { DISPLAY_TITLE_TEXT, GTile, WelcomeRings, boardTop, isTabletWidth } from '../components/AuthArt';
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     ...typography.displayMd,
     fontSize: 84,
     lineHeight: TABLET.title,
-    letterSpacing: -5.04,
+    letterSpacing: titleTracking(84, -0.06),
     color: colors.textPrimary,
     flexShrink: 1,
   },

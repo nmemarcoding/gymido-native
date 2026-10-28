@@ -14,7 +14,7 @@ import PillButton from '../../../../shared/components/PillButton';
 import StateSlot from '../../../../shared/components/StateSlot';
 import { ToastTone, addToast } from '../../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../../shared/hooks/useFocusRemountKey';
-import { colors, font, gradients, layout, radii, spacing } from '../../../../shared/theme/tokens';
+import { colors, font, gradients, layout, radii, spacing, titleTracking } from '../../../../shared/theme/tokens';
 import TrainerOnly from '../../TrainerOnly';
 import {
   listDayExercises,
@@ -1008,23 +1008,23 @@ const styles = StyleSheet.create({
     ...font(700),
     fontSize: 42,
     lineHeight: 42,
-    letterSpacing: -2.1,
+    letterSpacing: titleTracking(42, -0.05),
     color: colors.textPrimary,
   },
   titleTablet: {
     fontSize: 60,
     lineHeight: 60,
-    letterSpacing: -3.3,
+    letterSpacing: titleTracking(60, -0.055),
   },
   titleTrainer: {
     fontSize: 36,
     lineHeight: 38,
-    letterSpacing: -1.62,
+    letterSpacing: titleTracking(36, -0.045),
   },
   titleTrainerTablet: {
     fontSize: 44,
     lineHeight: 46,
-    letterSpacing: -2.2,
+    letterSpacing: titleTracking(44, -0.05),
   },
   description: {
     ...font(400),

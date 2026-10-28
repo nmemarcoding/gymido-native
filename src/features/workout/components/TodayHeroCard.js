@@ -8,7 +8,7 @@ import RemoteImage from '../../../shared/components/RemoteImage';
 import Spinner from '../../../shared/components/Spinner';
 import StatusPill from '../../../shared/components/StatusPill';
 import { CAP_BODY, DISPLAY_TITLE_TEXT } from '../../../shared/components/largeText';
-import { breakpoints, colors, font, gradients, radii, shadows, spacing, textScale, typography } from '../../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, radii, shadows, spacing, textScale, titleTracking, typography } from '../../../shared/theme/tokens';
 import { TODAY_BADGE_LABELS } from '../workoutFormat';
 import ProgressRing from './ProgressRing';
 import { formatCount, keepUnitsTogether } from '../../../shared/format/counts';
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     ...font(700),
     fontSize: 40,
     lineHeight: 40,
-    letterSpacing: -2.2,
+    letterSpacing: titleTracking(40, -0.055),
     color: colors.textPrimary,
   },
   planNameTablet: {
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     marginTop: spacing[2],
     fontSize: 60,
     lineHeight: 58,
-    letterSpacing: -3.3,
+    letterSpacing: titleTracking(60, -0.055),
     color: colors.textPrimary,
   },
   dayCount: {

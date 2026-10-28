@@ -4,7 +4,7 @@ import ExerciseImage from '../../../shared/components/ExerciseImage';
 import { InlineError } from '../../../shared/components/FeedbackBox';
 import GradientFill from '../../../shared/components/GradientFill';
 import PillButton from '../../../shared/components/PillButton';
-import { colors, font, gradients, muscle, radii, spacing } from '../../../shared/theme/tokens';
+import { colors, font, gradients, muscle, radii, spacing, titleTracking } from '../../../shared/theme/tokens';
 import { COPY, STEP_COUNT, changeLabel, daysAWeekUnit } from '../generatorCopy';
 import { BODY_TEXT, CHANGE_HIT_SLOP, CHANGE_PILL_HEIGHT, DISPLAY_TEXT, PAGE_TITLE_TEXT, PressOverlay } from '../generatorLayout';
 import { imageUrlOf, reviewDetails, reviewSummaries } from '../generatorLogic';
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 46,
     lineHeight: 44,
-    letterSpacing: -2.3,
+    letterSpacing: titleTracking(46, -0.05),
     color: colors.textPrimary,
   },
   hero: {
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 36,
     lineHeight: 38,
-    letterSpacing: -1.8,
+    letterSpacing: titleTracking(36, -0.05),
     color: colors.onGold,
   },
   card: {
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
     ...font(700),
     fontSize: 44,
     lineHeight: 44,
-    letterSpacing: -2.2,
+    letterSpacing: titleTracking(44, -0.05),
     fontVariant: ['tabular-nums'],
     color: colors.textPrimary,
   },

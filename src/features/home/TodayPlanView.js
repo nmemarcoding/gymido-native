@@ -9,7 +9,7 @@ import GradientFill from '../../shared/components/GradientFill';
 import RemoteImage from '../../shared/components/RemoteImage';
 import StatusPill from '../../shared/components/StatusPill';
 import TextLink from '../../shared/components/TextLink';
-import { colors, font, gradients, radii, shadows, spacing, typography } from '../../shared/theme/tokens';
+import { colors, font, gradients, radii, shadows, spacing, titleTracking, typography } from '../../shared/theme/tokens';
 import ProgressRing from '../workout/components/ProgressRing';
 import { exerciseCountText, workoutInitials } from './homeFormat';
 import { LARGE_TEXT as LT } from './TodayStates';
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
     marginTop: 40,
     fontSize: 76,
     lineHeight: 76,
-    letterSpacing: -3.8,
+    letterSpacing: titleTracking(76, -0.05),
     color: colors.textPrimary,
   },
   // UX E missed: past 2 lines the headline drops to 34/38.
@@ -718,7 +718,7 @@ const styles = StyleSheet.create({
     ...font(700),
     fontSize: 52,
     lineHeight: 52,
-    letterSpacing: -2.6,
+    letterSpacing: titleTracking(52, -0.05),
     fontVariant: ['tabular-nums'],
     color: colors.textPrimary,
   },
@@ -748,7 +748,7 @@ const styles = StyleSheet.create({
     ...font(700),
     fontSize: 68,
     lineHeight: 68,
-    letterSpacing: -3.4,
+    letterSpacing: titleTracking(68, -0.05),
     fontVariant: ['tabular-nums'],
     color: colors.textPrimary,
   },
@@ -920,7 +920,7 @@ const styles = StyleSheet.create({
     ...font(700),
     fontSize: 38,
     lineHeight: 40,
-    letterSpacing: -1.9,
+    letterSpacing: titleTracking(38, -0.05),
     fontVariant: ['tabular-nums'],
     color: colors.textPrimary,
   },

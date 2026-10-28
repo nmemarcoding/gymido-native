@@ -151,12 +151,14 @@ describe('type (§2)', () => {
     Object.values(typography).forEach((style) => expect(style.fontWeight).toBeUndefined());
   });
 
-  // DECLARED (UX native final audit 27 Oct 2026, ruling 5, C302 / C305):
-  // displayTimer −5.52 → −3.68 and displayXl −2.8 → −2.24 (−0.06 / −0.05em
-  // clamped to the −0.04em floor).
+  // DECLARED (UX native final audit 27 Oct 2026, (k)/(f2) ruling f2: the
+  // −0.04em floor is Android-only): this table runs on the Jest default
+  // platform (iOS), so displayTimer −3.68 → −5.52 and displayXl −2.24 → −2.8
+  // (back to the board's −0.06 / −0.05em). The Android values are pinned in
+  // "ruling 5 (f2): …per platform" below.
   it.each([
-    ['displayTimer', 92, 92, 'Geist-Bold', -3.68],
-    ['displayXl', 56, 58, 'Geist-Bold', -2.24],
+    ['displayTimer', 92, 92, 'Geist-Bold', -5.52],
+    ['displayXl', 56, 58, 'Geist-Bold', -2.8],
     ['titleXl', 36, 40, 'Geist-Bold', -1.44],
     // FINAL-AUDIT batch 1: the phone sheet title 26/30 700 (tracking −0.03em).
     ['titleSheet', 26, 30, 'Geist-Bold', -0.78],
@@ -172,24 +174,71 @@ describe('type (§2)', () => {
     expect(typography[key]).toEqual({ fontFamily: family, fontSize: size, lineHeight: line, letterSpacing: tracking });
   });
 
-  // UX native final audit 27 Oct 2026, ruling 5 (Android title letter-squash):
-  // big titles keep letter-spacing ≥ −0.04em, so every display / title step
-  // follows (the em → px conversion never goes past the floor).
-  it('ruling 5: every display / title step tracks at −0.04em or looser', () => {
-    const steps = Object.entries(typography).filter(([key]) => /^(display|title)/.test(key));
+  // UX native final audit 27 Oct 2026, ruling 5 as amended by (f2): the
+  // −0.04em floor is ANDROID-ONLY (that's where Geist collapses); iOS keeps
+  // the board values. The token table is built at module load, so each
+  // platform gets its own copy of the module.
+  // DECLARED: "every display / title step tracks at −0.04em or looser" (all
+  // platforms) → the same check on the Android table only.
+  function tokensOn(os) {
+    let mod;
+    jest.isolateModules(() => {
+      require('react-native').Platform.OS = os;
+      mod = require('./tokens');
+    });
+    return mod;
+  }
+  const DISPLAY_STEPS = [
+    // key, size, board em, Android px (−0.04em floor), iOS px (board)
+    ['displayTimer', 92, -0.06, -3.68, -5.52],
+    ['displayXl', 56, -0.05, -2.24, -2.8],
+    ['displayLg', 52, -0.045, -2.08, -2.34],
+    ['displayMd', 44, -0.05, -1.76, -2.2],
+  ];
+
+  it.each(DISPLAY_STEPS)('ruling 5 (f2): %s %d px tracks per platform', (key, size, _em, android, ios) => {
+    expect(tokensOn('android').typography[key]).toMatchObject({ fontSize: size, letterSpacing: android });
+    expect(tokensOn('ios').typography[key]).toMatchObject({ fontSize: size, letterSpacing: ios });
+  });
+
+  it('ruling 5 (f2): on Android every display / title step tracks at −0.04em or looser', () => {
+    const steps = Object.entries(tokensOn('android').typography).filter(([key]) => /^(display|title)/.test(key));
     expect(steps.length).toBeGreaterThan(8);
     steps.forEach(([key, style]) => {
       expect([key, style.letterSpacing >= -0.04 * style.fontSize - 1e-9]).toEqual([key, true]);
     });
   });
 
-  it('ruling 5: titleTracking converts em to px and clamps at −0.04em', () => {
-    const { TITLE_TRACKING_MIN_EM, titleTracking } = require('./tokens');
-    expect(TITLE_TRACKING_MIN_EM).toBe(-0.04);
-    expect(titleTracking(48, -0.055)).toBe(-1.92);
-    expect(titleTracking(60, -0.06)).toBe(-2.4);
-    expect(titleTracking(24, -0.03)).toBe(-0.72);
-    expect(titleTracking(16)).toBe(0);
+  // DECLARED: "titleTracking converts em to px and clamps at −0.04em"
+  // (48/−0.055 → −1.92, 60/−0.06 → −2.4 on every platform) → split per
+  // platform: Android clamps (−1.92 / −2.4), iOS returns the board (−2.64 / −3.6).
+  describe('ruling 5 (f2): titleTracking', () => {
+    const { Platform } = require('react-native');
+    const realOS = Platform.OS;
+    afterEach(() => {
+      Platform.OS = realOS;
+    });
+
+    it('Android: converts em to px and clamps at −0.04em', () => {
+      Platform.OS = 'android';
+      const { TITLE_TRACKING_MIN_EM, titleTracking } = require('./tokens');
+      expect(TITLE_TRACKING_MIN_EM).toBe(-0.04);
+      expect(titleTracking(48, -0.055)).toBe(-1.92);
+      expect(titleTracking(60, -0.06)).toBe(-2.4);
+      expect(titleTracking(84, -0.06)).toBe(-3.36);
+      expect(titleTracking(24, -0.03)).toBe(-0.72);
+      expect(titleTracking(16)).toBe(0);
+    });
+
+    it('iOS: converts em to px unclamped (the board value)', () => {
+      Platform.OS = 'ios';
+      const { titleTracking } = require('./tokens');
+      expect(titleTracking(48, -0.055)).toBe(-2.64);
+      expect(titleTracking(60, -0.06)).toBe(-3.6);
+      expect(titleTracking(84, -0.06)).toBe(-5.04);
+      expect(titleTracking(24, -0.03)).toBe(-0.72);
+      expect(titleTracking(16)).toBe(0);
+    });
   });
 
   it('keeps every size at the 11 px minimum', () => {

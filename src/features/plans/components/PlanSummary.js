@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import GradientFill from '../../../shared/components/GradientFill';
 import { CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT } from '../../../shared/components/largeText';
 import RemoteImage from '../../../shared/components/RemoteImage';
-import { colors, font, gradients, radii, spacing, textScale } from '../../../shared/theme/tokens';
+import { colors, font, gradients, radii, spacing, textScale, titleTracking } from '../../../shared/theme/tokens';
 import { planPhotoUrl } from '../libraryFormat';
 import { getRemoteImageSources } from '../../../shared/images/remoteImageSources';
 import { useReflow } from './planUi';
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     marginTop: spacing[2],
     fontSize: 38,
     lineHeight: 40,
-    letterSpacing: -1.71,
+    letterSpacing: titleTracking(38, -0.045),
     color: colors.textPrimary,
   },
   description: {
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     marginTop: spacing[2],
     fontSize: 60,
     lineHeight: 62,
-    letterSpacing: -3.3,
+    letterSpacing: titleTracking(60, -0.055),
     color: colors.textPrimary,
   },
   heroDescription: {
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
     ...font(700),
     fontSize: 40,
     lineHeight: 42,
-    letterSpacing: -2,
+    letterSpacing: titleTracking(40, -0.05),
     color: colors.textPrimary,
   },
   heroLevelValue: {

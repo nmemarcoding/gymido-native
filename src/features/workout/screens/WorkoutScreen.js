@@ -6,7 +6,7 @@ import { getServerMessage } from '../../../shared/api/apiError';
 import { InlineToast } from '../../../shared/components/ToastHost';
 import { ToastTone } from '../../../shared/components/toastStore';
 import { CAP_BODY, DISPLAY_TITLE_TEXT, TITLE_TEXT } from '../../../shared/components/largeText';
-import { breakpoints, colors, font, spacing, textScale, typography } from '../../../shared/theme/tokens';
+import { breakpoints, colors, font, spacing, textScale, titleTracking, typography } from '../../../shared/theme/tokens';
 import ScheduleSetupCard from '../../plans/components/ScheduleSetupCard';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
   title: {
     ...typography.displayLg,
     marginTop: spacing['0_5'],
-    letterSpacing: -2.86,
+    letterSpacing: titleTracking(52, -0.055),
     color: colors.textPrimary,
   },
   titleTablet: {
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
     marginTop: spacing['0_5'],
     fontSize: 64,
     lineHeight: 64,
-    letterSpacing: -3.2,
+    letterSpacing: titleTracking(64, -0.05),
     color: colors.textPrimary,
   },
   section: {

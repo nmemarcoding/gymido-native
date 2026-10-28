@@ -6,7 +6,7 @@ import FormField from '../../../../shared/components/FormField';
 import { CAP_BODY } from '../../../../shared/components/largeText';
 import PillButton from '../../../../shared/components/PillButton';
 import { useSheetFocus } from '../../../../shared/hooks/useSheetFocus';
-import { colors, font, radii, spacing } from '../../../../shared/theme/tokens';
+import { colors, font, radii, spacing, titleTracking } from '../../../../shared/theme/tokens';
 import { buildAddDayPayload, buildEditDayPayload, fullPlanMessage, isDayEdited, validateAddDay } from '../planValidation';
 import { AffectsNoticeBox } from './AffectedClients';
 import { useBuilderLayout } from './builderParts';
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
     ...font(700),
     fontSize: 64,
     lineHeight: 64,
-    letterSpacing: -3.84,
+    letterSpacing: titleTracking(64, -0.06),
     fontVariant: ['tabular-nums'],
     color: colors.onGold,
   },

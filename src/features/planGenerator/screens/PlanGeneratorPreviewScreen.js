@@ -16,7 +16,7 @@ import Select from '../../../shared/components/Select';
 import { ToastTone, addToast } from '../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
 import GradientFill from '../../../shared/components/GradientFill';
-import { breakpoints, colors, font, gradients, radii, spacing, typography } from '../../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, radii, spacing, titleTracking, typography } from '../../../shared/theme/tokens';
 import ShellPage from '../../shell/ShellPage';
 import { handOffToWorkout, openShellPath } from '../../shell/shellLinks';
 import { acceptGeneratedPlan, getGeneratorProfile, previewGeneratedPlan, saveGeneratorProfile } from '../api/generatorApi';
@@ -774,7 +774,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 44,
     lineHeight: 42,
-    letterSpacing: -2.2,
+    letterSpacing: titleTracking(44, -0.05),
     color: colors.textPrimary,
   },
   // TabletGeneratorPreview: 60/60/700 −0.055em.
@@ -782,7 +782,7 @@ const styles = StyleSheet.create({
     marginTop: spacing[1],
     fontSize: 60,
     lineHeight: 60,
-    letterSpacing: -3.3,
+    letterSpacing: titleTracking(60, -0.055),
   },
   splitName: {
     ...font(400),

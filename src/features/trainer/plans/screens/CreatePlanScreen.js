@@ -21,6 +21,7 @@ import {
   shadows,
   spacing,
   textScale,
+  titleTracking,
   typography,
 } from '../../../../shared/theme/tokens';
 import ShellPage from '../../../shell/ShellPage';
@@ -501,7 +502,7 @@ const v2 = StyleSheet.create({
     ...typography.displayXl,
     fontSize: 60,
     lineHeight: 60,
-    letterSpacing: -3.3,
+    letterSpacing: titleTracking(60, -0.055),
     color: colors.textPrimary,
   },
   subtitle: {

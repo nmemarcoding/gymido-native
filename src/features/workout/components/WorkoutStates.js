@@ -5,7 +5,7 @@ import Svg, { Rect } from 'react-native-svg';
 import FeedbackIcon from '../../../shared/components/FeedbackIcon';
 import GradientFill from '../../../shared/components/GradientFill';
 import PillButton from '../../../shared/components/PillButton';
-import { colors, font, gradients, radii, spacing, textScale } from '../../../shared/theme/tokens';
+import { colors, font, gradients, radii, spacing, textScale, titleTracking } from '../../../shared/theme/tokens';
 
 // RN-SPEC-v2-phase2 §D2 Workout states (UX D "Workout states"). Look only;
 // copy and behaviour are RN-SPEC-workout §H1/§H2.
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     ...font(700),
     fontSize: TITLE_SIZE,
     lineHeight: 34,
-    letterSpacing: -1.44,
+    letterSpacing: titleTracking(TITLE_SIZE, -0.045),
     color: colors.textPrimary,
     textAlign: 'center',
   },

@@ -14,7 +14,7 @@ import { ToastTone } from '../../shared/components/toastStore';
 import { CAP_BODY, CAP_PILL, TITLE_TEXT } from '../../shared/components/largeText';
 import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
 import { formatNumber } from '../../shared/format/numbers';
-import { breakpoints, colors, font, radii, textScale, typography } from '../../shared/theme/tokens';
+import { breakpoints, colors, font, radii, textScale, titleTracking, typography } from '../../shared/theme/tokens';
 import { memberVolume, workoutInitials } from '../home/homeFormat';
 import WeightLogModal from '../home/WeightLogModal';
 import { applySavedWeightLog, useProfileStore } from '../profile/profileStore';
@@ -827,7 +827,7 @@ const styles = StyleSheet.create({
   currentPhone: {
     ...typography.displayLg,
     marginTop: 6,
-    letterSpacing: -2.6,
+    letterSpacing: titleTracking(52, -0.05),
     fontVariant: ['tabular-nums'],
     color: colors.textPrimary,
   },
@@ -1106,7 +1106,7 @@ const styles = StyleSheet.create({
     ...font(700),
     fontSize: 56,
     lineHeight: 60,
-    letterSpacing: -2.8,
+    letterSpacing: titleTracking(56, -0.05),
     fontVariant: ['tabular-nums'],
     color: colors.textPrimary,
   },
@@ -1119,7 +1119,7 @@ const styles = StyleSheet.create({
     ...font(700),
     fontSize: 76,
     lineHeight: 74,
-    letterSpacing: -4.56,
+    letterSpacing: titleTracking(76, -0.06),
     fontVariant: ['tabular-nums'],
     color: colors.textPrimary,
   },

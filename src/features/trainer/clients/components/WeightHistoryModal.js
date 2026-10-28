@@ -11,7 +11,7 @@ import { CAP_BODY, useLargeTextReflow } from '../../../../shared/components/larg
 import Loader from '../../../../shared/components/Loader';
 import PillButton from '../../../../shared/components/PillButton';
 import { formatDateWithOffset } from '../../../../shared/time/format';
-import { breakpoints, colors, font, gradients, radii, spacing, textScale, typography } from '../../../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, radii, spacing, textScale, titleTracking, typography } from '../../../../shared/theme/tokens';
 import { listClientWeightLogs } from '../api/clientsApi';
 import { formatSigned, formatWeight, weightDelta } from '../clientFormat';
 import { chartUnit, logsSince } from '../weightChartData';
@@ -308,14 +308,14 @@ const styles = StyleSheet.create({
     ...font(700),
     fontSize: 56,
     lineHeight: 56,
-    letterSpacing: -3.08,
+    letterSpacing: titleTracking(56, -0.055),
     fontVariant: ['tabular-nums'],
     color: colors.textPrimary,
   },
   currentValueTablet: {
     fontSize: 72,
     lineHeight: 72,
-    letterSpacing: -3.6,
+    letterSpacing: titleTracking(72, -0.05),
   },
   currentUnit: {
     ...font(400),

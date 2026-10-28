@@ -30,7 +30,7 @@ import { CAP_BODY, DISPLAY_TITLE_TEXT, useLargeTextReflow } from '../../../share
 import { formatNumber } from '../../../shared/format/numbers';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { formatDuration } from '../../../shared/time/format';
-import { blur, colors, font, gradients, layout, motion, radii, shadows, spacing, textScale, typography } from '../../../shared/theme/tokens';
+import { blur, colors, font, gradients, layout, motion, radii, shadows, spacing, textScale, titleTracking, typography } from '../../../shared/theme/tokens';
 import AlertSheet, { SheetBody } from './AlertSheet';
 import useForegroundBlur from './useForegroundBlur';
 import {
@@ -877,7 +877,7 @@ const styles = StyleSheet.create({
   digitsTablet: {
     fontSize: 100,
     lineHeight: 100,
-    letterSpacing: -6,
+    letterSpacing: titleTracking(100, -0.06),
   },
   total: {
     ...typography.body,

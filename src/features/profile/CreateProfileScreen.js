@@ -17,7 +17,7 @@ import SegmentedSwitch from '../../shared/components/SegmentedSwitch';
 import Select from '../../shared/components/Select';
 import { useKeyboardOverlap } from '../../shared/hooks/useKeyboardHeight';
 import { useReducedMotion } from '../../shared/hooks/useReducedMotion';
-import { breakpoints, colors, font, gradients, motion, radii, spacing, textScale, typography } from '../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, motion, radii, spacing, textScale, titleTracking, typography } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
 import { getScreenTab } from '../shell/shellNavigation';
 import StatusBarBackdrop from '../shell/StatusBarBackdrop';
@@ -592,7 +592,7 @@ const styles = StyleSheet.create({
     ...font(700),
     fontSize: 48,
     lineHeight: 46,
-    letterSpacing: -2.64,
+    letterSpacing: titleTracking(48, -0.055),
     color: colors.textPrimary,
   },
   titleGold: {
@@ -602,7 +602,7 @@ const styles = StyleSheet.create({
     ...font(700),
     fontSize: 60,
     lineHeight: 60,
-    letterSpacing: -3.3,
+    letterSpacing: titleTracking(60, -0.055),
     color: colors.textPrimary,
   },
   subtitlePhone: {

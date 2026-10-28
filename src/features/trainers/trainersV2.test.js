@@ -504,25 +504,50 @@ describe('Trainer detail pinned CTA (UX native final audit 27 Oct 2026, ruling 1
   });
 });
 
-// UX native final audit 27 Oct 2026, ruling 5 (carried from batch j): the
-// coaching page headings keep letter-spacing ≥ −0.04em. Was: Apply 48/48
-// −2.64 (−0.055em), tablet Find a trainer 60/60 −3.6 (−0.06em).
-describe('Coaching page headings: ruling 5 tracking floor', () => {
-  const headingStyle = async (props) => {
-    const tree = await render(<PageHeading testID="h" title="Become a" accent="trainer" {...props} />);
-    return flat(tree.root.find((node) => node.type === 'Text' && node.props.accessibilityRole === 'header'));
-  };
+// UX native final audit 27 Oct 2026, ruling 5 (carried from batch j) as
+// amended by (k)/(f2) ruling f2: the −0.04em floor is Android-only. The
+// coaching page headings keep letter-spacing ≥ −0.04em on Android; iOS draws
+// the board: Apply 48/48 −0.055em, Find a trainer 44/44 −0.05em (display-md),
+// tablet Find a trainer 60/60 −0.06em.
+// DECLARED: "%s: −0.04em at its size, not tighter" (every platform: −1.92 /
+// −1.92 / −1.76 / −2.4) → the iOS table below (board −2.64 / −2.64 / −2.2 /
+// −3.6); the floor values move to the Android table.
+describe('Coaching page headings: ruling 5 tracking (f2)', () => {
+  const HEADINGS = [
+    // name, props, size, Android px (−0.04em), iOS px (board)
+    ['phone apply', { size: 'apply' }, 48, -1.92, -2.64],
+    ['tablet apply', { size: 'apply', tablet: true }, 48, -1.92, -2.64],
+    ['phone list', { size: 'list' }, 44, -1.76, -2.2],
+    ['tablet list', { size: 'list', tablet: true }, 60, -2.4, -3.6],
+  ];
+  const headingOf = (tree) => flat(tree.root.find((node) => node.type === 'Text' && node.props.accessibilityRole === 'header'));
 
-  it.each([
-    ['phone apply', { size: 'apply' }, 48, -1.92],
-    ['tablet apply', { size: 'apply', tablet: true }, 48, -1.92],
-    ['phone list', { size: 'list' }, 44, -1.76],
-    ['tablet list', { size: 'list', tablet: true }, 60, -2.4],
-  ])('%s: −0.04em at its size, not tighter', async (_name, props, size, tracking) => {
+  it.each(HEADINGS)('%s on iOS: the board tracking', async (_name, props, size, _android, ios) => {
     setWindow(390);
-    const style = await headingStyle(props);
+    const style = headingOf(await render(<PageHeading testID="h" title="Become a" accent="trainer" {...props} />));
     expect(style.fontSize).toBe(size);
-    expect(style.letterSpacing).toBe(tracking);
+    expect(style.letterSpacing).toBe(ios);
+  });
+
+  // The headings' styles are built at module load: Android loads its own copy
+  // of the page (and of React, so the copy renders with its own renderer).
+  it.each(HEADINGS)('%s on Android: −0.04em, not tighter', (_name, props, size, android) => {
+    setWindow(390);
+    let style;
+    jest.isolateModules(() => {
+      require('react-native').Platform.OS = 'android';
+      const React = require('react');
+      const renderer = require('react-test-renderer');
+      const { PageHeading: AndroidHeading } = require('./components/CoachingPage');
+      let tree;
+      renderer.act(() => {
+        tree = renderer.create(React.createElement(AndroidHeading, { testID: 'h', title: 'Become a', accent: 'trainer', ...props }));
+      });
+      style = StyleSheet.flatten(tree.root.find((node) => node.type === 'Text' && node.props.accessibilityRole === 'header').props.style);
+      renderer.act(() => tree.unmount());
+    });
+    expect(style.fontSize).toBe(size);
+    expect(style.letterSpacing).toBe(android);
     expect(style.letterSpacing).toBeGreaterThanOrEqual(-0.04 * style.fontSize);
   });
 });

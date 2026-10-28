@@ -11,7 +11,7 @@ import PillButton from '../../shared/components/PillButton';
 import StateSlot from '../../shared/components/StateSlot';
 import TextLink from '../../shared/components/TextLink';
 import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
-import { breakpoints, colors, font, gradients, layout, spacing, textScale, typography } from '../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, layout, spacing, textScale, titleTracking, typography } from '../../shared/theme/tokens';
 import PlanIcon from '../plans/components/planIcons';
 import ShellPage from '../shell/ShellPage';
 import { isGeneratorAvailable, listMyPlans } from './api/myPlansApi';
@@ -287,14 +287,14 @@ const styles = StyleSheet.create({
     ...font(700),
     fontSize: 46,
     lineHeight: 48,
-    letterSpacing: -2.3,
+    letterSpacing: titleTracking(46, -0.05),
     color: colors.textPrimary,
   },
   titleTablet: {
     ...font(700),
     fontSize: 60,
     lineHeight: 62,
-    letterSpacing: -3.3,
+    letterSpacing: titleTracking(60, -0.055),
     color: colors.textPrimary,
   },
   subtitle: {

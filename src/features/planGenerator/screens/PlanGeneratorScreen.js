@@ -11,7 +11,7 @@ import Loader from '../../../shared/components/Loader';
 import PillButton from '../../../shared/components/PillButton';
 import PinnedDock, { dockStacks } from '../../../shared/components/PinnedDock';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
-import { colors, font, radii, spacing } from '../../../shared/theme/tokens';
+import { colors, font, radii, spacing, titleTracking } from '../../../shared/theme/tokens';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
 import { getGeneratorProfile, saveGeneratorProfile } from '../api/generatorApi';
@@ -653,28 +653,28 @@ const styles = StyleSheet.create({
     marginTop: spacing[2],
     fontSize: 46,
     lineHeight: 44,
-    letterSpacing: -2.3,
+    letterSpacing: titleTracking(46, -0.05),
     color: colors.textPrimary,
   },
   // PlanGeneratorGoEasy410: step 6 at 42/42.
   titleStep6: {
     fontSize: 42,
     lineHeight: 42,
-    letterSpacing: -2.1,
+    letterSpacing: titleTracking(42, -0.05),
   },
   // TabletGenerator: 60/60/700 −0.055em (display-lg is 52: drawn size used).
   titleTablet: {
     marginTop: spacing['2_5'],
     fontSize: 60,
     lineHeight: 60,
-    letterSpacing: -3.3,
+    letterSpacing: titleTracking(60, -0.055),
   },
   // The ghost numeral: 64/56/700 −0.06em tabular, gold 0.22 drawn → gold-line 0.30.
   ghost: {
     ...font(700),
     fontSize: 64,
     lineHeight: 56,
-    letterSpacing: -3.84,
+    letterSpacing: titleTracking(64, -0.06),
     fontVariant: ['tabular-nums'],
     color: colors.goldLine,
   },

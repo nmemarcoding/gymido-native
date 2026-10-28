@@ -2,6 +2,8 @@
 // FINAL 26 Oct 2026). Dark only. Names are UX's shared vocabulary in
 // camelCase (`color-surface-raised` → colors.surfaceRaised).
 
+import { Platform } from 'react-native';
+
 // §1 Colour: the canonical v2 set.
 const V2_COLORS = {
   // §1.1 Ground and surfaces.
@@ -459,15 +461,18 @@ export function font(weight = 400) {
   return { fontFamily: FONT_FAMILY[w] ?? FONT_FAMILY[400] };
 }
 
-// UX native final audit 27 Oct 2026, ruling 5 (Android title letter-squash):
-// big titles keep letter-spacing ≥ −0.04em. Tighter tracking (−0.045 /
-// −0.05 / −0.055em as drawn) converted to px goes past Geist's glyph advance
-// on Android and the letters collide ("Findatrainer"). titleTracking is the
-// one em → px conversion for titles: it clamps at the floor, so a drawn
-// −0.055em becomes −0.04em.
+// UX native final audit 27 Oct 2026, ruling 5 as amended by (k)/(f2) ruling
+// f2: big titles keep letter-spacing ≥ −0.04em ON ANDROID ONLY. Tighter
+// tracking (−0.045 / −0.05 / −0.055em as drawn) converted to px goes past
+// Geist's glyph advance on Android and the letters collide ("Findatrainer");
+// iOS renders the drawn values correctly and keeps them. titleTracking is the
+// one em → px conversion for titles: on Android it clamps at the floor (a
+// drawn −0.055em becomes −0.04em), on iOS it returns the board value. It
+// reads Platform.OS when called (module load for the StyleSheets).
 export const TITLE_TRACKING_MIN_EM = -0.04;
 export function titleTracking(fontSize, trackingEm = 0) {
-  return Math.round(Math.max(trackingEm, TITLE_TRACKING_MIN_EM) * fontSize * 100) / 100;
+  const em = Platform.OS === 'android' ? Math.max(trackingEm, TITLE_TRACKING_MIN_EM) : trackingEm;
+  return Math.round(em * fontSize * 100) / 100;
 }
 
 // One scale step: size / line height in px, tracking in em (→ px for RN).
@@ -493,11 +498,12 @@ export const textScale = Object.freeze({
 });
 
 export const typography = Object.freeze({
-  // Ruling 5: drawn −0.06 / −0.05 / −0.045em, held at the −0.04em floor.
-  displayTimer: step(92, 92, 700, -0.04),
-  displayXl: step(56, 58, 700, -0.04),
-  displayLg: step(52, 52, 700, -0.04),
-  displayMd: step(44, 44, 700, -0.04),
+  // Ruling 5 (f2): the board's −0.06 / −0.05 / −0.045 / −0.05em; Android
+  // holds them at the −0.04em floor (step → titleTracking).
+  displayTimer: step(92, 92, 700, -0.06),
+  displayXl: step(56, 58, 700, -0.05),
+  displayLg: step(52, 52, 700, -0.045),
+  displayMd: step(44, 44, 700, -0.05),
   titleXl: step(36, 40, 700, -0.04),
   titleLg: step(30, 32, 700, -0.04),
   titleMd: step(24, 28, 700, -0.03),

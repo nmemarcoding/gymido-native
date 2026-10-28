@@ -10,7 +10,7 @@ import PillButton from '../../shared/components/PillButton';
 import Skeleton from '../../shared/components/Skeleton';
 import Spinner from '../../shared/components/Spinner';
 import TextLink from '../../shared/components/TextLink';
-import { colors, font, gradients, radii, spacing, textScale, typography } from '../../shared/theme/tokens';
+import { colors, font, gradients, radii, spacing, textScale, titleTracking, typography } from '../../shared/theme/tokens';
 import { useGeneratorAvailable } from '../planGenerator/useGeneratorAvailable';
 import GymIcon from '../shell/GymIcon';
 import ProgressRing from '../workout/components/ProgressRing';
@@ -639,7 +639,7 @@ const styles = StyleSheet.create({
     ...font(700),
     fontSize: 48,
     lineHeight: 50,
-    letterSpacing: -2.16,
+    letterSpacing: titleTracking(48, -0.045),
     marginTop: spacing[2],
     textAlign: 'center',
     color: colors.textPrimary,
@@ -809,7 +809,7 @@ const styles = StyleSheet.create({
     ...font(700),
     fontSize: 72,
     lineHeight: 72,
-    letterSpacing: -3.6,
+    letterSpacing: titleTracking(72, -0.05),
     fontVariant: ['tabular-nums'],
     color: colors.textPrimary,
   },

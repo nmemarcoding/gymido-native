@@ -10,7 +10,7 @@ import ExerciseImage, { muscleColor, TILE_ALPHA } from '../../../shared/componen
 import GlassSurface, { usesSolidGlass } from '../../../shared/components/GlassSurface';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { useSheetFocus } from '../../../shared/hooks/useSheetFocus';
-import { blur, breakpoints, colors, font, gradients, radii, shadows, spacing, textScale, typography } from '../../../shared/theme/tokens';
+import { blur, breakpoints, colors, font, gradients, radii, shadows, spacing, textScale, titleTracking, typography } from '../../../shared/theme/tokens';
 import { exerciseName, segmentLabel, setsWord } from './sessionMath';
 import { keepUnitsTogether } from '../../../shared/format/counts';
 
@@ -1069,7 +1069,7 @@ const styles = StyleSheet.create({
     ...typography.displayMd,
     fontSize: 48,
     lineHeight: 50,
-    letterSpacing: -2.4,
+    letterSpacing: titleTracking(48, -0.05),
     color: colors.textPrimary,
   },
   sheetSubtitle: {

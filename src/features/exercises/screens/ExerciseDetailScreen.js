@@ -21,6 +21,7 @@ import {
   radii,
   spacing,
   textScale,
+  titleTracking,
   typography,
 } from '../../../shared/theme/tokens';
 import GymIcon from '../../shell/GymIcon';
@@ -676,7 +677,7 @@ const styles = StyleSheet.create({
     ...typography.displayXl,
     fontSize: 80,
     lineHeight: 76,
-    letterSpacing: -4.8,
+    letterSpacing: titleTracking(80, -0.06),
     color: colors.textPrimary,
   },
   factChips: {
