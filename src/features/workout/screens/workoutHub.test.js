@@ -232,17 +232,21 @@ describe('state 1: training day (main board)', () => {
     expect(textOf(host(tree.root, 'workout-week-count'))).toBe('1 of 4 done');
   });
 
-  it('a week with a missed day wraps the strip to 4 columns while the card is under 352 (web 219447b5)', async () => {
+  it('a week with a missed day wraps the strip to 4 columns while the CONTENT width is under 352 (web 219447b5)', async () => {
     const missed = WEEK.map((entry, index) => (index === 1 ? { ...entry, status: 'missed' } : entry));
     const tree = await renderScreen(hub({ week: missed }));
-    const layoutCard = (width) => act(() => host(tree.root, 'workout-week').props.onLayout({ nativeEvent: { layout: { width } } }));
-    layoutCard(351);
+    // The strip is the card's content: outer width − 2 × (14 padding + 1 border).
+    const card = flat(host(tree.root, 'workout-week'));
+    const inset = 2 * (card.paddingHorizontal + card.borderWidth);
+    expect(inset).toBe(30);
+    const layoutCard = (outer) => act(() => host(tree.root, 'workout-week-strip').props.onLayout({ nativeEvent: { layout: { width: outer - inset } } }));
+    layoutCard(381);
     expect(flat(host(tree.root, 'workout-week-strip')).flexWrap).toBe('wrap');
     expect(flat(host(tree.root, 'workout-week-day-1')).width).toBe('25%');
-    layoutCard(352);
+    layoutCard(382);
     expect(flat(host(tree.root, 'workout-week-strip')).flexWrap).toBeUndefined();
     const plain = await renderScreen();
-    act(() => host(plain.root, 'workout-week').props.onLayout({ nativeEvent: { layout: { width: 300 } } }));
+    act(() => host(plain.root, 'workout-week-strip').props.onLayout({ nativeEvent: { layout: { width: 300 } } }));
     expect(flat(host(plain.root, 'workout-week-strip')).flexWrap).toBeUndefined();
   });
 

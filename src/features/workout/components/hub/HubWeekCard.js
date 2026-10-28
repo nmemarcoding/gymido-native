@@ -10,9 +10,9 @@ import { CheckIcon } from './HubIcons';
 // 13/600 (N1); rest and missed use text-muted (N2); missed is the dashed
 // circle (C3). Each day is one screen-reader stop ("Thu: today, training").
 // Past the large-text reflow the strip wraps to 3 columns. A week WITH a
-// missed day wraps to 4 columns while the card is narrower than 352 ("Missed"
-// needs ~46 of a 320 phone's or the tablet side card's 7 columns; RN-SPEC
-// T-76, web 219447b5).
+// missed day wraps to 4 columns while the card's CONTENT (the strip itself,
+// inside the 14 padding + 1 border) is narrower than 352 ("Missed" needs ~46
+// of a 7th; RN-SPEC T-76, web 219447b5).
 const CIRCLE = 34;
 export const MISSED_WRAP_BELOW = 352;
 
@@ -22,7 +22,7 @@ export default function HubWeekCard({ strip, progress, reflow = false, style }) 
   const columns = reflow ? 3 : width > 0 && width < MISSED_WRAP_BELOW && strip.some((cell) => cell.kind === 'missed') ? 4 : 7;
   const wrapped = columns < 7;
   return (
-    <View testID="workout-week" style={[styles.card, style]} onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
+    <View testID="workout-week" style={[styles.card, style]}>
       <View style={styles.head}>
         <Text accessibilityRole="header" {...CAP_BODY} style={styles.title}>
           This week
@@ -34,7 +34,7 @@ export default function HubWeekCard({ strip, progress, reflow = false, style }) 
       <View style={styles.track} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <View testID="workout-week-bar" style={[styles.fill, { width: `${Math.round(ratio * 100)}%` }]} />
       </View>
-      <View testID="workout-week-strip" style={[styles.strip, wrapped && styles.stripWrap]}>
+      <View testID="workout-week-strip" style={[styles.strip, wrapped && styles.stripWrap]} onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
         {strip.map((cell) => (
           <View
             key={cell.key}
