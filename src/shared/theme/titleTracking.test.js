@@ -80,6 +80,38 @@ describe('ruling 5 (f2): title tracking source guard', () => {
     expect(scanned).toBeGreaterThan(50);
     expect(offenders).toEqual([]);
   });
+
+  // Reviewer carry (65504db): every letterSpacing (a style key or a JSX prop)
+  // is a numeric literal (checked above), a titleTracking() call or a token
+  // reference, so a computed value can't dodge the literal scan. The named
+  // exceptions below are the only other values allowed.
+  const EXCEPTIONS = [
+    // PM ruling 27 Oct 2026: the "404" numeral is react-native-svg Text, which
+    // never wraps, so the Android floor (against word splits) doesn't apply;
+    // it keeps the board's −0.07em.
+    { file: 'features/shell/NotFoundScreen.js', value: 'NUMERAL_TRACKING' },
+  ];
+
+  it('every letterSpacing is a literal, a titleTracking() call or a token reference (or a named exception)', () => {
+    const others = [];
+    const seen = new Set();
+    listJs(SRC).forEach((full) => {
+      const file = path.relative(SRC, full).split(path.sep).join('/');
+      const source = fs.readFileSync(full, 'utf8');
+      const any = /letterSpacing\s*(?::|=\{?)\s*([^,}\n]+)/g;
+      let match;
+      while ((match = any.exec(source))) {
+        const value = match[1].trim();
+        if (/^-?[\d.]+$/.test(value) || /^titleTracking\(/.test(value) || /^(typography|textScale)\.\w+\.letterSpacing$/.test(value)) continue;
+        const exception = EXCEPTIONS.find((entry) => entry.file === file && entry.value === value);
+        if (exception) seen.add(exception);
+        else others.push(`${file} ${value}`);
+      }
+    });
+    expect(others).toEqual([]);
+    // A stale exception (the code it names is gone or changed) fails too.
+    expect(EXCEPTIONS.filter((entry) => !seen.has(entry))).toEqual([]);
+  });
 });
 
 // Behaviour: the routed screens build their StyleSheets at module load, so
