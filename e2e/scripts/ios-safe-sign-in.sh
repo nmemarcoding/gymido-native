@@ -100,7 +100,9 @@ check() {
   # a direct child, which finish's pkill stops.
   mkdir -p "$WORK/home"
   # XDG_STATE_HOME wins over user.home in Maestro's log path (review carry 2).
-  (unset XDG_STATE_HOME; JAVA_TOOL_OPTIONS="-Duser.home=$WORK/home" exec maestro --device "$UDID" hierarchy 2>/dev/null) | python3 "$CHECK" "$ENV_FILE" "$ACCOUNT" "$1"
+  # A fresh home prints Maestro's analytics notice on stdout, before the JSON
+  # (the check then failed: confirm 2941880), so it is opted out.
+  (unset XDG_STATE_HOME; MAESTRO_CLI_NO_ANALYTICS=1 JAVA_TOOL_OPTIONS="-Duser.home=$WORK/home" exec maestro --device "$UDID" hierarchy 2>/dev/null) | python3 "$CHECK" "$ENV_FILE" "$ACCOUNT" "$1"
   local code=$?
   purge
   return "$code"

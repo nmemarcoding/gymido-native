@@ -209,7 +209,7 @@ describe('sign-in runners keep Maestro debug output private', () => {
     const runs = src.split('\n').filter((line) => /maestro --device "\$UDID" hierarchy/.test(line));
     expect(runs.length).toBe(1);
     runs.forEach((line) => {
-      expect(line).toMatch(/\(unset XDG_STATE_HOME; JAVA_TOOL_OPTIONS="-Duser\.home=\$WORK\/home" exec maestro/);
+      expect(line).toMatch(/\(unset XDG_STATE_HOME; MAESTRO_CLI_NO_ANALYTICS=1 JAVA_TOOL_OPTIONS="-Duser\.home=\$WORK\/home" exec maestro/);
       expect(line).toMatch(/2>\/dev\/null\) \| python3 "\$CHECK"/);
       expect(line).not.toMatch(/>\s*"\$WORK/);
     });
