@@ -11,7 +11,7 @@ import { CREATE_GLOW, TABLET_CARD_FILL, TABLET_CREATE_GLOW } from '../trainer/pl
 import { createMyPlan } from './api/myPlansApi';
 import MyPlanCreateScreen, { MEMBER_CREATE_VARIANT } from './MyPlanCreateScreen';
 
-const mockNavigation = { push: jest.fn(), addListener: jest.fn(() => () => {}) };
+const mockNavigation = { push: jest.fn(), replace: jest.fn(), addListener: jest.fn(() => () => {}) };
 let mockShellProps;
 
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({ __esModule: true, default: jest.fn() }));
@@ -150,7 +150,9 @@ describe('My plan create v2 look (C3), phone', () => {
     expect(payload.slug).toMatch(/^push-day/);
     expect(texts(tree.root).some((t) => t.includes('push-day'))).toBe(false);
     expect(addToast).toHaveBeenCalledWith('success', 'Plan created', 'Add days and exercises to build it out.');
-    expect(mockNavigation.push).toHaveBeenCalledWith('MyPlan', { planId: 31 });
+    // DECLARED (T-74 review M1): was push('MyPlan', …); the builder REPLACES the create screen.
+    expect(mockNavigation.replace).toHaveBeenCalledWith('MyPlan', { planId: 31 });
+    expect(mockNavigation.push).not.toHaveBeenCalled();
   });
 
   it('saving: fields disabled and the primary loading', async () => {

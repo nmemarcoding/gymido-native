@@ -118,6 +118,22 @@ describe('openAfterDelete (T-74, web parity)', () => {
     expect(calls(navigation)).toEqual({ popTo: [], goBack: 1, replace: [], push: 0 });
   });
 
+  it('LOW L1: alone in its stack, even when the parent tabs canGoBack → replace(MyPlans), not goBack', () => {
+    const navigation = nav(['MyPlan'], true);
+    adapter.openAfterDelete(navigation);
+    expect(calls(navigation)).toEqual({ popTo: [], goBack: 0, replace: [['MyPlans']], push: 0 });
+  });
+
+  it('M1: Library → Create → create REPLACES the form, so [PlansLibrary, MyPlan]; delete → back to the library', () => {
+    // The stack as the create screen leaves it: replace swaps MyPlanCreate for MyPlan.
+    const stack = ['PlansLibrary', 'MyPlanCreate'];
+    stack.splice(stack.length - 1, 1, 'MyPlan');
+    expect(stack).toEqual(['PlansLibrary', 'MyPlan']);
+    const navigation = nav(stack, true);
+    adapter.openAfterDelete(navigation);
+    expect(calls(navigation)).toEqual({ popTo: [], goBack: 1, replace: [], push: 0 });
+  });
+
   it('nothing to go back to (a deep link alone, canGoBack false) → replace(MyPlans)', () => {
     const navigation = nav(['MyPlan'], false);
     adapter.openAfterDelete(navigation);

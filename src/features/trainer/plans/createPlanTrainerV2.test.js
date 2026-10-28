@@ -11,7 +11,7 @@ import { createTrainerPlan } from './api/plansApi';
 import { CORNER_GLOW_SIZE, TRAINER_CREATE_GLOW, TRAINER_TABLET_CREATE_GLOW } from './components/TrainerCreatePlanLayout';
 import CreatePlanScreen from './screens/CreatePlanScreen';
 
-const mockNavigation = { push: jest.fn(), addListener: jest.fn(() => () => {}) };
+const mockNavigation = { push: jest.fn(), replace: jest.fn(), addListener: jest.fn(() => () => {}) };
 let mockShellProps;
 
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({ __esModule: true, default: jest.fn() }));
@@ -169,7 +169,9 @@ describe('Trainer plan create, phone (TrainerPlanCreate)', () => {
     expect(comp(tree.root, 'create-plan-cancel').props.disabled).toBeFalsy();
     await act(async () => resolve({ id: 77 }));
     expect(addToast).toHaveBeenCalledWith('success', 'Plan created', 'Add days and exercises to build it out.');
-    expect(mockNavigation.push).toHaveBeenCalledWith('TrainerPlan', { planId: 77 });
+    // DECLARED (T-74 review M1): was push('TrainerPlan', …); the builder REPLACES the create screen.
+    expect(mockNavigation.replace).toHaveBeenCalledWith('TrainerPlan', { planId: 77 });
+    expect(mockNavigation.push).not.toHaveBeenCalled();
   });
 
   it('409: the slug error (server text or the fallback)', async () => {

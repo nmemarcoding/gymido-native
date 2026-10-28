@@ -128,8 +128,10 @@ export function CreatePlanForm({ variant }) {
     try {
       const plan = await variant.create(values);
       addToast(ToastTone.success, 'Plan created', 'Add days and exercises to build it out.');
-      // `saving` stays true: the web page unmounts here.
-      navigation.push(variant.planRoute, { planId: plan?.id });
+      // `saving` stays true: this screen unmounts here. REPLACE, not push, so
+      // no create form is left in the history (T-74 review M1; T-65 carry):
+      // the builder's back / delete never lands on a stale, saving form.
+      navigation.replace(variant.planRoute, { planId: plan?.id });
     } catch (error) {
       if (!mounted.current) {
         return;

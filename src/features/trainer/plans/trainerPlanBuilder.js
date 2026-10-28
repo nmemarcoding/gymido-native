@@ -45,8 +45,11 @@ export function createTrainerPlanMutations(planId) {
 // history:
 // - the plan list (`listRoute`) is already below in this stack → popTo it;
 // - else (opened from the Plans LIBRARY, a deep link from another page) →
-//   goBack when there is somewhere to go back to;
-// - else (nothing below, no history) → replace the deleted plan with the list.
+//   goBack when this stack has a screen below (its own index, not
+//   canGoBack, which also counts the parent tabs' history);
+// - else (nothing below) → replace the deleted plan with the list.
+// A create screen is never below: a successful create REPLACES it with the
+// builder (CreatePlanForm.submit).
 export function openListAfterDelete(navigation, listRoute) {
   const state = navigation?.getState?.();
   const list = state?.routes ?? [];
@@ -55,7 +58,7 @@ export function openListAfterDelete(navigation, listRoute) {
     navigation.popTo(listRoute);
     return;
   }
-  if (navigation?.canGoBack?.()) {
+  if (index > 0) {
     navigation.goBack();
     return;
   }
