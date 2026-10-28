@@ -253,3 +253,48 @@ describe('QA candidate-9643e9c automate list', () => {
     expect(flow.match(block)).toHaveLength(2);
   });
 });
+
+// Flow run on ea27f77 (Android 360 phone + 1280 tablet, 27 Oct): the tablet
+// has the rail (rail-*), no tab bar, so these flows failed at their first
+// tab tap; h1-h3 never scrolled to the entry block under an active plan card
+// on the phone; h1 asserted plan-activate below the fold on the tablet.
+describe('flow run ea27f77 fixes', () => {
+  const read = (rel) => fs.readFileSync(path.join(V2, rel), 'utf8');
+  const steps = (src) => src.split('\n').filter((line) => !line.trim().startsWith('#')).join('\n');
+
+  it.each([
+    'phase3/01-today.yaml',
+    'phase3/02-workout-hub.yaml',
+    'phase3/03-exercises.yaml',
+    'subflows/start-workout.yaml',
+    'phase5/k-subflows/open-profile.yaml',
+    'phase5/l1-find-trainer-detail.yaml',
+    'phase5/l4-end-coaching-dialog.yaml',
+  ])('%s: every tab tap has its rail twin, both conditional (phone AND tablet)', (rel) => {
+    const flow = steps(read(rel));
+    expect(flow).not.toMatch(/^- tapOn:\n {4}id: "tab-/m);
+    const tabs = [...flow.matchAll(/tapOn:\n\s+id: "tab-(\w+)"/g)].map((m) => m[1]);
+    expect(tabs.length).toBeGreaterThan(0);
+    tabs.forEach((name) => {
+      expect(flow).toMatch(new RegExp(`visible:\\n\\s+id: "tab-${name}"\\n\\s+commands:\\n\\s+- tapOn:\\n\\s+id: "tab-${name}"`));
+      expect(flow).toMatch(new RegExp(`visible:\\n\\s+id: "rail-${name}"\\n\\s+commands:\\n\\s+- tapOn:\\n\\s+id: "rail-${name}"`));
+    });
+    // Waits for a tab accept the rail too.
+    expect(flow).not.toMatch(/visible:\n\s+id: "tab-\w+"\n\s+timeout/);
+  });
+
+  it.each(['h1-plans-to-plan-detail.yaml', 'h2-plans-to-my-plans.yaml', 'h3-active-plan-detail.yaml'])(
+    '%s scrolls DOWN to the entry block (it can sit under the active plan card) and checks the return by the screen id',
+    (name) => {
+      const flow = steps(read(`phase4/${name}`));
+      expect(flow).toMatch(/id: "plans-library-screen"/);
+      expect(flow).toMatch(/scrollUntilVisible:\n\s+element:\n\s+id: "plans-entry-tiles\|plans-own"\n\s+direction: DOWN/);
+      expect(flow).not.toMatch(/extendedWaitUntil:\n\s+visible:\n\s+id: "plans-entry-tiles\|plans-own"/);
+    },
+  );
+
+  it('h1 scrolls plan-activate into view before asserting it', () => {
+    const flow = steps(read('phase4/h1-plans-to-plan-detail.yaml'));
+    expect(flow).toMatch(/scrollUntilVisible:\n\s+element:\n\s+id: "plan-activate"\n\s+direction: DOWN\n\s+centerElement: true[^\n]*\n[^\n]*\n- assertVisible:\n\s+id: "plan-activate"/);
+  });
+});

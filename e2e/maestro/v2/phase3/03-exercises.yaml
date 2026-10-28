@@ -3,8 +3,25 @@
 # or a < 1024 tablet has the Filter button + sheet; ≥ 1024 has the panel.
 appId: com.gymido.app
 ---
-- tapOn:
-    id: "tab-Exercises"
+- extendedWaitUntil:
+    visible:
+      id: "tab-Exercises|rail-Exercises"
+    timeout: 30000
+# Phone tab bar or the tablet rail (flow run ea27f77).
+- runFlow:
+    when:
+      visible:
+        id: "tab-Exercises"
+    commands:
+      - tapOn:
+          id: "tab-Exercises"
+- runFlow:
+    when:
+      visible:
+        id: "rail-Exercises"
+    commands:
+      - tapOn:
+          id: "rail-Exercises"
 - extendedWaitUntil:
     visible:
       id: "exercises-bar"

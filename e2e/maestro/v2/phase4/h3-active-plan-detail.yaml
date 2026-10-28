@@ -21,8 +21,15 @@ appId: com.gymido.app
           id: "rail-Plans"
 - extendedWaitUntil:
     visible:
-      id: "plans-entry-tiles|plans-own"
+      id: "plans-library-screen"
     timeout: 30000
+# Flow run ea27f77: on a phone with an active plan the entry rows sit below
+# the plan card; scroll down to them.
+- scrollUntilVisible:
+    element:
+      id: "plans-entry-tiles|plans-own"
+    direction: DOWN
+    timeout: 20000
 - runFlow:
     when:
       visible:
@@ -71,7 +78,4 @@ appId: com.gymido.app
           timeout: 20000
       - tapOn:
           id: "plan-detail-back"
-      - extendedWaitUntil:
-          visible:
-            id: "plans-entry-tiles|plans-own"
-          timeout: 30000
+      

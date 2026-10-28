@@ -6,8 +6,25 @@
 # workout): Workout must open on its hub, not on a running session.
 appId: com.gymido.app
 ---
-- tapOn:
-    id: "tab-Today"
+- extendedWaitUntil:
+    visible:
+      id: "tab-Today|rail-Today"
+    timeout: 30000
+# Phone tab bar or the tablet rail (flow run ea27f77).
+- runFlow:
+    when:
+      visible:
+        id: "tab-Today"
+    commands:
+      - tapOn:
+          id: "tab-Today"
+- runFlow:
+    when:
+      visible:
+        id: "rail-Today"
+    commands:
+      - tapOn:
+          id: "rail-Today"
 # QA candidate-9643e9c: Today keeps its scroll position (01-today ends at
 # the weight card), so scroll back up to the top state first.
 - scrollUntilVisible:

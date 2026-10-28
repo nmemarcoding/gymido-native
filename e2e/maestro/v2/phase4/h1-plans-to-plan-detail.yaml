@@ -23,10 +23,13 @@ appId: com.gymido.app
     visible:
       id: "plans-library-screen"
     timeout: 30000
-- extendedWaitUntil:
-    visible:
+# Flow run ea27f77: on a phone with an active plan the entry rows sit below
+# the plan card; scroll down to them.
+- scrollUntilVisible:
+    element:
       id: "plans-entry-tiles|plans-own"
-    timeout: 30000
+    direction: DOWN
+    timeout: 20000
 - assertVisible:
     id: "my-plans-entry"
 - scrollUntilVisible:
@@ -46,6 +49,13 @@ appId: com.gymido.app
       id: "plan-schedule-card"
     direction: DOWN
     timeout: 20000
+# Flow run ea27f77 (tablet): the button sits below the card's top.
+- scrollUntilVisible:
+    element:
+      id: "plan-activate"
+    direction: DOWN
+    centerElement: true
+    timeout: 20000
 - assertVisible:
     id: "plan-activate"
 - scrollUntilVisible:
@@ -57,5 +67,5 @@ appId: com.gymido.app
     id: "plan-detail-back"
 - extendedWaitUntil:
     visible:
-      id: "plans-entry-tiles|plans-own"
+      id: "plans-library-screen"
     timeout: 30000

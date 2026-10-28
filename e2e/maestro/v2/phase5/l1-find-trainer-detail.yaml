@@ -6,10 +6,23 @@ appId: com.gymido.app
 ---
 - extendedWaitUntil:
     visible:
-      id: "tab-Profile"
+      id: "tab-Profile|rail-Profile"
     timeout: 60000
-- tapOn:
-    id: "tab-Profile"
+# Phone tab bar or the tablet rail (flow run ea27f77).
+- runFlow:
+    when:
+      visible:
+        id: "tab-Profile"
+    commands:
+      - tapOn:
+          id: "tab-Profile"
+- runFlow:
+    when:
+      visible:
+        id: "rail-Profile"
+    commands:
+      - tapOn:
+          id: "rail-Profile"
 # QA s6: Profile may be left scrolled down by an earlier flow.
 - scrollUntilVisible:
     element:
