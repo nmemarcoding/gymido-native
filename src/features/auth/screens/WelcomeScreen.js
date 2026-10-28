@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PillButton from '../../../shared/components/PillButton';
 import Screen from '../../../shared/components/Screen';
 import { ToastTone, addToast } from '../../../shared/components/toastStore';
-import { colors, gradients, shadows, spacing, textScale, titleTracking, typography } from '../../../shared/theme/tokens';
+import { colors, gradients, spacing, textScale, titleTracking, typography } from '../../../shared/theme/tokens';
 import { login, signup, takeAccountDeletedNotice } from '../authService';
 import { AuthStatus, useAuthStore } from '../authStore';
 import { DISPLAY_TITLE_TEXT, GTile, WelcomeRings, boardTop, isTabletWidth } from '../components/AuthArt';
@@ -96,7 +96,7 @@ export default function WelcomeScreen() {
       <WelcomeRings size={art.size} style={[styles.art, { top: art.top }]} />
       <View testID="welcome-column" style={[styles.column, tablet && styles.columnTablet]}>
         <View style={[styles.brand, tablet && styles.brandTablet]}>
-          <GTile size={tablet ? TABLET.tile : PHONE.tile} style={tablet && styles.tileTablet} />
+          <GTile size={tablet ? TABLET.tile : PHONE.tile} />
           <Text testID="welcome-title" accessibilityRole="header" {...DISPLAY_TITLE_TEXT} style={tablet ? styles.titleTablet : styles.title}>
             Gymido
           </Text>
@@ -160,9 +160,6 @@ const styles = StyleSheet.create({
   },
   brandTablet: {
     gap: spacing[4],
-  },
-  tileTablet: {
-    boxShadow: shadows.goldGlowLarge,
   },
   // flexShrink: a long title wraps/shrinks beside the tile, never off screen.
   title: {

@@ -1262,7 +1262,6 @@ const styles = StyleSheet.create({
   },
   actionGold: {
     backgroundColor: colors.gold,
-    boxShadow: shadows.goldGlow,
   },
   actionText: {
     ...typography.bodySm,
@@ -1291,7 +1290,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.xxl,
     borderWidth: 2,
     borderColor: colors.gold,
-    boxShadow: shadows.goldGlowLarge,
   },
   photoCardFull: {
     width: '100%',
@@ -1425,7 +1423,6 @@ const styles = StyleSheet.create({
     minHeight: 50,
     paddingHorizontal: spacing[7],
     backgroundColor: colors.gold,
-    boxShadow: shadows.goldGlow,
   },
   cardActionText: {
     ...typography.body,

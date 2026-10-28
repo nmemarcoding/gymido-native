@@ -9,7 +9,7 @@ import { CAP_BODY, DISPLAY_TITLE_TEXT, useLargeTextReflow } from '../../../../sh
 import PillButton from '../../../../shared/components/PillButton';
 import { ToastTone, addToast } from '../../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../../shared/hooks/useFocusRemountKey';
-import { breakpoints, colors, font, gradients, radii, shadows, spacing, textScale, typography } from '../../../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, radii, spacing, textScale, typography } from '../../../../shared/theme/tokens';
 import { useAuthStore } from '../../../auth/authStore';
 import { logout } from '../../../auth/authService';
 import { useProfileStore } from '../../../profile/profileStore';
@@ -80,7 +80,7 @@ function OwnAvatar({ size, radius }) {
       testID="trainer-profile-avatar"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[styles.avatarShadow, { width: size, height: size, borderRadius: radius }]}
+      style={{ width: size, height: size, borderRadius: radius }}
     >
       <View style={[styles.avatarClip, { borderRadius: radius }]}>
         <GradientFill angle={gradients.goldAvatar.angle} colors={gradients.goldAvatar.colors} />
@@ -307,9 +307,6 @@ const styles = StyleSheet.create({
   titleBlock: {
     flexShrink: 1,
     minWidth: 0,
-  },
-  avatarShadow: {
-    boxShadow: shadows.goldGlow,
   },
   avatarClip: {
     flex: 1,

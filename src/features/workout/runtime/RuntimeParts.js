@@ -1445,7 +1445,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
     backgroundColor: colors.gold,
     paddingHorizontal: spacing[6],
-    boxShadow: shadows.goldGlowLarge,
+    boxShadow: shadows.goldGlow,
   },
   didItDisabled: {
     borderWidth: 1,

@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Screen from '../../../shared/components/Screen';
 import Spinner from '../../../shared/components/Spinner';
-import { colors, font, gradients, radii, shadows, textScale, typography } from '../../../shared/theme/tokens';
+import { colors, font, gradients, radii, textScale, typography } from '../../../shared/theme/tokens';
 import { isTabletWidth } from '../components/AuthArt';
 
 const LOADING_LABEL = 'Restoring your session and preparing the app';
@@ -163,7 +163,6 @@ const styles = StyleSheet.create({
     height: TABLET_TILE,
     borderRadius: radii.tile,
     backgroundColor: colors.gold,
-    boxShadow: shadows.goldGlowLarge,
     alignItems: 'center',
     justifyContent: 'center',
   },

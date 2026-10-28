@@ -13,7 +13,7 @@ import SessionLoadingScreen, {
   TABLET_TILE,
   TILE,
 } from './SessionLoadingScreen';
-import { gradients, shadows } from '../../../shared/theme/tokens';
+import { gradients } from '../../../shared/theme/tokens';
 import GradientFill from '../../../shared/components/GradientFill';
 
 jest.mock('react-native-safe-area-context', () => {
@@ -158,8 +158,9 @@ describe('SessionLoadingScreen: A4 tablet (board TabletSessionLoading)', () => {
       height: TABLET_TILE,
       borderRadius: 38,
       backgroundColor: colors.gold,
-      boxShadow: shadows.goldGlowLarge,
     });
+    // DECLARED (T-86): was boxShadow shadows.goldGlowLarge; a tile carries no gold glow.
+    expect(flat(byId(tree, 'session-loading-tile')).boxShadow).toBeUndefined();
     expect(TABLET_TILE).toBe(120);
     expect(byId(tree, 'session-loading-tile').findAllByType(GradientFill)).toHaveLength(0);
     const g = tree.root.findAllByType(Text).find((node) => node.props.children === 'G');

@@ -3,7 +3,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import GradientFill from '../../../shared/components/GradientFill';
 import PillButton from '../../../shared/components/PillButton';
-import { colors, font, gradients, radii, shadows, spacing, textScale, typography } from '../../../shared/theme/tokens';
+import { colors, font, gradients, radii, spacing, textScale, typography } from '../../../shared/theme/tokens';
 import { COPY } from '../generatorCopy';
 
 // RN-SPEC-v2-phase2 §D2 Generator states (UX D "Generator states"). Look only.
@@ -89,7 +89,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gold,
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: shadows.goldGlow,
   },
   // 28/32/700 -0.04em on the board = title-lg (token 30/32).
   title: {

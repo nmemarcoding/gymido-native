@@ -4,7 +4,7 @@ import { act, create } from 'react-test-renderer';
 import ExerciseImage from '../../../../shared/components/ExerciseImage';
 import GradientFill from '../../../../shared/components/GradientFill';
 import Select from '../../../../shared/components/Select';
-import { colors, muscleText, shadows, textScale } from '../../../../shared/theme/tokens';
+import { colors, muscleText, textScale } from '../../../../shared/theme/tokens';
 import ExercisePickerSheet, { CATALOG_UNAVAILABLE_TITLE, TABLET_DIALOG_FILL } from './ExercisePickerSheet';
 
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({ __esModule: true, default: jest.fn() }));
@@ -136,7 +136,9 @@ describe('Exercise picker v2 look (C2), phone', () => {
     expect(pressable(tree.root, 'exercise-picker-row-2').props.accessibilityState).toEqual({ checked: true, disabled: false });
     const add = pressable(tree.root, 'exercise-picker-add');
     expect(add.props.disabled).toBe(false);
-    expect(styleOf(add).boxShadow).toBe(shadows.goldGlow);
+    // DECLARED (T-86): was shadows.goldGlow; a button inside a sheet has no gold glow.
+    expect(styleOf(add).boxShadow).toBeUndefined();
+    expect(styleOf(add).backgroundColor).toBe(colors.gold);
     expect(host(tree.root, 'exercise-picker-add-count')).toHaveLength(1);
     // The count line is a polite live region.
     expect(host(tree.root, 'exercise-picker-meta')[0].props.accessibilityLiveRegion).toBe('polite');
@@ -375,7 +377,8 @@ describe('Exercise picker tokens (Phase 2 exact match)', () => {
     });
     act(() => pressable(tree.root, 'exercise-picker-row-1').props.onPress());
     expect(styleOf(pressable(tree.root, 'exercise-picker-row-1')).backgroundColor).toBe(colors.surfaceCard2);
-    expect(styleOf(pressable(tree.root, 'exercise-picker-add')).boxShadow).toBe(shadows.goldGlowLarge);
+    // DECLARED (T-86): was shadows.goldGlowLarge (retired); a button inside a sheet has no gold glow.
+    expect(styleOf(pressable(tree.root, 'exercise-picker-add')).boxShadow).toBeUndefined();
   });
 
   it('tablet: the muscle chip text is the lighter muscle text on the 16 % tint', () => {

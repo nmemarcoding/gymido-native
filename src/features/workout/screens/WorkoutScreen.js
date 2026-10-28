@@ -443,7 +443,7 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
   const todayTitle = planDayTitle(todayStatus?.plan_day);
   const todayCount = planDays.find((day) => day.id === todayDayId)?.exercises_count ?? todayStatus?.plan_day?.exercises_count;
   const todayExercises = exercisesByDay[todayDayId];
-  const rows = dayRows({ planDays, schedule: currentPlan.schedule, doneIds: page.completedThisWeekDayIds, state, todayDayId });
+  const rows = dayRows({ planDays, schedule: currentPlan.schedule, doneIds: page.completedThisWeekDayIds, state, todayDayId, now });
   // T-80: a row (Start or Repeat) or "Start {Day} early": the copy for this context.
   const requestStart = (day, ref) => {
     confirmReturnRef.current = ref?.current ?? null;

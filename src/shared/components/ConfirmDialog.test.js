@@ -141,3 +141,18 @@ describe('ConfirmDialog (v2 §6)', () => {
     expect(tree.root.findByType(Modal).props.visible).toBe(false);
   });
 });
+
+describe('T-86: no gold glow inside a dialog', () => {
+  const shadowOf = (tree, testID) => {
+    const pressable = tree.root.findAll((n) => n.props.testID === testID && typeof n.props.style === 'function')[0];
+    return StyleSheet.flatten(pressable.props.style({ pressed: false })).boxShadow;
+  };
+
+  it.each([390, 1024])('the gold primary in the footer has no glow at %i', (width) => {
+    atWidth(width);
+    const tree = render(dialog({ tone: 'default', confirmLabel: 'Save' }));
+    expect(button(tree, 'confirm-confirm').props.variant).toBe('primary');
+    expect(shadowOf(tree, 'confirm-confirm')).toBeUndefined();
+    expect(shadowOf(tree, 'confirm-cancel')).toBeUndefined();
+  });
+});

@@ -81,9 +81,11 @@ describe('BrandButton', () => {
     expect(label.fontSize).toBe(16);
   });
 
-  it('a size passes through (cta = 60 with the large glow)', () => {
+  it('a size passes through (cta = 60 with the one gold glow, T-86)', () => {
     const tree = render(<BrandButton label="Go home" size="cta" onPress={() => {}} />);
-    expect(styleAt(tree, false)).toMatchObject({ minHeight: 60, boxShadow: shadows.goldGlowLarge });
+    // DECLARED (T-86): was shadows.goldGlowLarge (retired).
+    expect(styleAt(tree, false)).toMatchObject({ minHeight: 60, boxShadow: shadows.goldGlow });
+    expect(shadows.goldGlow).toBe('0px 10px 24px -12px rgba(255, 194, 26, 0.4)');
   });
 
   it('never clips (Android blank-render class)', () => {

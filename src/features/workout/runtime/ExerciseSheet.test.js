@@ -5,7 +5,7 @@ import BlurLayer from '../../../shared/components/BlurLayer';
 import Chip from '../../../shared/components/Chip';
 import ExerciseImage from '../../../shared/components/ExerciseImage';
 import GradientFill from '../../../shared/components/GradientFill';
-import { blur, colors, gradients, shadows, textScale } from '../../../shared/theme/tokens';
+import { blur, colors, gradients, textScale } from '../../../shared/theme/tokens';
 import {
   CURRENT_ROW_FILL,
   CURRENT_ROW_WASH,
@@ -135,14 +135,15 @@ describe('All exercises sheet v2 (C4), phone', () => {
     );
   });
 
-  it('current row: gold ring, number badge and the gold Resume with its glow', () => {
+  it('current row: gold ring, number badge and the gold Resume (T-86: no glow inside a sheet)', () => {
     const { tree } = render();
     expect(styleOf(pressable(tree.root, 'exercise-sheet-card-1'))).toMatchObject({ borderColor: colors.gold, borderWidth: 1.5 });
     expect(host(tree.root, 'exercise-sheet-badge-1')).toHaveLength(1);
     expect(styleOf(pressable(tree.root, 'exercise-sheet-action-1'))).toMatchObject({
       backgroundColor: colors.gold,
-      boxShadow: shadows.goldGlow,
     });
+    // DECLARED (T-86): was boxShadow shadows.goldGlow; a button inside a sheet has no gold glow.
+    expect(styleOf(pressable(tree.root, 'exercise-sheet-action-1')).boxShadow).toBeUndefined();
     expect(styleOf(pressable(tree.root, 'exercise-sheet-action-2')).backgroundColor).toBe(colors.fillSkeleton);
   });
 

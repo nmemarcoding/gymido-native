@@ -306,11 +306,39 @@ describe('dayRows: Other days', () => {
     expect(rows.map((row) => row.action)).toEqual(['Repeat Upper A', 'Repeat Lower A', 'Repeat Upper B', 'Repeat Lower B']);
   });
 
-  it('rest / no schedule list every day; a day on two weekdays names both', () => {
+  it('rest / no schedule list every day; a day on two weekdays names only its next one (T-73 D2)', () => {
     expect(dayRows({ planDays: DAYS, schedule: SCHEDULE, doneIds: [], state: 'rest', todayDayId: 3 })).toHaveLength(4);
     expect(dayRows({ planDays: DAYS, schedule: [], doneIds: [], state: 'noSchedule' }).map((row) => row.meta)[2]).toBe(s('Any day · 6 exercises'));
     const twice = [...SCHEDULE, { weekday: wd(3), plan_day: DAYS[0] }];
-    expect(dayRows({ planDays: DAYS, schedule: twice, doneIds: [], state: 'rest' })[0].meta).toBe(s('Monday and Wednesday · 5 exercises'));
+    // NOW is Thursday: Monday and Wednesday are both past → next week's first, Monday.
+    expect(dayRows({ planDays: DAYS, schedule: twice, doneIds: [], state: 'rest', now: NOW })[0].meta).toBe(s('Monday · 5 exercises'));
+    // Tuesday: Wednesday is next.
+    expect(dayRows({ planDays: DAYS, schedule: twice, doneIds: [], state: 'rest', now: new Date(2026, 9, 27, 9) })[0].meta).toBe(s('Wednesday · 5 exercises'));
+  });
+
+  describe('T-73 D2: Tue + Thu shows the next scheduled weekday from today (today included)', () => {
+    const tueThu = [
+      { weekday: wd(4), plan_day: DAYS[0] },
+      { weekday: wd(2), plan_day: DAYS[0] },
+    ];
+    const whenOn = (date) => dayRows({ planDays: [DAYS[0]], schedule: tueThu, doneIds: [], state: 'rest', now: date })[0].meta.split(' · ')[0];
+    // 26 Oct 2026 is a Monday.
+    it.each([
+      ['Monday', 26, 'Tuesday'],
+      ['Tuesday', 27, 'Tuesday'],
+      ['Wednesday', 28, 'Thursday'],
+      ['Thursday', 29, 'Thursday'],
+      ['Friday', 30, 'Tuesday'],
+      ['Saturday', 31, 'Tuesday'],
+    ])('%s (Oct %i) → %s', (_label, date, expected) => {
+      expect(whenOn(new Date(2026, 9, date, 9))).toBe(expected);
+    });
+    it('Sunday → Tuesday (next week)', () => {
+      expect(whenOn(new Date(2026, 10, 1, 9))).toBe('Tuesday');
+    });
+    it('never joins names with "and"', () => {
+      expect(whenOn(new Date(2026, 9, 26, 9))).not.toMatch(/ and /);
+    });
   });
 
   it('the block copy per state', () => {

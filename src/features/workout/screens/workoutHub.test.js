@@ -282,6 +282,15 @@ describe('state 1: training day (main board)', () => {
     expect(startWorkout).toHaveBeenCalledWith({ user_plan_enrollment_id: 31, workout_plan_day_id: 1 });
   });
 
+  it('T-73 D2: a day on several weekdays shows only its next scheduled weekday from today (today included)', async () => {
+    // NOW is Thursday 29 Oct: Upper A on Mon + Sat → "Saturday"; Lower B on Tue + Thu → "Thursday".
+    const schedule = [...SCHEDULE, { weekday: wd(6), plan_day: DAYS[0] }, { weekday: wd(4), plan_day: DAYS[3] }, { weekday: wd(2), plan_day: DAYS[3] }];
+    const tree = await renderScreen(hub({ currentPlan: { ...PLAN, schedule } }));
+    const all = texts(host(tree.root, 'workout-other-days'));
+    expect(all).toEqual(expect.arrayContaining([s('Thursday · 5 exercises'), s('· Saturday · 5 exercises'), s('· Tuesday · 5 exercises')]));
+    expect(all.filter((text) => / and /.test(text) && /day/.test(text))).toEqual([]);
+  });
+
   it('T-80: Start {Day} instead? on a not-done row; Cancel (every dismiss) starts nothing; Start starts it once', async () => {
     const tree = await renderScreen();
     const row = dayButtons(tree.root)[0];

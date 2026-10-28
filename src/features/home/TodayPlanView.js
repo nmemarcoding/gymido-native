@@ -625,7 +625,6 @@ const styles = StyleSheet.create({
   primaryTablet: {
     minHeight: 60,
     paddingLeft: spacing[6],
-    boxShadow: shadows.goldGlowLarge,
   },
   primaryText: {
     ...font(600),

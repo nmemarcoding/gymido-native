@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BlurLayer from '../../../shared/components/BlurLayer';
 import GradientFill from '../../../shared/components/GradientFill';
+import { NoGlow } from '../../../shared/components/glowScope';
 import { isTabletWidth } from '../../../shared/components/AppModal';
 import useForegroundBlur from './useForegroundBlur';
 import { CAP_BODY, DISPLAY_TITLE_TEXT, TITLE_TEXT } from '../../../shared/components/largeText';
@@ -58,6 +59,8 @@ export default function AlertSheet({
     : [styles.sheet, { maxHeight: height - spacing['2_5'] - insets.top }];
   return (
     <Modal transparent visible={open} animationType="fade" onRequestClose={onRequestClose} statusBarTranslucent>
+      {/* T-86: no gold glow on a button inside a dialog / sheet. */}
+      <NoGlow>
       <View style={[styles.host, tablet && styles.hostTablet]}>
         {/* Lead / UX F2 ruling: a DIMMED scrim over the live Rest screen,
             never opaque: color-scrim 0.6 + blur 8 on phone and tablet; the
@@ -108,6 +111,7 @@ export default function AlertSheet({
           </ScrollView>
         </View>
       </View>
+      </NoGlow>
     </Modal>
   );
 }

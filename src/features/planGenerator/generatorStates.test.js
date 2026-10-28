@@ -108,7 +108,7 @@ const { RetryButton } = require('../../shared/components/ErrorAlert');
 const { default: ErrorAlert } = require('../../shared/components/ErrorAlert');
 const { default: PillButton } = require('../../shared/components/PillButton');
 const { default: GradientFill } = require('../../shared/components/GradientFill');
-const { colors, radii, shadows } = require('../../shared/theme/tokens');
+const { colors, radii } = require('../../shared/theme/tokens');
 const { initialStepErrors } = require('./screens/PlanGeneratorScreen');
 
 let focusSpy;
@@ -162,7 +162,9 @@ describe('G1 generator unavailable (page card)', () => {
     const tree = await render(<PlanGeneratorScreen />);
     expect(flat(hostOf(tree, 'generator-unavailable'))).toMatchObject({ maxWidth: 640, alignSelf: 'center', borderRadius: radii.xxl, overflow: 'hidden', paddingVertical: 36, paddingHorizontal: 22 });
     expect(hostOf(tree, 'generator-unavailable').props.accessibilityLiveRegion).toBe('polite');
-    expect(flat(hostOf(tree, 'generator-unavailable-icon'))).toMatchObject({ width: 72, height: 72, borderRadius: radii.xl, backgroundColor: colors.gold, boxShadow: shadows.goldGlow });
+    expect(flat(hostOf(tree, 'generator-unavailable-icon'))).toMatchObject({ width: 72, height: 72, borderRadius: radii.xl, backgroundColor: colors.gold });
+    // DECLARED (T-86): was boxShadow shadows.goldGlow; an icon tile carries no gold glow.
+    expect(flat(hostOf(tree, 'generator-unavailable-icon')).boxShadow).toBeUndefined();
     expect(tree.root.findAllByType(GradientFill)).toHaveLength(2);
     const title = tree.root.find((node) => node.type === 'Text' && node.props.children === "The plan generator isn't available yet");
     expect(flat(title)).toMatchObject({ fontFamily: 'Geist-Bold', fontSize: 30, color: colors.textPrimary });

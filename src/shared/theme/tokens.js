@@ -532,15 +532,17 @@ export const typography = Object.freeze({
   bodyText: Object.freeze({ ...step(15, 22, 400), color: colors.textSecondary }),
 });
 
-// §3 Elevation: two shadows only. goldGlow under the ONE gold primary
-// (goldGlowLarge under a 60 px button); float for glass chrome, toasts,
-// sheets and dialogs.
+// §3 Elevation: two shadows only. goldGlow under the ONE gold primary of a
+// screen; float for glass chrome, toasts, sheets and dialogs.
+// T-86 (owner-approved, softer): ONE gold glow token, CSS
+// `0 10px 24px -12px rgba(255,194,26,0.40)`, at every size (the 60 px
+// goldGlowLarge is retired). Never on chips, tiles, badges or cards, and
+// never on a button inside a dialog or sheet (PillButton's NoGlow scope).
 const V2_SHADOWS = {
-  goldGlow: '0px 10px 30px -8px rgba(255, 194, 26, 0.55)',
-  goldGlowLarge: '0px 14px 36px -10px rgba(255, 194, 26, 0.6)',
+  goldGlow: '0px 10px 24px -12px rgba(255, 194, 26, 0.4)',
   float: '0px 16px 40px rgba(0, 0, 0, 0.5)',
-  // v2 kit: kit 2 (UX §5 / §8.6 / §8.6a 2 / §8.7 U11). shadow-gold-glow and
-  // shadow-gold-glow-lg are goldGlow / goldGlowLarge above. sheet: centred
+  // v2 kit: kit 2 (UX §5 / §8.6 / §8.6a 2 / §8.7 U11). shadow-gold-glow is
+  // goldGlow above (T-86: the -lg step is the same token). sheet: centred
   // dialogs (tablet cards); sheetUp: every bottom sheet.
   sheet: '0px 30px 80px rgba(0, 0, 0, 0.6)',
   sheetUp: '0px -10px 50px rgba(0, 0, 0, 0.6)',

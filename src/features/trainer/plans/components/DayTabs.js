@@ -1,7 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CAP_BODY } from '../../../../shared/components/largeText';
-import { colors, font, layout, radii, shadows, spacing } from '../../../../shared/theme/tokens';
+import { colors, font, layout, radii, spacing } from '../../../../shared/theme/tokens';
 import { formatDayTitle } from '../planFormat';
 import { TextAction, slopFor } from './builderParts';
 import { PlusIcon } from './pickerIcons';
@@ -187,7 +187,6 @@ const styles = StyleSheet.create({
   },
   tabOnTrainer: {
     backgroundColor: colors.gold,
-    boxShadow: shadows.goldGlow,
   },
   tabOffTrainer: {
     backgroundColor: colors.surface,

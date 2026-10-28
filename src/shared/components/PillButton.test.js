@@ -28,6 +28,8 @@ const overlayOf = (tree, pressed = true) => {
 };
 const labelStyle = (tree) => StyleSheet.flatten(tree.root.findByType(Text).props.style);
 
+const { NoGlow } = require('./glowScope');
+
 const button = (props) => render(<PillButton testID="btn" title="Save" onPress={() => {}} {...props} />);
 
 describe('variants (§4.1 table)', () => {
@@ -162,9 +164,10 @@ describe('sizes', () => {
     expect(resolveSize('small')).toBe('compact');
   });
 
-  it('cta 60: 17/700 and the large gold glow on the primary', () => {
+  it('cta 60: 17/700 and the ONE gold glow on the primary (T-86)', () => {
     const tree = button({ size: 'cta' });
-    expect(restStyle(tree)).toMatchObject({ minHeight: 60, boxShadow: shadows.goldGlowLarge });
+    // DECLARED (T-86): was boxShadow shadows.goldGlowLarge (retired); the cta takes the one token.
+    expect(restStyle(tree)).toMatchObject({ minHeight: 60, boxShadow: '0px 10px 24px -12px rgba(255, 194, 26, 0.4)' });
     expect(labelStyle(tree)).toMatchObject({ ...font(700), fontSize: 17 });
     expect(resolveSize('large')).toBe('cta');
   });
@@ -349,5 +352,35 @@ describe('swipe is not a press', () => {
     gesture(tree, [[100, 150]]);
     act(() => pressableOf(tree).props.onPress());
     expect(onPress).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('T-86: the one soft gold glow, only on a screen\'s gold primary', () => {
+  const T86 = '0px 10px 24px -12px rgba(255, 194, 26, 0.4)';
+
+  it('the primary (default and cta) takes the new token', () => {
+    expect(shadows.goldGlow).toBe(T86);
+    expect(restStyle(button()).boxShadow).toBe(T86);
+    expect(restStyle(button({ size: 'cta' })).boxShadow).toBe(T86);
+    expect(restStyle(button({ size: 'compact' })).boxShadow).toBe(T86);
+  });
+
+  it('inside a dialog / sheet scope the primary has no glow; glow={false} turns it off anywhere', () => {
+    const inDialog = render(
+      <NoGlow>
+        <PillButton testID="btn" title="Save" onPress={() => {}} />
+      </NoGlow>,
+    );
+    expect(restStyle(inDialog).backgroundColor).toBe(colors.gold);
+    expect(restStyle(inDialog).boxShadow).toBeUndefined();
+    expect(pressedStyle(inDialog).boxShadow).toBeUndefined();
+    expect(restStyle(button({ glow: false })).boxShadow).toBeUndefined();
+  });
+
+  it('no other variant glows, even with glow passed', () => {
+    BUTTON_VARIANTS.filter((variant) => variant !== 'primary').forEach((variant) => {
+      expect(restStyle(button({ variant })).boxShadow).toBeUndefined();
+      expect(restStyle(button({ variant, glow: true })).boxShadow).toBeUndefined();
+    });
   });
 });

@@ -273,13 +273,26 @@ export const OTHER_DAYS_COPY = Object.freeze({
 // "today done" today's day comes last). Today's day is left out while it is a not-done training
 // day (ruling (b)).
 // Done comes from this week's completed workouts (workout_plan_day_id).
-export function dayRows({ planDays = [], schedule, doneIds = [], state, todayDayId }) {
+// T-73 D2 (RN-SPEC-workout, 28 Oct): a day on several weekdays shows only its
+// NEXT scheduled weekday from today (today included), else its first one next
+// week (Tue + Thu: Mon/Tue → Tuesday, Wed/Thu → Thursday, Fri–Sun → Tuesday);
+// the same schedule source as Up next. Unscheduled → "Any day".
+function nextScheduledWeekdayName(weekdays, now) {
+  const todayId = now.getDay() === 0 ? 7 : now.getDay();
+  const ids = weekdays.map((weekday) => Number(weekday.id)).filter((id) => WEEKDAYS[id - 1]).sort((a, b) => a - b);
+  if (!ids.length) {
+    return null;
+  }
+  const id = ids.find((value) => value >= todayId) ?? ids[0];
+  return WEEKDAYS[id - 1].name;
+}
+
+export function dayRows({ planDays = [], schedule, doneIds = [], state, todayDayId, now = new Date() }) {
   const weekdays = scheduledWeekdaysByDayId(schedule);
   const rows = planDays
     .filter((day) => !(state === 'training' && day.id === todayDayId && !doneIds.includes(day.id)))
     .map((day) => {
-      const names = (weekdays[day.id] ?? []).map((weekday) => WEEKDAYS[Number(weekday.id) - 1]?.name).filter(Boolean);
-      const when = names.length ? joinWithAnd(names) : 'Any day';
+      const when = nextScheduledWeekdayName(weekdays[day.id] ?? [], now) ?? 'Any day';
       const title = planDayTitle(day);
       const done = doneIds.includes(day.id);
       return {

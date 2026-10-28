@@ -4,10 +4,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, font, motion, radii, shadows, spacing, typography } from '../theme/tokens';
 import { CAP_BODY } from './largeText';
 import Spinner from './Spinner';
+import { useInNoGlow } from './glowScope';
 
 // RN-SPEC-v2-foundation §4.1 Button (pill): five variants + goldTint, flat fills. Only
 // the gold primary carries the glow (one gold primary per screen); text on
-// gold is always colors.onGold.
+// gold is always colors.onGold. T-86: the glow is the one shadows.goldGlow at
+// every size, and none inside a dialog / sheet (glowScope NoGlow); `glow`
+// (true / false) overrides that default.
 // Pressed (UX §8.6 STATE RULE): the rest colour stays and a 4 % overlay View
 // covers the pill: pressOverlayInk (ink) on the light fills (gold, light),
 // pressOverlay (white) on the dark ones (secondary, ghost, goldTint). Never a new alpha
@@ -162,11 +165,14 @@ export default function PillButton({
   style,
   // React 19: a plain prop, for callers that move accessibility focus here.
   ref,
+  // T-86: undefined → the primary glows unless inside a dialog / sheet.
+  glow: glowProp,
 }) {
   const inactive = disabled || loading;
   const look = VARIANTS[resolveVariant(variant)];
   const sizeName = resolveSize(size);
-  const glow = look.glow ? (sizeName === 'cta' ? styles.glowLarge : styles.glow) : null;
+  const inNoGlow = useInNoGlow();
+  const glow = look.glow && (glowProp ?? !inNoGlow) ? styles.glow : null;
   const iconNode = typeof icon === 'function' ? icon({ color: look.text }) : icon;
   // UX §9 rule 2: a label never truncates; it wraps (2 lines at the 2.0 cap
   // for any real label) and the pill grows from a 52 minimum, padding
@@ -285,9 +291,6 @@ const styles = StyleSheet.create({
   },
   glow: {
     boxShadow: shadows.goldGlow,
-  },
-  glowLarge: {
-    boxShadow: shadows.goldGlowLarge,
   },
   fullWidth: {
     alignSelf: 'stretch',

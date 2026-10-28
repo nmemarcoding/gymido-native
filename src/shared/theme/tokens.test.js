@@ -97,9 +97,10 @@ describe('radius and elevation (§3)', () => {
     expect(radii).toEqual({ sm: 12, md: 16, lg: 20, lgPlus: 22, xl: 24, xxl: 28, xxxl: 32, xxxxl: 36, tile: 38, full: 999 });
   });
 
-  it('has two shadows: the gold glow (with its 60 px size) and float', () => {
-    expect(shadows.goldGlow).toBe('0px 10px 30px -8px rgba(255, 194, 26, 0.55)');
-    expect(shadows.goldGlowLarge).toBe('0px 14px 36px -10px rgba(255, 194, 26, 0.6)');
+  it('has two shadows: the ONE gold glow (T-86, every size) and float', () => {
+    // DECLARED (T-86): was 0px 10px 30px -8px … 0.55 plus goldGlowLarge 0px 14px 36px -10px … 0.6.
+    expect(shadows.goldGlow).toBe('0px 10px 24px -12px rgba(255, 194, 26, 0.4)');
+    expect(shadows.goldGlowLarge).toBeUndefined();
     expect(shadows.float).toBe('0px 16px 40px rgba(0, 0, 0, 0.5)');
   });
 
@@ -288,9 +289,9 @@ describe('kit 2 tokens (UX §8.7 U1–U13, §8.6 shadow-sheet)', () => {
     expect(gradients.gold.angle).toBe(145);
   });
 
-  it('U11 shadow-gold-glow / -lg are goldGlow / goldGlowLarge; sheet and sheetUp', () => {
-    expect(shadows.goldGlow).toBe('0px 10px 30px -8px rgba(255, 194, 26, 0.55)');
-    expect(shadows.goldGlowLarge).toBe('0px 14px 36px -10px rgba(255, 194, 26, 0.6)');
+  it('U11 shadow-gold-glow (T-86: one token, -lg retired); sheet and sheetUp', () => {
+    expect(shadows.goldGlow).toBe('0px 10px 24px -12px rgba(255, 194, 26, 0.4)');
+    expect(Object.keys(shadows).filter((key) => /gold/i.test(key))).toEqual(['goldGlow']);
     expect(shadows.sheet).toBe('0px 30px 80px rgba(0, 0, 0, 0.6)');
     expect(shadows.sheetUp).toBe('0px -10px 50px rgba(0, 0, 0, 0.6)');
     // sheetUp is a v2 token now, no longer a v1 alias of float.

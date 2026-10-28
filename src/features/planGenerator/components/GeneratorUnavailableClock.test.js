@@ -14,7 +14,7 @@ jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   default: () => mockWindow,
 }));
 
-const { colors, radii, shadows } = require('../../../shared/theme/tokens');
+const { colors, radii } = require('../../../shared/theme/tokens');
 
 const render = (element) => {
   let tree;
@@ -34,7 +34,9 @@ describe('G1 "Generator turned off": the clock tile (UX parity ruling)', () => {
     mockWindow = { width, height: 1000, scale: 2, fontScale: 1 };
     const tree = render(<GeneratorUnavailable onBack={() => {}} />);
     const tile = StyleSheet.flatten(host(tree, 'generator-unavailable-icon').props.style);
-    expect(tile).toMatchObject({ width: 72, height: 72, borderRadius: radii.xl, backgroundColor: colors.gold, boxShadow: shadows.goldGlow });
+    expect(tile).toMatchObject({ width: 72, height: 72, borderRadius: radii.xl, backgroundColor: colors.gold });
+    // DECLARED (T-86): was boxShadow shadows.goldGlow; a tile carries no gold glow.
+    expect(tile.boxShadow).toBeUndefined();
     expect(radii.xl).toBe(24);
     // Solid: no gradient inside the tile.
     expect(host(tree, 'generator-unavailable-icon').findAll((node) => node.props.radial !== undefined || node.props.angle !== undefined)).toHaveLength(0);

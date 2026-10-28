@@ -563,8 +563,9 @@ export function CompletionPopup({ popup, onClose }) {
               <CompletionStats popup={popup} tablet reflow={reflow} />
               <PersonalBestCard lines={lines} popup={popup} />
               <Text {...CAP_BODY} style={[styles.setsLine, styles.setsLineTablet]}>{completionSetsLine(popup)}</Text>
+              {/* T-86: the tablet completion is a dialog card, so no glow (the phone one is a full screen). */}
               <View style={styles.awesomeTablet}>
-                <PillButton testID="completion-awesome" title="Awesome" size="cta" fullWidth onPress={onClose} style={styles.awesomeTall} />
+                <PillButton testID="completion-awesome" title="Awesome" size="cta" fullWidth glow={false} onPress={onClose} style={styles.awesomeTall} />
               </View>
             </ScrollView>
           </Animated.View>
@@ -987,7 +988,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.gold,
-    boxShadow: shadows.goldGlow,
   },
   eyebrow: {
     ...typography.bodySm,

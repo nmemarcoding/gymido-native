@@ -83,3 +83,11 @@ describe('Chip', () => {
     expect(pressable(custom).props.accessibilityHint).toBe('Muscle group');
   });
 });
+
+describe('T-86: a chip never carries the gold glow', () => {
+  it('off, selected and pressed: no boxShadow', () => {
+    expect(styleOf(render()).boxShadow).toBeUndefined();
+    expect(styleOf(render({ selected: true })).boxShadow).toBeUndefined();
+    expect(styleOf(render({ selected: true }), true).boxShadow).toBeUndefined();
+  });
+});

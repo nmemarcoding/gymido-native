@@ -12,7 +12,7 @@ import { apiClient } from '../../../../shared/api/client';
 import AppModal from '../../../../shared/components/AppModal';
 import PillButton from '../../../../shared/components/PillButton';
 import { addToast } from '../../../../shared/components/toastStore';
-import { colors, textScale } from '../../../../shared/theme/tokens';
+import { colors, font, radii, textScale } from '../../../../shared/theme/tokens';
 import MyPlanScreen from '../../../myPlans/MyPlanScreen';
 import { getCurrentPlan } from '../../../myPlans/api/myPlansApi';
 import DayListCard from '../components/DayListCard';
@@ -509,6 +509,38 @@ describe('trainer builder (phase6 O)', () => {
     expect(tree.root.findByType(DayListCard).props.look).toBe('trainer');
     expect(pill(tree, 'plan-add-exercise').props.variant).toBe('primary');
     expect(pill(tree, 'plan-add-day').props.variant).toBe('ghost');
+  });
+
+  it.each([834, 1194])('T-84 tablet %i: the dashed 48 "Add a day" (+ icon, 14/600) sits INSIDE the days card, under the days', async (width) => {
+    mockWidth = width;
+    const tree = await renderTrainer();
+    const card = tree.root.find((node) => node.props.testID === 'plan-days-card' && typeof node.type === 'string');
+    const inCard = card.findAll((node) => node.props.testID === 'plan-add-day' && typeof node.props.style === 'function');
+    expect(inCard).toHaveLength(1);
+    const style = StyleSheet.flatten(inCard[0].props.style({ pressed: false }));
+    expect(style).toMatchObject({ minHeight: 48, borderStyle: 'dashed', borderWidth: 1.5, borderRadius: radii.full, alignSelf: 'stretch' });
+    expect(style.boxShadow).toBeUndefined();
+    expect(pill(tree, 'plan-add-day').props.icon).toEqual(expect.any(Function));
+    const label = card.findAll((node) => node.type === Text && node.props.children === 'Add a day')[0];
+    expect(StyleSheet.flatten(label.props.style)).toMatchObject({ ...font(600), fontSize: 14 });
+    // Under the days: the add control is not inside the days list, it follows it in the card.
+    const list = card.find((node) => node.props.testID === 'plan-days-list' && typeof node.type === 'string');
+    expect(list.findAll((node) => node.props.testID === 'plan-add-day')).toHaveLength(0);
+  });
+
+  it('T-84 phone 390: "Add a day" is the full-width 48 dashed pill (+ and 14/600 label) under the day strip, not a 40 circle beside the tabs', async () => {
+    mockWidth = 390;
+    const tree = await renderTrainer();
+    const tablist = tree.root.find((node) => node.props.testID === 'plan-day-tabs' && typeof node.type === 'string');
+    expect(tablist.findAll((node) => node.props.testID === 'plan-add-day')).toHaveLength(0);
+    const scroll = tree.root.findAll((node) => node.props.testID === 'plan-day-tabs-scroll');
+    scroll.forEach((node) => expect(node.findAll((n) => n.props.testID === 'plan-add-day')).toHaveLength(0));
+    const add = pressable(tree, 'plan-add-day');
+    const style = StyleSheet.flatten(typeof add.props.style === 'function' ? add.props.style({ pressed: false }) : add.props.style);
+    expect(style).toMatchObject({ minHeight: 48, borderStyle: 'dashed', borderRadius: radii.full, flexDirection: 'row' });
+    expect(style.width).toBeUndefined();
+    const label = tree.root.findAll((node) => node.type === Text && node.props.children === 'Add a day')[0];
+    expect(StyleSheet.flatten(label.props.style)).toMatchObject({ ...font(600), fontSize: 14 });
   });
 
   // DECLARED (T-78): the tap now opens "Name your copy"; the POST runs on its Save.

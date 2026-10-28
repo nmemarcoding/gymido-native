@@ -1,7 +1,7 @@
 import { AccessibilityInfo, Platform, Share, StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
-import { colors } from '../../../shared/theme/tokens';
+import { colors, shadows } from '../../../shared/theme/tokens';
 import { CompleteWorkoutButton, CompletionPopup, DiscardButton, DiscardDialog, ExactAlarmDialog, SpeakIntroDialog } from './RuntimeOverlays';
 
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
@@ -382,5 +382,31 @@ describe('page buttons (UX F1 ND4)', () => {
     const busy = render(<DiscardButton abandoning onPress={() => {}} />);
     expect(texts(busy)).toContain('Exiting…');
     expect(pressable(busy, 'discard-workout').props.disabled).toBe(true);
+  });
+});
+
+describe('T-86: the gold glow only on a screen\'s one gold primary', () => {
+  it('phone: the full-screen completion Awesome glows with the one token; the gold badge does not', () => {
+    mockWidth = 390;
+    const tree = render(<CompletionPopup popup={POPUP} onClose={() => {}} />);
+    expect(flat(host(tree, 'completion-awesome')).boxShadow).toBe(shadows.goldGlow);
+    expect(shadows.goldGlow).toBe('0px 10px 24px -12px rgba(255, 194, 26, 0.4)');
+    tree.root
+      .findAll((node) => typeof node.type === 'string' && node.props.testID !== 'completion-awesome' && node.props.style)
+      .forEach((node) => expect(StyleSheet.flatten(node.props.style)?.boxShadow ?? null).not.toBe(shadows.goldGlow));
+  });
+
+  it('tablet: the completion card is a dialog, so Awesome has no glow', () => {
+    mockWidth = 834;
+    const tree = render(<CompletionPopup popup={POPUP} onClose={() => {}} />);
+    expect(flat(host(tree, 'completion-awesome')).backgroundColor).toBe(colors.gold);
+    expect(flat(host(tree, 'completion-awesome')).boxShadow).toBeUndefined();
+  });
+
+  it.each([390, 834])('a sheet / dialog gold primary (Open settings) has no glow at %i', (width) => {
+    mockWidth = width;
+    const tree = render(<ExactAlarmDialog open onNotNow={() => {}} onOpenSettings={() => {}} />);
+    expect(flat(host(tree, 'exact-alarm-open-settings')).backgroundColor).toBe(colors.gold);
+    expect(flat(host(tree, 'exact-alarm-open-settings')).boxShadow).toBeUndefined();
   });
 });

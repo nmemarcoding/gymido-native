@@ -380,7 +380,8 @@ export default function ExercisePickerSheet({
         tablet && styles.addTablet,
         tablet && styles.footerButtonTablet,
         stacked && styles.footerButtonStacked,
-        selectedCount === 0 ? styles.addDisabled : tablet ? styles.addGlowTablet : styles.addGlow,
+        // T-86: no gold glow on a button inside a sheet.
+        selectedCount === 0 && styles.addDisabled,
         pressed && styles.buttonPressed,
       ]}
     >
@@ -1005,7 +1006,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.gold,
     backgroundColor: colors.surfaceCard2,
-    boxShadow: shadows.goldGlow,
   },
   cardAdded: {
     borderColor: colors.hairline,
@@ -1179,12 +1179,6 @@ const styles = StyleSheet.create({
   addTablet: {
     flex: 1.6,
     gap: 10,
-  },
-  addGlow: {
-    boxShadow: shadows.goldGlow,
-  },
-  addGlowTablet: {
-    boxShadow: shadows.goldGlowLarge,
   },
   addDisabled: {
     opacity: 0.5,

@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BlurLayer from '../../../shared/components/BlurLayer';
 import GradientFill from '../../../shared/components/GradientFill';
 import PillButton from '../../../shared/components/PillButton';
+import { NoGlow } from '../../../shared/components/glowScope';
 import { CAP_BODY, DISPLAY_TITLE_TEXT, TITLE_TEXT, useLargeTextReflow } from '../../../shared/components/largeText';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { useSheetFocus } from '../../../shared/hooks/useSheetFocus';
@@ -78,6 +79,8 @@ function SessionDialog({ open, onDismiss, dismissOnScrim, tone, title, body, ver
   );
   return (
     <Modal transparent visible={open} animationType="none" onRequestClose={onDismiss} statusBarTranslucent>
+      {/* T-86: no gold glow on a button inside a dialog / sheet. */}
+      <NoGlow>
       <View style={[styles.host, tablet ? styles.hostTablet : styles.hostPhone, { paddingBottom: tablet ? spacing[6] : 0, paddingTop: insets.top + spacing[4] }]}>
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: progress }]}>
           {/* M5: the one prompt blur (8), drawn only in the foreground and
@@ -136,6 +139,7 @@ function SessionDialog({ open, onDismiss, dismissOnScrim, tone, title, body, ver
           </View>
         </Animated.View>
       </View>
+      </NoGlow>
     </Modal>
   );
 }

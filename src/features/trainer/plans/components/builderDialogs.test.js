@@ -376,6 +376,8 @@ describe('days and sets', () => {
     const tree = await render(<DayTabs days={days} selectedDayId={2} look="trainer" canAddDay onSelect={jest.fn()} onAddDay={onAddDay} />);
     expect(allText(tree)).toEqual(expect.arrayContaining(['Plan days', 'Day 1: Upper', 'Day 2: Untitled day', 'Add a day']));
     expect(flat(tap(tree, 'plan-day-2')).backgroundColor).toBe(colors.gold);
+    // T-86: the gold selected tab is a chip, so no gold glow.
+    expect(flat(tap(tree, 'plan-day-2')).boxShadow).toBeUndefined();
     expect(flat(tap(tree, 'plan-day-1')).backgroundColor).toBe(colors.surface);
     expect(flat(tap(tree, 'plan-add-day'))).toMatchObject({ minHeight: 48, borderStyle: 'dashed' });
     pressable(tree, 'plan-add-day').props.onPress();

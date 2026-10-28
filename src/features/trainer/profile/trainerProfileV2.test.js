@@ -3,7 +3,7 @@ import { act, create } from 'react-test-renderer';
 
 import ErrorAlert from '../../../shared/components/ErrorAlert';
 import GradientFill from '../../../shared/components/GradientFill';
-import { colors, gradients, radii, shadows, textScale } from '../../../shared/theme/tokens';
+import { colors, gradients, radii, textScale } from '../../../shared/theme/tokens';
 import { useAuthStore } from '../../auth/authStore';
 import { useProfileStore } from '../../profile/profileStore';
 import { updateTrainerProfile } from './api/trainerProfileApi';
@@ -86,8 +86,10 @@ describe('Trainer profile, phone (TrainerProfile)', () => {
     expect(comp(tree.root, 'trainer-profile-hero-glow').findByType(GradientFill).props.colors).toBe(gradients.tealOrb.colors);
     const avatar = host(tree.root, 'trainer-profile-avatar');
     expect(flat(avatar.props.style)).toEqual(
-      expect.objectContaining({ width: AVATAR_PHONE, height: AVATAR_PHONE, borderRadius: radii.xl, boxShadow: shadows.goldGlow }),
+      expect.objectContaining({ width: AVATAR_PHONE, height: AVATAR_PHONE, borderRadius: radii.xl }),
     );
+    // DECLARED (T-86): was boxShadow shadows.goldGlow; an avatar tile carries no gold glow.
+    expect(flat(avatar.props.style).boxShadow).toBeUndefined();
     expect(avatar.props.accessibilityElementsHidden).toBe(true);
     expect(comp(tree.root, 'trainer-profile-avatar').findByType(GradientFill).props.colors).toBe(gradients.goldAvatar.colors);
     const initials = tree.root.findAllByType(Text).find((node) => node.props.children === 'CN');

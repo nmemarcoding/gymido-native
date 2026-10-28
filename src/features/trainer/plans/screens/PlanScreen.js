@@ -1190,8 +1190,11 @@ const styles = StyleSheet.create({
     borderColor: colors.hairline,
     backgroundColor: colors.surface,
   },
-  // The trainer tablet's dashed "Add a day" (46, 1.5 px dashed white 18 %).
+  // The trainer tablet's dashed "Add a day" (1.5 px dashed white 18 %) inside
+  // the days card. T-84 (RN-SPEC-TRAINER-PLANS 27 Oct b4 + T83-85 item 5): 48
+  // tall like the phone pill (was the compact 44).
   dashedAdd: {
+    minHeight: 48,
     borderWidth: 1.5,
     borderStyle: 'dashed',
     borderColor: colors.hairlineBright,

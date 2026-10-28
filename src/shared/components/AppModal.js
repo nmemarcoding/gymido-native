@@ -18,6 +18,7 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 import { blur, breakpoints, colors, motion, radii, shadows, spacing, typography } from '../theme/tokens';
 import BlurLayer from './BlurLayer';
 import FeedbackIcon from './FeedbackIcon';
+import { NoGlow } from './glowScope';
 import { CAP_BODY, DISPLAY_TITLE_TEXT, TITLE_TEXT, useLargeTextReflow } from './largeText';
 import ToastHost from './ToastHost';
 import { useToastHostStore } from './toastStore';
@@ -215,6 +216,8 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
 
   return (
     <Modal transparent visible={isOpen} animationType="none" onRequestClose={onClose} statusBarTranslucent>
+      {/* T-86: no gold glow on any button inside a dialog / sheet. */}
+      <NoGlow>
       <View testID="app-modal-overlay" style={[styles.scrim, tablet ? styles.scrimTablet : styles.scrimPhone, frame.scrim]}>
         {/* UX §8.7 U12: the scrim blurs 4 on phones, 6 on tablets. */}
         <BlurLayer blurPx={tablet ? blur.scrimTablet : blur.scrim} overApp />
@@ -304,6 +307,7 @@ export default function AppModal({ isOpen, onClose, title, description, size = '
           </Fragment>
         </Animated.View>
       </View>
+      </NoGlow>
       <ToastHost hostId={toastHostId} />
     </Modal>
   );
