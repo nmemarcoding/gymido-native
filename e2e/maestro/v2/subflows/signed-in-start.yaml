@@ -2,8 +2,8 @@
 # launching, signing in or typing anything. The lead signs the account in with
 # the safe runner first (iOS: e2e/scripts/ios-safe-sign-in.sh <udid> <ACCOUNT>).
 #
-# `launchApp` with stopApp:false only brings the running app to the front (a
-# dev client keeps its loaded bundle; a release build is unaffected).
+# A dev client is only brought to the front (`launchApp` stopApp:false keeps
+# its loaded bundle); a Release build relaunches (below).
 # Refuses to start on top of an active workout session (it may be someone's
 # real workout; these flows never discard a session they did not start).
 #
@@ -11,16 +11,39 @@
 # Phase 6 flows resolve; IDs only, no coordinates, no credentials.
 appId: com.gymido.app
 ---
-- launchApp:
-    stopApp: false
+# T-65 (27 Oct 2026): the phone tab bar shows only on main pages, so an
+# earlier flow can end on an inner page. A Release build relaunches (the
+# stored session signs it straight back in) and cold-starts on the role's
+# main page; a dev client keeps its bundle (no relaunch).
+- runFlow:
+    when:
+      true: ${MAESTRO_GYMIDO_RELEASE == 'true'}
+    commands:
+      - launchApp:
+          stopApp: true
+- runFlow:
+    when:
+      true: ${MAESTRO_GYMIDO_RELEASE != 'true'}
+    commands:
+      - launchApp:
+          stopApp: false
+# A main page: the bottom nav (phone) or the rail (tablet).
 - extendedWaitUntil:
     visible:
-      id: "bottom-nav|session-chrome"
+      id: "bottom-nav|rail-Today|rail-TToday|session-chrome"
     timeout: 30000
 - runFlow:
     when:
       visible:
         id: "session-chrome"
+    commands:
+      - assertTrue:
+          condition: ${false}
+          label: "A workout session is already active. Finish or discard it by hand first."
+# After a relaunch an open session shows as Today's "Resume workout" (T-63).
+- runFlow:
+    when:
+      visible: "Resume workout"
     commands:
       - assertTrue:
           condition: ${false}

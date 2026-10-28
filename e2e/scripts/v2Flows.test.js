@@ -305,3 +305,31 @@ describe('flow run ea27f77 fixes', () => {
     expect(flow).toMatch(/scrollUntilVisible:\n\s+element:\n\s+id: "plan-activate"\n\s+direction: DOWN\n\s+centerElement: true[^\n]*\n[^\n]*\n- assertVisible:\n\s+id: "plan-activate"/);
   });
 });
+
+// T-65 (PM): the phone tab bar shows only on main pages, so a flow that ends
+// on an inner page must not break the next one. The suite entry resets to the
+// role's main page first (a Release build cold-starts on it), then waits for
+// a main-page anchor, never the bottom nav alone (tablets have the rail).
+describe('signed-in-start resets to a main page (T-65)', () => {
+  const flow = fs
+    .readFileSync(path.join(V2, 'subflows', 'signed-in-start.yaml'), 'utf8')
+    .split('\n')
+    .filter((line) => !line.trim().startsWith('#'))
+    .join('\n');
+
+  it('a Release build relaunches (stopApp: true) before the first wait', () => {
+    const relaunch = flow.search(/when:\n\s+true: \$\{MAESTRO_GYMIDO_RELEASE == 'true'\}\n\s+commands:\n\s+- launchApp:\n\s+stopApp: true/);
+    expect(relaunch).toBeGreaterThan(-1);
+    expect(relaunch).toBeLessThan(flow.indexOf('extendedWaitUntil'));
+  });
+
+  it('waits for a main-page anchor on phone OR tablet, not the bottom nav alone', () => {
+    expect(flow).toMatch(/extendedWaitUntil:\n\s+visible:\n\s+id: "bottom-nav\|rail-Today\|rail-TToday\|session-chrome"/);
+    expect(flow).not.toMatch(/id: "bottom-nav\|session-chrome"/);
+  });
+
+  it('still refuses an active session, incl. Today\'s "Resume workout" after a relaunch', () => {
+    expect(flow).toMatch(/visible:\n\s+id: "session-chrome"\n\s+commands:\n\s+- assertTrue:\n\s+condition: \$\{false\}/);
+    expect(flow).toMatch(/visible: "Resume workout"\n\s+commands:\n\s+- assertTrue:\n\s+condition: \$\{false\}/);
+  });
+});

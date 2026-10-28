@@ -1,9 +1,9 @@
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useEffect } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import BackPill from '../../shared/components/BackPill';
-import { breakpoints, colors, spacing, textScale, typography } from '../../shared/theme/tokens';
+import { breakpoints, colors, font, spacing, textScale, typography } from '../../shared/theme/tokens';
 import { mountBell } from '../notifications/bellPolling';
 import NotificationBell from '../notifications/NotificationBell';
 import ModeSwitch from './ModeSwitch';
@@ -89,7 +89,7 @@ export default function AppHeader({ path, query = '', mode, headerActions = null
         {title || backLink ? (
           // X1: a page that draws its own title keeps the back link, untitled.
           <View style={styles.titleColumn}>
-            {backLink ? <BackLink label={backLink.label} onPress={goBack} /> : null}
+            {backLink ? <BackLink label={backLink.label} onPress={goBack} plain={tablet && path === '/notifications'} /> : null}
             {title ? (
               <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.title, tablet && styles.titleTablet]}>
                 {title}
@@ -109,15 +109,68 @@ export default function AppHeader({ path, query = '', mode, headerActions = null
 // link's name is the parent. UX native final audit 27 Oct 2026, ruling 6
 // (C307): the boards' glass pill "‹ {parent}" (kit BackPill, 44 phone / 40
 // tablet), replacing the gold text link (R1's acceptance was web 834 only).
-function BackLink({ label, onPress }) {
+// T-65 parity (PM, 27 Oct 2026): web keeps a plain link for Notifications at
+// ≥ 768, so on a tablet that one back is the earlier gold text link (14/600,
+// 32 tall + a 44 hit area, underlined while pressed); the pill is phone-only
+// there. The arrow is decorative; the link's name is the label.
+function BackLink({ label, onPress, plain = false }) {
+  const text = label.replace(/^←\s*/, '');
+  if (plain) {
+    return (
+      <View style={styles.backBlock}>
+        <Pressable
+          testID="header-back-link"
+          accessibilityRole="link"
+          accessibilityLabel={text}
+          onPress={onPress}
+          hitSlop={BACK_HIT_SLOP}
+          style={styles.backLink}
+        >
+          {({ pressed }) => (
+            <View style={styles.backRow}>
+              <Text accessibilityElementsHidden importantForAccessibility="no" style={[styles.backText, pressed && styles.backArrowPressed]}>
+                ←
+              </Text>
+              <Text style={[styles.backText, pressed && styles.backPressed]}>{text}</Text>
+            </View>
+          )}
+        </Pressable>
+      </View>
+    );
+  }
   return (
     <View style={styles.backBlock}>
-      <BackPill testID="header-back-link" label={label.replace(/^←\s*/, '')} onPress={onPress} />
+      <BackPill testID="header-back-link" label={text} onPress={onPress} />
     </View>
   );
 }
 
+// 32 tall + 6 above and below = the 44 hit area; 12 at the sides.
+const BACK_HIT_SLOP = { top: 6, bottom: 6, left: 12, right: 12 };
+
 const styles = StyleSheet.create({
+  backLink: {
+    minHeight: 32,
+    justifyContent: 'center',
+  },
+  backText: {
+    ...font(600),
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.gold,
+  },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  backPressed: {
+    color: colors.goldDeep,
+    textDecorationLine: 'underline',
+  },
+  backArrowPressed: {
+    color: colors.goldDeep,
+  },
   titleColumn: {
     flexShrink: 1,
   },

@@ -121,3 +121,35 @@ describe('T-65 header back pills (spec §3)', () => {
     ['/', '/plans', '/progress', '/profile'].forEach((path) => expect(backLink(tree(path, 'member'))).toBeUndefined());
   });
 });
+
+// T-65 parity (PM, 27 Oct 2026; web keeps a plain link at ≥ 768): on a tablet
+// Notifications' back is the plain gold text link "← Back"; the glass pill
+// is phone-only there. Other tablet pages keep the pill (ruling 6).
+describe('Notifications back on tablet = a plain text link (T-65 parity)', () => {
+  const BackPill = require('../../shared/components/BackPill').default;
+  const pills = (tree) => tree.root.findAll((node) => node.type === BackPill);
+
+  it('834: no pill; a gold 14/600 text link "← Back" named "Back", same back behaviour', () => {
+    const tree = render({ path: '/notifications' }, 834);
+    expect(pills(tree)).toHaveLength(0);
+    const link = byTestId(tree, 'header-back-link')[0];
+    expect(link.props.accessibilityRole).toBe('link');
+    expect(link.props.accessibilityLabel).toBe('Back');
+    const texts = link.findAllByType(Text).map((node) => node.props.children);
+    expect(texts).toEqual(['←', 'Back']);
+    const label = link.findAllByType(Text)[1];
+    const style = Object.assign({}, ...[].concat(label.props.style).filter(Boolean));
+    expect(style).toMatchObject({ color: require('../../shared/theme/tokens').colors.gold, fontSize: 14 });
+    mockNavigation.canGoBack.mockReturnValueOnce(false);
+    act(() => backLink(tree).props.onPress());
+    expect(openShellPath).toHaveBeenCalledWith('/');
+  });
+
+  it('390: the pill', () => {
+    expect(pills(render({ path: '/notifications' }, 390))).toHaveLength(1);
+  });
+
+  it('834, another inner page (My trainer): still the pill', () => {
+    expect(pills(render({ path: '/my-trainer' }, 834))).toHaveLength(1);
+  });
+});
