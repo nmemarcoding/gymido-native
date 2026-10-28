@@ -1,8 +1,9 @@
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
-import { breakpoints, colors, font, spacing, textScale, typography } from '../../shared/theme/tokens';
+import BackPill from '../../shared/components/BackPill';
+import { breakpoints, colors, spacing, textScale, typography } from '../../shared/theme/tokens';
 import { mountBell } from '../notifications/bellPolling';
 import NotificationBell from '../notifications/NotificationBell';
 import ModeSwitch from './ModeSwitch';
@@ -11,7 +12,7 @@ import { getHeaderBackLink, getHeaderTitle, getHeroFallbackTitle, isCompactHeade
 import { useShellUiStore } from './shellUiStore';
 
 // App-shell spec §6.1; v2 look RN-SPEC-v2-foundation §7.4 (title-xl on
-// phones, display-md on tablets; gold back link; bell top-right). The bell lives in a different spot in the full and
+// phones, display-md on tablets; back pill (ruling 6); bell top-right). The bell lives in a different spot in the full and
 // compact variants, so changing variant remounts it (⚠S4): the focused
 // screen's header tells the bell controller which variant is showing.
 // Large text (UX §9): page titles scale at most 1.3×, wrap by word (max 3
@@ -40,6 +41,9 @@ export default function AppHeader({ path, query = '', mode, headerActions = null
   const isSessionActive = useShellUiStore((state) => state.isSessionActive);
   const title = getHeaderTitle(path, isSessionActive) || (heroTitleShown ? '' : getHeroFallbackTitle(path));
   const backLink = getHeaderBackLink(path, isSessionActive);
+  const navigation = useNavigation();
+  // A157: a `history` back link goes back (Today when there is none).
+  const goBack = (link) => (link.history && navigation.canGoBack() ? navigation.goBack() : openShellPath(link.path));
 
   useEffect(() => {
     if (isFocused) {
@@ -84,7 +88,7 @@ export default function AppHeader({ path, query = '', mode, headerActions = null
         {title || backLink ? (
           // X1: a page that draws its own title keeps the back link, untitled.
           <View style={styles.titleColumn}>
-            {backLink ? <BackLink label={backLink.label} onPress={() => openShellPath(backLink.path)} /> : null}
+            {backLink ? <BackLink label={backLink.label} onPress={() => goBack(backLink)} /> : null}
             {title ? (
               <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.title, tablet && styles.titleTablet]}>
                 {title}
@@ -100,38 +104,17 @@ export default function AppHeader({ path, query = '', mode, headerActions = null
   );
 }
 
-// §6.1 back link (5-tab nav): above the H1, v2 §7.4: 14/600 gold, min-height
-// 32 with a 44 hit area; underlined (and the pressed gold) while pressed.
-// Goes to that tab's root. my-trainer:327 (audit b4 (3), 27 Oct 2026): an 8
-// gap between the arrow and the label (it sat flush); the arrow is
-// decorative, the link's name is the label.
+// §6.1 back link (5-tab nav): above the H1, goes to that tab's root; the
+// link's name is the parent. UX native final audit 27 Oct 2026, ruling 6
+// (C307): the boards' glass pill "‹ {parent}" (kit BackPill, 44 phone / 40
+// tablet), replacing the gold text link (R1's acceptance was web 834 only).
 function BackLink({ label, onPress }) {
-  const text = label.replace(/^←\s*/, '');
   return (
     <View style={styles.backBlock}>
-      <Pressable
-        testID="header-back-link"
-        accessibilityRole="link"
-        accessibilityLabel={text}
-        onPress={onPress}
-        hitSlop={BACK_HIT_SLOP}
-        style={styles.backLink}
-      >
-        {({ pressed }) => (
-          <View style={styles.backRow}>
-            <Text accessibilityElementsHidden importantForAccessibility="no" style={[styles.backText, pressed && styles.backArrowPressed]}>
-              ←
-            </Text>
-            <Text style={[styles.backText, pressed && styles.backPressed]}>{text}</Text>
-          </View>
-        )}
-      </Pressable>
+      <BackPill testID="header-back-link" label={label.replace(/^←\s*/, '')} onPress={onPress} />
     </View>
   );
 }
-
-// 32 tall + 6 above and below = the 44 hit area; 12 at the sides.
-const BACK_HIT_SLOP = { top: 6, bottom: 6, left: 12, right: 12 };
 
 const styles = StyleSheet.create({
   titleColumn: {
@@ -139,29 +122,7 @@ const styles = StyleSheet.create({
   },
   backBlock: {
     alignSelf: 'flex-start',
-    marginBottom: 4,
-  },
-  backLink: {
-    minHeight: 32,
-    justifyContent: 'center',
-  },
-  backText: {
-    ...font(600),
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.gold,
-  },
-  backRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[2],
-  },
-  backPressed: {
-    color: colors.goldDeep,
-    textDecorationLine: 'underline',
-  },
-  backArrowPressed: {
-    color: colors.goldDeep,
+    marginBottom: spacing[2],
   },
   full: {
     paddingTop: 8,

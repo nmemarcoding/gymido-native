@@ -1,11 +1,14 @@
 import { StyleSheet, Text, useWindowDimensions } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
+import { colors } from '../../shared/theme/tokens';
+
 import AppHeader from './AppHeader';
 
 const mockUi = { isSessionActive: false };
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({ __esModule: true, default: jest.fn() }));
-jest.mock('@react-navigation/native', () => ({ useIsFocused: () => true }));
+const mockNavigation = { canGoBack: jest.fn(() => true), goBack: jest.fn() };
+jest.mock('@react-navigation/native', () => ({ useIsFocused: () => true, useNavigation: () => mockNavigation }));
 jest.mock('../notifications/bellPolling', () => ({ mountBell: jest.fn() }));
 jest.mock('../notifications/NotificationBell', () => {
   const { View } = require('react-native');
@@ -71,44 +74,33 @@ describe('AppHeader v2 look (§7.4)', () => {
     expect(tree.root.findAll((node) => node.props.accessibilityRole === 'header')).toHaveLength(0);
   });
 
-  it('back link: 14/600 gold, min-height 32 with a 44 hit area, goes to the tab root', () => {
-    const tree = render({ path: '/my-trainer' });
+  // UX native final audit 27 Oct 2026, ruling 6 (C307 folded NIT): the shell
+  // back links ("‹ Profile" on My trainer, "‹ Coaching" on Find a trainer)
+  // are the kit's glass back pill, 44 phone / 40 tablet.
+  // DECLARED (ruling 6): replaces 'back link: 14/600 gold, min-height 32 with a 44 hit area, goes to the tab root'
+  // (minHeight 32 + hitSlop 6/6; Texts ['←', 'Profile'] in 14/600 gold, gap 8) and 'pressed back link: pressed gold +
+  // underline' (#F4A300 + underline). The gold text link was the R1 web-834 acceptance only.
+  it.each([
+    ['/my-trainer', 'Profile', '/profile'],
+    ['/trainers', 'Coaching', '/my-trainer'],
+  ])('ruling 6: %s draws the glass back pill "‹ %s" and opens %s', (path, label, target) => {
+    const tree = render({ path });
+    const pill = byTestId(tree, 'header-back-link')[0];
+    expect(StyleSheet.flatten(pill.props.style)).toMatchObject({ minHeight: 44, borderWidth: 1, borderColor: colors.hairlineStrong, backgroundColor: colors.hairline });
+    expect(byTestId(tree, 'header-back-link-chevron')).toHaveLength(1);
+    expect(pill.findAllByType(Text).map((node) => node.props.children)).toEqual([label]);
+    expect(StyleSheet.flatten(pill.findAllByType(Text)[0].props.style)).toMatchObject({ fontSize: 14, fontFamily: 'Geist-SemiBold', color: colors.textPrimary });
     const link = backLink(tree);
-    expect(StyleSheet.flatten(link.props.style)).toMatchObject({ minHeight: 32 });
-    expect(32 + link.props.hitSlop.top + link.props.hitSlop.bottom).toBe(44);
-    let inner;
-    act(() => {
-      inner = create(link.props.children({ pressed: false }));
-    });
-    // DECLARED (my-trainer:327 audit b4 (3), 27 Oct 2026): was ONE Text '← Profile' (arrow flush, a space);
-    // now the decorative arrow + the label with an 8 gap; the link's name is the label.
-    const parts = inner.root.findAllByType(Text);
-    expect(parts.map((node) => node.props.children)).toEqual(['←', 'Profile']);
-    expect(StyleSheet.flatten(parts[0].parent.props.style)).toMatchObject({ flexDirection: 'row', alignItems: 'center', gap: 8 });
-    expect(parts[0].props).toMatchObject({ accessibilityElementsHidden: true, importantForAccessibility: 'no' });
-    expect(link.props.accessibilityLabel).toBe('Profile');
-    parts.forEach((part) =>
-      expect(StyleSheet.flatten(part.props.style)).toMatchObject({
-        fontSize: 14,
-        fontFamily: 'Geist-SemiBold',
-        color: '#FFC21A',
-      }),
-    );
+    expect(link.props).toMatchObject({ accessibilityRole: 'link', accessibilityLabel: label });
     act(() => link.props.onPress());
-    expect(openShellPath).toHaveBeenCalledWith('/profile');
+    expect(openShellPath).toHaveBeenCalledWith(target);
   });
 
-  it('pressed back link: pressed gold + underline', () => {
-    const link = backLink(render({ path: '/my-trainer' }));
-    let inner;
-    act(() => {
-      inner = create(link.props.children({ pressed: true }));
-    });
-    // DECLARED (audit b4 (3)): the label is the second Text now (the arrow is the first).
-    expect(StyleSheet.flatten(inner.root.findAllByType(Text)[1].props.style)).toMatchObject({
-      color: '#F4A300',
-      textDecorationLine: 'underline',
-    });
+  it('ruling 6, tablet: the header back pill is 40 tall (hit area 44)', () => {
+    const tree = render({ path: '/my-trainer' }, 1024);
+    expect(StyleSheet.flatten(byTestId(tree, 'header-back-link')[0].props.style).minHeight).toBe(40);
+    const { hitSlop } = backLink(tree).props;
+    expect(40 + hitSlop.top + hitSlop.bottom).toBe(44);
   });
 
   it('no back link on a tab root', () => {

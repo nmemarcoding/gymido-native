@@ -109,6 +109,27 @@ beforeEach(() => {
   load();
 });
 
+// UX native final audit 27 Oct 2026, ruling 6, row D364 (MUST): Client
+// detail's back control is the glass "‹ All clients" pill (RN-SPEC-TRAINER-
+// CLIENTS dated 27 Oct), 44 phone / 40 tablet, not the gold text link.
+describe('ruling 6 (D364): the "‹ All clients" glass back pill', () => {
+  it.each([
+    [390, 44],
+    [834, 40],
+  ])('width %i: a %i glass pill with the chevron and "All clients"; it pushes the Clients list', async (width, height) => {
+    setWindow(width);
+    load();
+    const tree = await render();
+    const pill = host(tree, 'client-all-clients');
+    expect(StyleSheet.flatten(pill.props.style)).toMatchObject({ minHeight: height, borderWidth: 1, borderColor: colors.hairlineStrong, backgroundColor: colors.hairline });
+    expect(host(tree, 'client-all-clients-chevron')).toBeTruthy();
+    expect(texts({ root: pill })).toEqual(['All clients']);
+    expect(pill.props).toMatchObject({ accessibilityRole: 'link', accessibilityLabel: 'All clients' });
+    await act(async () => byTestID(tree, 'client-all-clients').props.onPress());
+    expect(mockNavigation.push).toHaveBeenCalledWith('TrainerClients');
+  });
+});
+
 describe('Client detail, phone', () => {
   it('identity: back link, the avatar (initials, person colour), the name as the page heading', async () => {
     const tree = await render();

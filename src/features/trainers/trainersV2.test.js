@@ -173,13 +173,39 @@ describe('Find a trainer (UX L §Trainers)', () => {
   });
 });
 
+// UX native final audit 27 Oct 2026, ruling 6 (C307 folded NIT): the coaching
+// back controls are the kit's glass back pill, 44 phone / 40 tablet, never
+// the gold text link.
+describe('ruling 6: coaching back controls are the glass pill', () => {
+  it.each([
+    ['Trainer detail', 'trainer-detail-all', 'All trainers', () => getTrainer.mockReturnValue(new Promise(() => {})), () => <TrainerDetailScreen />],
+    ['Trainer apply', 'trainer-apply-back', 'Coaching', () => getMyTrainerApplication.mockResolvedValue(null), () => <TrainerApplyScreen />],
+  ])('%s: the glass back pill (%s), 44 phone / 40 tablet', async (_name, testID, label, arrange, element) => {
+    for (const [width, height] of [
+      [390, 44],
+      [834, 40],
+    ]) {
+      setWindow(width);
+      arrange();
+      const tree = await render(element());
+      const pill = byId(tree, testID);
+      expect(flat(pill)).toMatchObject({ minHeight: height, borderWidth: 1, borderColor: colors.hairlineStrong, backgroundColor: colors.hairline, borderRadius: radii.full });
+      expect(allById(tree, `${testID}-chevron`)).toHaveLength(1);
+      expect(textsOf(pill)).toEqual([label]);
+      expect(flat(pill.findAll((n) => n.type === 'Text')[0]).color).toBe(colors.textPrimary);
+    }
+  });
+});
+
 describe('Trainer detail (UX L §Trainer detail)', () => {
-  it('back-link rule: "← All trainers" text link (name "All trainers") on every state; it pushes the list (⚠TR-4)', async () => {
+  it('back-link rule: "‹ All trainers" back pill (name "All trainers") on every state; it pushes the list (⚠TR-4)', async () => {
     getTrainer.mockReturnValue(new Promise(() => {}));
     const tree = await render(<TrainerDetailScreen />);
     const link = tree.root.find((node) => node.props.testID === 'trainer-detail-all' && node.props.accessibilityRole === 'link');
     expect(link.props.accessibilityLabel).toBe('All trainers');
-    expect(textsOf(link)).toContain('← All trainers');
+    // DECLARED (UX native final audit 27 Oct 2026, ruling 6): was toContain('← All trainers') (the gold text link);
+    // the glass back pill draws a chevron icon, so its one text is the parent's name.
+    expect(textsOf(link)).toEqual(['All trainers']);
     act(() => link.props.onPress());
     expect(mockNavigation.push).toHaveBeenCalledWith('Trainers');
   });
