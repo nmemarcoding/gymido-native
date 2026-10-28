@@ -11,13 +11,15 @@ jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   default: () => ({ width: mockWidth, height: 1194, scale: 2, fontScale: mockFontScale }),
 }));
 
-import { AccessibilityInfo, StyleSheet, TextInput } from 'react-native';
+import { AccessibilityInfo, Platform, StyleSheet, TextInput } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { useAuthStore } from '../auth/authStore';
 import { colors, radii, spacing, typography } from '../../shared/theme/tokens';
 import CreateProfileScreen, { HEIGHT_UNITS, PROFILE_PLACEHOLDERS, WEIGHT_UNITS } from './CreateProfileScreen';
 import { createProfile, getProfile } from './api/profileApi';
+import { SEX_OPTIONS as SHARED_SEX_OPTIONS } from './createProfileForm';
+import Select from '../../shared/components/Select';
 import { resetProfileStore, useProfileStore } from './profileStore';
 
 function textOf(node) {
@@ -556,8 +558,9 @@ describe('Board geometry (phase2-open-items §3 B): the title', () => {
 // Dated changes 27 Oct 2026 (RN-SPEC-profile-create @ bdc7f348): D2 + S4
 // pills (⚠P5), 409 continues (⚠P7), focus the first error (⚠P8), lock while
 // submitting (⚠P9), editing clears its error (⚠P12), DOB/Sex errors (⚠P4).
-const pill = (tree, value) => pressable(tree.root, `profile-sex-${value || 'none'}`);
-const pillText = (tree, value) => pill(tree, value).findAll((node) => node.type === 'Text');
+// The Select's drawn box (the opener's only child View).
+const sexBox = (tree) => pressable(tree.root, 'profile-sex').findAll((node) => node.type === 'View' && node.props.pointerEvents === 'none')[0];
+const sexSelect = (tree) => tree.root.find((node) => node.props.testID === 'profile-sex' && Array.isArray(node.props.options));
 const sentBody = () => createProfile.mock.calls[0][0];
 const composite = (root, id) => root.find((node) => node.props.testID === id && node.type === TextInput);
 function spyFocus(tree, ids) {
@@ -572,90 +575,71 @@ function spyFocus(tree, ids) {
 }
 const a11yFocusTargets = (spy) => spy.mock.calls.filter(([, event]) => event === 'focus').map(([node]) => node?.props?.testID);
 
-describe('D2: Sex as S4 pills', () => {
-  it('reads Not set · Male · Female · Other · Prefer not to say, "Prefer not to say" once, Not set selected', () => {
-    const tree = render();
-    const group = host(tree.root, 'profile-sex');
-    const labels = group.findAll((node) => node.props.accessibilityRole === 'radio' && typeof node.type === 'string').map((node) => node.props.accessibilityLabel);
-    expect(labels).toEqual(['Not set', 'Male', 'Female', 'Other', 'Prefer not to say']);
-    expect(texts(tree.root).filter((line) => line === 'Prefer not to say')).toHaveLength(1);
-    // Radios announce `checked` only; `selected` too would double-announce (review LOW).
-    expect(pill(tree, '').props.accessibilityState).toMatchObject({ checked: true });
-    expect(pill(tree, 'male').props.accessibilityState).toMatchObject({ checked: false });
-    expect(pill(tree, '').props.accessibilityState.selected).toBeUndefined();
-    expect(pill(tree, 'male').props.accessibilityState.selected).toBeUndefined();
+// UX native final audit 27 Oct 2026, ruling 7 (row A99): Create profile's Sex
+// is a Select with "Not set" first, the same options Edit profile uses; no
+// five-pill row on any device. Retires the S4 pills tests (declared).
+describe('Sex is a Select with "Not set" first (UX final audit ruling 7)', () => {
+  const realOS = Platform.OS;
+  afterEach(() => {
+    Platform.OS = realOS;
   });
 
-  it('is a radiogroup labelled "Sex" of radio pills, each at least 44 tall', () => {
+  it.each([
+    ['ios', 390],
+    ['android', 390],
+    ['ios', 834],
+    ['android', 834],
+  ])('%s at %s: one Select labelled "Sex", no radio pills', (os, width) => {
+    Platform.OS = os;
+    mockWidth = width;
     const tree = render();
-    expect(host(tree.root, 'profile-sex').props).toMatchObject({ accessibilityRole: 'radiogroup', accessibilityLabel: 'Sex' });
-    ['', 'male', 'female', 'other', 'prefer_not_to_say'].forEach((value) => {
-      const node = pill(tree, value);
-      expect(node.props.accessibilityRole).toBe('radio');
-      expect(flat(node.props.style).minHeight).toBeGreaterThanOrEqual(44);
-    });
+    expect(sexSelect(tree).type).toBe(Select);
+    expect(sexSelect(tree).props.label).toBe('Sex');
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'Sex' && typeof node.type === 'string')).toHaveLength(0);
+    expect(queryHost(tree.root, 'profile-sex-none')).toHaveLength(0);
   });
 
-  it('draws the pills as S4: radius full, 1 px border, 14/700; selected gold border + gold tint + primary text and a decorative ✓', () => {
+  it('options: Not set · Male · Female · Other · Prefer not to say, the shared list Edit profile uses too; Not set shown', () => {
     const tree = render();
-    act(() => pill(tree, 'female').props.onPress());
-    const on = flat(pill(tree, 'female').props.style);
-    const off = flat(pill(tree, 'male').props.style);
-    expect(on).toMatchObject({ borderRadius: radii.full, borderWidth: 1, borderColor: colors.gold, backgroundColor: colors.goldTint });
-    expect(off).toMatchObject({ borderRadius: radii.full, borderWidth: 1, borderColor: colors.hairline, backgroundColor: colors.surface });
-    const [check, onLabel] = pillText(tree, 'female');
-    expect(textOf(check)).toBe('✓ ');
-    expect(check.props).toMatchObject({ accessibilityElementsHidden: true, importantForAccessibility: 'no' });
-    expect(flat(onLabel.props.style)).toMatchObject({ fontFamily: 'Geist-Bold', fontSize: 14, color: colors.textPrimary });
-    const offTexts = pillText(tree, 'male');
-    expect(offTexts).toHaveLength(1);
-    expect(flat(offTexts[0].props.style)).toMatchObject({ fontFamily: 'Geist-Bold', fontSize: typography.bodySm.fontSize, color: colors.textSecondary });
-    expect(flat(onLabel.props.style).fontWeight).toBeUndefined();
+    expect(sexSelect(tree).props.options).toBe(SHARED_SEX_OPTIONS);
+    expect(sexSelect(tree).props.options.map((option) => [option.value, option.label])).toEqual([
+      ['', 'Not set'],
+      ['male', 'Male'],
+      ['female', 'Female'],
+      ['other', 'Other'],
+      ['prefer_not_to_say', 'Prefer not to say'],
+    ]);
+    expect(sexSelect(tree).props.value).toBe('');
+    expect(pressable(tree.root, 'profile-sex').props.accessibilityValue).toEqual({ text: 'Not set' });
   });
 
-  it('single-select: picks one, sends it; Not set and re-tapping the selected pill send null', async () => {
+  it('C2: the Sex Select has no placeholder', () => {
+    const tree = render();
+    expect(sexSelect(tree).props.placeholder).toBeUndefined();
+  });
+
+  it('payload unchanged: a choice is sent as its value; Not set is sent as null (like Edit profile)', async () => {
     createProfile.mockResolvedValue({ first_name: 'Asad' });
     const tree = render();
     fillValid(tree);
-    act(() => pill(tree, 'male').props.onPress());
-    act(() => pill(tree, 'prefer_not_to_say').props.onPress());
-    expect(pill(tree, 'male').props.accessibilityState.checked).toBe(false);
-    expect(pill(tree, 'prefer_not_to_say').props.accessibilityState.checked).toBe(true);
+    act(() => sexSelect(tree).props.onChange('prefer_not_to_say'));
+    expect(pressable(tree.root, 'profile-sex').props.accessibilityValue).toEqual({ text: 'Prefer not to say' });
     await act(async () => pressable(tree.root, 'profile-submit').props.onPress());
     expect(sentBody().sex).toBe('prefer_not_to_say');
 
-    const again = render();
-    fillValid(again);
-    act(() => pill(again, 'other').props.onPress());
-    act(() => pill(again, 'other').props.onPress());
-    expect(pill(again, '').props.accessibilityState.checked).toBe(true);
-    await act(async () => pressable(again.root, 'profile-submit').props.onPress());
-    expect(createProfile.mock.calls[1][0].sex).toBeNull();
-
     const notSet = render();
     fillValid(notSet);
-    act(() => pill(notSet, 'female').props.onPress());
-    act(() => pill(notSet, '').props.onPress());
+    act(() => sexSelect(notSet).props.onChange('female'));
+    act(() => sexSelect(notSet).props.onChange(''));
     await act(async () => pressable(notSet.root, 'profile-submit').props.onPress());
-    expect(createProfile.mock.calls[2][0].sex).toBeNull();
+    expect(createProfile.mock.calls[1][0].sex).toBeNull();
   });
 
-  it.each([1, 2, 3.1])('large text at fontScale %s: the pills wrap, grow (minHeight, no fixed height) and cap at 2.0', (scale) => {
-    mockFontScale = scale;
-    const tree = render();
-    expect(flat(host(tree.root, 'profile-sex').props.style)).toMatchObject({ flexDirection: 'row', flexWrap: 'wrap' });
-    ['', 'male', 'prefer_not_to_say'].forEach((value) => {
-      expect(flat(pill(tree, value).props.style).height).toBeUndefined();
-      pillText(tree, value).forEach((node) => expect(node.props.maxFontSizeMultiplier).toBe(2));
-    });
-    expect(labelText(tree.root, 'Prefer not to say')).toBeTruthy();
-  });
-
-  it('tablet: the pills sit in the weight card', () => {
+  it('tablet: the Select sits in the weight card', () => {
     mockWidth = 834;
     const tree = render();
     const card = host(tree.root, 'profile-card-weight');
-    expect(card.findAll((node) => node.props.testID === 'profile-sex-none' && typeof node.type === 'string')).toHaveLength(1);
+    expect(card.findAll((node) => node.props.testID === 'profile-sex' && node.type === Select)).toHaveLength(1);
   });
 });
 
@@ -753,7 +737,7 @@ describe('editing a field clears its own error (⚠P12 retired)', () => {
     const tree = render();
     fillValid(tree);
     await act(async () => pressable(tree.root, 'profile-submit').props.onPress());
-    act(() => pill(tree, 'male').props.onPress());
+    act(() => sexSelect(tree).props.onChange('male'));
     expect(texts(tree.root)).not.toContain('Bad sex');
     expect(texts(tree.root)).toEqual(expect.arrayContaining(['Bad date', 'Too long', 'Validation failed']));
     act(() => tree.root.find((node) => node.props.testID === 'profile-date-of-birth' && node.props.onChange).props.onChange('1990-09-21'));
@@ -814,7 +798,7 @@ describe('focus moves to the first field in error (⚠P8 retired)', () => {
   it.each([
     [{ goal_weight_unit: ['Bad unit'], goal_weight_value: ['x'] }, 'profile-weight-unit-label'],
     [{ date_of_birth: ['Bad date'], sex: ['Bad sex'] }, 'profile-date-of-birth-field'],
-    [{ sex: ['Bad sex'] }, 'profile-sex-none'],
+    [{ sex: ['Bad sex'] }, 'profile-sex-field'],
   ])('422 %j moves accessibility focus to %s', async (errors, id) => {
     const a11y = jest.spyOn(AccessibilityInfo, 'sendAccessibilityEvent').mockImplementation(() => {});
     createProfile.mockRejectedValueOnce({ response: { status: 422, data: { message: 'Validation failed', errors } } });
@@ -857,23 +841,21 @@ describe('everything locks while submitting (⚠P9 retired)', () => {
     ['profile-first_name', 'profile-last_name', 'profile-height_feet', 'profile-height_inches', 'profile-current_weight_value', 'profile-goal_weight_value'].forEach((id) =>
       expect(textInput(tree.root, id).props.editable).toBe(false)
     );
-    ['', 'male', 'female', 'other', 'prefer_not_to_say'].forEach((value) => {
-      expect(pill(tree, value).props.accessibilityState.disabled).toBe(true);
-      expect(pill(tree, value).props.disabled).toBe(true);
-    });
-    ['profile-height-unit-lock', 'profile-weight-unit-lock', 'profile-date-of-birth-field'].forEach((id) => {
+    expect(pressable(tree.root, 'profile-sex').props.accessibilityState.disabled).toBe(true);
+    expect(pressable(tree.root, 'profile-sex').props.disabled).toBe(true);
+    ['profile-height-unit-lock', 'profile-weight-unit-lock', 'profile-date-of-birth-field', 'profile-sex-field'].forEach((id) => {
       expect(host(tree.root, id).props.pointerEvents).toBe('none');
       expect(flat(host(tree.root, id).props.style).opacity).toBe(0.5);
     });
 
     // Nothing edits, even if a handler fires.
     type(tree, 'profile-first_name', 'Changed');
-    act(() => pill(tree, 'female').props.onPress());
+    act(() => sexSelect(tree).props.onChange('female'));
     press(tree, 'profile-height-unit-cm');
     press(tree, 'profile-weight-unit-kg');
     act(() => tree.root.find((node) => node.props.testID === 'profile-date-of-birth' && node.props.onChange).props.onChange('1990-09-21'));
     expect(textInput(tree.root, 'profile-first_name').props.value).toBe(' Asad ');
-    expect(pill(tree, '').props.accessibilityState.checked).toBe(true);
+    expect(sexSelect(tree).props.value).toBe('');
     expect(selected(tree, 'profile-height-unit-ft_in')).toBe(true);
     expect(selected(tree, 'profile-weight-unit-lb')).toBe(true);
     act(() => {
@@ -886,20 +868,20 @@ describe('everything locks while submitting (⚠P9 retired)', () => {
 
     await act(async () => pending.reject({ response: { status: 500, data: { message: 'Server down' } } }));
     expect(textInput(tree.root, 'profile-first_name').props.editable).toBe(true);
-    expect(pill(tree, 'male').props.disabled).toBe(false);
-    ['profile-height-unit-lock', 'profile-weight-unit-lock', 'profile-date-of-birth-field'].forEach((id) => {
+    expect(pressable(tree.root, 'profile-sex').props.disabled).toBe(false);
+    ['profile-height-unit-lock', 'profile-weight-unit-lock', 'profile-date-of-birth-field', 'profile-sex-field'].forEach((id) => {
       expect(host(tree.root, id).props.pointerEvents).toBe('auto');
       expect(flat(host(tree.root, id).props.style)?.opacity).toBeUndefined();
     });
-    act(() => pill(tree, 'female').props.onPress());
-    expect(pill(tree, 'female').props.accessibilityState.checked).toBe(true);
+    act(() => sexSelect(tree).props.onChange('female'));
+    expect(sexSelect(tree).props.value).toBe('female');
   });
 
   it('a validation failure never locks', () => {
     const tree = render();
     press(tree, 'profile-submit');
     expect(textInput(tree.root, 'profile-first_name').props.editable).toBe(true);
-    expect(pill(tree, 'male').props.disabled).toBe(false);
+    expect(pressable(tree.root, 'profile-sex').props.disabled).toBe(false);
   });
 });
 
@@ -916,15 +898,15 @@ describe('DOB and Sex server errors under their fields (⚠P4 narrowed)', () => 
     expect(dob.findAll((node) => node.type === 'Text').map(textOf)).toContain('Date of birth is invalid');
     expect(texts(tree.root)).not.toContain('second');
     expect(sexField.findAll((node) => node.type === 'Text').map(textOf)).toContain('Sex is invalid');
-    expect(host(tree.root, 'profile-sex').props.accessibilityState).toMatchObject({ invalid: true });
+    expect(flat(sexBox(tree).props.style).borderColor).toBe(colors.dangerText);
     expect(flat(pressable(tree.root, 'profile-date-of-birth').props.style).borderColor).toBe(colors.dangerText);
     expect(host(tree.root, 'profile-error').findAll((node) => node.type === 'Text').map(textOf)).toContain('Validation failed');
     expect(host(tree.root, 'profile-error').findAll((node) => node.type === 'Text').map(textOf)).not.toContain('Sex is invalid');
   });
 
-  it('no error: no message under either control and the group is not invalid', () => {
+  it('no error: no message under either control and the Sex box has no error border', () => {
     const tree = render();
-    expect(host(tree.root, 'profile-sex').props.accessibilityState).toMatchObject({ invalid: false });
+    expect(flat(sexBox(tree).props.style).borderColor).not.toBe(colors.dangerText);
     expect(host(tree.root, 'profile-sex-field').findAll((node) => node.props.accessibilityRole === 'alert')).toHaveLength(0);
   });
 });

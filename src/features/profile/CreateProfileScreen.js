@@ -14,6 +14,7 @@ import GradientFill from '../../shared/components/GradientFill';
 import PillButton from '../../shared/components/PillButton';
 import { AmbientGlow } from '../../shared/components/Screen';
 import SegmentedSwitch from '../../shared/components/SegmentedSwitch';
+import Select from '../../shared/components/Select';
 import { useKeyboardHeight } from '../../shared/hooks/useKeyboardHeight';
 import { useReducedMotion } from '../../shared/hooks/useReducedMotion';
 import { breakpoints, colors, font, gradients, motion, radii, spacing, textScale, typography } from '../../shared/theme/tokens';
@@ -22,7 +23,6 @@ import { getScreenTab } from '../shell/shellNavigation';
 import { createProfile } from './api/profileApi';
 import DeleteAccountAction from './DeleteAccountAction';
 import { fetchProfile, setCreatedProfile, useProfileStore } from './profileStore';
-import SexPills from './SexPills';
 import {
   INITIAL_PROFILE_FORM,
   SEX_OPTIONS,
@@ -46,8 +46,9 @@ export const WEIGHT_UNITS = [
   { value: 'lb', label: 'lb', testID: 'profile-weight-unit-lb' },
   { value: 'kg', label: 'kg', testID: 'profile-weight-unit-kg' },
 ];
-// Sex: SEX_OPTIONS (createProfileForm.js), "Not set" first and "Prefer not
-// to say" once (D2, ⚠P5 retired 27 Oct 2026), drawn as the S4 pills.
+// Sex: SEX_OPTIONS (createProfileForm.js, shared with Edit profile), "Not set"
+// first and "Prefer not to say" once (D2, ⚠P5 retired 27 Oct 2026). UX native
+// final audit 27 Oct 2026, ruling 7 (A99): a Select on every device, no pills.
 const NUMBER_FIELDS = ['height_value', 'height_feet', 'height_inches', 'current_weight_value', 'goal_weight_value'];
 const NUMBER_KEYBOARD = Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'numeric';
 // T-16: the weights are text with a decimal keypad, kept exactly as typed.
@@ -384,18 +385,27 @@ export default function CreateProfileScreen() {
       />
     </View>
   );
+  // Ruling 7 (A99): the kit Select, like Edit profile; the wrapper is the
+  // focus target and takes the lock (DateInput's pattern).
   const sex = (
-    <SexPills
-      testID="profile-sex"
-      label="Sex"
-      labelStyle={LABEL}
-      value={form.sex}
-      options={SEX_OPTIONS}
-      error={fieldErrors.sex}
-      disabled={submitting}
-      focusRef={bindTarget('sex')}
-      onChange={(value) => edit('sex', () => setForm((current) => ({ ...current, sex: value })))}
-    />
+    <View
+      ref={bindTarget('sex')}
+      collapsable={false}
+      testID="profile-sex-field"
+      pointerEvents={submitting ? 'none' : 'auto'}
+      style={submitting ? styles.locked : null}
+    >
+      <Select
+        testID="profile-sex"
+        label="Sex"
+        labelStyle={LABEL}
+        value={form.sex}
+        options={SEX_OPTIONS}
+        error={fieldErrors.sex}
+        disabled={submitting}
+        onChange={(value) => edit('sex', () => setForm((current) => ({ ...current, sex: value })))}
+      />
+    </View>
   );
   const submitButton = <PillButton testID="profile-submit" title="Create profile" size="cta" fullWidth loading={submitting} onPress={submit} />;
   const feedback = (
