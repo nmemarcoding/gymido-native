@@ -249,14 +249,15 @@ describe('Rest, tablet (UX F2 Tablet: Rest)', () => {
 });
 
 describe('Rest minimised (UX F2 Rest minimised)', () => {
-  // DECLARED change (UX native final audit 27 Oct 2026, row A121; T §5 "never covers a control"): was
-  // "phone: a 92 dark disc at right 20 / top 112" with left: 390 - 20 - 92. At right 20 the disc sat on the
-  // stage's right-aligned "How to" pill (iPhone); it now keeps top 112 at LEFT 20, over the photo only.
-  it('phone: a 92 dark disc at left 20 / top 112 with the r40 ring and 24 digits', () => {
-    const tree = renderTree({ minimized: true });
+  // DECLARED change (UX ruling A121, option B, 27 Oct 2026): was "phone: a 92 dark disc at right 20 / top 112"
+  // with top: 112 (it sat over the stage's "How to" pill). The phone disc now docks ABOVE the session's bottom bar
+  // (the tablet I2 rule): right 20, top = window height − the dock room − 92.
+  it('phone: a 92 dark disc at right 20, docked above the dock room, with the r40 ring and 24 digits', () => {
+    const dockRoom = 202;
+    const tree = renderTree({ minimized: true, dockRoom });
     const disc = host(tree, 'rest-timer');
     const style = StyleSheet.flatten(disc.props.style);
-    expect(style).toEqual(expect.objectContaining({ width: 92, height: 92, borderRadius: 46, left: 20, top: 112, borderColor: colors.hairlineBright }));
+    expect(style).toEqual(expect.objectContaining({ width: 92, height: 92, borderRadius: 46, left: 390 - 20 - 92, top: 844 - dockRoom - 92, borderColor: colors.hairlineBright }));
     const arc = tree.root.findAll((node) => node.props.testID === 'rest-mini-ring-arc')[0];
     expect(arc.props.r).toBe(40);
     expect(arc.props.strokeWidth).toBe(6);
@@ -295,19 +296,31 @@ describe('Rest minimised (UX F2 Rest minimised)', () => {
     expect(StyleSheet.flatten(host(below, 'rest-timer').props.style).top).toBe(1194 - dockRoom - 92);
   });
 
-  // UX native final audit 27 Oct 2026, row A121: the phone stage's "How to" pill is right-aligned
-  // (RuntimeParts howToRow), so the default disc stays on the left half at every phone width.
-  it.each([320, 390, 430])('phone %s: the default disc sits on the left half, clear of the right-aligned "How to"', (width) => {
-    mockWidth = width;
-    const tree = renderTree({ minimized: true });
-    const style = StyleSheet.flatten(host(tree, 'rest-timer').props.style);
-    expect(style.left + style.width).toBeLessThanOrEqual(width / 2);
-  });
-
-  it('phone keeps its disc and clamp (the dock room is tablet only)', () => {
+  // DECLARED change (UX ruling A121, option B): was "phone keeps its disc and clamp (the dock room is tablet
+  // only)" with a stored y 700 kept at 700 under a 200 dock room. The phone now clamps above the dock room too.
+  it('phone: a stored or dragged position never sits on the dock (clamped above the dock room)', () => {
     const onPosition = jest.fn();
     const tree = renderTree({ minimized: true, dockRoom: 200, position: { x: 100, y: 700 }, onPosition });
-    expect(StyleSheet.flatten(host(tree, 'rest-timer').props.style).top).toBe(700);
+    expect(StyleSheet.flatten(host(tree, 'rest-timer').props.style).top).toBe(844 - 200 - 92);
+    const above = renderTree({ minimized: true, dockRoom: 200, position: { x: 100, y: 400 }, onPosition });
+    expect(StyleSheet.flatten(host(above, 'rest-timer').props.style).top).toBe(400);
+  });
+
+  // UX ruling A121 (option B, 27 Oct 2026): docked above the bottom bar, the phone disc clears the top of the
+  // screen: the session top bar (Exit, about 60 with a 2-line plan name) and the stage's "How to" pill, which
+  // both live inside the 330 phone stage, on a small (667) and a regular (844) phone with the live dock.
+  it.each([
+    [667, 0],
+    [844, 34],
+  ])('phone %s (inset %s): the docked disc clears "How to" and Exit (inside the 330 stage)', (height, inset) => {
+    const { PHONE_STAGE_HEIGHT } = require('./RuntimeParts');
+    const dockRoom = 32 + 64 + 44 + 28 + inset;
+    const top = height - dockRoom - 92;
+    expect(PHONE_STAGE_HEIGHT).toBe(330);
+    expect(top).toBeGreaterThan(PHONE_STAGE_HEIGHT);
+    expect(top).toBeGreaterThan(60 + 44);
+    const tree = renderTree({ minimized: true, dockRoom });
+    expect(StyleSheet.flatten(host(tree, 'rest-timer').props.style).top).toBe(844 - dockRoom - 92);
   });
 
   it('pressed scales to 0.96; a tap expands, a drag past 4 pt moves it (clamped 8 from the edge)', () => {

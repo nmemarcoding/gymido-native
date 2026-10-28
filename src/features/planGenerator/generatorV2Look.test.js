@@ -22,10 +22,17 @@ jest.mock('@react-navigation/native', () => ({
   useRoute: () => ({ key: 'PlanGenerator-1', name: 'PlanGenerator', params: mockParams }),
   CommonActions: { reset: jest.fn() },
 }));
+// The page's dock room is checked as the prop ShellPage gets (ShellPage.test
+// pins that it becomes the contentContainer's paddingBottom).
 jest.mock('../shell/ShellPage', () => {
   const { View } = require('react-native');
-  return ({ children }) => <View testID="shell-page">{children}</View>;
+  return ({ children, dockHeight }) => (
+    <View testID="shell-page" dockHeight={dockHeight}>
+      {children}
+    </View>
+  );
 });
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../shell/shellLinks', () => ({ openShellPath: jest.fn(), handOffToWorkout: jest.fn() }));
 jest.mock('./generatorRoutes', () => ({
   generatorRoutes: { PlanGenerator: 'PlanGenerator', PlanGeneratorPreview: 'PlanGeneratorPreview' },
@@ -236,25 +243,31 @@ describe('Questionnaire, phone (PlanGenerator board)', () => {
     expect(one(tree, 'generator-next').props.disabled).toBe(false);
   });
 
-  it('steps 1–5: the pinned bar above the tab bar (clearance + 16), 60 CTA buttons in a row, primary with the arrow; content clears the measured bar', async () => {
+  // DECLARED (UX native final audit 27 Oct 2026, ruling 1, B236): was the bar at { left: 16, right: 16,
+  // bottom: 102 } (clearance + 16) and the column's paddingBottom = bar + 16 (76 for a 60 bar). Now the shared
+  // dock: edge to edge to the bottom, the pair 12 above the tab bar (body paddingBottom 86 + 12, sides 16), and
+  // the scroll room = the dock's measured height (ShellPage dockHeight).
+  it('steps 1–5: the pinned dock above the tab bar (12 gap), 60 CTA buttons in a row, primary with the arrow; scroll room = the measured dock', async () => {
     const tree = await openStep(2);
     const bar = host(tree, 'generator-step-bar');
-    expect(flat(bar)).toMatchObject({ position: 'absolute', left: 16, right: 16, bottom: 102 });
+    expect(flat(bar)).toMatchObject({ position: 'absolute', left: 0, right: 0, bottom: 0 });
+    expect(flat(host(tree, 'generator-step-bar-body'))).toMatchObject({ paddingHorizontal: 16, paddingBottom: 98 });
     const buttons = one(tree, 'generator-buttons').findAll((node) => node.type === PillButton);
     expect(buttons.map((node) => [node.props.testID, node.props.size])).toEqual([
       ['generator-back', 'cta'],
       ['generator-next', 'cta'],
     ]);
     expect(typeof buttons[1].props.icon).toBe('function');
-    await act(async () => bar.props.onLayout({ nativeEvent: { layout: { height: 60 } } }));
-    const column = tree.root.findAll((node) => typeof node.type === 'string' && flat(node).paddingBottom === 76);
-    expect(column.length).toBeGreaterThan(0);
+    await act(async () => bar.props.onLayout({ nativeEvent: { layout: { height: 190 } } }));
+    expect(host(tree, 'shell-page').props.dockHeight).toBe(190);
   });
 
-  it('step 6: buttons in the flow (default 52), "Skip" while nothing is chosen', async () => {
+  // DECLARED (UX native final audit 27 Oct 2026, ruling 1, B237): was "step 6: buttons in the flow (default 52)"
+  // with no step bar; step 6 is now pinned in the same dock, 60 CTA like steps 1–5.
+  it('step 6: buttons pinned in the dock (60 CTA), "Skip" while nothing is chosen', async () => {
     const tree = await openStep(6, { profile: { ...PROFILE, focus_muscles: [], exclusions: [], go_easy_area_ids: [] } });
-    expect(has(tree, 'generator-step-bar')).toBe(false);
-    expect(one(tree, 'generator-next').props).toMatchObject({ size: 'default', title: 'Skip' });
+    expect(has(tree, 'generator-step-bar')).toBe(true);
+    expect(one(tree, 'generator-next').props).toMatchObject({ size: 'cta', title: 'Skip' });
   });
 
   it('steps 2–4 controls: experience radio cards (72, no icon); day / minute pills = large radios in a named group', async () => {
@@ -566,8 +579,12 @@ describe('Preview, phone (GeneratorPreview board)', () => {
       ['generator-start', 'default', true],
       ['generator-bar-change', 'default', true],
     ]);
-    expect(flat(host(tree, 'generator-sticky-row'))).toMatchObject({ flexDirection: 'column', alignItems: 'stretch', gap: 10, backgroundColor: colors.ground });
-    expect(flat(host(tree, 'generator-sticky-bar'))).toMatchObject({ position: 'absolute', bottom: 86 });
+    // DECLARED (UX native final audit 27 Oct 2026, ruling 1, B245): was the row's backgroundColor ground and the
+    // bar at bottom 86 (on the tab bar's top). Now the dock body is the ground and the dock runs to the screen
+    // edge (bottom 0), the stack 12 above the tab bar (body paddingBottom 86 + 12).
+    expect(flat(host(tree, 'generator-sticky-row'))).toMatchObject({ flexDirection: 'column', alignItems: 'stretch', gap: 10 });
+    expect(flat(host(tree, 'generator-sticky-bar'))).toMatchObject({ position: 'absolute', bottom: 0 });
+    expect(flat(host(tree, 'generator-sticky-bar-body'))).toMatchObject({ backgroundColor: colors.ground, paddingBottom: 98 });
     const locked = await openPreview({ ...FEASIBLE, active_enrollment: { plan_name: 'Coach plan', trainer_locked: true } });
     expect(has(locked, 'generator-start')).toBe(false);
     expect(has(locked, 'generator-locked')).toBe(true);
@@ -618,10 +635,11 @@ describe('Preview, tablet (TabletGeneratorPreview board)', () => {
 });
 
 describe('Pure helpers', () => {
-  it('stepBarPlacement: pinned on phone steps 1–5 at ≤1.3× only', () => {
+  // DECLARED (UX native final audit 27 Oct 2026, ruling 1, B237): step 6 was 'flow'; it is 'pinned' now.
+  it('stepBarPlacement: pinned on phone steps 1–6 at ≤1.3× only', () => {
     expect(stepBarPlacement({ step: 1, tablet: false, reflow: false })).toBe('pinned');
     expect(stepBarPlacement({ step: 5, tablet: false, reflow: false })).toBe('pinned');
-    expect(stepBarPlacement({ step: 6, tablet: false, reflow: false })).toBe('flow');
+    expect(stepBarPlacement({ step: 6, tablet: false, reflow: false })).toBe('pinned');
     expect(stepBarPlacement({ step: 2, tablet: true, reflow: false })).toBe('flow');
     expect(stepBarPlacement({ step: 2, tablet: false, reflow: true })).toBe('flow');
   });
@@ -756,5 +774,84 @@ describe('review fix M4: avoid photos use the v2 chain', () => {
     expect(photoOf('generator-avoid-photo-12').props.sources).toEqual(chain);
     await press(tree, 'generator-next');
     expect(host(tree, 'generator-review-avoid-photo').findByType(ExerciseImage).props.sources).toEqual(chain);
+  });
+});
+
+// UX native final audit 27 Oct 2026, ruling 1 (+ GENERATOR-FADE): every pinned
+// generator footer sits in the ONE shared dock (PinnedDock): a 32 fade (clear
+// ground → ground), then solid ground to the screen edge, the lowest button 12
+// above the tab bar's top on a phone (86 + 12, insets 0 here), and the page's
+// scroll room = the dock's measured height. Rows B236, B237, B242, B245.
+describe('Generator pinned dock (UX native final audit 27 Oct 2026, ruling 1)', () => {
+  const { default: PinnedDock } = require('../../shared/components/PinnedDock');
+  const expectDock = (tree, id) => {
+    const dock = tree.root.find((node) => node.type === PinnedDock && node.props.testID === id);
+    expect(flat(host(tree, id))).toMatchObject({ position: 'absolute', left: 0, right: 0, bottom: 0 });
+    const fade = host(tree, `${id}-fade`);
+    expect(flat(fade).height).toBe(32);
+    expect(fade.findByType(GradientFill).props.colors).toEqual(['rgba(10, 11, 15, 0)', '#0A0B0F']);
+    expect(fade.findByType(GradientFill).props.stops).toEqual([0, 1]);
+    expect(flat(host(tree, `${id}-body`))).toMatchObject({ backgroundColor: colors.ground, paddingBottom: 86 + 12 });
+    return dock;
+  };
+  const expectRoom = async (tree, id) => {
+    await act(async () => host(tree, id).props.onLayout({ nativeEvent: { layout: { height: 214 } } }));
+    expect(host(tree, 'shell-page').props.dockHeight).toBe(214);
+  };
+
+  it('B236: steps 1–5 Back/Next sit in the dock (fade 32, solid, 12 above the tab bar), scroll room = dock height', async () => {
+    const tree = await openStep(2);
+    const dock = expectDock(tree, 'generator-step-bar');
+    expect(dock.findAll((node) => node.props.testID === 'generator-next').length).toBeGreaterThan(0);
+    expect(dock.findAll((node) => node.props.testID === 'generator-back').length).toBeGreaterThan(0);
+    await expectRoom(tree, 'generator-step-bar');
+  });
+
+  it('B237: step 6 Back/Next is pinned in the same dock (not in the flow under the tab bar)', async () => {
+    const tree = await openStep(6);
+    const dock = expectDock(tree, 'generator-step-bar');
+    expect(dock.findAll((node) => node.props.testID === 'generator-next').length).toBeGreaterThan(0);
+    await expectRoom(tree, 'generator-step-bar');
+  });
+
+  it('B242: the Review’s Back / See my plan sit in the dock, scroll room = dock height', async () => {
+    const tree = await openReview();
+    const dock = expectDock(tree, 'generator-review-bar');
+    expect(dock.findAll((node) => node.props.testID === 'generator-see-plan').length).toBeGreaterThan(0);
+    expect(dock.findAll((node) => node.props.testID === 'generator-back').length).toBeGreaterThan(0);
+    await expectRoom(tree, 'generator-review-bar');
+  });
+
+  it('B245: the preview Start / Change pair sits in the dock (fade, solid to the edge), scroll room = dock height', async () => {
+    const tree = await openPreview();
+    const dock = expectDock(tree, 'generator-sticky-bar');
+    expect(dock.findAll((node) => node.props.testID === 'generator-start').length).toBeGreaterThan(0);
+    await expectRoom(tree, 'generator-sticky-bar');
+  });
+
+  it('below 21rem (320) the steps pair stacks: gold Next (52) over glass Back (52), full width', async () => {
+    mockWindow = { ...PHONE, width: 320 };
+    const tree = await openStep(2);
+    const buttons = one(tree, 'generator-buttons').findAll((node) => node.type === PillButton);
+    expect(buttons.map((node) => [node.props.testID, node.props.size, node.props.fullWidth])).toEqual([
+      ['generator-next', 'default', true],
+      ['generator-back', 'default', true],
+    ]);
+    expect(flat(host(tree, 'generator-buttons'))).toMatchObject({ flexDirection: 'column', gap: 10 });
+  });
+
+  it('tablet: the steps and the review stay in the flow (no dock); the preview dock keeps its 16 above the safe area', async () => {
+    mockWindow = { ...TABLET };
+    expect(has(await openStep(2), 'generator-step-bar')).toBe(false);
+    expect(has(await openReview(), 'generator-review-bar')).toBe(false);
+    const preview = await openPreview();
+    expect(flat(host(preview, 'generator-sticky-bar-body')).paddingBottom).toBe(16);
+  });
+
+  it('large text (2×): no dock anywhere (§9 addendum un-pins it), the pairs scroll with the page', async () => {
+    mockWindow = { ...PHONE, fontScale: 2 };
+    expect(has(await openStep(2), 'generator-step-bar')).toBe(false);
+    expect(has(await openReview(), 'generator-review-bar')).toBe(false);
+    expect(has(await openPreview(), 'generator-sticky-bar-fade')).toBe(false);
   });
 });

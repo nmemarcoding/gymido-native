@@ -295,3 +295,45 @@ describe('My plan create large text (UX §9)', () => {
     }
   });
 });
+
+// UX native final audit 27 Oct 2026, ruling 1, row B218: the Cancel / "Create
+// and add days" footer sits in the ONE shared dock on phones (fade 32, solid
+// ground to the edge, 12 above the tab bar), never behind the tab bar; the
+// page's scroll room = the dock's measured height.
+describe('My plan create pinned dock (UX native final audit 27 Oct 2026, ruling 1, B218)', () => {
+  const { default: PinnedDock } = require('../../shared/components/PinnedDock');
+  const dockOf = (tree) => tree.root.findAll((node) => node.type === PinnedDock)[0];
+
+  it('phone: the button pair sits in the dock: fade 32 (clear ground → ground), solid body, 12 above the tab bar', async () => {
+    const tree = await render();
+    const dock = dockOf(tree);
+    expect(dock.props.testID).toBe('create-plan-dock');
+    expect(dock.findAll((node) => node.props.testID === 'create-plan-submit').length).toBeGreaterThan(0);
+    expect(dock.findAll((node) => node.props.testID === 'create-plan-cancel').length).toBeGreaterThan(0);
+    expect(host(tree.root, 'create-plan-card')[0].findAll((node) => node.props.testID === 'create-plan-buttons')).toHaveLength(0);
+    const fade = host(tree.root, 'create-plan-dock-fade')[0];
+    expect(flat(fade.props.style).height).toBe(32);
+    expect(fade.findByType(GradientFill).props.colors).toEqual(gradients.ctaBarFade.colors);
+    expect(flat(host(tree.root, 'create-plan-dock-body')[0].props.style)).toMatchObject({ backgroundColor: colors.ground, paddingBottom: 86 + 12 });
+  });
+
+  it('phone: the scroll content padding = the measured dock height', async () => {
+    const tree = await render();
+    await act(async () => host(tree.root, 'create-plan-dock')[0].props.onLayout({ nativeEvent: { layout: { height: 150 } } }));
+    expect(mockShellProps.dockHeight).toBe(150);
+  });
+
+  it('below 21rem (320): gold Create over glass Cancel, full width', async () => {
+    setWidth(320);
+    const tree = await render();
+    expect(buttonOrder(tree)).toEqual(['create-plan-submit', 'create-plan-cancel']);
+    expect(flat(host(tree.root, 'create-plan-buttons')[0].props.style)).toMatchObject({ flexDirection: 'column', gap: 10 });
+  });
+
+  it('tablet and large text: no dock (the buttons stay at the end of the card)', async () => {
+    setWidth(834);
+    expect(dockOf(await render())).toBeUndefined();
+    setWidth(390, 2);
+    expect(dockOf(await render())).toBeUndefined();
+  });
+});

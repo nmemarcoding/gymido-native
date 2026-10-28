@@ -74,8 +74,8 @@ const focusLater = (ref) => {
   return () => clearTimeout(timer);
 };
 
-// `bottom`: the room kept clear at the screen bottom (the safe area + 8 on
-// phones; the session's dock room on tablets, see RestTimerWidget).
+// `bottom`: the room kept clear at the screen bottom (the session's dock
+// room, at least the safe area + 8; see RestTimerWidget).
 function clampPosition(position, size, window, insets, bottom = insets.bottom + MARGIN) {
   const minX = MARGIN + insets.left;
   const minY = MARGIN + insets.top;
@@ -84,20 +84,16 @@ function clampPosition(position, size, window, insets, bottom = insets.bottom + 
   return { x: Math.min(Math.max(minX, position.x), maxX), y: Math.min(Math.max(minY, position.y), maxY) };
 }
 
-// UX F2 Rest minimised: the disc is 92 on both. Phone at top 112, LEFT 20
-// (UX native final audit 27 Oct 2026, row A121, T §5 "never covers a
-// control"): at the board's right 20 it sat on the stage's right-aligned
-// "How to" pill; on the left it floats over the photo only.
+// UX F2 Rest minimised: the disc is 92 on both, docked just ABOVE the
+// session's bottom bar (the opaque Did it dock, or the browsing nav), so it
+// never covers "Complete workout", the Did it, "How to" or Exit.
 // Tablet (UX verdict I2, iPad 15e819a; P8: "92 at 24 (T §5)", the 132 board
-// disc is superseded): right 24, docked just ABOVE the session's opaque dock,
-// so it never covers "Complete workout" or the Did it.
+// disc is superseded): right 24. Phone (UX ruling A121, option B, 27 Oct
+// 2026; was right 20 / top 112, over "How to"): right 20, the same dock rule.
 export const DISC_SIZE = 92;
 
 function defaultDiscPosition(tablet, size, window, insets, bottom) {
-  if (tablet) {
-    return { x: window.width - insets.right - 24 - size, y: window.height - bottom - size };
-  }
-  return { x: insets.left + 20, y: Math.max(insets.top + MARGIN, 112) };
+  return { x: window.width - insets.right - (tablet ? 24 : 20) - size, y: window.height - bottom - size };
 }
 
 const EXPAND_ACTIONS = [{ name: 'activate', label: 'Expand rest timer' }];
@@ -114,9 +110,10 @@ export function RestTimerWidget({ timer, minimized, onMinimize, onExpand, onAdju
   const insets = useSafeAreaInsets();
   const tablet = isTabletWidth(window.width);
   const size = DISC_SIZE;
-  // I2 (tablet only): `dockRoom` is the session's bottom room (the measured
-  // dock + its gap); the disc stays above it, by default and while dragged.
-  const bottom = tablet ? Math.max(insets.bottom + MARGIN, dockRoom) : insets.bottom + MARGIN;
+  // I2 (tablet) + A121 option B (phone): `dockRoom` is the session's bottom
+  // room (the measured dock); the disc stays above it, by default and while
+  // dragged.
+  const bottom = Math.max(insets.bottom + MARGIN, dockRoom);
   const current = clampPosition(position ?? defaultDiscPosition(tablet, size, window, insets, bottom), size, window, insets, bottom);
   const drag = useRef({ moved: false, startX: 0, startY: 0, origin: current });
   const latest = useRef({ current, minimized, onExpand, onPosition, size, window, insets, bottom });

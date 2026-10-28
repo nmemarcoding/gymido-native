@@ -24,13 +24,19 @@ jest.mock('@react-navigation/native', () => ({
 }));
 jest.mock('../shell/ShellPage', () => {
   const { View } = require('react-native');
-  return ({ children }) => <View>{children}</View>;
+  return ({ children, dockHeight }) => (
+    <View testID="shell-page" dockHeight={dockHeight}>
+      {children}
+    </View>
+  );
 });
 jest.mock('../shell/shellLinks', () => ({ openShellPath: jest.fn(), handOffToWorkout: jest.fn() }));
 jest.mock('./generatorRoutes', () => ({
   generatorRoutes: { PlanGenerator: 'PlanGenerator', PlanGeneratorPreview: 'PlanGeneratorPreview' },
 }));
 jest.mock('./useTabBarClearance', () => ({ useTabBarClearance: () => 0 }));
+// PinnedDock (UX native final audit 27 Oct 2026, ruling 1) reads the safe area.
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../../shared/components/BlurLayer', () => {
   const { View } = require('react-native');
   return (props) => <View testID="blur-layer" {...props} />;
@@ -304,18 +310,21 @@ describe('Preview (GeneratorPreview board)', () => {
   // width), so no card shows through.
   // DECLARED (27 Oct 2026, PLAN-GENERATOR audit b2): was phone only (390 / 431 / 700) with a 24 band; the fade is
   // now the same at EVERY width: a 32 strip, ground 0 → 1, over a solid bar (tablet included).
+  // DECLARED (UX native final audit 27 Oct 2026, ruling 1 / GENERATOR-FADE, B245): the bar is the shared
+  // PinnedDock. The band's testID was 'generator-bar-fade' → 'generator-sticky-bar-fade'; the ground was on
+  // 'generator-sticky-row' → it is on the dock body ('generator-sticky-bar-body'), which runs to the screen edge.
   it.each([390, 431, 700, 834, 1194])('sticky bar (%spx): a 32 fade strip (ground 0 → 1) above, opaque ground behind the buttons, no blur veil', async (width) => {
     mockWindow = { width, height: 844, scale: 2, fontScale: 1 };
     const tree = await openPreview();
     const bar = host(tree, 'generator-sticky-bar');
-    const band = host(tree, 'generator-bar-fade');
+    const band = host(tree, 'generator-sticky-bar-fade');
     const fade = band.findAllByType(GradientFill)[0];
     expect(fade.props.colors).toEqual(gradients.ctaBarFade.colors);
     expect(fade.props.stops).toEqual([0, 1]);
     expect(flat(band).height).toBe(32);
     expect(bar.findAllByType(GradientFill)).toHaveLength(1);
     expect(flat(bar).backgroundColor).toBeUndefined();
-    expect(flat(host(tree, 'generator-sticky-row')).backgroundColor).toBe(colors.ground);
+    expect(flat(host(tree, 'generator-sticky-bar-body')).backgroundColor).toBe(colors.ground);
     expect(byTestId(tree, 'blur-layer')).toHaveLength(0);
   });
 
@@ -335,12 +344,15 @@ describe('Preview (GeneratorPreview board)', () => {
     expect(flat(host(tree, 'generator-sticky-row')).flexDirection).toBe(direction);
   });
 
-  it('the list clears the measured bar (re-measured at large text), never less than 112', async () => {
+  // DECLARED (UX native final audit 27 Oct 2026, ruling 1): was the list's own paddingBottom = max(112, bar + 16)
+  // (112 before measuring, 236 after a 220 bar). Now the page's scroll room = the measured dock height exactly
+  // (ShellPage dockHeight → contentContainer paddingBottom); the list adds none; null until measured.
+  it('the scroll room is the measured dock height (re-measured on every layout)', async () => {
     const tree = await openPreview();
-    const pad = () => flat(host(tree, 'generator-feasible')).paddingBottom;
-    expect(pad()).toBe(112);
+    expect(flat(host(tree, 'generator-feasible')).paddingBottom).toBeUndefined();
+    expect(host(tree, 'shell-page').props.dockHeight).toBeNull();
     await act(async () => host(tree, 'generator-sticky-bar').props.onLayout({ nativeEvent: { layout: { height: 220 } } }));
-    expect(pad()).toBe(236);
+    expect(host(tree, 'shell-page').props.dockHeight).toBe(220);
   });
 
   it('day header: minutes trail at 1×, drop below the title at 2×', async () => {

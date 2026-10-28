@@ -11,6 +11,7 @@ import IconButton from '../../../shared/components/IconButton';
 import { NAME_TEXT } from '../../../shared/components/largeText';
 import Loader from '../../../shared/components/Loader';
 import PillButton from '../../../shared/components/PillButton';
+import PinnedDock from '../../../shared/components/PinnedDock';
 import Select from '../../../shared/components/Select';
 import { ToastTone, addToast } from '../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
@@ -51,7 +52,6 @@ import {
 // already drops a non-image media_type.
 import { THUMB_WIDTH, imageSourceProps } from '../../../shared/images/remoteImageSources';
 import { generatorRoutes } from '../generatorRoutes';
-import { useTabBarClearance } from '../useTabBarClearance';
 import { keepUnitsTogether } from '../../../shared/format/counts';
 
 const THUMB = Object.freeze({ width: THUMB_WIDTH });
@@ -70,8 +70,9 @@ function PlanGeneratorPreview() {
   const [changingSplit, setChangingSplit] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  // The pinned bar's live height (re-measured on every layout, never cached).
-  const [barHeight, setBarHeight] = useState(0);
+  // The pinned dock's live height (re-measured on every layout, never cached;
+  // null until measured).
+  const [barHeight, setBarHeight] = useState(null);
   const { width, fontScale } = useWindowDimensions();
   const tablet = isTabletWidth(width);
   const reflow = isReflow(fontScale);
@@ -221,7 +222,8 @@ function PlanGeneratorPreview() {
 
   return (
     <View style={styles.screen}>
-      <ShellPage testID="plan-generator-preview-screen">
+      {/* UX native final audit 27 Oct 2026, ruling 1: the scroll room = the dock's measured height. */}
+      <ShellPage testID="plan-generator-preview-screen" dockHeight={pinned ? barHeight : null}>
         <View style={styles.column}>
           {view.status === 'loading' ? <Loader label={COPY.buildingPlan} style={styles.loader} /> : null}
           {view.status === 'unavailable' ? (
@@ -250,7 +252,6 @@ function PlanGeneratorPreview() {
               // questionnaire that refetches the profile, never goBack to the
               // stale one (its old split would be PUT again on "See my plan").
               onBack={openAnswers}
-              barHeight={pinned ? barHeight : null}
               tablet={tablet}
               reflow={reflow}
               footer={pinned ? null : bar}
@@ -281,7 +282,7 @@ function PlanGeneratorPreview() {
 // 44/42, the split name sub-line + "Change split" pill select, featured first
 // row); tablet = TabletGeneratorPreview (plan name 60/60, the split card,
 // 120 × 92 photo rows). UX N1: the plan name is ONE server string.
-function Feasible({ preview, notice, changingSplit, onSplitChange, onOpenExercise, onBack, barHeight = null, tablet, reflow, footer }) {
+function Feasible({ preview, notice, changingSplit, onSplitChange, onOpenExercise, onBack, tablet, reflow, footer }) {
   const splitOptions = preview.split_options ?? [];
   const weekly = weeklyVolumeRows(preview);
   const select =
@@ -300,7 +301,7 @@ function Feasible({ preview, notice, changingSplit, onSplitChange, onOpenExercis
   return (
     <View
       testID="generator-feasible"
-      style={[styles.feasible, tablet && styles.feasibleTablet, { paddingBottom: barHeight === null ? 0 : Math.max(FEASIBLE_PAD, barHeight + spacing[4]) }]}
+      style={[styles.feasible, tablet && styles.feasibleTablet]}
     >
       {!tablet ? (
         <View testID="generator-preview-top-row" style={styles.topRow}>
@@ -674,13 +675,14 @@ function GoEasyRefusalActions({ equipmentFix, wide, onOpenStep }) {
 // §G2.2 item 7 + the dated fix. Phone (UX M2-1, web parity): below 432 the
 // pair stacks, "Start this plan" (gold) over "Change my answers" (glass), both
 // full width at 52, gap 10, pinned above the tab bar. From 432 to tablet: a
-// row of the 60 CTA (Start takes the rest). UX ruling (tablet too since the
-// 27 Oct 2026 dated line): the kit fade sits in a band above the buttons and
-// the area behind them is opaque ground, so no card shows through.
+// row of the 60 CTA (Start takes the rest).
 // Tablet: a right-aligned row of 52 buttons, sticky at the bottom. §9: past
 // 1.3× the pair stacks (primary on top) and scrolls with the page (§9 addendum).
+// UX native final audit 27 Oct 2026, ruling 1 (GENERATOR-FADE): pinned, the
+// pair sits in the shared PinnedDock: the 32 fade above the gold button, solid
+// ground from there to the screen edge (behind the tab bar too), 12 above the
+// tab bar on phones; tablets keep their 16 above the safe area.
 function StickyBar({ showStart, starting, onChange, onStart, onHeight, tablet, reflow, narrow, pinned }) {
-  const bottom = useTabBarClearance();
   const stacked = reflow || (narrow && !tablet);
   const size = tablet || stacked ? 'default' : 'cta';
   const change = (
@@ -699,7 +701,7 @@ function StickyBar({ showStart, starting, onChange, onStart, onHeight, tablet, r
     />
   ) : null;
   const row = (
-    <View testID="generator-sticky-row" style={[styles.barRow, tablet ? styles.barRowTablet : styles.barRowPhone, pinned && styles.barOpaque, stacked && styles.barStack, stacked && !reflow && styles.barStackPhone]}>
+    <View testID="generator-sticky-row" style={[styles.barRow, tablet ? styles.barRowTablet : styles.barRowPhone, pinned && styles.barRowDocked, stacked && styles.barStack, stacked && !reflow && styles.barStackPhone]}>
       {stacked ? [start, change] : [change, start]}
     </View>
   );
@@ -711,23 +713,16 @@ function StickyBar({ showStart, starting, onChange, onStart, onHeight, tablet, r
     );
   }
   return (
-    <View testID="generator-sticky-bar" style={[styles.bar, { bottom }]} onLayout={(event) => onHeight?.(event.nativeEvent.layout.height)}>
-      {/* Dated 27 Oct 2026 (audit b2): at EVERY width the kit fade is a 32
-          strip (ground 0 → 1) above the opaque row, mounted with the bar. */}
-      <View testID="generator-bar-fade" style={styles.barFade}>
-        <GradientFill angle={gradients.ctaBarFade.angle} colors={gradients.ctaBarFade.colors} stops={FADE_BAND_STOPS} />
-      </View>
+    <PinnedDock testID="generator-sticky-bar" onHeight={onHeight} bottomGap={TABLET_BAR_BOTTOM}>
       {row}
-    </View>
+    </PinnedDock>
   );
 }
 
-// The list's bottom room under the pinned bar (its 1× height + 16).
-const FEASIBLE_PAD = 112;
 // Web stacks the bar's pair below 27rem.
 const BAR_STACK_BELOW = 432;
-// Phone: the fade's own band above the buttons, clear → ground across it.
-const FADE_BAND_STOPS = [0, 1];
+// Tablet (no tab bar): the pinned row's 16 above the safe area (unchanged).
+const TABLET_BAR_BOTTOM = spacing[4];
 
 const styles = StyleSheet.create({
   screen: {
@@ -1097,17 +1092,10 @@ const styles = StyleSheet.create({
     marginTop: 20,
     gap: 10,
   },
-  bar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-  },
-  // UX ruling M2-1: the area directly behind the phone buttons is opaque.
-  barOpaque: {
-    backgroundColor: colors.ground,
-  },
-  barFade: {
-    height: spacing[8],
+  // Ruling 1: in the dock the buttons start right under the fade; the dock
+  // gives the room below them (and draws the solid ground).
+  barRowDocked: {
+    paddingVertical: 0,
   },
   barInFlow: {
     marginTop: spacing[2],

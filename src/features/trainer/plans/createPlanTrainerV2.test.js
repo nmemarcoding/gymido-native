@@ -271,3 +271,40 @@ describe('Trainer plan create large text (UX §9)', () => {
     expect(back.props.maxFontSizeMultiplier).toBe(textScale.body);
   });
 });
+
+// UX native final audit 27 Oct 2026, ruling 1, row D365: the board's bottom
+// bar (Cancel 1 | gold "Create and add days" 1.8, 54 tall) is the ONE shared
+// dock on phones: fade 32, solid ground to the edge, 12 above the tab bar;
+// the scroll room = the dock's measured height.
+describe('Trainer plan create pinned dock (UX native final audit 27 Oct 2026, ruling 1, D365)', () => {
+  const { default: PinnedDock } = require('../../../shared/components/PinnedDock');
+  const dockOf = (tree) => tree.root.findAll((node) => node.type === PinnedDock)[0];
+
+  it('phone: Cancel (1) + Create (1.8, 54) sit in the dock, out of the card; fade 32, solid, 12 above the tab bar', async () => {
+    const tree = await render();
+    const dock = dockOf(tree);
+    expect(dock.props.testID).toBe('create-plan-dock');
+    expect(dock.findAll((node) => node.props.testID === 'create-plan-buttons').length).toBeGreaterThan(0);
+    expect(host(tree.root, 'create-plan-card').findAll((node) => node.props.testID === 'create-plan-buttons')).toHaveLength(0);
+    expect(flat(comp(tree.root, 'create-plan-submit').props.style)).toEqual(expect.objectContaining({ flex: 1.8, minHeight: 54 }));
+    const fade = host(tree.root, 'create-plan-dock-fade');
+    expect(flat(fade.props.style).height).toBe(32);
+    expect(fade.findByType(GradientFill).props.colors).toEqual(gradients.ctaBarFade.colors);
+    expect(flat(host(tree.root, 'create-plan-dock-body').props.style)).toEqual(
+      expect.objectContaining({ backgroundColor: colors.ground, paddingBottom: 86 + 12 }),
+    );
+  });
+
+  it('phone: the scroll content padding = the measured dock height', async () => {
+    const tree = await render();
+    await act(async () => host(tree.root, 'create-plan-dock').props.onLayout({ nativeEvent: { layout: { height: 160 } } }));
+    expect(mockShellProps.dockHeight).toBe(160);
+  });
+
+  it('tablet and large text: no dock', async () => {
+    setWindow(834);
+    expect(dockOf(await render())).toBeUndefined();
+    setWindow(390, 2);
+    expect(dockOf(await render())).toBeUndefined();
+  });
+});

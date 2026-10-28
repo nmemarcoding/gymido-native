@@ -430,3 +430,49 @@ describe('Trainer apply (UX L §Trainer apply)', () => {
       .forEach((node) => expect(node.props.numberOfLines).toBeGreaterThanOrEqual(2));
   });
 });
+
+// UX native final audit 27 Oct 2026, ruling 1 (PM: "nothing under the tab bar"):
+// on a phone the TrainerDetail board pins "Ask … to coach me" above the tab bar.
+// It sits in the ONE shared dock (fade 32, solid ground to the edge, 12 above
+// the tab bar's top) and the page's scroll room = the dock's measured height,
+// so the CTA is never under the floating tab bar and a tap never hits the nav.
+describe('Trainer detail pinned CTA (UX native final audit 27 Oct 2026, ruling 1)', () => {
+  const { default: PinnedDock } = require('../../shared/components/PinnedDock');
+  const dockOf = (tree) => tree.root.findAll((node) => node.type === PinnedDock)[0];
+
+  it('phone (360): the Ask CTA sits in the dock: fade 32, solid ground, 12 above the tab bar', async () => {
+    setWindow(360);
+    getTrainer.mockResolvedValue(SARA);
+    const tree = await render(<TrainerDetailScreen />);
+    const dock = dockOf(tree);
+    expect(dock.props.testID).toBe('trainer-detail-dock');
+    expect(dock.findAll((node) => node.type === PillButton && node.props.testID === 'trainer-detail-ask')).toHaveLength(1);
+    expect(flat(byId(tree, 'trainer-detail-dock-fade')).height).toBe(32);
+    expect(flat(byId(tree, 'trainer-detail-dock-body'))).toMatchObject({ backgroundColor: colors.ground, paddingBottom: 86 + 12 });
+  });
+
+  it('phone: the scroll room = the measured dock height', async () => {
+    setWindow(360);
+    getTrainer.mockResolvedValue(SARA);
+    const tree = await render(<TrainerDetailScreen />);
+    await act(async () => byId(tree, 'trainer-detail-dock').props.onLayout({ nativeEvent: { layout: { height: 170 } } }));
+    expect(mockShellPage.mock.calls.at(-1)[0].dockHeight).toBe(170);
+  });
+
+  it('after a request (no CTA), on a tablet and at large text: no dock, the CTA slot stays in the page', async () => {
+    setWindow(360);
+    getTrainer.mockResolvedValue(SARA);
+    requestCoaching.mockResolvedValue({ status: 'PENDING' });
+    const sent = await render(<TrainerDetailScreen />);
+    await act(async () => sent.root.find((node) => node.type === PillButton && node.props.testID === 'trainer-detail-ask').props.onPress());
+    await act(async () => sent.root.findByType(ConfirmDialog).props.onConfirm());
+    expect(dockOf(sent)).toBeUndefined();
+    expect(allById(sent, 'trainer-detail-requested').length).toBeGreaterThan(0);
+    for (const [width, scale] of [[834, 1], [390, 2]]) {
+      setWindow(width, scale);
+      const tree = await render(<TrainerDetailScreen />);
+      expect(dockOf(tree)).toBeUndefined();
+      expect(tree.root.findAll((node) => node.type === PillButton && node.props.testID === 'trainer-detail-ask')).toHaveLength(1);
+    }
+  });
+});

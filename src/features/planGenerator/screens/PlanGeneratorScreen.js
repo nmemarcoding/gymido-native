@@ -9,6 +9,7 @@ import IconButton from '../../../shared/components/IconButton';
 import { NAME_TEXT } from '../../../shared/components/largeText';
 import Loader from '../../../shared/components/Loader';
 import PillButton from '../../../shared/components/PillButton';
+import PinnedDock, { dockStacks } from '../../../shared/components/PinnedDock';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
 import { colors, font, radii, spacing } from '../../../shared/theme/tokens';
 import ShellPage from '../../shell/ShellPage';
@@ -17,7 +18,7 @@ import { getGeneratorProfile, saveGeneratorProfile } from '../api/generatorApi';
 import FocusAvoidStep from '../components/FocusAvoidStep';
 import { Checkbox, Choice, ChoiceList, OptionPill, PillRow, ProgressSegments } from '../components/GeneratorControls';
 import { ArrowRightIcon, ChevronLeftIcon, CloseIcon, GoalIcon } from '../components/GeneratorIcons';
-import GeneratorReview from '../components/GeneratorReview';
+import GeneratorReview, { ReviewButtons } from '../components/GeneratorReview';
 import { GENERATOR_STATE_MAX_WIDTH, GeneratorUnavailable } from '../components/GeneratorStates';
 import {
   COPY,
@@ -47,7 +48,6 @@ import {
   toggleId,
 } from '../generatorLogic';
 import { generatorRoutes } from '../generatorRoutes';
-import { useTabBarClearance } from '../useTabBarClearance';
 
 // Kept for callers/tests that import it from here.
 export { isReflow };
@@ -70,12 +70,14 @@ export function initialStepErrors(param) {
   return result;
 }
 
-// Where the phone step buttons go (UX J + §9 addendum): a pinned bar above the
-// tab bar on steps 1–5 (60 CTA, as drawn) while it fits one row; in the flow
-// on step 6 (the keyboard rule: never floating over the results), on the
-// review, on tablets and at large text.
+// Where the phone step buttons go (UX J + §9 addendum): pinned in the shared
+// dock above the tab bar (60 CTA, as drawn) while it fits one row; in the
+// flow on tablets and at large text. UX native final audit 27 Oct 2026,
+// ruling 1 (B237): step 6 is pinned too (was in the flow for the keyboard
+// rule; the dock sits at the screen bottom, so the keyboard covers it and it
+// never floats over the results). The Review follows the same rule (B242).
 export function stepBarPlacement({ step, tablet, reflow }) {
-  return !tablet && !reflow && step >= 1 && step < STEP_COUNT ? 'pinned' : 'flow';
+  return !tablet && !reflow && step >= 1 && step <= STEP_COUNT ? 'pinned' : 'flow';
 }
 
 // G1 (RN-SPEC-PLAN-GENERATOR §G1). Every focus remounts and reloads (§8.1).
@@ -117,9 +119,11 @@ function PlanGenerator() {
   const reviewTitleRef = useRef(null);
   const scrollRef = useRef(null);
   const stepErrorRef = useRef(null);
-  // The pinned bar's live height (re-measured on every layout, never cached).
-  const [barHeight, setBarHeight] = useState(0);
-  const barBottom = useTabBarClearance();
+  // The pinned dock's live height (re-measured on every layout, never cached;
+  // null until measured). ShellPage keeps exactly this much scroll room.
+  const [barHeight, setBarHeight] = useState(null);
+  // Below 21rem the docked pair stacks (ruling 1).
+  const narrow = dockStacks(width);
 
   useEffect(() => {
     mounted.current = true;
@@ -230,6 +234,14 @@ function PlanGenerator() {
     };
 
     if (step === REVIEW) {
+      const reviewPinned = stepBarPlacement({ step: STEP_COUNT, tablet, reflow }) === 'pinned';
+      if (reviewPinned) {
+        pinnedBar = (
+          <PinnedDock testID="generator-review-bar" onHeight={setBarHeight} contentStyle={styles.dockContent}>
+            <ReviewButtons saving={saving} stacked={narrow} onBack={goTo} onSave={handleSave} />
+          </PinnedDock>
+        );
+      }
       content = (
         <GeneratorReview
           answers={answers}
@@ -243,6 +255,7 @@ function PlanGenerator() {
           onBack={goTo}
           onSave={handleSave}
           titleRef={reviewTitleRef}
+          buttonsPinned={reviewPinned}
         />
       );
     } else {
@@ -257,22 +270,20 @@ function PlanGenerator() {
         disabled: !isStepAnswered(answers, step),
         onPress: () => goTo(step + 1),
       };
+      const pinned = placement === 'pinned';
+      const stacked = reflow || (pinned && narrow);
       const buttons = (
-        <StepButtons secondary={secondary} primary={primary} tablet={tablet} reflow={reflow} size={placement === 'pinned' ? 'cta' : 'default'} />
+        <StepButtons secondary={secondary} primary={primary} tablet={tablet} reflow={stacked} size={pinned && !stacked ? 'cta' : 'default'} />
       );
-      if (placement === 'pinned') {
+      if (pinned) {
         pinnedBar = (
-          <View
-            testID="generator-step-bar"
-            style={[styles.pinnedBar, { bottom: barBottom + spacing[4] }]}
-            onLayout={(event) => setBarHeight(event.nativeEvent.layout.height)}
-          >
+          <PinnedDock testID="generator-step-bar" onHeight={setBarHeight} contentStyle={styles.dockContent}>
             {buttons}
-          </View>
+          </PinnedDock>
         );
       }
       content = (
-        <View style={[styles.column, tablet && styles.columnTablet, placement === 'pinned' && { paddingBottom: barHeight + spacing[4] }]}>
+        <View style={[styles.column, tablet && styles.columnTablet]}>
           {!tablet ? (
             <TopRow
               step={step}
@@ -343,7 +354,8 @@ function PlanGenerator() {
 
   return (
     <View style={styles.screen}>
-      <ShellPage testID="plan-generator-screen" scrollRef={scrollRef}>
+      {/* UX native final audit 27 Oct 2026, ruling 1: the scroll room = the dock's measured height. */}
+      <ShellPage testID="plan-generator-screen" scrollRef={scrollRef} dockHeight={pinnedBar ? barHeight : null}>
         <View style={styles.page}>{content}</View>
       </ShellPage>
       {pinnedBar}
@@ -703,11 +715,9 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'stretch',
   },
-  // The pinned phone bar: left/right 16, above the tab bar (+16).
-  pinnedBar: {
-    position: 'absolute',
-    left: spacing[4],
-    right: spacing[4],
+  // The docked pair keeps the phone's 16 sides (the dock is edge to edge).
+  dockContent: {
+    paddingHorizontal: spacing[4],
   },
   textButton: {
     alignSelf: 'flex-start',

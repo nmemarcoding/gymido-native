@@ -289,3 +289,39 @@ describe('status-bar backdrop (UX native final audit 27 Oct 2026, ruling 2)', ()
     expect(backdrop(render())).toHaveLength(0);
   });
 });
+
+// UX native final audit 27 Oct 2026, ruling 1: a screen with a pinned dock
+// (PinnedDock) hands its measured height over; the scroll content's bottom
+// padding is then exactly that height (it already holds the tab bar, the gap
+// and the safe area), so the last row scrolls fully clear above the fade.
+describe('ShellPage pinned dock room (UX native final audit 27 Oct 2026, ruling 1)', () => {
+  const containerPad = (tree) => StyleSheet.flatten(tree.root.findByType(ScrollView).props.contentContainerStyle).paddingBottom ?? 0;
+
+  it('phone: contentContainer paddingBottom = the dock height, no tab-bar padding on top of it', () => {
+    Platform.OS = 'ios';
+    const tree = render({ dockHeight: 254 });
+    expect(containerPad(tree)).toBe(254);
+    expect(bottomPadding(tree)).toBe(0);
+  });
+
+  it('tablet: the same rule (the dock replaces the 40)', () => {
+    Platform.OS = 'ios';
+    useWindowDimensions.mockReturnValue({ width: 834, height: 1194, scale: 2, fontScale: 1 });
+    const tree = render({ dockHeight: 120 });
+    expect(containerPad(tree)).toBe(120);
+    expect(bottomPadding(tree)).toBe(0);
+  });
+
+  it('Android keeps the keyboard room on top of the dock height', () => {
+    Platform.OS = 'android';
+    const tree = render({ dockHeight: 254 });
+    expect(containerPad(tree)).toBe(254);
+    expect(bottomPadding(tree)).toBe(300);
+  });
+
+  it('no dock (or not measured yet): the standard tab-bar padding, as before', () => {
+    Platform.OS = 'ios';
+    expect(bottomPadding(render({ dockHeight: null }))).toBe(104 + 34);
+    expect(containerPad(render())).toBe(0);
+  });
+});
