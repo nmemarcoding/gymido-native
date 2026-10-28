@@ -10,6 +10,8 @@ function api(overrides = {}) {
     listExerciseStats: jest.fn(() => Promise.resolve([])),
     listCompletedWorkouts: jest.fn(() => Promise.resolve([{ workout_plan_day_id: 7 }])),
     listPlanDays: jest.fn(() => Promise.resolve([{ id: 7 }])),
+    getCurrentWeek: jest.fn(() => Promise.resolve([])),
+    isGeneratorAvailable: jest.fn(() => Promise.resolve(true)),
     ...overrides,
   };
 }
@@ -53,6 +55,31 @@ describe('loadWorkoutPage (§6.1)', () => {
 // entry and its scheduled rest alert, so a stale "rest over" could fire.
 // A load that finds no active session, or another one, ends the stored one
 // (disposing the controller cancels its alert); a failed load changes nothing.
+describe('loadWorkoutPage: T-76 week + generator', () => {
+  it('loads /my-plans/current/week with the others and keeps the completed items (duration)', async () => {
+    const week = [{ date: '2026-10-19', status: 'done' }];
+    const completed = [{ workout_plan_day_id: 7, duration_seconds: 3120, completed_at: '2026-10-22T10:00:00Z' }];
+    const calls = api({ getCurrentWeek: jest.fn(() => Promise.resolve(week)), listCompletedWorkouts: jest.fn(() => Promise.resolve(completed)) });
+    const result = await loadWorkoutPage({ api: calls });
+    expect(calls.getCurrentWeek).toHaveBeenCalledTimes(1);
+    expect(result.data).toMatchObject({ week, completedThisWeek: completed, completedThisWeekDayIds: [7], generatorAvailable: false });
+    expect(calls.isGeneratorAvailable).not.toHaveBeenCalled();
+  });
+
+  it('a failed week is null (the week card hides), never a failed page', async () => {
+    const result = await loadWorkoutPage({ api: api({ getCurrentWeek: jest.fn(() => fail(500)) }) });
+    expect(result.ok).toBe(true);
+    expect(result.data.week).toBeNull();
+  });
+
+  it('no plan: asks the generator (U2); a failed check is false', async () => {
+    const noPlan = api({ getCurrentPlan: jest.fn(() => fail(404)) });
+    expect((await loadWorkoutPage({ api: noPlan })).data.generatorAvailable).toBe(true);
+    const failing = api({ getCurrentPlan: jest.fn(() => fail(404)), isGeneratorAvailable: jest.fn(() => Promise.reject(new Error('x'))) });
+    expect((await loadWorkoutPage({ api: failing })).data.generatorAvailable).toBe(false);
+  });
+});
+
 describe('loadWorkoutPage reconciles the stored session (T-59)', () => {
   jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn(() => Promise.resolve()) }));
   const { endSessionState, peekSession, sessionEntry } = require('./runtime/workoutSessionStore');

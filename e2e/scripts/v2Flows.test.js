@@ -445,3 +445,28 @@ describe('QA candidate 2941880 flow fixes', () => {
     expect(flow).toMatch(/id: "trainer-profile-eyebrow"\n- assertVisible:\n\s+text: "Trainer profile"\n/);
   });
 });
+
+// T-76 Workout hub redesign (28 Oct 2026): the retired hero's badge/detail ids
+// are gone; the flows use ids the new hub renders in every state with a plan.
+describe('T-76 hub flow ids', () => {
+  const read = (rel) => fs.readFileSync(path.join(V2, rel), 'utf8');
+  const steps = (src) => src.split('\n').filter((line) => !line.trim().startsWith('#')).join('\n');
+  const hubSource = ['src/features/workout/screens/WorkoutScreen.js', 'src/features/workout/components/hub/HubTodayCard.js', 'src/features/workout/components/hub/HubDayRows.js']
+    .map((rel) => fs.readFileSync(path.join(__dirname, '../..', rel), 'utf8'))
+    .join('\n');
+
+  it('02-workout-hub asserts the plan name and Other days, never the retired badge/detail', () => {
+    const flow = steps(read('phase3/02-workout-hub.yaml'));
+    expect(flow).not.toMatch(/workout-hero-(badge|detail)/);
+    expect(flow).toMatch(/id: "workout-plan-name"/);
+    expect(flow).toMatch(/id: "workout-other-days"/);
+  });
+
+  it('every hub id the flows use is rendered by the new hub', () => {
+    ['workout-hero', 'workout-hero-start', 'workout-plan-name', 'workout-other-days', 'workout-hub-header', 'workout-back-today', 'workout-title'].forEach((id) =>
+      expect(hubSource).toContain(`"${id}"`)
+    );
+    expect(hubSource).toContain('`workout-day-start-${row.dayId}`');
+    expect(steps(read('subflows/start-workout.yaml'))).toMatch(/id: "workout-day-start-\.\*"/);
+  });
+});

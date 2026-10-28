@@ -60,12 +60,14 @@ jest.mock('../runtime/SessionDialogs', () => {
 });
 
 // T-50: the Start tap is the one notification-permission moment.
+// DECLARED (T-76): the mocked hero is now the hub's today card (was TodayHeroCard + PlanDayCard).
 let mockHero = null;
-jest.mock('../components/TodayHeroCard', () => (props) => {
+jest.mock('../components/hub/HubTodayCard', () => (props) => {
   mockHero = props;
   return null;
 });
-jest.mock('../components/PlanDayCard', () => () => null);
+jest.mock('../components/hub/HubDayRows', () => () => null);
+jest.mock('../components/hub/HubWeekCard', () => () => null);
 jest.mock('../api/workoutApi', () => ({ startWorkout: jest.fn(() => Promise.resolve({ session: { id: 9, exercises: [] } })) }));
 jest.mock('../runtime/restAlertPlatform', () => ({
   getPermission: jest.fn(() => Promise.resolve('undetermined')),

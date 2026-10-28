@@ -2,7 +2,7 @@ import { StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { CompleteWorkoutButton } from '../runtime/RuntimeOverlays';
-import PlanDayCard from './PlanDayCard';
+import HubDayRows from './hub/HubDayRows';
 
 // Android blank-render class: a rounded view that clips (overflow hidden)
 // must never also change its border/background/shadow at runtime, or Android
@@ -34,11 +34,15 @@ describe('no clipping on views whose style changes (Android)', () => {
     expect(flatPressed(button.props.style).overflow).toBeUndefined();
   });
 
-  it('Plan day card: the card that gains a border when done never clips', () => {
-    for (const isDone of [false, true]) {
-      const tree = render(<PlanDayCard day={{ id: 3, name: 'Push' }} weekdays={[]} isDone={isDone} starting={false} onStart={() => {}} index={0} />);
-      const card = tree.root.findAll((node) => node.props.testID === 'workout-day-3' && typeof node.type === 'string')[0];
-      expect(flat(card.props.style).overflow).toBeUndefined();
+  // DECLARED (T-76): was the PlanDayCard card (retired); the hub day row, which fades when done.
+  it('Hub day row: the row (done or not) never clips', () => {
+    for (const done of [false, true]) {
+      const row = { dayId: 3, title: 'Push', done, meta: 'Any day · 5 exercises', action: `${done ? 'Repeat' : 'Start'} Push` };
+      const copy = { title: 'Other days', help: 'Tap any day.' };
+      const tree = render(<HubDayRows copy={copy} rows={[row]} exercisesByDay={{ 3: [] }} startingDayId={null} onStart={() => {}} />);
+      const pressable = tree.root.findAll((node) => node.props.testID === 'workout-day-start-3' && typeof node.type !== 'string')[0];
+      expect(flat(pressable.props.style).overflow).toBeUndefined();
+      expect(flatPressed(pressable.props.style).overflow).toBeUndefined();
     }
   });
 });

@@ -1,14 +1,14 @@
 import { useEffect, useRef } from 'react';
 import { AccessibilityInfo, StyleSheet, Text, View, findNodeHandle } from 'react-native';
-import Svg, { Rect } from 'react-native-svg';
 
 import FeedbackIcon from '../../../shared/components/FeedbackIcon';
-import GradientFill from '../../../shared/components/GradientFill';
-import PillButton from '../../../shared/components/PillButton';
-import { colors, font, gradients, radii, spacing, textScale, titleTracking } from '../../../shared/theme/tokens';
+import { colors, font, radii, textScale, titleTracking } from '../../../shared/theme/tokens';
+import HubButton from './hub/HubButton';
+import { CalendarIcon } from './hub/HubIcons';
 
-// RN-SPEC-v2-phase2 §D2 Workout states (UX D "Workout states"). Look only;
-// copy and behaviour are RN-SPEC-workout §H1/§H2.
+// Whole-page Workout states. T-76 (boards "Workout hub states" 6 and 8, UX
+// check U2/U3, 28 Oct 2026): the hub's card language (r24/r28, 56 tile,
+// 24/30 title) in place of the Phase 2 glow cards. Copy is the brief's.
 
 // Tablet/web rule (UX D): whole-page states are the card at max 640,
 // horizontally centred, under the page header.
@@ -16,19 +16,9 @@ export const STATE_MAX_WIDTH = 640;
 // As the app's other focus moves: give the screen time to lay out first.
 export const FOCUS_DELAY_MS = 300;
 
-// The boards' 32/34/700 -0.045em title (title-lg family; 32 has no token).
-const TITLE_SIZE = 32;
-
-// The top glow of both cards: radial 100 % 60 % at 50 % 0 %, fading by 65 %.
-const TOP_GLOW = Object.freeze({ cx: 0.5, cy: 0, rx: 1, ry: 0.6 });
-const GLOW_STOPS = Object.freeze([0, 0.65]);
-// The empty disc: radial at 35 % 30 %, gold → white fill-subtle by 70 %.
-const DISC_GLOW = Object.freeze({ cx: 0.35, cy: 0.3, rx: 0.7, ry: 0.7 });
-const DISC_STOPS = Object.freeze([0, 0.7]);
-
-// UX §9 large text. The card title (title-lg family) scales at most 1.6×,
-// wraps by word (max 3 lines) and shrinks a single over-long word (to 0.7×);
-// the body scales to 2×.
+// UX §9 large text. The card title scales at most 1.6× and wraps by word
+// (max 3 lines), shrinking a single over-long word (to 0.7×); the body
+// scales to 2×.
 export const TITLE_TEXT = Object.freeze({
   textBreakStrategy: 'simple',
   maxFontSizeMultiplier: textScale.title,
@@ -38,11 +28,10 @@ export const TITLE_TEXT = Object.freeze({
 });
 export const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
 
-// W2 / H1: the transport message, else "Please try again." (the caller
-// passes it). `role=alert`; the TITLE gets the initial focus (kit batch,
-// was "Try again"); "Try again" is the board's glass secondary 48 (P8 F2)
-// and re-runs the full load.
-export function WorkoutErrorState({ message, onRetry, retrying = false }) {
+// State 8 "Workout unavailable" / "Please try again." / "Try again" (U3: the
+// ErrorAlert tokens, r24 and the danger line). `role=alert`; the TITLE gets
+// the initial focus; "Try again" re-runs the full load.
+export function WorkoutErrorState({ message = 'Please try again.', onRetry, retrying = false }) {
   const titleRef = useRef(null);
   useEffect(() => {
     AccessibilityInfo.announceForAccessibility(['Workout unavailable', message].filter(Boolean).join(' '));
@@ -58,15 +47,10 @@ export function WorkoutErrorState({ message, onRetry, retrying = false }) {
   }, []);
   return (
     <View testID="workout-error" accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.card, styles.errorCard]}>
-      {/* Both layers mount with the card (SVG; never added on a state change). */}
-      {/* UX §8.5: the dark red card = gradient-danger-card; the red glow
-          (0.20) = glow-danger-ambient. */}
-      <GradientFill angle={gradients.dangerCard.angle} colors={gradients.dangerCard.colors} />
-      <GradientFill radial={TOP_GLOW} colors={gradients.signInFailedGlow.colors} stops={GLOW_STOPS} />
-      <View testID="workout-error-icon" style={styles.errorTile}>
+      <View testID="workout-error-icon" style={[styles.tile, styles.errorTile]}>
         <FeedbackIcon name="warning" size={26} color={colors.dangerText} />
       </View>
-      <Text ref={titleRef} testID="workout-error-title" {...TITLE_TEXT} accessibilityRole="header" style={[styles.title, styles.errorTitle]}>
+      <Text ref={titleRef} testID="workout-error-title" {...TITLE_TEXT} accessibilityRole="header" style={styles.title}>
         Workout unavailable
       </Text>
       {message ? (
@@ -74,115 +58,93 @@ export function WorkoutErrorState({ message, onRetry, retrying = false }) {
           {message}
         </Text>
       ) : null}
-      <PillButton testID="workout-error-retry" title="Try again" variant="secondary" loading={retrying} onPress={onRetry} style={styles.retry} />
+      <HubButton testID="workout-error-retry" variant="outline" title="Try again" loading={retrying} onPress={onRetry} style={styles.actions} />
     </View>
   );
 }
 
-// W1 / H2: polite; "Browse plans" is the one gold action (kit 52).
-export function WorkoutEmptyState({ onBrowse }) {
+// State 6 "No active workout plan": "Browse plans" is the one gold action;
+// "Build me a plan" (outlined) only while the generator is on (U2).
+export function WorkoutEmptyState({ onBrowse, onBuild, generatorAvailable = false }) {
   useEffect(() => {
     AccessibilityInfo.announceForAccessibility('No active workout plan');
   }, []);
   return (
     <View testID="workout-empty" accessibilityLiveRegion="polite" style={[styles.card, styles.emptyCard]}>
-      {/* UX §8.5/§8.6: the raised → sunk card folds into gradient-card; the gold
-          0.22 glows sit on the orb step (glow-gold-orb 0.26). */}
-      <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
-      <GradientFill radial={TOP_GLOW} colors={gradients.heroGlow.colors} stops={GLOW_STOPS} />
-      <View testID="workout-empty-icon" style={styles.emptyDisc}>
-        <GradientFill radial={DISC_GLOW} colors={[gradients.heroGlow.colors[0], colors.fillWell]} stops={DISC_STOPS} />
-        <Svg width={64} height={64} viewBox="0 0 64 64" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <Rect x={6} y={24} width={8} height={16} rx={3} fill={colors.gold} />
-          <Rect x={16} y={27} width={5} height={10} rx={2} fill={colors.goldLight} />
-          <Rect x={43} y={27} width={5} height={10} rx={2} fill={colors.goldLight} />
-          <Rect x={50} y={24} width={8} height={16} rx={3} fill={colors.gold} />
-          <Rect x={21} y={30} width={22} height={4} rx={2} fill={colors.textSecondary} />
-        </Svg>
+      <View testID="workout-empty-icon" style={[styles.tile, styles.emptyTile]}>
+        <CalendarIcon size={22} color={colors.gold} />
       </View>
-      <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.title, styles.emptyTitle]}>
+      <Text {...TITLE_TEXT} accessibilityRole="header" style={styles.title}>
         No active workout plan
       </Text>
-      <Text {...BODY_TEXT} style={styles.body}>
-        Pick a plan first, then come back here to start a workout with real backend data.
+      <Text {...BODY_TEXT} style={[styles.body, styles.emptyBody]}>
+        Pick a plan first, then come back here to start a workout.
       </Text>
-      <View style={styles.browse}>
-        <PillButton testID="workout-browse-plans" title="Browse plans" onPress={onBrowse} />
+      <View style={[styles.actions, styles.stack]}>
+        <HubButton testID="workout-browse-plans" title="Browse plans" onPress={onBrowse} />
+        {generatorAvailable ? <HubButton testID="workout-build-plan" variant="outline" title="Build me a plan" onPress={onBuild} /> : null}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // Radius 32 as the board draws it (radii.xxxl; owner rule: match the boards).
   card: {
     width: '100%',
     maxWidth: STATE_MAX_WIDTH,
     alignSelf: 'center',
     alignItems: 'center',
-    borderRadius: radii.xxxl,
     borderWidth: 1,
-    overflow: 'hidden',
-    paddingHorizontal: spacing[6],
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+    backgroundColor: colors.surface,
   },
   errorCard: {
-    paddingVertical: spacing[8],
-    // UX §8.5: the danger 0.24 edge = danger-line (0.30).
+    borderRadius: radii.xl,
     borderColor: colors.dangerLine,
-    backgroundColor: colors.surfaceSunk,
   },
   emptyCard: {
-    paddingVertical: 40,
-    // White 0.09 (not a track) → hairline-strong.
+    borderRadius: radii.xxl,
     borderColor: colors.hairlineStrong,
-    backgroundColor: colors.surfaceSunk,
+  },
+  tile: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   errorTile: {
-    width: 72,
-    height: 72,
-    borderRadius: radii.xl,
-    // Danger 0.16 tile → danger-tint 0.14.
     backgroundColor: colors.dangerTint,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  emptyDisc: {
-    width: 132,
-    height: 132,
-    borderRadius: radii.full,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
+  emptyTile: {
+    backgroundColor: colors.goldTint,
   },
   title: {
     ...font(700),
-    fontSize: TITLE_SIZE,
-    lineHeight: 34,
-    letterSpacing: titleTracking(TITLE_SIZE, -0.045),
+    marginTop: 16,
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: titleTracking(24, -0.03),
     color: colors.textPrimary,
     textAlign: 'center',
   },
-  errorTitle: {
-    marginTop: spacing['4_5'],
-  },
-  emptyTitle: {
-    marginTop: spacing['5_5'],
-  },
   body: {
     ...font(400),
-    marginTop: spacing[2],
-    maxWidth: 290,
-    fontSize: 14,
+    marginTop: 8,
+    fontSize: 15,
     lineHeight: 22,
     color: colors.textSecondary,
     textAlign: 'center',
   },
-  // P8 F2: the board's glass secondary is 48 tall (the kit default is 52).
-  retry: {
-    marginTop: spacing[5],
-    minHeight: 48,
+  emptyBody: {
+    maxWidth: 300,
   },
-  browse: {
-    marginTop: spacing['5_5'],
+  actions: {
+    marginTop: 20,
+  },
+  stack: {
+    alignSelf: 'stretch',
+    gap: 10,
   },
 });

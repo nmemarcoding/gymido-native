@@ -149,7 +149,8 @@ describe('ruling 5 (f2): routed titles per platform', () => {
     ['../../features/profile/CreateProfileScreen', 'titlePhone', 48, -0.055],
     ['../../features/profile/CreateProfileScreen', 'titleTablet', 60, -0.055],
     ['../../features/progress/ProgressScreen', 'currentPhone', 52, -0.05],
-    ['../../features/workout/components/TodayHeroCard', 'planNameTablet', 60, -0.055],
+    // DECLARED (T-76): was TodayHeroCard planNameTablet 60/−0.055 (card retired); the hub's today title.
+    ['../../features/workout/components/hub/HubTodayCard', 'title', 32, -0.04],
     ['../../features/workout/runtime/RuntimeOverlays', 'digitsTablet', 100, -0.06],
   ];
 

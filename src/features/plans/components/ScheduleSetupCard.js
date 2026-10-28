@@ -34,7 +34,10 @@ export function daysSelectedLabel(count, required) {
 // 4-column 64-tall chips + the "Selected" row with a 36 count badge (ND5);
 // tablet (≥ 768) = 7 chips in one row (84 tall) + the 120 "n of R days
 // selected" ring (ND5). Behaviour, copy and the API are v1's.
-export default function ScheduleSetupCard({ planName, planDays, enrollmentId, onSaved }) {
+// T-76 C2: the Workout hub opens this card in place of its "Set up your
+// week" card; there it also gets `onCancel` (a ghost "Cancel" under Save that
+// goes back) and `headingRef` (focus moves to the heading on open).
+export default function ScheduleSetupCard({ planName, planDays, enrollmentId, onSaved, onCancel, headingRef }) {
   const { width, fontScale } = useWindowDimensions();
   // §9 reflow (live): the chips wrap 2 (phone) / 4 (tablet) per row and the
   // tablet ring drops below the title.
@@ -92,6 +95,9 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
       style={tablet ? null : styles.mt16}
     />
   );
+  const cancelButton = onCancel ? (
+    <PillButton testID="schedule-setup-cancel" title="Cancel" variant="ghost" fullWidth disabled={saving} onPress={onCancel} style={styles.mt8} />
+  ) : null;
 
   if (tablet) {
     return (
@@ -102,7 +108,7 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
         <View testID="schedule-setup-header" style={[styles.headerTablet, reflow && styles.headerStacked]}>
           <View style={[styles.headerText, reflow && styles.headerTextStacked]}>
             <Eyebrow>Set up your week</Eyebrow>
-            <Text accessibilityRole="header" {...TITLE} style={[styles.titleTablet, styles.mt8]}>
+            <Text ref={headingRef} accessibilityRole="header" {...TITLE} style={[styles.titleTablet, styles.mt8]}>
               {`Pick ${required}${NBSP}`}
               <Text style={styles.gold}>{pluralWord(required, 'training day', 'training days')}</Text>
             </Text>
@@ -124,6 +130,7 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
         </Text>
         {error}
         {saveButton}
+        {cancelButton}
       </CardSurface>
     );
   }
@@ -131,7 +138,7 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
   return (
     <CardSurface hero testID="schedule-setup" style={styles.cardPhone}>
       <Eyebrow>Set up your week</Eyebrow>
-      <Text accessibilityRole="header" {...TITLE} style={[styles.titlePhone, styles.mt6]}>
+      <Text ref={headingRef} accessibilityRole="header" {...TITLE} style={[styles.titlePhone, styles.mt6]}>
         {pick}
       </Text>
       <Text {...BODY} style={[styles.bodyPhone, styles.mt12]}>
@@ -163,6 +170,7 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
       </View>
       {error}
       {saveButton}
+      {cancelButton}
     </CardSurface>
   );
 }

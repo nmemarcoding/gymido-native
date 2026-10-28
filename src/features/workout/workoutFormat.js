@@ -1,4 +1,3 @@
-import { formatCount } from '../../shared/format/counts';
 
 // Derived values and copy of the Workout hub (RN-SPEC-workout Part A).
 // Pure, so it can be tested.
@@ -22,52 +21,9 @@ export function currentWeekRange(now = new Date()) {
   return { startDate: localDate(start), endDate: localDate(end) };
 }
 
-// §3.1: from today's status only; there is no "missed" state here.
-export function todayState(todayStatus) {
-  if (todayStatus?.already_completed) {
-    return 'completed';
-  }
-  if (todayStatus?.is_workout_day) {
-    return 'training';
-  }
-  return 'rest';
-}
-
-export const TODAY_BADGE_LABELS = Object.freeze({
-  completed: 'Completed',
-  training: 'Training day',
-  rest: 'Rest day',
-});
-
-// §3.2
-export function todayDetail(todayStatus) {
-  const title = todayStatus?.plan_day?.title;
-  if (todayStatus?.already_completed) {
-    return `${title || "Today's session"} is done — great work.`;
-  }
-  if (todayStatus?.is_workout_day) {
-    return `${title || 'Your workout'} is ready to go.`;
-  }
-  return 'Nothing scheduled today — start any day below.';
-}
-
-// §3.3
-export function showsHeroStart(todayStatus) {
-  return Boolean(todayStatus?.is_workout_day && !todayStatus?.already_completed && todayStatus?.plan_day?.id);
-}
-
-export function trainingDaysLabel(count) {
-  return formatCount(count, 'training day', 'training days');
-}
-
 // §5.3: every completed session's plan day id (duplicates kept).
 export function completedDayIds(sessions) {
   return (sessions ?? []).map((session) => session.workout_plan_day_id);
-}
-
-// §5.3 / ⚠W11: plan days (not sessions) completed this week, capped by construction.
-export function completedThisWeekCount(planDays, dayIds) {
-  return planDays.filter((day) => dayIds.includes(day.id)).length;
 }
 
 // §7: weekdays per plan day, de-duplicated by weekday id, sorted by sort_order.

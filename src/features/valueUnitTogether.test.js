@@ -10,7 +10,7 @@ import { formatDaysPerWeek } from './trainer/plans/planFormat';
 import { fullPlanMessage } from './trainer/plans/planValidation';
 import { sheetSubtitle } from './workout/runtime/ExerciseNavigation';
 import { shareSummaryText } from './workout/runtime/restPresentation';
-import { trainingDaysLabel } from './workout/workoutFormat';
+import { todayMeta } from './workout/hubModel';
 
 // RN-SPEC-v2-foundation §7.1 (dated changes 27 Oct 2026): singular day counts,
 // U+00A0 between a number and day(s)/min on screen, raw names in share text.
@@ -54,7 +54,8 @@ describe('day counts: the singular for exactly 1', () => {
   it.each([
     [formatDaysPerWeek({ days_per_week: 1 }), '1 day / week'],
     [workoutDaysLabel(1), '1 workout day'],
-    [trainingDaysLabel(1), '1 training day'],
+    // DECLARED (T-76): was trainingDaysLabel(1) → '1 training day' (the hero's day count is retired).
+    [todayMeta(1, []), '1 exercise'],
     [daysPillLabel(1), '1 day'],
     [daysAWeekUnit(1), ' day a week'],
     [daysAWeekUnit(3), ' days a week'],

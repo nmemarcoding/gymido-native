@@ -43,10 +43,21 @@ appId: com.gymido.app
     id: "workout-back-today"
 - assertVisible:
     id: "workout-hero"
+# T-76 (DECLARED): was workout-hero-badge + workout-hero-detail (the retired
+# hero's status pill and detail line). Now the plan name under the title and
+# the Other days block, present in every state with a plan.
 - assertVisible:
-    id: "workout-hero-badge"
-- assertVisible:
-    id: "workout-hero-detail"
+    id: "workout-plan-name"
+- scrollUntilVisible:
+    element:
+      id: "workout-other-days"
+    direction: DOWN
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "workout-back-today"
+    direction: UP
+    timeout: 20000
 # U5: "← Today" returns to Today.
 - tapOn:
     id: "workout-back-today"

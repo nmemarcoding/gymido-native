@@ -1,20 +1,24 @@
 import { useFocusEffect, useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, StyleSheet, Text, View, findNodeHandle, useWindowDimensions } from 'react-native';
 
 import { getServerMessage } from '../../../shared/api/apiError';
+import { keepUnitsTogether } from '../../../shared/format/counts';
 import BackPill from '../../../shared/components/BackPill';
 import { InlineToast } from '../../../shared/components/ToastHost';
 import { ToastTone } from '../../../shared/components/toastStore';
-import { DISPLAY_TITLE_TEXT, TITLE_TEXT } from '../../../shared/components/largeText';
-import { breakpoints, colors, font, spacing, textScale, titleTracking, typography } from '../../../shared/theme/tokens';
+import { CAP_BODY, DISPLAY_TITLE_TEXT } from '../../../shared/components/largeText';
+import { breakpoints, colors, font, spacing, textScale, titleTracking } from '../../../shared/theme/tokens';
+import { listDayExercises } from '../../plans/api/libraryApi';
 import ScheduleSetupCard from '../../plans/components/ScheduleSetupCard';
+import { WEEKDAYS, planDayTitle } from '../../plans/libraryFormat';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
 import { useShellUiStore } from '../../shell/shellUiStore';
 import { startWorkout } from '../api/workoutApi';
-import PlanDayCard from '../components/PlanDayCard';
-import TodayHeroCard from '../components/TodayHeroCard';
+import HubDayRows from '../components/hub/HubDayRows';
+import HubTodayCard from '../components/hub/HubTodayCard';
+import HubWeekCard from '../components/hub/HubWeekCard';
 import WorkoutSkeleton from '../components/WorkoutSkeleton';
 import { WorkoutEmptyState, WorkoutErrorState } from '../components/WorkoutStates';
 import { loadWorkoutPage } from '../loadWorkoutPage';
@@ -25,14 +29,18 @@ import { LeaveWorkoutDialog } from '../runtime/SessionDialogs';
 import SessionRuntime from '../runtime/SessionRuntime';
 import { applyOverlay, reconcileOverlay } from '../runtime/sessionMath';
 import {
-  completedThisWeekCount,
-  needsScheduleSetup,
-  scheduledWeekdaysByDayId,
-  showsHeroStart,
-  todayDetail,
-  todayState,
-  trainingDaysLabel,
-} from '../workoutFormat';
+  OTHER_DAYS_COPY,
+  dayRows,
+  effectiveWeek,
+  hubState,
+  todayDoneDetail,
+  todayDurationMinutes,
+  todayMeta,
+  upNext,
+  weekCompleteDetail,
+  weekProgress,
+  weekStrip,
+} from '../hubModel';
 import useLeaveWorkoutGuard from './useLeaveWorkoutGuard';
 
 const SAVED_TOAST_MS = 3500;
@@ -42,6 +50,9 @@ const EMPTY = {
   currentPlan: null,
   todayStatus: null,
   planDays: [],
+  week: null,
+  generatorAvailable: false,
+  completedThisWeek: [],
   completedThisWeekDayIds: [],
   exerciseStatsMap: {},
 };
@@ -57,7 +68,7 @@ function WorkoutPage() {
   const navigation = useNavigation();
   const route = useRoute();
   const isFocused = useIsFocused();
-  const { width, fontScale } = useWindowDimensions();
+  const { width, height, fontScale } = useWindowDimensions();
   const setSessionActive = useShellUiStore((state) => state.setSessionActive);
   const [status, setStatus] = useState('loading');
   const [loadError, setLoadError] = useState(null);
@@ -237,6 +248,7 @@ function WorkoutPage() {
           loadError={loadError}
           page={page}
           width={width}
+          height={height}
           fontScale={fontScale}
           actionError={actionError}
           successMessage={successMessage}
@@ -269,117 +281,223 @@ function WorkoutPage() {
   );
 }
 
-// U5 "‹ Today" + the page title (UX G: 52 phone / 64 tablet), above every
-// loaded hub state. T-65 (PHONE-NAV spec §3, 27 Oct 2026): the page's one
-// back control is the kit glass pill (BackPill, 44 phone / 40 tablet with a
-// 44 hit area) in place of the gold "← Today" text link; it still opens the
-// Today root (M1).
-function HubHeader({ tablet, onBack }) {
+
+// U5 "‹ Today", the page title and the plan name (T-76 boards: 40/44 phone,
+// 52/56 tablet). T-65 (PHONE-NAV spec §3): the page's one back control is the
+// kit BackPill; it opens the Today root (M1).
+function HubHeader({ tablet, planName, onBack }) {
   return (
     <View testID="workout-hub-header" style={styles.header}>
       <BackPill testID="workout-back-today" label="Today" onPress={onBack} />
       <Text testID="workout-title" accessibilityRole="header" {...DISPLAY_TITLE_TEXT} style={tablet ? styles.titleTablet : styles.title}>
         Workout
       </Text>
+      {planName ? (
+        <Text testID="workout-plan-name" {...CAP_BODY} style={styles.planName}>
+          {keepUnitsTogether(planName)}
+        </Text>
+      ) : null}
     </View>
   );
 }
 
-function Hub({ status, loadError, page, width, actionError, successMessage, isStartingDayId, onRetry, onStart, onScheduleSaved, onBackToToday, fontScale = 1 }) {
+// T-76: each plan day's exercises (photos + primary muscles), lazy: one GET
+// /plans/{id}/days/{dayId}/exercises per day, today's first. undefined while
+// loading, [] on a failure (the row draws the initials tile). Fetched again
+// only when the plan or its days change, never on a silent reload.
+function useDayExercises(planId, dayIdsKey, firstId) {
+  // Results are kept with the plan + days they belong to, so a new plan reads
+  // as nothing loaded yet without a reset.
+  const key = `${planId}|${dayIdsKey}`;
+  const [store, setStore] = useState({ key: '', byDay: {} });
+  useEffect(() => {
+    if (!planId || !dayIdsKey) {
+      return undefined;
+    }
+    let live = true;
+    const ids = dayIdsKey.split(',').map(Number);
+    const ordered = ids.includes(firstId) ? [firstId, ...ids.filter((id) => id !== firstId)] : ids;
+    const save = (dayId, items) =>
+      live && setStore((current) => ({ key, byDay: { ...(current.key === key ? current.byDay : {}), [dayId]: items } }));
+    for (const dayId of ordered) {
+      listDayExercises(planId, dayId)
+        .then((items) => save(dayId, items))
+        .catch(() => save(dayId, []));
+    }
+    return () => {
+      live = false;
+    };
+  }, [key, planId, dayIdsKey, firstId]);
+  return store.key === key ? store.byDay : {};
+}
+
+function focus(ref) {
+  const node = findNodeHandle(ref.current);
+  if (node) {
+    AccessibilityInfo.setAccessibilityFocus(node);
+  }
+}
+
+// T-76 (RN-SPEC-workout T-76 block, shared with web): today first, then the
+// week, then the other days. Phone: stacked. Tablet portrait: today full
+// width, then the week and the other days side by side (1 : 1.15). Tablet
+// landscape: today and the week side by side (2 : 1), the other days below
+// as cards in auto columns (min 300). Past the large-text reflow: stacked.
+function Hub({ status, loadError, page, width, height = 0, actionError, successMessage, isStartingDayId, onRetry, onStart, onScheduleSaved, onBackToToday, fontScale = 1 }) {
+  const tablet = width >= breakpoints.md;
+  const reflow = fontScale > textScale.reflowAbove;
+  const split = tablet && !reflow;
+  const landscape = split && width > height;
+  const { currentPlan, todayStatus, planDays, week } = page;
+  const planId = currentPlan?.enrollment?.plan?.id;
+  const todayDayId = todayStatus?.plan_day?.id;
+  const exercisesByDay = useDayExercises(planId, planDays.map((day) => day.id).join(','), todayDayId);
+  // C2: "Choose training days" opens the schedule setup in place; focus goes
+  // to its heading, and back to the button on Cancel.
+  const [settingUp, setSettingUp] = useState(false);
+  const headingRef = useRef(null);
+  const chooseRef = useRef(null);
+  const wasSettingUp = useRef(false);
+  useEffect(() => {
+    if (settingUp !== wasSettingUp.current) {
+      wasSettingUp.current = settingUp;
+      const timer = setTimeout(() => focus(settingUp ? headingRef : chooseRef), 300);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [settingUp]);
+
   const toasts = (
     <>
       {successMessage ? <InlineToast testID="workout-saved-toast" tone={ToastTone.success} title="Saved" message={successMessage} /> : null}
       {actionError ? <InlineToast testID="workout-action-error" tone={ToastTone.error} title="Workout error" message={actionError} /> : null}
     </>
   );
+  const header = <HubHeader tablet={tablet} planName={currentPlan?.enrollment?.plan?.name} onBack={onBackToToday} />;
+  const pageStyle = [styles.page, tablet && styles.pageTablet];
 
   if (status === 'loading') {
-    return <WorkoutSkeleton />;
+    return (
+      <View style={pageStyle}>
+        {header}
+        <WorkoutSkeleton split={split && !landscape} />
+      </View>
+    );
   }
-  // P3-1: the shell header on /workout is bell-only, so the page header is
-  // the ONE "← Today" + "Workout" in every state (the skeleton draws its own).
-  const tablet = width >= breakpoints.md;
   if (status === 'error') {
     return (
-      <View style={[styles.page, tablet && styles.pageTablet]}>
-        <HubHeader tablet={tablet} onBack={onBackToToday} />
+      <View style={pageStyle}>
+        {header}
         <WorkoutErrorState message={loadError?.message || 'Please try again.'} onRetry={onRetry} />
       </View>
     );
   }
-  if (!page.currentPlan?.enrollment?.plan) {
+  if (!currentPlan?.enrollment?.plan) {
     return (
-      <View style={[styles.page, tablet && styles.pageTablet]}>
+      <View style={pageStyle}>
         {toasts}
-        <HubHeader tablet={tablet} onBack={onBackToToday} />
-        <WorkoutEmptyState onBrowse={() => openShellPath('/plans')} />
+        {header}
+        <WorkoutEmptyState
+          generatorAvailable={page.generatorAvailable}
+          onBrowse={() => openShellPath('/plans')}
+          onBuild={() => openShellPath('/plans/generate')}
+        />
       </View>
     );
   }
 
-  const { currentPlan, todayStatus, planDays, completedThisWeekDayIds } = page;
-  const weekdaysByDay = scheduledWeekdaysByDayId(currentPlan.schedule);
-  const heroDayId = todayStatus?.plan_day?.id;
-  // UX G: 2 columns on phone and tablet (3 from 1280); §9: one column past 1.3.
-  const columns = fontScale > textScale.reflowAbove ? 1 : width >= 1280 ? 3 : 2;
-
-  return (
-    <View style={[styles.page, tablet && styles.pageTablet]}>
-      {toasts}
-      <HubHeader tablet={tablet} onBack={onBackToToday} />
-      {needsScheduleSetup(currentPlan, planDays) ? (
-        <ScheduleSetupCard
-          planName={currentPlan.enrollment.plan.name}
-          planDays={planDays}
-          enrollmentId={currentPlan.enrollment.id}
-          onSaved={onScheduleSaved}
-        />
-      ) : null}
-      <TodayHeroCard
-        planName={currentPlan.enrollment.plan.name || 'Your plan'}
-        dayCountLabel={trainingDaysLabel(planDays.length)}
-        state={todayState(todayStatus)}
-        detail={todayDetail(todayStatus)}
-        ringValue={completedThisWeekCount(planDays, completedThisWeekDayIds)}
-        ringTotal={planDays.length}
-        showStart={showsHeroStart(todayStatus)}
-        starting={isStartingDayId === heroDayId}
-        onStart={() => onStart(heroDayId)}
-        imageUrl={todayStatus?.image?.url}
+  const now = new Date();
+  const weekNow = effectiveWeek({ week, schedule: currentPlan.schedule, doneIds: page.completedThisWeekDayIds, now });
+  const state = hubState({ ...page, week: weekNow });
+  const progress = weekProgress(weekNow);
+  const strip = state === 'noSchedule' ? null : weekStrip(weekNow, now);
+  const next = upNext({ week: weekNow, schedule: currentPlan.schedule, planDays, now });
+  const todayTitle = planDayTitle(todayStatus?.plan_day);
+  const todayCount = planDays.find((day) => day.id === todayDayId)?.exercises_count ?? todayStatus?.plan_day?.exercises_count;
+  const todayExercises = exercisesByDay[todayDayId];
+  const rows = dayRows({ planDays, schedule: currentPlan.schedule, doneIds: page.completedThisWeekDayIds, state, todayDayId });
+  const todayCard =
+    state === 'noSchedule' && settingUp ? (
+      <ScheduleSetupCard
+        planName={currentPlan.enrollment.plan.name}
+        planDays={planDays}
+        enrollmentId={currentPlan.enrollment.id}
+        headingRef={headingRef}
+        onCancel={() => setSettingUp(false)}
+        onSaved={async () => {
+          await onScheduleSaved();
+          setSettingUp(false);
+        }}
       />
-      <View style={styles.section}>
-        <Text accessibilityRole="header" {...TITLE_TEXT} style={tablet ? styles.headingTablet : styles.heading}>
-          All training days
-        </Text>
-        <DayGrid columns={columns} gap={tablet ? 14 : 12}>
-          {planDays.map((day, index) => (
-            <PlanDayCard
-              key={day.id}
-              index={index}
-              day={day}
-              weekdays={weekdaysByDay[day.id] ?? []}
-              isDone={completedThisWeekDayIds.includes(day.id)}
-              starting={isStartingDayId === day.id}
-              onStart={() => onStart(day.id)}
-            />
-          ))}
-        </DayGrid>
-      </View>
-    </View>
-  );
-}
+    ) : (
+      <HubTodayCard
+        state={state}
+        tablet={tablet}
+        weekdayName={WEEKDAYS[(now.getDay() + 6) % 7].name}
+        title={todayTitle}
+        meta={todayMeta(todayCount, todayExercises)}
+        exercises={todayExercises}
+        detail={
+          state === 'todayDone'
+            ? todayDoneDetail(todayCount, todayDurationMinutes(page.completedThisWeek, todayDayId, now))
+            : weekCompleteDetail(progress, currentPlan.schedule)
+        }
+        upNext={next}
+        upNextExercises={next ? exercisesByDay[next.dayId] : undefined}
+        starting={isStartingDayId != null && (isStartingDayId === todayDayId || isStartingDayId === next?.dayId)}
+        onStart={() => onStart(todayDayId)}
+        onStartEarly={onStart}
+        onViewProgress={() => openShellPath('/progress')}
+        onChooseDays={() => setSettingUp(true)}
+        chooseRef={chooseRef}
+      />
+    );
+  const weekCard =
+    strip && progress ? <HubWeekCard strip={strip} progress={progress} reflow={reflow} style={split ? (landscape ? styles.sideWeek : styles.splitWeek) : null} /> : null;
+  const otherDays = rows.length ? (
+    <HubDayRows
+      copy={OTHER_DAYS_COPY[state]}
+      rows={rows}
+      exercisesByDay={exercisesByDay}
+      startingDayId={isStartingDayId}
+      onStart={onStart}
+      cards={landscape}
+      style={split && !landscape && weekCard ? styles.splitDays : null}
+    />
+  ) : null;
 
-// §2: 1 column below 640, 2 from 640, 3 from 1280, gap 12.
-function DayGrid({ columns, gap = 12, children }) {
-  const [width, setWidth] = useState(0);
-  const itemWidth = columns > 1 && width > 0 ? (width - gap * (columns - 1)) / columns : undefined;
-  return (
-    <View style={[styles.grid, { gap }]} onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
-      {(Array.isArray(children) ? children : [children]).map((child, index) => (
-        <View key={child?.key ?? index} style={[styles.cell, itemWidth ? { width: itemWidth } : styles.fullWidth]}>
-          {child}
+  if (landscape && weekCard) {
+    return (
+      <View style={pageStyle}>
+        {toasts}
+        {header}
+        <View testID="workout-split" style={styles.split}>
+          <View testID="workout-side-today" style={styles.sideToday}>
+            {todayCard}
+          </View>
+          {weekCard}
         </View>
-      ))}
+        {otherDays}
+      </View>
+    );
+  }
+
+  return (
+    <View style={pageStyle}>
+      {toasts}
+      {header}
+      {todayCard}
+      {split && weekCard && otherDays ? (
+        <View testID="workout-split" style={styles.split}>
+          {weekCard}
+          {otherDays}
+        </View>
+      ) : (
+        <>
+          {weekCard}
+          {otherDays}
+        </>
+      )}
     </View>
   );
 }
@@ -387,7 +505,6 @@ function DayGrid({ columns, gap = 12, children }) {
 const styles = StyleSheet.create({
   page: {
     gap: 14,
-    paddingBottom: 20,
   },
   pageTablet: {
     gap: 18,
@@ -396,44 +513,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[1],
   },
   title: {
-    ...typography.displayLg,
+    ...font(700),
     marginTop: spacing['0_5'],
-    letterSpacing: titleTracking(52, -0.055),
+    fontSize: 40,
+    lineHeight: 44,
+    letterSpacing: titleTracking(40, -0.05),
     color: colors.textPrimary,
   },
   titleTablet: {
     ...font(700),
     marginTop: spacing['0_5'],
-    fontSize: 64,
-    lineHeight: 64,
-    letterSpacing: titleTracking(64, -0.05),
+    fontSize: 52,
+    lineHeight: 56,
+    letterSpacing: titleTracking(52, -0.05),
     color: colors.textPrimary,
   },
-  section: {
-    gap: 12,
-  },
-  heading: {
-    ...typography.titleSm,
-    marginTop: spacing[3],
-    paddingHorizontal: spacing[1],
-    color: colors.textPrimary,
-  },
-  headingTablet: {
-    ...font(600),
-    marginTop: spacing['1_5'],
-    paddingHorizontal: spacing[1],
-    fontSize: 16,
+  planName: {
+    ...font(400),
+    marginTop: spacing[1],
+    fontSize: 15,
     lineHeight: 22,
     color: colors.textSecondary,
   },
-  grid: {
+  split: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    gap: 18,
   },
-  cell: {
-    flexDirection: 'column',
+  splitWeek: {
+    flex: 1,
+    minWidth: 0,
   },
-  fullWidth: {
-    width: '100%',
+  splitDays: {
+    flex: 1.15,
+    minWidth: 0,
+  },
+  sideToday: {
+    flex: 2,
+    minWidth: 0,
+  },
+  sideWeek: {
+    flex: 1,
+    minWidth: 0,
   },
 });

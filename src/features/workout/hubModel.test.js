@@ -1,0 +1,228 @@
+import { NBSP } from '../../shared/format/counts';
+import {
+  OTHER_DAYS_COPY,
+  dayRows,
+  effectiveWeek,
+  hubState,
+  muscleLine,
+  todayDoneDetail,
+  todayDurationMinutes,
+  todayMeta,
+  upNext,
+  weekCompleteDetail,
+  weekProgress,
+  weekStrip,
+} from './hubModel';
+
+// Counts keep the number and its word together with U+00A0.
+const s = (text) => text.replace(/(\d) /g, `$1${NBSP}`);
+// Thursday 29 Oct 2026 (local); the week runs Mon 26 … Sun 1 Nov.
+const NOW = new Date(2026, 9, 29, 9, 0);
+const DAYS = [
+  { id: 1, title: 'Upper A', exercises_count: 5 },
+  { id: 2, title: 'Lower A', exercises_count: 5 },
+  { id: 3, title: 'Upper B', exercises_count: 6 },
+  { id: 4, title: 'Lower B', exercises_count: 5 },
+];
+const wd = (id) => ({ id });
+const SCHEDULE = [
+  { weekday: wd(1), plan_day: DAYS[0] },
+  { weekday: wd(2), plan_day: DAYS[1] },
+  { weekday: wd(4), plan_day: DAYS[2] },
+  { weekday: wd(6), plan_day: DAYS[3] },
+];
+const item = (day, date, status, planDay = null) => ({ weekday: wd(day), date, status, is_workout_day: Boolean(planDay), plan_day: planDay });
+// The main board: Mon/Tue done, Wed rest, Thu today (Upper B), Fri rest, Sat Lower B, Sun rest.
+const WEEK = [
+  item(1, '2026-10-26', 'done', DAYS[0]),
+  item(2, '2026-10-27', 'done', DAYS[1]),
+  item(3, '2026-10-28', 'rest'),
+  item(4, '2026-10-29', 'today', DAYS[2]),
+  item(5, '2026-10-30', 'rest'),
+  item(6, '2026-10-31', 'upcoming', DAYS[3]),
+  item(7, '2026-11-01', 'rest'),
+];
+const PLAN = { enrollment: { id: 31, plan: { id: 3, name: 'Upper / Lower Split' } }, schedule: SCHEDULE };
+
+describe('hubState: one state, in priority order', () => {
+  const training = { is_workout_day: true, already_completed: false, plan_day: DAYS[2] };
+  it('training / rest / today done from the today status', () => {
+    expect(hubState({ currentPlan: PLAN, todayStatus: training, planDays: DAYS, week: WEEK })).toBe('training');
+    expect(hubState({ currentPlan: PLAN, todayStatus: { is_workout_day: false }, planDays: DAYS, week: WEEK })).toBe('rest');
+    expect(hubState({ currentPlan: PLAN, todayStatus: { ...training, already_completed: true }, planDays: DAYS, week: WEEK })).toBe('todayDone');
+  });
+
+  it('no plan, then no schedule, then week complete win over the today status', () => {
+    expect(hubState({ currentPlan: null, todayStatus: training })).toBe('noPlan');
+    expect(hubState({ currentPlan: { ...PLAN, schedule: [] }, todayStatus: training, planDays: DAYS, week: WEEK })).toBe('noSchedule');
+    const allDone = WEEK.map((entry) => (entry.plan_day ? { ...entry, status: 'done' } : entry));
+    expect(hubState({ currentPlan: PLAN, todayStatus: { ...training, already_completed: true }, planDays: DAYS, week: allDone })).toBe('weekComplete');
+  });
+
+  it('a missing week never makes "week complete"', () => {
+    expect(hubState({ currentPlan: PLAN, todayStatus: { is_workout_day: false }, planDays: DAYS, week: null })).toBe('rest');
+  });
+
+  it('RN-SPEC T-76 order: a not-done training today wins over week complete', () => {
+    const allDone = WEEK.map((entry) => (entry.plan_day ? { ...entry, status: 'done' } : entry));
+    expect(hubState({ currentPlan: PLAN, todayStatus: training, planDays: DAYS, week: allDone })).toBe('training');
+    expect(hubState({ currentPlan: PLAN, todayStatus: { is_workout_day: false }, planDays: DAYS, week: allDone })).toBe('weekComplete');
+  });
+});
+
+describe('weekProgress: "X of Y done" from /week', () => {
+  it('Y = the slots whose status is not rest; X = the done ones (rest and pre-enrolment rest excluded)', () => {
+    expect(weekProgress(WEEK)).toEqual({ done: 2, total: 4 });
+    const preEnrolment = WEEK.map((entry, index) => (index === 0 ? { ...entry, status: 'rest' } : entry));
+    expect(weekProgress(preEnrolment)).toEqual({ done: 1, total: 3 });
+  });
+
+  it('missed counts as not done; no valid week → null', () => {
+    const missed = WEEK.map((entry, index) => (index === 1 ? { ...entry, status: 'missed' } : entry));
+    expect(weekProgress(missed)).toEqual({ done: 1, total: 4 });
+    expect(weekProgress(null)).toBeNull();
+    expect(weekProgress(WEEK.slice(0, 6))).toBeNull();
+  });
+});
+
+describe('effectiveWeek: /week, else rebuilt from the schedule + history by device date', () => {
+  it('a valid /week is used as is', () => {
+    expect(effectiveWeek({ week: WEEK, schedule: SCHEDULE, doneIds: [], now: NOW })).toBe(WEEK);
+  });
+
+  it('no /week: done if the slot\'s day was completed, else today / missed (past) / upcoming (later); no slot = rest', () => {
+    const built = effectiveWeek({ week: null, schedule: SCHEDULE, doneIds: [1], now: NOW });
+    expect(built.map((entry) => entry.status)).toEqual(['done', 'missed', 'rest', 'today', 'rest', 'upcoming', 'rest']);
+    expect(built.map((entry) => entry.date)).toEqual(['2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29', '2026-10-30', '2026-10-31', '2026-11-01']);
+    expect(built[3]).toMatchObject({ weekday: { id: 4 }, is_workout_day: true, plan_day: DAYS[2] });
+    expect(weekProgress(built)).toEqual({ done: 1, total: 4 });
+    expect(weekStrip(built, NOW).map((cell) => cell.kind)).toEqual(['done', 'missed', 'rest', 'today', 'rest', 'train', 'rest']);
+  });
+
+  it('no /week and no schedule → null', () => {
+    expect(effectiveWeek({ week: undefined, schedule: [], doneIds: [], now: NOW })).toBeNull();
+  });
+});
+
+describe('weekStrip: Mon–Sun cells (C3 missed, SR labels)', () => {
+  it('the main board: Done, Done, Rest, Today, Rest, Train, Rest', () => {
+    const strip = weekStrip(WEEK, NOW);
+    expect(strip.map((cell) => cell.kind)).toEqual(['done', 'done', 'rest', 'today', 'rest', 'train', 'rest']);
+    expect(strip.map((cell) => cell.label)).toEqual(['Done', 'Done', 'Rest', 'Today', 'Rest', 'Train', 'Rest']);
+    expect(strip.map((cell) => cell.letter).join('')).toBe('MTWTFSS');
+    expect(strip[0].a11y).toBe('Mon: done');
+    expect(strip[3].a11y).toBe('Thu: today, training');
+    expect(strip[5].a11y).toBe('Sat: training');
+    expect(strip[6].a11y).toBe('Sun: rest');
+  });
+
+  it('a rest-day today is the gold outline "Today"; today done is Done', () => {
+    const restToday = weekStrip(WEEK, new Date(2026, 9, 28, 9));
+    expect(restToday[2]).toMatchObject({ kind: 'todayRest', label: 'Today', a11y: 'Wed: today, rest' });
+    const doneToday = WEEK.map((entry, index) => (index === 3 ? { ...entry, status: 'done' } : entry));
+    expect(weekStrip(doneToday, NOW)[3]).toMatchObject({ kind: 'done', label: 'Done', a11y: 'Thu: today, done' });
+  });
+
+  it('missed: its own kind, label "Missed", SR "Tue: missed"', () => {
+    const missed = WEEK.map((entry, index) => (index === 1 ? { ...entry, status: 'missed' } : entry));
+    expect(weekStrip(missed, NOW)[1]).toEqual({ key: '2', letter: 'T', label: 'Missed', kind: 'missed', a11y: 'Tue: missed' });
+  });
+
+  it('no valid week → null (the week card hides)', () => {
+    expect(weekStrip(undefined, NOW)).toBeNull();
+  });
+});
+
+describe('upNext: the first upcoming after today, else next week from the schedule', () => {
+  it('the first upcoming /week item; "Tomorrow" when it is tomorrow, else the weekday', () => {
+    expect(upNext({ week: WEEK, schedule: SCHEDULE, planDays: DAYS, now: NOW })).toEqual({
+      dayId: 4,
+      title: 'Lower B',
+      when: 'Saturday',
+      meta: s('Saturday · 5 exercises'),
+    });
+    const wednesday = new Date(2026, 9, 28, 9);
+    const fromWed = WEEK.map((entry, index) => (index === 3 ? { ...entry, status: 'upcoming' } : entry));
+    expect(upNext({ week: fromWed, schedule: SCHEDULE, planDays: DAYS, now: wednesday })).toMatchObject({ title: 'Upper B', when: 'Tomorrow', meta: s('Tomorrow · 6 exercises') });
+  });
+
+  it('nothing upcoming → next week\'s first training day (Monday first) from the schedule', () => {
+    const noneLeft = WEEK.map((entry) => (entry.status === 'upcoming' || entry.status === 'today' ? { ...entry, status: 'done' } : entry));
+    expect(upNext({ week: noneLeft, schedule: SCHEDULE, planDays: DAYS, now: NOW })).toMatchObject({ dayId: 1, title: 'Upper A', when: 'Monday' });
+  });
+
+  it('no /week: the schedule\'s next weekday after today, wrapping; no schedule → null', () => {
+    expect(upNext({ week: null, schedule: SCHEDULE, planDays: DAYS, now: NOW })).toMatchObject({ title: 'Lower B', when: 'Saturday' });
+    expect(upNext({ week: null, schedule: SCHEDULE, planDays: DAYS, now: new Date(2026, 9, 31, 9) })).toMatchObject({ title: 'Upper A', when: 'Monday' });
+    expect(upNext({ week: null, schedule: SCHEDULE, planDays: DAYS, now: new Date(2026, 9, 28, 9) })).toMatchObject({ title: 'Upper B', when: 'Tomorrow' });
+    expect(upNext({ week: null, schedule: [], planDays: DAYS, now: NOW })).toBeNull();
+  });
+});
+
+describe('copy helpers', () => {
+  it('week complete names the total and next week\'s first day', () => {
+    expect(weekCompleteDetail({ done: 4, total: 4 }, SCHEDULE)).toBe(s('All 4 workouts done. Next week starts Monday with Upper A.'));
+    expect(weekCompleteDetail({ done: 1, total: 1 }, [])).toBe(s('All 1 workout done.'));
+  });
+
+  it('today done: exercises and whole minutes; no duration → no minutes', () => {
+    expect(todayDoneDetail(6, 52)).toBe(s('Nice work. 6 exercises · 52 min.'));
+    expect(todayDoneDetail(6, null)).toBe(s('Nice work. 6 exercises.'));
+  });
+
+  it('muscles: primary groups in order, first capitalised, joined with "and"', () => {
+    const ex = (name) => ({ exercise: { primary_muscle_group: { name } } });
+    expect(muscleLine([ex('Chest'), ex('Back'), ex('Chest'), ex('Arms')])).toBe('Chest, back and arms');
+    expect(todayMeta(6, [ex('Chest'), ex('Back')])).toBe(s('6 exercises · Chest and back'));
+    expect(todayMeta(6, [])).toBe(s('6 exercises'));
+    expect(muscleLine(['Chest', 'Back', 'Arms', 'Legs', 'Core'].map(ex))).toBe('Chest, back, arms and legs');
+  });
+});
+
+describe('todayDurationMinutes: today\'s completed workout for today\'s day', () => {
+  const at = (hour) => new Date(2026, 9, 29, hour).toISOString();
+  it('rounds the latest match to whole minutes (at least 1)', () => {
+    const completed = [
+      { workout_plan_day_id: 3, duration_seconds: 1800, completed_at: at(7) },
+      { workout_plan_day_id: 3, duration_seconds: 3120, completed_at: at(8) },
+      { workout_plan_day_id: 4, duration_seconds: 600, completed_at: at(8) },
+    ];
+    expect(todayDurationMinutes(completed, 3, NOW)).toBe(52);
+    expect(todayDurationMinutes([{ workout_plan_day_id: 3, duration_seconds: 20, completed_at: at(8) }], 3, NOW)).toBe(1);
+  });
+
+  it('another day, another date or no duration → null', () => {
+    expect(todayDurationMinutes([{ workout_plan_day_id: 3, duration_seconds: 600, completed_at: new Date(2026, 9, 27, 8).toISOString() }], 3, NOW)).toBeNull();
+    expect(todayDurationMinutes([{ workout_plan_day_id: 3, completed_at: at(8) }], 3, NOW)).toBeNull();
+    expect(todayDurationMinutes(null, 3, NOW)).toBeNull();
+  });
+});
+
+describe('dayRows: Other days', () => {
+  it('training: today left out (b); not done first, done last as Repeat; weekday or "Any day"', () => {
+    const rows = dayRows({ planDays: DAYS, schedule: SCHEDULE.filter((entry) => entry.plan_day.id !== 2), doneIds: [1, 2], state: 'training', todayDayId: 3 });
+    expect(rows.map((row) => row.action)).toEqual(['Start Lower B', 'Repeat Upper A', 'Repeat Lower A']);
+    expect(rows.map((row) => row.meta)).toEqual([s('Saturday · 5 exercises'), s('Monday · 5 exercises'), s('Any day · 5 exercises')]);
+    expect(rows.map((row) => row.done)).toEqual([false, true, true]);
+  });
+
+  it('today done: today is listed, last, as done', () => {
+    const rows = dayRows({ planDays: DAYS, schedule: SCHEDULE, doneIds: [1, 2, 3], state: 'todayDone', todayDayId: 3 });
+    expect(rows.map((row) => row.action)).toEqual(['Start Lower B', 'Repeat Upper A', 'Repeat Lower A', 'Repeat Upper B']);
+  });
+
+  it('rest / no schedule list every day; a day on two weekdays names both', () => {
+    expect(dayRows({ planDays: DAYS, schedule: SCHEDULE, doneIds: [], state: 'rest', todayDayId: 3 })).toHaveLength(4);
+    expect(dayRows({ planDays: DAYS, schedule: [], doneIds: [], state: 'noSchedule' }).map((row) => row.meta)[2]).toBe(s('Any day · 6 exercises'));
+    const twice = [...SCHEDULE, { weekday: wd(3), plan_day: DAYS[0] }];
+    expect(dayRows({ planDays: DAYS, schedule: twice, doneIds: [], state: 'rest' })[0].meta).toBe(s('Monday and Wednesday · 5 exercises'));
+  });
+
+  it('the block copy per state', () => {
+    expect(OTHER_DAYS_COPY.training).toEqual({ title: 'Other days', help: "Not feeling today's? Tap any day to start it instead." });
+    expect(OTHER_DAYS_COPY.rest.title).toBe('Train anyway?');
+    expect(OTHER_DAYS_COPY.todayDone.help).toBe('Want more? Tap a day to start it.');
+    expect(OTHER_DAYS_COPY.weekComplete).toEqual({ title: 'Extra session', help: 'Tap a day to do it again.' });
+    expect(OTHER_DAYS_COPY.noSchedule).toEqual({ title: 'Or start now', help: 'Tap any day to start it.' });
+  });
+});

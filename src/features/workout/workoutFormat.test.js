@@ -1,16 +1,4 @@
-import {
-  buildExerciseStatsMap,
-  completedDayIds,
-  completedThisWeekCount,
-  currentWeekRange,
-  dayTitle,
-  needsScheduleSetup,
-  scheduledWeekdaysByDayId,
-  showsHeroStart,
-  todayDetail,
-  todayState,
-  trainingDaysLabel,
-} from './workoutFormat';
+import { buildExerciseStatsMap, completedDayIds, currentWeekRange, dayTitle, needsScheduleSetup, scheduledWeekdaysByDayId } from './workoutFormat';
 
 describe('currentWeekRange (time §4.3)', () => {
   it('runs device-local Monday to Sunday', () => {
@@ -20,48 +8,17 @@ describe('currentWeekRange (time §4.3)', () => {
   });
 });
 
-describe('hero (§3.1–§3.3)', () => {
-  const day = { id: 12, title: 'Chest & Biceps' };
-
-  it('derives the badge from today status only', () => {
-    expect(todayState({ is_workout_day: true, already_completed: true })).toBe('completed');
-    expect(todayState({ is_workout_day: true, already_completed: false })).toBe('training');
-    expect(todayState(null)).toBe('rest');
-  });
-
-  it('writes the detail line, naming the next day on rest days (⚠W1)', () => {
-    expect(todayDetail({ already_completed: true, plan_day: day })).toBe('Chest & Biceps is done — great work.');
-    expect(todayDetail({ already_completed: true, plan_day: {} })).toBe("Today's session is done — great work.");
-    expect(todayDetail({ is_workout_day: true, plan_day: day })).toBe('Chest & Biceps is ready to go.');
-    expect(todayDetail({ is_workout_day: true })).toBe('Your workout is ready to go.');
-    expect(todayDetail({ is_workout_day: false, plan_day: day })).toBe('Nothing scheduled today — start any day below.');
-    expect(todayDetail(null)).toBe('Nothing scheduled today — start any day below.');
-  });
-
-  it('shows Start only on an unfinished workout day with a plan day', () => {
-    expect(showsHeroStart({ is_workout_day: true, already_completed: false, plan_day: day })).toBe(true);
-    expect(showsHeroStart({ is_workout_day: true, already_completed: true, plan_day: day })).toBe(false);
-    expect(showsHeroStart({ is_workout_day: true, plan_day: {} })).toBe(false);
-    expect(showsHeroStart(null)).toBe(false);
-  });
-
-  it('labels the day count', () => {
-    expect(trainingDaysLabel(1)).toBe('1\u00a0training day');
-    expect(trainingDaysLabel(3)).toBe('3\u00a0training days');
-  });
-});
-
-describe('ring (§5.3)', () => {
-  it('counts plan days, not sessions (⚠W11)', () => {
-    const planDays = [{ id: 1 }, { id: 2 }, { id: 3 }];
-    const ids = completedDayIds([{ workout_plan_day_id: 1 }, { workout_plan_day_id: 1 }, { workout_plan_day_id: 9 }]);
-    expect(ids).toEqual([1, 1, 9]);
-    expect(completedThisWeekCount(planDays, ids)).toBe(1);
-    expect(completedThisWeekCount(planDays, completedDayIds(null))).toBe(0);
-  });
-});
+// DECLARED (T-76, 28 Oct 2026): the "hero (§3.1–§3.3)" tests (todayState badges, todayDetail lines,
+// showsHeroStart, trainingDaysLabel) and "ring (§5.3)" (completedThisWeekCount, ⚠W11) are removed with
+// the retired TodayHeroCard. Their replacements are stricter: hubModel.test.js (hubState per state,
+// weekProgress "X of Y" from /week, todayMeta / todayDoneDetail / weekCompleteDetail copy).
 
 describe('schedule and days', () => {
+  it('lists every completed session\'s plan day id, duplicates kept (the ✓ Done rows)', () => {
+    expect(completedDayIds([{ workout_plan_day_id: 7 }, { workout_plan_day_id: 7 }, { workout_plan_day_id: 9 }])).toEqual([7, 7, 9]);
+    expect(completedDayIds(null)).toEqual([]);
+  });
+
   it('groups weekdays per plan day, de-duplicated and sorted', () => {
     const weekday = (id, name) => ({ id, name, sort_order: id });
     const byDay = scheduledWeekdaysByDayId([
