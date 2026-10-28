@@ -29,7 +29,6 @@ case "$DEVICE" in emulator-*) ;; *) echo "emulators only (got a non-emulator ser
 export MAESTRO_LOGIN_EMAIL MAESTRO_LOGIN_PASSWORD
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/android-sign-in.XXXXXX")"
-MARK_SAVED="$(mktemp "${TMPDIR:-/tmp}/android-sign-in-mark.XXXXXX")"
 cat > "$WORK/sign-in.yaml" <<YAML
 appId: com.gymido.app
 ---
@@ -84,9 +83,9 @@ cleanup() {
   [ -n "$MPID" ] && stop_maestro "$MPID"
   pkill -P $$ 2>/dev/null
   rm -rf "$WORK"
-  # maestro-guarded.sh keeps the debug output private; ~/.maestro/tests is
-  # not swept by age (another lane's files).
-  find "$MAESTRO_LOGS" -newer "$MARK_SAVED" -type f \( -name 'maestro.log' -o -name 'commands*.json' -o -name '*.png' \) -delete 2>/dev/null
+  # maestro-guarded.sh runs Maestro with a private home and debug folder
+  # (T-68): nothing of ours lands in ~/.maestro or ~/Library/Logs/maestro, and
+  # neither is ever swept by age (another lane's files). The byte sweep stays.
   local hits zip
   hits="$(grep -rlF -f <(patterns) "$HOME/.maestro" "$MAESTRO_LOGS" 2>/dev/null)"
   while IFS= read -r zip; do
@@ -102,7 +101,6 @@ cleanup() {
     echo "sweep: clean"
   fi
   adb -s "$DEVICE" shell pm clear com.android.chrome > /dev/null 2>&1
-  rm -f "$MARK_SAVED"
   exit "$CODE"
 }
 trap cleanup EXIT

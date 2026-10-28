@@ -72,6 +72,11 @@ if [ -z "$DEBUG" ]; then
   set -- --debug-output "$OWN_DEBUG" "$@"
 fi
 LOGS=(-name device-logcat.txt -o -name device-simulator.log -o -name maestro.log -o -name 'commands*.json')
+# T-68 (28 Oct 2026): Maestro also writes a per-run zip (maestro.log, which
+# can hold -e values) to ~/Library/Logs/maestro and state to ~/.maestro, both
+# under user.home (XDG_STATE_HOME first). Each run gets a private home,
+# removed whole like the debug folder, so nothing lands in the shared ones.
+MHOME="$(mktemp -d "${TMPDIR:-/tmp}/maestro-guarded.XXXXXX")" || { [ -n "$OWN_DEBUG" ] && rm -rf "${OWN_DEBUG:?}"; exit 2; }
 
 # Reviewer carry (final batch, 27 Oct 2026): stop maestro without hanging.
 # TERM, then wait at most MAESTRO_STOP_WAIT seconds (default 10) and kill -9:
@@ -101,10 +106,15 @@ scrub() {
   [ -n "$MPID" ] && stop_maestro "$MPID"
   find "$DEBUG" -type f \( "${LOGS[@]}" \) -delete 2>/dev/null
   [ -n "$OWN_DEBUG" ] && rm -rf "${OWN_DEBUG:?}"
+  rm -rf "${MHOME:?}"
   local left
   left="$(find "$DEBUG" -type f \( "${LOGS[@]}" \) 2>/dev/null | wc -l | tr -d ' ')"
   if [ "${left:-0}" -gt 0 ]; then
     echo "maestro-guarded: $left Maestro log file(s) could not be deleted under $DEBUG" >&2
+    CODE=5
+  fi
+  if [ -e "$MHOME" ]; then
+    echo "maestro-guarded: the private Maestro home could not be deleted: $MHOME" >&2
     CODE=5
   fi
   exit "$CODE"
@@ -113,7 +123,8 @@ trap scrub EXIT
 trap 'CODE=1; scrub' INT TERM HUP
 
 # In the background + wait, so a signal reaches the trap at once.
-maestro --device "$DEVICE" test "$@" &
+# The analytics opt-out keeps the first-run notice of the fresh home quiet.
+(unset XDG_STATE_HOME; MAESTRO_CLI_NO_ANALYTICS=1 JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:+$JAVA_TOOL_OPTIONS }-Duser.home=$MHOME" exec maestro --device "$DEVICE" test "$@") &
 MPID=$!
 wait "$MPID"
 CODE=$?

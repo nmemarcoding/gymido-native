@@ -37,8 +37,6 @@ ENV_FILE="$(e2e_env_file)" || exit 2
 FLOWS="$ROOT/e2e/maestro/ios-sign-in"
 CHECK="$ROOT/e2e/scripts/ios-login-check.py"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/ios-sign-in.XXXXXX")"
-MARK="$WORK/.mark"
-touch "$MARK"
 
 MAESTRO_LOGIN_EMAIL="$(e2e_value "$ENV_FILE" "${ACCOUNT}_EMAIL")"
 MAESTRO_LOGIN_PASSWORD="$(e2e_value "$ENV_FILE" "${ACCOUNT}_PASSWORD")"
@@ -55,13 +53,12 @@ export MAESTRO_LOGIN_EMAIL MAESTRO_LOGIN_PASSWORD
 
 MAESTRO_LOGS="$HOME/Library/Logs/maestro"
 
-# Deletes everything Maestro wrote since the run started: its test and debug
-# output (both under $WORK/out, device-simulator.log included) and its own
-# log folder (per-run logs and zips). The shared ~/.maestro/tests is no longer
-# swept by age (another lane's files); nothing of ours goes there now.
+# Deletes everything Maestro wrote: its test and debug output (under
+# $WORK/out, device-simulator.log included) and its private home $WORK/home
+# (T-68: the per-run log zip and ~/.maestro state land there, never in the
+# shared ~/Library/Logs/maestro or ~/.maestro, which are never swept by age).
 purge() {
   rm -rf "$WORK/out" "$WORK/home"
-  find "$MAESTRO_LOGS" -mindepth 1 -maxdepth 1 -newer "$MARK" -exec rm -rf {} + 2>/dev/null
 }
 
 # The two values as grep -F patterns, from a builtin printf, so neither is
@@ -76,7 +73,7 @@ stage() {
   mkdir -p "$WORK/out"
   # In the background + wait, so a trap runs at once (exec: maestro is our
   # direct child, which finish's pkill stops).
-  (cd "$WORK/out" && exec maestro --device "$UDID" test --debug-output "$WORK/out/debug" --test-output-dir "$WORK/out" "$FLOWS/$name.yaml" > "$WORK/out/stage.log" 2>&1) &
+  (cd "$WORK/out" && unset XDG_STATE_HOME && mkdir -p "$WORK/home" && MAESTRO_CLI_NO_ANALYTICS=1 JAVA_TOOL_OPTIONS="-Duser.home=$WORK/home" exec maestro --device "$UDID" test --debug-output "$WORK/out/debug" --test-output-dir "$WORK/out" "$FLOWS/$name.yaml" > "$WORK/out/stage.log" 2>&1) &
   wait $!
   local code=$?
   # On a failure, name the failed step: status lines only, never a typed value.
@@ -110,7 +107,7 @@ check() {
 
 abort() {
   echo "aborting: cancelling the login sheet"
-  (cd "$WORK" && maestro --device "$UDID" test --debug-output "$WORK/out/debug" "$ROOT/e2e/maestro/subflows/cancel-universal-login.yaml" > /dev/null 2>&1)
+  (cd "$WORK" && unset XDG_STATE_HOME && mkdir -p "$WORK/home" && MAESTRO_CLI_NO_ANALYTICS=1 JAVA_TOOL_OPTIONS="-Duser.home=$WORK/home" exec maestro --device "$UDID" test --debug-output "$WORK/out/debug" "$ROOT/e2e/maestro/subflows/cancel-universal-login.yaml" > /dev/null 2>&1)
   finish 1
 }
 

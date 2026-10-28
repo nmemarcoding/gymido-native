@@ -25,6 +25,8 @@ function sandbox({ exitCode = 0, sleep = 0 } = {}) {
   fs.writeFileSync(path.join(scripts, 'single-ios-sim.sh'), '#!/usr/bin/env bash\nexit 0\n', { mode: 0o755 });
   fs.writeFileSync(path.join(scripts, 'apiGuard.js'), "console.log('apiGuard: OK (Release build)');\n");
   const seen = path.join(root, 'seen-debug-dir');
+  const seenHome = path.join(root, 'seen-home');
+  const seenEnv = path.join(root, 'seen-env');
   fs.writeFileSync(
     path.join(bin, 'maestro'),
     `#!/usr/bin/env bash
@@ -35,6 +37,14 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$dir" ] || { echo "no --debug-output" >&2; exit 9; }
 printf '%s' "$dir" > ${JSON.stringify(seen)}
+# T-68: like Maestro, a per-run zip + state under user.home (else $HOME).
+home="$HOME"
+case "$JAVA_TOOL_OPTIONS" in *-Duser.home=*) home="\${JAVA_TOOL_OPTIONS##*-Duser.home=}"; home="\${home%% *}" ;; esac
+printf '%s' "$home" > ${JSON.stringify(seenHome)}
+printf '%s' "\${XDG_STATE_HOME-unset}|\${MAESTRO_CLI_NO_ANALYTICS-unset}" > ${JSON.stringify(seenEnv)}
+mkdir -p "$home/Library/Logs/maestro" "$home/.maestro/tests/run"
+echo typed-bytes > "$home/Library/Logs/maestro/2026-10-28_run.zip"
+echo typed-bytes > "$home/.maestro/tests/run/maestro.log"
 mkdir -p "$dir/2026-10-27_200000"
 for f in ${LOGS.map((name) => `'${name}'`).join(' ')} shot.png; do echo typed-bytes > "$dir/2026-10-27_200000/$f"; done
 ${sleep ? `sleep ${sleep}` : ''}
@@ -42,7 +52,7 @@ exit ${exitCode}
 `,
     { mode: 0o755 },
   );
-  return { root, seen, env: { PATH: `${bin}:${process.env.PATH}`, HOME: path.join(root, 'home'), TMPDIR: root } };
+  return { root, seen, seenHome, seenEnv, env: { PATH: `${bin}:${process.env.PATH}`, HOME: path.join(root, 'home'), TMPDIR: root } };
 }
 const files = (dir) => (fs.existsSync(dir) ? fs.readdirSync(dir, { recursive: true }).map(String) : []);
 const run = (box, args, options = {}) =>
@@ -88,6 +98,50 @@ describe('maestro-guarded.sh deletes Maestro debug logs after every run', () => 
     expect(result.signal ?? result.status).not.toBe(0);
     const left = files(dir);
     LOGS.forEach((name) => expect(left.some((file) => file.endsWith(name))).toBe(false));
+  });
+
+  // T-68 (PM 28 Oct 2026): Maestro wrote a per-run zip (maestro.log) to
+  // ~/Library/Logs/maestro and state to ~/.maestro. Every run now gets a
+  // private user.home (XDG_STATE_HOME unset, analytics notice off), removed
+  // whole on every exit path: the real HOME gets ZERO files.
+  describe('T-68: nothing outside the private folders', () => {
+    const expectClean = (box) => {
+      expect(files(box.env.HOME)).toEqual([]);
+      const home = fs.readFileSync(box.seenHome, 'utf8');
+      expect(home.startsWith(path.join(box.root, 'maestro-guarded.'))).toBe(true);
+      expect(fs.existsSync(home)).toBe(false);
+      expect(fs.readdirSync(box.root).filter((name) => name.startsWith('maestro-guarded.'))).toEqual([]);
+    };
+
+    it.each([0, 1])('maestro exit %i, with XDG_STATE_HOME set: a private home, removed; the real HOME stays empty', (exitCode) => {
+      const box = make({ exitCode });
+      box.env.XDG_STATE_HOME = path.join(box.env.HOME, '.local', 'state');
+      const result = run(box, ['flow.yaml']);
+      expect(result.status).toBe(exitCode);
+      expect(fs.readFileSync(box.seenEnv, 'utf8')).toBe('unset|1');
+      expectClean(box);
+    });
+
+    it("with the caller's --debug-output: still a private home, removed", () => {
+      const box = make();
+      const result = run(box, ['--debug-output', path.join(box.root, 'caller-debug'), 'flow.yaml']);
+      expect(result.status).toBe(0);
+      expectClean(box);
+    });
+
+    it.each(['SIGTERM', 'SIGINT'])('a %s mid-run: the private home is still removed; the real HOME stays empty', async (signal) => {
+      const box = make({ sleep: 30 });
+      const child = spawn('bash', [path.join(box.root, 'e2e', 'scripts', 'maestro-guarded.sh'), 'emulator-5594', 'flow.yaml'], { env: box.env });
+      const done = new Promise((resolve) => child.on('exit', resolve));
+      const started = Date.now();
+      while (!fs.existsSync(box.seenHome) && Date.now() - started < 10000) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      expect(fs.existsSync(box.seenHome)).toBe(true);
+      child.kill(signal);
+      await done;
+      expectClean(box);
+    }, 20000);
   });
 
   // Reviewer MEDIUM (ea27f77): a second signal while scrub runs must not
@@ -214,6 +268,16 @@ describe('sign-in runners keep Maestro debug output private', () => {
       expect(line).not.toMatch(/>\s*"\$WORK/);
     });
     expect(src).toMatch(/purge\(\) \{\n  rm -rf "\$WORK\/out" "\$WORK\/home"/);
+  });
+
+  it('ios-safe-sign-in.sh: every `maestro … test` runs with the private user.home under $WORK (T-68)', () => {
+    const runs = code(read('ios-safe-sign-in.sh')).split('\n').filter((line) => /maestro --device "\$UDID" test/.test(line));
+    expect(runs.length).toBe(2);
+    runs.forEach((line) => expect(line).toMatch(/unset XDG_STATE_HOME && mkdir -p "\$WORK\/home" && MAESTRO_CLI_NO_ANALYTICS=1 JAVA_TOOL_OPTIONS="-Duser\.home=\$WORK\/home" exec maestro/));
+  });
+
+  it.each(['ios-safe-sign-in.sh', 'android-sign-in.sh', 'invite.sh', 'maestro-guarded.sh'])('%s: no age-based delete anywhere (T-68: never sweep by age)', (name) => {
+    expect(code(read(name))).not.toMatch(/-newer/);
   });
 
   it.each(['ios-safe-sign-in.sh', 'android-sign-in.sh', 'invite.sh'])('%s: no age-based delete in ~/.maestro/tests; the byte sweep stays', (name) => {
