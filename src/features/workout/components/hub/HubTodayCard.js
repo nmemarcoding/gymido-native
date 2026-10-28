@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import ExerciseImage from '../../../../shared/components/ExerciseImage';
@@ -61,6 +61,7 @@ function TrainingCard({ weekdayName, title, meta, exercises, tablet, starting, o
 }
 
 function RestCard({ weekdayName, upNext, upNextExercises, starting, onStartEarly, style }) {
+  const earlyRef = useRef(null);
   return (
     <View testID="workout-hero" style={[styles.card, styles.restEdge, style]}>
       <View style={styles.restHead}>
@@ -81,11 +82,12 @@ function RestCard({ weekdayName, upNext, upNextExercises, starting, onStartEarly
         <>
           <UpNextRow upNext={upNext} exercises={upNextExercises} />
           <HubButton
+            ref={earlyRef}
             testID="workout-start-early"
             variant="outline"
             title={`Start ${upNext.title} early`}
             loading={starting}
-            onPress={() => onStartEarly(upNext.dayId)}
+            onPress={() => onStartEarly(upNext, earlyRef)}
             style={styles.actionOutline}
           />
         </>

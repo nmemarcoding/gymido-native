@@ -69,12 +69,15 @@ describe('member adapter (§M3.1)', () => {
   });
 
   it('goes back and after delete to M1, and takes the UI pieces it is given', () => {
-    const navigation = { push: jest.fn() };
+    const navigation = { push: jest.fn(), popTo: jest.fn() };
     // DECLARED (T-65, PHONE-NAV spec §3): was adapter.openBack(navigation) → push('MyPlans') too. The back pill
     // goes back, else replaces to backPath (useInnerBack); openBack is gone.
     expect(adapter.backPath).toBe('/plans/mine');
+    // DECLARED (T-79): was push('MyPlans') after a delete, so Back returned to the deleted plan. Now popTo:
+    // the list already in the stack (else it replaces the deleted plan), never a push.
     adapter.openAfterDelete(navigation);
-    expect(navigation.push.mock.calls).toEqual([['MyPlans']]);
+    expect(navigation.popTo.mock.calls).toEqual([['MyPlans']]);
+    expect(navigation.push).not.toHaveBeenCalled();
     const renderOnHold = () => null;
     const useExtension = () => ({});
     const withUi = createMemberPlanAdapter('9', { renderOnHold, useExtension });

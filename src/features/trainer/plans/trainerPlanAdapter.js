@@ -24,7 +24,8 @@ export const TRAINER_PLAN_TEXT = Object.freeze({
   editDetailsDescription: 'Changes apply from each client’s next workout.',
   planDeleteConflict: 'This plan can’t be deleted while clients are on it, or once it has workout history.',
   dayDeleteConflict: 'This day can’t be deleted while any client is on this plan, or once it has workout history.',
-  copiedMessage: 'You’re now on your copy. Give it a name, then assign it.',
+  // T-78 (C10): the copy is named in the dialog before it exists.
+  copiedMessage: 'You’re now on your copy. Assign it when it’s ready.',
   // T-16 (4.0.4): a 201 with no plan id.
   copiedFallbackMessage: 'Your copy is in the plans list.',
   copyNotYoursCopy: 'This plan can’t be copied.',
@@ -40,6 +41,8 @@ export function createTrainerPlanAdapter(planId) {
       copyPlan: canCopyTrainerPlan(),
     }),
     mutations: createTrainerPlanMutations(planId),
+    // T-78 (C10): the update/delete writes of a NEW copy (by its id).
+    copyWritesFor: (copyId) => createTrainerPlanMutations(copyId),
     // §B1: the trainer asks for the affected-client count.
     countsClients: true,
     text: TRAINER_PLAN_TEXT,
@@ -49,11 +52,12 @@ export function createTrainerPlanAdapter(planId) {
     // T-65 (PHONE-NAV spec §3, 27 Oct 2026): "‹ All plans" goes back, else
     // replaces to this parent (it pushed a fresh T1, ⚠T3-3; T1 reloads on focus).
     backPath: '/trainer/plans',
-    // ⚠B-3: a fresh T1 after a delete.
-    openAfterDelete: (navigation) => navigation.push(routes.TrainerPlans),
+    // T-79 (was ⚠B-3, a push): back to the list already in the stack, so the
+    // deleted plan leaves the history; a deep link replaces it with the list.
+    openAfterDelete: (navigation) => navigation.popTo(routes.TrainerPlans),
     openCreate: (navigation) => navigation.push(routes.TrainerPlanCreate),
-    // §CP2 / C9: a fresh T3 for the copy that opens Edit details once.
-    openCopy: (navigation, copyId) => navigation.push(routes.TrainerPlan, { planId: copyId, nameTheCopy: true }),
+    // §CP2 / C10: a fresh T3 for the copy (named before it was created).
+    openCopy: (navigation, copyId) => navigation.push(routes.TrainerPlan, { planId: copyId }),
     // T-16: no id in the copy response → the plans list, no name flag.
     openCopyFallback: (navigation) => navigation.push(routes.TrainerPlans),
   };

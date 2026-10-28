@@ -1,5 +1,6 @@
-# Phase 4 §2 (4i, approved 27 Oct): a member copies their OWN plan. Lands on
-# the copy's builder with Edit details open once; then the copy is deleted
+# Phase 4 §2 (4i, approved 27 Oct): a member copies their OWN plan. T-78:
+# "Name your copy" first (Cancel = nothing; Save copy = the copy, which opens
+# with no dialog); then the copy is deleted
 # again (overflow / inline "Delete plan" → confirm) so the QA account stays
 # clean. Writes: one copy, then its delete.
 # Account: a member WITHOUT a trainer who OWNS a plan (with a day that has an
@@ -15,6 +16,8 @@ appId: com.gymido.app
       notVisible:
         id: "my-plans-on-hold"
     commands:
+      # T-78 (DECLARED, C10 supersedes C9): was "the copy lands with Edit details open; Cancel". Now
+      # the tap opens "Name your copy" on THIS plan and nothing exists until "Save copy".
       - runFlow:
           when:
             visible:
@@ -33,10 +36,44 @@ appId: com.gymido.app
                 id: "plan-make-copy"
       - extendedWaitUntil:
           visible:
-            id: "edit-plan-modal"
-          timeout: 30000
+            id: "copy-plan-modal"
+          timeout: 10000
+      # Cancel creates nothing.
       - tapOn:
-          id: "edit-plan-cancel"
+          id: "copy-plan-cancel"
+      - extendedWaitUntil:
+          notVisible:
+            id: "copy-plan-modal"
+          timeout: 10000
+      - runFlow:
+          when:
+            visible:
+              id: "plan-overflow"
+          commands:
+            - tapOn:
+                id: "plan-overflow"
+            - tapOn:
+                id: "plan-overflow-make-copy"
+      - runFlow:
+          when:
+            visible:
+              id: "plan-make-copy"
+          commands:
+            - tapOn:
+                id: "plan-make-copy"
+      - extendedWaitUntil:
+          visible:
+            id: "copy-plan-modal"
+          timeout: 10000
+      - tapOn:
+          id: "copy-plan-save"
+      - extendedWaitUntil:
+          notVisible:
+            id: "copy-plan-modal"
+          timeout: 30000
+      # The copy's builder opens with no dialog (the C9 auto-open is gone).
+      - assertNotVisible:
+          id: "edit-plan-modal"
       - runFlow:
           when:
             visible:

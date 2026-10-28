@@ -47,8 +47,8 @@ import { canEditPlan } from '../trainerPlanBuilder';
 import { keepUnitsTogether } from '../../../../shared/format/counts';
 import { HeroTitleMark } from '../../../shell/heroTitle';
 import { useInnerBack } from '../../../shell/useInnerBack';
+import { COPY_KEPT_MESSAGE, COPY_KEPT_TITLE, COPY_SAVE_FAILED_TITLE, planFieldErrors, saveCopy } from '../copyOnSave';
 
-const EDIT_PLAN_FIELDS = ['name', 'category_id', 'days_per_week', 'difficulty_level_id', 'description'];
 
 // T3 for trainers: the shared plan screen with the trainer adapter (C6).
 export default function PlanScreen() {
@@ -81,8 +81,6 @@ function PlanBuilder({ planId, adapter }) {
   // §M3.4) through a hook. The adapter is fixed for a mount, so the hook
   // order never changes.
   const useExtension = adapter.useExtension ?? useNoExtension;
-  // C9: set only by a copy landing; consumed on the first load.
-  const nameTheCopy = Boolean(useRoute().params?.nameTheCopy);
   const navigation = useNavigation();
   // T-65 (PHONE-NAV spec §3): the builder's one back control; Android back the same.
   const goBack = useInnerBack(navigation, adapter.backPath);
@@ -117,7 +115,9 @@ function PlanBuilder({ planId, adapter }) {
   const [activating, setActivating] = useState(false);
   const [action, setAction] = useState(null);
   const [copying, setCopying] = useState(false);
-  // One copy request at a time: a second tap while one runs does nothing.
+  // T-78: the "Name your copy" dialog. One save at a time: a second tap, or
+  // a dismissal, while one runs does nothing.
+  const [copyOpen, setCopyOpen] = useState(false);
   const copyingRef = useRef(false);
   const [overflowOpen, setOverflowOpen] = useState(false);
 
@@ -251,47 +251,64 @@ function PlanBuilder({ planId, adapter }) {
     }
   }, [canEdit, refreshCount]);
 
-  // C9: once the copy's plan has loaded, open Edit details by itself, then
-  // clear the flag so Back, a revisit or a reload never reopens it.
-  const flagConsumed = useRef(false);
-  useEffect(() => {
-    if (status !== 'loaded' || !nameTheCopy || flagConsumed.current) {
-      return;
-    }
-    flagConsumed.current = true;
-    navigation.setParams({ nameTheCopy: undefined });
-    if (capabilities.editPlan) {
-      openEditPlan();
-    }
-    // openEditPlan is recreated each render; the ref keeps this to one run.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, nameTheCopy, capabilities.editPlan]);
-
-  // Part C §CP2: one flow for both copy buttons (and the member's own-plan
-  // "Make a copy", RN-SPEC-v2-phase4 §2). Lifecycle pairing: `copying` is
-  // set on press and cleared when the request settles while mounted.
-  // T-16 (4.0.4): a 201 without a plan id is still a success → the list.
-  async function copyPlan() {
+  // T-78 (RN-SPEC-TRAINER-PLANS C10, supersedes C9): every copy entry opens
+  // "Name your copy" on THIS screen; nothing is created until "Save copy".
+  function copyPlan() {
     if (copyingRef.current) {
       return;
     }
+    loadLookups();
+    setCopyOpen(true);
+  }
+
+  function closeCopy() {
+    if (!copyingRef.current) {
+      setCopyOpen(false);
+    }
+  }
+
+  // Resolves to field errors for the dialog (a 422 on the copy's PATCH), else
+  // null. T-16 (4.0.4): a 201 without a plan id is still a success → the list.
+  async function saveCopyFromDialog(changes) {
+    if (copyingRef.current) {
+      return null;
+    }
     copyingRef.current = true;
     setCopying(true);
-    try {
-      const copy = await mutations.copyPlan();
-      if (copy?.id !== undefined && copy?.id !== null) {
-        addToast(ToastTone.success, 'Plan copied', text.copiedMessage);
-        adapter.openCopy(navigation, copy.id);
-      } else {
-        addToast(ToastTone.success, 'Plan copied', text.copiedFallbackMessage);
-        adapter.openCopyFallback(navigation);
-      }
-    } catch (error) {
-      addToast(ToastTone.error, 'Could not copy the plan', builderMessage(error, undefined, text.copyNotYoursCopy));
-    }
+    const outcome = await saveCopy({ copy: mutations.copyPlan, writesFor: adapter.copyWritesFor, changes });
     copyingRef.current = false;
     if (mounted.current) {
       setCopying(false);
+    }
+    switch (outcome.kind) {
+      case 'copied':
+        setCopyOpen(false);
+        addToast(ToastTone.success, 'Plan copied', text.copiedMessage);
+        adapter.openCopy(navigation, outcome.id);
+        return null;
+      case 'noId':
+        setCopyOpen(false);
+        addToast(ToastTone.success, 'Plan copied', text.copiedFallbackMessage);
+        adapter.openCopyFallback(navigation);
+        return null;
+      case 'kept':
+        setCopyOpen(false);
+        addToast(ToastTone.error, COPY_KEPT_TITLE, COPY_KEPT_MESSAGE);
+        adapter.openCopy(navigation, outcome.id);
+        return null;
+      case 'patchFailed': {
+        // The copy is deleted; the dialog stays open for another Save.
+        const fieldErrors = planFieldErrors(outcome.error);
+        if (!fieldErrors) {
+          addToast(ToastTone.error, COPY_SAVE_FAILED_TITLE, getServerMessage(outcome.error));
+        }
+        return fieldErrors;
+      }
+      default:
+        // The copy POST failed: nothing exists.
+        setCopyOpen(false);
+        addToast(ToastTone.error, 'Could not copy the plan', builderMessage(outcome.error, undefined, text.copyNotYoursCopy));
+        return null;
     }
   }
 
@@ -369,6 +386,10 @@ function PlanBuilder({ planId, adapter }) {
   function openEditPlan() {
     setEditPlanOpen(true);
     refreshCount();
+    loadLookups();
+  }
+
+  function loadLookups() {
     if (!lookupsLoaded.current) {
       lookupsLoaded.current = true;
       listPlanCategories()
@@ -392,16 +413,8 @@ function PlanBuilder({ planId, adapter }) {
       setEditPlanOpen(false);
       return null;
     } catch (error) {
-      const serverErrors = error?.response?.data?.errors;
-      if (getStatus(error) === 422 && serverErrors && typeof serverErrors === 'object') {
-        // ⚠B-2: keys other than the five fields show nowhere.
-        const fieldErrors = {};
-        for (const field of EDIT_PLAN_FIELDS) {
-          const messages = serverErrors[field];
-          if (Array.isArray(messages) && messages.length > 0) {
-            fieldErrors[field] = messages[0];
-          }
-        }
+      const fieldErrors = planFieldErrors(error);
+      if (fieldErrors) {
         return fieldErrors;
       }
       addToast(ToastTone.error, 'Could not update the plan', getServerMessage(error));
@@ -468,7 +481,8 @@ function PlanBuilder({ planId, adapter }) {
           await mutations.deletePlan();
           addToast(ToastTone.success, 'Plan deleted');
           finish();
-          // ⚠B-3: a push, so back returns to this (deleted) plan.
+          // T-79 (was ⚠B-3): the adapter pops to the list, so this deleted
+          // plan leaves the back history.
           adapter.openAfterDelete(navigation);
           break;
         case PlanAction.deleteDay:
@@ -568,9 +582,13 @@ function PlanBuilder({ planId, adapter }) {
     setSetModal((current) => ({ ...current, open: false }));
   }
 
+  // T-79: never a dead end. Loading, not found and failed keep the page's
+  // back control (the loaded page draws the same one in its header).
+  const stateBack = <BackLink testID="plan-all-plans" label={text.backLabel} onPress={goBack} />;
   if (status === 'loading') {
     return (
       <PlanPage testID="plan-screen">
+        {stateBack}
         <StateSlot>
           <Loader label="Loading plan" style={styles.loader} />
         </StateSlot>
@@ -580,6 +598,7 @@ function PlanBuilder({ planId, adapter }) {
   if (status === 'notFound') {
     return (
       <PlanPage testID="plan-screen">
+        {stateBack}
         <StateSlot>
           <EmptyState title="Plan not found" message={text.notFoundMessage} />
         </StateSlot>
@@ -592,6 +611,7 @@ function PlanBuilder({ planId, adapter }) {
   if (status === 'error') {
     return (
       <PlanPage testID="plan-screen">
+        {stateBack}
         <StateSlot>
           <ErrorAlert title="Could not load this plan" description={loadError} onRetry={loadPlan} />
         </StateSlot>
@@ -784,6 +804,19 @@ function PlanBuilder({ planId, adapter }) {
           affectedCount={affectedCount}
           description={text.editDetailsDescription}
           onSubmit={savePlanDetails}
+        />
+      ) : null}
+      {capabilities.copyPlan ? (
+        <EditPlanDetailsModal
+          copy
+          isOpen={copyOpen}
+          onClose={closeCopy}
+          plan={plan}
+          dayCount={days.length}
+          categories={categories}
+          levels={levels}
+          affectedCount={0}
+          onSubmit={saveCopyFromDialog}
         />
       ) : null}
       <PlanActionDialog

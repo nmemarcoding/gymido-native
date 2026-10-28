@@ -115,8 +115,10 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
       if (onEnded) {
         onEnded();
       } else {
-        // ⚠C-5: a push; back returns here, which then shows "Not your client".
-        navigation.push(routes.TrainerClients);
+        // T-79 (was ⚠C-5, a push whose back returned here as "Not your
+        // client"): back to the clients list already in the stack, so this
+        // client leaves the history; a deep link replaces it with the list.
+        navigation.popTo(routes.TrainerClients);
       }
     } catch (failure) {
       addToast(ToastTone.error, 'Could not end coaching', getServerMessage(failure));
@@ -203,7 +205,7 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
               message="This person isn’t one of your active clients. The relationship may have ended."
               actionLabel="Back to clients"
               actionTestID="client-back-to-clients"
-              onAction={() => (onBackToClients ? onBackToClients() : navigation.push(routes.TrainerClients))}
+              onAction={() => (onBackToClients ? onBackToClients() : navigation.popTo(routes.TrainerClients))}
             />
           </StateSlot>
         </>

@@ -27,7 +27,7 @@ import ClientDetailScreen from './ClientDetailScreen';
 // every state and action; Email (approved), VOLUME RULE, each action once.
 
 // T-65 (declared mock change): a previous entry, so the back pill goes back.
-const mockNavigation = { push: jest.fn(), canGoBack: jest.fn(() => true), goBack: jest.fn() };
+const mockNavigation = { push: jest.fn(), popTo: jest.fn(), canGoBack: jest.fn(() => true), goBack: jest.fn() };
 let mockParams = { clientUserId: 12 };
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => mockNavigation, useRoute: () => ({ params: mockParams }) }));
@@ -314,7 +314,9 @@ describe('Client detail, phone', () => {
     expect(texts(tree)).toContain('Mon');
   });
 
-  it('End coaching: the danger-outline button opens the dialog; success toasts and pushes Clients', async () => {
+  // DECLARED (T-79): was "…and pushes Clients" (push('TrainerClients'), whose Back returned to this
+  // ended client as "Not your client"). Now popTo: the list already in the stack, never a push.
+  it('End coaching: the danger-outline button opens the dialog; success toasts and pops to Clients', async () => {
     endCoaching.mockResolvedValue({});
     const tree = await render();
     const dialog = () => EndCoachingDialog.mock.calls.at(-1)[0];
@@ -327,7 +329,8 @@ describe('Client detail, phone', () => {
     await act(async () => dialog().onConfirm());
     expect(endCoaching).toHaveBeenCalledWith(12);
     expect(addToast).toHaveBeenCalledWith('success', 'Coaching ended', 'They keep their plan, schedule and history — it just isn’t managed by you now.');
-    expect(mockNavigation.push).toHaveBeenCalledWith('TrainerClients');
+    expect(mockNavigation.popTo).toHaveBeenCalledWith('TrainerClients');
+    expect(mockNavigation.push).not.toHaveBeenCalledWith('TrainerClients');
   });
 
   it('End coaching failure: error toast, the dialog closes, no navigation', async () => {

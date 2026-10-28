@@ -11,10 +11,10 @@ import { CheckIcon } from './HubIcons';
 // circle (C3). Each day is one screen-reader stop ("Thu: today, training").
 // Past the large-text reflow the strip wraps to 3 columns. A week WITH a
 // missed day wraps to 4 columns while the card's CONTENT (the strip itself,
-// inside the 14 padding + 1 border) is narrower than 352 ("Missed" needs ~46
-// of a 7th; RN-SPEC T-76, web 219447b5).
+// inside the 14 padding + 1 border) is narrower than 320: two "Missed" side by
+// side need 7 columns of ≥ 45.6 (RN-SPEC T-76, UX M1, web b6413372).
 const CIRCLE = 34;
-export const MISSED_WRAP_BELOW = 352;
+export const MISSED_WRAP_BELOW = 320;
 
 export default function HubWeekCard({ strip, progress, reflow = false, style }) {
   const [width, setWidth] = useState(0);

@@ -1,6 +1,7 @@
 import { StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
+import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { NBSP } from '../../../shared/format/counts';
 import { colors, textScale } from '../../../shared/theme/tokens';
 import { listDayExercises } from '../../plans/api/libraryApi';
@@ -41,6 +42,7 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 jest.mock('../../../shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn(() => Promise.resolve(null)), setItem: jest.fn(() => Promise.resolve()), removeItem: jest.fn(() => Promise.resolve()) }));
 jest.mock('../../plans/components/ScheduleSetupCard', () => (props) => {
   mockSetupProps = props;
@@ -76,6 +78,7 @@ const texts = (root) => root.findAll((node) => node.type === 'Text').map(textOf)
 // The pressable itself (role button), not a wrapper component with the same testID.
 const pressable = (root, id) =>
   root.findAll((node) => node.props.testID === id && typeof node.props.onPress === 'function' && node.props.accessibilityRole === 'button')[0];
+const confirmDialog = (tree) => tree.root.findAll((node) => node.type === ConfirmDialog && node.props.testID === 'workout-start-confirm')[0];
 const dayButtons = (root) =>
   root.findAll((node) => typeof node.props.testID === 'string' && /^workout-day-start-\d+$/.test(node.props.testID) && typeof node.props.onPress === 'function');
 
@@ -207,6 +210,8 @@ describe('state 1: training day (main board)', () => {
     await act(async () => {
       start.props.onPress();
     });
+    // T-80: today's planned workout stays ONE tap (no confirm).
+    expect(confirmDialog(tree)).toBeUndefined();
     expect(startWorkout).toHaveBeenCalledWith({ user_plan_enrollment_id: 31, workout_plan_day_id: 3 });
   });
 
@@ -232,7 +237,8 @@ describe('state 1: training day (main board)', () => {
     expect(textOf(host(tree.root, 'workout-week-count'))).toBe('1 of 4 done');
   });
 
-  it('a week with a missed day wraps the strip to 4 columns while the CONTENT width is under 352 (web 219447b5)', async () => {
+  // DECLARED (UX M1, web b6413372): the threshold is 320 (was 352): outer 349 wraps, 350 doesn't (was 381 / 382).
+  it('a week with a missed day wraps the strip to 4 columns while the CONTENT width is under 320 (UX M1)', async () => {
     const missed = WEEK.map((entry, index) => (index === 1 ? { ...entry, status: 'missed' } : entry));
     const tree = await renderScreen(hub({ week: missed }));
     // The strip is the card's content: outer width − 2 × (14 padding + 1 border).
@@ -240,10 +246,13 @@ describe('state 1: training day (main board)', () => {
     const inset = 2 * (card.paddingHorizontal + card.borderWidth);
     expect(inset).toBe(30);
     const layoutCard = (outer) => act(() => host(tree.root, 'workout-week-strip').props.onLayout({ nativeEvent: { layout: { width: outer - inset } } }));
-    layoutCard(381);
+    layoutCard(349);
     expect(flat(host(tree.root, 'workout-week-strip')).flexWrap).toBe('wrap');
     expect(flat(host(tree.root, 'workout-week-day-1')).width).toBe('25%');
-    layoutCard(382);
+    // A 390 phone's week card (outer ~358) is 7 across.
+    layoutCard(358);
+    expect(flat(host(tree.root, 'workout-week-strip')).flexWrap).toBeUndefined();
+    layoutCard(350);
     expect(flat(host(tree.root, 'workout-week-strip')).flexWrap).toBeUndefined();
     const plain = await renderScreen();
     act(() => host(plain.root, 'workout-week-strip').props.onLayout({ nativeEvent: { layout: { width: 300 } } }));
@@ -259,10 +268,63 @@ describe('state 1: training day (main board)', () => {
     expect(flat(order[0])).toMatchObject({ minHeight: 56 });
     expect(hosts(tree.root, 'workout-day-done-1')).toHaveLength(1);
     expect(hosts(tree.root, 'workout-day-done-4')).toHaveLength(0);
-    await act(async () => {
-      order[1].props.onPress();
-    });
+    // DECLARED (T-80): a row no longer starts at once (was: the press → startWorkout); it asks first.
+    act(() => order[1].props.onPress());
+    expect(startWorkout).not.toHaveBeenCalled();
+    expect(confirmDialog(tree).props).toMatchObject({ isOpen: true, title: 'Do Upper A again?' });
+    await act(async () => confirmDialog(tree).props.onConfirm());
+    expect(startWorkout).toHaveBeenCalledTimes(1);
     expect(startWorkout).toHaveBeenCalledWith({ user_plan_enrollment_id: 31, workout_plan_day_id: 1 });
+  });
+
+  it('T-80: Start {Day} instead? on a not-done row; Cancel (every dismiss) starts nothing; Start starts it once', async () => {
+    const tree = await renderScreen();
+    const row = dayButtons(tree.root)[0];
+    act(() => row.props.onPress());
+    expect(confirmDialog(tree).props).toMatchObject({
+      isOpen: true,
+      title: 'Start Lower B instead?',
+      description: 'Today’s plan is Upper B. This starts a live workout.',
+      confirmLabel: 'Start workout',
+      tone: 'primary',
+      hideClose: true,
+    });
+    act(() => confirmDialog(tree).props.onClose());
+    expect(confirmDialog(tree).props.isOpen).toBe(false);
+    expect(startWorkout).not.toHaveBeenCalled();
+    act(() => row.props.onPress());
+    await act(async () => confirmDialog(tree).props.onConfirm());
+    expect(startWorkout).toHaveBeenCalledTimes(1);
+    expect(startWorkout).toHaveBeenCalledWith({ user_plan_enrollment_id: 31, workout_plan_day_id: 4 });
+  });
+
+  it('UX M3: day names wrap between words only, 2 lines then an ellipsis', async () => {
+    const tree = await renderScreen();
+    expect(host(tree.root, 'workout-day-name-4').props).toMatchObject({
+      numberOfLines: 2,
+      ellipsizeMode: 'tail',
+      textBreakStrategy: 'simple',
+      android_hyphenationFrequency: 'none',
+      lineBreakStrategyIOS: 'standard',
+    });
+  });
+
+  it('UX M3: the row photo is 40 under 20rem of hub content and hidden under 15rem (rem = 16 × the text scale)', async () => {
+    const tree = await renderScreen();
+    const layoutHub = (width) => act(() => host(tree.root, 'workout-hub').props.onLayout({ nativeEvent: { layout: { width } } }));
+    layoutHub(358);
+    expect(flat(host(tree.root, 'workout-day-photo-4'))).toMatchObject({ width: 56, height: 56 });
+    layoutHub(300);
+    expect(flat(host(tree.root, 'workout-day-photo-4'))).toMatchObject({ width: 40, height: 40, borderRadius: 12 });
+    layoutHub(230);
+    expect(hosts(tree.root, 'workout-day-photo-4')).toHaveLength(0);
+    mockFontScale = 1.5;
+    const large = await renderScreen();
+    act(() => host(large.root, 'workout-hub').props.onLayout({ nativeEvent: { layout: { width: 400 } } }));
+    // At 1.5: 20rem = 480, 15rem = 360. 400 → 40; 358 → hidden.
+    expect(flat(host(large.root, 'workout-day-photo-4'))).toMatchObject({ width: 40 });
+    act(() => host(large.root, 'workout-hub').props.onLayout({ nativeEvent: { layout: { width: 358 } } }));
+    expect(hosts(large.root, 'workout-day-photo-4')).toHaveLength(0);
   });
 
   it('photos are lazy: today first, one call per day; a failed day draws the tile', async () => {
@@ -288,9 +350,12 @@ describe('state 2: rest day', () => {
     const early = pressable(tree.root, 'workout-start-early');
     expect(texts(early)).toEqual(['Start Lower B early']);
     expect(flat(early)).toMatchObject({ minHeight: 52, borderColor: colors.hairlineBright });
-    await act(async () => {
-      early.props.onPress();
-    });
+    // DECLARED (T-80): "Start {Day} early" asks first (was: the press → startWorkout at once).
+    act(() => early.props.onPress());
+    expect(startWorkout).not.toHaveBeenCalled();
+    expect(confirmDialog(tree).props).toMatchObject({ isOpen: true, title: 'Start Lower B today?', description: 'Today is a rest day. This starts a live workout.' });
+    await act(async () => confirmDialog(tree).props.onConfirm());
+    expect(startWorkout).toHaveBeenCalledTimes(1);
     expect(startWorkout).toHaveBeenCalledWith({ user_plan_enrollment_id: 31, workout_plan_day_id: 4 });
     expect(texts(host(tree.root, 'workout-other-days'))).toEqual(expect.arrayContaining(['Train anyway?', 'Tap a day to start it now.']));
     expect(hosts(tree.root, 'workout-day-start-3')).toHaveLength(1);
@@ -393,11 +458,11 @@ describe('states 7 and 8: loading and failed', () => {
     expect(textOf(host(tree.root, 'workout-skeleton-status'))).toBe('Loading your workout…');
   });
 
-  it('failed: "Workout unavailable", the transport message (else "Please try again."), "Try again" reloads', async () => {
-    const bare = await renderScreen({ ok: false, error: new Error('') });
-    expect(texts(host(bare.root, 'workout-error'))).toEqual(['Workout unavailable', 'Please try again.', 'Try again']);
+  // DECLARED (UX M2, web b6413372): reverses the round-1 rule: the body is ALWAYS "Please try again."
+  // (was the transport message, e.g. "Network Error").
+  it('failed: "Workout unavailable" / always "Please try again." (never the transport text); "Try again" reloads', async () => {
     const tree = await renderScreen({ ok: false, error: new Error('Network Error') });
-    expect(texts(host(tree.root, 'workout-error'))).toEqual(['Workout unavailable', 'Network Error', 'Try again']);
+    expect(texts(host(tree.root, 'workout-error'))).toEqual(['Workout unavailable', 'Please try again.', 'Try again']);
     loadWorkoutPage.mockClear();
     await act(async () => {
       pressable(tree.root, 'workout-error-retry').props.onPress();

@@ -18,11 +18,13 @@ const LOOKS = {
   },
 };
 
-export default function HubButton({ title, onPress, variant = 'gold', icon, loading = false, disabled = false, accessibilityLabel, testID, style }) {
+// `ref` (React 19, a plain prop) reaches the pressable, e.g. to return focus.
+export default function HubButton({ title, onPress, variant = 'gold', icon, loading = false, disabled = false, accessibilityLabel, testID, style, ref }) {
   const look = LOOKS[variant];
   const inactive = disabled || loading;
   return (
     <Pressable
+      ref={ref}
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? title}

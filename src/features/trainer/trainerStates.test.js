@@ -30,7 +30,7 @@ import TrainerDashboardScreen from './TrainerDashboardScreen';
 // 4.1.0 exact-email invite states): copy, kind, Retry presence and the
 // tablet/web placement (whole-page states in the centred 640 column).
 
-const mockNavigation = { push: jest.fn(), navigate: jest.fn(), goBack: jest.fn(), addListener: jest.fn(() => () => {}) };
+const mockNavigation = { push: jest.fn(), popTo: jest.fn(), navigate: jest.fn(), goBack: jest.fn(), addListener: jest.fn(() => () => {}) };
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => mockNavigation,
   useRoute: () => ({ key: 'route-1', name: 'TrainerRoute', params: { clientUserId: 7 } }),
@@ -212,7 +212,9 @@ describe('Client detail (rows 5-10)', () => {
     expect(empty.props.message).toBe('This person isn’t one of your active clients. The relationship may have ended.');
     expect(empty.props.actionLabel).toBe('Back to clients');
     await act(async () => empty.props.onAction());
-    expect(mockNavigation.push).toHaveBeenCalledWith('TrainerClients');
+    // DECLARED (T-79): was push('TrainerClients'); now popTo, so this screen leaves the back history.
+    expect(mockNavigation.popTo).toHaveBeenCalledWith('TrainerClients');
+    expect(mockNavigation.push).not.toHaveBeenCalledWith('TrainerClients');
     expect(retryButtons(tree)).toHaveLength(0);
   });
 

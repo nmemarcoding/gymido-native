@@ -300,7 +300,7 @@ function PlanDetail() {
         onSubmit={handleActivate}
         gold={scheduleGold}
       />
-      {isPublic ? <CopyToMyPlansCard planId={planId} /> : null}
+      {isPublic ? <CopyToMyPlansCard planId={planId} plan={plan} dayCount={days.length} /> : null}
     </View>
   );
 

@@ -626,7 +626,8 @@ describe('Guard: footer dismiss ⇒ footerDismiss (FINAL-AUDIT batch 1)', () => 
       expect(caller.text).toMatch(pattern);
     });
   });
-  const CONFIRM_NO_CLOSE = ['features/planGenerator/screens/PlanGeneratorPreviewScreen.js'];
+  // DECLARED (T-80, UX T80-start-confirm-copy "Footer Cancel → no ×"): + the hub's start confirm.
+  const CONFIRM_NO_CLOSE = ['features/planGenerator/screens/PlanGeneratorPreviewScreen.js', 'features/workout/screens/WorkoutScreen.js'];
   it('only the ConfirmDialogs whose boards draw no × at any width pass hideClose', () => {
     const withHide = walk(src)
       .map((file) => ({ file: path.relative(src, file).split(path.sep).join('/'), text: fs.readFileSync(file, 'utf8') }))

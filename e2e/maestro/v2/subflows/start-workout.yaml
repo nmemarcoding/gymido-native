@@ -81,6 +81,14 @@ appId: com.gymido.app
       - tapOn:
           id: "workout-day-start-.*"
           index: 0
+      # T-80 (DECLARED): a day other than today's planned one asks first
+      # ("Start {Day} …?"); confirm with its gold "Start workout".
+      - extendedWaitUntil:
+          visible:
+            id: "workout-start-confirm-confirm"
+          timeout: 10000
+      - tapOn:
+          id: "workout-start-confirm-confirm"
 # E1 (final pass 5f53f3d): on a fresh install the first start asks for
 # notifications (iOS: “Gymido” Would Like to Send You Notifications), which
 # covers the session. Optional, when visible only: declined, nothing changes.

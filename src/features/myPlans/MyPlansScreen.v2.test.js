@@ -23,6 +23,12 @@ jest.mock('./myPlanRoutes', () => ({
   myPlanRoutes: { MyPlans: 'MyPlans', MyPlanCreate: 'MyPlanCreate', MyPlan: 'MyPlan', PlanGenerator: 'PlanGenerator' },
 }));
 jest.mock('./api/myPlansApi', () => ({ listMyPlans: jest.fn(), isGeneratorAvailable: jest.fn(), copyToMyPlans: jest.fn() }));
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
+jest.mock('../trainer/plans/api/plansApi', () => ({
+  ...jest.requireActual('../trainer/plans/api/plansApi'),
+  listPlanCategories: jest.fn(() => Promise.resolve([])),
+  listDifficultyLevels: jest.fn(() => Promise.resolve([])),
+}));
 jest.mock('../../shared/components/toastStore', () => ({ ...jest.requireActual('../../shared/components/toastStore'), ToastTone: { success: 'success', error: 'error' }, addToast: jest.fn() }));
 
 import { StyleSheet } from 'react-native';
@@ -36,6 +42,7 @@ import { colors, gradients, radii, textScale } from '../../shared/theme/tokens';
 import { copyToMyPlans, isGeneratorAvailable, listMyPlans } from './api/myPlansApi';
 import CopyToMyPlansCard, { COPY_NO_ID_MESSAGE, COPY_SUCCESS_MESSAGE } from './components/CopyToMyPlansCard';
 import MyPlansScreen, { MY_PLANS_GLOW, MY_PLANS_GLOW_TABLET } from './MyPlansScreen';
+import EditPlanDetailsModal from '../trainer/plans/components/EditPlanDetailsModal';
 
 function textOf(node) {
   return []
@@ -228,38 +235,58 @@ describe('My plans large text (§9)', () => {
 });
 
 describe('Entry card + copy card (v2)', () => {
-  it('copy card: the v2 card, a glass full-width button; loading while copying', async () => {
+  // DECLARED (T-78, C10): these three pressed the button and expected the POST at once (loading on the
+  // tap; the success toast "…Give it a name."; the 403 line on the tap). Now the button opens "Name your
+  // copy" and the same outcomes follow its Save; the success toast drops "Give it a name.".
+  const copyDialog = (tree) => tree.root.findAll((node) => node.type === EditPlanDetailsModal && node.props.copy)[0];
+  async function openAndSave(tree, changes = {}) {
+    await act(async () => button(tree, 'copy-to-my-plans-button').props.onPress());
+    await act(async () => {
+      await copyDialog(tree).props.onSubmit(changes);
+    });
+  }
+
+  it('copy card: the v2 card, a glass full-width button; loading while the copy saves', async () => {
+    jest.useFakeTimers();
     copyToMyPlans.mockReturnValue(new Promise(() => {}));
-    const tree = await render(<CopyToMyPlansCard planId="12" />);
+    const tree = await render(<CopyToMyPlansCard planId="12" plan={{ id: 12, name: 'P' }} dayCount={3} />);
     expect(flat(host(tree, 'copy-to-my-plans'))).toEqual(expect.objectContaining({ borderRadius: radii.xxl, padding: 22, backgroundColor: colors.surface }));
     const copy = button(tree, 'copy-to-my-plans-button');
     expect([copy.props.variant, copy.props.fullWidth, copy.props.loading]).toEqual(['secondary', true, false]);
-    await act(async () => {
-      copy.props.onPress();
+    await act(async () => copy.props.onPress());
+    expect(button(tree, 'copy-to-my-plans-button').props.loading).toBe(false);
+    act(() => {
+      copyDialog(tree).props.onSubmit({});
     });
     expect([button(tree, 'copy-to-my-plans-button').props.loading, button(tree, 'copy-to-my-plans-button').props.disabled]).toEqual([true, true]);
+    jest.useRealTimers();
   });
 
-  it('copy success toasts: the name-the-copy message, or "Your copy is in My plans." without an id', async () => {
+  it('copy success toasts: "You’re now on your copy in My plans.", or "Your copy is in My plans." without an id', async () => {
+    jest.useFakeTimers();
     copyToMyPlans.mockResolvedValue({ id: 7 });
-    let tree = await render(<CopyToMyPlansCard planId="12" />);
-    await act(async () => button(tree, 'copy-to-my-plans-button').props.onPress());
+    let tree = await render(<CopyToMyPlansCard planId="12" plan={{ id: 12, name: 'P' }} dayCount={3} />);
+    await openAndSave(tree);
     expect(addToast).toHaveBeenLastCalledWith('success', 'Plan copied', COPY_SUCCESS_MESSAGE);
+    expect(COPY_SUCCESS_MESSAGE).toBe('You’re now on your copy in My plans.');
     copyToMyPlans.mockResolvedValue({});
-    tree = await render(<CopyToMyPlansCard planId="12" />);
-    await act(async () => button(tree, 'copy-to-my-plans-button').props.onPress());
+    tree = await render(<CopyToMyPlansCard planId="12" plan={{ id: 12, name: 'P' }} dayCount={3} />);
+    await openAndSave(tree);
     expect(addToast).toHaveBeenLastCalledWith('success', 'Plan copied', COPY_NO_ID_MESSAGE);
     expect(COPY_NO_ID_MESSAGE).toBe('Your copy is in My plans.');
+    jest.useRealTimers();
   });
 
-  it('copy error: the 403 on-hold sentence in danger text, role alert', async () => {
+  it('copy error (the POST failed, nothing created): the 403 on-hold sentence in danger text, role alert', async () => {
+    jest.useFakeTimers();
     copyToMyPlans.mockRejectedValue({ response: { status: 403, data: { message: 'Unavailable.' } } });
-    const tree = await render(<CopyToMyPlansCard planId="12" />);
-    await act(async () => button(tree, 'copy-to-my-plans-button').props.onPress());
+    const tree = await render(<CopyToMyPlansCard planId="12" plan={{ id: 12, name: 'P' }} dayCount={3} />);
+    await openAndSave(tree);
     const error = host(tree, 'copy-to-my-plans-error');
     expect(error.props.accessibilityRole).toBe('alert');
     expect(flat(error).color).toBe(colors.dangerText);
     expect(textOf(error)).toMatch(/^Unavailable\. They’re kept safe/);
+    jest.useRealTimers();
   });
 });
 

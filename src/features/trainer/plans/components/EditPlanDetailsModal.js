@@ -17,6 +17,7 @@ import {
 import { AffectsNoticeBox } from './AffectedClients';
 import { useBuilderLayout } from './builderParts';
 import { formatCount } from '../../../../shared/format/counts';
+import { COPY_DIALOG_TITLE, COPY_SAVE_LABEL } from '../copyOnSave';
 
 // Validation/server error key for each form field.
 const ERROR_KEYS = {
@@ -45,6 +46,10 @@ export default function EditPlanDetailsModal({
   affectedCount,
   description,
   onSubmit,
+  // T-78 (C10): "Name your copy": the same form, "Save copy" enabled even
+  // with nothing changed, its own test ids; the caller ignores dismissal
+  // while the save runs.
+  copy = false,
 }) {
   const { tablet, reflow } = useBuilderLayout();
   const [initial, setInitial] = useState(() => getEditPlanInitial(plan));
@@ -76,7 +81,7 @@ export default function EditPlanDetailsModal({
   }
 
   async function submit() {
-    if (saving || !hasChanges) {
+    if (saving || (!hasChanges && !copy)) {
       return;
     }
     const nextErrors = validateEditPlan(values);
@@ -108,22 +113,28 @@ export default function EditPlanDetailsModal({
 
   return (
     <AppModal
-      testID="edit-plan-modal"
+      testID={copy ? 'copy-plan-modal' : 'edit-plan-modal'}
       isOpen={isOpen}
       onClose={onClose}
-      title="Edit plan details"
+      title={copy ? COPY_DIALOG_TITLE : 'Edit plan details'}
       description={description}
       size="lg"
       // Dated 27 Oct 2026 (audit b2, UX R2-3): both actors' boards draw the ×
       // at every width (phone: the title row AND the footer Cancel).
       footer={
         <ModalActions fill>
-          <PillButton testID="edit-plan-cancel" title="Cancel" variant="secondary" size={tablet ? 'cta' : 'default'} onPress={onClose} />
           <PillButton
-            testID="edit-plan-save"
-            title="Save changes"
+            testID={copy ? 'copy-plan-cancel' : 'edit-plan-cancel'}
+            title="Cancel"
+            variant="secondary"
             size={tablet ? 'cta' : 'default'}
-            disabled={!hasChanges}
+            onPress={onClose}
+          />
+          <PillButton
+            testID={copy ? 'copy-plan-save' : 'edit-plan-save'}
+            title={copy ? COPY_SAVE_LABEL : 'Save changes'}
+            size={tablet ? 'cta' : 'default'}
+            disabled={!hasChanges && !copy}
             loading={saving}
             onPress={submit}
           />

@@ -262,3 +262,41 @@ export function dayRows({ planDays = [], schedule, doneIds = [], state, todayDay
   const lastDone = [...done.filter((row) => !isToday(row)), ...done.filter(isToday)];
   return [...rows.filter((row) => !row.done), ...lastDone];
 }
+
+// T-80 (owner; RN-SPEC-workout T-80 block, web 2b58551c): starting any day
+// other than today's planned, not-done workout asks first. Title + body per
+// context; Repeat (a day done this week) says so, then the context sentence;
+// repeating TODAY's own done day says only that it was done today.
+const LIVE = 'This starts a live workout.';
+
+function contextSentence(state, todayTitle) {
+  switch (state) {
+    case 'training':
+      return `Today’s plan is ${todayTitle}.`;
+    case 'rest':
+      return 'Today is a rest day.';
+    case 'todayDone':
+      return `You’ve already done ${todayTitle} today.`;
+    case 'weekComplete':
+      return 'Your week is complete, so this is an extra session.';
+    default:
+      return '';
+  }
+}
+
+export function startConfirmCopy({ state, title, done = false, isToday = false, todayTitle = '' }) {
+  const context = contextSentence(state, todayTitle);
+  if (done && isToday) {
+    return { title: `Do ${title} again?`, body: `You’ve already done ${title} today. ${LIVE}` };
+  }
+  if (done) {
+    return { title: `Do ${title} again?`, body: [`You already did ${title} this week.`, context, LIVE].filter(Boolean).join(' ') };
+  }
+  const titles = {
+    training: `Start ${title} instead?`,
+    rest: `Start ${title} today?`,
+    todayDone: `Start ${title} now?`,
+    weekComplete: `Do ${title} again?`,
+  };
+  return { title: titles[state] ?? `Start ${title} now?`, body: [context, LIVE].filter(Boolean).join(' ') };
+}

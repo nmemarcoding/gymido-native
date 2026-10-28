@@ -23,7 +23,8 @@ export const MEMBER_PLAN_TEXT = Object.freeze({
   planDeleteConflict: 'This plan can’t be deleted while you’re on it, or once it has workout history.',
   dayDeleteConflict: 'This day can’t be deleted while you’re on this plan, or once it has workout history.',
   // RN-SPEC-v2-phase4 §2 (approved 27 Oct): "Make a copy" of the member's own plan.
-  copiedMessage: 'You’re now on your copy in My plans. Give it a name.',
+  // T-78 (C10): the copy is named in the dialog before it exists.
+  copiedMessage: 'You’re now on your copy in My plans.',
   copiedFallbackMessage: 'Your copy is in My plans.',
   copyNotYoursCopy: 'This plan can’t be copied.',
 });
@@ -44,6 +45,8 @@ export function createMemberPlanAdapter(planId, ui = {}) {
       ...createPlanWrites(`/my-custom-plans/${planId}`),
       copyPlan: () => copyToMyPlans(planId),
     },
+    // T-78 (C10): the update/delete writes of a NEW copy (by its id).
+    copyWritesFor: (copyId) => createPlanWrites(`/my-custom-plans/${copyId}`),
     // No affected-clients call for members: every count UI stays hidden.
     countsClients: false,
     text: MEMBER_PLAN_TEXT,
@@ -51,10 +54,13 @@ export function createMemberPlanAdapter(planId, ui = {}) {
     backLinkHitArea: true,
     // T-65 (PHONE-NAV spec §3): "‹ My plans" goes back, else replaces to this parent.
     backPath: '/plans/mine',
-    openAfterDelete: (navigation) => navigation.push(myPlanRoutes.MyPlans),
+    // T-79: back to the list already in the stack (the deleted plan leaves
+    // the history); a deep link replaces the deleted plan with the list.
+    openAfterDelete: (navigation) => navigation.popTo(myPlanRoutes.MyPlans),
     openCreate: (navigation) => navigation.push(myPlanRoutes.MyPlanCreate),
-    // §M5 / C9: the copy's builder, Edit details opening once; T-16: no id → My plans.
-    openCopy: (navigation, copyId) => navigation.push(myPlanRoutes.MyPlan, { planId: copyId, nameTheCopy: true }),
+    // §M5 / C10: the copy's builder (named before it was created; no dialog
+    // opens there); T-16: no id → My plans.
+    openCopy: (navigation, copyId) => navigation.push(myPlanRoutes.MyPlan, { planId: copyId }),
     openCopyFallback: (navigation) => navigation.push(myPlanRoutes.MyPlans),
     look: 'member',
     renderOnHold: ui.renderOnHold,

@@ -5,6 +5,7 @@ import {
   effectiveWeek,
   hubState,
   muscleLine,
+  startConfirmCopy,
   todayDoneDetail,
   todayDurationMinutes,
   todayMeta,
@@ -242,5 +243,29 @@ describe('dayRows: Other days', () => {
     expect(OTHER_DAYS_COPY.todayDone.help).toBe('Want more? Tap a day to start it.');
     expect(OTHER_DAYS_COPY.weekComplete).toEqual({ title: 'Extra session', help: 'Tap a day to do it again.' });
     expect(OTHER_DAYS_COPY.noSchedule).toEqual({ title: 'Or start now', help: 'Tap any day to start it.' });
+  });
+});
+
+describe('T-80 startConfirmCopy: per context (UX T80 table)', () => {
+  const LIVE = 'This starts a live workout.';
+  it('a not-done day in each state', () => {
+    expect(startConfirmCopy({ state: 'training', title: 'Lower B', todayTitle: 'Upper B' })).toEqual({ title: 'Start Lower B instead?', body: `Today’s plan is Upper B. ${LIVE}` });
+    expect(startConfirmCopy({ state: 'rest', title: 'Lower B' })).toEqual({ title: 'Start Lower B today?', body: `Today is a rest day. ${LIVE}` });
+    expect(startConfirmCopy({ state: 'todayDone', title: 'Lower B', todayTitle: 'Upper B' })).toEqual({ title: 'Start Lower B now?', body: `You’ve already done Upper B today. ${LIVE}` });
+    expect(startConfirmCopy({ state: 'weekComplete', title: 'Lower B' })).toEqual({ title: 'Do Lower B again?', body: `Your week is complete, so this is an extra session. ${LIVE}` });
+    expect(startConfirmCopy({ state: 'noSchedule', title: 'Lower B' })).toEqual({ title: 'Start Lower B now?', body: LIVE });
+  });
+
+  it('Repeat a done day: "Do {Day} again?", then the context sentence when it applies', () => {
+    expect(startConfirmCopy({ state: 'rest', title: 'Upper A', done: true })).toEqual({ title: 'Do Upper A again?', body: `You already did Upper A this week. Today is a rest day. ${LIVE}` });
+    expect(startConfirmCopy({ state: 'training', title: 'Upper A', done: true, todayTitle: 'Upper B' }).body).toBe(`You already did Upper A this week. Today’s plan is Upper B. ${LIVE}`);
+    expect(startConfirmCopy({ state: 'noSchedule', title: 'Upper A', done: true }).body).toBe(`You already did Upper A this week. ${LIVE}`);
+  });
+
+  it('repeating TODAY\'s own done day: only "You’ve already done {Day} today."', () => {
+    expect(startConfirmCopy({ state: 'todayDone', title: 'Upper B', done: true, isToday: true, todayTitle: 'Upper B' })).toEqual({
+      title: 'Do Upper B again?',
+      body: `You’ve already done Upper B today. ${LIVE}`,
+    });
   });
 });

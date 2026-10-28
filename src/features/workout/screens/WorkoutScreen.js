@@ -5,9 +5,11 @@ import { AccessibilityInfo, StyleSheet, Text, View, findNodeHandle, useWindowDim
 import { getServerMessage } from '../../../shared/api/apiError';
 import { keepUnitsTogether } from '../../../shared/format/counts';
 import BackPill from '../../../shared/components/BackPill';
+import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { InlineToast } from '../../../shared/components/ToastHost';
 import { ToastTone } from '../../../shared/components/toastStore';
 import { CAP_BODY, DISPLAY_TITLE_TEXT } from '../../../shared/components/largeText';
+import { useSheetFocus } from '../../../shared/hooks/useSheetFocus';
 import { breakpoints, colors, font, spacing, textScale, titleTracking } from '../../../shared/theme/tokens';
 import { listDayExercises } from '../../plans/api/libraryApi';
 import ScheduleSetupCard from '../../plans/components/ScheduleSetupCard';
@@ -33,6 +35,7 @@ import {
   dayRows,
   effectiveWeek,
   hubState,
+  startConfirmCopy,
   todayDoneDetail,
   todayDurationMinutes,
   todayMeta,
@@ -350,7 +353,7 @@ function focus(ref) {
 // width, then the week and the other days side by side (1 : 1.15). Tablet
 // landscape: today and the week side by side (2 : 1), the other days below
 // as cards in auto columns (min 300). Past the large-text reflow: stacked.
-function Hub({ status, loadError, page, width, height = 0, actionError, successMessage, isStartingDayId, onRetry, onStart, onScheduleSaved, onBackToToday, fontScale = 1 }) {
+function Hub({ status, page, width, height = 0, actionError, successMessage, isStartingDayId, onRetry, onStart, onScheduleSaved, onBackToToday, fontScale = 1 }) {
   const tablet = width >= breakpoints.md;
   const reflow = fontScale > textScale.reflowAbove;
   const split = tablet && !reflow;
@@ -362,6 +365,15 @@ function Hub({ status, loadError, page, width, height = 0, actionError, successM
   // C2: "Choose training days" opens the schedule setup in place; focus goes
   // to its heading, and back to the button on Cancel.
   const [settingUp, setSettingUp] = useState(false);
+  // UX M3: the hub's content width picks the day rows' photo size.
+  const [contentWidth, setContentWidth] = useState(0);
+  // T-80: starting a day other than today's planned workout asks first.
+  // Focus returns to the row (or "Start early") when the dialog is cancelled.
+  const [confirm, setConfirm] = useState(null);
+  // Mounted on the first ask (and kept, for its close animation).
+  const [confirmMounted, setConfirmMounted] = useState(false);
+  const confirmReturnRef = useRef(null);
+  useSheetFocus(Boolean(confirm), { returnRef: confirmReturnRef });
   const headingRef = useRef(null);
   const chooseRef = useRef(null);
   const wasSettingUp = useRef(false);
@@ -395,7 +407,8 @@ function Hub({ status, loadError, page, width, height = 0, actionError, successM
     return (
       <View style={pageStyle}>
         {header}
-        <WorkoutErrorState message={loadError?.message || 'Please try again.'} onRetry={onRetry} />
+        {/* UX M2 (RN-SPEC T-76): the body is always "Please try again." */}
+        <WorkoutErrorState onRetry={onRetry} />
       </View>
     );
   }
@@ -423,6 +436,30 @@ function Hub({ status, loadError, page, width, height = 0, actionError, successM
   const todayCount = planDays.find((day) => day.id === todayDayId)?.exercises_count ?? todayStatus?.plan_day?.exercises_count;
   const todayExercises = exercisesByDay[todayDayId];
   const rows = dayRows({ planDays, schedule: currentPlan.schedule, doneIds: page.completedThisWeekDayIds, state, todayDayId });
+  // T-80: a row (Start or Repeat) or "Start {Day} early": the copy for this context.
+  const requestStart = (day, ref) => {
+    confirmReturnRef.current = ref?.current ?? null;
+    setConfirmMounted(true);
+    setConfirm({ dayId: day.dayId, ...startConfirmCopy({ state, title: day.title, done: Boolean(day.done), isToday: day.dayId === todayDayId, todayTitle }) });
+  };
+  const confirmDialog = confirmMounted ? (
+    <ConfirmDialog
+      testID="workout-start-confirm"
+      isOpen={Boolean(confirm)}
+      onClose={() => setConfirm(null)}
+      onConfirm={() => {
+        const dayId = confirm.dayId;
+        confirmReturnRef.current = null;
+        setConfirm(null);
+        onStart(dayId);
+      }}
+      title={confirm?.title ?? ''}
+      description={confirm?.body}
+      confirmLabel="Start workout"
+      tone="primary"
+      hideClose
+    />
+  ) : null;
   const todayCard =
     state === 'noSchedule' && settingUp ? (
       <ScheduleSetupCard
@@ -453,7 +490,7 @@ function Hub({ status, loadError, page, width, height = 0, actionError, successM
         upNextExercises={next ? exercisesByDay[next.dayId] : undefined}
         starting={isStartingDayId != null && (isStartingDayId === todayDayId || isStartingDayId === next?.dayId)}
         onStart={() => onStart(todayDayId)}
-        onStartEarly={onStart}
+        onStartEarly={requestStart}
         onViewProgress={() => openShellPath('/progress')}
         onChooseDays={() => setSettingUp(true)}
         chooseRef={chooseRef}
@@ -467,15 +504,18 @@ function Hub({ status, loadError, page, width, height = 0, actionError, successM
       rows={rows}
       exercisesByDay={exercisesByDay}
       startingDayId={isStartingDayId}
-      onStart={onStart}
+      onStart={requestStart}
+      contentWidth={contentWidth}
+      fontScale={fontScale}
       cards={landscape}
       style={split && !landscape && weekCard ? styles.splitDays : null}
     />
   ) : null;
 
+  const measure = (event) => setContentWidth(event.nativeEvent.layout.width);
   if (landscape && weekCard) {
     return (
-      <View style={pageStyle}>
+      <View style={pageStyle} onLayout={measure}>
         {toasts}
         {header}
         <View testID="workout-split" style={styles.split}>
@@ -485,12 +525,13 @@ function Hub({ status, loadError, page, width, height = 0, actionError, successM
           {weekCard}
         </View>
         {otherDays}
+        {confirmDialog}
       </View>
     );
   }
 
   return (
-    <View style={pageStyle}>
+    <View testID="workout-hub" style={pageStyle} onLayout={measure}>
       {toasts}
       {header}
       {todayCard}
@@ -505,6 +546,7 @@ function Hub({ status, loadError, page, width, height = 0, actionError, successM
           {otherDays}
         </>
       )}
+      {confirmDialog}
     </View>
   );
 }

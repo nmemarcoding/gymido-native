@@ -18,9 +18,11 @@ import { getCurrentPlan } from '../../../myPlans/api/myPlansApi';
 import DayListCard from '../components/DayListCard';
 import ExerciseCard from '../components/ExerciseCard';
 import { OVERFLOW_HANDOFF_MS } from '../components/PlanOverflowSheet';
+import EditPlanDetailsModal from '../components/EditPlanDetailsModal';
 import StaticExerciseList from '../components/StaticExerciseList';
 import { createTrainerPlanAdapter } from '../trainerPlanAdapter';
 import { SharedPlanScreen } from './PlanScreen';
+import { SHEET_FOCUS_DELAY_MS } from '../../../../shared/hooks/useSheetFocus';
 
 // RN-SPEC-v2-phase4 §2 + UX phase4 I §1-3 / phase6 O builder: the shared
 // builder's v2 layouts (member + trainer, phone + tablet), the approved
@@ -92,6 +94,12 @@ function setRoutes({ root = '/my-custom-plans/9', plan = PLAN, days = DAYS, exer
   ];
   apiClient.get.mockImplementation((url) => routeGet(url));
 }
+
+// Some tests open sheets on real timers; their delayed focus (SHEET_FOCUS_DELAY_MS) must run before the
+// environment is torn down (a latent issue at HEAD too, seen once the suite's last tests got faster).
+afterAll(async () => {
+  await new Promise((done) => setTimeout(done, SHEET_FOCUS_DELAY_MS + 100));
+});
 
 const flush = async () => {
   for (let i = 0; i < 6; i += 1) {
@@ -252,7 +260,12 @@ describe('member builder, phone (UX I §1)', () => {
   });
 });
 
-describe('member "Make a copy" (RN-SPEC-v2-phase4 §2)', () => {
+// DECLARED (T-78, RN-SPEC-TRAINER-PLANS C10, supersedes C9): the copy is created only on "Save copy".
+// Was: "posts the own plan id, toasts and opens the copy with Edit details once" (POST on tap,
+// nameTheCopy push, toast "...Give it a name."), "no id", "404/403" and "one request at a time" on
+// the tap. Now: the tap opens "Name your copy" with no request; every dismiss sends nothing; Save =
+// POST (+ PATCH of the COPY with the changed fields); a failed PATCH deletes the copy at once.
+describe('member "Make a copy" (T-78: Name your copy, created only on Save)', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     setRoutes();
@@ -267,47 +280,146 @@ describe('member "Make a copy" (RN-SPEC-v2-phase4 §2)', () => {
     });
     await flush();
   }
+  const dialog = (tree) => tree.root.findAll((node) => node.type === EditPlanDetailsModal && node.props.copy)[0];
+  async function save(tree, changes) {
+    let result;
+    await act(async () => {
+      result = await dialog(tree).props.onSubmit(changes);
+    });
+    await flush();
+    return result;
+  }
 
-  it('posts the own plan id, toasts and opens the copy with Edit details once', async () => {
-    apiClient.post.mockReturnValue(ok({ plan: { id: 44 } }));
+  it('the tap opens "Name your copy" for THIS plan and sends nothing', async () => {
     const tree = await renderMember();
     await copyFromOverflow(tree);
+    expect(dialog(tree).props).toMatchObject({ isOpen: true, copy: true, affectedCount: 0 });
+    expect(dialog(tree).props.plan.id).toBe(9);
+    expect(apiClient.post).not.toHaveBeenCalledWith('/my-custom-plans/copies', expect.anything());
+  });
+
+  it('every dismiss path (Cancel, ✕, swipe, Android back = onClose) closes it with no request', async () => {
+    const tree = await renderMember();
+    await copyFromOverflow(tree);
+    act(() => dialog(tree).props.onClose());
+    expect(dialog(tree).props.isOpen).toBe(false);
+    expect(apiClient.post).not.toHaveBeenCalledWith('/my-custom-plans/copies', expect.anything());
+    expect(apiClient.patch).not.toHaveBeenCalled();
+    expect(apiClient.delete).not.toHaveBeenCalled();
+  });
+
+  it('Save with nothing changed: the POST only, the toast, the copy opens (no dialog flag)', async () => {
+    apiClient.post.mockReturnValueOnce(ok({ plan: { id: 44 } }));
+    const tree = await renderMember();
+    await copyFromOverflow(tree);
+    await save(tree, {});
     expect(apiClient.post).toHaveBeenCalledWith('/my-custom-plans/copies', { workout_plan_id: 9 });
-    expect(addToast).toHaveBeenCalledWith('success', 'Plan copied', 'You’re now on your copy in My plans. Give it a name.');
-    expect(mockNavigation.push).toHaveBeenCalledWith('MyPlan', { planId: 44, nameTheCopy: true });
+    expect(apiClient.patch).not.toHaveBeenCalled();
+    expect(addToast).toHaveBeenCalledWith('success', 'Plan copied', 'You’re now on your copy in My plans.');
+    expect(mockNavigation.push).toHaveBeenCalledWith('MyPlan', { planId: 44 });
+    expect(dialog(tree).props.isOpen).toBe(false);
+  });
+
+  it('Save with a change: POST, then PATCH the COPY with the changed fields only', async () => {
+    apiClient.post.mockReturnValueOnce(ok({ plan: { id: 44 } }));
+    apiClient.patch.mockReturnValueOnce(ok({ plan: { id: 44, name: 'Mine' } }));
+    const tree = await renderMember();
+    await copyFromOverflow(tree);
+    await save(tree, { name: 'Mine' });
+    expect(apiClient.patch).toHaveBeenCalledWith('/my-custom-plans/44', { name: 'Mine' });
+    expect(apiClient.delete).not.toHaveBeenCalled();
+    expect(mockNavigation.push).toHaveBeenCalledWith('MyPlan', { planId: 44 });
+  });
+
+  it('a 422 PATCH: the copy is DELETEd at once, the dialog stays open with the field errors; Save copies again', async () => {
+    apiClient.post.mockReturnValue(ok({ plan: { id: 44 } }));
+    apiClient.patch.mockRejectedValueOnce({ response: { status: 422, data: { errors: { name: ['Name is taken.'] } } } });
+    apiClient.delete.mockReturnValueOnce(ok({}));
+    const tree = await renderMember();
+    await copyFromOverflow(tree);
+    expect(await save(tree, { name: 'Dup' })).toEqual({ name: 'Name is taken.' });
+    expect(apiClient.delete).toHaveBeenCalledWith('/my-custom-plans/44');
+    expect(dialog(tree).props.isOpen).toBe(true);
+    expect(mockNavigation.push).not.toHaveBeenCalled();
+    apiClient.patch.mockReturnValueOnce(ok({ plan: { id: 44 } }));
+    await save(tree, { name: 'Other' });
+    expect(apiClient.post.mock.calls.filter(([url]) => url === '/my-custom-plans/copies')).toHaveLength(2);
+    expect(mockNavigation.push).toHaveBeenCalledWith('MyPlan', { planId: 44 });
+  });
+
+  it('any other PATCH failure: DELETE + the "Could not save your copy" toast, the dialog stays open', async () => {
+    apiClient.post.mockReturnValueOnce(ok({ plan: { id: 44 } }));
+    apiClient.patch.mockRejectedValueOnce({ response: { status: 500, data: { message: 'Server down' } } });
+    apiClient.delete.mockReturnValueOnce(ok({}));
+    const tree = await renderMember();
+    await copyFromOverflow(tree);
+    expect(await save(tree, { name: 'X' })).toBeNull();
+    expect(apiClient.delete).toHaveBeenCalledWith('/my-custom-plans/44');
+    expect(addToast).toHaveBeenLastCalledWith('error', 'Could not save your copy', 'Server down');
+    expect(dialog(tree).props.isOpen).toBe(true);
+  });
+
+  it('the PATCH and the DELETE both fail: the copy opens with "Copied, but the details didn’t save"', async () => {
+    apiClient.post.mockReturnValueOnce(ok({ plan: { id: 44 } }));
+    apiClient.patch.mockRejectedValueOnce({ response: { status: 500 } });
+    apiClient.delete.mockRejectedValueOnce({ response: { status: 500 } });
+    const tree = await renderMember();
+    await copyFromOverflow(tree);
+    await save(tree, { name: 'X' });
+    expect(addToast).toHaveBeenLastCalledWith('error', 'Copied, but the details didn’t save', 'Your copy is open: edit its details to try again.');
+    expect(mockNavigation.push).toHaveBeenCalledWith('MyPlan', { planId: 44 });
+    expect(dialog(tree).props.isOpen).toBe(false);
   });
 
   it('no id in the response: "Your copy is in My plans." and My plans', async () => {
-    apiClient.post.mockReturnValue(ok({}));
+    apiClient.post.mockReturnValueOnce(ok({}));
     const tree = await renderMember();
     await copyFromOverflow(tree);
+    await save(tree, {});
     expect(addToast).toHaveBeenCalledWith('success', 'Plan copied', 'Your copy is in My plans.');
     expect(mockNavigation.push).toHaveBeenCalledWith('MyPlans');
   });
 
-  it('404 → "This plan can’t be copied."; 403 → the server message', async () => {
+  it('a failed POST creates nothing: 404 → "This plan can’t be copied."; 403 → the server message; the dialog closes', async () => {
     apiClient.post.mockRejectedValueOnce({ response: { status: 404, data: { message: 'Nope' } } });
     let tree = await renderMember();
     await copyFromOverflow(tree);
+    await save(tree, {});
     expect(addToast).toHaveBeenLastCalledWith('error', 'Could not copy the plan', 'This plan can’t be copied.');
+    expect(dialog(tree).props.isOpen).toBe(false);
     apiClient.post.mockRejectedValueOnce({ response: { status: 403, data: { message: 'Your trainer manages your plans.' } } });
     tree = await renderMember();
     await copyFromOverflow(tree);
+    await save(tree, {});
     expect(addToast).toHaveBeenLastCalledWith('error', 'Could not copy the plan', 'Your trainer manages your plans.');
+    expect(apiClient.patch).not.toHaveBeenCalled();
+    expect(apiClient.delete).not.toHaveBeenCalled();
   });
 
-  it('one request at a time: the tablet button is loading and a second tap does nothing', async () => {
+  it('single-flight: a second Save and any dismiss are ignored while the save runs; the tablet button shows loading', async () => {
     mockWidth = 834;
     let resolve;
-    apiClient.post.mockReturnValue(new Promise((done) => (resolve = done)));
+    apiClient.post.mockReturnValueOnce(new Promise((done) => (resolve = done)));
     const tree = await renderMember();
     await press(tree, 'plan-make-copy');
+    let first;
+    act(() => {
+      first = dialog(tree).props.onSubmit({});
+    });
     expect(pill(tree, 'plan-make-copy').props.loading).toBe(true);
-    pill(tree, 'plan-make-copy').props.onPress();
-    expect(apiClient.post).toHaveBeenCalledTimes(1);
-    await act(async () => resolve({ data: { data: { plan: { id: 5 } } } }));
+    await act(async () => {
+      expect(await dialog(tree).props.onSubmit({})).toBeNull();
+    });
+    act(() => dialog(tree).props.onClose());
+    expect(dialog(tree).props.isOpen).toBe(true);
+    expect(apiClient.post.mock.calls.filter(([url]) => url === '/my-custom-plans/copies')).toHaveLength(1);
+    await act(async () => {
+      resolve({ data: { data: { plan: { id: 5 } } } });
+      await first;
+    });
     await flush();
     expect(pill(tree, 'plan-make-copy').props.loading).toBe(false);
+    expect(mockNavigation.push).toHaveBeenCalledWith('MyPlan', { planId: 5 });
   });
 });
 
@@ -399,12 +511,23 @@ describe('trainer builder (phase6 O)', () => {
     expect(pill(tree, 'plan-add-day').props.variant).toBe('ghost');
   });
 
+  // DECLARED (T-78): the tap now opens "Name your copy"; the POST runs on its Save.
   it('copy without an id: "Your copy is in the plans list." → the plans list', async () => {
-    apiClient.post.mockReturnValue(ok({}));
+    // Fake timers: the dialog's focus timer must not outlive the test.
+    jest.useFakeTimers();
+    apiClient.post.mockReturnValueOnce(ok({}));
     const tree = await renderTrainer();
     await press(tree, 'plan-make-copy');
+    expect(apiClient.post).not.toHaveBeenCalledWith('/trainer/plans/copies', expect.anything());
+    const copyDialog = tree.root.findAll((node) => node.type === EditPlanDetailsModal && node.props.copy)[0];
+    await act(async () => {
+      await copyDialog.props.onSubmit({});
+    });
+    await flush();
+    expect(apiClient.post).toHaveBeenCalledWith('/trainer/plans/copies', { workout_plan_id: 9 });
     expect(addToast).toHaveBeenCalledWith('success', 'Plan copied', 'Your copy is in the plans list.');
     expect(mockNavigation.push).toHaveBeenCalledWith('TrainerPlans');
+    jest.useRealTimers();
   });
 
   it('catalog plan: chip "Plan", the public notice with the gold "Copy this plan", no overflow, the static list', async () => {
@@ -455,6 +578,26 @@ describe('builder confirms (a11y ruling: alert-style, Cancel first, blocked whil
     await press(tree, 'plan-action-dialog-confirm');
     expect(pill(tree, 'plan-action-dialog-confirm').props).toMatchObject({ title: 'Deactivate plan', variant: 'primary' });
     expect(allText(tree)).toContain('On it');
+    jest.useRealTimers();
+  });
+
+  it('T-79: a deleted plan pops to My plans (it leaves the back history), never a push', async () => {
+    jest.useFakeTimers();
+    mockNavigation.popTo = jest.fn();
+    apiClient.delete.mockReturnValueOnce(ok({ plan: { id: 9 } }));
+    const tree = await renderMember();
+    await press(tree, 'plan-overflow');
+    await press(tree, 'plan-overflow-delete');
+    await act(async () => jest.advanceTimersByTime(OVERFLOW_HANDOFF_MS));
+    await flush();
+    await press(tree, 'plan-action-dialog-confirm');
+    await flush();
+    expect(apiClient.delete).toHaveBeenCalledWith('/my-custom-plans/9');
+    expect(mockNavigation.popTo).toHaveBeenCalledWith('MyPlans');
+    expect(mockNavigation.push).not.toHaveBeenCalledWith('MyPlans');
+    delete mockNavigation.popTo;
+    // The closed dialog's return-focus timer runs here, not after the test.
+    await act(async () => jest.runOnlyPendingTimers());
     jest.useRealTimers();
   });
 });
@@ -631,4 +774,27 @@ describe('T-65 back control (builder)', () => {
     expect(mockNavigation.replace).toHaveBeenCalledWith('TrainerPlans');
     expect(mockNavigation.push).not.toHaveBeenCalledWith('TrainerPlans');
   });
+
+  // T-79: the loading, "Plan not found" and failed states are never a dead end.
+  it.each([
+    ['loading', () => new Promise(() => {}), null],
+    ['not found', () => Promise.reject({ response: { status: 404 } }), 'Plan not found'],
+    ['failed', () => Promise.reject({ response: { status: 500, data: { message: 'Down' } } }), 'Could not load this plan'],
+  ])('T-79 %s: the page\'s back pill shows and goes back', async (_name, header, title) => {
+    // Fake timers: the loading spinner's animation must not outlive the test.
+    jest.useFakeTimers();
+    Object.assign(mockNavigation, { canGoBack: jest.fn(() => true), goBack: jest.fn(), replace: jest.fn(), getState: jest.fn(() => ({ routeNames: ['PlansLibrary', 'MyPlans', 'MyPlan'] })) });
+    setRoutes();
+    const routes = apiClient.get.getMockImplementation();
+    apiClient.get.mockImplementation((url) => (url === '/my-custom-plans/9' ? header() : routes(url)));
+    const tree = await renderMember();
+    if (title) {
+      expect(allText(tree)).toContain(title);
+    }
+    expect(press(tree).props.accessibilityLabel ?? press(tree).props.label).toBe('My plans');
+    await act(async () => press(tree).props.onPress());
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+    jest.useRealTimers();
+  });
+
 });

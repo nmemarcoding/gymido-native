@@ -470,3 +470,32 @@ describe('T-76 hub flow ids', () => {
     expect(steps(read('subflows/start-workout.yaml'))).toMatch(/id: "workout-day-start-\.\*"/);
   });
 });
+
+// T-80 (28 Oct 2026): starting a non-today day from the hub asks first; the subflow confirms it.
+describe('T-80 start-workout confirms a non-today day', () => {
+  const steps = (src) => src.split('\n').filter((line) => !line.trim().startsWith('#')).join('\n');
+  it('after tapping a day row it waits for and taps the confirm\'s "Start workout"', () => {
+    const flow = steps(fs.readFileSync(path.join(V2, 'subflows/start-workout.yaml'), 'utf8'));
+    const row = flow.indexOf('id: "workout-day-start-.*"\n          index: 0');
+    const confirm = flow.indexOf('tapOn:\n          id: "workout-start-confirm-confirm"');
+    expect(row).toBeGreaterThan(-1);
+    expect(confirm).toBeGreaterThan(row);
+    // Today's own Start stays one tap: no confirm step in the hero branch.
+    const hero = flow.slice(flow.indexOf('id: "workout-hero-start"\n'), row);
+    expect(hero).not.toMatch(/workout-start-confirm/);
+  });
+});
+
+// T-78 (28 Oct 2026): the make-a-copy flow names the copy BEFORE it exists.
+describe('T-78 member make-a-copy flow', () => {
+  const steps = (src) => src.split('\n').filter((line) => !line.trim().startsWith('#')).join('\n');
+  it('cancels "Name your copy" once, then saves; never waits for the retired auto-opened Edit details', () => {
+    const flow = steps(fs.readFileSync(path.join(V2, 'phase4/05-member-make-a-copy.yaml'), 'utf8'));
+    const cancel = flow.indexOf('id: "copy-plan-cancel"');
+    const save = flow.indexOf('id: "copy-plan-save"');
+    expect(cancel).toBeGreaterThan(-1);
+    expect(save).toBeGreaterThan(cancel);
+    expect(flow).not.toMatch(/visible:\n\s+id: "edit-plan-modal"\n\s+timeout/);
+    expect(flow).not.toMatch(/id: "edit-plan-cancel"/);
+  });
+});

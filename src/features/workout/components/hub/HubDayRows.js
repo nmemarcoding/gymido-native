@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import ExerciseImage from '../../../../shared/components/ExerciseImage';
@@ -16,7 +16,21 @@ import { CheckIcon, ChevronRightIcon } from './HubIcons';
 export const CARD_MIN_WIDTH = 300;
 const CARD_GAP = 12;
 
-export default function HubDayRows({ copy, rows, exercisesByDay, startingDayId, onStart, cards = false, style }) {
+// UX M3 (RN-SPEC T-76): names wrap between words only, 2 lines then an
+// ellipsis; the photo is 40 while the hub's content is under 20rem (320 ×
+// the text scale, as a web rem) and hidden under 15rem.
+export function rowPhotoSize(contentWidth, fontScale = 1) {
+  if (!contentWidth) {
+    return 56;
+  }
+  if (contentWidth < 240 * fontScale) {
+    return 0;
+  }
+  return contentWidth < 320 * fontScale ? 40 : 56;
+}
+
+export default function HubDayRows({ copy, rows, exercisesByDay, startingDayId, onStart, cards = false, contentWidth = 0, fontScale = 1, style }) {
+  const photoSize = rowPhotoSize(contentWidth, fontScale);
   const [width, setWidth] = useState(0);
   const columns = cards && width > 0 ? Math.max(1, Math.floor((width + CARD_GAP) / (CARD_MIN_WIDTH + CARD_GAP))) : 1;
   const cardWidth = columns > 1 ? (width - CARD_GAP * (columns - 1)) / columns : undefined;
@@ -26,9 +40,10 @@ export default function HubDayRows({ copy, rows, exercisesByDay, startingDayId, 
       row={row}
       last={cards || index === rows.length - 1}
       exercises={exercisesByDay[row.dayId]}
+      photoSize={photoSize}
       starting={startingDayId === row.dayId}
       disabled={startingDayId != null}
-      onPress={() => onStart(row.dayId)}
+      onPress={(ref) => onStart(row, ref)}
       style={cards ? [styles.card, cardWidth ? { width: cardWidth } : styles.fullWidth] : null}
     />
   ));
@@ -53,33 +68,47 @@ export default function HubDayRows({ copy, rows, exercisesByDay, startingDayId, 
   );
 }
 
-function DayRow({ row, last, exercises, starting, disabled, onPress, style }) {
+// `onPress(ref)`: the row's own ref, so a dialog can return focus to it.
+function DayRow({ row, last, exercises, photoSize = 56, starting, disabled, onPress, style }) {
   const first = exercises?.[0]?.exercise;
+  const ref = useRef(null);
   return (
     <Pressable
+      ref={ref}
       testID={`workout-day-start-${row.dayId}`}
       accessibilityRole="button"
       accessibilityLabel={row.action}
       accessibilityState={{ disabled, busy: starting }}
       disabled={disabled}
-      onPress={onPress}
+      onPress={() => onPress(ref)}
       style={[styles.row, !last && styles.divider, style]}
     >
       {({ pressed }) => (
         <>
           {pressed ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.pressed]} /> : null}
-          <View style={row.done && styles.faded}>
-            <ExerciseImage
-              testID={`workout-day-photo-${row.dayId}`}
-              exercise={first ?? null}
-              name={first ? undefined : row.title}
-              loading={exercises === undefined}
-              size={56}
-              style={styles.photo}
-            />
-          </View>
+          {photoSize ? (
+            <View style={row.done && styles.faded}>
+              <ExerciseImage
+                testID={`workout-day-photo-${row.dayId}`}
+                exercise={first ?? null}
+                name={first ? undefined : row.title}
+                loading={exercises === undefined}
+                size={photoSize}
+                style={[styles.photo, photoSize === 40 && styles.photoSmall]}
+              />
+            </View>
+          ) : null}
           <View style={styles.text}>
-            <Text {...CAP_BODY} style={[styles.name, row.done && styles.nameDone]}>
+            <Text
+              testID={`workout-day-name-${row.dayId}`}
+              {...CAP_BODY}
+              numberOfLines={2}
+              ellipsizeMode="tail"
+              textBreakStrategy="simple"
+              android_hyphenationFrequency="none"
+              lineBreakStrategyIOS="standard"
+              style={[styles.name, row.done && styles.nameDone]}
+            >
               {row.title}
             </Text>
             {row.done ? (
@@ -169,6 +198,11 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 14,
+  },
+  photoSmall: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
   },
   text: {
     flex: 1,

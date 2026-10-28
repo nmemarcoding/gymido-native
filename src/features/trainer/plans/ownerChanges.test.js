@@ -3,7 +3,7 @@ import { PlanAction, getActionCopy } from './planActions';
 import { getNextSetNumber } from './planFormat';
 import { TRAINER_PLAN_TEXT, createTrainerPlanAdapter } from './trainerPlanAdapter';
 
-jest.mock('../../../shared/api/client', () => ({ apiClient: { get: jest.fn(), post: jest.fn() } }));
+jest.mock('../../../shared/api/client', () => ({ apiClient: { get: jest.fn(), post: jest.fn(), patch: jest.fn(), delete: jest.fn() } }));
 
 describe('builderMessage (§A3.7, C4)', () => {
   const notYours = 'Not yours.';
@@ -70,14 +70,30 @@ describe('Part C copy', () => {
     expect(canEditPlan(catalog)).toBe(false);
   });
 
-  it('posts the plan id as a number and lands on a flagged fresh T3', async () => {
+  // DECLARED (T-78, C10 supersedes C9): was "lands on a flagged fresh T3" ({ planId: 99, nameTheCopy: true }).
+  // The copy is named before it exists, so the fresh T3 opens with no dialog flag; the copy's own writes
+  // (PATCH / DELETE on the COPY id) come from copyWritesFor.
+  it('posts the plan id as a number and lands on a fresh T3 with no dialog flag; the copy\'s writes target its id', async () => {
     apiClient.post.mockResolvedValueOnce({ data: { data: { plan: { id: 99 } } } });
     const adapter = createTrainerPlanAdapter('5');
     await expect(adapter.mutations.copyPlan()).resolves.toEqual({ id: 99 });
     expect(apiClient.post).toHaveBeenLastCalledWith('/trainer/plans/copies', { workout_plan_id: 5 });
     const navigation = { push: jest.fn() };
     adapter.openCopy(navigation, 99);
-    expect(navigation.push).toHaveBeenCalledWith('TrainerPlan', { planId: 99, nameTheCopy: true });
+    expect(navigation.push).toHaveBeenCalledWith('TrainerPlan', { planId: 99 });
+    apiClient.patch.mockResolvedValueOnce({ data: { data: { plan: { id: 99 } } } });
+    apiClient.delete.mockResolvedValueOnce({ data: { data: {} } });
+    await adapter.copyWritesFor(99).updatePlan({ name: 'N' });
+    await adapter.copyWritesFor(99).deletePlan();
+    expect(apiClient.patch).toHaveBeenLastCalledWith('/trainer/plans/99', { name: 'N' });
+    expect(apiClient.delete).toHaveBeenLastCalledWith('/trainer/plans/99');
+  });
+
+  it('T-79: after a delete it pops to the plans list (the deleted plan leaves the back history)', () => {
+    const navigation = { popTo: jest.fn(), push: jest.fn() };
+    createTrainerPlanAdapter('5').openAfterDelete(navigation);
+    expect(navigation.popTo).toHaveBeenCalledWith('TrainerPlans');
+    expect(navigation.push).not.toHaveBeenCalled();
   });
 
   it('uses the not-yours copy for a 404', () => {

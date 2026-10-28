@@ -1,6 +1,7 @@
 import { act, create } from 'react-test-renderer';
 
 import { copyToMyPlans, isGeneratorAvailable, listMyPlans } from './api/myPlansApi';
+import EditPlanDetailsModal from '../trainer/plans/components/EditPlanDetailsModal';
 import CopyToMyPlansCard from './components/CopyToMyPlansCard';
 import MyPlansScreen from './MyPlansScreen';
 
@@ -19,6 +20,16 @@ jest.mock('../shell/ShellPage', () => {
 // the test covers the button logic whatever screens the build ships.
 jest.mock('./myPlanRoutes', () => ({
   myPlanRoutes: { MyPlans: 'MyPlans', MyPlanCreate: 'MyPlanCreate', MyPlan: 'MyPlan', PlanGenerator: 'PlanGenerator' },
+}));
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
+const mockCopyWrites = { root: null, updatePlan: jest.fn(), deletePlan: jest.fn() };
+jest.mock('../trainer/plans/api/plansApi', () => ({
+  listPlanCategories: jest.fn(() => Promise.resolve([])),
+  listDifficultyLevels: jest.fn(() => Promise.resolve([])),
+  createPlanWrites: (root) => {
+    mockCopyWrites.root = root;
+    return mockCopyWrites;
+  },
 }));
 jest.mock('./api/myPlansApi', () => ({
   listMyPlans: jest.fn(),
@@ -106,40 +117,97 @@ describe('M1 My plans (§M1)', () => {
   });
 });
 
-describe('M5 copy card (§M5)', () => {
-  it('copies and opens M3 with the name-the-copy flag', async () => {
-    copyToMyPlans.mockResolvedValue({ id: 77 });
-    const tree = await render(<CopyToMyPlansCard planId="12" />);
+// DECLARED (T-78, RN-SPEC-TRAINER-PLANS C10 supersedes C9): "copies and opens M3 with the name-the-copy
+// flag", "never opens M3 without a plan id", "does not navigate when the card unmounted during the copy"
+// and "shows the 404 copy" pressed the button and expected the POST at once. Now the button opens
+// "Name your copy" (no request); Save runs the POST (+ a PATCH of the copy); the same outcomes follow.
+describe('M5 copy card (§M5, T-78: created only on Save)', () => {
+  const PLAN = { id: 12, name: 'Upper / Lower', days_per_week: 4 };
+  const dialog = (tree) => tree.root.findAll((node) => node.type === EditPlanDetailsModal && node.props.copy)[0];
+  async function open(tree) {
     await act(async () => byTestId(tree, 'copy-to-my-plans-button')[0].props.onPress());
+  }
+  async function save(tree, changes = {}) {
+    let result;
+    await act(async () => {
+      result = await dialog(tree).props.onSubmit(changes);
+    });
+    return result;
+  }
+  // Fake timers: the dialog's focus timer must not outlive a test.
+  afterEach(() => jest.useRealTimers());
+  beforeEach(() => {
+    jest.useFakeTimers();
+    mockCopyWrites.updatePlan.mockReset();
+    mockCopyWrites.deletePlan.mockReset();
+    mockCopyWrites.root = null;
+  });
+
+  it('the button opens "Name your copy" for this plan; no request until Save; a dismiss sends nothing', async () => {
+    const tree = await render(<CopyToMyPlansCard planId="12" plan={PLAN} dayCount={4} />);
+    expect(dialog(tree)).toBeUndefined();
+    await open(tree);
+    expect(dialog(tree).props).toMatchObject({ isOpen: true, plan: PLAN, dayCount: 4 });
+    expect(copyToMyPlans).not.toHaveBeenCalled();
+    act(() => dialog(tree).props.onClose());
+    expect(dialog(tree).props.isOpen).toBe(false);
+    expect(copyToMyPlans).not.toHaveBeenCalled();
+  });
+
+  it('Save copies and opens M3 (no name-the-copy flag); a change PATCHes the COPY', async () => {
+    copyToMyPlans.mockResolvedValue({ id: 77 });
+    mockCopyWrites.updatePlan.mockResolvedValue({ id: 77 });
+    const tree = await render(<CopyToMyPlansCard planId="12" plan={PLAN} dayCount={4} />);
+    await open(tree);
+    await save(tree, { name: 'Mine' });
     expect(copyToMyPlans).toHaveBeenCalledWith('12');
-    expect(mockNavigation.push).toHaveBeenCalledWith('MyPlan', { planId: 77, nameTheCopy: true });
+    expect(mockCopyWrites.root).toBe('/my-custom-plans/77');
+    expect(mockCopyWrites.updatePlan).toHaveBeenCalledWith({ name: 'Mine' });
+    expect(mockNavigation.push).toHaveBeenCalledWith('MyPlan', { planId: 77 });
+  });
+
+  it('a failed PATCH deletes the copy at once and keeps the dialog open', async () => {
+    copyToMyPlans.mockResolvedValue({ id: 77 });
+    mockCopyWrites.updatePlan.mockRejectedValue({ response: { status: 422, data: { errors: { name: ['Too long.'] } } } });
+    mockCopyWrites.deletePlan.mockResolvedValue({});
+    const tree = await render(<CopyToMyPlansCard planId="12" plan={PLAN} dayCount={4} />);
+    await open(tree);
+    expect(await save(tree, { name: 'X'.repeat(300) })).toEqual({ name: 'Too long.' });
+    expect(mockCopyWrites.deletePlan).toHaveBeenCalledTimes(1);
+    expect(dialog(tree).props.isOpen).toBe(true);
+    expect(mockNavigation.push).not.toHaveBeenCalled();
   });
 
   it('never opens M3 without a plan id; opens My plans instead (E7)', async () => {
     copyToMyPlans.mockResolvedValue(undefined);
-    const tree = await render(<CopyToMyPlansCard planId="12" />);
-    await act(async () => byTestId(tree, 'copy-to-my-plans-button')[0].props.onPress());
+    const tree = await render(<CopyToMyPlansCard planId="12" plan={PLAN} dayCount={4} />);
+    await open(tree);
+    await save(tree);
     expect(mockNavigation.push).toHaveBeenCalledTimes(1);
     expect(mockNavigation.push).toHaveBeenCalledWith('MyPlans');
   });
 
-  it('does not navigate when the card unmounted during the copy', async () => {
+  it('does not navigate when the card unmounted during the save', async () => {
     let resolve;
     copyToMyPlans.mockReturnValue(new Promise((done) => (resolve = done)));
-    const tree = await render(<CopyToMyPlansCard planId="12" />);
+    const tree = await render(<CopyToMyPlansCard planId="12" plan={PLAN} dayCount={4} />);
+    await open(tree);
     act(() => {
-      byTestId(tree, 'copy-to-my-plans-button')[0].props.onPress();
+      dialog(tree).props.onSubmit({});
     });
     act(() => tree.unmount());
     await act(async () => resolve({ id: 5 }));
     expect(mockNavigation.push).not.toHaveBeenCalled();
   });
 
-  it('shows the 404 copy and re-enables the button', async () => {
+  it('a failed POST creates nothing: the dialog closes, the 404 copy shows and the button is enabled again', async () => {
     copyToMyPlans.mockRejectedValue({ response: { status: 404, data: { message: 'Not found' } } });
-    const tree = await render(<CopyToMyPlansCard planId="12" />);
-    await act(async () => byTestId(tree, 'copy-to-my-plans-button')[0].props.onPress());
+    const tree = await render(<CopyToMyPlansCard planId="12" plan={PLAN} dayCount={4} />);
+    await open(tree);
+    await save(tree);
+    expect(dialog(tree).props.isOpen).toBe(false);
     expect(texts(tree)).toContain('This plan can’t be copied.');
     expect(byTestId(tree, 'copy-to-my-plans-button')[0].props.disabled).toBe(false);
+    expect(mockCopyWrites.updatePlan).not.toHaveBeenCalled();
   });
 });
