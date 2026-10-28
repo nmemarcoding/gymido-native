@@ -422,3 +422,41 @@ describe('Android Back on the Rest (O14)', () => {
     expect(live()).toHaveLength(0);
   });
 });
+
+// T-72: on iOS the 92 digits lost the outer edge of the first and last glyph (the Text box was
+// one negative tracking step narrower than the drawn line, and iOS clips the ink to the box).
+describe('T-72: the countdown digits keep their ink inside the Text box', () => {
+  const { digitsInkPad } = require('./RestParts');
+  const cases = [
+    ['phone full screen', { minimized: false }, 390],
+    ['tablet card', { minimized: false }, 834],
+    ['phone disc', { minimized: true, dockRoom: 202 }, 390],
+    ['tablet disc', { minimized: true, dockRoom: 152 }, 834],
+  ];
+
+  it.each(cases)('%s: side padding covers one tracking step + 5 %% of the size, for every clock', (_name, props, width) => {
+    mockWidth = width;
+    const pads = [0, 71, 528, 599].map((secondsLeft) => {
+      const tree = renderTree({ ...props, timer: { setId: 1, secondsLeft, totalSeconds: 600, nextSetKey: '1:2' } });
+      const style = StyleSheet.flatten(host(tree, 'rest-countdown').props.style);
+      expect(style.letterSpacing).toBeLessThan(0);
+      expect(style.paddingHorizontal).toBeGreaterThanOrEqual(-style.letterSpacing + style.fontSize * 0.05);
+      return style.paddingHorizontal;
+    });
+    expect(new Set(pads).size).toBe(1);
+  });
+
+  it('keeps the size and tracking: 92 / −0.06 em full screen (100 on tablet), 24 / −0.72 on the disc', () => {
+    const phone = StyleSheet.flatten(host(renderTree({ minimized: false }), 'rest-countdown').props.style);
+    expect(phone).toEqual(expect.objectContaining({ fontSize: 92, lineHeight: 92, letterSpacing: typography.displayTimer.letterSpacing, textAlign: 'center' }));
+    const disc = StyleSheet.flatten(host(renderTree({ minimized: true, dockRoom: 202 }), 'rest-countdown').props.style);
+    expect(disc).toEqual(expect.objectContaining({ fontSize: 24, letterSpacing: -0.72 }));
+  });
+
+  it('digitsInkPad: rounds up, ignores positive tracking, and survives a missing style', () => {
+    expect(digitsInkPad({ fontSize: 92, letterSpacing: -5.52 })).toBe(11);
+    expect(digitsInkPad({ fontSize: 24, letterSpacing: -0.72 })).toBe(2);
+    expect(digitsInkPad({ fontSize: 20, letterSpacing: 1 })).toBe(1);
+    expect(digitsInkPad(null)).toBe(0);
+  });
+});

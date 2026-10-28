@@ -126,6 +126,18 @@ export function RestRing({ size, geometry, secondsLeft, totalSeconds, track = co
 // F2 last 10 s (0 < s ≤ 10): danger-text digits and a 1 → 1.06 → 1 pulse,
 // 1 s, ease-out, infinite; no pulse under reduced motion (the colour still
 // changes). Capped at textScale.timer (fixed-geometry chrome, UX §9).
+//
+// T-72: iOS sizes the Text box with the negative tracking after every glyph,
+// the last one too, but draws the line one tracking step wider, centred, and
+// clips the ink to the box: the outer edges of the first and last digits were
+// cut. Side padding of one tracking step plus 5 % of the size (the bold digits'
+// overhang; it also covers the 1.2 text-scale cap) keeps the ink inside the
+// box. The text stays centred, so the size and tracking look the same.
+export function digitsInkPad(style) {
+  const { fontSize = 0, letterSpacing = 0 } = StyleSheet.flatten(style) || {};
+  return Math.ceil(Math.max(-letterSpacing, 0) + fontSize * 0.05);
+}
+
 export function Countdown({ seconds, style, testID = 'rest-countdown' }) {
   const reducedMotion = useReducedMotion();
   const pulse = useRef(new Animated.Value(1)).current;
@@ -153,7 +165,13 @@ export function Countdown({ seconds, style, testID = 'rest-countdown' }) {
       adjustsFontSizeToFit
       minimumFontScale={0.7}
       textBreakStrategy="simple"
-      style={[styles.digits, style, finalTen && styles.danger, { transform: [{ scale: pulse }] }]}
+      style={[
+        styles.digits,
+        style,
+        { paddingHorizontal: digitsInkPad([styles.digits, style]) },
+        finalTen && styles.danger,
+        { transform: [{ scale: pulse }] },
+      ]}
     >
       {formatClock(seconds)}
     </Animated.Text>
