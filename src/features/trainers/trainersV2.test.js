@@ -383,14 +383,37 @@ describe('Trainer apply (UX L §Trainer apply)', () => {
     expect(allText(tree)).toContain('You’re already a trainer');
   });
 
-  it('tablet: the gold hero (150°, gold stops, ink text 58/58), form card radius 32, Submit at its own width', async () => {
+  // DECLARED (UX native final audit 27 Oct 2026, ruling 4, C311 / C310): was
+  // "tablet: the gold hero (150°, gold stops, ink text 58/58)". The hero card
+  // is dropped (web parity): tablets draw the plain H1, "trainer" in gold.
+  // The form card radius 32 and Submit-at-its-own-width checks are kept below.
+  it.each([834, 1194])('ruling 4: tablet %s has no gold hero card', async (width) => {
+    setWindow(width);
+    getMyTrainerApplication.mockResolvedValue(null);
+    const tree = await render(<TrainerApplyScreen />);
+    expect(allById(tree, 'trainer-apply-hero')).toHaveLength(0);
+    expect(tree.root.findAll((node) => node.type === GradientFill && node.props.colors === gradients.gold.colors)).toHaveLength(0);
+  });
+
+  it.each([834, 1194])('ruling 4: tablet %s draws the plain H1 "Become a trainer", "trainer" in gold', async (width) => {
+    setWindow(width);
+    getMyTrainerApplication.mockResolvedValue(null);
+    const tree = await render(<TrainerApplyScreen />);
+    const headers = tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && textsOf(node).join('') === 'Become a trainer');
+    // One page title.
+    expect(headers).toHaveLength(1);
+    const heading = headers[0];
+    expect(byId(tree, 'trainer-apply-heading').findAll((node) => node === heading)).toHaveLength(1);
+    expect(flat(heading).color).toBe(colors.textPrimary);
+    const accent = heading.findAll((node) => node.type === 'Text' && node !== heading)[0];
+    expect(accent.props.children).toBe(' trainer');
+    expect(flat(accent).color).toBe(colors.gold);
+  });
+
+  it('tablet: form card radius 32, Submit at its own width', async () => {
     setWindow(834);
     getMyTrainerApplication.mockResolvedValue(null);
     const tree = await render(<TrainerApplyScreen />);
-    const hero = byId(tree, 'trainer-apply-hero');
-    expect(hero.findByType(GradientFill).props).toMatchObject({ angle: 150, colors: gradients.gold.colors, stops: gradients.gold.stops });
-    const title = hero.find((node) => node.type === 'Text' && node.props.accessibilityRole === 'header');
-    expect(flat(title)).toMatchObject({ fontSize: 58, lineHeight: 58, color: colors.onGold });
     expect(flat(byId(tree, 'trainer-apply-form'))).toMatchObject({ borderRadius: radii.xxxl, padding: 30 });
     expect(tree.root.find((node) => node.type === PillButton && node.props.testID === 'trainer-apply-submit').props.fullWidth).toBe(false);
   });
