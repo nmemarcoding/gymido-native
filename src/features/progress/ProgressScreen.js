@@ -100,6 +100,9 @@ function Progress() {
   const [deleteError, setDeleteError] = useState('');
   // Rows the server refused (409 older week): their ⋯ goes away (§3).
   const [lockedIds, setLockedIds] = useState(() => new Set());
+  // Deleted ids stay HIDDEN until a successful reload no longer lists them
+  // (web review: a slow or failed re-read must not bring the row back).
+  const [hiddenIds, setHiddenIds] = useState(() => new Set());
   const deletingRef = useRef(false);
   const actionRows = useRef([]);
   const actionRefs = useRef(new Map());
@@ -119,7 +122,12 @@ function Progress() {
   useEffect(() => {
     setLoad({ status: 'loading', data: null, error: null });
     loadProgress().then(
-      (data) => mounted.current && setLoad({ status: 'loaded', data, error: null }),
+      (data) => {
+        if (mounted.current) {
+          setLoad({ status: 'loaded', data, error: null });
+          releaseHidden(data);
+        }
+      },
       (error) => mounted.current && setLoad({ status: 'error', data: null, error })
     );
   }, [reloadCount]);
@@ -221,7 +229,7 @@ function Progress() {
             frequency={frequency}
             missed={missed}
             week={week}
-            recentWorkouts={recentWorkouts}
+            recentWorkouts={hiddenIds.size ? (recentWorkouts ?? []).filter((item) => !hiddenIds.has(item?.id)) : recentWorkouts}
             planDaysPerWeek={planDaysPerWeek}
             tablet={tablet}
             reflow={reflow}
@@ -346,10 +354,20 @@ function Progress() {
       (data) => {
         if (mounted.current) {
           setLoad({ status: 'loaded', data, error: null });
+          releaseHidden(data);
         }
       },
       () => {}
     );
+  }
+
+  // An id leaves the hidden set only once a successful load omits it.
+  function releaseHidden(data) {
+    const listed = new Set((data?.recentWorkouts ?? []).map((item) => item?.id));
+    setHiddenIds((current) => {
+      const kept = [...current].filter((id) => listed.has(id));
+      return kept.length === current.size ? current : new Set(kept);
+    });
   }
 
   async function confirmDelete() {
@@ -398,11 +416,7 @@ function Progress() {
         LayoutAnimation.create(motion.durationBase, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity)
       );
     }
-    setLoad((current) =>
-      current.data
-        ? { ...current, data: { ...current.data, recentWorkouts: (current.data.recentWorkouts ?? []).filter((item) => item?.id !== row.workoutId) } }
-        : current
-    );
+    setHiddenIds((current) => new Set(current).add(row.workoutId));
     // Totals, the week strip and the records refresh too.
     quietReload().then(() => focusLater(() => (focusKey && actionRefs.current.get(focusKey)) || recentHeadingRef.current));
   }
@@ -852,7 +866,7 @@ function ActivityTab({ overview, history, frequency, missed, week, recentWorkout
       <TwelveWeeks frequency={frequency} tablet={tablet} />
       {!tablet && rows.length > 0 ? (
         <View testID="progress-recent" style={[styles.card, styles.recentCard]}>
-          <Text ref={rowActions?.headingRef} accessibilityRole="header" {...TITLE_TEXT} style={[styles.h2, styles.recentTitle]}>
+          <Text ref={rowActions?.headingRef} testID="progress-recent-title" accessibilityRole="header" {...TITLE_TEXT} style={[styles.h2, styles.recentTitle]}>
             Recent workouts
           </Text>
           {rows.map((row, index) => (
