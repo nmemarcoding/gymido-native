@@ -254,7 +254,8 @@ describe('T-82 Recent workouts ⋯ → delete', () => {
     expect(hostIds(tree.root, 'progress-recent-actions-')).toEqual(['progress-recent-actions-w42']);
   });
 
-  it('404 → the dialog closes, the generic message as a toast, the list refreshes', async () => {
+  // DECLARED (UX T-82 a): was the error toast "Couldn't delete the workout. Please try again.".
+  it('404 → the dialog closes, the NEUTRAL "This workout was already deleted." toast, the list refreshes', async () => {
     const tree = await renderActivity();
     await openConfirm(tree);
     apiClient.delete.mockRejectedValue(apiError(404, { message: 'Not found' }));
@@ -264,7 +265,8 @@ describe('T-82 Recent workouts ⋯ → delete', () => {
     });
     await flush();
     expect(dialog(tree.root).props.isOpen).toBe(false);
-    expect(addToast).toHaveBeenCalledWith(ToastTone.error, "Couldn't delete the workout. Please try again.");
+    expect(addToast).toHaveBeenCalledWith(ToastTone.info, 'This workout was already deleted.');
+    expect(addToast).not.toHaveBeenCalledWith(ToastTone.error, expect.anything());
     expect(loadProgress).toHaveBeenCalledTimes(2);
     expect(hosts(tree.root, 'progress-recent-w41')).toHaveLength(0);
     await wait(SHEET_FOCUS_DELAY_MS + 20);

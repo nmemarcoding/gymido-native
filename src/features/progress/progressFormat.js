@@ -358,6 +358,8 @@ export const DELETE_COPY = Object.freeze({
   sending: 'Deleting\u2026',
   success: 'Workout deleted.',
   locked: "Only this week's workouts can be deleted.",
+  // UX (T-82 a): a 404 is neutral, not an error.
+  gone: 'This workout was already deleted.',
   failed: "Couldn't delete the workout. Please try again.",
 });
 
