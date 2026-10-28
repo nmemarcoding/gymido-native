@@ -13,7 +13,10 @@ import { PressOverlay } from './planUi';
 
 const HIDDEN = { accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' };
 const PHOTO_HEIGHT = 150;
+const PHOTO_HEIGHT_TABLET = 220;
 const GLOW_SIZE = 220;
+// Week circle sizes: phone 36 (32 below 360), tablet 40, ≥1024 44 (T-60 §6).
+const CIRCLE = { phone: 36, compact: 32, tablet: 40, wide: 44 };
 
 // Dated change (27 Oct 2026, owner T-60; UX T60-plans-spec §2): the PHONE
 // active plan card. A surface card with a gold 0.35 edge; a 150 photo header
@@ -23,14 +26,129 @@ const GLOW_SIZE = 220;
 // line); the meta; "Your week"; the next workout row; Start + See full plan.
 //   circles — weekCircles() (null → no week)
 //   next    — { when, title, count, gold } (null → no row and no Start)
-export default function PhoneActivePlanCard({ plan, meta, circles, next, compact = false, onStart, onView }) {
+//   size    — 'phone' · 'tablet' (768–1023, one column) · 'wide' (≥1024)
+// UX native final audit 27 Oct 2026, B203/B204 (T-60 §6): the tablet uses
+// this same card at the web ≥768 sizes: radius 32, a 220 photo header, body
+// padding 0 32 32 pulled up 40, circles 40. At ≥1024 the body is two columns
+// (gap 32): name 40/44, meta 16/24, the next row and the actions side by side
+// on the left; the Your week inset (max 520, circles 44, letters 15, labels
+// 12) on the right.
+export default function PhoneActivePlanCard({ plan, meta, circles, next, compact = false, size = 'phone', onStart, onView }) {
   const photo = imageSourceProps(mediaUrl(plan?.thumbnail));
   const [failedUrl, setFailedUrl] = useState(null);
   const showPhoto = Boolean(photo.url) && failedUrl !== photo.url;
+  const tablet = size !== 'phone';
+  const wide = size === 'wide';
+  const week = circles ? <YourWeek circles={circles} compact={compact && !tablet} size={size} /> : null;
+
+  const main = (
+    <>
+      <Text
+        testID="plans-active-name"
+        accessibilityRole="header"
+        accessibilityLabel={plan?.name ?? ''}
+        numberOfLines={1}
+        ellipsizeMode="tail"
+        maxFontSizeMultiplier={textScale.title}
+        style={[styles.name, wide && styles.nameWide]}
+      >
+        {keepUnitsTogether(plan?.name)}
+      </Text>
+      {meta?.label ? (
+        // QA T60-1: one row of three parts — "{n} days a week" never cuts,
+        // the level truncates first (flexShrink), then the category. Each
+        // "·" is its own part, so a cut part never takes its dot with it.
+        <View testID="plans-active-meta" accessible accessibilityLabel={meta.label} style={styles.metaRow}>
+          {[
+            ['category', styles.metaCategory],
+            ['days', styles.metaDays],
+            ['level', styles.metaLevel],
+          ]
+            .filter(([key]) => meta[key])
+            .map(([key, style], index) => (
+              <Fragment key={key}>
+                {index > 0 ? (
+                  <Text {...LINE_TEXT} testID="plans-active-meta-sep" style={[styles.meta, wide && styles.metaWide, styles.metaDays]}>
+                    {' · '}
+                  </Text>
+                ) : null}
+                <Text {...LINE_TEXT} testID={`plans-active-meta-${key}`} style={[styles.meta, wide && styles.metaWide, style]}>
+                  {meta[key]}
+                </Text>
+              </Fragment>
+            ))}
+        </View>
+      ) : null}
+
+      {wide ? null : week}
+
+      {next ? (
+        <View
+          testID="plans-next-workout"
+          accessible
+          accessibilityLabel={`Next workout · ${next.when}, ${next.title}${next.count ? ` · ${next.count}` : ''}`}
+          style={styles.next}
+        >
+          <View {...HIDDEN} style={styles.nextIcon}>
+            <PlanIcon name="dumbbell" size={16} strokeWidth={2.4} color={colors.gold} />
+          </View>
+          <View style={styles.nextText}>
+            <Text {...LINE_TEXT} testID="plans-next-when" style={styles.nextWhen}>
+              {`Next workout · ${next.when}`}
+            </Text>
+            <View testID="plans-next-line" style={styles.nextLine}>
+              <Text {...CAP_BODY} testID="plans-next-title" numberOfLines={1} ellipsizeMode="tail" style={[styles.nextTitle, styles.shrink]}>
+                {next.title}
+              </Text>
+              {next.count ? (
+                <Text {...CAP_BODY} testID="plans-next-count" numberOfLines={1} style={[styles.nextTitle, styles.noShrink]}>
+                  {` · ${next.count}`}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        </View>
+      ) : null}
+
+      <View testID="plans-active-actions" style={[styles.actions, wide && styles.actionsWide]}>
+        {next ? (
+          <Pressable
+            testID="plans-start"
+            accessibilityRole="button"
+            accessibilityLabel={`Start ${next.title}`}
+            onPress={onStart}
+            style={[styles.start, wide && styles.startWide, next.gold ? styles.startGold : styles.startGlass]}
+          >
+            {({ pressed }) => (
+              <>
+                <PressOverlay pressed={pressed} ink={next.gold} />
+                <PlanIcon name="play" size={14} filled color={next.gold ? colors.onGold : colors.textPrimary} />
+                <Text {...CAP_BODY} numberOfLines={1} ellipsizeMode="tail" style={[styles.startLabel, next.gold ? styles.onGoldText : styles.primaryText]}>
+                  {`Start ${next.title}`}
+                </Text>
+              </>
+            )}
+          </Pressable>
+        ) : null}
+        {plan?.id ? (
+          <Pressable testID="plans-see-full-plan" accessibilityRole="button" accessibilityLabel="See full plan" onPress={() => onView(plan.id)} style={styles.outline}>
+            {({ pressed }) => (
+              <>
+                <PressOverlay pressed={pressed} />
+                <Text {...CAP_BODY} numberOfLines={1} style={styles.outlineLabel}>
+                  See full plan
+                </Text>
+              </>
+            )}
+          </Pressable>
+        ) : null}
+      </View>
+    </>
+  );
 
   return (
-    <View testID="plans-active-card" style={styles.card}>
-      <View testID="plans-active-photo" style={styles.photo}>
+    <View testID="plans-active-card" style={[styles.card, tablet && styles.cardTablet]}>
+      <View testID="plans-active-photo" style={[styles.photo, tablet && styles.photoTablet]}>
         {/* Always drawn (gradients are present from the first render): the
             photo covers it; a missing/failed photo leaves it showing. */}
         <View {...HIDDEN} testID="plans-active-photo-fallback" pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -55,107 +173,21 @@ export default function PhoneActivePlanCard({ plan, meta, circles, next, compact
         </View>
       </View>
 
-      <View testID="plans-active-body" style={[styles.body, compact && styles.bodyCompact]}>
-        <Text
-          testID="plans-active-name"
-          accessibilityRole="header"
-          accessibilityLabel={plan?.name ?? ''}
-          numberOfLines={1}
-          ellipsizeMode="tail"
-          maxFontSizeMultiplier={textScale.title}
-          style={styles.name}
-        >
-          {keepUnitsTogether(plan?.name)}
-        </Text>
-        {meta?.label ? (
-          // QA T60-1: one row of three parts — "{n} days a week" never cuts,
-          // the level truncates first (flexShrink), then the category. Each
-          // "·" is its own part, so a cut part never takes its dot with it.
-          <View testID="plans-active-meta" accessible accessibilityLabel={meta.label} style={styles.metaRow}>
-            {[
-              ['category', styles.metaCategory],
-              ['days', styles.metaDays],
-              ['level', styles.metaLevel],
-            ]
-              .filter(([key]) => meta[key])
-              .map(([key, style], index) => (
-                <Fragment key={key}>
-                  {index > 0 ? (
-                    <Text {...LINE_TEXT} testID="plans-active-meta-sep" style={[styles.meta, styles.metaDays]}>
-                      {' · '}
-                    </Text>
-                  ) : null}
-                  <Text {...LINE_TEXT} testID={`plans-active-meta-${key}`} style={[styles.meta, style]}>
-                    {meta[key]}
-                  </Text>
-                </Fragment>
-              ))}
-          </View>
-        ) : null}
-
-        {circles ? <YourWeek circles={circles} compact={compact} /> : null}
-
-        {next ? (
-          <View
-            testID="plans-next-workout"
-            accessible
-            accessibilityLabel={`Next workout · ${next.when}, ${next.title}${next.count ? ` · ${next.count}` : ''}`}
-            style={styles.next}
-          >
-            <View {...HIDDEN} style={styles.nextIcon}>
-              <PlanIcon name="dumbbell" size={16} strokeWidth={2.4} color={colors.gold} />
+      <View testID="plans-active-body" style={[styles.body, compact && !tablet && styles.bodyCompact, tablet && styles.bodyTablet]}>
+        {wide ? (
+          <View testID="plans-active-columns" style={styles.columns}>
+            <View testID="plans-active-main" style={styles.column}>
+              {main}
             </View>
-            <View style={styles.nextText}>
-              <Text {...LINE_TEXT} testID="plans-next-when" style={styles.nextWhen}>
-                {`Next workout · ${next.when}`}
-              </Text>
-              <View testID="plans-next-line" style={styles.nextLine}>
-                <Text {...CAP_BODY} testID="plans-next-title" numberOfLines={1} ellipsizeMode="tail" style={[styles.nextTitle, styles.shrink]}>
-                  {next.title}
-                </Text>
-                {next.count ? (
-                  <Text {...CAP_BODY} testID="plans-next-count" numberOfLines={1} style={[styles.nextTitle, styles.noShrink]}>
-                    {` · ${next.count}`}
-                  </Text>
-                ) : null}
+            {week ? (
+              <View testID="plans-active-side" style={styles.column}>
+                {week}
               </View>
-            </View>
+            ) : null}
           </View>
-        ) : null}
-
-        <View testID="plans-active-actions" style={styles.actions}>
-          {next ? (
-            <Pressable
-              testID="plans-start"
-              accessibilityRole="button"
-              accessibilityLabel={`Start ${next.title}`}
-              onPress={onStart}
-              style={[styles.start, next.gold ? styles.startGold : styles.startGlass]}
-            >
-              {({ pressed }) => (
-                <>
-                  <PressOverlay pressed={pressed} ink={next.gold} />
-                  <PlanIcon name="play" size={14} filled color={next.gold ? colors.onGold : colors.textPrimary} />
-                  <Text {...CAP_BODY} numberOfLines={1} ellipsizeMode="tail" style={[styles.startLabel, next.gold ? styles.onGoldText : styles.primaryText]}>
-                    {`Start ${next.title}`}
-                  </Text>
-                </>
-              )}
-            </Pressable>
-          ) : null}
-          {plan?.id ? (
-            <Pressable testID="plans-see-full-plan" accessibilityRole="button" accessibilityLabel="See full plan" onPress={() => onView(plan.id)} style={styles.outline}>
-              {({ pressed }) => (
-                <>
-                  <PressOverlay pressed={pressed} />
-                  <Text {...CAP_BODY} numberOfLines={1} style={styles.outlineLabel}>
-                    See full plan
-                  </Text>
-                </>
-              )}
-            </Pressable>
-          ) : null}
-        </View>
+        ) : (
+          main
+        )}
       </View>
     </View>
   );
@@ -164,10 +196,11 @@ export default function PhoneActivePlanCard({ plan, meta, circles, next, compact
 // "Your week": 7 columns Monday first. Each day is one accessible item
 // ("Thu: training, today"; today also carries the selected = current-date
 // state); its circle and label are hidden from the screen reader.
-function YourWeek({ circles, compact }) {
-  const size = compact ? 32 : 36;
+function YourWeek({ circles, compact, size: cardSize }) {
+  const wide = cardSize === 'wide';
+  const size = compact ? CIRCLE.compact : CIRCLE[cardSize] ?? CIRCLE.phone;
   return (
-    <View testID="plans-week" style={[styles.week, compact && styles.weekCompact]}>
+    <View testID="plans-week" style={[styles.week, compact && styles.weekCompact, wide && styles.weekWide]}>
       <Text {...CAP_BODY} testID="plans-week-heading" accessibilityRole="header" style={styles.weekHeading}>
         Your week
       </Text>
@@ -190,7 +223,7 @@ function YourWeek({ circles, compact }) {
                 <Text
                   testID={`plans-week-letter-${circle.id}`}
                   maxFontSizeMultiplier={textScale.badge}
-                  style={[circle.training ? styles.letterTraining : styles.letterRest, compact && styles.letterCompact]}
+                  style={[circle.training ? styles.letterTraining : styles.letterRest, compact && styles.letterCompact, wide && styles.letterWide]}
                 >
                   {circle.letter}
                 </Text>
@@ -202,7 +235,7 @@ function YourWeek({ circles, compact }) {
               testID={`plans-week-label-${circle.id}`}
               numberOfLines={1}
               maxFontSizeMultiplier={textScale.badge}
-              style={circle.today ? styles.labelToday : circle.training ? styles.labelTraining : styles.labelRest}
+              style={[circle.today ? styles.labelToday : circle.training ? styles.labelTraining : styles.labelRest, wide && styles.labelWide]}
             >
               {circle.today ? 'Today' : circle.training ? 'Train' : 'Rest'}
             </Text>
@@ -221,9 +254,15 @@ const styles = StyleSheet.create({
     borderColor: colors.goldBorder,
     backgroundColor: colors.surface,
   },
+  cardTablet: {
+    borderRadius: radii.xxxl,
+  },
   photo: {
     height: PHOTO_HEIGHT,
     overflow: 'hidden',
+  },
+  photoTablet: {
+    height: PHOTO_HEIGHT_TABLET,
   },
   photoImage: {
     width: '100%',
@@ -273,6 +312,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[4],
     paddingBottom: spacing[4],
   },
+  // T-60 §6: padding 0 32 32, pulled up 40.
+  bodyTablet: {
+    marginTop: -40,
+    paddingHorizontal: spacing[8],
+    paddingBottom: spacing[8],
+  },
+  columns: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[8],
+  },
+  column: {
+    flex: 1,
+    minWidth: 0,
+  },
   // 30/34/700 −0.04em.
   name: {
     ...font(700),
@@ -280,6 +334,12 @@ const styles = StyleSheet.create({
     lineHeight: 34,
     letterSpacing: -1.2,
     color: colors.textPrimary,
+  },
+  // ≥1024: 40/44/700 −0.04em.
+  nameWide: {
+    fontSize: 40,
+    lineHeight: 44,
+    letterSpacing: -1.6,
   },
   metaRow: {
     flexDirection: 'row',
@@ -300,6 +360,10 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: colors.textSecondary,
   },
+  metaWide: {
+    fontSize: 16,
+    lineHeight: 24,
+  },
   week: {
     marginTop: spacing['4_5'],
     paddingTop: spacing['3_5'],
@@ -314,6 +378,11 @@ const styles = StyleSheet.create({
     paddingTop: spacing[3],
     paddingHorizontal: spacing[2],
     paddingBottom: spacing['2_5'],
+  },
+  // ≥1024: the right column, max 520, level with the name.
+  weekWide: {
+    marginTop: 0,
+    maxWidth: 520,
   },
   weekHeading: {
     ...font(600),
@@ -370,6 +439,10 @@ const styles = StyleSheet.create({
   letterCompact: {
     fontSize: 13,
   },
+  letterWide: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
   labelTraining: {
     ...font(600),
     fontSize: 11,
@@ -387,6 +460,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
     color: colors.gold,
+  },
+  // ≥1024: 12 (weights kept per type).
+  labelWide: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   // Gold 0.10 → gold-faint; radius 18 → 20 (§3 fold).
   next: {
@@ -439,6 +517,11 @@ const styles = StyleSheet.create({
     gap: spacing['2_5'],
     marginTop: spacing[4],
   },
+  // ≥1024: side by side; See full plan takes its own width.
+  actionsWide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   start: {
     minHeight: 54,
     flexDirection: 'row',
@@ -448,6 +531,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[5],
     borderRadius: radii.full,
     overflow: 'hidden',
+  },
+  startWide: {
+    minWidth: 220,
   },
   // The board's gold glow (0 12 30 −12 gold 0.7) → the kit's goldGlow, the
   // one gold primary's shadow token.
