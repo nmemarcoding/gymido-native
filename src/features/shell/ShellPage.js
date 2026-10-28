@@ -5,7 +5,7 @@ import { NestableScrollContainer } from 'react-native-draggable-flatlist';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AmbientGlow } from '../../shared/components/Screen';
-import { useKeyboardHeight } from '../../shared/hooks/useKeyboardHeight';
+import { useKeyboardOverlap } from '../../shared/hooks/useKeyboardHeight';
 import { usesRail } from '../../shared/hooks/useLayoutClass';
 import { breakpoints, colors, font, layout, typography } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
@@ -53,8 +53,10 @@ export default function ShellPage({ children, nestable = false, glow = false, te
   const Scroller = nestable ? NestableScrollContainer : ScrollView;
   // Inputs never stay under the keyboard: iOS insets the ScrollView itself
   // (automaticallyAdjustKeyboardInsets); edge-to-edge Android isn't resized,
-  // so the content grows by the keyboard height while it is open.
-  const keyboardHeight = useKeyboardHeight();
+  // so the content grows by the keyboard height while it is open. Batch k
+  // (PM, 27 Oct 2026): by what the keyboard COVERS of the window; the raw
+  // height leaves out the nav bar under the IME.
+  const keyboardHeight = useKeyboardOverlap();
   const keyboardPad = Platform.OS === 'android' ? keyboardHeight : 0;
   // §6.1 (audit b1 X1): the page's hero title, if any, registers here.
   const { registry, heroTitleShown } = useHeroTitleRegistry();

@@ -692,8 +692,6 @@ function StickyBar({ padding, searchFieldRef, searchValue, onChangeSearch, onSub
             onSubmitEditing={onSubmitSearch}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            placeholder="Search exercises"
-            placeholderTextColor={colors.textFaint}
             accessibilityLabel="Search exercises"
             returnKeyType="search"
             enterKeyHint="search"
@@ -705,6 +703,26 @@ function StickyBar({ padding, searchFieldRef, searchValue, onChangeSearch, onSub
             autoCapitalize="none"
             style={styles.searchInput}
           />
+          {/* UX native final audit 27 Oct 2026, B251: at 320 the placeholder was
+              clipped mid-word (an Android TextInput placeholder can't
+              ellipsize). Our own one-line Text over the empty field ends in
+              "…" (as the filter find field, c034755); the copy stays the
+              field's label. Inside the box's padding (46 / 16, 44 searching). */}
+          {searchValue.length === 0 ? (
+            <View pointerEvents="none" style={[styles.searchPlaceholderBox, searching && styles.searchPlaceholderBoxSearching]}>
+              <Text
+                testID="exercises-search-placeholder"
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                maxFontSizeMultiplier={textScale.body}
+                accessibilityElementsHidden
+                importantForAccessibility="no"
+                style={styles.searchPlaceholder}
+              >
+                Search exercises
+              </Text>
+            </View>
+          ) : null}
           <View testID="exercises-search-icon" pointerEvents="none" style={styles.searchGlyph} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
             <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
               <Path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14ZM20 20l-4-4" stroke={colors.textMuted} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
@@ -919,6 +937,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 20,
     color: colors.textPrimary,
+  },
+  // B251: over the input's text box (the search box's padding 46 / 16).
+  searchPlaceholderBox: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 46,
+    right: 16,
+    justifyContent: 'center',
+  },
+  searchPlaceholderBoxSearching: {
+    right: 44,
+  },
+  searchPlaceholder: {
+    ...font(400),
+    fontSize: 16,
+    lineHeight: 20,
+    color: colors.textFaint,
   },
   // Inside the box's 1 border: 14 / 18 from its outer edge, as before.
   spinnerSlot: {

@@ -23,7 +23,7 @@ import GradientFill from '../../../../shared/components/GradientFill';
 import IconButton from '../../../../shared/components/IconButton';
 import { NAME_TEXT } from '../../../../shared/components/largeText';
 import Select from '../../../../shared/components/Select';
-import { useKeyboardHeight } from '../../../../shared/hooks/useKeyboardHeight';
+import { useKeyboardOverlap } from '../../../../shared/hooks/useKeyboardHeight';
 import { useReducedMotion } from '../../../../shared/hooks/useReducedMotion';
 import { useSheetFocus } from '../../../../shared/hooks/useSheetFocus';
 import {
@@ -100,7 +100,9 @@ export default function ExercisePickerSheet({
   const stacked = fontScale > textScale.reflowAbove;
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
-  const keyboardHeight = useKeyboardHeight();
+  // Batch k (PM, 27 Oct 2026; ruling 12): what the keyboard COVERS of the
+  // window; the raw height leaves out the Android nav bar (edge-to-edge).
+  const keyboardHeight = useKeyboardOverlap();
   const [search, setSearch] = useState('');
   const [muscle, setMuscle] = useState(ALL_MUSCLE_GROUPS);
   const [equipment, setEquipment] = useState(ALL_EQUIPMENT);

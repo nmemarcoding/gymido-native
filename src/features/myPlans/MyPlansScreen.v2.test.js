@@ -82,7 +82,10 @@ describe('My plans (phone)', () => {
     const create_ = button(tree, 'my-plans-create');
     const generate = button(tree, 'my-plans-generate');
     expect([create_.props.variant ?? 'primary', generate.props.variant]).toEqual(['primary', 'secondary']);
-    expect(StyleSheet.flatten(create_.props.style)).toEqual({ flex: 1 });
+    // DECLARED (UX native final audit 27 Oct 2026, B215): was toEqual({ flex: 1 }) (two half-width pills at 390, where
+    // "Build me a plan" wrapped). A phone row can't hold both labels on one line, so the pair stacks full width.
+    expect(create_.props.fullWidth).toBe(true);
+    expect(StyleSheet.flatten(create_.props.style) ?? null).toBeNull();
     await act(async () => create_.props.onPress());
     await act(async () => generate.props.onPress());
     expect(mockNavigation.push.mock.calls.map((call) => call[0])).toEqual(['MyPlanCreate', 'PlanGenerator']);
@@ -167,9 +170,44 @@ describe('Tablet: My plans', () => {
   });
 });
 
+// UX native final audit 27 Oct 2026, row B215 (MUST): "Build me a plan"
+// wrapped inside its pill on Android / iOS phones. The button-pair rule: the
+// labels never wrap; when the row can't hold both pills on one line (always
+// on a phone; it needs ≈ 400 at 1×, more than 21rem) the pair stacks, gold
+// "Create a plan" full width over the glass "Build me a plan".
+describe('B215: the header pair stacks rather than wrapping a label', () => {
+  it.each([320, 360, 390, 411])('phone %i: a column, both pills full width, Create first', async (width) => {
+    mockWindow = { width, height: 844, fontScale: 1 };
+    const tree = await render();
+    const actions = host(tree, 'my-plans-actions');
+    expect(flat(actions)).toMatchObject({ flexDirection: 'column', alignItems: 'stretch' });
+    expect([button(tree, 'my-plans-create').props.fullWidth, button(tree, 'my-plans-generate').props.fullWidth]).toEqual([true, true]);
+    const order = actions.findAll((node) => typeof node.type === 'string' && ['my-plans-create', 'my-plans-generate'].includes(node.props.testID)).map((node) => node.props.testID);
+    expect(order).toEqual(['my-plans-create', 'my-plans-generate']);
+  });
+
+  it('a measured row wide enough for both labels (≥ 400 at 1×) keeps the pair side by side', async () => {
+    mockWindow = { width: 390, height: 844, fontScale: 1 };
+    const tree = await render();
+    await act(async () => host(tree, 'my-plans-actions').props.onLayout({ nativeEvent: { layout: { width: 420, height: 60 } } }));
+    expect(flat(host(tree, 'my-plans-actions')).flexDirection).toBe('row');
+    await act(async () => host(tree, 'my-plans-actions').props.onLayout({ nativeEvent: { layout: { width: 399, height: 60 } } }));
+    expect(flat(host(tree, 'my-plans-actions')).flexDirection).toBe('column');
+  });
+
+  it('tablet 834: side by side (unchanged)', async () => {
+    mockWindow = { width: 834, height: 1194, fontScale: 1 };
+    const tree = await render();
+    expect(flat(host(tree, 'my-plans-actions')).flexDirection).toBe('row');
+    expect(Boolean(button(tree, 'my-plans-create').props.fullWidth)).toBe(false);
+  });
+});
+
 describe('My plans large text (§9)', () => {
+  // DECLARED (B215): the fontScale 1 row was [1, 'row', false] at 390; it is a column at every phone width now
+  // (see the B215 block). The row case is the tablet (834) at 1×.
   it.each([
-    [1, 'row', false],
+    [1, 'column', true],
     [2, 'column', true],
     [3.1, 'column', true],
   ])('fontScale %s: the action pair is a %s (full width %s); the title keeps the display cap', async (fontScale, direction, full) => {

@@ -933,3 +933,82 @@ describe('status-bar backdrop (UX native final audit 27 Oct 2026, ruling 2, A101
     expect(children.findIndex((child) => child.type === StatusBarBackdrop)).toBeGreaterThan(scrollAt);
   });
 });
+
+// UX native final audit 27 Oct 2026, batch k (PM, the batch g bug class): on
+// an edge-to-edge Android window the raw keyboard height leaves out the nav
+// bar under the IME, so the lift fell 48 short. The lift is what the keyboard
+// COVERS (useKeyboardOverlap). Real geometry: Android phone, 48 nav bar,
+// window 915 tall, the IME's top at 915 − 336 − 48 = 531 (overlap 384) while
+// RN reports height 336.
+describe('Android keyboard: the scroll padding clears the keyboard top (useKeyboardOverlap)', () => {
+  const { Dimensions, Keyboard, Platform } = require('react-native');
+  const ANDROID_WINDOW = { width: 412, height: 915, scale: 2.625, fontScale: 1 };
+  const FRAME = { height: 336, screenY: 915 - 336 - 48 };
+  const realOS = Platform.OS;
+  let listeners;
+  beforeEach(() => {
+    Platform.OS = 'android';
+    listeners = {};
+    jest.spyOn(Keyboard, 'addListener').mockImplementation((name, cb) => {
+      listeners[name] = cb;
+      return { remove: () => delete listeners[name] };
+    });
+    jest.spyOn(Dimensions, 'get').mockImplementation(() => ANDROID_WINDOW);
+    jest.spyOn(Dimensions, 'addEventListener').mockImplementation(() => ({ remove: () => {} }));
+  });
+  afterEach(() => {
+    Platform.OS = realOS;
+    jest.restoreAllMocks();
+  });
+
+  it('keyboard up: the content ends at or above the keyboard top (padding = the 384 covered, not the raw 336)', () => {
+    mockWidth = ANDROID_WINDOW.width;
+    const tree = render();
+    act(() => listeners.keyboardDidShow({ endCoordinates: FRAME }));
+    const padding = host(tree.root, 'create-profile-screen').props.contentContainerStyle.paddingBottom;
+    expect(ANDROID_WINDOW.height - padding).toBeLessThanOrEqual(FRAME.screenY);
+    expect(padding).toBe(384);
+    act(() => listeners.keyboardDidHide());
+    expect(host(tree.root, 'create-profile-screen').props.contentContainerStyle.paddingBottom).not.toBe(384);
+  });
+});
+
+// UX ruling f1 (UX native final audit 27 Oct 2026, batch k): below 336 wide
+// (21rem) the Date of Birth + Sex pair STACKS full width, DOB first, then Sex;
+// from 336 it stays the side-by-side pair. The labels wrap only at a word
+// boundary (simple line breaking, never shrunk or cut to one line).
+describe('f1: the Date of Birth + Sex pair stacks below 336', () => {
+  const order = (pair) =>
+    pair.findAll((node) => typeof node.type === 'string' && ['profile-date-of-birth-field', 'profile-sex'].includes(node.props.testID)).map((node) => node.props.testID);
+
+  it('320: one column, both full width, DOB above Sex', () => {
+    mockWidth = 320;
+    const tree = render();
+    const pair = host(tree.root, 'profile-dob-sex-pair');
+    expect(flat(pair.props.style).flexDirection).toBe('column');
+    pair.children.forEach((cell) => {
+      const style = flat(cell.props.style) ?? {};
+      expect(style.flex).toBeUndefined();
+      expect(style.alignSelf ?? 'stretch').toBe('stretch');
+    });
+    expect(order(pair)[0]).toBe('profile-date-of-birth-field');
+    expect(order(pair)).toContain('profile-sex');
+  });
+
+  it.each([336, 390])('%i: the side-by-side pair (unchanged)', (width) => {
+    mockWidth = width;
+    const tree = render();
+    const pair = host(tree.root, 'profile-dob-sex-pair');
+    expect(flat(pair.props.style).flexDirection).toBe('row');
+    pair.children.forEach((cell) => expect(flat(cell.props.style).flex).toBe(1));
+  });
+
+  it('the Date of Birth label breaks only between words', () => {
+    mockWidth = 320;
+    const tree = render();
+    const label = tree.root.findAll((n) => n.type === 'Text' && textOf(n).startsWith('Date of Birth'))[0];
+    expect(label.props.textBreakStrategy).toBe('simple');
+    expect(label.props.numberOfLines).toBeUndefined();
+    expect(label.props.adjustsFontSizeToFit).toBeUndefined();
+  });
+});

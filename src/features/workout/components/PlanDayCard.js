@@ -46,7 +46,9 @@ export default function PlanDayCard({ day, weekdays, isDone, starting, onStart, 
       <Svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke={colors.onGold} strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
         <Path d="M20 6 9 17l-5-5" />
       </Svg>
-      <Text {...CAP_PILL} style={styles.doneText}>
+      {/* UX native final audit 27 Oct 2026, A110: one line at 320 (the 2-up
+          card left it ~107 wide); the label shrinks, it never wraps out. */}
+      <Text {...CAP_PILL} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={styles.doneText}>
         Done this week
       </Text>
     </View>
@@ -186,6 +188,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
+    maxWidth: '100%',
     gap: spacing[1],
     minHeight: 24,
     borderRadius: radii.full,
@@ -198,6 +201,7 @@ const styles = StyleSheet.create({
   },
   doneText: {
     ...font(700),
+    flexShrink: 1,
     fontSize: 11,
     lineHeight: 14,
     color: colors.onGold,

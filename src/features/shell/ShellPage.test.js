@@ -28,7 +28,8 @@ jest.mock('../workspace/workspacePreference', () => ({ setWorkspace: jest.fn(() 
 jest.mock('../auth/authStore', () => ({ useAuthStore: (select) => select({ user: null, workspace: null }) }));
 jest.mock('./shellNavigation', () => ({ getScreenPath: () => '/profile/edit' }));
 jest.mock('./shellRules', () => ({ resolveMode: () => 'member', showsMobileModeSwitch: () => false }));
-jest.mock('../../shared/hooks/useKeyboardHeight', () => ({ useKeyboardHeight: () => 300 }));
+// DECLARED (batch k, 27 Oct 2026): the mock was useKeyboardHeight: () => 300; ShellPage reads useKeyboardOverlap now.
+jest.mock('../../shared/hooks/useKeyboardHeight', () => ({ useKeyboardOverlap: () => 300 }));
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({ __esModule: true, default: jest.fn() }));
 
 beforeEach(() => {

@@ -99,8 +99,28 @@ describe('Exercises (UX G, phone)', () => {
     const tree = await render();
     const input = host(tree.root, 'exercises-search');
     expect(flat(host(tree.root, 'exercises-search-box'))).toMatchObject({ minHeight: 52, borderRadius: 999, backgroundColor: colors.surface, paddingLeft: 46 });
-    expect(input.props.placeholderTextColor).toBe(colors.textFaint);
+    // DECLARED (UX native final audit 27 Oct 2026, B251): was expect(input.props.placeholderTextColor).toBe(colors.textFaint).
+    // The placeholder is now our one-line faint Text over the empty field (see the B251 test).
+    expect(input.props.placeholder).toBeUndefined();
+    expect(flat(host(tree.root, 'exercises-search-placeholder')).color).toBe(colors.textFaint);
     expect(queryHost(tree.root, 'exercises-search-icon')).toHaveLength(1);
+  });
+
+  // UX native final audit 27 Oct 2026, row B251 (MUST): at 320 the search
+  // placeholder was clipped mid-word with no ellipsis (an Android TextInput
+  // placeholder can't ellipsize). As the filter find field (c034755): our own
+  // one-line Text over the empty field ends in "…"; the copy stays the
+  // field's accessibility label; it goes away once there is text.
+  it('B251: the "Search exercises" placeholder is one line with a tail ellipsis, over the empty field only', async () => {
+    const tree = await render();
+    const placeholder = host(tree.root, 'exercises-search-placeholder');
+    expect(placeholder.props).toMatchObject({ numberOfLines: 1, ellipsizeMode: 'tail', accessibilityElementsHidden: true, importantForAccessibility: 'no' });
+    expect([].concat(placeholder.props.children).join('')).toBe('Search exercises');
+    expect(flat(placeholder)).toMatchObject({ fontSize: 16, lineHeight: 20, color: colors.textFaint });
+    expect(host(tree.root, 'exercises-search').props.accessibilityLabel).toBe('Search exercises');
+    const input = tree.root.find((node) => node.props.testID === 'exercises-search' && typeof node.type !== 'string');
+    await act(async () => input.props.onChangeText('squ'));
+    expect(queryHost(tree.root, 'exercises-search-placeholder')).toHaveLength(0);
   });
 
   it('card: radius 24 surface, 108 image area (kit tile), the muscle chip in its text colour, name 2 lines, muscle sub-line', async () => {

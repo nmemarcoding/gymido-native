@@ -17,6 +17,7 @@ import { CAP_BODY, TITLE_TEXT, useLargeTextReflow } from '../../../shared/compon
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { colors, font, gradients, motion, radii, spacing, typography } from '../../../shared/theme/tokens';
 import { useAuthStore } from '../../auth/authStore';
+import { HeroTitleMark } from '../../shell/heroTitle';
 import ShellPage from '../../shell/ShellPage';
 import { updateProfile } from '../api/profileApi';
 import { SEX_OPTIONS, numberValue } from '../createProfileForm';
@@ -142,7 +143,7 @@ function EditProfile({ scrollRef }) {
 
 function EditProfileForm({ profile, scrollRef }) {
   const navigation = useNavigation();
-  const { width, height: screenHeight } = useWindowDimensions();
+  const { width, height: screenHeight, fontScale } = useWindowDimensions();
   const tablet = isTabletWidth(width);
   const reflow = useLargeTextReflow();
   const email = useAuthStore((state) => state.user?.email);
@@ -308,9 +309,12 @@ function EditProfileForm({ profile, scrollRef }) {
   );
 
   // The code's heading and line (Q2: "Edit profile"; the tablet board's h1 +
-  // line are the same two strings).
+  // line are the same two strings). UX native final audit 27 Oct 2026, A153:
+  // it is the page's ONE title (HeroTitleMark): the shell header above draws
+  // only the "‹ Profile" back pill, no "Profile" title.
   const heading = (
     <View style={[styles.header, tablet && styles.headerTablet]}>
+      <HeroTitleMark />
       {tablet ? null : <ProfileAvatar initials={profileInitials(profileDisplayName(profile, email))} size={88} testID="edit-profile-avatar" />}
       <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.title, tablet && styles.titleTablet]}>
         Edit profile
@@ -470,9 +474,14 @@ function EditProfileForm({ profile, scrollRef }) {
       </View>
     );
 
+  // UX ruling f1 (27 Oct 2026, batch k): below 21rem (336 at 1×) the Date of
+  // Birth + Sex pair stacks full width, DOB first (as Create profile).
+  const dobSexStacked = !tablet && width < DOB_SEX_STACK_BELOW * fontScale;
+  const extrasPair = dobSexStacked ? styles.stacked : pair;
+  const extrasCell = dobSexStacked ? null : cell;
   const extras = (
-    <View style={pair}>
-      <View ref={bindTarget('date_of_birth')} collapsable={false} testID="edit-profile-date-of-birth-field" style={cell}>
+    <View testID="edit-profile-dob-sex-pair" style={extrasPair}>
+      <View ref={bindTarget('date_of_birth')} collapsable={false} testID="edit-profile-date-of-birth-field" style={extrasCell}>
         <DateInput
           testID="edit-profile-date-of-birth"
           label="Date of Birth (optional)"
@@ -482,7 +491,7 @@ function EditProfileForm({ profile, scrollRef }) {
           error={fieldErrors.date_of_birth}
         />
       </View>
-      <View ref={bindTarget('sex')} collapsable={false} testID="edit-profile-sex-field" style={cell}>
+      <View ref={bindTarget('sex')} collapsable={false} testID="edit-profile-sex-field" style={extrasCell}>
         <Select
           testID="edit-profile-sex"
           label="Sex (optional)"
@@ -562,6 +571,9 @@ function EditProfileForm({ profile, scrollRef }) {
     </Animated.View>
   );
 }
+
+// f1: 21rem (16 × 21) at 1× text.
+const DOB_SEX_STACK_BELOW = 336;
 
 const styles = StyleSheet.create({
   // Phone: the form sits on the ground, gap 14.

@@ -1,19 +1,21 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import BackPill from '../../../shared/components/BackPill';
 import { CAP_BODY, DISPLAY_TITLE_TEXT } from '../../../shared/components/largeText';
-import TextLink from '../../../shared/components/TextLink';
 import { colors, font, spacing, titleTracking, typography } from '../../../shared/theme/tokens';
 import { HeroTitleMark } from '../../shell/heroTitle';
 
 // v2 Phase 5 L shared page parts for the coaching pages (Find a trainer,
 // Trainer detail, Trainer apply).
 
-// §3 "One back-link rule": "← {parent}", 14/600 gold, 44 hit, 8 above the
-// heading; the arrow is decorative (the link's name is just the parent).
+// §3 "One back-link rule": the parent ABOVE the heading, 8 above it; the
+// link's name is just the parent. UX native final audit 27 Oct 2026, ruling 6
+// (C307): native draws the boards' glass pill "‹ {parent}" (kit BackPill,
+// 44 phone / 40 tablet), not the gold text link (R1 was web 834 only).
 export function PageBackLink({ label, onPress, testID }) {
   return (
     <View style={styles.back}>
-      <TextLink testID={testID} label={`← ${label}`} accessibilityLabel={label} onPress={onPress} />
+      <BackPill testID={testID} label={label} onPress={onPress} />
     </View>
   );
 }
@@ -61,7 +63,7 @@ const TABLET_SIZES = {
 const styles = StyleSheet.create({
   back: {
     alignSelf: 'flex-start',
-    marginBottom: spacing[2] - spacing['3_5'],
+    marginBottom: spacing[2],
   },
   heading: {
     paddingHorizontal: spacing[1],

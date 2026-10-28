@@ -71,7 +71,7 @@ const flat = (node) => StyleSheet.flatten(typeof node.props.style === 'function'
 const texts = (node) => node.findAll((child) => child.type === 'Text').map(textOf);
 const cardIds = (root) => root.findAll((node) => typeof node.type === 'string' && /^exercise-card-\d+$/.test(node.props.testID ?? '')).map((node) => Number(node.props.testID.split('-')[2]));
 const sheet = (root) => root.findByType(AppModal);
-const searchInput = (root) => root.find((node) => node.props.placeholder === 'Search exercises' && node.props.onChangeText);
+const searchInput = (root) => root.find((node) => node.props.testID === 'exercises-search' && node.props.onChangeText);
 
 const mounted = [];
 let announce;

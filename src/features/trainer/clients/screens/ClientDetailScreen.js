@@ -2,11 +2,11 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { routes } from '../../../../navigation/routes';
+import BackPill from '../../../../shared/components/BackPill';
 import { useFocusRemountKey } from '../../../../shared/hooks/useFocusRemountKey';
 import { breakpoints } from '../../../../shared/theme/tokens';
 import ShellPage from '../../../shell/ShellPage';
 import TrainerOnly from '../../TrainerOnly';
-import { BrandLink } from '../components/ClientsUi';
 import ClientDetailContent from './ClientDetailContent';
 
 // C2 (trainer clients spec §C4; v2 phase 6 §2 Client detail). Every focus is
@@ -36,8 +36,10 @@ function ClientDetail({ clientUserId, clientActivity }) {
           layout={tablet ? 'tablet' : 'phone'}
           header={
             // UX §10 back link above the title; ⚠C-5: pushes C1 rather than going back.
+            // UX native final audit 27 Oct 2026, ruling 6 (D364): the glass
+            // "‹ All clients" pill (kit BackPill), not the gold text link.
             <View style={styles.back}>
-              <BrandLink testID="client-all-clients" label="← All clients" onPress={() => navigation.push(routes.TrainerClients)} />
+              <BackPill testID="client-all-clients" label="All clients" onPress={() => navigation.push(routes.TrainerClients)} />
             </View>
           }
         />

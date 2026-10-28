@@ -4,6 +4,7 @@ import {
   TRAINER_TABS,
   getHeaderBackLink,
   getHeaderTitle,
+  getHeroFallbackTitle,
   getTabs,
   isCompactHeader,
   isNavItemActive,
@@ -24,7 +25,10 @@ describe('getHeaderTitle (§6.1)', () => {
     expect(getHeaderTitle('/workout')).toBe('');
     expect(getHeaderTitle('/exercises/3')).toBe('Exercises');
     expect(getHeaderTitle('/plansX')).toBe('Plans');
-    expect(getHeaderTitle('/profile/edit')).toBe('Profile');
+    // DECLARED change (UX native final audit 27 Oct 2026, row A153): was toBe('Profile'). Edit profile draws its own
+    // one title "Edit profile" (X1, RN-SPEC-v2-phase5 Q2), so the shell header shows none there.
+    expect(getHeaderTitle('/profile/edit')).toBe('');
+    expect(getHeaderTitle('/profile')).toBe('Profile');
     expect(getHeaderTitle('/my-trainer')).toBe('Coaching');
     // DECLARED change (UX final audit X1, 27 Oct 2026): was toBe('Coaching') for '/trainers/9' and
     // '/trainer/plans/4'. Those pages draw their own hero title, so the shell header shows none (one title per page).
@@ -41,6 +45,19 @@ describe('getHeaderTitle (§6.1)', () => {
     expect(getHeaderTitle('/my-trainer')).toBe('Coaching');
     // The back links stay as drawn.
     expect(getHeaderBackLink('/trainers')).toEqual({ label: '← Coaching', path: '/my-trainer' });
+  });
+
+  // UX native final audit 27 Oct 2026, rows A153 + A157: Edit profile and
+  // Notifications have a back control above the title.
+  it('A153: Edit profile has "← Profile" (→ /profile) and, before its own heading shows, the fallback title "Edit profile"', () => {
+    expect(getHeaderBackLink('/profile/edit')).toEqual({ label: '← Profile', path: '/profile' });
+    expect(getHeroFallbackTitle('/profile/edit')).toBe('Edit profile');
+    expect(getHeroFallbackTitle('/profile')).toBe('');
+  });
+
+  it('A157: Notifications has a "Back" link that returns where the page was opened from (Today when there is no history)', () => {
+    expect(getHeaderBackLink('/notifications')).toEqual({ label: 'Back', path: '/', history: true });
+    expect(getHeaderTitle('/notifications')).toBe('Notifications');
   });
 
   it('drops the Workout title and back link during a session', () => {
