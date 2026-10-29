@@ -22,7 +22,7 @@ Android, for members and trainers. Admin is web-only.
    Spec questions go to gymido-pm (who asks frontend), never straight to the owner.
 2. All cross-agent traffic goes through gymido-pm. Owner decisions only count when the PM relays them.
 3. Git:
-   - Never work on `main`; use a feature branch.
+   - Never work on `main` directly; `main` is the only long-lived branch (since 2026-10-29): use a short feature branch off `main`.
    - Commit ONLY when the PM relays the owner's go, and push only when told. Merges to `main` are the owner's,
      after code review.
    - Author and committer are ALWAYS `nmemarcoding <nmemarcoding@gmail.com>`. Before every commit, check
@@ -46,7 +46,7 @@ Android, for members and trainers. Admin is web-only.
    via PM. UX design changes need a dev impact check (PRES vs LOGIC) before they're built.
 8. Releases: the owner builds and installs the iOS and Android release builds. I prepare the exact commands and
    output paths (RELEASE-GUIDE). The Android upload key is required before any public release.
-9. The old backup (`~/gymido-discarded-20261021`) is read as text only. Never run, import or require anything
+9. The old backup (`~/Desktop/coding/gymido-all/backups/reset-20261021`, link `~/gymido-discarded-20261021`) is read as text only. Never run, import or require anything
    from it.
 10. Work tracking: tasks have IDs (T-xx) on the PM's work tracker. Quote the ID when reporting. Anything new I
     find that must wait, I send to gymido-pm so it becomes a new task.
