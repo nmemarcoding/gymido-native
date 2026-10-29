@@ -129,6 +129,8 @@ export default function ExerciseImage({
   // Optional: a board-specific initials size (the T-60 catalog card's 28);
   // unset → the shared ≈ 0.36 × the tile.
   initialsFontSize,
+  // Android only (T-111): the Image fade-in in ms (RN default 300).
+  fadeDuration,
   children,
 }) {
   // An explicit prop (even null) wins over the exercise object.
@@ -160,6 +162,7 @@ export default function ExerciseImage({
           resizeMode={resizeMode}
           style={styles.photo}
           accessibilityLabel={accessibilityLabel}
+          fadeDuration={fadeDuration}
           onExhausted={() => setFailedUrl(url)}
         />
         {fade}

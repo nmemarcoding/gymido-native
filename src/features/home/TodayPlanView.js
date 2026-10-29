@@ -106,8 +106,6 @@ export function TodayHero({ plan, card, tablet, reflow, imageUrl, dayTitle, dayO
   // (Android render rule).
   const [photo] = useState(() => (tablet ? null : imageUrl));
   const [media] = useState(() => (tablet && (imageUrl || dayTitle) ? { url: imageUrl || null, name: dayTitle || '' } : null));
-  const [longMissed, setLongMissed] = useState(false);
-  const missedLong = card.state === 'missed' && longMissed;
   const countText = card.sub ? null : exerciseCountText(exerciseCount);
   const { width, fontScale } = useWindowDimensions();
   const [rowWidth, setRowWidth] = useState(null);
@@ -130,11 +128,6 @@ export function TodayHero({ plan, card, tablet, reflow, imageUrl, dayTitle, dayO
       <View pointerEvents="none" style={tablet ? styles.glowTablet : styles.glow} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <GradientFill radial={gradients.heroGlow.radial} colors={gradients.heroGlow.colors} stops={[0, 0.7]} />
       </View>
-      {card.eyebrow ? (
-        <Text testID="home-today-eyebrow" {...LT.body} style={styles.eyebrow}>
-          {card.eyebrow}
-        </Text>
-      ) : null}
       <View style={[styles.pillRow, reflow && styles.trailingBelow]}>
         <StatusPill testID="home-today-pill" tone={PILL_TONE[card.tone] ?? 'neutral'} label={card.pill} />
         {tablet && dayOfWeek && card.state === 'training' ? (
@@ -147,12 +140,7 @@ export function TodayHero({ plan, card, tablet, reflow, imageUrl, dayTitle, dayO
         testID="home-today-headline"
         accessibilityRole="header"
         {...LT.display}
-        onTextLayout={(event) => {
-          if (!longMissed && event?.nativeEvent?.lines?.length > 2) {
-            setLongMissed(true);
-          }
-        }}
-        style={[tablet ? styles.headlineTablet : styles.headline, missedLong && styles.headlineLong]}
+        style={tablet ? styles.headlineTablet : styles.headline}
       >
         {card.headline}
       </Text>
@@ -543,12 +531,6 @@ const styles = StyleSheet.create({
     letterSpacing: titleTracking(76, -0.05),
     color: colors.textPrimary,
   },
-  // UX E missed: past 2 lines the headline drops to 34/38.
-  headlineLong: {
-    fontSize: 34,
-    lineHeight: 38,
-    letterSpacing: -1.36,
-  },
   sub: {
     ...typography.body,
     marginTop: spacing[2],
@@ -584,15 +566,6 @@ const styles = StyleSheet.create({
   },
   subCount: {
     flexShrink: 0,
-  },
-  // T-108 §3: the rest day + miss eyebrow (the hub's eyebrow: 13/18 700, +0.04).
-  eyebrow: {
-    ...font(700),
-    marginBottom: spacing[2],
-    fontSize: 13,
-    lineHeight: 18,
-    letterSpacing: titleTracking(13, 0.04),
-    color: colors.textSecondary,
   },
   buttons: {
     flexDirection: 'row',

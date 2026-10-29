@@ -255,6 +255,22 @@ describe('Progress phone (UX G)', () => {
     expect(queryHost(tree.root, 'progress-delta')[0] && texts(host(tree.root, 'progress-delta'))).toEqual(['\u22124.1 kg to goal (78 kg)']);
   });
 
+  // T-99 (PM carry, the web T-97 race): native picks the range locally and keys each response by its range, so a
+  // late answer for the default 3M must never replace the 7D the member picked after it.
+  it('T-99: a 7D pick survives a late 3M default response', async () => {
+    let resolveDefault;
+    getWeightLogsInRange.mockImplementationOnce(() => new Promise((done) => (resolveDefault = done)));
+    const tree = await render();
+    getWeightLogsInRange.mockResolvedValueOnce(RANGE_ASC.slice(2));
+    press(tree.root, 'progress-range-7D');
+    await flush();
+    await act(async () => resolveDefault(RANGE_ASC));
+    await flush();
+    expect(host(tree.root, 'progress-range-7D').props.accessibilityState).toEqual({ selected: true });
+    expect(host(tree.root, 'progress-range-3M').props.accessibilityState).toEqual({ selected: false });
+    expect(texts(host(tree.root, 'progress-log-count'))).toEqual(['1 log']);
+  });
+
   it('batch 3 (e): while a new range loads the chart keeps the previous data dimmed (busy, 0.6), no skeleton; the new chip is already selected', async () => {
     const tree = await render();
     expect(host(tree.root, 'progress-chart-wrap').props.accessibilityState).toEqual({ busy: false });

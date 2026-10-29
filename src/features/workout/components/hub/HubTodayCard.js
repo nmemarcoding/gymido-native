@@ -1,11 +1,9 @@
 import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import ExerciseImage from '../../../../shared/components/ExerciseImage';
 import { CAP_BODY, TITLE_TEXT } from '../../../../shared/components/largeText';
-import StatusPill from '../../../../shared/components/StatusPill';
-import { keepUnitsTogether } from '../../../../shared/format/counts';
-import { colors, font, radii, spacing, textScale, titleTracking } from '../../../../shared/theme/tokens';
+import { colors, font, radii, spacing, titleTracking } from '../../../../shared/theme/tokens';
 import { stripCells } from '../../../plans/libraryFormat';
 import HubButton from './HubButton';
 import { CalendarIcon, CheckIcon, MoonIcon, PlayIcon } from './HubIcons';
@@ -14,12 +12,10 @@ import { CalendarIcon, CheckIcon, MoonIcon, PlayIcon } from './HubIcons';
 // states"): training (gold edge, photos, the one gold "Start workout"), rest
 // (moon, Up next, outlined "Start {day} early"), today done (teal tick,
 // minutes, Up next, "View progress"), week complete ("THIS WEEK") and no
-// schedule ("Set up your week" → the inline schedule setup, C2). T-102 +
-// T-108: a rest day with an open miss is ONE card (`state` 'missed').
+// schedule ("Set up your week" → the inline schedule setup, C2). T-113: a
+// missed day is never this card (the Catch-up row under it names it).
 export default function HubTodayCard(props) {
   switch (props.state) {
-    case 'missed':
-      return <MissedCard {...props} />;
     case 'rest':
       return <RestCard {...props} />;
     case 'todayDone':
@@ -61,99 +57,6 @@ function TrainingCard({ weekdayName, title, meta, exercises, tablet, starting, o
         onPress={onStart}
         style={styles.action}
       />
-    </View>
-  );
-}
-
-// T-108 (UX ruling §1, replaces T-102 §2 items 1 + 4): the rest day's
-// eyebrow, "! Missed", "You missed {Weekday}'s {title}" (34/38), the plan
-// name, that day's photos, the gold "Do it now" (one tap, T-107) + the glass
-// "View plan" (side by side from 21rem, else stacked), then a hairline and
-// the quiet "Up next" footer with the text button "Start early" (hidden with
-// no next day). No "Recovery is part of the plan…" line here (owner D1).
-const STACK_BELOW_REM = 21;
-
-function MissedCard({ weekdayName, miss, planName, exercises, tablet, reflow = false, starting, upNext, startingEarly, onDoItNow, onViewPlan, onStartEarly, style }) {
-  const { fontScale } = useWindowDimensions();
-  const [rowWidth, setRowWidth] = useState(0);
-  const title = miss.planDay?.title || 'workout';
-  const stacked = reflow || (rowWidth > 0 && rowWidth < STACK_BELOW_REM * 16 * Math.min(fontScale, textScale.body));
-  return (
-    <View testID="workout-hero" style={[styles.card, styles.goldEdge, style]}>
-      <Eyebrow color={colors.textSecondary}>{`TODAY · ${weekdayName.toUpperCase()} · REST DAY`}</Eyebrow>
-      <StatusPill testID="workout-missed-pill" tone="warning" label="Missed" style={styles.missedPill} />
-      <Text
-        testID="workout-missed-headline"
-        accessibilityRole="header"
-        {...TITLE_TEXT}
-        // Wraps without a line cap (never truncates); Today's display cap
-        // (1.3) so "Wednesday's" never breaks inside the word at large text.
-        numberOfLines={undefined}
-        maxFontSizeMultiplier={textScale.display}
-        style={styles.missedTitle}
-      >
-        {`You missed ${miss.weekdayName}'s ${title}`}
-      </Text>
-      {planName ? (
-        <Text testID="workout-missed-sub" {...CAP_BODY} style={styles.body}>
-          {keepUnitsTogether(planName)}
-        </Text>
-      ) : null}
-      <PhotoStrip exercises={exercises} tablet={tablet} />
-      <View testID="workout-missed-actions" onLayout={(event) => setRowWidth(event.nativeEvent.layout.width)} style={[styles.pair, stacked && styles.pairStacked]}>
-        <HubButton
-          testID="workout-missed-start"
-          title="Do it now"
-          accessibilityLabel={`Do it now: start ${title}`}
-          icon={({ color }) => <PlayIcon size={14} color={color} />}
-          loading={starting}
-          onPress={onDoItNow}
-          style={!stacked && styles.pairItem}
-        />
-        <HubButton testID="workout-missed-view-plan" variant="glass" title="View plan" onPress={onViewPlan} style={!stacked && styles.pairItem} />
-      </View>
-      {upNext ? <UpNextFooter upNext={upNext} reflow={reflow} starting={startingEarly} onStartEarly={onStartEarly} /> : null}
-    </View>
-  );
-}
-
-// T-108 §1.5 (amended: 2 lines): moon tile 32 · "Up next: {title}" / "{when} · n
-// exercises" · "Start early" (15/600, no fill, 44 hit). Large text: it drops
-// to its own line, left-aligned.
-function UpNextFooter({ upNext, reflow, starting, onStartEarly }) {
-  const earlyRef = useRef(null);
-  return (
-    <View testID="workout-missed-footer" style={[styles.footer, reflow && styles.footerWrap]}>
-      <View style={styles.footerLead}>
-        <View style={styles.footerTile}>
-          <MoonIcon size={16} color={colors.textSecondary} />
-        </View>
-        <View testID="workout-up-next" accessible accessibilityLabel={`Up next: ${upNext.title}, ${upNext.meta}`} style={styles.flex}>
-          <Text testID="workout-missed-footer-title" {...CAP_BODY} numberOfLines={2} ellipsizeMode="tail" style={styles.footerTitle}>
-            {`Up next: ${upNext.title}`}
-          </Text>
-          <Text {...CAP_BODY} style={styles.footerMeta}>
-            {upNext.meta}
-          </Text>
-        </View>
-      </View>
-      <Pressable
-        ref={earlyRef}
-        testID="workout-start-early"
-        accessibilityRole="button"
-        accessibilityLabel={`Start ${upNext.title} early`}
-        accessibilityState={{ disabled: Boolean(starting), busy: Boolean(starting) }}
-        disabled={Boolean(starting)}
-        hitSlop={8}
-        onPress={() => onStartEarly(upNext, earlyRef)}
-        style={[styles.textButton, starting && styles.inactive]}
-      >
-        {({ pressed }) => (
-          <Text {...CAP_BODY} style={[styles.textButtonLabel, pressed && styles.textButtonPressed]}>
-            Start early
-          </Text>
-        )}
-      </Pressable>
     </View>
   );
 }
@@ -304,13 +207,16 @@ function PhotoStrip({ exercises, tablet }) {
   );
 }
 
+// T-111 (Android, verified on the emulator): no fade-in. With RN's default
+// 300 ms fade an animated thumbnail (Fresco AnimatedDrawable2) that loaded
+// while on screen stayed blank until a scroll redrew it.
 function StripCell({ cell }) {
   const exercise = cell.item.exercise;
   if (cell.more) {
     return (
       <>
         <View testID="workout-hero-more" accessible accessibilityLabel={`${exercise?.name ?? 'Exercise'} and ${cell.more - 1} more`} style={styles.stripPhoto}>
-          <ExerciseImage testID="workout-hero-photo" exercise={exercise} size={64} style={[styles.stripPhoto, styles.dim]} />
+          <ExerciseImage testID="workout-hero-photo" exercise={exercise} size={64} fadeDuration={0} style={[styles.stripPhoto, styles.dim]} />
           <View style={[StyleSheet.absoluteFill, styles.moreBox]}>
             <Text {...CAP_BODY} style={styles.moreCount}>{`+${cell.more}`}</Text>
           </View>
@@ -323,7 +229,7 @@ function StripCell({ cell }) {
   }
   return (
     <>
-      <ExerciseImage testID="workout-hero-photo" exercise={exercise} size={64} style={styles.stripPhoto} />
+      <ExerciseImage testID="workout-hero-photo" exercise={exercise} size={64} fadeDuration={0} style={styles.stripPhoto} />
       <Text {...CAP_BODY} numberOfLines={1} style={styles.caption}>
         {exercise?.name ?? ''}
       </Text>
@@ -376,37 +282,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   bodyGap: { marginTop: 12 },
-  missedPill: { marginTop: 10, alignSelf: 'flex-start' },
-  missedTitle: {
-    ...font(700),
-    marginTop: 10,
-    fontSize: 34,
-    lineHeight: 38,
-    letterSpacing: titleTracking(34, -0.04),
-    color: colors.textPrimary,
-  },
-  pair: { marginTop: 18, flexDirection: 'row', gap: 10 },
-  pairStacked: { flexDirection: 'column' },
-  pairItem: { flex: 1, minWidth: 0 },
-  footer: {
-    marginTop: 16,
-    paddingTop: 14,
-    minHeight: 56,
-    borderTopWidth: 1,
-    borderTopColor: colors.fillButton,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  footerWrap: { flexDirection: 'column', alignItems: 'flex-start' },
-  footerLead: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12, alignSelf: 'stretch' },
-  footerTile: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.hairline },
-  footerTitle: { ...font(600), fontSize: 15, lineHeight: 20, color: colors.textPrimary },
-  footerMeta: { ...font(400), fontSize: 13, lineHeight: 18, color: colors.textMuted },
-  textButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
-  textButtonLabel: { ...font(600), fontSize: 15, lineHeight: 20, color: colors.textPrimary },
-  textButtonPressed: { opacity: 0.7 },
-  inactive: { opacity: 0.5 },
   action: { marginTop: 18 },
   actionOutline: { marginTop: 14 },
   actionGap: { marginTop: 16 },

@@ -28,7 +28,7 @@ export function nextImageState(state, event) {
 // its own fallback (plans §4.4, S2 only). `sources` (optional, memoised by the
 // caller) replaces the default candidate list (the Exercises grid's w400 Drive
 // thumbnail first, RN-SPEC-exercises F4); `accessibilityLabel` is the web alt.
-export default function RemoteImage({ url, sources: customSources, style, resizeMode = 'cover', onExhausted, accessibilityLabel }) {
+export default function RemoteImage({ url, sources: customSources, style, resizeMode = 'cover', onExhausted, accessibilityLabel, fadeDuration }) {
   const sources = useMemo(() => customSources ?? getRemoteImageSources(url), [customSources, url]);
   const [state, setState] = useState({ index: 0, attempt: 0, cancels: 0 });
   const exhausted = state.index >= sources.length;
@@ -50,6 +50,7 @@ export default function RemoteImage({ url, sources: customSources, style, resize
       key={`${state.index}-${state.attempt}`}
       source={{ uri: sources[state.index] }}
       resizeMode={resizeMode}
+      fadeDuration={fadeDuration}
       style={style}
       accessible={Boolean(accessibilityLabel)}
       accessibilityLabel={accessibilityLabel}

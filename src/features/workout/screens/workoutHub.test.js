@@ -166,6 +166,20 @@ beforeEach(() => {
 });
 afterEach(() => act(() => mounted.splice(0).forEach((tree) => tree.unmount())));
 
+// T-111 (Android, verified on the emulator): the today card's exercise strip draws without RN's 300 ms fade-in;
+// an animated thumbnail that loaded on screen otherwise stayed blank until a scroll.
+describe('T-111 strip photos', () => {
+  it('every strip photo has fadeDuration 0', async () => {
+    const tree = await renderScreen();
+    act(() => host(tree.root, 'workout-hero-photos').props.onLayout({ nativeEvent: { layout: { width: 320 } } }));
+    const mocked = jest.requireMock('../../../shared/components/ExerciseImage');
+    const ExerciseImage = mocked.default ?? mocked;
+    const photos = tree.root.findAll((node) => node.type === ExerciseImage && node.props.testID === 'workout-hero-photo');
+    expect(photos).toHaveLength(4);
+    photos.forEach((photo) => expect(photo.props.fadeDuration).toBe(0));
+  });
+});
+
 describe('header (T-65 + T-76 boards)', () => {
   it('"‹ Today" opens the Today root (M1), never goBack; "Workout" 40/44 and the plan name 15/22 secondary on phone', async () => {
     const tree = await renderScreen();

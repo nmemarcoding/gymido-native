@@ -17,7 +17,7 @@ import ScheduleSetupCard from '../../plans/components/ScheduleSetupCard';
 import { WEEKDAYS, planDayTitle } from '../../plans/libraryFormat';
 import { catchUpConfirmCopy, catchUpRowCopy, missedLayout, weekMisses } from '../../plans/missedCatchUp';
 import ShellPage from '../../shell/ShellPage';
-import { openPlanDetailAlone, openShellPath } from '../../shell/shellLinks';
+import { openShellPath } from '../../shell/shellLinks';
 import { useShellUiStore } from '../../shell/shellUiStore';
 import { startWorkout } from '../api/workoutApi';
 import HubDayRows from '../components/hub/HubDayRows';
@@ -184,7 +184,9 @@ function WorkoutPage() {
   const startParam = route.params?.startPlanDayId;
   useEffect(() => {
     if (startParam != null) {
-      pendingStart.current = startParam;
+      // Reviewer L1: with a session already open the hand-off is dropped here,
+      // so a failed silent reload can't keep it for a later load.
+      pendingStart.current = sessionRef.current?.id ? null : startParam;
       navigation.setParams({ startPlanDayId: undefined });
     }
   }, [startParam, navigation]);
@@ -473,12 +475,11 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
   const todayTitle = planDayTitle(todayStatus?.plan_day);
   const todayCount = planDays.find((day) => day.id === todayDayId)?.exercises_count ?? todayStatus?.plan_day?.exercises_count;
   const todayExercises = exercisesByDay[todayDayId];
-  // T-102: this week's open misses from /week (none without it) through the
-  // §1 table. T-108: a rest day with a miss is ONE card (the miss + Up next).
+  // T-102: this week's open misses from /week (none without it). T-113: the
+  // hero is never a missed day; ONE Catch-up row under it (rest included).
   const misses = weekMisses(week, now);
   const base = missedBase(state);
   const layout = settingUp ? { hero: null, catchUp: null } : missedLayout(base, misses);
-  const missed = state === 'rest' ? layout.hero : null;
   const catchUp = layout.catchUp;
   const rows = dayRows({ planDays, schedule: currentPlan.schedule, doneIds: page.completedThisWeekDayIds, state, todayDayId, misses, now });
   const ask = (dayId, copy, ref) => {
@@ -524,23 +525,8 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
       onPress={() => ask(catchUp.miss.planDay?.id, catchUpConfirmCopy({ miss: catchUp.miss, base, todayTitle }), catchUpRef)}
     />
   ) : null;
-  const todayCard = missed ? (
-    <HubTodayCard
-      state="missed"
-      miss={missed}
-      planName={currentPlan.enrollment.plan.name}
-      tablet={tablet}
-      reflow={reflow}
-      weekdayName={WEEKDAYS[(now.getDay() + 6) % 7].name}
-      exercises={exercisesByDay[missed.planDay?.id]}
-      upNext={next}
-      starting={isStartingDayId != null && isStartingDayId === missed.planDay?.id}
-      startingEarly={isStartingDayId != null}
-      onDoItNow={() => onStart(missed.planDay?.id)}
-      onViewPlan={() => openPlanDetailAlone(planId)}
-      onStartEarly={requestStart}
-    />
-  ) : state === 'noSchedule' && settingUp ? (
+  const todayCard =
+    state === 'noSchedule' && settingUp ? (
       <ScheduleSetupCard
         planName={currentPlan.enrollment.plan.name}
         planDays={planDays}

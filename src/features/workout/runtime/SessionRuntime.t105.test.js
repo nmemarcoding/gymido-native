@@ -179,6 +179,27 @@ describe('T-105 Finish early', () => {
     expect(onCompleted).toHaveBeenCalledTimes(1);
   });
 
+  it('reviewer N2: two fast Complete taps open the sheet once with one pick', async () => {
+    const { setItem } = jest.requireMock('@react-native-async-storage/async-storage');
+    const { tree } = render();
+    setItem.mockClear();
+    const tap = byId(tree, 'complete-workout').props.onPress;
+    await act(async () => {
+      tap();
+      tap();
+    });
+    expect(dialog(tree).props.open).toBe(true);
+    expect(setItem.mock.calls.filter(([key]) => key === 'gymido.finishEarly.lastMessage')).toHaveLength(1);
+  });
+
+  it('reviewer N3: the message stays while the sheet fades out (Keep going / Finish anyway)', async () => {
+    const { tree } = render();
+    await press(tree, 'complete-workout');
+    const message = dialog(tree).props.message;
+    await act(async () => dialog(tree).props.onKeep());
+    expect(dialog(tree).props).toMatchObject({ open: false, message });
+  });
+
   it('no immediate repeat: the next open never shows the same message', async () => {
     const { tree } = render();
     await press(tree, 'complete-workout');

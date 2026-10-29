@@ -172,8 +172,11 @@ export default function SessionRuntime({
   const [muscle, setMuscle] = useState('all');
   const [showDiscard, setShowDiscard] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
-  // T-105: the "Finish early?" message while it is open (null = closed).
-  const [finishEarly, setFinishEarly] = useState(null);
+  // T-105: the "Finish early?" sheet. The message outlives `open`, so the body
+  // stays while the sheet fades out (reviewer N3); `asking` blocks a second
+  // tap during the message read (N2).
+  const [finishEarly, setFinishEarly] = useState({ open: false, message: null });
+  const askingRef = useRef(false);
   const [isAbandoning, setIsAbandoning] = useState(false);
   const elapsed = useElapsedTimer(session.started_at);
   const howTo = useHowToLibrary(loadHowTo ? { load: loadHowTo } : undefined);
@@ -432,10 +435,19 @@ export default function SessionRuntime({
       handleComplete();
       return;
     }
-    const index = pickMessageIndex(await readLastMessageIndex());
-    saveLastMessageIndex(index);
-    setFinishEarly(finishEarlyMessage(index, left));
+    if (askingRef.current || finishEarly.open) {
+      return;
+    }
+    askingRef.current = true;
+    try {
+      const index = pickMessageIndex(await readLastMessageIndex());
+      saveLastMessageIndex(index);
+      setFinishEarly({ open: true, message: finishEarlyMessage(index, left) });
+    } finally {
+      askingRef.current = false;
+    }
   }
+  const closeFinishEarly = () => setFinishEarly((current) => ({ ...current, open: false }));
 
   function changeDraft(exercise, set, field, value) {
     setDrafts((current) => propagateDraft(current, exercise, set.id, field, value));
@@ -821,11 +833,11 @@ export default function SessionRuntime({
       ) : null}
       <DiscardDialog open={showDiscard} onKeep={() => setShowDiscard(false)} onDiscard={handleAbandon} />
       <FinishEarlyDialog
-        open={Boolean(finishEarly)}
-        message={finishEarly}
-        onKeep={() => setFinishEarly(null)}
+        open={finishEarly.open}
+        message={finishEarly.message}
+        onKeep={closeFinishEarly}
         onFinish={() => {
-          setFinishEarly(null);
+          closeFinishEarly();
           return handleComplete();
         }}
       />

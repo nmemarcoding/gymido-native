@@ -6,7 +6,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
 import android.media.AudioAttributes
 import android.net.Uri
 import android.os.Build
@@ -31,7 +30,6 @@ private const val CHANNEL_ID = "rest-countdown-v2"
 private const val LEGACY_CHANNEL_ID = "rest-countdown"
 private const val KIND_KEY = "gymido.kind"
 private const val KIND = "rest-countdown"
-private const val BRAND_400 = "#f4b400"
 
 class CountdownOptions : Record {
   @Field val barStartMs: Double = 0.0
@@ -164,7 +162,7 @@ class RestCountdownModule : Module() {
     ensureChannels()
     val notification = NotificationCompat.Builder(context, CHANNEL_ID)
       .setSmallIcon(smallIcon())
-      .setColor(Color.parseColor(BRAND_400))
+      // T-104 (UX ruling): no accent colour on the rest notification (no setColor).
       .setColorized(false)
       .setContentTitle("Rest timer")
       .setUsesChronometer(true)

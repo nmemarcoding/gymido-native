@@ -23,10 +23,12 @@ describe('missedLayout (the §1 table)', () => {
     expect(missedLayout('completed', [MON, TUE, WED])).toEqual({ hero: null, catchUp: { miss: MON, more: 2 } });
   });
 
-  it('rest: the Missed hero names misses[0]; the row only with 2+, naming misses[1], more = count − 2', () => {
-    expect(missedLayout('rest', [MON])).toEqual({ hero: MON, catchUp: null });
-    expect(missedLayout('rest', [MON, TUE])).toEqual({ hero: MON, catchUp: { miss: TUE, more: 0 } });
-    expect(missedLayout('rest', [MON, TUE, WED])).toEqual({ hero: MON, catchUp: { miss: TUE, more: 1 } });
+  // DECLARED (T-113, owner OK 29 Oct): was "rest: the Missed hero names misses[0]; the row only with 2+, naming
+  // misses[1], more = count − 2". No Missed hero any more: rest follows the training / completed rule.
+  it('rest: no hero; the row names misses[0], more = count − 1 (T-113)', () => {
+    expect(missedLayout('rest', [MON])).toEqual({ hero: null, catchUp: { miss: MON, more: 0 } });
+    expect(missedLayout('rest', [MON, TUE])).toEqual({ hero: null, catchUp: { miss: MON, more: 1 } });
+    expect(missedLayout('rest', [MON, TUE, WED])).toEqual({ hero: null, catchUp: { miss: MON, more: 2 } });
   });
 });
 

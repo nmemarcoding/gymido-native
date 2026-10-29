@@ -17,6 +17,7 @@ import {
   UpNextLink,
   hitFor,
 } from './RuntimeParts';
+import { NBSP } from '../../../shared/format/counts';
 import { colors } from '../../../shared/theme/tokens';
 
 jest.mock('react-native-svg', () => {
@@ -184,7 +185,8 @@ describe('SessionChrome T-105: Complete in the header', () => {
     expect(all[0].props.accessibilityLabel).toBe('Elapsed time 18 minutes 30 seconds');
     expect(host(tree, 'session-subline')).toBeDefined();
     expect(host(tree, 'session-subline-count').props.accessibilityLabel).toBe('4/15 sets done');
-    expect(texts(tree)).toEqual(expect.arrayContaining(['4/15 sets', ' · ', '18:42']));
+    // UX T-105 LOW (DECLARED, was ' · '): non-breaking spaces round the dot, so iOS keeps the space before the clock.
+    expect(texts(tree)).toEqual(expect.arrayContaining(['4/15 sets', `${NBSP}·${NBSP}`, '18:42']));
   });
 
   it('phone: when "4/15 sets" does not fit on one line, "sets" drops ("4/15 · 18:42"); SR unchanged', () => {
@@ -219,6 +221,15 @@ describe('SessionChrome T-105: Complete in the header', () => {
 });
 
 describe('ExerciseStage', () => {
+  it('T-110 (UX): the ground behind the caption (≥ 0.85) grows with it, with a 32 band above; drawn from the first render', () => {
+    const tree = render(<ExerciseStage exercise={EXERCISE} index={0} count={2} isActive variant="live" completedSets={4} totalSets={15} />);
+    expect(flat(host(tree, 'exercise-stage-scrim')).height).toBe(32);
+    act(() => host(tree, 'exercise-stage-caption').props.onLayout({ nativeEvent: { layout: { height: 220 } } }));
+    expect(flat(host(tree, 'exercise-stage-scrim')).height).toBe(252);
+    expect(flat(host(tree, 'exercise-stage-scrim-solid'))).toMatchObject({ height: 220, backgroundColor: colors.groundTranslucent });
+    expect(host(tree, 'exercise-stage-scrim').props.pointerEvents).toBe('none');
+  });
+
   it('live: the photo, "Current exercise · muscle · n/m sets done", the name as the header, How to', () => {
     const tree = render(
       <ExerciseStage exercise={EXERCISE} index={0} count={5} isActive completedSets={4} totalSets={15} howTo={<HowToButton onPress={jest.fn()} />} />

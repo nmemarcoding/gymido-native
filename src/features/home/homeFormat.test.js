@@ -29,7 +29,9 @@ describe('todayCard (H1.3 + Batch B)', () => {
   const day = { title: 'Push' };
   const miss = (name, title) => ({ weekday: { name }, plan_day: { title } });
 
-  it('puts setup first, then completed, training, missed, rest', () => {
+  // DECLARED (T-113, owner OK 29 Oct): was "…, training, missed, rest" (a rest day + miss → state 'missed', "You
+  // missed Monday's Legs" / "…workout", "Do it now"); a rest day with misses is the normal rest card now.
+  it('puts setup first, then completed, training, rest (misses never change the hero)', () => {
     expect(todayCard({ today_status: { is_workout_day: true } }, 3)).toMatchObject({
       state: 'setup',
       pill: 'Set up',
@@ -41,11 +43,11 @@ describe('todayCard (H1.3 + Batch B)', () => {
     expect(todayCard({ today_status: { already_completed: true } }).headline).toBe('Workout done');
     expect(todayCard({ today_status: { is_workout_day: true } })).toMatchObject({ state: 'training', headline: 'Workout ready', primary: 'Start workout' });
     expect(todayCard({ today_status: {}, missed_this_week: [miss('Monday', 'Legs')] })).toMatchObject({
-      state: 'missed',
-      headline: "You missed Monday's Legs",
-      primary: 'Do it now',
+      state: 'rest',
+      pill: 'Rest day',
+      headline: 'Recovery day',
+      primary: 'Go to workout',
     });
-    expect(todayCard({ today_status: {}, missed_this_week: [miss('Monday')] }).headline).toBe("You missed Monday's workout");
     expect(todayCard({ today_status: { plan_day: day } })).toMatchObject({ state: 'rest', headline: 'Push' });
     expect(todayCard({}).headline).toBe('Recovery day');
   });
@@ -58,15 +60,17 @@ describe('todayCard (H1.3 + Batch B)', () => {
     expect(training).not.toHaveProperty('moreMissed');
     expect(training).toMatchObject({ state: 'training', base: 'training' });
     expect(training.catchUp).toEqual({ miss: { weekdayName: 'Monday', planDay: { title: 'A' } }, more: 2 });
+    // DECLARED (T-113, owner OK 29 Oct): was "rest + 1 → state missed, catchUp null".
     const rest = todayCard({ missed_this_week: [miss('Monday', 'A')] });
-    expect(rest).toMatchObject({ state: 'missed', base: 'rest', catchUp: null });
+    expect(rest).toMatchObject({ state: 'rest', base: 'rest', catchUp: { miss: { weekdayName: 'Monday', planDay: { title: 'A' } }, more: 0 } });
     expect(rest).not.toHaveProperty('moreMissed');
   });
 
-  it('T-107: Today\'s "Do it now" hands nothing (navigate only); an open session reads "Resume workout"', () => {
+  // DECLARED (T-113, owner OK 29 Oct): replaces "T-107: Today's 'Do it now' hands nothing…" (no "Do it now" any more).
+  it('T-113: rest + miss is the rest card ("Go to workout"); an open session reads "Resume workout" and hides the row', () => {
     const rest = { missed_this_week: [miss('Monday', 'A')] };
-    expect(todayCard(rest)).not.toHaveProperty('startPlanDayId');
-    expect(todayCard(rest, null, true)).toMatchObject({ state: 'missed', primary: 'Resume workout' });
+    expect(todayCard(rest)).toMatchObject({ state: 'rest', primary: 'Go to workout' });
+    expect(todayCard(rest, null, true)).toMatchObject({ state: 'rest', primary: 'Resume workout', catchUp: null });
     expect(todayCard({ ...rest, today_status: { already_completed: true, plan_day: { title: 'Push' } } })).toMatchObject({
       state: 'completed',
       catchUp: { more: 0 },

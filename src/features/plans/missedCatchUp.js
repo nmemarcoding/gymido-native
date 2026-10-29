@@ -37,22 +37,16 @@ export function weekMisses(week, now = new Date()) {
     });
 }
 
-// §1 table. `base` = setup | training | completed | rest (anything else, e.g.
-// the hub's week complete, shows nothing). hero = the miss the Missed hero
-// names (rest only); catchUp = { miss, more } for the row, more = the count
-// left after the named days.
+// T-113 table (owner; UX T113-rest-first-ruling, replaces T-102 §1): no
+// Missed hero anywhere; on training / completed / rest days with an open
+// miss, ONE Catch-up row names the most recent (misses[0]), more = the count
+// left. `base` = setup | training | completed | rest (anything else, e.g. the
+// hub's week complete, shows nothing). `hero` stays null (callers read it).
 export function missedLayout(base, misses = []) {
-  const none = { hero: null, catchUp: null };
-  if (!misses.length) {
-    return none;
+  if (!misses.length || !['training', 'completed', 'rest'].includes(base)) {
+    return { hero: null, catchUp: null };
   }
-  if (base === 'training' || base === 'completed') {
-    return { hero: null, catchUp: { miss: misses[0], more: misses.length - 1 } };
-  }
-  if (base === 'rest') {
-    return { hero: misses[0], catchUp: misses[1] ? { miss: misses[1], more: misses.length - 2 } : null };
-  }
-  return none;
+  return { hero: null, catchUp: { miss: misses[0], more: misses.length - 1 } };
 }
 
 // The row's two lines and its one SR label. Line 2 only when more > 0.

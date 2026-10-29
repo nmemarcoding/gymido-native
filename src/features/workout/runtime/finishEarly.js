@@ -48,7 +48,8 @@ let memoryLast = null;
 
 export async function readLastMessageIndex() {
   const stored = await getPreference(LAST_MESSAGE_KEY);
-  const value = stored == null ? NaN : Number(stored);
+  // Reviewer N1 (web 2.1.6): a blank value is none, never index 0.
+  const value = stored == null || String(stored).trim() === '' ? NaN : Number(stored);
   if (Number.isInteger(value)) {
     memoryLast = value;
   }

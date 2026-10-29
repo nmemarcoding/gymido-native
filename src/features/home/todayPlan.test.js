@@ -213,10 +213,12 @@ describe('Today hero (UX E, all five states)', () => {
     expect(openPlanDetailAlone).toHaveBeenCalledWith(4);
   });
 
+  // DECLARED (T-113, owner OK 29 Oct): the rest + 2 misses case was the warning "Missed" pill + "Do it now"; it is now
+  // the neutral "Rest day" pill + "Go to workout", with one Catch-up row under the hero.
   it('completed / missed / rest / setup pills and labels', async () => {
     const cases = [
       [{ ...DASH, today_status: { already_completed: true, plan_day: { title: 'Upper A' } } }, 'completed', 'Completed', 'Go to workout'],
-      [{ ...DASH, today_status: {}, missed_this_week: [{ weekday: { name: 'Monday' }, plan_day: { title: 'Lower' } }, {}] }, 'warning', 'Missed', 'Do it now'],
+      [{ ...DASH, today_status: {}, missed_this_week: [{ weekday: { name: 'Monday' }, plan_day: { title: 'Lower' } }, {}] }, 'neutral', 'Rest day', 'Go to workout'],
       [{ ...DASH, today_status: {} }, 'neutral', 'Rest day', 'Go to workout'],
     ];
     for (const [dash, tone, pill, primary] of cases) {
@@ -228,7 +230,9 @@ describe('Today hero (UX E, all five states)', () => {
     // 2 misses now shows the Catch-up row naming the 2nd miss and no "+n more" line.
     const missed = await render(cases[1][0]);
     expect(queryHost(missed.root, 'home-more-missed')).toHaveLength(0);
-    expect(texts(missed.root).join('|')).not.toContain('more missed');
+    // DECLARED (T-113, PM OK 29 Oct): was the whole page; the one row's line 2 now reads "+1 more missed this week",
+    // so the ⚠H-4 check is scoped to the hero (nothing under the headline).
+    expect(texts(host(missed.root, 'home-today-card')).join('|')).not.toContain('more missed');
     expect(queryHost(missed.root, 'home-catch-up')).toHaveLength(1);
   });
 
@@ -448,9 +452,9 @@ describe('Today hero with no image (Batch 2 item 4)', () => {
   const media = (root) => queryHost(root, 'home-today-media');
   const tile = (root, suffix) => queryHost(root, `home-today-media-image${suffix}`);
 
-  it('heroDayTitle: today\'s day title, the latest miss\'s when missed, none in setup', () => {
+  // DECLARED (T-113, owner OK 29 Oct): the 'missed' line goes (no missed hero state).
+  it('heroDayTitle: today\'s day title, none in setup', () => {
     expect(heroDayTitle(DASH, { state: 'training' })).toBe('Upper A');
-    expect(heroDayTitle({ today_status: {}, missed_this_week: [{ plan_day: { title: 'Lower B' } }] }, { state: 'missed' })).toBe('Lower B');
     expect(heroDayTitle(DASH, { state: 'setup' })).toBeNull();
     expect(heroDayTitle({ today_status: { plan_day: { title: '  ' } } }, { state: 'rest' })).toBeNull();
     expect(heroDayTitle(null, { state: 'training' })).toBeNull();
@@ -643,7 +647,8 @@ describe('T-63 "Resume workout" while a session is open', () => {
   const STATES = [
     ['training', DASH, "Today's workout", 'Upper A'],
     ['completed', { ...DASH, today_status: { already_completed: true, plan_day: { title: 'Upper A' } } }, 'Completed', 'Upper A'],
-    ['missed', { ...DASH, today_status: {}, missed_this_week: [{ weekday: { name: 'Monday' }, plan_day: { title: 'Lower' } }] }, 'Missed', "You missed Monday's Lower"],
+    // DECLARED (T-113, owner OK 29 Oct): the 'missed' case (Missed / "You missed Monday's Lower") is dropped; a rest
+    // day with misses is the 'rest' case below.
     ['rest', { ...DASH, today_status: {} }, 'Rest day', 'Recovery day'],
   ];
   beforeEach(() => {
@@ -916,23 +921,31 @@ describe('T-102 missed + Catch-up row', () => {
     expect(openShellPath).not.toHaveBeenCalled();
   });
 
-  it('rest + 3 misses: the Missed hero names the latest; the row the 2nd with "+1 more"; the rest copy', async () => {
+  // DECLARED (T-113, owner OK 29 Oct): was "the Missed hero names the latest; the row the 2nd with '+1 more'"; now
+  // the Rest hero + ONE row naming the latest (Wednesday) with "+2 more".
+  it('rest + 3 misses: the Rest hero; ONE row naming the latest with "+2 more"; the rest copy', async () => {
     const misses = [missOf('Wednesday', 13, 'Upper B'), missOf('Tuesday', 12, 'Lower A'), missOf('Monday', 11, 'Upper A')];
     const tree = await render({ ...DASH, today_status: {}, missed_this_week: misses });
-    expect(textOf(host(tree.root, 'home-today-headline'))).toBe("You missed Wednesday's Upper B");
-    expect(button(tree.root, 'home-catch-up').props.accessibilityLabel).toBe("Catch up on Tuesday's Lower A. 1 more missed this week.");
-    expect(textOf(host(tree.root, 'home-catch-up-line2'))).toBe('+1 more missed this week');
+    expect(textOf(host(tree.root, 'home-today-headline'))).toBe('Recovery day');
+    expect(button(tree.root, 'home-catch-up').props.accessibilityLabel).toBe("Catch up on Wednesday's Upper B. 2 more missed this week.");
+    expect(textOf(host(tree.root, 'home-catch-up-line2'))).toBe('+2 more missed this week');
     expect(styleOf(host(tree.root, 'home-catch-up-line2')).color).toBe(colors.textMuted);
     act(() => button(tree.root, 'home-catch-up').props.onPress());
-    expect(confirmOf(tree).props.description).toBe('You missed it on Tuesday. Today is a rest day. This starts a live workout.');
+    expect(confirmOf(tree).props.description).toBe('You missed it on Wednesday. Today is a rest day. This starts a live workout.');
   });
 
-  it('T-107: "Do it now" only opens Workout (no day handed); rest + 1 miss has no row', async () => {
+  // DECLARED (T-113, owner OK 29 Oct): replaces "T-107: 'Do it now' only opens Workout; rest + 1 miss has no row".
+  it('rest + 1 miss: the Rest hero ("Go to workout" → Workout) + a one-line row; confirm Start → Workout with that day', async () => {
     const tree = await render({ ...DASH, today_status: {}, missed_this_week: [missOf('Monday', 11, 'Upper A')] });
-    expect(queryHost(tree.root, 'home-catch-up')).toHaveLength(0);
+    expect(tree.root.findAllByType(StatusPill)[0].props).toMatchObject({ tone: 'neutral', label: 'Rest day' });
+    expect(texts(tree.root).join('|')).not.toMatch(/You missed|Do it now/);
+    expect(button(tree.root, 'home-catch-up').props.accessibilityLabel).toBe("Catch up on Monday's Upper A.");
+    expect(queryHost(tree.root, 'home-catch-up-line2')).toHaveLength(0);
     act(() => pressable(tree.root, 'home-today-primary').props.onPress());
-    expect(openShellPath).toHaveBeenCalledTimes(1);
     expect(openShellPath.mock.calls[0]).toEqual(['/workout']);
+    act(() => button(tree.root, 'home-catch-up').props.onPress());
+    act(() => confirmOf(tree).props.onConfirm());
+    expect(openShellPath).toHaveBeenLastCalledWith('/workout', { startPlanDayId: 11 });
   });
 
   it('completed + 2 misses shows the row (D2) with the done copy; the look: 56 min, radius 24, surface + hairline, amber disc', async () => {
@@ -952,11 +965,30 @@ describe('T-102 missed + Catch-up row', () => {
   });
 });
 
-describe('T-108 Today eyebrow', () => {
-  it('rest + miss: "TODAY · THURSDAY · REST DAY" above the pill; no eyebrow in the other states', async () => {
-    const missed = await render({ ...DASH, today_status: {}, missed_this_week: [{ weekday: { name: 'Monday' }, plan_day: { id: 11, title: 'Upper A' } }] });
-    expect(textOf(host(missed.root, 'home-today-eyebrow'))).toBe('TODAY · THURSDAY · REST DAY');
-    const training = await render();
-    expect(queryHost(training.root, 'home-today-eyebrow')).toHaveLength(0);
+describe('UX T-102 LOW (a): the Catch-up row hides while a live session is open', () => {
+  const misses = [{ weekday: { name: 'Tuesday' }, plan_day: { id: 12, title: 'Lower A' } }];
+
+  it('an open session (GET /workouts/current) hides it; none shows it', async () => {
+    getCurrentWorkout.mockResolvedValueOnce({ id: 5, status: 'in_progress' });
+    const open = await render({ ...DASH, missed_this_week: misses });
+    expect(queryHost(open.root, 'home-catch-up')).toHaveLength(0);
+    expect(texts(host(open.root, 'home-today-primary'))).toContain('Resume workout');
+    getCurrentWorkout.mockResolvedValueOnce(null);
+    const closed = await render({ ...DASH, missed_this_week: misses });
+    expect(queryHost(closed.root, 'home-catch-up')).toHaveLength(1);
+  });
+});
+
+// DECLARED (T-113, owner OK 29 Oct): replaces "T-108 Today eyebrow" (the eyebrow went with the Missed hero).
+describe('T-113 no Missed hero on Today', () => {
+  it('no eyebrow, no Missed pill and no "You missed" headline in any state with misses', async () => {
+    const misses = [{ weekday: { name: 'Monday' }, plan_day: { id: 11, title: 'Upper A' } }];
+    for (const today of [{}, { is_workout_day: true, plan_day: { title: 'Upper A' } }, { already_completed: true, plan_day: { title: 'Upper A' } }]) {
+      const tree = await render({ ...DASH, today_status: today, missed_this_week: misses });
+      expect(queryHost(tree.root, 'home-today-eyebrow')).toHaveLength(0);
+      expect(tree.root.findAllByType(StatusPill)[0].props.label).not.toBe('Missed');
+      expect(textOf(host(tree.root, 'home-today-headline'))).not.toMatch(/You missed/);
+      expect(queryHost(tree.root, 'home-catch-up')).toHaveLength(1);
+    }
   });
 });

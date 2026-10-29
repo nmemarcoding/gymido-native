@@ -64,4 +64,11 @@ describe('rotation', () => {
     expect(await readLastMessageIndex()).toBe(7);
     expect(LAST_MESSAGE_KEY).toBe('gymido.finishEarly.lastMessage');
   });
+
+  it('reviewer N1: a blank stored value is none, never index 0', async () => {
+    getPreference.mockResolvedValueOnce('');
+    expect(await readLastMessageIndex()).toBeNull();
+    getPreference.mockResolvedValueOnce('  ');
+    expect(await readLastMessageIndex()).toBeNull();
+  });
 });

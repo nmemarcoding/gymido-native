@@ -2,8 +2,7 @@ import { formatNumber, formatToGoal, formatWeight, parseDecimal } from '../../sh
 import { convertWeight } from '../../shared/format/weight';
 import { formatDate, formatDuration, formatLocalDateForInput } from '../../shared/time/format';
 import { formatCount } from '../../shared/format/counts';
-import { WEEKDAYS } from '../plans/libraryFormat';
-import { dashboardMisses, missTitle, missedLayout } from '../plans/missedCatchUp';
+import { dashboardMisses, missedLayout } from '../plans/missedCatchUp';
 import { notStartedCaption, weekByDate } from '../plans/weekByDate';
 
 // Rules and copy of RN-SPEC-home (dated changes of 23 Oct included). Pure.
@@ -35,7 +34,7 @@ export function isSessionOpen(session) {
   return Boolean(session) && (session.status ?? 'in_progress') === 'in_progress';
 }
 
-export function todayCard(dashboard, setupDayCount = null, sessionOpen = false, now = new Date()) {
+export function todayCard(dashboard, setupDayCount = null, sessionOpen = false) {
   const today = dashboard?.today_status;
   const misses = dashboardMisses(dashboard);
   let card;
@@ -56,27 +55,15 @@ export function todayCard(dashboard, setupDayCount = null, sessionOpen = false, 
     // ⚠H-2: a rest day can still carry a day title.
     card = { state: 'rest', tone: 'muted', pill: 'Rest day', headline: today?.plan_day?.title || 'Recovery day', primary: 'Go to workout' };
   }
-  // T-102 §1 table (⚠H-4 retired: no "+n more" line under the headline; the
-  // count only shows as line 2 of the Catch-up row, which names a day first).
-  // `base` = the state before the Missed hero (the confirm's state sentence).
+  // T-102 / T-113 (⚠H-4 retired: no "+n more" line under the headline): the
+  // hero is never a missed day; open misses are ONE Catch-up row under it.
   const base = card.state;
-  const { hero, catchUp } = missedLayout(base, misses);
-  if (hero) {
-    // T-108 §3: the Workout card's eyebrow, so both pages open the same way.
-    const weekday = WEEKDAYS[(now.getDay() + 6) % 7].name.toUpperCase();
-    card = {
-      state: 'missed',
-      tone: 'warning',
-      eyebrow: `TODAY · ${weekday} · REST DAY`,
-      pill: 'Missed',
-      headline: `You missed ${hero.weekdayName}'s ${missTitle(hero)}`,
-      primary: 'Do it now',
-    };
-  }
-  // T-107 (owner, 29 Oct, replaces D1 here): Today's "Do it now" only opens
-  // Workout, whose own Missed card starts the day; T-63 relabels it.
+  const { catchUp } = missedLayout(base, misses);
+  // T-63: an open session relabels the primary.
   const primary = sessionOpen ? 'Resume workout' : card.primary;
-  return { ...card, base, primary, catchUp };
+  // UX (T-102 LOW a): no Catch-up row while a live session is open; it
+  // comes back once the session is completed or discarded.
+  return { ...card, base, primary, catchUp: sessionOpen ? null : catchUp };
 }
 
 // H1.4
@@ -172,12 +159,12 @@ export function heroImageUrl(dashboard) {
 }
 
 // Batch 2 item 4: the name of the tablet hero's initials tile = the plan day
-// TITLE (the latest miss's when missed; none in setup).
+// TITLE (none in setup).
 export function heroDayTitle(dashboard, card) {
   if (!card || card.state === 'setup') {
     return null;
   }
-  const title = card.state === 'missed' ? dashboard?.missed_this_week?.[0]?.plan_day?.title : dashboard?.today_status?.plan_day?.title;
+  const title = dashboard?.today_status?.plan_day?.title;
   return typeof title === 'string' && title.trim() ? title : null;
 }
 

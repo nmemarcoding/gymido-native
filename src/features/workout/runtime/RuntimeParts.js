@@ -24,7 +24,7 @@ import {
   stageEyebrow,
   tabletEyebrow,
 } from './sessionMath';
-import { keepUnitsTogether } from '../../../shared/format/counts';
+import { NBSP, keepUnitsTogether } from '../../../shared/format/counts';
 
 const CLEAR = gradients.photoFade.colors[0];
 // UX F1 drawn sizes (phone / tablet). Heights hold text, so they are minimums.
@@ -195,7 +195,8 @@ function PhoneSubline({ completedSets, totalSets, elapsed }) {
         {count}
       </Text>
       <Text {...CAP_PILL} accessibilityElementsHidden importantForAccessibility="no" style={[styles.planSub, styles.noShrink]}>
-        {' · '}
+        {/* UX T-105 LOW: NBSPs, so iOS keeps the space before the clock. */}
+        {`${NBSP}·${NBSP}`}
       </Text>
       <Text
         testID="session-timer"
@@ -348,6 +349,8 @@ export function ExerciseStage({
   const notes = exerciseNotes(exercise);
   const name = exerciseName(exercise);
   const muscle = exercise.exercise?.primary_muscle_group?.name;
+  // T-110 (UX): the caption block's height; the scrim behind it follows it.
+  const [captionHeight, setCaptionHeight] = useState(0);
   const browse = variant === 'browse';
   const split = variant === 'split';
   const minHeight = split ? undefined : browse ? (tablet ? TABLET_BROWSE_STAGE_HEIGHT : PHONE_BROWSE_STAGE_HEIGHT) : PHONE_STAGE_HEIGHT;
@@ -361,11 +364,16 @@ export function ExerciseStage({
   return (
     <View testID="exercise-stage" onLayout={onLayout} style={[styles.stage, split && styles.stageSplit, { minHeight, paddingTop: top }]}>
       <StagePhoto exercise={exercise} variant={variant} />
+      <CaptionScrim height={captionHeight} />
       {chrome}
       <View style={styles.flex} />
       <View testID="exercise-stage-content" onLayout={onContentLayout}>
         {howTo ? <View style={[styles.howToRow, split && styles.howToRowSplit]}>{howTo}</View> : null}
-        <View style={[styles.caption, browse && styles.captionBrowse, tablet && browse && styles.captionBrowseTablet, split && styles.captionSplit]}>
+        <View
+          testID="exercise-stage-caption"
+          onLayout={(event) => setCaptionHeight(event.nativeEvent.layout.height)}
+          style={[styles.caption, browse && styles.captionBrowse, tablet && browse && styles.captionBrowseTablet, split && styles.captionSplit]}
+        >
           <View style={styles.captionText}>
             <Text {...CAP_BODY} style={[styles.eyebrow, browse && styles.eyebrowBrowse, tablet && browse && styles.eyebrowBrowseTablet, split && styles.eyebrowSplit]}>
               {eyebrow}
@@ -384,6 +392,25 @@ export function ExerciseStage({
           {browse ? <StageRing exercise={exercise} tablet={tablet} /> : null}
         </View>
       </View>
+    </View>
+  );
+}
+
+// T-110 (UX, LOW): however tall the caption grows (large text), the ground
+// behind the eyebrow, name and description is ≥ 0.85 (groundTranslucent
+// 0.86), reached over a 32 band above the caption's top line, so the muted
+// caption keeps ≥ 4.5:1 over any photo. Both layers are drawn from the first
+// render (Android gradient rule); only their size and position follow the
+// measured caption.
+export const CAPTION_FADE_BAND = 32;
+
+function CaptionScrim({ height }) {
+  return (
+    <View testID="exercise-stage-scrim" pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.scrimHost, { height: height + CAPTION_FADE_BAND }]}>
+      <View style={styles.scrimBand}>
+        <GradientFill angle={180} colors={[CLEAR, colors.groundTranslucent]} />
+      </View>
+      <View testID="exercise-stage-scrim-solid" style={[styles.scrimSolid, { height }]} />
     </View>
   );
 }
@@ -1021,6 +1048,18 @@ const styles = StyleSheet.create({
   },
   fadeSplit: {
     height: 420,
+  },
+  scrimHost: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  scrimBand: {
+    height: CAPTION_FADE_BAND,
+  },
+  scrimSolid: {
+    backgroundColor: colors.groundTranslucent,
   },
   howToRow: {
     alignItems: 'flex-end',
