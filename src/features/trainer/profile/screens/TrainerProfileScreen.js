@@ -14,6 +14,7 @@ import { useAuthStore } from '../../../auth/authStore';
 import { logout } from '../../../auth/authService';
 import { useProfileStore } from '../../../profile/profileStore';
 import ShellPage from '../../../shell/ShellPage';
+import AppVersionFooter from '../../../profile/AppVersionFooter';
 import TrainerOnly from '../../TrainerOnly';
 import { CoachingChip } from '../../plans/components/TrainerChips';
 import { updateTrainerProfile } from '../api/trainerProfileApi';
@@ -267,6 +268,8 @@ function TrainerProfileForm({ tablet }) {
           </>
         )}
       </Pressable>
+      {/* T-90: the last item, 24 below Logout (the column gap + the rest). */}
+      <AppVersionFooter style={tablet ? styles.versionTablet : styles.version} />
     </View>
   );
 }
@@ -282,6 +285,13 @@ const styles = StyleSheet.create({
   columnTablet: {
     maxWidth: 620,
     gap: spacing['4_5'],
+  },
+  // T-90: 24 below Logout = the column gap + the rest.
+  version: {
+    marginTop: spacing[6] - spacing['3_5'],
+  },
+  versionTablet: {
+    marginTop: spacing[6] - spacing['4_5'],
   },
   // Phone hero: radius 28, padding 22, gradient-card, a 220 teal orb at the
   // top-right corner. The radius never changes, so it clips safely.

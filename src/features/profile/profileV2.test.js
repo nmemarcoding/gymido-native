@@ -13,6 +13,7 @@ jest.mock('./api/profileApi', () => ({
   deleteAccount: jest.fn(),
 }));
 jest.mock('../home/api/homeApi', () => ({ getDashboard: jest.fn() }));
+jest.mock('../../shared/api/healthApi', () => ({ getServerHealth: jest.fn(() => Promise.resolve({ version: '4.1.0', build: '8a12bd7' })) }));
 jest.mock('../myTrainer/api/myTrainerApi', () => ({ getMyTrainer: jest.fn(), listPendingTrainerRequests: jest.fn() }));
 jest.mock('../myTrainer/myTrainerFormat', () => ({ coachingStatus: jest.fn(() => 'No trainer yet') }));
 jest.mock('../../shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
@@ -890,3 +891,23 @@ describe('Edit profile weights: the full value always shows (320, 1×/1.3×)', (
     expect(room).toBeGreaterThanOrEqual('178'.length * DIGIT_EM * fontSize);
   });
 });
+
+// T-90 (UX spec): the version footer is the LAST item of the Profile column,
+// 24 below the previous item, on phone and tablet (below both columns).
+describe('T-90 version footer placement', () => {
+  const AppVersionFooter = require('./AppVersionFooter').default;
+  const lastChild = (node) => [].concat(node.props.children).filter((child) => child && typeof child === 'object');
+  it.each([390, 834])('%i: AppVersionFooter is the last rendered item; app + server lines', async (width) => {
+    mockWidth = width;
+    setStoredProfile(PROFILE);
+    const tree = await renderAsync(<ProfileSettingsScreen />);
+    const footer = tree.root.findByType(AppVersionFooter);
+    const parent = footer.parent;
+    const kids = lastChild(parent).filter((child) => child.type !== ChangePasswordModal);
+    expect(kids[kids.length - 1].type).toBe(AppVersionFooter);
+    expect(flat(footer.props.style).marginTop).toBe(width >= 768 ? 24 : 24 - 14);
+    // The app line comes from the expo config (AppVersionFooter.test); here the server line.
+    expect(host(tree.root, 'server-version').props.children).toBe('Server 4.1.0 (8a12bd7)');
+  });
+});
+

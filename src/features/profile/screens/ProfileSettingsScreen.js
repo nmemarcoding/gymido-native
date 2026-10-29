@@ -23,6 +23,7 @@ import {
   useVibrateRestAlerts,
 } from '../../workout/runtime/speakRestAlerts';
 import ChangePasswordModal from '../ChangePasswordModal';
+import AppVersionFooter from '../AppVersionFooter';
 import CoachingCard from '../CoachingCard';
 import DeleteAccountAction from '../DeleteAccountAction';
 import { profileDisplayName, profileInitials } from '../editProfileForm';
@@ -259,33 +260,37 @@ function Settings() {
 
   if (tablet) {
     return (
-      <View testID="settings-tablet" style={[styles.tabletGrid, reflow && styles.tabletGridStacked]}>
-        <View style={[styles.tabletLeft, reflow && styles.tabletLeftStacked]}>
-          <View testID="settings-identity" style={styles.hero}>
-            <View style={StyleSheet.absoluteFill} pointerEvents="none">
-              <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
+      <View style={styles.tabletPage}>
+        <View testID="settings-tablet" style={[styles.tabletGrid, reflow && styles.tabletGridStacked]}>
+          <View style={[styles.tabletLeft, reflow && styles.tabletLeftStacked]}>
+            <View testID="settings-identity" style={styles.hero}>
+              <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
+              </View>
+              <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                <GradientFill radial={HERO_GLOW.radial} colors={HERO_GLOW.colors} stops={HERO_GLOW.stops} />
+              </View>
+              <ProfileAvatar initials={profileInitials(displayName)} size={120} testID="settings-avatar" />
+              <View style={styles.heroText}>
+                {name}
+                {emailLine}
+              </View>
+              {manage}
+              <ProfileStatTiles profile={profile} inCard />
             </View>
-            <View style={StyleSheet.absoluteFill} pointerEvents="none">
-              <GradientFill radial={HERO_GLOW.radial} colors={HERO_GLOW.colors} stops={HERO_GLOW.stops} />
-            </View>
-            <ProfileAvatar initials={profileInitials(displayName)} size={120} testID="settings-avatar" />
-            <View style={styles.heroText}>
-              {name}
-              {emailLine}
-            </View>
-            {manage}
-            <ProfileStatTiles profile={profile} inCard />
+            <CoachingCard layout="row" />
           </View>
-          <CoachingCard layout="row" />
+          <View style={styles.tabletRight}>
+            {account}
+            {workout}
+            {logoutButton}
+            {/* P1.3 item 5 / P1b (T-43): 32 below Logout (the 18 gap + 14). */}
+            <DeleteAccountAction align="start" style={styles.deleteAccountTablet} />
+          </View>
+          {modal}
         </View>
-        <View style={styles.tabletRight}>
-          {account}
-          {workout}
-          {logoutButton}
-          {/* P1.3 item 5 / P1b (T-43): 32 below Logout (the 18 gap + 14). */}
-          <DeleteAccountAction align="start" style={styles.deleteAccountTablet} />
-        </View>
-        {modal}
+        {/* T-90: below both columns, centred, 24 under them. */}
+        <AppVersionFooter style={styles.versionTablet} />
       </View>
     );
   }
@@ -332,6 +337,9 @@ function Settings() {
 
       {/* P1.3 item 5 / P1b (T-43): 32 below Logout (the 14 gap + 18). */}
       <DeleteAccountAction style={styles.deleteAccount} />
+
+      {/* T-90: the last item, 24 below (the 14 gap + 10). */}
+      <AppVersionFooter style={styles.versionPhone} />
 
       {modal}
     </View>
@@ -655,7 +663,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing[5],
+  },
+  // T-90: the grid's bottom padding moves below the version footer.
+  tabletPage: {
     paddingBottom: spacing[6],
+  },
+  versionTablet: {
+    marginTop: spacing[6],
+  },
+  versionPhone: {
+    marginTop: spacing[6] - spacing['3_5'],
   },
   tabletGridStacked: {
     flexDirection: 'column',

@@ -7,6 +7,7 @@ import { colors, gradients, radii, textScale } from '../../../shared/theme/token
 import { useAuthStore } from '../../auth/authStore';
 import { useProfileStore } from '../../profile/profileStore';
 import { updateTrainerProfile } from './api/trainerProfileApi';
+import AppVersionFooter from '../../profile/AppVersionFooter';
 import TrainerProfileScreen, { AVATAR_PHONE, AVATAR_TABLET, PROFILE_GLOW, TABLET_PROFILE_GLOW } from './screens/TrainerProfileScreen';
 import { ownInitials } from './trainerProfileForm';
 
@@ -20,6 +21,7 @@ jest.mock('../../shell/ShellPage', () => (props) => {
 jest.mock('../TrainerOnly', () => ({ children }) => children);
 jest.mock('../../../shared/hooks/useFocusRemountKey', () => ({ useFocusRemountKey: () => 0 }));
 jest.mock('../../../shared/api/client', () => ({ apiClient: {} }));
+jest.mock('../../../shared/api/healthApi', () => ({ getServerHealth: jest.fn(() => Promise.resolve({ version: '4.1.0', build: 'dev' })) }));
 jest.mock('./api/trainerProfileApi', () => ({ updateTrainerProfile: jest.fn() }));
 jest.mock('../../auth/authService', () => ({ logout: jest.fn() }));
 jest.mock('../../../shared/components/toastStore', () => ({ ...jest.requireActual('../../../shared/components/toastStore'),
@@ -218,3 +220,17 @@ describe('Trainer profile large text (UX §9)', () => {
     }
   });
 });
+
+// T-90 (UX spec): the version footer is the last item, 24 below Logout.
+describe('T-90 version footer', () => {
+  it.each([390, 834])('%i: the last child of the column, after Logout; "Server 4.1.0" for a dev build', async (width) => {
+    setWindow(width);
+    const tree = await render();
+    const column = host(tree.root, 'trainer-profile-column');
+    const kids = [].concat(column.props.children).filter(Boolean);
+    expect(kids[kids.length - 1].type).toBe(AppVersionFooter);
+    expect(flat(tree.root.findByType(AppVersionFooter).props.style).marginTop).toBe(width >= 768 ? 24 - 18 : 24 - 14);
+    expect(host(tree.root, 'server-version').props.children).toBe('Server 4.1.0');
+  });
+});
+
