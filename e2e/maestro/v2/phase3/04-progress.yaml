@@ -5,8 +5,21 @@ appId: com.gymido.app
 # QA candidate 2941880 (PM 28 Oct 2026): since T-65 the flow before this one
 # can end on an inner page (no tab bar), so start from a main page.
 - runFlow: ../subflows/signed-in-start.yaml
-- tapOn:
-    id: "tab-Progress"
+# QA LOW (2.0.5 regression): the phone tab bar OR the tablet rail.
+- runFlow:
+    when:
+      visible:
+        id: "tab-Progress"
+    commands:
+      - tapOn:
+          id: "tab-Progress"
+- runFlow:
+    when:
+      visible:
+        id: "rail-Progress"
+    commands:
+      - tapOn:
+          id: "rail-Progress"
 - extendedWaitUntil:
     visible:
       id: "progress-tabs"

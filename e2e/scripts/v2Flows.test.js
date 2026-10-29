@@ -137,6 +137,26 @@ describe('flows that waited for a tab bar start from signed-in-start', () => {
   });
 });
 
+// QA LOWs (2.0.5 regression, Android + tablets): 04-progress opens Progress on
+// the tablet rail too; c5 waits for the minimised disc instead of asserting it
+// the instant the board closes (a flake).
+describe('QA 2.0.5 flow LOWs', () => {
+  const steps = (src) => src.split('\n').filter((line) => !line.trim().startsWith('#')).join('\n');
+  const flow = (rel) => steps(fs.readFileSync(path.join(V2, rel), 'utf8'));
+  it('04-progress taps tab-Progress (phone) or rail-Progress (tablet), each when visible', () => {
+    const text = flow('phase3/04-progress.yaml');
+    ['tab-Progress', 'rail-Progress'].forEach((id) => {
+      expect(text).toMatch(new RegExp(`when:\\n\\s+visible:\\n\\s+id: "${id}"\\n\\s+commands:\\n\\s+- tapOn:\\n\\s+id: "${id}"`));
+    });
+    expect(text).not.toMatch(/^- tapOn:\n\s+id: "tab-Progress"/m);
+  });
+  it('c5 never asserts rest-timer at once; it waits for it (5 s)', () => {
+    const text = flow('phase3/c5-android-back-rest.yaml');
+    expect(text).not.toMatch(/- assertVisible:\n\s+id: "rest-timer"\n/);
+    expect(text.match(/- extendedWaitUntil:\n\s+visible:\n\s+id: "rest-timer"\n\s+timeout: 5000/g)).toHaveLength(2);
+  });
+});
+
 describe('open-first-my-plan works on phone AND tablet', () => {
   const flow = fs.readFileSync(path.join(V2, 'phase4', 'subflows', 'open-first-my-plan.yaml'), 'utf8');
   it('opens Plans from the bottom tab or the rail', () => {

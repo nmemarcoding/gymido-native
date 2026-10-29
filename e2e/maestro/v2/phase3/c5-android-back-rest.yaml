@@ -39,8 +39,12 @@ tags:
           notVisible:
             id: "rest-ring-box"
           timeout: 5000
-      - assertVisible:
-          id: "rest-timer"
+      # QA flake (2.0.5): the minimised disc mounts a moment after the board
+      # closes, so wait for it instead of asserting at once.
+      - extendedWaitUntil:
+          visible:
+            id: "rest-timer"
+          timeout: 5000
       - assertVisible:
           id: "rest-countdown"
       - assertNotVisible:
@@ -84,8 +88,10 @@ tags:
           timeout: 5000
       - assertVisible:
           id: "session-chrome"
-      - assertVisible:
-          id: "rest-timer"
+      - extendedWaitUntil:
+          visible:
+            id: "rest-timer"
+          timeout: 5000
       - assertVisible:
           id: "rest-countdown"
 
