@@ -1,0 +1,13 @@
+# QA final (untracked): T-82 on native. ⋯ only on this week's rows; sheet; confirm copy; Cancel; Delete x2 (today's two).
+# WRITES: deletes the 2 workouts b-two-workouts made (the newest two rows). QA_MEMBER.
+appId: com.gymido.app
+---
+- extendedWaitUntil: { visible: { id: "tab-Progress|rail-Progress" }, timeout: 30000 }
+- runFlow: { when: { visible: { id: "tab-Progress" } }, commands: [ { tapOn: { id: "tab-Progress" } } ] }
+- runFlow: { when: { visible: { id: "rail-Progress" } }, commands: [ { tapOn: { id: "rail-Progress" } } ] }
+- tapOn: { id: "progress-tab-activity" }
+- scrollUntilVisible: { element: { id: "progress-recent" }, direction: DOWN, timeout: 20000 }
+- scrollUntilVisible: { element: { text: "Full Body C" }, direction: DOWN, centerElement: true, timeout: 20000 }
+- runFlow: { file: c-one.yaml, env: { CANCEL_FIRST: "yes" } }
+- runFlow: { file: c-one.yaml, env: { CANCEL_FIRST: "no" } }
+- assertVisible: "Full.Body.C"

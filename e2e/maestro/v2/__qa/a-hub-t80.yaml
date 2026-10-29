@@ -1,0 +1,26 @@
+# QA final (untracked): T-76 hub (Week complete, real) + T-80 repeat confirm Cancel. READ-ONLY. QA_MEMBER, signed in.
+appId: com.gymido.app
+---
+- extendedWaitUntil: { visible: { id: "tab-Today|rail-Today" }, timeout: 30000 }
+- runFlow: { when: { visible: { id: "tab-Today" } }, commands: [ { tapOn: { id: "tab-Today" } } ] }
+- runFlow: { when: { visible: { id: "rail-Today" } }, commands: [ { tapOn: { id: "rail-Today" } } ] }
+- scrollUntilVisible: { element: { id: "home-today-primary" }, direction: UP, timeout: 20000 }
+- tapOn: { id: "home-today-primary" }
+- extendedWaitUntil: { visible: { id: "workout-hero" }, timeout: 30000 }
+- assertVisible: "Week.complete"
+- assertVisible: "All.2.workouts.done..Next.week.starts.Monday.with.Chest.&.Biceps."
+- assertVisible: { id: "workout-view-progress" }
+- assertVisible: "2.of.2.done"
+- assertVisible: { id: "workout-back-today" }
+- assertNotVisible: { id: "tab-Workout" }
+- scrollUntilVisible: { element: { id: "workout-day-start-36" }, direction: DOWN, centerElement: true, timeout: 20000 }
+- assertVisible: "Extra.session"
+- tapOn: { id: "workout-day-start-36" }
+- extendedWaitUntil: { visible: { id: "workout-start-confirm" }, timeout: 10000 }
+- assertVisible: "Do.Chest.&.Biceps.again."
+- assertVisible: "You.already.did.Chest.&.Biceps.this.week..Your.week.is.complete,.so.this.is.an.extra.session..This.starts.a.live.workout."
+- assertVisible: { id: "workout-start-confirm-confirm", text: "Start workout" }
+- tapOn: { id: "workout-start-confirm-cancel" }
+- extendedWaitUntil: { notVisible: { id: "workout-start-confirm" }, timeout: 5000 }
+- assertNotVisible: { id: "session-chrome" }
+- assertVisible: { id: "workout-day-start-36" }

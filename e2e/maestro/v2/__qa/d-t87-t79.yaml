@@ -1,0 +1,36 @@
+# QA final (untracked): T-87 create -> builder (replace) -> back = My plans; T-79 delete -> My plans, no "Plan not found".
+# WRITES: one plan "QA T87 native", deleted again in-flow. Member workspace (QA_TRAINER Personal), no trainer.
+appId: com.gymido.app
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: { when: { visible: { id: "tab-Plans" } }, commands: [ { tapOn: { id: "tab-Plans" } } ] }
+- runFlow: { when: { visible: { id: "rail-Plans" } }, commands: [ { tapOn: { id: "rail-Plans" } } ] }
+- extendedWaitUntil: { visible: { id: "plans-library-screen" }, timeout: 30000 }
+- scrollUntilVisible: { element: { id: "plans-own" }, direction: DOWN, timeout: 20000 }
+- scrollUntilVisible: { element: { id: "my-plans-entry" }, direction: DOWN, timeout: 20000 }
+- tapOn: { id: "my-plans-entry" }
+- extendedWaitUntil: { visible: { id: "my-plans-all-plans" }, timeout: 30000 }
+- tapOn: { id: "my-plans-create" }
+- extendedWaitUntil: { visible: { id: "create-plan-name" }, timeout: 20000 }
+- tapOn: { id: "create-plan-name" }
+- inputText: "QA T87 native"
+- hideKeyboard
+- tapOn: { id: "create-plan-category" }
+- tapOn: { id: "create-plan-category-option-.*", index: 1 }
+- tapOn: { id: "create-plan-submit" }
+- extendedWaitUntil: { visible: { id: "plan-overflow|plan-delete" }, timeout: 30000 }
+- assertVisible: "QA.T87.native"
+- tapOn: ".*My.plans"
+- extendedWaitUntil: { visible: { id: "my-plans-all-plans" }, timeout: 20000 }
+- assertNotVisible: { id: "create-plan-name" }
+- assertVisible: "QA.T87.native"
+- tapOn: "QA.T87.native"
+- extendedWaitUntil: { visible: { id: "plan-overflow|plan-delete" }, timeout: 30000 }
+- runFlow: { when: { visible: { id: "plan-delete" } }, commands: [ { tapOn: { id: "plan-delete" } } ] }
+- runFlow: { when: { visible: { id: "plan-overflow" } }, commands: [ { tapOn: { id: "plan-overflow" } }, { tapOn: { id: "plan-overflow-delete" } } ] }
+- extendedWaitUntil: { visible: { id: "plan-action-dialog" }, timeout: 10000 }
+- assertVisible: "Delete.this.plan."
+- tapOn: { id: "plan-action-dialog-confirm" }
+- extendedWaitUntil: { visible: { id: "my-plans-all-plans" }, timeout: 20000 }
+- assertNotVisible: "Plan.not.found"
+- assertNotVisible: "QA.T87.native"

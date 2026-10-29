@@ -1,0 +1,10 @@
+# QA final (untracked): T-82 two deletes in a row on the same Progress screen (the 2 test workouts made today).
+appId: com.gymido.app
+---
+- extendedWaitUntil: { visible: { id: "tab-Progress|rail-Progress" }, timeout: 30000 }
+- runFlow: { when: { visible: { id: "tab-Progress" } }, commands: [ { tapOn: { id: "tab-Progress" } } ] }
+- tapOn: { id: "progress-tab-activity" }
+- scrollUntilVisible: { element: { id: "progress-recent-actions-.*" }, direction: DOWN, centerElement: true, timeout: 20000 }
+- runFlow: { file: c-one.yaml, env: { CANCEL_FIRST: "no" } }
+- extendedWaitUntil: { notVisible: "Workout.deleted.", timeout: 15000 }
+- runFlow: { file: c-one.yaml, env: { CANCEL_FIRST: "no" } }

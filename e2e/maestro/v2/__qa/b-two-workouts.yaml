@@ -1,0 +1,16 @@
+# QA final (untracked): T-80 confirm -> start, one set, Complete (after the save lands), twice -> T-81 x2 on today.
+# WRITES on testdb (QA_MEMBER's own data): 2 completed workouts today; c-delete-two.yaml deletes them.
+appId: com.gymido.app
+---
+- runFlow:
+    file: b-one.yaml
+    env: { DAY: "36", NAME: "Chest & Biceps" }
+- runFlow:
+    file: b-one.yaml
+    env: { DAY: "37", NAME: "Legs & Triceps" }
+- extendedWaitUntil: { visible: { id: "workout-hero" }, timeout: 30000 }
+- scrollUntilVisible: { element: { id: "workout-week-strip" }, direction: DOWN, timeout: 15000 }
+- assertVisible: { id: "workout-week-badge-.*" }
+- assertVisible: "×2"
+- assertVisible: "2.of.2.done"
+- assertVisible: "Week.complete"

@@ -1,0 +1,8 @@
+# QA cleanup (untracked): resume QA_MEMBER's open test session and discard it.
+appId: com.gymido.app
+---
+- extendedWaitUntil: { visible: { id: "home-today-primary|session-chrome" }, timeout: 30000 }
+- runFlow: { when: { notVisible: { id: "session-chrome" } }, commands: [ { tapOn: { id: "home-today-primary" } } ] }
+- extendedWaitUntil: { visible: { id: "session-chrome" }, timeout: 30000 }
+- runFlow: ../subflows/minimize-rest.yaml
+- runFlow: ../subflows/discard-workout.yaml
