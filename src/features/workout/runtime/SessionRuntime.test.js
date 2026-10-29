@@ -233,6 +233,29 @@ describe('SessionRuntime', () => {
     expect(completeWorkout).toHaveBeenCalledTimes(1);
   });
 
+  it('T-89 review LOW: a set tapped while Complete waits for a save sends no PATCH; complete still runs once', async () => {
+    updateSessionSet.mockClear();
+    completeWorkout.mockClear();
+    let resolve;
+    updateSessionSet.mockImplementationOnce(() => new Promise((done) => (resolve = done)));
+    const { tree } = render();
+    const complete = byId(tree, 'complete-workout').props.onPress;
+    await act(async () => byId(tree, 'set-action-12').props.onPress());
+    let finishing;
+    await act(async () => {
+      finishing = complete();
+    });
+    // The done set's Undo (set-action-11) is a set save too (is_completed false).
+    await act(async () => byId(tree, 'set-action-11').props.onPress());
+    expect(updateSessionSet).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      resolve();
+      await finishing;
+    });
+    expect(updateSessionSet).toHaveBeenCalledTimes(1);
+    expect(completeWorkout).toHaveBeenCalledTimes(1);
+  });
+
   it('browsing: a done row of the browsed exercise can still be undone (Batch 2 item 2)', async () => {
     const session = {
       ...SESSION,

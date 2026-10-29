@@ -121,6 +121,22 @@ describe('phase4 flow fixes (QA s5-p4)', () => {
   );
 });
 
+// QA LOW (2.0.5 regression, 28 Oct 2026): since T-65 an earlier flow can end
+// on an inner page with no tab bar; these entries start from signed-in-start
+// (a Release build relaunches onto the main page) before waiting for tabs.
+describe('flows that waited for a tab bar start from signed-in-start', () => {
+  const steps = (src) => src.split('\n').filter((line) => !line.trim().startsWith('#')).join('\n');
+  const body = (rel) => steps(fs.readFileSync(path.join(V2, rel), 'utf8')).split('---\n')[1].trim().split('\n');
+  it.each([
+    ['phase3/02-workout-hub.yaml', '- runFlow: ../subflows/signed-in-start.yaml'],
+    ['phase4/06-trainer-builder-sets-toggle.yaml', '- runFlow: ../subflows/signed-in-start.yaml'],
+    ['phase4/subflows/open-first-my-plan.yaml', '- runFlow: ../../subflows/signed-in-start.yaml'],
+  ])('%s: the first step', (rel, first) => {
+    expect(body(rel)[0]).toBe(first);
+    expect(fs.existsSync(path.join(V2, path.dirname(rel), first.replace('- runFlow: ', '')))).toBe(true);
+  });
+});
+
 describe('open-first-my-plan works on phone AND tablet', () => {
   const flow = fs.readFileSync(path.join(V2, 'phase4', 'subflows', 'open-first-my-plan.yaml'), 'utf8');
   it('opens Plans from the bottom tab or the rail', () => {

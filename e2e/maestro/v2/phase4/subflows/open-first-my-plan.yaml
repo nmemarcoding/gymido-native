@@ -6,6 +6,10 @@
 # message (no silent skip: a skip would report a false PASS).
 appId: com.gymido.app
 ---
+# QA LOW (2.0.5 regression): an earlier flow can end on an inner page (no tab
+# bar since T-65), so start from the shared entry (a Release build relaunches
+# onto the role's main page) instead of waiting for a tab bar.
+- runFlow: ../../subflows/signed-in-start.yaml
 # Phone bottom tabs or the tablet rail.
 - extendedWaitUntil:
     visible:

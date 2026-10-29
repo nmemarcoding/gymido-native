@@ -68,6 +68,23 @@ const make = (options) => {
   return box;
 };
 
+// Gate integrity (PM, 28 Oct 2026): a FAILED flow must never come back as
+// exit 0, with or without the caller's --debug-output; the wrapper hands back
+// maestro's own non-zero code.
+describe('maestro-guarded.sh never turns a failed flow into a pass', () => {
+  it.each([1, 2, 3, 127])('maestro exit %i → the same non-zero exit', (exitCode) => {
+    const result = run(make({ exitCode }), ['flow.yaml']);
+    expect(result.status).toBe(exitCode);
+    expect(result.status).not.toBe(0);
+  });
+
+  it.each([1, 2])("maestro exit %i with the caller's --debug-output → the same non-zero exit", (exitCode) => {
+    const box = make({ exitCode });
+    const result = run(box, ['--debug-output', path.join(box.root, 'caller-debug'), 'flow.yaml']);
+    expect(result.status).toBe(exitCode);
+  });
+});
+
 describe('maestro-guarded.sh deletes Maestro debug logs after every run', () => {
   it.each([0, 1])('no --debug-output (maestro exit %i): a private temp folder, removed whole; exit passes through', (exitCode) => {
     const box = make({ exitCode });

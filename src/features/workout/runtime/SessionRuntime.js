@@ -266,6 +266,11 @@ export default function SessionRuntime({
   }, [progress.totalSets, progress.completedSets]);
 
   async function toggleSet(exercise, set) {
+    // T-89 review LOW: no new set save once Complete has started (it would
+    // land after POST /complete and get the server's 409).
+    if (completingRef.current) {
+      return;
+    }
     setHighlightedSetKey('');
     const draft = drafts[set.id];
     if (!set.is_completed) {
@@ -360,7 +365,9 @@ export default function SessionRuntime({
     try {
       // T-89: never complete ahead of a set save (its result doesn't matter
       // here: a failed save shows its own error and stays unlogged).
-      await Promise.allSettled([...setRequests.current.values()]);
+      while (setRequests.current.size > 0) {
+        await Promise.allSettled([...setRequests.current.values()]);
+      }
       const result = await completeWorkout(session.id);
       endSessionState();
       setSuccessMessage('Workout completed.');
