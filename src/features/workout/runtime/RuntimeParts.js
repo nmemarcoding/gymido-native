@@ -199,7 +199,9 @@ function PhoneSubline({ completedSets, totalSets, elapsed }) {
       </Text>
       <Text
         testID="session-timer"
-        {...TIMER_CAP}
+        // The count's cap (1.6), so the clock never draws smaller than it at
+        // large text (the tablet pill keeps the timer cap 1.2).
+        {...CAP_PILL}
         accessible
         accessibilityRole="timer"
         accessibilityLabel={elapsedSpokenLabel(elapsed)}
@@ -872,6 +874,7 @@ const styles = StyleSheet.create({
   // T-105: the phone subline (count · clock); the count gives way first.
   subline: {
     flexDirection: 'row',
+    alignItems: 'baseline',
     justifyContent: 'center',
     maxWidth: '100%',
   },

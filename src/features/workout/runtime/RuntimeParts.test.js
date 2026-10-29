@@ -96,14 +96,19 @@ describe('SessionChrome (ND3)', () => {
     expect(props.onAll).toHaveBeenCalled();
   });
 
-  it('the timer is a timer whose spoken name moves at most every 30 s, digits capped 1.2', () => {
-    const tree = render(<SessionChrome {...props} />);
-    const timer = byId(tree, 'session-timer');
-    expect(timer.props.accessibilityRole).toBe('timer');
-    expect(timer.props.accessibilityLabel).toBe('Elapsed time 18 minutes 30 seconds');
-    const digits = tree.root.findAll((node) => node.type === 'Text' && node.props.children === '18:42')[0];
-    expect(digits.props.maxFontSizeMultiplier).toBe(1.2);
-    expect(StyleSheet.flatten(digits.props.style).fontVariant).toEqual(['tabular-nums']);
+  // DECLARED (T-105, PM OK 29 Oct): was "digits capped 1.2" on the phone header. The phone clock now sits in the
+  // subline with the count's cap (1.6, found on the largest-text shot: it drew smaller than "0/17 sets"); the
+  // tablet pill keeps 1.2. The timer role and the spoken label are unchanged.
+  it('the timer is a timer whose spoken name moves at most every 30 s; digits capped 1.6 (phone subline) / 1.2 (tablet pill)', () => {
+    for (const [tablet, cap] of [[false, 1.6], [true, 1.2]]) {
+      const tree = render(<SessionChrome {...props} tablet={tablet} />);
+      const timer = byId(tree, 'session-timer');
+      expect(timer.props.accessibilityRole).toBe('timer');
+      expect(timer.props.accessibilityLabel).toBe('Elapsed time 18 minutes 30 seconds');
+      const digits = tree.root.findAll((node) => node.type === 'Text' && node.props.children === '18:42')[0];
+      expect(digits.props.maxFontSizeMultiplier).toBe(cap);
+      expect(StyleSheet.flatten(digits.props.style).fontVariant).toEqual(['tabular-nums']);
+    }
   });
 
   it('pressed Exit shows the 4 % overlay (state rule)', () => {

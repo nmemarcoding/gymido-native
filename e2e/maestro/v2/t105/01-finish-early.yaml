@@ -1,0 +1,40 @@
+# T-105 Finish early (owner B, D1–D3; UX ruling + look verdict 9bdb33c8): Complete in the sticky header (no
+# scroll), "Finish early?" with sets left: Keep going changes nothing; Finish anyway runs the normal complete
+# (the summary). Starts signed in (the lead's safe runner) as a throwaway member with a plan; ${ROW} = the
+# SR name of a "Train anyway?" / "Other days" row to start (a Repeat of a done day keeps the week's misses).
+# Writes ONE completed workout on that account. IDs + patterns, no credentials, no Profile shots.
+appId: com.gymido.app
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: { when: { visible: { id: "tab-Today" } }, commands: [ { tapOn: { id: "tab-Today" } } ] }
+- runFlow: { when: { visible: { id: "rail-Today" } }, commands: [ { tapOn: { id: "rail-Today" } } ] }
+- extendedWaitUntil: { visible: { id: "home-today-primary" }, timeout: 30000 }
+- tapOn: { id: "home-today-primary" }
+- extendedWaitUntil: { visible: { id: "workout-hero" }, timeout: 30000 }
+- scrollUntilVisible: { element: { text: "${ROW}" }, direction: DOWN, centerElement: true, timeout: 20000 }
+- tapOn: { text: "${ROW}" }
+- extendedWaitUntil: { visible: { id: "workout-start-confirm" }, timeout: 10000 }
+- tapOn: { id: "workout-start-confirm-confirm" }
+- extendedWaitUntil: { visible: { id: "session-chrome" }, timeout: 30000 }
+- runFlow: ../subflows/dismiss-session-dialogs.yaml
+# Complete is in the header, on screen without scrolling.
+- assertVisible: { id: "complete-workout" }
+- takeScreenshot: ${SHOT}-header
+- tapOn: { id: "complete-workout" }
+- extendedWaitUntil: { visible: { id: "finish-early-dialog" }, timeout: 10000 }
+- assertVisible: "Finish early\\?"
+- assertVisible: ".*\\d+ sets?.*"
+- assertVisible: { id: "finish-early-keep" }
+- assertVisible: { id: "finish-early-finish" }
+- takeScreenshot: ${SHOT}-dialog
+- tapOn: { id: "finish-early-keep" }
+- extendedWaitUntil: { notVisible: { id: "finish-early-dialog" }, timeout: 5000 }
+- assertVisible: { id: "session-chrome" }
+- assertNotVisible: { id: "completion-popup" }
+- tapOn: { id: "complete-workout" }
+- extendedWaitUntil: { visible: { id: "finish-early-dialog" }, timeout: 10000 }
+- tapOn: { id: "finish-early-finish" }
+- extendedWaitUntil: { visible: { id: "completion-popup" }, timeout: 30000 }
+- takeScreenshot: ${SHOT}-completed
+- tapOn: { id: "completion-awesome" }
+- extendedWaitUntil: { notVisible: { id: "completion-popup" }, timeout: 10000 }

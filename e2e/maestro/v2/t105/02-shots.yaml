@@ -1,0 +1,41 @@
+# T-105 shots for UX (starts ONE session, then discards it: nothing recorded). Header live + browsing, the
+# dialog with whatever message comes up first, then reopened (Keep going in between) until the longest
+# message (#4 "You started, and that's the hard part…") shows. Same preconditions as 01; ${ROW} as there.
+appId: com.gymido.app
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: { when: { visible: { id: "tab-Today" } }, commands: [ { tapOn: { id: "tab-Today" } } ] }
+- runFlow: { when: { visible: { id: "rail-Today" } }, commands: [ { tapOn: { id: "rail-Today" } } ] }
+- extendedWaitUntil: { visible: { id: "home-today-primary" }, timeout: 30000 }
+- tapOn: { id: "home-today-primary" }
+- extendedWaitUntil: { visible: { id: "workout-hero" }, timeout: 30000 }
+- scrollUntilVisible: { element: { text: "${ROW}" }, direction: DOWN, centerElement: true, timeout: 20000 }
+- tapOn: { text: "${ROW}" }
+- extendedWaitUntil: { visible: { id: "workout-start-confirm" }, timeout: 10000 }
+- tapOn: { id: "workout-start-confirm-confirm" }
+- extendedWaitUntil: { visible: { id: "session-chrome" }, timeout: 30000 }
+- runFlow: ../subflows/dismiss-session-dialogs.yaml
+- takeScreenshot: ${SHOT}-header-live
+- tapOn: { id: "complete-workout" }
+- extendedWaitUntil: { visible: { id: "finish-early-dialog" }, timeout: 10000 }
+- takeScreenshot: ${SHOT}-dialog
+- repeat:
+    times: 25
+    while:
+      notVisible: "You started, and that's the hard part.*"
+    commands:
+      - tapOn: { id: "finish-early-keep" }
+      - extendedWaitUntil: { notVisible: { id: "finish-early-dialog" }, timeout: 5000 }
+      - tapOn: { id: "complete-workout" }
+      - extendedWaitUntil: { visible: { id: "finish-early-dialog" }, timeout: 10000 }
+- takeScreenshot: ${SHOT}-dialog-longest
+- tapOn: { id: "finish-early-keep" }
+- extendedWaitUntil: { notVisible: { id: "finish-early-dialog" }, timeout: 5000 }
+# Browsing: "Up next" opens the next exercise (the phone dock; the tablet has no such link).
+- runFlow:
+    when: { visible: { id: "up-next" } }
+    commands:
+      - tapOn: { id: "up-next" }
+      - extendedWaitUntil: { visible: { id: "browsing-bar" }, timeout: 10000 }
+      - takeScreenshot: ${SHOT}-header-browsing
+- runFlow: ../subflows/discard-workout.yaml
