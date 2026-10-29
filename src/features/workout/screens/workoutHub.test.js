@@ -180,6 +180,8 @@ describe('T-117 ×n badge', () => {
     expect(flat(ring)).toMatchObject({ position: 'absolute', left: 24, bottom: 24, padding: 2, backgroundColor: colors.ground });
     // The 13 tick is centred in the 34 disc: it ends at 34 / 2 + 6.5 = 23.5 < 24.
     expect(flat(ring).left).toBeGreaterThan(34 / 2 + 13 / 2);
+    // The "×2" never scales (it is hidden from screen readers), so it always fits the 20-tall pill.
+    expect(host(tree.root, 'workout-week-badge-3').findAll((node) => node.type === 'Text')[0].props.allowFontScaling).toBe(false);
     expect(ring.props.accessibilityElementsHidden).toBe(true);
     mockFontScale = 1;
   });

@@ -90,7 +90,8 @@ function DayCircle({ cell }) {
           // from the left and bottom so large text grows it away from the tick.
           <View testID={`workout-week-badge-ring-${cell.key}`} style={styles.badgeRing} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
             <View testID={`workout-week-badge-${cell.key}`} style={styles.badge}>
-              <Text {...CAP_PILL} style={styles.badgeText}>{`×${cell.count}`}</Text>
+              {/* Decorative (the cell's SR label says "done, 2 workouts"): drawn at 13 at every text size so it always fits the 20 pill. */}
+              <Text allowFontScaling={false} style={styles.badgeText}>{`×${cell.count}`}</Text>
             </View>
           </View>
         ) : null}
