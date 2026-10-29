@@ -15,8 +15,8 @@ struct RestCountdownLiveActivity: Widget {
   var body: some WidgetConfiguration {
     ActivityConfiguration(for: RestCountdownAttributes.self) { context in
       RestCountdownCardView(state: context.state)
-        .activityBackgroundTint(RestCountdownColors.gold)
-        .activitySystemActionForegroundColor(RestCountdownColors.navy)
+        .activityBackgroundTint(RestCountdownColors.card)
+        .activitySystemActionForegroundColor(RestCountdownColors.textPrimary)
     } dynamicIsland: { _ in
       DynamicIsland {
         DynamicIslandExpandedRegion(.center) { EmptyView() }

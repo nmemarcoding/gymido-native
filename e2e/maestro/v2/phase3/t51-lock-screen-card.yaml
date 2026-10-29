@@ -1,0 +1,32 @@
+# T-51 (UX F2 "Lock screen (native)"): a running rest shows the Live Activity
+# card outside the app. Logs the first set of a fresh session, adds time so
+# the rest outlasts the flow, goes Home and opens Notification Center (the
+# lock-screen list on the simulator). The look is judged from the screenshot
+# taken right after (shot.sh); t51-lock-screen-cleanup.yaml discards the
+# session. iOS only (Android draws a system notification). Fixture: an ACTIVE
+# plan whose first set has a planned rest > 0 s. IDs only.
+appId: com.gymido.app
+tags:
+  - member
+  - ios
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/start-workout.yaml
+- runFlow: ../subflows/dismiss-session-dialogs.yaml
+- runFlow: ../subflows/log-current-set.yaml
+- extendedWaitUntil:
+    visible:
+      id: "rest-ring-box"
+    timeout: 15000
+- repeat:
+    times: 6
+    commands:
+      - tapOn:
+          id: "rest-timer-plus"
+- pressKey: home
+- swipe:
+    start: 50%, 0%
+    end: 50%, 70%
+    duration: 600
+- waitForAnimationToEnd:
+    timeout: 3000

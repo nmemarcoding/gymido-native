@@ -1,16 +1,23 @@
 import SwiftUI
 import WidgetKit
-#if canImport(UIKit)
-import UIKit
-#endif
 
-// RN-SPEC-time O13.2: gold field, navy ink, every colour explicit, no
-// dark-mode variant. Strings are the complete set: "Gymido", "Rest timer".
+// UX F2 "Lock screen (native)" (RN-SPEC-v2-phase3 §4, LOOK per F2): dark
+// glass card, gold digits, gold bar = time remaining. Every colour explicit,
+// no dark-mode variant. Strings are the complete set: "Gymido", "Rest timer"
+// (no visible "remaining": it lives only in the VoiceOver value).
 enum RestCountdownColors {
-  // brand-400 #f4b400
-  static let gold = Color(red: 244 / 255, green: 180 / 255, blue: 0 / 255)
-  // navy #111827
-  static let navy = Color(red: 17 / 255, green: 24 / 255, blue: 39 / 255)
+  // color-gold #FFC21A
+  static let gold = Color(red: 255 / 255, green: 194 / 255, blue: 26 / 255)
+  // color-on-gold #0A0B0F
+  static let onGold = Color(red: 10 / 255, green: 11 / 255, blue: 15 / 255)
+  // color-text-primary #F5F6F8
+  static let textPrimary = Color(red: 245 / 255, green: 246 / 255, blue: 248 / 255)
+  // color-text-secondary #B4B9C3
+  static let textSecondary = Color(red: 180 / 255, green: 185 / 255, blue: 195 / 255)
+  // Card tint rgba(18,20,26,0.9) (F2 code-wins note).
+  static let card = Color(red: 18 / 255, green: 20 / 255, blue: 26 / 255).opacity(0.9)
+  // Bar track rgba(255,255,255,0.12).
+  static let track = Color.white.opacity(0.12)
 }
 
 struct RestCountdownCardView: View {
@@ -22,69 +29,65 @@ struct RestCountdownCardView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
-      HStack(spacing: 6) {
+      HStack(spacing: 10) {
         RestCountdownAppMark()
         Text("Gymido")
-          .font(.system(size: 13, weight: .semibold))
-          .foregroundStyle(RestCountdownColors.navy.opacity(0.7))
-          .lineLimit(1)
-      }
-      HStack(alignment: .firstTextBaseline, spacing: 12) {
-        Text("Rest timer")
-          .font(.system(size: 17, weight: .bold))
-          .foregroundStyle(RestCountdownColors.navy)
+          .font(.system(size: 14, weight: .semibold))
+          .foregroundStyle(RestCountdownColors.textPrimary)
           .lineLimit(1)
         Spacer(minLength: 8)
-        // Fixed width: timer text otherwise claims its widest width.
-        Text(timerInterval: interval, countsDown: true)
-          .font(.system(size: 40, weight: .black))
-          .monospacedDigit()
-          .foregroundStyle(RestCountdownColors.navy)
-          .multilineTextAlignment(.trailing)
-          .frame(width: 112, alignment: .trailing)
+        Text("Rest timer")
+          .font(.system(size: 13))
+          .foregroundStyle(RestCountdownColors.textSecondary)
+          .lineLimit(1)
       }
-      .padding(.top, 4)
-      // The system linear style hides its track, and a custom style loses the
-      // live progress, so the navy-15% track is drawn underneath. Tint goes
-      // on the ProgressView itself.
+      // 60/60/700 -0.055em, tabular. Stays gold in the last 10 s (the app
+      // cannot recolour an OS-ticking timer; UX ruling).
+      Text(timerInterval: interval, countsDown: true)
+        .font(.system(size: 60, weight: .bold))
+        .monospacedDigit()
+        .tracking(-3.3)
+        .foregroundStyle(RestCountdownColors.gold)
+        .lineLimit(1)
+        .multilineTextAlignment(.leading)
+        .padding(.top, 12)
+      // countsDown: the fill shrinks as the rest runs (fill = remaining). The
+      // system linear style hides its track, and a custom style loses the
+      // live progress, so the track is drawn underneath. Tint goes on the
+      // ProgressView itself.
       ProgressView(timerInterval: interval, countsDown: true, label: { EmptyView() }, currentValueLabel: { EmptyView() })
         .progressViewStyle(.linear)
-        .tint(RestCountdownColors.navy)
-        .background(Capsule().fill(RestCountdownColors.navy.opacity(0.15)).frame(height: 4))
-        .padding(.top, 10)
+        .tint(RestCountdownColors.gold)
+        .scaleEffect(x: 1, y: 2, anchor: .center)
+        .shadow(color: RestCountdownColors.gold.opacity(0.7), radius: 6)
+        .background(Capsule().fill(RestCountdownColors.track).frame(height: 8))
+        .frame(height: 8)
+        .padding(.top, 12)
     }
-    .padding(16)
+    .padding(18)
+    .background(
+      // Gold wash: radial(120% 80% at 100% 0%, rgba(255,194,26,0.18)).
+      RadialGradient(
+        colors: [RestCountdownColors.gold.opacity(0.18), .clear],
+        center: .topTrailing,
+        startRadius: 0,
+        endRadius: 320
+      )
+    )
     .accessibilityElement(children: .ignore)
     .accessibilityLabel("Gymido rest timer")
     .accessibilityValue(Text(timerInterval: interval, countsDown: true) + Text(" remaining"))
   }
 }
 
-// The app mark, or the SF Symbol `timer` if the GymidoMark asset is missing
-// from the extension bundle (a blank square otherwise). (ported from the
-// 28 Sep build)
+// G mark: 28x28, radius 8, solid gold, "G" on-gold 14/700.
 struct RestCountdownAppMark: View {
   var body: some View {
-    if hasMark {
-      Image("GymidoMark")
-        .resizable()
-        .interpolation(.high)
-        .frame(width: 16, height: 16)
-        .clipShape(RoundedRectangle(cornerRadius: 4))
-        .overlay(RoundedRectangle(cornerRadius: 4).stroke(RestCountdownColors.navy.opacity(0.15), lineWidth: 0.5))
-    } else {
-      Image(systemName: "timer")
-        .font(.system(size: 14, weight: .semibold))
-        .foregroundStyle(RestCountdownColors.navy)
-        .frame(width: 16, height: 16)
-    }
-  }
-
-  private var hasMark: Bool {
-    #if canImport(UIKit)
-    return UIImage(named: "GymidoMark") != nil
-    #else
-    return false
-    #endif
+    Text("G")
+      .font(.system(size: 14, weight: .bold))
+      .foregroundStyle(RestCountdownColors.onGold)
+      .frame(width: 28, height: 28)
+      .background(RoundedRectangle(cornerRadius: 8).fill(RestCountdownColors.gold))
+      .accessibilityHidden(true)
   }
 }

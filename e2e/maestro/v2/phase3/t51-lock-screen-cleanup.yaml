@@ -1,0 +1,14 @@
+# T-51 cleanup: back in the app, discard the session t51-lock-screen-card.yaml
+# started, so nothing is recorded.
+appId: com.gymido.app
+tags:
+  - member
+  - ios
+---
+- swipe:
+    start: 50%, 95%
+    end: 50%, 20%
+    duration: 400
+- launchApp:
+    stopApp: false
+- runFlow: ../subflows/discard-workout.yaml
