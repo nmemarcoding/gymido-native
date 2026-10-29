@@ -68,8 +68,9 @@ const hosts = (root, id) => root.findAll((node) => node.props.testID === id && t
 const host = (root, id) => hosts(root, id)[0];
 const texts = (root) => root.findAll((node) => node.type === 'Text').map(textOf);
 const confirmDialog = (tree) => tree.root.findAll((node) => node.type === ConfirmDialog && node.props.testID === 'workout-start-confirm')[0];
+// DECLARED (T-116 review N1, PM OK 29 Oct): was ^workout-day-start-\d+$; a plan day's 2nd slot is {dayId}-{date}.
 const dayButtons = (root) =>
-  root.findAll((node) => typeof node.props.testID === 'string' && /^workout-day-start-\d+$/.test(node.props.testID) && typeof node.props.onPress === 'function');
+  root.findAll((node) => typeof node.props.testID === 'string' && /^workout-day-start-[\d-]+$/.test(node.props.testID) && typeof node.props.onPress === 'function');
 
 // Thursday 29 Oct 2026 (local). The board's plan: Upper A Mon, Lower A Tue,
 // Upper B Thu, Lower B Sat.
@@ -222,3 +223,30 @@ describe('T-116 "Train anyway?" = this week only, in week order', () => {
     expect(labels(tree)).toEqual(expect.arrayContaining(['Start Lower B']));
   });
 });
+
+// T-118 (UX, T-116 native verdict) + T-116 review N1.
+describe('T-118 "Made up" + unique row ids', () => {
+  const doneMark = (tree, key) => textOf(host(tree.root, `workout-day-done-${key}`).findAll((node) => node.type === 'Text')[0]);
+
+  it('a done slot whose day was NOT started on that date reads "✓ Made up"; one started that day reads "✓ Done"', async () => {
+    // Mon: Upper A done, started Monday (DONE_MON) → Done. Wed: Lower B done, but no Lower B started Wednesday → Made up.
+    const tree = await renderScreen(restDay(restWeek(item(1, '2026-10-26', 'done', DAYS[0]), DONE_WED), { completedThisWeek: [DONE_MON, DONE_TUE] }));
+    expect(doneMark(tree, 1)).toBe('Done');
+    expect(doneMark(tree, 4)).toBe('Made up');
+    // The SR name and the tap are unchanged (Repeat).
+    expect(labels(tree)).toEqual(expect.arrayContaining(['Repeat Upper A', 'Repeat Lower B']));
+  });
+
+  it('without this week\'s completed workouts the slot keeps "Done" (never guesses a make-up)', async () => {
+    const tree = await renderScreen(restDay(restWeek(DONE_WED), { completedThisWeek: [] }));
+    expect(doneMark(tree, 4)).toBe('Done');
+  });
+
+  it('N1: a plan day on two slots gets unique ids (day id, then day id + date)', async () => {
+    const tree = await renderScreen(restDay(restWeek(MISSED_MON, item(5, '2026-10-30', 'upcoming', DAYS[0]))));
+    expect(hosts(tree.root, 'workout-day-start-1')).toHaveLength(1);
+    expect(hosts(tree.root, 'workout-day-start-1-2026-10-30')).toHaveLength(1);
+    expect(host(tree.root, 'workout-day-start-1-2026-10-30').props.accessibilityLabel).toBe('Start Upper A, tomorrow, Friday');
+  });
+});
+

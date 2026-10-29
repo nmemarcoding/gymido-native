@@ -291,10 +291,10 @@ function nextScheduledWeekdayName(weekdays, now) {
 // miss first, then the usual order; their meta reads "Missed {Weekday} · n
 // exercises" and the row's name "Start {title}, missed {Weekday}". `misses`
 // = weekMisses(); a day missed twice takes its most recent miss.
-export function dayRows({ planDays = [], schedule, doneIds = [], state, todayDayId, misses = [], week = null, now = new Date() }) {
+export function dayRows({ planDays = [], schedule, doneIds = [], state, todayDayId, misses = [], week = null, completed = [], now = new Date() }) {
   // T-116: a rest day's "Train anyway?" is this week's slots (restWeekRows).
   if (state === 'rest' && isValidWeek(week)) {
-    return restWeekRows({ week, planDays, now });
+    return restWeekRows({ week, planDays, completed, now });
   }
   const weekdays = scheduledWeekdaysByDayId(schedule);
   const rows = planDays
@@ -343,10 +343,20 @@ export function dayRows({ planDays = [], schedule, doneIds = [], state, todayDay
 // {Weekday} · n" (Repeat); before today + missed → "Missed · {Weekday} · n"
 // (muted, the catch-up confirm); after today → "Tomorrow" / "Upcoming". A past
 // slot that is neither isn't listed. Keyed by the slot's date.
-export function restWeekRows({ week, planDays = [], now = new Date() }) {
+// T-118 (UX): a done slot with no workout of that day STARTED on the slot's
+// local date was made up later: "✓ Made up · {Weekday} · n" (teal). Only with
+// this week's completed workouts loaded (a done slot implies at least one).
+// T-116 N1: `testKey` = the day id, plus the date for a plan day's 2nd slot.
+export function restWeekRows({ week, planDays = [], completed = [], now = new Date() }) {
   const todayKey = localDateKey(now);
   const tomorrowKey = localDateKey(addDays(now, 1));
-  return week.flatMap((item, index) => {
+  const startedOn = (dayId, date) =>
+    completed.some((workout) => {
+      const at = workout?.started_at ? new Date(workout.started_at) : null;
+      return workout?.workout_plan_day_id === dayId && at && !Number.isNaN(at.getTime()) && localDateKey(at) === date;
+    });
+  const seen = new Set();
+  const rows = week.flatMap((item, index) => {
     const planDay = item?.plan_day;
     if (!item?.is_workout_day || !planDay || typeof item.date !== 'string' || item.date === todayKey) {
       return [];
@@ -356,7 +366,8 @@ export function restWeekRows({ week, planDays = [], now = new Date() }) {
     const title = planDayTitle(planDay);
     const row = { key: item.date, dayId: planDay.id, title, done: false };
     if (item.status === 'done') {
-      return [{ ...row, done: true, meta: `${weekday} · ${count}`, action: `Repeat ${title}` }];
+      const madeUp = completed.length > 0 && !startedOn(planDay.id, item.date);
+      return [{ ...row, done: true, madeUp, meta: `${weekday} · ${count}`, action: `Repeat ${title}` }];
     }
     if (item.date < todayKey) {
       return item.status === 'missed'
@@ -371,6 +382,11 @@ export function restWeekRows({ week, planDays = [], now = new Date() }) {
         action: tomorrow ? `Start ${title}, tomorrow, ${weekday}` : `Start ${title}, upcoming ${weekday}`,
       },
     ];
+  });
+  return rows.map((row) => {
+    const testKey = seen.has(row.dayId) ? `${row.dayId}-${row.key}` : String(row.dayId);
+    seen.add(row.dayId);
+    return { ...row, testKey };
   });
 }
 

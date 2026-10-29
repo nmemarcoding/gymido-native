@@ -521,7 +521,8 @@ describe('T-76 hub flow ids', () => {
     ['workout-hero', 'workout-hero-start', 'workout-plan-name', 'workout-other-days', 'workout-hub-header', 'workout-back-today', 'workout-title'].forEach((id) =>
       expect(hubSource).toContain(`"${id}"`)
     );
-    expect(hubSource).toContain('`workout-day-start-${row.dayId}`');
+    // DECLARED (T-116 review N1, PM OK 29 Oct): was '`workout-day-start-${row.dayId}`'; a plan day's 2nd slot gets a unique id.
+    expect(hubSource).toContain('`workout-day-start-${row.testKey ?? row.dayId}`');
     expect(steps(read('subflows/start-workout.yaml'))).toMatch(/id: "workout-day-start-\.\*"/);
   });
 });

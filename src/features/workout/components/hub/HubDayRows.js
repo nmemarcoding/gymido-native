@@ -83,7 +83,7 @@ function DayRow({ row, last, exercises, photoSize = 56, starting, disabled, onPr
   return (
     <Pressable
       ref={ref}
-      testID={`workout-day-start-${row.dayId}`}
+      testID={`workout-day-start-${row.testKey ?? row.dayId}`}
       accessibilityRole="button"
       accessibilityLabel={row.action}
       accessibilityState={{ disabled, busy: starting }}
@@ -97,7 +97,7 @@ function DayRow({ row, last, exercises, photoSize = 56, starting, disabled, onPr
           {photoSize ? (
             <View style={row.done && styles.faded}>
               <ExerciseImage
-                testID={`workout-day-photo-${row.dayId}`}
+                testID={`workout-day-photo-${row.testKey ?? row.dayId}`}
                 exercise={first ?? null}
                 name={first ? undefined : row.title}
                 loading={exercises === undefined}
@@ -108,7 +108,7 @@ function DayRow({ row, last, exercises, photoSize = 56, starting, disabled, onPr
           ) : null}
           <View style={styles.text}>
             <Text
-              testID={`workout-day-name-${row.dayId}`}
+              testID={`workout-day-name-${row.testKey ?? row.dayId}`}
               {...CAP_BODY}
               numberOfLines={2}
               ellipsizeMode="tail"
@@ -121,13 +121,14 @@ function DayRow({ row, last, exercises, photoSize = 56, starting, disabled, onPr
             </Text>
             {row.done ? (
               <View style={styles.metaRow}>
-                <View testID={`workout-day-done-${row.dayId}`} style={styles.doneMark}>
+                <View testID={`workout-day-done-${row.testKey ?? row.dayId}`} style={styles.doneMark}>
                   <CheckIcon size={13} color={colors.teal} strokeWidth={3.2} />
+                  {/* T-118: a slot made up on a later day reads "✓ Made up". */}
                   <Text {...CAP_BODY} style={[styles.meta, styles.doneText]}>
-                    Done
+                    {row.madeUp ? 'Made up' : 'Done'}
                   </Text>
                   {/* The "·" stays with "✓ Done" (one unbreakable group). */}
-                  <Text {...CAP_BODY} testID={`workout-day-done-separator-${row.dayId}`} style={styles.meta}>
+                  <Text {...CAP_BODY} testID={`workout-day-done-separator-${row.testKey ?? row.dayId}`} style={styles.meta}>
                     ·
                   </Text>
                 </View>

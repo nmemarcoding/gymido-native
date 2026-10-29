@@ -86,8 +86,12 @@ function DayCircle({ cell }) {
       <View testID={`workout-week-circle-${cell.key}`} style={[styles.circle, styles.done]}>
         <CheckIcon size={13} color={colors.onGold} strokeWidth={3.2} />
         {cell.count > 1 ? (
-          <View testID={`workout-week-badge-${cell.key}`} style={styles.badge} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            <Text {...CAP_PILL} style={styles.badgeText}>{`×${cell.count}`}</Text>
+          // T-117 (UX): outside the disc, top-right, in a 2 ground ring; anchored
+          // from the left and bottom so large text grows it away from the tick.
+          <View testID={`workout-week-badge-ring-${cell.key}`} style={styles.badgeRing} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            <View testID={`workout-week-badge-${cell.key}`} style={styles.badge}>
+              <Text {...CAP_PILL} style={styles.badgeText}>{`×${cell.count}`}</Text>
+            </View>
           </View>
         ) : null}
       </View>
@@ -178,11 +182,18 @@ const styles = StyleSheet.create({
   done: {
     backgroundColor: colors.teal,
   },
-  // UX T81 ×n: top-right, offset −4 / −6 (may overhang the circle).
-  badge: {
+  // UX T81 ×n + T-117: the pill sits outside the disc, top-right (its left
+  // edge right of the 13 tick, its bottom 10 below the disc's top), in a 2
+  // ground ring.
+  badgeRing: {
     position: 'absolute',
-    top: -4,
-    right: -6,
+    left: CIRCLE / 2 + 7,
+    bottom: CIRCLE - 10,
+    padding: 2,
+    borderRadius: radii.full,
+    backgroundColor: colors.ground,
+  },
+  badge: {
     height: 20,
     minWidth: 22,
     paddingHorizontal: 5,

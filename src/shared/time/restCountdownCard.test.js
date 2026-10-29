@@ -82,7 +82,10 @@ describe('Live Activity Dynamic Island (T-101)', () => {
     expect(trailing).toMatch(/\.foregroundStyle\(RestCountdownColors\.gold\)/);
     expect(trailing).toMatch(/\.frame\(width: RestIsland\.compactWidth\(interval\)\)/);
     expect(widgetCode).toMatch(/>= 3600 \? 64 : 42/);
-    expect(trailing).not.toMatch(/remaining/);
+    // DECLARED (T-101 review L1, PM OK 29 Oct): was not.toMatch(/remaining/); "remaining" now lives ONLY in the
+    // VoiceOver value (no visible word, as ruled).
+    expect(trailing.replace(/\.accessibilityValue\(.*\)/g, '')).not.toMatch(/remaining/);
+    expect(trailing).toMatch(/\.accessibilityValue\(Text\(timerInterval: interval, countsDown: true\) \+ Text\(" remaining"\)\)/);
   });
 
   it('minimal: a gold circular ring of the remaining time, no digits', () => {
@@ -90,7 +93,10 @@ describe('Live Activity Dynamic Island (T-101)', () => {
     expect(minimal).toMatch(/ProgressView\(timerInterval: interval, countsDown: true/);
     expect(minimal).toMatch(/\.progressViewStyle\(\.circular\)/);
     expect(minimal).toMatch(/\.tint\(RestCountdownColors\.gold\)/);
-    expect(minimal).not.toMatch(/Text\(timerInterval/);
+    // DECLARED (T-101 review L1, PM OK 29 Oct): was not.toMatch(/Text\(timerInterval/); the time is now in the VoiceOver
+    // value only, never drawn (no digits).
+    expect(minimal.replace(/\.accessibilityValue\(.*\)/g, '')).not.toMatch(/Text\(timerInterval/);
+    expect(minimal).toMatch(/\.accessibilityValue\(Text\(timerInterval: interval, countsDown: true\) \+ Text\(" remaining"\)\)/);
   });
 
   it('expanded: G mark + "Rest timer" (secondary) · the 34/700 gold countdown · the bar (6, remaining, no glow); center empty', () => {
@@ -112,3 +118,12 @@ describe('Live Activity Dynamic Island (T-101)', () => {
     expect(widgetCode).not.toMatch(/widgetURL/);
   });
 });
+
+describe('T-101 review L1: compact + minimal speak the time', () => {
+  it('compactTrailing and minimal carry the lock card\'s accessibilityValue (time + " remaining")', () => {
+    const value = /\.accessibilityLabel\("Gymido rest timer"\)\s*\.accessibilityValue\(Text\(timerInterval: interval, countsDown: true\) \+ Text\(" remaining"\)\)/;
+    expect(region('compactTrailing:', 'minimal:')).toMatch(value);
+    expect(region('minimal:', '.keylineTint')).toMatch(value);
+  });
+});
+

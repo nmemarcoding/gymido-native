@@ -168,6 +168,23 @@ afterEach(() => act(() => mounted.splice(0).forEach((tree) => tree.unmount())));
 
 // T-111 (Android, verified on the emulator): the today card's exercise strip draws without RN's 300 ms fade-in;
 // an animated thumbnail that loaded on screen otherwise stayed blank until a scroll.
+// T-117 (UX MEDIUM): at the largest text the "×2" badge covered the Done tick. It sits in a 2 ground ring outside
+// the disc, its left edge right of the tick (disc 34 / 2 + 7) and its bottom 10 below the disc's top, so a bigger
+// badge grows up and to the right, never over the tick.
+describe('T-117 ×n badge', () => {
+  it('the ring is right of the tick and above the disc, at any text size', async () => {
+    mockFontScale = 3.1;
+    const extra = [{ workout_plan_day_id: 3, started_at: new Date(2026, 9, 28, 8).toISOString(), completed_at: new Date(2026, 9, 28, 9).toISOString() }, { workout_plan_day_id: 4, started_at: new Date(2026, 9, 28, 18).toISOString(), completed_at: new Date(2026, 9, 28, 19).toISOString() }];
+    const tree = await renderScreen(hub({ completedThisWeek: [DONE_MON, DONE_TUE, ...extra] }));
+    const ring = host(tree.root, 'workout-week-badge-ring-3');
+    expect(flat(ring)).toMatchObject({ position: 'absolute', left: 24, bottom: 24, padding: 2, backgroundColor: colors.ground });
+    // The 13 tick is centred in the 34 disc: it ends at 34 / 2 + 6.5 = 23.5 < 24.
+    expect(flat(ring).left).toBeGreaterThan(34 / 2 + 13 / 2);
+    expect(ring.props.accessibilityElementsHidden).toBe(true);
+    mockFontScale = 1;
+  });
+});
+
 describe('T-111 strip photos', () => {
   it('every strip photo has fadeDuration 0', async () => {
     const tree = await renderScreen();
@@ -643,13 +660,14 @@ describe('T-81 week strip by date', () => {
     expect(textOf(label(tree.root, 3))).toBe('Done');
     expect(flat(label(tree.root, 3)).color).toBe(colors.teal);
     expect(host(tree.root, 'workout-week-day-3').props.accessibilityLabel).toBe('Wed: done, 2 workouts');
+    // DECLARED (T-117, PM OK 29 Oct): was the badge itself absolute at top −4 / right −6 (with the a11y hiding); now a
+    // ring wrapper outside the disc (left 24, bottom 24, padding 2, ground) holds the hiding, and the pill keeps its look.
+    const ring = host(tree.root, 'workout-week-badge-ring-3');
+    expect(ring.props.accessibilityElementsHidden).toBe(true);
+    expect(ring.props.importantForAccessibility).toBe('no-hide-descendants');
+    expect(flat(ring)).toMatchObject({ position: 'absolute', left: 24, bottom: 24, padding: 2, backgroundColor: colors.ground });
     const badge = host(tree.root, 'workout-week-badge-3');
-    expect(badge.props.accessibilityElementsHidden).toBe(true);
-    expect(badge.props.importantForAccessibility).toBe('no-hide-descendants');
     expect(flat(badge)).toMatchObject({
-      position: 'absolute',
-      top: -4,
-      right: -6,
       height: 20,
       minWidth: 22,
       paddingHorizontal: 5,

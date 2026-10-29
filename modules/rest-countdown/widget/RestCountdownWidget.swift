@@ -64,13 +64,16 @@ struct RestCountdownLiveActivity: Widget {
           .multilineTextAlignment(.trailing)
           .lineLimit(1)
           .frame(width: RestIsland.compactWidth(interval))
+          // Reviewer L1: VoiceOver says the time, as the lock card (no visible "remaining").
           .accessibilityLabel("Gymido rest timer")
+          .accessibilityValue(Text(timerInterval: interval, countsDown: true) + Text(" remaining"))
       } minimal: {
         // A gold ring of the REMAINING time (no digits): the OS animates it.
         ProgressView(timerInterval: interval, countsDown: true, label: { EmptyView() }, currentValueLabel: { EmptyView() })
           .progressViewStyle(.circular)
           .tint(RestCountdownColors.gold)
           .accessibilityLabel("Gymido rest timer")
+          .accessibilityValue(Text(timerInterval: interval, countsDown: true) + Text(" remaining"))
       }
       .keylineTint(RestCountdownColors.gold)
     }

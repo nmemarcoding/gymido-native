@@ -71,8 +71,9 @@ const texts = (root) => root.findAll((node) => node.type === 'Text').map(textOf)
 const pressable = (root, id) =>
   root.findAll((node) => node.props.testID === id && typeof node.props.onPress === 'function' && node.props.accessibilityRole === 'button')[0];
 const confirmDialog = (tree) => tree.root.findAll((node) => node.type === ConfirmDialog && node.props.testID === 'workout-start-confirm')[0];
+// DECLARED (T-116 review N1, PM OK 29 Oct): was ^workout-day-start-\d+$; a plan day's 2nd slot is {dayId}-{date}.
 const dayButtons = (root) =>
-  root.findAll((node) => typeof node.props.testID === 'string' && /^workout-day-start-\d+$/.test(node.props.testID) && typeof node.props.onPress === 'function');
+  root.findAll((node) => typeof node.props.testID === 'string' && /^workout-day-start-[\d-]+$/.test(node.props.testID) && typeof node.props.onPress === 'function');
 
 // Thursday 29 Oct 2026 (local). The board's plan: Upper A Mon, Lower A Tue,
 // Upper B Thu, Lower B Sat.
