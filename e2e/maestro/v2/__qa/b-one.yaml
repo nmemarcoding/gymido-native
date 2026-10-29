@@ -1,0 +1,24 @@
+appId: com.gymido.app
+---
+- extendedWaitUntil: { visible: { id: "tab-Today|rail-Today|workout-hero" }, timeout: 30000 }
+- runFlow:
+    when: { notVisible: { id: "workout-hero" } }
+    commands:
+      - runFlow: { when: { visible: { id: "tab-Today" } }, commands: [ { tapOn: { id: "tab-Today" } } ] }
+      - runFlow: { when: { visible: { id: "rail-Today" } }, commands: [ { tapOn: { id: "rail-Today" } } ] }
+      - scrollUntilVisible: { element: { id: "home-today-primary" }, direction: UP, timeout: 20000 }
+      - tapOn: { id: "home-today-primary" }
+      - extendedWaitUntil: { visible: { id: "workout-hero" }, timeout: 30000 }
+- scrollUntilVisible: { element: { id: "workout-day-start-${DAY}" }, direction: DOWN, centerElement: true, timeout: 20000 }
+- tapOn: { id: "workout-day-start-${DAY}" }
+- extendedWaitUntil: { visible: { id: "workout-start-confirm" }, timeout: 10000 }
+- assertVisible: "Do.${NAME}.again."
+- tapOn: { id: "workout-start-confirm-confirm" }
+- extendedWaitUntil: { visible: { id: "session-chrome" }, timeout: 30000 }
+- runFlow: ../subflows/log-current-set.yaml
+- runFlow: ../subflows/minimize-rest.yaml
+- scrollUntilVisible: { element: { id: "complete-workout" }, direction: DOWN, centerElement: true, timeout: 20000 }
+- tapOn: { id: "complete-workout" }
+- extendedWaitUntil: { visible: { id: "completion-popup" }, timeout: 30000 }
+- tapOn: { id: "completion-awesome" }
+- extendedWaitUntil: { notVisible: { id: "completion-popup" }, timeout: 10000 }

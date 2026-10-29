@@ -1,0 +1,8 @@
+# QA final (untracked): one T-82 delete of the newest this-week row, from a fresh Progress > Activity.
+appId: com.gymido.app
+---
+- extendedWaitUntil: { visible: { id: "tab-Progress|rail-Progress" }, timeout: 30000 }
+- runFlow: { when: { visible: { id: "tab-Progress" } }, commands: [ { tapOn: { id: "tab-Progress" } } ] }
+- tapOn: { id: "progress-tab-activity" }
+- scrollUntilVisible: { element: { id: "progress-recent-actions-.*" }, direction: DOWN, centerElement: true, timeout: 20000 }
+- runFlow: { file: c-one.yaml, env: { CANCEL_FIRST: "no" } }

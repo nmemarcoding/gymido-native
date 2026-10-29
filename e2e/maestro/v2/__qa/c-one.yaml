@@ -1,0 +1,22 @@
+appId: com.gymido.app
+---
+- scrollUntilVisible: { element: { id: "progress-recent-actions-.*" }, direction: UP, centerElement: true, timeout: 20000 }
+- tapOn: { id: "progress-recent-actions-.*", index: 0 }
+- extendedWaitUntil: { visible: { id: "workout-actions-sheet" }, timeout: 10000 }
+- assertVisible: "Workout.actions"
+- assertVisible: { id: "workout-actions-cancel" }
+- tapOn: { id: "workout-actions-delete" }
+- extendedWaitUntil: { visible: { id: "delete-workout-dialog" }, timeout: 10000 }
+- assertVisible: "Delete.this.workout."
+- assertVisible: ".*on.Wednesday,.Oct.28.will.be.removed.from.your.history,.this.week.s.progress.and.your.exercise.records..Personal.records.are.recalculated..This.can.t.be.undone."
+- runFlow:
+    when: { true: "${CANCEL_FIRST == 'yes'}" }
+    commands:
+      - tapOn: { id: "delete-workout-dialog-cancel" }
+      - extendedWaitUntil: { notVisible: { id: "delete-workout-dialog" }, timeout: 5000 }
+      - tapOn: { id: "progress-recent-actions-.*", index: 0 }
+      - tapOn: { id: "workout-actions-delete" }
+      - extendedWaitUntil: { visible: { id: "delete-workout-dialog" }, timeout: 10000 }
+- tapOn: { id: "delete-workout-dialog-confirm" }
+- extendedWaitUntil: { visible: "Workout.deleted.", timeout: 15000 }
+- extendedWaitUntil: { notVisible: { id: "delete-workout-dialog" }, timeout: 5000 }
