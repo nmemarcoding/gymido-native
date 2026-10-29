@@ -41,7 +41,8 @@ Android, for members and trainers. Admin is web-only.
    - Prod safety: plain `maestro test` against the app is FORBIDDEN. Only `e2e/scripts/maestro-guarded.sh` or `e2e/scripts/ios-safe-sign-in.sh` drive flows (both run `e2e/scripts/apiGuard.js`: local test API on :8080/:8091 only; dev clients checked against Metro). `maestro hierarchy` is fine.
    - Never put credentials or account emails in files, logs, screenshots, messages or commits.
    - A sign-in that needs the owner goes through gymido-pm (owner popup).
-6. Speed: split work across sub-agents in their own worktrees (code only). I integrate, test and commit.
+6. Speed: split work across sub-agents in their own worktrees. They may also run their own devices exactly as
+   shared.md § Global Rules "Mobile sub-agents" allows (device caps: "Mac load"). I integrate, test and commit.
 7. Every block or batch ships with a parity pack (before/after shots, both platforms), and frontend signs it off
    via PM. UX design changes need a dev impact check (PRES vs LOGIC) before they're built.
 8. Releases: the owner builds and installs the iOS and Android release builds. I prepare the exact commands and
