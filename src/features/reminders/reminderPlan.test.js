@@ -6,11 +6,12 @@ import {
   reminderCopy,
   reminderId,
   reminderTimesLabel,
-  workoutDoneOn,
+  todaysWorkoutDone,
 } from './reminderPlan';
 
 // Weekday ids as the API sends them (Mon 1 … Sun 7), titles as Today shows them.
-const item = (weekday, title, dayNumber = 1) => ({ weekday: { id: weekday, sort_order: weekday }, plan_day: { day_number: dayNumber, title } });
+// Plan day ids = 100 + weekday unless given.
+const item = (weekday, title, dayNumber = 1, id = 100 + weekday) => ({ weekday: { id: weekday, sort_order: weekday }, plan_day: { id, day_number: dayNumber, title } });
 const current = (schedule, enrollment = {}) => ({
   enrollment: { id: 31, status: 'active', started_on: '2026-09-21T00:00:00Z', ...enrollment },
   schedule,
@@ -73,14 +74,16 @@ describe('T-103 planReminders', () => {
     expect(times).toEqual([...times].sort((a, b) => a - b));
   });
 
-  test('a workout finished today drops all of today', () => {
-    const completedToday = [{ id: 1, started_at: new Date(2026, 9, 29, 6, 30).toISOString() }];
+  test('today\'s workout finished today drops all of today', () => {
+    const completedToday = [{ id: 1, workout_plan_day_id: 104, started_at: new Date(2026, 9, 29, 6, 30).toISOString() }];
     const requests = planReminders({ current: current([item(4, 'Pull')]), completedToday, now: THU_7AM, days: 8 });
     expect(keys(requests)).toEqual(['2026-11-05.morning', '2026-11-05.afternoon', '2026-11-05.evening']);
   });
 
   test('a workout started yesterday (finished after midnight) does not count for today', () => {
-    const completedToday = [{ id: 1, started_at: new Date(2026, 9, 28, 23, 50).toISOString(), completed_at: new Date(2026, 9, 29, 0, 20).toISOString() }];
+    const completedToday = [
+      { id: 1, workout_plan_day_id: 104, started_at: new Date(2026, 9, 28, 23, 50).toISOString(), completed_at: new Date(2026, 9, 29, 0, 20).toISOString() },
+    ];
     const requests = planReminders({ current: current([item(4, 'Pull')]), completedToday, now: THU_7AM, days: 1 });
     expect(keys(requests)).toHaveLength(3);
   });
@@ -165,8 +168,23 @@ describe('T-103 copy (UX ruling §2)', () => {
     expect(reminderTimesLabel(true)).toBe('8 AM, 1 PM and 6 PM on training days');
   });
 
-  test('workoutDoneOn uses the local date of started_at', () => {
-    expect(workoutDoneOn([{ started_at: new Date(2026, 9, 29, 9).toISOString() }], '2026-10-29')).toBe(true);
-    expect(workoutDoneOn([], '2026-10-29')).toBe(false);
+  test('todaysWorkoutDone: today\'s scheduled plan day, started today (review L2: a catch-up never counts)', () => {
+    const plan = current([item(1, 'Push'), item(4, 'Pull')]);
+    const at = (hour, day = 29) => new Date(2026, 9, day, hour).toISOString();
+    const done = (completedToday) => todaysWorkoutDone({ current: plan, completedToday, now: THU_7AM });
+    expect(done([{ workout_plan_day_id: 104, started_at: at(6) }])).toBe(true);
+    // Monday's workout caught up today.
+    expect(done([{ workout_plan_day_id: 101, started_at: at(6) }])).toBe(false);
+    // An off-plan workout (no plan day).
+    expect(done([{ workout_plan_day_id: null, started_at: at(6) }])).toBe(false);
+    expect(done([{ workout_plan_day_id: 104, started_at: at(20, 28) }])).toBe(false);
+    expect(done([])).toBe(false);
+    expect(todaysWorkoutDone({ current: null, completedToday: [{ workout_plan_day_id: 104, started_at: at(6) }], now: THU_7AM })).toBe(false);
+  });
+
+  test('a catch-up done today keeps today\'s reminders (review L2)', () => {
+    const completedToday = [{ id: 1, workout_plan_day_id: 101, started_at: new Date(2026, 9, 29, 6, 30).toISOString() }];
+    const requests = planReminders({ current: current([item(1, 'Push'), item(4, 'Pull')]), completedToday, now: THU_7AM, days: 1 });
+    expect(keys(requests)).toEqual(['2026-10-29.morning', '2026-10-29.afternoon', '2026-10-29.evening']);
   });
 });

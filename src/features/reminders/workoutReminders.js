@@ -11,6 +11,8 @@ import { createReminderSync } from './reminderSync';
 import { isWorkoutRemindersOn, loadWorkoutReminders, setReminderPermission, useWorkoutReminders } from './workoutReminderSetting';
 
 const SIGNED_OUT = new Set([AuthStatus.signedOut, AuthStatus.accountUnavailable]);
+// Review M1: who is signed in isn't known yet; a sync then changes nothing.
+const AUTH_PENDING = new Set([AuthStatus.restoring, AuthStatus.authenticating, AuthStatus.loadingUser]);
 
 let controller = null;
 let cleanups = [];
@@ -35,6 +37,9 @@ export function startWorkoutReminders({
   }
   initReminderChannel();
   const allowed = async () => {
+    if (AUTH_PENDING.has(useAuthStore.getState().status)) {
+      return null;
+    }
     if (!isSignedInMember() || !isWorkoutRemindersOn()) {
       return false;
     }
@@ -97,9 +102,7 @@ export function startWorkoutReminders({
     }
   });
   const unsubscribeSignals = onReminderSignal((signal) => {
-    if (signal === 'workoutFinished') {
-      sync.finishToday().catch(() => {});
-    } else if (signal === 'planChanged') {
+    if (signal === 'workoutFinished' || signal === 'planChanged') {
       resync();
     }
   });

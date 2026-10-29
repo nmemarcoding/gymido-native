@@ -24,7 +24,7 @@ jest.mock('./reminderPlatform', () => ({
 jest.mock('../shell/shellLinks', () => ({ openShellPath: jest.fn(), shellNavigation: {} }));
 jest.mock('../workout/runtime/restAlerts', () => ({ requestPermissionAtWorkoutStart: jest.fn(async () => {}) }));
 
-const mockSync = { sync: jest.fn(async () => []), finishToday: jest.fn(async () => {}), clearAll: jest.fn(async () => {}) };
+const mockSync = { sync: jest.fn(async () => []), clearAll: jest.fn(async () => {}) };
 let mockAllowed = null;
 jest.mock('./reminderSync', () => ({
   createReminderSync: jest.fn(({ allowed }) => {
@@ -88,6 +88,7 @@ describe('T-103 startWorkoutReminders', () => {
   test('allowed = signed-in member + switch on + permission granted (and the permission is stored for Settings)', async () => {
     start({ permission: 'granted' });
     await flush();
+    useAuthStore.setState({ status: AuthStatus.signedOut, user: null });
     expect(await mockAllowed()).toBe(false);
     useAuthStore.setState({ status: AuthStatus.signedIn, user: MEMBER });
     expect(await mockAllowed()).toBe(true);
@@ -97,6 +98,13 @@ describe('T-103 startWorkoutReminders', () => {
     useWorkoutReminders.setState({ enabled: true });
     useAuthStore.setState({ user: TRAINER });
     expect(await mockAllowed()).toBe(false);
+  });
+
+  test.each([AuthStatus.restoring, AuthStatus.authenticating, AuthStatus.loadingUser])('auth %s → not known yet (null), the permission is not read (review M1)', async (status) => {
+    const { platform } = start();
+    useAuthStore.setState({ status, user: MEMBER });
+    expect(await mockAllowed()).toBeNull();
+    expect(platform.getPermission).not.toHaveBeenCalled();
   });
 
   test.each(['denied', 'undetermined'])('permission %s → not allowed', async (permission) => {
@@ -149,16 +157,16 @@ describe('T-103 startWorkoutReminders', () => {
     expect(mockSync.sync).toHaveBeenCalledTimes(2);
   });
 
-  test('signals: a plan change resyncs, a finished workout clears today', async () => {
+  test('signals: a plan change and a finished workout both resync (the sync decides about today)', async () => {
     start();
     await flush();
     mockSync.sync.mockClear();
     signalReminders('planChanged');
     expect(mockSync.sync).toHaveBeenCalledTimes(1);
     signalReminders('workoutFinished');
-    expect(mockSync.finishToday).toHaveBeenCalledTimes(1);
+    expect(mockSync.sync).toHaveBeenCalledTimes(2);
     signalReminders('somethingElse');
-    expect(mockSync.sync).toHaveBeenCalledTimes(1);
+    expect(mockSync.sync).toHaveBeenCalledTimes(2);
   });
 });
 

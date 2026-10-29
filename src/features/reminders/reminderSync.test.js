@@ -5,7 +5,7 @@ import { REMINDER_CHANNEL_ID, createReminderSync } from './reminderSync';
 const NOW = new Date(2026, 9, 29, 7, 0);
 const PLAN = {
   enrollment: { id: 31, status: 'active', started_on: '2026-09-21T00:00:00Z' },
-  schedule: [{ weekday: { id: 4, sort_order: 4 }, plan_day: { title: 'Pull' } }],
+  schedule: [{ weekday: { id: 4, sort_order: 4 }, plan_day: { id: 12, title: 'Pull' } }],
 };
 const reminder = (date, slot) => ({ identifier: `gymido.reminder.${date}.${slot}`, content: { data: { kind: REMINDER_KIND, date, slot } } });
 const REST = { identifier: 'gymido-rest-end', content: { data: { kind: 'restEnd', source: 'scheduled' } } };
@@ -93,7 +93,7 @@ describe('T-103 reminder sync', () => {
 
   test('done today (e.g. on the web): nothing today, and today\'s shown reminder is cleared', async () => {
     const { platform, sync } = setup({
-      completed: [{ started_at: new Date(2026, 9, 29, 6).toISOString() }],
+      completed: [{ workout_plan_day_id: 12, started_at: new Date(2026, 9, 29, 6).toISOString() }],
       presented: [shown(reminder('2026-10-29', 'morning'), 1)],
     });
     const requests = await sync.sync();
@@ -114,14 +114,26 @@ describe('T-103 reminder sync', () => {
     expect(platform.dismiss.mock.calls.map(([id]) => id).sort()).toEqual(['gymido.reminder.2026-10-22.evening', 'gymido.reminder.2026-10-29.morning']);
   });
 
-  test('finishToday: cancels today\'s later reminders and clears today\'s shown one, nothing else', async () => {
+  test('a catch-up done today: today stays scheduled and today\'s shown reminder stays (review L2)', async () => {
     const { platform, sync } = setup({
-      pending: [reminder('2026-10-29', 'afternoon'), reminder('2026-10-29', 'evening'), reminder('2026-11-05', 'morning'), REST],
-      presented: [shown(reminder('2026-10-29', 'morning')), shown(REST)],
+      completed: [{ workout_plan_day_id: 99, started_at: new Date(2026, 9, 29, 6).toISOString() }],
+      presented: [shown(reminder('2026-10-29', 'morning'), 1)],
     });
-    await sync.finishToday();
-    expect(platform.cancelScheduled.mock.calls).toEqual([['gymido.reminder.2026-10-29.afternoon'], ['gymido.reminder.2026-10-29.evening']]);
-    expect(platform.dismiss.mock.calls).toEqual([['gymido.reminder.2026-10-29.morning']]);
+    const requests = await sync.sync();
+    expect(requests[0].identifier).toBe('gymido.reminder.2026-10-29.morning');
+    expect(platform.dismiss).not.toHaveBeenCalled();
+  });
+
+  test('allowed() null (auth still restoring): touches nothing, reads nothing (review M1)', async () => {
+    const { platform, api, sync } = setup({
+      allowed: null,
+      pending: [reminder('2026-11-05', 'morning')],
+      presented: [shown(reminder('2026-10-29', 'morning'))],
+    });
+    expect(await sync.sync()).toBeNull();
+    expect(api.getCurrentPlan).not.toHaveBeenCalled();
+    expect(platform.cancelScheduled).not.toHaveBeenCalled();
+    expect(platform.dismiss).not.toHaveBeenCalled();
     expect(platform.schedule).not.toHaveBeenCalled();
   });
 

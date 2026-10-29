@@ -62,11 +62,6 @@ export function reminderId(dateKey, slot) {
 
 export const isReminder = (data) => data?.kind === REMINDER_KIND;
 
-// A workout's day is the local date of its started_at (like the week strip).
-export function workoutDoneOn(completed, dateKey) {
-  return (workoutsByDate(completed)[dateKey] ?? 0) > 0;
-}
-
 // The API's weekday id (Mon 1 … Sun 7) → that day's workout title. The
 // schedule is sorted by weekday then day number, so the first entry of a
 // weekday is the one Today shows.
@@ -79,6 +74,24 @@ function titlesByWeekday(schedule) {
     }
   }
   return titles;
+}
+
+const weekdayOf = (day) => (day.getDay() === 0 ? 7 : day.getDay());
+
+// "Once THE workout is done" (owner, via PM 29 Oct 2026, review L2): a
+// workout started today (local date of started_at, like the week strip) of
+// the plan day scheduled for today. A catch-up of another day doesn't count.
+export function todaysWorkoutDone({ current, completedToday = [], now = new Date() }) {
+  const weekday = weekdayOf(now);
+  const todaysDays = new Set(
+    (Array.isArray(current?.schedule) ? current.schedule : [])
+      .filter((item) => Number(item?.weekday?.id ?? item?.weekday?.sort_order) === weekday && item?.plan_day?.id != null)
+      .map((item) => Number(item.plan_day.id))
+  );
+  const todayKey = localDateKey(now);
+  return (Array.isArray(completedToday) ? completedToday : []).some(
+    (workout) => todaysDays.has(Number(workout?.workout_plan_day_id)) && (workoutsByDate([workout])[todayKey] ?? 0) > 0
+  );
 }
 
 // `current` = GET /my-plans/current ({ enrollment, schedule }; null = no
@@ -94,14 +107,13 @@ export function planReminders({ current, completedToday = [], now = new Date(), 
     return [];
   }
   const startedOn = startDateKey(enrollment.started_on);
-  const todayKey = localDateKey(now);
-  const doneToday = workoutDoneOn(completedToday, todayKey);
+  const doneToday = todaysWorkoutDone({ current, completedToday, now });
   const requests = [];
   for (let offset = 0; offset < days && requests.length < max; offset += 1) {
     // Local midnight + n days: DST-safe (never adds 24 h in milliseconds).
     const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
     const dateKey = localDateKey(day);
-    const weekday = day.getDay() === 0 ? 7 : day.getDay();
+    const weekday = weekdayOf(day);
     if (!titles.has(weekday) || (startedOn && dateKey < startedOn) || (offset === 0 && doneToday)) {
       continue;
     }

@@ -1,6 +1,6 @@
 import { getStatus } from '../../shared/api/apiError';
 import { localDateKey } from '../plans/libraryFormat';
-import { isReminder, planReminders, workoutDoneOn } from './reminderPlan';
+import { isReminder, planReminders, todaysWorkoutDone } from './reminderPlan';
 
 export const REMINDER_CHANNEL_ID = 'workout-reminders';
 
@@ -8,7 +8,9 @@ export const REMINDER_CHANNEL_ID = 'workout-reminders';
 // replaces the whole pending set. `platform` = the notification primitives
 // (restAlertPlatform's getScheduled / getPresented / cancelScheduled /
 // dismiss / schedule); `api` = { getCurrentPlan, listCompletedWorkouts };
-// `allowed()` = signed-in member, Settings switch on, permission granted.
+// `allowed()` = signed-in member, Settings switch on, permission granted;
+// null while that isn't known yet (auth still restoring), and then nothing is
+// touched (review M1: an offline cold start must keep the reminders).
 // Every operation runs through one serial queue; a failure never blocks the
 // next one, and a sync asked for while another waits joins that one.
 export function createReminderSync({ platform, api, allowed, now = () => new Date() }) {
@@ -61,7 +63,11 @@ export function createReminderSync({ platform, api, allowed, now = () => new Dat
   }
 
   async function runSync() {
-    if (!(await allowed())) {
+    const permitted = await allowed();
+    if (permitted === null) {
+      return null;
+    }
+    if (!permitted) {
       await cancelPending(() => true);
       await dismissShown(() => true);
       return [];
@@ -78,12 +84,14 @@ export function createReminderSync({ platform, api, allowed, now = () => new Dat
         trigger: { type: 'date', date: request.fireAt.getTime(), channelId: REMINDER_CHANNEL_ID },
       });
     }
-    await tidyShown(todayKey, workoutDoneOn(completedToday, todayKey));
+    await tidyShown(todayKey, todaysWorkoutDone({ current, completedToday, now: at }));
     return requests;
   }
 
   return {
-    // Resolves to the scheduled requests ([] when not allowed).
+    // Resolves to the scheduled requests ([] when not allowed, null when
+    // skipped). A finished workout syncs too: the sync clears today when it
+    // was today's workout (UX ruling §1), never for a catch-up.
     sync() {
       if (!waiting) {
         waiting = enqueue(() => {
@@ -92,15 +100,6 @@ export function createReminderSync({ platform, api, allowed, now = () => new Dat
         });
       }
       return waiting;
-    },
-    // The workout was finished in the app: today's later reminders go, and so
-    // does the one already shown (UX ruling §1).
-    finishToday() {
-      return enqueue(async () => {
-        const todayKey = localDateKey(now());
-        await cancelPending((data) => data.date === todayKey);
-        await dismissShown((data) => data.date === todayKey);
-      });
     },
     // Sign-out, a trainer account, the switch off.
     clearAll() {

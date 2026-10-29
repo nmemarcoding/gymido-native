@@ -3,8 +3,8 @@
 // code. The API modules announce what changes the reminders:
 // - 'planChanged': a schedule, enrollment or deleted workout changed what is
 //   due → replace every pending reminder.
-// - 'workoutFinished': today's workout was completed → cancel today's later
-//   reminders and clear the one already shown.
+// - 'workoutFinished': a workout was completed → resync; when it was today's
+//   workout, today's later reminders go and the one already shown is cleared.
 const listeners = new Set();
 
 export function onReminderSignal(listener) {
