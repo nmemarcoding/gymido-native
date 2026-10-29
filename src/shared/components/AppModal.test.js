@@ -627,7 +627,12 @@ describe('Guard: footer dismiss ⇒ footerDismiss (FINAL-AUDIT batch 1)', () => 
     });
   });
   // DECLARED (T-80, UX T80-start-confirm-copy "Footer Cancel → no ×"): + the hub's start confirm.
-  const CONFIRM_NO_CLOSE = ['features/planGenerator/screens/PlanGeneratorPreviewScreen.js', 'features/workout/screens/WorkoutScreen.js'];
+  // DECLARED (T-102, PM OK 29 Oct): + Today's catch-up confirm (the same T-80 dialog).
+  const CONFIRM_NO_CLOSE = [
+    'features/home/HomeScreen.js',
+    'features/planGenerator/screens/PlanGeneratorPreviewScreen.js',
+    'features/workout/screens/WorkoutScreen.js',
+  ];
   it('only the ConfirmDialogs whose boards draw no × at any width pass hideClose', () => {
     const withHide = walk(src)
       .map((file) => ({ file: path.relative(src, file).split(path.sep).join('/'), text: fs.readFileSync(file, 'utf8') }))

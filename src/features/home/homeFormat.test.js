@@ -50,10 +50,28 @@ describe('todayCard (H1.3 + Batch B)', () => {
     expect(todayCard({}).headline).toBe('Recovery day');
   });
 
-  it('counts the extra misses in every state (⚠H-4)', () => {
+  // DECLARED change (T-102, ⚠H-4 retired): was "counts the extra misses in every state" (moreMissed "+2 more missed
+  // this week" on a training day). The ungated count is gone; the Catch-up row names a day, then counts the rest.
+  it('T-102: no "+n more" line in any state; training names the latest miss in the Catch-up row (the H-4 bug)', () => {
     const missed = [miss('Monday', 'A'), miss('Tuesday', 'B'), miss('Wednesday', 'C')];
-    expect(todayCard({ today_status: { is_workout_day: true }, missed_this_week: missed }).moreMissed).toBe('+2 more missed this week');
-    expect(todayCard({ missed_this_week: [miss('Monday', 'A')] }).moreMissed).toBeNull();
+    const training = todayCard({ today_status: { is_workout_day: true }, missed_this_week: missed });
+    expect(training).not.toHaveProperty('moreMissed');
+    expect(training).toMatchObject({ state: 'training', base: 'training' });
+    expect(training.catchUp).toEqual({ miss: { weekdayName: 'Monday', planDay: { title: 'A' } }, more: 2 });
+    const rest = todayCard({ missed_this_week: [miss('Monday', 'A')] });
+    expect(rest).toMatchObject({ state: 'missed', base: 'rest', catchUp: null });
+    expect(rest).not.toHaveProperty('moreMissed');
+  });
+
+  it('T-107: Today\'s "Do it now" hands nothing (navigate only); an open session reads "Resume workout"', () => {
+    const rest = { missed_this_week: [miss('Monday', 'A')] };
+    expect(todayCard(rest)).not.toHaveProperty('startPlanDayId');
+    expect(todayCard(rest, null, true)).toMatchObject({ state: 'missed', primary: 'Resume workout' });
+    expect(todayCard({ ...rest, today_status: { already_completed: true, plan_day: { title: 'Push' } } })).toMatchObject({
+      state: 'completed',
+      catchUp: { more: 0 },
+    });
+    expect(todayCard(rest, 3).catchUp).toBeNull();
   });
 });
 

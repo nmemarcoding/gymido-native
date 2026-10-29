@@ -287,7 +287,11 @@ function nextScheduledWeekdayName(weekdays, now) {
   return WEEKDAYS[id - 1].name;
 }
 
-export function dayRows({ planDays = [], schedule, doneIds = [], state, todayDayId, now = new Date() }) {
+// T-102 (rest only): this week's open-miss plan days sort FIRST, most recent
+// miss first, then the usual order; their meta reads "Missed {Weekday} · n
+// exercises" and the row's name "Start {title}, missed {Weekday}". `misses`
+// = weekMisses(); a day missed twice takes its most recent miss.
+export function dayRows({ planDays = [], schedule, doneIds = [], state, todayDayId, misses = [], now = new Date() }) {
   const weekdays = scheduledWeekdaysByDayId(schedule);
   const rows = planDays
     .filter((day) => !(state === 'training' && day.id === todayDayId && !doneIds.includes(day.id)))
@@ -308,7 +312,31 @@ export function dayRows({ planDays = [], schedule, doneIds = [], state, todayDay
   const done = rows.filter((row) => row.done);
   const isToday = (row) => state === 'todayDone' && row.dayId === todayDayId;
   const lastDone = [...done.filter((row) => !isToday(row)), ...done.filter(isToday)];
-  return [...rows.filter((row) => !row.done), ...lastDone];
+  const ordered = [...rows.filter((row) => !row.done), ...lastDone];
+  if (state !== 'rest' || !misses.length) {
+    return ordered;
+  }
+  const missedRows = [];
+  for (const miss of misses) {
+    const row = ordered.find((item) => item.dayId === miss.planDay?.id);
+    if (row && !missedRows.some((item) => item.dayId === row.dayId)) {
+      const count = planDays.find((day) => day.id === row.dayId)?.exercises_count ?? 0;
+      missedRows.push({
+        ...row,
+        done: false,
+        missedWeekday: miss.weekdayName,
+        meta: `Missed ${miss.weekdayName} · ${formatCount(count, 'exercise', 'exercises')}`,
+        action: `Start ${row.title}, missed ${miss.weekdayName}`,
+      });
+    }
+  }
+  return [...missedRows, ...ordered.filter((row) => !missedRows.some((item) => item.dayId === row.dayId))];
+}
+
+// T-102: the hub state as the §1 rule table's base (missedCatchUp): no
+// schedule → setup, today done → completed; week complete / no plan → none.
+export function missedBase(state) {
+  return { noSchedule: 'setup', training: 'training', todayDone: 'completed', rest: 'rest' }[state] ?? null;
 }
 
 // T-80 (owner; RN-SPEC-workout T-80 block, web 2b58551c): starting any day

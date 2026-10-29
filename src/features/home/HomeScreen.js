@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
+import CatchUpRow from '../../shared/components/CatchUpRow';
+import ConfirmDialog from '../../shared/components/ConfirmDialog';
 import { InlineToast } from '../../shared/components/ToastHost';
 import { ToastTone } from '../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
+import { useSheetFocus } from '../../shared/hooks/useSheetFocus';
 import { breakpoints, colors, textScale, typography } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
 import { getCurrentPlan, listPlanDays } from '../plans/api/libraryApi';
+import { catchUpConfirmCopy, catchUpRowCopy } from '../plans/missedCatchUp';
 import { startDateKey, weekProgressByDate } from '../plans/weekByDate';
 import { applySavedWeightLog, useProfileStore } from '../profile/profileStore';
 import ShellPage from '../shell/ShellPage';
@@ -125,6 +129,13 @@ function Home() {
   const [sessionOpen, setSessionOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  // T-102: the Catch-up row's T-80 confirm (mounted on the first ask and
+  // kept for its close animation); focus returns to the row on Cancel.
+  const [catchUpConfirm, setCatchUpConfirm] = useState(null);
+  const [confirmMounted, setConfirmMounted] = useState(false);
+  const catchUpRef = useRef(null);
+  const confirmReturnRef = useRef(null);
+  useSheetFocus(Boolean(catchUpConfirm), { returnRef: confirmReturnRef });
   const mounted = useRef(true);
 
   useEffect(
@@ -282,6 +293,21 @@ function Home() {
         onPrimary={() => openShellPath('/workout')}
         onViewPlan={() => openPlanDetailAlone(plan.id)}
       />
+      {card.catchUp ? (
+        <CatchUpRow
+          ref={catchUpRef}
+          testID="home-catch-up"
+          copy={catchUpRowCopy(card.catchUp)}
+          onPress={() => {
+            confirmReturnRef.current = catchUpRef.current;
+            setConfirmMounted(true);
+            setCatchUpConfirm({
+              dayId: card.catchUp.miss.planDay?.id,
+              ...catchUpConfirmCopy({ miss: card.catchUp.miss, base: card.base, todayTitle: dashboard?.today_status?.plan_day?.title ?? '' }),
+            });
+          }}
+        />
+      ) : null}
       <TodayStats ring={weekRing(dashboard, weekProgressByDate({ week, startedOn }))} tablet={tablet} reflow={reflow} />
       {strip ? <WeekCard strip={strip} tablet={tablet} reflow={reflow} onSeeProgress={() => openShellPath('/progress')} /> : null}
       <WeightCard
@@ -294,6 +320,25 @@ function Home() {
       />
       {recentList}
       {weightModal}
+      {confirmMounted ? (
+        <ConfirmDialog
+          testID="home-catch-up-confirm"
+          isOpen={Boolean(catchUpConfirm)}
+          onClose={() => setCatchUpConfirm(null)}
+          onConfirm={() => {
+            const dayId = catchUpConfirm.dayId;
+            confirmReturnRef.current = null;
+            setCatchUpConfirm(null);
+            openShellPath('/workout', { startPlanDayId: dayId });
+          }}
+          title={catchUpConfirm?.title ?? ''}
+          description={catchUpConfirm?.body}
+          confirmLabel="Start workout"
+          tone="primary"
+          hideClose
+          playTile
+        />
+      ) : null}
     </View>
   );
 }

@@ -130,6 +130,11 @@ export function TodayHero({ plan, card, tablet, reflow, imageUrl, dayTitle, dayO
       <View pointerEvents="none" style={tablet ? styles.glowTablet : styles.glow} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <GradientFill radial={gradients.heroGlow.radial} colors={gradients.heroGlow.colors} stops={[0, 0.7]} />
       </View>
+      {card.eyebrow ? (
+        <Text testID="home-today-eyebrow" {...LT.body} style={styles.eyebrow}>
+          {card.eyebrow}
+        </Text>
+      ) : null}
       <View style={[styles.pillRow, reflow && styles.trailingBelow]}>
         <StatusPill testID="home-today-pill" tone={PILL_TONE[card.tone] ?? 'neutral'} label={card.pill} />
         {tablet && dayOfWeek && card.state === 'training' ? (
@@ -177,11 +182,6 @@ export function TodayHero({ plan, card, tablet, reflow, imageUrl, dayTitle, dayO
           {card.sub ?? keepUnitsTogether(plan.name)}
         </Text>
       )}
-      {card.moreMissed ? (
-        <Text testID="home-more-missed" {...LT.body} style={styles.moreMissed}>
-          {card.moreMissed}
-        </Text>
-      ) : null}
       {/* §9 + T-63: stacked, the primary on top, both full width (phone View plan 52). */}
       <View
         testID="home-today-buttons"
@@ -585,12 +585,14 @@ const styles = StyleSheet.create({
   subCount: {
     flexShrink: 0,
   },
-  moreMissed: {
-    ...font(600),
-    marginTop: spacing['1_5'],
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.warning,
+  // T-108 §3: the rest day + miss eyebrow (the hub's eyebrow: 13/18 700, +0.04).
+  eyebrow: {
+    ...font(700),
+    marginBottom: spacing[2],
+    fontSize: 13,
+    lineHeight: 18,
+    letterSpacing: titleTracking(13, 0.04),
+    color: colors.textSecondary,
   },
   buttons: {
     flexDirection: 'row',

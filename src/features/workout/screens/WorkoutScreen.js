@@ -5,6 +5,7 @@ import { AccessibilityInfo, StyleSheet, Text, View, findNodeHandle, useWindowDim
 import { getServerMessage } from '../../../shared/api/apiError';
 import { keepUnitsTogether } from '../../../shared/format/counts';
 import BackPill from '../../../shared/components/BackPill';
+import CatchUpRow from '../../../shared/components/CatchUpRow';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { InlineToast } from '../../../shared/components/ToastHost';
 import { ToastTone } from '../../../shared/components/toastStore';
@@ -14,8 +15,9 @@ import { breakpoints, colors, font, spacing, textScale, titleTracking } from '..
 import { listDayExercises } from '../../plans/api/libraryApi';
 import ScheduleSetupCard from '../../plans/components/ScheduleSetupCard';
 import { WEEKDAYS, planDayTitle } from '../../plans/libraryFormat';
+import { catchUpConfirmCopy, catchUpRowCopy, missedLayout, weekMisses } from '../../plans/missedCatchUp';
 import ShellPage from '../../shell/ShellPage';
-import { openShellPath } from '../../shell/shellLinks';
+import { openPlanDetailAlone, openShellPath } from '../../shell/shellLinks';
 import { useShellUiStore } from '../../shell/shellUiStore';
 import { startWorkout } from '../api/workoutApi';
 import HubDayRows from '../components/hub/HubDayRows';
@@ -35,6 +37,7 @@ import {
   dayRows,
   hubState,
   hubWeek,
+  missedBase,
   startConfirmCopy,
   todayDoneDetail,
   todayDurationMinutes,
@@ -173,6 +176,32 @@ function WorkoutPage() {
       navigation.setParams({ message: undefined });
     }
   }, [handoff, navigation]);
+
+  // T-102 hand-off (Today's Catch-up confirm): read startPlanDayId once and
+  // clear it, so a reload never starts it again; when the load finishes,
+  // start that day ONCE (no confirm: Today asked), unless a session is open.
+  const pendingStart = useRef(null);
+  const startParam = route.params?.startPlanDayId;
+  useEffect(() => {
+    if (startParam != null) {
+      pendingStart.current = startParam;
+      navigation.setParams({ startPlanDayId: undefined });
+    }
+  }, [startParam, navigation]);
+  const startRef = useRef(null);
+  useEffect(() => {
+    startRef.current = handleStart;
+  });
+  useEffect(() => {
+    if (status !== 'loaded' || pendingStart.current == null) {
+      return;
+    }
+    const dayId = pendingStart.current;
+    pendingStart.current = null;
+    if (!page.session?.id) {
+      startRef.current(dayId);
+    }
+  }, [status, page]);
 
   // ⚠W10: the success toast clears after 3500 ms; the error toast never does.
   useEffect(() => {
@@ -372,6 +401,7 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
   const [confirmMounted, setConfirmMounted] = useState(false);
   const confirmReturnRef = useRef(null);
   useSheetFocus(Boolean(confirm), { returnRef: confirmReturnRef });
+  const catchUpRef = useRef(null);
   const headingRef = useRef(null);
   const chooseRef = useRef(null);
   const wasSettingUp = useRef(false);
@@ -443,13 +473,29 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
   const todayTitle = planDayTitle(todayStatus?.plan_day);
   const todayCount = planDays.find((day) => day.id === todayDayId)?.exercises_count ?? todayStatus?.plan_day?.exercises_count;
   const todayExercises = exercisesByDay[todayDayId];
-  const rows = dayRows({ planDays, schedule: currentPlan.schedule, doneIds: page.completedThisWeekDayIds, state, todayDayId, now });
-  // T-80: a row (Start or Repeat) or "Start {Day} early": the copy for this context.
-  const requestStart = (day, ref) => {
+  // T-102: this week's open misses from /week (none without it) through the
+  // §1 table. T-108: a rest day with a miss is ONE card (the miss + Up next).
+  const misses = weekMisses(week, now);
+  const base = missedBase(state);
+  const layout = settingUp ? { hero: null, catchUp: null } : missedLayout(base, misses);
+  const missed = state === 'rest' ? layout.hero : null;
+  const catchUp = layout.catchUp;
+  const rows = dayRows({ planDays, schedule: currentPlan.schedule, doneIds: page.completedThisWeekDayIds, state, todayDayId, misses, now });
+  const ask = (dayId, copy, ref) => {
     confirmReturnRef.current = ref?.current ?? null;
     setConfirmMounted(true);
-    setConfirm({ dayId: day.dayId, ...startConfirmCopy({ state, title: day.title, done: Boolean(day.done), isToday: Boolean(todayStatus?.already_completed) && day.dayId === todayDayId, todayTitle }) });
+    setConfirm({ dayId, ...copy });
   };
+  // T-80: a row (Start or Repeat) or "Start {Day} early": the copy for this
+  // context; T-102 an open-miss row asks with the catch-up rest copy.
+  const requestStart = (day, ref) =>
+    ask(
+      day.dayId,
+      day.missedWeekday
+        ? catchUpConfirmCopy({ miss: { weekdayName: day.missedWeekday }, base: 'rest', title: day.title })
+        : startConfirmCopy({ state, title: day.title, done: Boolean(day.done), isToday: Boolean(todayStatus?.already_completed) && day.dayId === todayDayId, todayTitle }),
+      ref
+    );
   const confirmDialog = confirmMounted ? (
     <ConfirmDialog
       testID="workout-start-confirm"
@@ -469,8 +515,32 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
       playTile
     />
   ) : null;
-  const todayCard =
-    state === 'noSchedule' && settingUp ? (
+  const catchUpRow = catchUp ? (
+    <CatchUpRow
+      ref={catchUpRef}
+      testID="workout-catch-up"
+      copy={catchUpRowCopy(catchUp)}
+      disabled={isStartingDayId != null}
+      onPress={() => ask(catchUp.miss.planDay?.id, catchUpConfirmCopy({ miss: catchUp.miss, base, todayTitle }), catchUpRef)}
+    />
+  ) : null;
+  const todayCard = missed ? (
+    <HubTodayCard
+      state="missed"
+      miss={missed}
+      planName={currentPlan.enrollment.plan.name}
+      tablet={tablet}
+      reflow={reflow}
+      weekdayName={WEEKDAYS[(now.getDay() + 6) % 7].name}
+      exercises={exercisesByDay[missed.planDay?.id]}
+      upNext={next}
+      starting={isStartingDayId != null && isStartingDayId === missed.planDay?.id}
+      startingEarly={isStartingDayId != null}
+      onDoItNow={() => onStart(missed.planDay?.id)}
+      onViewPlan={() => openPlanDetailAlone(planId)}
+      onStartEarly={requestStart}
+    />
+  ) : state === 'noSchedule' && settingUp ? (
       <ScheduleSetupCard
         planName={currentPlan.enrollment.plan.name}
         planDays={planDays}
@@ -523,13 +593,15 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
 
   const measure = (event) => setContentWidth(event.nativeEvent.layout.width);
   if (landscape && weekCard) {
+    // T-102: the Catch-up row sits under the hero, in the Today column.
     return (
       <View style={pageStyle} onLayout={measure}>
         {toasts}
         {header}
         <View testID="workout-split" style={styles.split}>
-          <View testID="workout-side-today" style={styles.sideToday}>
+          <View testID="workout-side-today" style={[styles.sideToday, styles.column]}>
             {todayCard}
+            {catchUpRow}
           </View>
           {weekCard}
         </View>
@@ -544,6 +616,7 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
       {toasts}
       {header}
       {todayCard}
+      {catchUpRow}
       {split && weekCard && otherDays ? (
         <View testID="workout-split" style={styles.split}>
           {weekCard}
@@ -613,5 +686,8 @@ const styles = StyleSheet.create({
   sideWeek: {
     flex: 1,
     minWidth: 0,
+  },
+  column: {
+    gap: 14,
   },
 });
