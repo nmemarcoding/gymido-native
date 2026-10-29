@@ -11,8 +11,9 @@ import { colors, font, typography } from '../../shared/theme/tokens';
 // "Version 2.0.7 (12)" from the app config and "Server 4.1.0 (8a12bd7)" from
 // GET /health. The server line stays HIDDEN while loading, on an error or
 // when unreachable (no placeholder, no retry). Both selectable (long-press
-// copy), not buttons or focus stops; read as plain text.
-export default function AppVersionFooter({ style, config }) {
+// copy), not buttons or focus stops; read as plain text. `align="start"`:
+// the tablet's right column (UX LOW), left-aligned with Delete account.
+export default function AppVersionFooter({ style, config, align = 'center' }) {
   const app = config === undefined ? appVersion() : appVersion(config);
   const server = useServerVersion();
   if (!app && !server) {
@@ -20,15 +21,15 @@ export default function AppVersionFooter({ style, config }) {
   }
   return (
     <View testID="app-version-footer" style={style}>
-      {app ? <VersionText testID="app-version" info={app} /> : null}
-      {server ? <VersionText testID="server-version" info={server} /> : null}
+      {app ? <VersionText testID="app-version" info={app} align={align} /> : null}
+      {server ? <VersionText testID="server-version" info={server} align={align} /> : null}
     </View>
   );
 }
 
-function VersionText({ testID, info }) {
+function VersionText({ testID, info, align }) {
   return (
-    <Text testID={testID} {...CAP_BODY} selectable accessibilityLabel={info.label} style={styles.text}>
+    <Text testID={testID} {...CAP_BODY} selectable accessibilityLabel={info.label} style={[styles.text, align === 'start' && styles.start]}>
       {info.text}
     </Text>
   );
@@ -56,5 +57,8 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     color: colors.textMuted,
     textAlign: 'center',
+  },
+  start: {
+    textAlign: 'left',
   },
 });

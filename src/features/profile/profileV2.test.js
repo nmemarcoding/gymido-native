@@ -897,7 +897,33 @@ describe('Edit profile weights: the full value always shows (320, 1×/1.3×)', (
 describe('T-90 version footer placement', () => {
   const AppVersionFooter = require('./AppVersionFooter').default;
   const lastChild = (node) => [].concat(node.props.children).filter((child) => child && typeof child === 'object');
-  it.each([390, 834])('%i: AppVersionFooter is the last rendered item; app + server lines', async (width) => {
+  it('tablet two columns (UX LOW): the last item of the RIGHT column, left-aligned, 24 below Delete account', async () => {
+    mockWidth = 1194;
+    setStoredProfile(PROFILE);
+    const tree = await renderAsync(<ProfileSettingsScreen />);
+    const footer = tree.root.findByType(AppVersionFooter);
+    expect(footer.props.align).toBe('start');
+    const kids = lastChild(footer.parent);
+    expect(kids[kids.length - 1].type).toBe(AppVersionFooter);
+    expect(kids[kids.length - 2].type).toBe(DeleteAccountAction);
+    expect(flat(footer.props.style).marginTop).toBe(24 - 18);
+    expect(flat(host(tree.root, 'server-version').props.style).textAlign).toBe('left');
+  });
+
+  it('tablet stacked (text past 1.3×): below both columns, centred, 24 under them', async () => {
+    mockWidth = 1194;
+    mockFontScale = 1.5;
+    setStoredProfile(PROFILE);
+    const tree = await renderAsync(<ProfileSettingsScreen />);
+    const footer = tree.root.findByType(AppVersionFooter);
+    expect(footer.props.align).toBeUndefined();
+    expect(flat(host(tree.root, 'server-version').props.style).textAlign).toBe('center');
+    expect(flat(footer.props.style).marginTop).toBe(24);
+    const kids = lastChild(footer.parent);
+    expect(kids[kids.length - 1].type).toBe(AppVersionFooter);
+  });
+
+  it.each([390])('%i: AppVersionFooter is the last rendered item; app + server lines', async (width) => {
     mockWidth = width;
     setStoredProfile(PROFILE);
     const tree = await renderAsync(<ProfileSettingsScreen />);
@@ -905,7 +931,8 @@ describe('T-90 version footer placement', () => {
     const parent = footer.parent;
     const kids = lastChild(parent).filter((child) => child.type !== ChangePasswordModal);
     expect(kids[kids.length - 1].type).toBe(AppVersionFooter);
-    expect(flat(footer.props.style).marginTop).toBe(width >= 768 ? 24 : 24 - 14);
+    expect(flat(footer.props.style).marginTop).toBe(24 - 14);
+    expect(flat(host(tree.root, 'server-version').props.style).textAlign).toBe('center');
     // The app line comes from the expo config (AppVersionFooter.test); here the server line.
     expect(host(tree.root, 'server-version').props.children).toBe('Server 4.1.0 (8a12bd7)');
   });

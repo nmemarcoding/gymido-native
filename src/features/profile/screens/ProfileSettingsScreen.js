@@ -286,11 +286,13 @@ function Settings() {
             {logoutButton}
             {/* P1.3 item 5 / P1b (T-43): 32 below Logout (the 18 gap + 14). */}
             <DeleteAccountAction align="start" style={styles.deleteAccountTablet} />
+            {/* T-90 (UX LOW): two columns → here, left-aligned, 24 below. */}
+            {reflow ? null : <AppVersionFooter align="start" style={styles.versionRight} />}
           </View>
           {modal}
         </View>
-        {/* T-90: below both columns, centred, 24 under them. */}
-        <AppVersionFooter style={styles.versionTablet} />
+        {/* T-90: stacked (large text) → below both, centred, 24 under them. */}
+        {reflow ? <AppVersionFooter style={styles.versionTablet} /> : null}
       </View>
     );
   }
@@ -670,6 +672,10 @@ const styles = StyleSheet.create({
   },
   versionTablet: {
     marginTop: spacing[6],
+  },
+  // 24 below Delete account = the column's 18 gap + 6.
+  versionRight: {
+    marginTop: spacing[6] - spacing['4_5'],
   },
   versionPhone: {
     marginTop: spacing[6] - spacing['3_5'],
