@@ -1,0 +1,16 @@
+# T-102 / T-108 UX re-check shot (READ-ONLY): the Workout hub after its
+# exercise photos have had time to load; ${ORIENT} = PORTRAIT or
+# LANDSCAPE_LEFT (iPad landscape), restored to PORTRAIT at the end.
+appId: com.gymido.app
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: { when: { visible: { id: "tab-Today" } }, commands: [ { tapOn: { id: "tab-Today" } } ] }
+- runFlow: { when: { visible: { id: "rail-Today" } }, commands: [ { tapOn: { id: "rail-Today" } } ] }
+- extendedWaitUntil: { visible: { id: "home-today-card" }, timeout: 30000 }
+- tapOn: { id: "home-today-primary" }
+- extendedWaitUntil: { visible: { id: "workout-hero" }, timeout: 30000 }
+- setOrientation: ${ORIENT}
+- extendedWaitUntil: { visible: { id: "workout-hero-photo" }, timeout: 30000 }
+- waitForAnimationToEnd: { timeout: 10000 }
+- takeScreenshot: ${SHOT}
+- setOrientation: PORTRAIT
