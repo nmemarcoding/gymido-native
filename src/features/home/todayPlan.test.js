@@ -980,6 +980,31 @@ describe('UX T-102 LOW (a): the Catch-up row hides while a live session is open'
 });
 
 // DECLARED (T-113, owner OK 29 Oct): replaces "T-108 Today eyebrow" (the eyebrow went with the Missed hero).
+// ⚠H-2 (UX T-113 fix, web parity): every rest day reads "Recovery day"; a day title goes to the sub.
+describe('⚠H-2 rest hero', () => {
+  it('rest + a day title: "Recovery day", sub "Up next: {title} · {plan}"; the pill and buttons stay', async () => {
+    const tree = await render({ ...DASH, today_status: { plan_day: { title: 'Legs' } } });
+    expect(textOf(host(tree.root, 'home-today-headline'))).toBe('Recovery day');
+    expect(textOf(host(tree.root, 'home-today-sub'))).toBe('Up next: Legs · Upper / Lower');
+    expect(tree.root.findAllByType(StatusPill)[0].props).toMatchObject({ tone: 'neutral', label: 'Rest day' });
+    expect(texts(host(tree.root, 'home-today-buttons'))).toEqual(expect.arrayContaining(['Go to workout', 'View plan']));
+  });
+
+  it('rest without a title: "Recovery day" over the plan name', async () => {
+    const tree = await render({ ...DASH, today_status: {} });
+    expect(textOf(host(tree.root, 'home-today-headline'))).toBe('Recovery day');
+    expect(textOf(host(tree.root, 'home-today-sub'))).toBe('Upper / Lower');
+  });
+
+  it('the rest headline is always "Recovery day", with or without misses', async () => {
+    const misses = [{ weekday: { name: 'Monday' }, plan_day: { id: 11, title: 'Upper A' } }];
+    for (const dash of [{ today_status: { plan_day: { title: 'Legs' } } }, { today_status: { plan_day: { title: 'Legs' } }, missed_this_week: misses }]) {
+      const tree = await render({ ...DASH, ...dash });
+      expect(textOf(host(tree.root, 'home-today-headline'))).toBe('Recovery day');
+    }
+  });
+});
+
 describe('T-113 no Missed hero on Today', () => {
   it('no eyebrow, no Missed pill and no "You missed" headline in any state with misses', async () => {
     const misses = [{ weekday: { name: 'Monday' }, plan_day: { id: 11, title: 'Upper A' } }];

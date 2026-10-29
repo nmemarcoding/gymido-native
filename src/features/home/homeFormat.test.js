@@ -48,7 +48,13 @@ describe('todayCard (H1.3 + Batch B)', () => {
       headline: 'Recovery day',
       primary: 'Go to workout',
     });
-    expect(todayCard({ today_status: { plan_day: day } })).toMatchObject({ state: 'rest', headline: 'Push' });
+    // DECLARED (⚠H-2 / UX T-113 fix, PM OK 29 Oct): was headline 'Push' (the day title); the rest headline is always
+    // "Recovery day" and the title moves to the sub.
+    expect(todayCard({ today_status: { plan_day: day }, current_plan: { enrollment: { plan: { name: 'Split' } } } })).toMatchObject({
+      state: 'rest',
+      headline: 'Recovery day',
+      sub: 'Up next: Push · Split',
+    });
     expect(todayCard({}).headline).toBe('Recovery day');
   });
 

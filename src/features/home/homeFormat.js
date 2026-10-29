@@ -1,7 +1,7 @@
 import { formatNumber, formatToGoal, formatWeight, parseDecimal } from '../../shared/format/numbers';
 import { convertWeight } from '../../shared/format/weight';
 import { formatDate, formatDuration, formatLocalDateForInput } from '../../shared/time/format';
-import { formatCount } from '../../shared/format/counts';
+import { formatCount, keepUnitsTogether } from '../../shared/format/counts';
 import { dashboardMisses, missedLayout } from '../plans/missedCatchUp';
 import { notStartedCaption, weekByDate } from '../plans/weekByDate';
 
@@ -52,8 +52,13 @@ export function todayCard(dashboard, setupDayCount = null, sessionOpen = false) 
   } else if (today?.is_workout_day) {
     card = { state: 'training', tone: 'brand', pill: "Today's workout", headline: today.plan_day?.title || 'Workout ready', primary: 'Start workout' };
   } else {
-    // ⚠H-2: a rest day can still carry a day title.
-    card = { state: 'rest', tone: 'muted', pill: 'Rest day', headline: today?.plan_day?.title || 'Recovery day', primary: 'Go to workout' };
+    // ⚠H-2 (UX T-113 fix, web parity): the headline is always "Recovery day";
+    // a day title moves to the sub, "Up next: {title} · {plan}" (else the hero
+    // shows the plan name).
+    const title = today?.plan_day?.title;
+    const planName = dashboard?.current_plan?.enrollment?.plan?.name;
+    const sub = title ? keepUnitsTogether([`Up next: ${title}`, planName].filter(Boolean).join(' · ')) : undefined;
+    card = { state: 'rest', tone: 'muted', pill: 'Rest day', headline: 'Recovery day', ...(sub ? { sub } : {}), primary: 'Go to workout' };
   }
   // T-102 / T-113 (⚠H-4 retired: no "+n more" line under the headline): the
   // hero is never a missed day; open misses are ONE Catch-up row under it.
