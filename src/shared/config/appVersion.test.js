@@ -37,16 +37,18 @@ describe('appVersion', () => {
   });
 });
 
+// Owner decision: the server's version is hard-coded, so only its build shows.
 describe('serverVersion', () => {
-  it('version + a 7-char build → "Server 4.1.0 (8a12bd7)" / SR "Server version 4.1.0, build 8a12bd7"', () => {
-    expect(serverVersion({ version: '4.1.0', build: '8a12bd7' })).toEqual({ text: 'Server 4.1.0 (8a12bd7)', label: 'Server version 4.1.0, build 8a12bd7' });
+  it('a build → "Server 8a12bd7" / SR "Server build 8a12bd7" (the version is not shown)', () => {
+    expect(serverVersion({ version: '4.1.0', build: '8a12bd7' })).toEqual({ text: 'Server 8a12bd7', label: 'Server build 8a12bd7' });
+    expect(serverVersion({ build: '8a12bd7' })).toEqual({ text: 'Server 8a12bd7', label: 'Server build 8a12bd7' });
   });
 
-  it.each([undefined, null, '', '  ', 'dev', 'DEV'])('build %p → "Server 4.1.0" only', (build) => {
-    expect(serverVersion({ version: '4.1.0', build })).toEqual({ text: 'Server 4.1.0', label: 'Server version 4.1.0' });
+  it.each([undefined, null, '', '  ', 'dev', 'DEV'])('build %p → null (hidden)', (build) => {
+    expect(serverVersion({ version: '4.1.0', build })).toBeNull();
   });
 
-  it.each([null, undefined, {}, { build: '8a12bd7' }, { version: '' }])('no version (%p) → null (hidden)', (health) => {
+  it.each([null, undefined, {}])('no health (%p) → null (hidden)', (health) => {
     expect(serverVersion(health)).toBeNull();
   });
 });

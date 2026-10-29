@@ -934,7 +934,7 @@ describe('T-90 version footer placement', () => {
     expect(flat(footer.props.style).marginTop).toBe(24 - 14);
     expect(flat(host(tree.root, 'server-version').props.style).textAlign).toBe('center');
     // The app line comes from the expo config (AppVersionFooter.test); here the server line.
-    expect(host(tree.root, 'server-version').props.children).toBe('Server 4.1.0 (8a12bd7)');
+    expect(host(tree.root, 'server-version').props.children).toBe('Server 8a12bd7');
   });
 });
 

@@ -36,9 +36,9 @@ describe('AppVersionFooter', () => {
     expect(hosts(tree, 'server-version')).toHaveLength(0);
     await act(async () => resolve({ version: '4.1.0', build: '8a12bd7' }));
     const server = hosts(tree, 'server-version')[0];
-    expect(server.props.children).toBe('Server 4.1.0 (8a12bd7)');
+    expect(server.props.children).toBe('Server 8a12bd7');
     expect(server.props.selectable).toBe(true);
-    expect(server.props.accessibilityLabel).toBe('Server version 4.1.0, build 8a12bd7');
+    expect(server.props.accessibilityLabel).toBe('Server build 8a12bd7');
     act(() => tree.unmount());
   });
 
@@ -50,10 +50,11 @@ describe('AppVersionFooter', () => {
     act(() => tree.unmount());
   });
 
-  it('a local "dev" build → "Server 4.1.0" only; no app version and no server → nothing', async () => {
+  it('a local "dev" build → no server line; no app version and no server → nothing', async () => {
     getServerHealth.mockResolvedValue({ version: '4.1.0', build: 'dev' });
     const tree = await render();
-    expect(hosts(tree, 'server-version')[0].props.children).toBe('Server 4.1.0');
+    expect(hosts(tree, 'app-version')).toHaveLength(1);
+    expect(hosts(tree, 'server-version')).toHaveLength(0);
     act(() => tree.unmount());
     getServerHealth.mockResolvedValue(null);
     const empty = await render({});

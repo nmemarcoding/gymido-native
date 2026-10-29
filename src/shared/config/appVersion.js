@@ -19,17 +19,13 @@ export function appVersion(config = Constants.expoConfig, os = Platform.OS) {
     : { text: `Version ${version}`, label: `App version ${version}` };
 }
 
-// T-90 addendum: the second line "Server 4.1.0 (8a12bd7)" from GET /health's
-// data.version + data.build. "dev" (non-CI images) or a missing build drops
-// to "Server 4.1.0"; no version → null (hidden).
+// T-90 addendum (owner): the second line is the server's BUILD only,
+// "Server 8a12bd7" from GET /health data.build (its version is hard-coded, so
+// it is not shown). "dev" (non-CI images) or a missing build → null (hidden).
 export function serverVersion(health) {
-  const version = present(health?.version);
-  if (!version) {
+  const build = present(health?.build);
+  if (!build || build.toLowerCase() === 'dev') {
     return null;
   }
-  const raw = present(health?.build);
-  const build = raw && raw.toLowerCase() !== 'dev' ? raw : null;
-  return build
-    ? { text: `Server ${version} (${build})`, label: `Server version ${version}, build ${build}` }
-    : { text: `Server ${version}`, label: `Server version ${version}` };
+  return { text: `Server ${build}`, label: `Server build ${build}` };
 }

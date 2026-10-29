@@ -8,9 +8,9 @@ import { colors, font, typography } from '../../shared/theme/tokens';
 
 // T-90 (UX spec + addendum): the last item of member + trainer Profile, centred,
 // two lines in the same 13/18 400 text-muted tabular style, no gap:
-// "Version 2.0.7 (12)" from the app config and "Server 4.1.0 (8a12bd7)" from
-// GET /health. The server line stays HIDDEN while loading, on an error or
-// when unreachable (no placeholder, no retry). Both selectable (long-press
+// "Version 2.0.7 (12)" from the app config and "Server 8a12bd7" (the build
+// only, owner) from GET /health. The server line stays HIDDEN while loading,
+// on an error, when unreachable, or for a "dev" / missing build. Both selectable (long-press
 // copy), not buttons or focus stops; read as plain text. `align="start"`:
 // the tablet's right column (UX LOW), left-aligned with Delete account.
 export default function AppVersionFooter({ style, config, align = 'center' }) {

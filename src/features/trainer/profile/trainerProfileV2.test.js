@@ -223,14 +223,14 @@ describe('Trainer profile large text (UX §9)', () => {
 
 // T-90 (UX spec): the version footer is the last item, 24 below Logout.
 describe('T-90 version footer', () => {
-  it.each([390, 834])('%i: the last child of the column, after Logout; "Server 4.1.0" for a dev build', async (width) => {
+  it.each([390, 834])('%i: the last child of the column, after Logout; no server line for a dev build', async (width) => {
     setWindow(width);
     const tree = await render();
     const column = host(tree.root, 'trainer-profile-column');
     const kids = [].concat(column.props.children).filter(Boolean);
     expect(kids[kids.length - 1].type).toBe(AppVersionFooter);
     expect(flat(tree.root.findByType(AppVersionFooter).props.style).marginTop).toBe(width >= 768 ? 24 - 18 : 24 - 14);
-    expect(host(tree.root, 'server-version').props.children).toBe('Server 4.1.0');
+    expect(host(tree.root, 'server-version')).toBeUndefined();
   });
 });
 
