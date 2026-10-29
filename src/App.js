@@ -13,6 +13,7 @@ import { appBlurTargetRef } from './shared/components/blurTarget';
 import { useFontScaleRemount } from './shared/hooks/useFontScaleRemount';
 import ToastHost from './shared/components/ToastHost';
 import { initRestAlerts } from './features/workout/runtime/restAlertPlatform';
+import { startWorkoutReminders } from './features/reminders/workoutReminders';
 import { unlockTabletOrientation } from './shared/device/tabletOrientation';
 import { restCountdown } from './shared/time/restCountdown';
 
@@ -21,6 +22,8 @@ import { restCountdown } from './shared/time/restCountdown';
 restCountdown.end().catch(() => {});
 // O4: the notification handler and Android channels, once at startup.
 initRestAlerts();
+// T-103: training-day reminders (after the handler and channels above).
+startWorkoutReminders();
 // app-shell O2: Android tablets rotate; phones stay portrait from the manifest.
 unlockTabletOrientation();
 

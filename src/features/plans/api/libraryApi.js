@@ -1,4 +1,5 @@
 import { apiClient } from '../../../shared/api/client';
+import { signalReminders } from '../../reminders/reminderSignals';
 
 // Endpoints of RN-SPEC-plans §6 (S1 and S2).
 
@@ -27,19 +28,27 @@ export async function listDayExercises(planId, dayId) {
 }
 
 export async function cancelEnrollment(enrollmentId) {
-  return data(await apiClient.post(`/my-plans/${enrollmentId}/cancel`));
+  const result = data(await apiClient.post(`/my-plans/${enrollmentId}/cancel`));
+  signalReminders('planChanged');
+  return result;
 }
 
 export async function enrollInPlan(body) {
-  return data(await apiClient.post('/my-plans', body));
+  const result = data(await apiClient.post('/my-plans', body));
+  signalReminders('planChanged');
+  return result;
 }
 
 export async function createSchedule(enrollmentId, items) {
-  return data(await apiClient.post(`/my-plans/${enrollmentId}/schedule`, { items }));
+  const result = data(await apiClient.post(`/my-plans/${enrollmentId}/schedule`, { items }));
+  signalReminders('planChanged');
+  return result;
 }
 
 export async function replaceSchedule(enrollmentId, items) {
-  return data(await apiClient.put(`/my-plans/${enrollmentId}/schedule`, { items }));
+  const result = data(await apiClient.put(`/my-plans/${enrollmentId}/schedule`, { items }));
+  signalReminders('planChanged');
+  return result;
 }
 
 // v2 Phase 4 §1 (approved #9): the enrolled week, Monday first:

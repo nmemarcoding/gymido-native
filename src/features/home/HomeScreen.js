@@ -13,6 +13,7 @@ import { getCurrentPlan, listPlanDays } from '../plans/api/libraryApi';
 import { catchUpConfirmCopy, catchUpRowCopy } from '../plans/missedCatchUp';
 import { startDateKey, weekProgressByDate } from '../plans/weekByDate';
 import { applySavedWeightLog, useProfileStore } from '../profile/profileStore';
+import { askReminderPermissionOnTrainingDay } from '../reminders/reminderSignals';
 import ShellPage from '../shell/ShellPage';
 import { openPlanDetailAlone, openShellPath } from '../shell/shellLinks';
 import { getCurrentWeek, getDashboard } from './api/homeApi';
@@ -184,6 +185,16 @@ function Home() {
       }
     });
   }, []);
+
+  // T-103 (UX ruling §4, owner 29 Oct 2026; amends T-50): the one OS
+  // notification prompt, once Today has loaded a training day of an active
+  // plan (asked once ever; the workout start stays the fallback).
+  const trainingDay = load.status === 'loaded' && Boolean(load.dashboard?.today_status?.is_workout_day);
+  useEffect(() => {
+    if (trainingDay) {
+      askReminderPermissionOnTrainingDay().catch(() => {});
+    }
+  }, [trainingDay]);
 
   // H1.7: after a weight log, refresh quietly; failures keep the old content.
   // T-24: the dashboard only; the profile store was patched from the log.

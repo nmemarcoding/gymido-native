@@ -1,4 +1,5 @@
 import { apiClient } from '../../../shared/api/client';
+import { signalReminders } from '../../reminders/reminderSignals';
 
 // RN-SPEC-PLAN-GENERATOR §G3 (contract v2). The client adds the auth header
 // and X-Timezone.
@@ -20,7 +21,9 @@ export async function previewGeneratedPlan() {
 }
 
 export async function acceptGeneratedPlan(body) {
-  return data(await apiClient.post('/plan-generator/accept', body));
+  const result = data(await apiClient.post('/plan-generator/accept', body));
+  signalReminders('planChanged');
+  return result;
 }
 
 export async function searchExercises(term) {

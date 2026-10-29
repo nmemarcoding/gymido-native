@@ -38,6 +38,12 @@ const ICONS = {
       <Circle cx={12} cy={12} r={4} />
     </>
   ),
+  clock: () => (
+    <>
+      <Circle cx={12} cy={12} r={9} />
+      <Path d="M12 7v5l3 2" />
+    </>
+  ),
   chevron: () => <Path d="M9 6l6 6-6 6" />,
   check: () => <Path d="M5 12.5l4.5 4.5L19 7.5" />,
 };

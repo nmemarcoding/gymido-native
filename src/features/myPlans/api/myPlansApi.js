@@ -1,4 +1,5 @@
 import { apiClient } from '../../../shared/api/client';
+import { signalReminders } from '../../reminders/reminderSignals';
 
 // RN-SPEC-MEMBER-PLANS §M6. Writes on one plan go through createPlanWrites
 // with the `/my-custom-plans/{id}` root.
@@ -35,12 +36,15 @@ export async function getCurrentPlan() {
 }
 
 export async function cancelEnrollment(enrollmentId) {
-  return data(await apiClient.post(`/my-plans/${enrollmentId}/cancel`));
+  const result = data(await apiClient.post(`/my-plans/${enrollmentId}/cancel`));
+  signalReminders('planChanged');
+  return result;
 }
 
 export async function startPlan(planId, startedOn) {
-  return data(await apiClient.post('/my-plans', { workout_plan_id: Number(planId), started_on: startedOn }))
-    .enrollment ?? null;
+  const enrollment = data(await apiClient.post('/my-plans', { workout_plan_id: Number(planId), started_on: startedOn })).enrollment ?? null;
+  signalReminders('planChanged');
+  return enrollment;
 }
 
 // RN-SPEC-PLAN-GENERATOR G-E: the M1 "Build me a plan" button shows only on

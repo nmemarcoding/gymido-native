@@ -1,4 +1,5 @@
 import { apiClient } from '../../../shared/api/client';
+import { signalReminders } from '../../reminders/reminderSignals';
 
 // Endpoints of RN-SPEC-workout §6 (hub). Each returns the raw `data`; the
 // loader applies the per-call failure rules.
@@ -33,7 +34,9 @@ export async function updateSessionSet(sessionId, exerciseId, setId, body) {
 }
 
 export async function completeWorkout(sessionId) {
-  return data(await apiClient.post(`/workouts/${sessionId}/complete`));
+  const result = data(await apiClient.post(`/workouts/${sessionId}/complete`));
+  signalReminders('workoutFinished');
+  return result;
 }
 
 export async function abandonWorkout(sessionId) {
@@ -44,5 +47,7 @@ export async function abandonWorkout(sessionId) {
 // WORKOUT_DELETE_WEEK_LOCKED for older weeks, 404 when it isn't yours or is
 // already deleted). The body is ignored (the caller reloads).
 export async function deleteWorkout(sessionId) {
-  return data(await apiClient.delete(`/workouts/${sessionId}`));
+  const result = data(await apiClient.delete(`/workouts/${sessionId}`));
+  signalReminders('planChanged');
+  return result;
 }

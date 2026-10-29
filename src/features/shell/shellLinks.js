@@ -6,6 +6,13 @@ import { SCREEN_FOR_PATH, ShellTab, TAB_ROOTS, getScreenTab } from './shellNavig
 
 let entryCount = 0;
 
+// T-103: whether a link can open now, and a listener for every navigation
+// state change (a reminder tap waits for the first one after launch).
+export const shellNavigation = {
+  isReady: () => navigationRef.isReady(),
+  addListener: (event, listener) => navigationRef.addListener(event, listener),
+};
+
 // Opens a shell screen by its web path. A tab root pops that tab's stack back
 // to it, so a tab press always lands on a fresh root (app-shell spec §6.3).
 // A pushed screen (Workout, the trainer hub) switches to its own tab and sits
