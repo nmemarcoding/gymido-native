@@ -1,0 +1,5 @@
+appId: com.gymido.app
+---
+- launchApp: { stopApp: false }
+- waitForAnimationToEnd: { timeout: 3000 }
+- runFlow: ../subflows/discard-workout.yaml
