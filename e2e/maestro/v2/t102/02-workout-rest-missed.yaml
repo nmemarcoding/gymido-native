@@ -1,0 +1,36 @@
+# T-102 + T-108 Workout hub, rest day with an open miss: ONE card (eyebrow
+# "TODAY · {WEEKDAY} · REST DAY", "Missed", "You missed …", Do it now + View
+# plan, the Up next footer with "Start early"), no "Recovery…" line, misses
+# first in "Train anyway?"; "Do it now" starts in one tap (T-107), then the
+# session is discarded. Today's "Do it now" only opens Workout (T-107).
+# Starts signed in as a member on a REST day with an open miss. Throwaway
+# accounts only; IDs + patterns, no credentials, no Profile shots.
+appId: com.gymido.app
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: { when: { visible: { id: "tab-Today" } }, commands: [ { tapOn: { id: "tab-Today" } } ] }
+- runFlow: { when: { visible: { id: "rail-Today" } }, commands: [ { tapOn: { id: "rail-Today" } } ] }
+- extendedWaitUntil: { visible: { id: "home-today-card" }, timeout: 30000 }
+- assertVisible: { id: "home-today-eyebrow", text: "TODAY · .* · REST DAY" }
+- assertVisible: "You missed .*'s .*"
+- takeScreenshot: t108-today-missed
+- tapOn: { id: "home-today-primary" }
+- extendedWaitUntil: { visible: { id: "workout-hero" }, timeout: 30000 }
+# T-107: Today's "Do it now" never starts a session.
+- assertNotVisible: { id: "session-chrome" }
+- assertVisible: { id: "workout-hero-eyebrow", text: "TODAY · .* · REST DAY" }
+- assertVisible: { id: "workout-missed-headline", text: "You missed .*'s .*" }
+- assertVisible: { id: "workout-missed-start", text: "Do it now.*" }
+- assertVisible: { id: "workout-missed-view-plan" }
+- assertNotVisible: "Recovery is part of the plan.*"
+- assertNotVisible: { id: "workout-rest-demoted" }
+- takeScreenshot: t108-workout-missed-card
+- scrollUntilVisible: { element: { text: "Train anyway\\?" }, direction: DOWN, centerElement: true, timeout: 20000 }
+# iOS exposes a row as its one SR label (the meta text is pinned in jest).
+- assertVisible: "Start .*, missed .*day"
+- takeScreenshot: t102-workout-train-anyway
+- scrollUntilVisible: { element: { id: "workout-missed-start" }, direction: UP, centerElement: true, timeout: 20000 }
+- tapOn: { id: "workout-missed-start" }
+- extendedWaitUntil: { visible: { id: "session-chrome" }, timeout: 30000 }
+- assertNotVisible: { id: "workout-start-confirm" }
+- runFlow: ../subflows/discard-workout.yaml

@@ -216,12 +216,17 @@ describe('T-108 rest day + open miss: ONE card', () => {
     expect(textOf(host(card, 'workout-hero-eyebrow'))).toBe('TODAY · THURSDAY · REST DAY');
     expect(textOf(host(card, 'workout-missed-headline'))).toBe("You missed Monday's Upper A");
     expect(flat(host(card, 'workout-missed-headline'))).toMatchObject({ fontSize: 34, lineHeight: 38 });
+    // Large text: no line cap, Today's display cap (a long weekday never breaks inside the word).
+    expect(host(card, 'workout-missed-headline').props.numberOfLines).toBeUndefined();
+    expect(host(card, 'workout-missed-headline').props.maxFontSizeMultiplier).toBe(1.3);
     expect(textOf(host(card, 'workout-missed-sub'))).toBe('Upper / Lower Split');
     expect(texts(card)).toContain('Missed');
     expect(texts(tree.root).join('|')).not.toContain('Recovery is part of the plan');
     expect(texts(tree.root)).not.toContain('Rest day');
     expect(host(card, 'workout-up-next').props.accessibilityLabel).toBe(`Up next: Lower B, ${s('Saturday · 5 exercises')}`);
     expect(texts(host(card, 'workout-missed-footer'))).toEqual(expect.arrayContaining(['Up next: Lower B', 'Start early']));
+    // UX T-108 §1.5 amended: the next day's name gets 2 lines, never 1.
+    expect(host(card, 'workout-missed-footer-title').props.numberOfLines).toBe(2);
     // One gold action: Do it now; View plan is the glass one.
     expect(flat(pressable(tree.root, 'workout-missed-start')).backgroundColor).toBe(colors.gold);
     expect(flat(pressable(tree.root, 'workout-missed-view-plan')).backgroundColor).toBe(colors.fillGlass);

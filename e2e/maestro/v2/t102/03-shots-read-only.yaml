@@ -1,0 +1,27 @@
+# T-102 / T-108 shots for UX (READ-ONLY: no start, no write): Today with the
+# missed hero / Catch-up row, the catch-up confirm (Cancel), the Workout hub
+# card, and "Train anyway?". Same preconditions as 02 (a rest day with an open
+# miss; 2+ for the row). Shot names carry ${SHOT} (iphone, ipad, android, …).
+appId: com.gymido.app
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: { when: { visible: { id: "tab-Today" } }, commands: [ { tapOn: { id: "tab-Today" } } ] }
+- runFlow: { when: { visible: { id: "rail-Today" } }, commands: [ { tapOn: { id: "rail-Today" } } ] }
+- extendedWaitUntil: { visible: { id: "home-today-card" }, timeout: 30000 }
+- takeScreenshot: ${SHOT}-today
+- runFlow:
+    when: { visible: { id: "home-catch-up" } }
+    commands:
+      - scrollUntilVisible: { element: { id: "home-catch-up" }, direction: DOWN, centerElement: true, timeout: 20000 }
+      - tapOn: { id: "home-catch-up" }
+      - extendedWaitUntil: { visible: { id: "home-catch-up-confirm" }, timeout: 10000 }
+      - takeScreenshot: ${SHOT}-today-confirm
+      - tapOn: { id: "home-catch-up-confirm-cancel" }
+      - extendedWaitUntil: { notVisible: { id: "home-catch-up-confirm" }, timeout: 5000 }
+- scrollUntilVisible: { element: { id: "home-today-primary" }, direction: UP, centerElement: true, timeout: 20000 }
+- tapOn: { id: "home-today-primary" }
+- extendedWaitUntil: { visible: { id: "workout-hero" }, timeout: 30000 }
+- assertNotVisible: { id: "session-chrome" }
+- takeScreenshot: ${SHOT}-workout
+- scrollUntilVisible: { element: { text: "Train anyway\\?" }, direction: DOWN, centerElement: true, timeout: 20000 }
+- takeScreenshot: ${SHOT}-workout-train-anyway

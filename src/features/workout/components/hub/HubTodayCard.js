@@ -82,7 +82,16 @@ function MissedCard({ weekdayName, miss, planName, exercises, tablet, reflow = f
     <View testID="workout-hero" style={[styles.card, styles.goldEdge, style]}>
       <Eyebrow color={colors.textSecondary}>{`TODAY · ${weekdayName.toUpperCase()} · REST DAY`}</Eyebrow>
       <StatusPill testID="workout-missed-pill" tone="warning" label="Missed" style={styles.missedPill} />
-      <Text testID="workout-missed-headline" accessibilityRole="header" {...TITLE_TEXT} numberOfLines={undefined} style={styles.missedTitle}>
+      <Text
+        testID="workout-missed-headline"
+        accessibilityRole="header"
+        {...TITLE_TEXT}
+        // Wraps without a line cap (never truncates); Today's display cap
+        // (1.3) so "Wednesday's" never breaks inside the word at large text.
+        numberOfLines={undefined}
+        maxFontSizeMultiplier={textScale.display}
+        style={styles.missedTitle}
+      >
         {`You missed ${miss.weekdayName}'s ${title}`}
       </Text>
       {planName ? (
@@ -108,7 +117,7 @@ function MissedCard({ weekdayName, miss, planName, exercises, tablet, reflow = f
   );
 }
 
-// T-108 §1.5: moon tile 32 · "Up next: {title}" (1 line) / "{when} · n
+// T-108 §1.5 (amended: 2 lines): moon tile 32 · "Up next: {title}" / "{when} · n
 // exercises" · "Start early" (15/600, no fill, 44 hit). Large text: it drops
 // to its own line, left-aligned.
 function UpNextFooter({ upNext, reflow, starting, onStartEarly }) {
@@ -120,7 +129,7 @@ function UpNextFooter({ upNext, reflow, starting, onStartEarly }) {
           <MoonIcon size={16} color={colors.textSecondary} />
         </View>
         <View testID="workout-up-next" accessible accessibilityLabel={`Up next: ${upNext.title}, ${upNext.meta}`} style={styles.flex}>
-          <Text {...CAP_BODY} numberOfLines={1} ellipsizeMode="tail" style={styles.footerTitle}>
+          <Text testID="workout-missed-footer-title" {...CAP_BODY} numberOfLines={2} ellipsizeMode="tail" style={styles.footerTitle}>
             {`Up next: ${upNext.title}`}
           </Text>
           <Text {...CAP_BODY} style={styles.footerMeta}>

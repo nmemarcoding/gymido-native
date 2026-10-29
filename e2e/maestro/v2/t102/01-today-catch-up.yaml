@@ -1,0 +1,33 @@
+# T-102 Today: the Catch-up row under the hero, its T-80 confirm (Cancel =
+# nothing; Start = Workout starts that day via the startPlanDayId hand-off),
+# then the session is discarded (nothing recorded). Starts signed in (the
+# lead's safe runner) as a member whose week has an open miss and whose today
+# shows the row (training / completed + 1 miss, or rest + 2). Throwaway
+# accounts only; IDs + patterns, no credentials, no Profile shots.
+appId: com.gymido.app
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: { when: { visible: { id: "tab-Today" } }, commands: [ { tapOn: { id: "tab-Today" } } ] }
+- runFlow: { when: { visible: { id: "rail-Today" } }, commands: [ { tapOn: { id: "rail-Today" } } ] }
+- extendedWaitUntil: { visible: { id: "home-today-card" }, timeout: 30000 }
+# ⚠H-4 retired: the old "+n more" line under the headline is gone.
+- assertNotVisible: { id: "home-more-missed" }
+- scrollUntilVisible: { element: { id: "home-catch-up" }, direction: DOWN, centerElement: true, timeout: 20000 }
+- assertVisible: "Catch up: .*'s .*"
+- takeScreenshot: t102-today-catch-up
+- tapOn: { id: "home-catch-up" }
+- extendedWaitUntil: { visible: { id: "home-catch-up-confirm" }, timeout: 10000 }
+- assertVisible: "Catch up on .*\\?"
+- assertVisible: "You missed it on .*day\\. .* This starts a live workout\\."
+- assertVisible: { id: "home-catch-up-confirm-confirm", text: "Start workout" }
+- takeScreenshot: t102-today-catch-up-confirm
+- tapOn: { id: "home-catch-up-confirm-cancel" }
+- extendedWaitUntil: { notVisible: { id: "home-catch-up-confirm" }, timeout: 5000 }
+- assertVisible: { id: "home-catch-up" }
+# Start → Workout starts the missed day ONCE, no second confirm.
+- tapOn: { id: "home-catch-up" }
+- extendedWaitUntil: { visible: { id: "home-catch-up-confirm" }, timeout: 10000 }
+- tapOn: { id: "home-catch-up-confirm-confirm" }
+- extendedWaitUntil: { visible: { id: "session-chrome" }, timeout: 30000 }
+- assertNotVisible: { id: "workout-start-confirm" }
+- runFlow: ../subflows/discard-workout.yaml
