@@ -64,5 +64,5 @@ Read:
 
 - `~/Desktop/coding/gymido/.claude/shared.md`
 - `.claude/agent-memory/mobile.md`
-- `docs/agents/mobile.md`
+- `docs/agents/mobile.md` ONLY for handover/onboarding questions (its still-true rules live in the bootstrap + state file)
 - `docs/testing/FASTEST-TEST-PLAYBOOK.md` (before any test run)
