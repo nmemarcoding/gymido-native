@@ -57,8 +57,58 @@ describe('Live Activity card strings and behaviour (F2 code-wins notes)', () => 
     expect(code).toMatch(/ProgressView\(timerInterval: interval, countsDown: true/);
   });
 
-  it('no action buttons and no Dynamic Island content', () => {
-    expect(code + widget).not.toMatch(/Button\(|Link\(/);
-    expect(widget.match(/EmptyView\(\)/g)).toHaveLength(4);
+  // DECLARED (T-101, PM OK 29 Oct with UX's ruling): was "no action buttons and no Dynamic Island content" (the
+  // widget had exactly 4 EmptyView()). The island now shows the rest countdown (region checks below); still no
+  // Button / Link.
+  it('no action buttons or links anywhere', () => {
+    expect(code + widgetCode).not.toMatch(/Button\(|Link\(/);
+  });
+});
+
+// T-101 (UX ruling T101-dynamic-island, amends F2): the Dynamic Island regions.
+const widgetCode = widget.replace(/\/\/.*$/gm, '');
+const region = (start, end) => widgetCode.slice(widgetCode.indexOf(start), end ? widgetCode.indexOf(end) : undefined);
+
+describe('Live Activity Dynamic Island (T-101)', () => {
+  it('compactLeading: the G mark, 20pt, radius 6, "G" 12', () => {
+    expect(region('compactLeading:', 'compactTrailing:')).toMatch(/RestCountdownAppMark\(size: 20, radius: 6, fontSize: 12\)/);
+  });
+
+  it('compactTrailing: the OS countdown, 15/600 gold, monospaced digits, a fixed width (m:ss / h:mm:ss)', () => {
+    const trailing = region('compactTrailing:', 'minimal:');
+    expect(trailing).toMatch(/Text\(timerInterval: interval, countsDown: true\)/);
+    expect(trailing).toMatch(/\.font\(\.system\(size: 15, weight: \.semibold\)\)/);
+    expect(trailing).toMatch(/\.monospacedDigit\(\)/);
+    expect(trailing).toMatch(/\.foregroundStyle\(RestCountdownColors\.gold\)/);
+    expect(trailing).toMatch(/\.frame\(width: RestIsland\.compactWidth\(interval\)\)/);
+    expect(widgetCode).toMatch(/>= 3600 \? 64 : 42/);
+    expect(trailing).not.toMatch(/remaining/);
+  });
+
+  it('minimal: a gold circular ring of the remaining time, no digits', () => {
+    const minimal = region('minimal:', '.keylineTint');
+    expect(minimal).toMatch(/ProgressView\(timerInterval: interval, countsDown: true/);
+    expect(minimal).toMatch(/\.progressViewStyle\(\.circular\)/);
+    expect(minimal).toMatch(/\.tint\(RestCountdownColors\.gold\)/);
+    expect(minimal).not.toMatch(/Text\(timerInterval/);
+  });
+
+  it('expanded: G mark + "Rest timer" (secondary) · the 34/700 gold countdown · the bar (6, remaining, no glow); center empty', () => {
+    const expanded = region('DynamicIslandExpandedRegion(.leading)', 'compactLeading:');
+    expect(expanded).toMatch(/RestCountdownAppMark\(\)[\s\S]*?Text\("Rest timer"\)[\s\S]*?RestCountdownColors\.textSecondary/);
+    expect(expanded).toMatch(/DynamicIslandExpandedRegion\(\.trailing\)[\s\S]*?Text\(timerInterval: interval, countsDown: true\)\s*\.font\(\.system\(size: 34, weight: \.bold\)\)[\s\S]*?\.foregroundStyle\(RestCountdownColors\.gold\)/);
+    expect(expanded).toMatch(/DynamicIslandExpandedRegion\(\.bottom\)[\s\S]*?RestIslandBar\(interval: interval\)/);
+    expect(widgetCode).not.toMatch(/DynamicIslandExpandedRegion\(\.center\)/);
+    const bar = region('struct RestIslandBar');
+    expect(bar).toMatch(/ProgressView\(timerInterval: interval, countsDown: true/);
+    expect(bar).toMatch(/frame\(height: 6\)/);
+    expect(bar).not.toMatch(/shadow/);
+  });
+
+  it('keylineTint gold; VoiceOver "Gymido rest timer" + the time + " remaining" (as the lock card)', () => {
+    expect(widgetCode).toMatch(/\.keylineTint\(RestCountdownColors\.gold\)/);
+    expect(widgetCode).toMatch(/\.accessibilityLabel\("Gymido rest timer"\)\s*\.accessibilityValue\(Text\(timerInterval: interval, countsDown: true\) \+ Text\(" remaining"\)\)/);
+    // The island adds no deep link: a tap opens the app as the lock card does.
+    expect(widgetCode).not.toMatch(/widgetURL/);
   });
 });

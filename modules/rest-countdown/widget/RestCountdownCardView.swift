@@ -80,14 +80,19 @@ struct RestCountdownCardView: View {
   }
 }
 
-// G mark: 28x28, radius 8, solid gold, "G" on-gold 14/700.
+// G mark: 28x28, radius 8, solid gold, "G" on-gold 14/700 (the lock card and
+// the expanded island). T-101: the compact island uses 20 / r6 / 12.
 struct RestCountdownAppMark: View {
+  var size: CGFloat = 28
+  var radius: CGFloat = 8
+  var fontSize: CGFloat = 14
+
   var body: some View {
     Text("G")
-      .font(.system(size: 14, weight: .bold))
+      .font(.system(size: fontSize, weight: .bold))
       .foregroundStyle(RestCountdownColors.onGold)
-      .frame(width: 28, height: 28)
-      .background(RoundedRectangle(cornerRadius: 8).fill(RestCountdownColors.gold))
+      .frame(width: size, height: size)
+      .background(RoundedRectangle(cornerRadius: radius).fill(RestCountdownColors.gold))
       .accessibilityHidden(true)
   }
 }
