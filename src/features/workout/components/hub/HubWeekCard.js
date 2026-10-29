@@ -21,6 +21,10 @@ import { CheckIcon } from './HubIcons';
 // side need 7 columns of ≥ 45.6 (RN-SPEC T-76, UX M1, web b6413372).
 const CIRCLE = 34;
 export const MISSED_WRAP_BELOW = 320;
+// T-115 (UX MEDIUM a11y, rule T-76 N1: never clip or break a word): a day
+// label stays on one line and shrinks to fit its box, down to 11 at 1× (the
+// 13 label × 11/13); once wrapped, the box is the whole column.
+export const LABEL_MIN_SCALE = 11 / 13;
 
 export default function HubWeekCard({ strip, progress, caption = null, reflow = false, style }) {
   const [width, setWidth] = useState(0);
@@ -54,7 +58,14 @@ export default function HubWeekCard({ strip, progress, caption = null, reflow = 
             style={[styles.cell, wrapped && styles.cellWrap, wrapped && { width: `${100 / columns}%` }]}
           >
             <DayCircle cell={cell} />
-            <Text {...CAP_PILL} style={[styles.label, LABEL_COLORS[cell.kind]]}>
+            <Text
+              {...CAP_PILL}
+              testID={`workout-week-label-${cell.key}`}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={LABEL_MIN_SCALE}
+              style={[styles.label, wrapped && styles.labelWrap, LABEL_COLORS[cell.kind]]}
+            >
               {cell.label}
             </Text>
           </View>
@@ -204,6 +215,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     textAlign: 'center',
+  },
+  labelWrap: {
+    width: '100%',
   },
   // UX T81: 13/18 text-muted, 10 below the strip, on the strip's left edge.
   caption: {

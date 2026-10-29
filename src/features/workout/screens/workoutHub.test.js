@@ -573,6 +573,22 @@ describe('layout per size', () => {
     expect(flat(host(tree.root, 'workout-week-day-1')).width).toBe(`${100 / 3}%`);
   });
 
+  // T-115 (UX MEDIUM a11y): at the largest text "Missed" broke mid-word ("Misse / d"). One line, shrink to fit
+  // (min 11 at 1×), and the whole column once the strip wraps.
+  it('T-115: day labels stay on one line and shrink to fit (min 11/13); wrapped, the label box is the column', async () => {
+    mockFontScale = 3.1;
+    const missed = WEEK.map((entry, index) => (index === 1 ? { ...entry, status: 'missed' } : entry));
+    const tree = await renderScreen(hub({ week: missed, completedThisWeek: [DONE_MON], completedThisWeekDayIds: [1] }));
+    const label = host(tree.root, 'workout-week-label-2');
+    expect(textOf(label)).toBe('Missed');
+    expect(label.props).toMatchObject({ numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 11 / 13 });
+    expect(flat(label).width).toBe('100%');
+    mockFontScale = 1;
+    const plain = await renderScreen(hub({ week: missed, completedThisWeek: [DONE_MON], completedThisWeekDayIds: [1] }));
+    expect(flat(host(plain.root, 'workout-week-label-2')).width).toBe(60);
+    expect(host(plain.root, 'workout-week-label-2').props.numberOfLines).toBe(1);
+  });
+
   it('no /week: the week is rebuilt from the schedule + this week\'s history (shared rule)', async () => {
     const tree = await renderScreen(hub({ week: null, completedThisWeekDayIds: [1] }));
     expect(textOf(host(tree.root, 'workout-week-count'))).toBe('1 of 4 done');
