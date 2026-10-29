@@ -229,12 +229,24 @@ describe('T-118 "Made up" + unique row ids', () => {
   const doneMark = (tree, key) => textOf(host(tree.root, `workout-day-done-${key}`).findAll((node) => node.type === 'Text')[0]);
 
   it('a done slot whose day was NOT started on that date reads "✓ Made up"; one started that day reads "✓ Done"', async () => {
-    // Mon: Upper A done, started Monday (DONE_MON) → Done. Wed: Lower B done, but no Lower B started Wednesday → Made up.
-    const tree = await renderScreen(restDay(restWeek(item(1, '2026-10-26', 'done', DAYS[0]), DONE_WED), { completedThisWeek: [DONE_MON, DONE_TUE] }));
+    // Mon: Upper A done, started Monday (DONE_MON) → Done. Wed: Lower B done, started only on Thursday (later) → Made up.
+    const lowerBThu = { workout_plan_day_id: 4, started_at: new Date(2026, 9, 29, 8).toISOString(), completed_at: new Date(2026, 9, 29, 9).toISOString() };
+    const tree = await renderScreen(restDay(restWeek(item(1, '2026-10-26', 'done', DAYS[0]), DONE_WED), { completedThisWeek: [DONE_MON, DONE_TUE, lowerBThu] }));
     expect(doneMark(tree, 1)).toBe('Done');
     expect(doneMark(tree, 4)).toBe('Made up');
     // The SR name and the tap are unchanged (Repeat).
     expect(labels(tree)).toEqual(expect.arrayContaining(['Repeat Upper A', 'Repeat Lower B']));
+  });
+
+  it('reviewer M1: a slot done EARLY (started before its date, e.g. "Start … early") reads "✓ Done", not "Made up"', async () => {
+    // Saturday's Lower B slot is done, started Thursday (today, early).
+    const early = { workout_plan_day_id: 4, started_at: new Date(2026, 9, 29, 8).toISOString(), completed_at: new Date(2026, 9, 29, 9).toISOString() };
+    // Tuesday stays missed, so the week isn't complete (the hub stays on the rest day).
+    const tree = await renderScreen(restDay(restWeek(MISSED_TUE, item(6, '2026-10-31', 'done', DAYS[3])), { completedThisWeek: [DONE_MON, early] }));
+    expect(doneMark(tree, 4)).toBe('Done');
+    // A past slot done early (Mon's Upper A started the Sunday before → not this week's data) stays Done too.
+    const past = await renderScreen(restDay(restWeek(MISSED_TUE, item(1, '2026-10-26', 'done', DAYS[0])), { completedThisWeek: [early] }));
+    expect(doneMark(past, 1)).toBe('Done');
   });
 
   it('without this week\'s completed workouts the slot keeps "Done" (never guesses a make-up)', async () => {

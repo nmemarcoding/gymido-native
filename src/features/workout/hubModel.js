@@ -343,17 +343,19 @@ export function dayRows({ planDays = [], schedule, doneIds = [], state, todayDay
 // {Weekday} · n" (Repeat); before today + missed → "Missed · {Weekday} · n"
 // (muted, the catch-up confirm); after today → "Tomorrow" / "Upcoming". A past
 // slot that is neither isn't listed. Keyed by the slot's date.
-// T-118 (UX): a done slot with no workout of that day STARTED on the slot's
-// local date was made up later: "✓ Made up · {Weekday} · n" (teal). Only with
-// this week's completed workouts loaded (a done slot implies at least one).
+// T-118 (UX): a done slot was made up when a workout of that day STARTED on a
+// LATER local date and none on the slot's own date: "✓ Made up · {Weekday} ·
+// n" (teal). Done EARLY ("Start … early", reviewer M1) or on the day = "✓ Done".
+// No completed workouts loaded → "Done" (never a guess).
 // T-116 N1: `testKey` = the day id, plus the date for a plan day's 2nd slot.
 export function restWeekRows({ week, planDays = [], completed = [], now = new Date() }) {
   const todayKey = localDateKey(now);
   const tomorrowKey = localDateKey(addDays(now, 1));
-  const startedOn = (dayId, date) =>
-    completed.some((workout) => {
+  // The local start dates of this week's completed workouts of a plan day.
+  const startDates = (dayId) =>
+    completed.flatMap((workout) => {
       const at = workout?.started_at ? new Date(workout.started_at) : null;
-      return workout?.workout_plan_day_id === dayId && at && !Number.isNaN(at.getTime()) && localDateKey(at) === date;
+      return workout?.workout_plan_day_id === dayId && at && !Number.isNaN(at.getTime()) ? [localDateKey(at)] : [];
     });
   const seen = new Set();
   const rows = week.flatMap((item, index) => {
@@ -366,7 +368,8 @@ export function restWeekRows({ week, planDays = [], completed = [], now = new Da
     const title = planDayTitle(planDay);
     const row = { key: item.date, dayId: planDay.id, title, done: false };
     if (item.status === 'done') {
-      const madeUp = completed.length > 0 && !startedOn(planDay.id, item.date);
+      const dates = startDates(planDay.id);
+      const madeUp = !dates.includes(item.date) && dates.some((date) => date > item.date);
       return [{ ...row, done: true, madeUp, meta: `${weekday} · ${count}`, action: `Repeat ${title}` }];
     }
     if (item.date < todayKey) {
