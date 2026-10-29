@@ -157,6 +157,22 @@ describe('QA 2.0.5 flow LOWs', () => {
   });
 });
 
+// 2.0.7 device check: targets below the fold (My plans under an active plan's
+// card; the hub's day starts under "Week complete" at 360 dp) are scrolled to.
+describe('2.0.7 flow waits scroll to below-the-fold targets', () => {
+  const steps = (src) => src.split('\n').filter((line) => !line.trim().startsWith('#')).join('\n');
+  const flow = (rel) => steps(fs.readFileSync(path.join(V2, rel), 'utf8'));
+  it.each([
+    ['phase4/subflows/open-first-my-plan.yaml', 'my-plans-entry'],
+    ['subflows/start-workout.yaml', 'workout-hero-start|workout-day-start-.*|session-chrome|workout-error|workout-empty|schedule-setup'],
+  ])('%s: scrollUntilVisible DOWN to %s, no bare wait for it', (rel, id) => {
+    const text = flow(rel);
+    const quoted = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    expect(text).toMatch(new RegExp(`- scrollUntilVisible:\\n\\s+element:\\n\\s+id: "${quoted}"\\n\\s+direction: DOWN\\n\\s+centerElement: true`));
+    expect(text).not.toMatch(new RegExp(`- extendedWaitUntil:\\n\\s+visible:\\n\\s+id: "${quoted}"\\n`));
+  });
+});
+
 describe('open-first-my-plan works on phone AND tablet', () => {
   const flow = fs.readFileSync(path.join(V2, 'phase4', 'subflows', 'open-first-my-plan.yaml'), 'utf8');
   it('opens Plans from the bottom tab or the rail', () => {

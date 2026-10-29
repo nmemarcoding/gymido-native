@@ -46,9 +46,14 @@ appId: com.gymido.app
           label: "Fixture missing: this account has no active plan, so no workout can start (Today shows the empty or error state)."
 - tapOn:
     id: "home-today-primary"
-- extendedWaitUntil:
-    visible:
+# 2.0.7 device check: after "Week complete" the hub's day-start buttons sit
+# below the fold on a 360 dp phone; scroll (it returns at once when one of
+# these is already on screen).
+- scrollUntilVisible:
+    element:
       id: "workout-hero-start|workout-day-start-.*|session-chrome|workout-error|workout-empty|schedule-setup"
+    direction: DOWN
+    centerElement: true
     timeout: 30000
 - runFlow:
     when:

@@ -29,9 +29,13 @@ appId: com.gymido.app
     commands:
       - tapOn:
           id: "rail-Plans"
-- extendedWaitUntil:
-    visible:
+# 2.0.7 device check: with an active catalog plan the Plans page shows the
+# plan card + week first and "My plans" sits below the fold; scroll to it.
+- scrollUntilVisible:
+    element:
       id: "my-plans-entry"
+    direction: DOWN
+    centerElement: true
     timeout: 30000
 - tapOn:
     id: "my-plans-entry"
