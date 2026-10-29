@@ -234,7 +234,9 @@ describe('T-113 rest day + open misses: the Rest hero + ONE Catch-up row', () =>
     expect(startWorkout).toHaveBeenCalledWith({ user_plan_enrollment_id: 31, workout_plan_day_id: 1 });
   });
 
-  it('2 misses: the Rest hero + ONE row naming the latest (Tuesday) with "+1 more"; "Train anyway?" lists misses first', async () => {
+  // DECLARED (T-116, owner OK via PM 29 Oct): was '"Train anyway?" lists misses first' ([Lower A missed Tue, Upper A
+  // missed Mon, Upper B, Lower B]); now this week's slots in week order with the "Missed · Monday · …" meta.
+  it('2 misses: the Rest hero + ONE row naming the latest (Tuesday) with "+1 more"; "Train anyway?" in week order (T-116)', async () => {
     const tree = await renderScreen(restWithMisses(MISSED_MON, MISSED_TUE));
     expect(restHero(tree)).toContain('Rest day');
     expect(hosts(tree.root, 'workout-catch-up')).toHaveLength(1);
@@ -244,10 +246,10 @@ describe('T-113 rest day + open misses: the Rest hero + ONE Catch-up row', () =>
     expect(confirmDialog(tree).props).toMatchObject({ title: 'Catch up on Lower A?', description: 'You missed it on Tuesday. Today is a rest day. This starts a live workout.' });
     await act(async () => confirmDialog(tree).props.onClose());
     const rows = dayButtons(tree.root);
-    expect(rows.map((row) => row.props.accessibilityLabel)).toEqual(['Start Lower A, missed Tuesday', 'Start Upper A, missed Monday', 'Start Upper B', 'Start Lower B']);
-    expect(texts(tree.root)).toEqual(expect.arrayContaining([m('Missed Tuesday · 5 exercises'), m('Missed Monday · 5 exercises')]));
+    expect(rows.map((row) => row.props.accessibilityLabel)).toEqual(['Start Upper A, missed Monday', 'Start Lower A, missed Tuesday', 'Start Lower B, upcoming Saturday']);
+    expect(texts(tree.root)).toEqual(expect.arrayContaining([m('Missed · Monday · 5 exercises'), m('Missed · Tuesday · 5 exercises')]));
     await act(async () => rows[0].props.onPress());
-    expect(confirmDialog(tree).props).toMatchObject({ title: 'Catch up on Lower A?', description: 'You missed it on Tuesday. Today is a rest day. This starts a live workout.' });
+    expect(confirmDialog(tree).props).toMatchObject({ title: 'Catch up on Upper A?', description: 'You missed it on Monday. Today is a rest day. This starts a live workout.' });
   });
 
   it('rest + 3: the row says "+2 more missed this week"', async () => {

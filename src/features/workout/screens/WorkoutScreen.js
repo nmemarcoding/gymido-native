@@ -481,7 +481,7 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
   const base = missedBase(state);
   const layout = settingUp ? { hero: null, catchUp: null } : missedLayout(base, misses);
   const catchUp = layout.catchUp;
-  const rows = dayRows({ planDays, schedule: currentPlan.schedule, doneIds: page.completedThisWeekDayIds, state, todayDayId, misses, now });
+  const rows = dayRows({ planDays, schedule: currentPlan.schedule, doneIds: page.completedThisWeekDayIds, state, todayDayId, misses, week: weekNow, now });
   const ask = (dayId, copy, ref) => {
     confirmReturnRef.current = ref?.current ?? null;
     setConfirmMounted(true);

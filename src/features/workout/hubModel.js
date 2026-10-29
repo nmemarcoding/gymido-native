@@ -291,7 +291,11 @@ function nextScheduledWeekdayName(weekdays, now) {
 // miss first, then the usual order; their meta reads "Missed {Weekday} · n
 // exercises" and the row's name "Start {title}, missed {Weekday}". `misses`
 // = weekMisses(); a day missed twice takes its most recent miss.
-export function dayRows({ planDays = [], schedule, doneIds = [], state, todayDayId, misses = [], now = new Date() }) {
+export function dayRows({ planDays = [], schedule, doneIds = [], state, todayDayId, misses = [], week = null, now = new Date() }) {
+  // T-116: a rest day's "Train anyway?" is this week's slots (restWeekRows).
+  if (state === 'rest' && isValidWeek(week)) {
+    return restWeekRows({ week, planDays, now });
+  }
   const weekdays = scheduledWeekdaysByDayId(schedule);
   const rows = planDays
     .filter((day) => !(state === 'training' && day.id === todayDayId && !doneIds.includes(day.id)))
@@ -331,6 +335,43 @@ export function dayRows({ planDays = [], schedule, doneIds = [], state, todayDay
     }
   }
   return [...missedRows, ...ordered.filter((row) => !missedRows.some((item) => item.dayId === row.dayId))];
+}
+
+// T-116 (owner; UX T116 ruling; RN-SPEC-workout dated 29 Oct, web 2.1.8): on a
+// rest day "Train anyway?" = this week's training slots (the strip's week),
+// Mon → Sun, today's slot left out; one row per slot. done → "✓ Done ·
+// {Weekday} · n" (Repeat); before today + missed → "Missed · {Weekday} · n"
+// (muted, the catch-up confirm); after today → "Tomorrow" / "Upcoming". A past
+// slot that is neither isn't listed. Keyed by the slot's date.
+export function restWeekRows({ week, planDays = [], now = new Date() }) {
+  const todayKey = localDateKey(now);
+  const tomorrowKey = localDateKey(addDays(now, 1));
+  return week.flatMap((item, index) => {
+    const planDay = item?.plan_day;
+    if (!item?.is_workout_day || !planDay || typeof item.date !== 'string' || item.date === todayKey) {
+      return [];
+    }
+    const weekday = weekdayAt(item, index).name;
+    const count = formatCount(exercisesCount(planDay, planDays) ?? 0, 'exercise', 'exercises');
+    const title = planDayTitle(planDay);
+    const row = { key: item.date, dayId: planDay.id, title, done: false };
+    if (item.status === 'done') {
+      return [{ ...row, done: true, meta: `${weekday} · ${count}`, action: `Repeat ${title}` }];
+    }
+    if (item.date < todayKey) {
+      return item.status === 'missed'
+        ? [{ ...row, missedWeekday: weekday, mutedMeta: true, meta: `Missed · ${weekday} · ${count}`, action: `Start ${title}, missed ${weekday}` }]
+        : [];
+    }
+    const tomorrow = item.date === tomorrowKey;
+    return [
+      {
+        ...row,
+        meta: `${tomorrow ? 'Tomorrow' : 'Upcoming'} · ${weekday} · ${count}`,
+        action: tomorrow ? `Start ${title}, tomorrow, ${weekday}` : `Start ${title}, upcoming ${weekday}`,
+      },
+    ];
+  });
 }
 
 // T-102: the hub state as the §1 rule table's base (missedCatchUp): no

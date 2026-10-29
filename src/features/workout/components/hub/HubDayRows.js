@@ -44,7 +44,7 @@ export default function HubDayRows({ copy, rows, exercisesByDay, startingDayId, 
   const cardWidth = columns > 1 ? (width - CARD_GAP * (columns - 1)) / columns : undefined;
   const rowNodes = rows.map((row, index) => (
     <DayRow
-      key={row.dayId}
+      key={row.key ?? row.dayId}
       row={row}
       last={cards || index === rows.length - 1}
       exercises={exercisesByDay[row.dayId]}
@@ -134,7 +134,7 @@ function DayRow({ row, last, exercises, photoSize = 56, starting, disabled, onPr
                 <Text {...CAP_BODY} style={[styles.meta, styles.metaAfter]}>{keepSeparatorsWithText(row.meta)}</Text>
               </View>
             ) : (
-              <Text {...CAP_BODY} style={[styles.meta, styles.metaGap]}>
+              <Text {...CAP_BODY} style={[styles.meta, styles.metaGap, row.mutedMeta && styles.metaMuted]}>
                 {keepSeparatorsWithText(row.meta)}
               </Text>
             )}
@@ -234,6 +234,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     color: colors.textSecondary,
+  },
+  // T-116: a missed slot's whole meta is text-muted (amber stays on the strip / pill).
+  metaMuted: {
+    color: colors.textMuted,
   },
   metaGap: {
     marginTop: 2,

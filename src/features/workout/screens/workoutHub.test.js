@@ -390,7 +390,9 @@ describe('state 2: rest day', () => {
   const REST = { is_workout_day: false, already_completed: false, plan_day: DAYS[2] };
   const restWeek = WEEK.map((entry, index) => (index === 3 ? { ...entry, status: 'rest', is_workout_day: false, plan_day: null } : entry));
 
-  it('moon card, Up next, outlined "Start {day} early" (starts that day); "Train anyway?" lists every day', async () => {
+  // DECLARED (T-116, owner OK via PM 29 Oct): was '"Train anyway?" lists every day' (incl. Upper B, which has no slot this
+  // week: workout-day-start-3); now this week's slots in week order, no Upper B row.
+  it('moon card, Up next, outlined "Start {day} early" (starts that day); "Train anyway?" = this week\'s slots (T-116)', async () => {
     const tree = await renderScreen(hub({ todayStatus: REST, week: restWeek }));
     const card = host(tree.root, 'workout-hero');
     expect(flat(card).borderColor).toBe(colors.hairlineStrong);
@@ -407,18 +409,20 @@ describe('state 2: rest day', () => {
     expect(startWorkout).toHaveBeenCalledTimes(1);
     expect(startWorkout).toHaveBeenCalledWith({ user_plan_enrollment_id: 31, workout_plan_day_id: 4 });
     expect(texts(host(tree.root, 'workout-other-days'))).toEqual(expect.arrayContaining(['Train anyway?', 'Tap a day to start it now.']));
-    expect(hosts(tree.root, 'workout-day-start-3')).toHaveLength(1);
+    expect(hosts(tree.root, 'workout-day-start-3')).toHaveLength(0);
+    expect(dayButtons(tree.root).map((row) => row.props.accessibilityLabel)).toEqual(['Repeat Upper A', 'Repeat Lower A', 'Start Lower B, upcoming Saturday']);
     expect(host(tree.root, 'workout-week-day-4').props.accessibilityLabel).toBe('Thu: today, rest');
   });
 
-  it('T-80 (review): on a rest day, Repeat of the NEXT workout (already done this week) is not "today": the week + rest-day copy', async () => {
-    // /today on a rest day names the next workout (Upper B); started early, it is done this week.
+  // DECLARED (T-116, owner OK via PM 29 Oct): was "Repeat Upper B" (the next workout, done early); Upper B has no slot
+  // this week, so it isn't listed any more. The same intent on a done slot of this week: Upper A.
+  it('T-80 (review): on a rest day, a Repeat (done this week) is not "today": the week + rest-day copy', async () => {
     const tree = await renderScreen(hub({ todayStatus: REST, week: restWeek, completedThisWeekDayIds: [1, 2, 3] }));
-    const row = dayButtons(tree.root).find((node) => node.props.accessibilityLabel === 'Repeat Upper B');
+    const row = dayButtons(tree.root).find((node) => node.props.accessibilityLabel === 'Repeat Upper A');
     act(() => row.props.onPress());
     expect(confirmDialog(tree).props).toMatchObject({
-      title: 'Do Upper B again?',
-      description: 'You already did Upper B this week. Today is a rest day. This starts a live workout.',
+      title: 'Do Upper A again?',
+      description: 'You already did Upper A this week. Today is a rest day. This starts a live workout.',
       playTile: true,
     });
   });
