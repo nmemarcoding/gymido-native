@@ -34,7 +34,8 @@ import {
   StaleSessionBanner,
   UpNextLink,
 } from './RuntimeParts';
-import { CompleteWorkoutButton, DISC_SIZE, DiscardDialog, ExactAlarmDialog, RestTimerWidget, SpeakIntroDialog } from './RuntimeOverlays';
+import { DISC_SIZE, DiscardDialog, ExactAlarmDialog, FinishEarlyDialog, RestTimerWidget, SpeakIntroDialog } from './RuntimeOverlays';
+import { finishEarlyMessage, pickMessageIndex, readLastMessageIndex, saveLastMessageIndex } from './finishEarly';
 import { restNextPreview } from './restPresentation';
 import restAlertPlatform from './restAlertPlatform';
 import {
@@ -171,6 +172,8 @@ export default function SessionRuntime({
   const [muscle, setMuscle] = useState('all');
   const [showDiscard, setShowDiscard] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
+  // T-105: the "Finish early?" message while it is open (null = closed).
+  const [finishEarly, setFinishEarly] = useState(null);
   const [isAbandoning, setIsAbandoning] = useState(false);
   const elapsed = useElapsedTimer(session.started_at);
   const howTo = useHowToLibrary(loadHowTo ? { load: loadHowTo } : undefined);
@@ -421,6 +424,19 @@ export default function SessionRuntime({
 
   completeRef.current = handleComplete;
 
+  // T-105 (owner D1): Complete with n ≥ 1 sets left (read now) asks first; with
+  // none it completes as before. The message never repeats the last one shown.
+  async function requestComplete() {
+    const left = progress.totalSets - progress.completedSets;
+    if (left < 1) {
+      handleComplete();
+      return;
+    }
+    const index = pickMessageIndex(await readLastMessageIndex());
+    saveLastMessageIndex(index);
+    setFinishEarly(finishEarlyMessage(index, left));
+  }
+
   function changeDraft(exercise, set, field, value) {
     setDrafts((current) => propagateDraft(current, exercise, set.id, field, value));
     setValidation((current) => (current[set.id] ? { ...current, [set.id]: undefined } : current));
@@ -483,6 +499,13 @@ export default function SessionRuntime({
       elapsed={elapsed}
       onExit={dismiss(() => setShowDiscard(true))}
       onAll={openSheet}
+      // T-105: Complete in the header at every size (ND4 tone: primary when no
+      // live set is left, else glass); "Complete workout" from 1024.
+      wide={width >= breakpoints.lg}
+      onComplete={dismiss(requestComplete)}
+      completing={isCompleting}
+      completeDisabled={pendingSetIds.size > 0}
+      completePrimary={!liveSetLeft}
       allRef={allRef}
       tablet={tablet}
       onLayout={chromeOverlay ? (event) => setChromeHeight(event.nativeEvent.layout.height) : undefined}
@@ -591,8 +614,7 @@ export default function SessionRuntime({
   const endActions = (
     <View style={styles.endActions}>
       {isActiveView && isLastIncomplete ? <LastExerciseNote /> : null}
-      {/* ND4: primary when no live set is left, else glass (3c's button). */}
-      <CompleteWorkoutButton primary={!liveSetLeft} completing={isCompleting} disabled={pendingSetIds.size > 0} onPress={dismiss(handleComplete)} />
+      {/* T-105: Complete moved to the header; Discard stays here. */}
       <DiscardWorkoutAction abandoning={isAbandoning} onPress={dismiss(() => setShowDiscard(true))} />
     </View>
   );
@@ -798,6 +820,15 @@ export default function SessionRuntime({
         />
       ) : null}
       <DiscardDialog open={showDiscard} onKeep={() => setShowDiscard(false)} onDiscard={handleAbandon} />
+      <FinishEarlyDialog
+        open={Boolean(finishEarly)}
+        message={finishEarly}
+        onKeep={() => setFinishEarly(null)}
+        onFinish={() => {
+          setFinishEarly(null);
+          return handleComplete();
+        }}
+      />
       <ExactAlarmDialog open={restAlerts.offerOpen} onNotNow={restAlerts.closeOffer} onOpenSettings={restAlerts.openSettings} />
       <SpeakIntroDialog
         open={restAlerts.introOpen}

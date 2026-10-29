@@ -47,3 +47,12 @@ export function LockIcon({ size = 16, color }) {
     </Svg>
   );
 }
+
+// T-105 "Finish early?" tile: a finish flag.
+export function FlagIcon({ size = 26, color }) {
+  return (
+    <Svg {...hidden} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M5 21V4M5 4h11l-2 4 2 4H5" />
+    </Svg>
+  );
+}

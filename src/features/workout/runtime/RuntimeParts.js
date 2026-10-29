@@ -5,6 +5,7 @@ import ExerciseImage, { TILE_ALPHA, muscleColor, muscleTextColor } from '../../.
 import GlassSurface from '../../../shared/components/GlassSurface';
 import GradientFill from '../../../shared/components/GradientFill';
 import PillButton, { useSwipeGuard } from '../../../shared/components/PillButton';
+import Spinner from '../../../shared/components/Spinner';
 import Select from '../../../shared/components/Select';
 import { CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT, TITLE_TEXT, useLargeTextReflow } from '../../../shared/components/largeText';
 import { colors, font, gradients, layout, radii, shadows, spacing, textInputColors, textScale, titleTracking, typography } from '../../../shared/theme/tokens';
@@ -33,6 +34,8 @@ export const TABLET_BROWSE_STAGE_HEIGHT = 520;
 export const DID_IT_HEIGHT = 64;
 const DISPLAY_CAP = { maxFontSizeMultiplier: textScale.display };
 const TIMER_CAP = { maxFontSizeMultiplier: textScale.timer };
+// T-105: the header's Complete (UX ruling §1).
+const COMPLETE_HEIGHT = 36;
 // F1 §0.6: drawn controls below 44 keep their size and get a 44 hit area.
 export function hitFor(height) {
   return Math.max(0, Math.ceil((layout.touchMin - height) / 2));
@@ -74,17 +77,41 @@ function GlassButton({ testID, label, onPress, height, tablet, buttonRef, access
 }
 
 // F1 ND3: ONE session header in every state: Exit · plan name + "n/m sets
-// done" · timer pill m:ss · All (n). Exit always opens the Discard dialog.
-// UX §9 (QA Phase 1 recheck, AX5): past the reflow point the header takes two
-// rows (Exit · timer · All, then the plan pill full width), so the plan name
-// never gets squeezed into one character per line; it wraps by word and a
-// single long word shrinks.
-export function SessionChrome({ planName, completedSets, totalSets, exerciseCount, elapsed = 0, onExit, onAll, allRef, tablet = false, onLayout, style }) {
+// done" · timer pill m:ss · All (n) · Complete. Exit always opens the
+// Discard dialog. UX §9 (QA Phase 1 recheck, AX5): past the reflow point the
+// header takes rows, so the plan name never gets squeezed into one character
+// per line; it wraps by word and a single long word shrinks.
+// T-105 (owner B; UX ruling §1 + look verdict 9bdb33c8; RN-SPEC-workout dated
+// 29 Oct 2026): Complete lives here at every size (`wide` = a ≥ 1024 window:
+// "Complete workout", else "Complete"; the spoken name is always "Complete
+// workout"). Phones (< 768) hide the timer pill and the clock moves into the
+// subline (PhoneSubline). Large text: Exit · All / timer · Complete / name.
+export function SessionChrome({
+  planName,
+  completedSets,
+  totalSets,
+  exerciseCount,
+  elapsed = 0,
+  onExit,
+  onAll,
+  allRef,
+  tablet = false,
+  wide = false,
+  onComplete,
+  completing = false,
+  completeDisabled = false,
+  completePrimary = false,
+  onLayout,
+  style,
+}) {
   const stacked = useLargeTextReflow();
   const buttonHeight = tablet ? 48 : 40;
   const exit = <GlassButton testID="session-exit" label="Exit" onPress={onExit} height={buttonHeight} tablet={tablet} />;
   const all = <GlassButton testID="session-all" buttonRef={allRef} label={`All (${exerciseCount})`} onPress={onAll} height={buttonHeight} tablet={tablet} />;
-  const timer = (
+  const complete = (
+    <CompleteButton label={wide ? 'Complete workout' : 'Complete'} primary={completePrimary} completing={completing} disabled={completeDisabled} onPress={onComplete} />
+  );
+  const timer = tablet ? (
     <GlassSurface
       testID="session-timer"
       tone="onPhoto"
@@ -93,20 +120,24 @@ export function SessionChrome({ planName, completedSets, totalSets, exerciseCoun
       accessible
       accessibilityRole="timer"
       accessibilityLabel={elapsedSpokenLabel(elapsed)}
-      style={[styles.timerPill, { minHeight: tablet ? 40 : 36 }]}
+      style={[styles.timerPill, { minHeight: 40 }]}
     >
       <View style={styles.timerDot} />
-      <Text {...TIMER_CAP} style={[styles.timerText, tablet && styles.timerTextTablet]}>
+      <Text {...TIMER_CAP} style={[styles.timerText, styles.timerTextTablet]}>
         {formatClock(elapsed)}
       </Text>
     </GlassSurface>
-  );
+  ) : null;
   const plan = (
     <GlassSurface testID="session-plan" tone="onPhoto" radius={radii.full} shadow={false} style={[styles.planPill, tablet && styles.planPillTablet, stacked && styles.planPillStacked]}>
       <Text {...TITLE_TEXT} numberOfLines={2} style={[styles.planName, tablet && styles.planNameTablet]}>
         {keepUnitsTogether(planName)}
       </Text>
-      <Text {...CAP_PILL} style={[styles.planSub, tablet && styles.planSubTablet]}>{`${completedSets}/${totalSets} ${setsWord(totalSets)} done`}</Text>
+      {tablet ? (
+        <Text {...CAP_PILL} style={[styles.planSub, styles.planSubTablet]}>{`${completedSets}/${totalSets} ${setsWord(totalSets)} done`}</Text>
+      ) : (
+        <PhoneSubline completedSets={completedSets} totalSets={totalSets} elapsed={elapsed} />
+      )}
     </GlassSurface>
   );
   return (
@@ -116,8 +147,12 @@ export function SessionChrome({ planName, completedSets, totalSets, exerciseCoun
           <View style={styles.chromeRow}>
             {exit}
             <View style={styles.flex} />
-            {timer}
             {all}
+          </View>
+          <View style={styles.chromeRow}>
+            {timer}
+            <View style={styles.flex} />
+            {complete}
           </View>
           <View style={styles.chromePlanRow}>{plan}</View>
         </>
@@ -127,11 +162,94 @@ export function SessionChrome({ planName, completedSets, totalSets, exerciseCoun
           <View style={styles.chromeCentre}>{plan}</View>
           {timer}
           {all}
+          {complete}
         </View>
       )}
       {/* Batch 2 item 3 (web SessionChrome): the gold rail, always. */}
       <SessionRail completedSets={completedSets} totalSets={totalSets} inChrome />
     </View>
+  );
+}
+
+// T-105 phones: "{done}/{total} sets · {m:ss}"; when that doesn't fit on one
+// line (below 375, or long values like "12/15 sets · 1:02:05") "sets" drops:
+// "{done}/{total} · {m:ss}" (chosen by fit, kept for the session). Screen
+// readers hear "n/m sets done" and the clock is the ONE accessible timer
+// (reviewer M1: never hidden), as the pill was.
+function PhoneSubline({ completedSets, totalSets, elapsed }) {
+  const [short, setShort] = useState(false);
+  const count = short ? `${completedSets}/${totalSets}` : `${completedSets}/${totalSets} ${setsWord(totalSets)}`;
+  return (
+    <View testID="session-subline" style={styles.subline}>
+      <Text
+        testID="session-subline-count"
+        {...CAP_PILL}
+        accessibilityLabel={`${completedSets}/${totalSets} ${setsWord(totalSets)} done`}
+        onTextLayout={(event) => {
+          if (!short && event?.nativeEvent?.lines?.length > 1) {
+            setShort(true);
+          }
+        }}
+        style={[styles.planSub, styles.sublineCount]}
+      >
+        {count}
+      </Text>
+      <Text {...CAP_PILL} accessibilityElementsHidden importantForAccessibility="no" style={[styles.planSub, styles.noShrink]}>
+        {' · '}
+      </Text>
+      <Text
+        testID="session-timer"
+        {...TIMER_CAP}
+        accessible
+        accessibilityRole="timer"
+        accessibilityLabel={elapsedSpokenLabel(elapsed)}
+        style={[styles.planSub, styles.noShrink]}
+      >
+        {formatClock(elapsed)}
+      </Text>
+    </View>
+  );
+}
+
+// T-105 Complete in the header: compact 36 (44 hit), radius-full, 14/600,
+// padding 0 14. Glass (the header's glass) while sets are left, the gold
+// primary + its glow when none are; a spinner while completing; disabled
+// while a set save is in flight (T-89).
+function CompleteButton({ label, primary, completing, disabled, onPress }) {
+  const inactive = disabled || completing;
+  const ink = primary ? colors.onGold : colors.textPrimary;
+  const content = (pressed) => (
+    <>
+      {pressed ? <PressOverlay ink={primary} /> : null}
+      {completing ? <Spinner size={14} thickness={2} color={ink} /> : null}
+      <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.completeLabel, { color: ink }]}>
+        {label}
+      </Text>
+    </>
+  );
+  return (
+    <Pressable
+      testID="complete-workout"
+      accessibilityRole="button"
+      accessibilityLabel="Complete workout"
+      accessibilityState={{ disabled: inactive, busy: completing }}
+      disabled={inactive}
+      onPress={onPress}
+      hitSlop={hitFor(COMPLETE_HEIGHT)}
+      style={[styles.noShrink, inactive && styles.completeInactive]}
+    >
+      {({ pressed }) =>
+        primary ? (
+          <View testID="complete-workout-gold" style={[styles.complete, styles.completeGold]}>
+            {content(pressed)}
+          </View>
+        ) : (
+          <GlassSurface testID="complete-workout-glass" tone="onPhoto" radius={radii.full} shadow={false} style={styles.complete}>
+            {content(pressed)}
+          </GlassSurface>
+        )
+      }
+    </Pressable>
   );
 }
 
@@ -750,6 +868,39 @@ const styles = StyleSheet.create({
   },
   chromePlanRow: {
     alignItems: 'stretch',
+  },
+  // T-105: the phone subline (count · clock); the count gives way first.
+  subline: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    maxWidth: '100%',
+  },
+  sublineCount: {
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  complete: {
+    minHeight: COMPLETE_HEIGHT,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing['1_5'],
+    paddingHorizontal: 14,
+    borderRadius: radii.full,
+    borderColor: colors.hairlineButton,
+  },
+  completeGold: {
+    backgroundColor: colors.gold,
+    boxShadow: shadows.goldGlow,
+  },
+  completeInactive: {
+    opacity: 0.5,
+  },
+  completeLabel: {
+    ...font(600),
+    fontSize: 14,
+    lineHeight: 18,
+    textAlign: 'center',
   },
   glassButton: {
     flexDirection: 'row',

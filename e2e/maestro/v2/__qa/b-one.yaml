@@ -17,8 +17,13 @@ appId: com.gymido.app
 - extendedWaitUntil: { visible: { id: "session-chrome" }, timeout: 30000 }
 - runFlow: ../subflows/log-current-set.yaml
 - runFlow: ../subflows/minimize-rest.yaml
-- scrollUntilVisible: { element: { id: "complete-workout" }, direction: DOWN, centerElement: true, timeout: 20000 }
+# T-105 (DECLARED, PM OK 29 Oct; mobile edit of QA's flow): Complete is in the sticky header (no scroll); with sets
+# left it asks "Finish early?" first, so "Finish anyway" runs the same complete.
 - tapOn: { id: "complete-workout" }
+- runFlow:
+    when: { visible: { id: "finish-early-dialog" } }
+    commands:
+      - tapOn: { id: "finish-early-finish" }
 - extendedWaitUntil: { visible: { id: "completion-popup" }, timeout: 30000 }
 - tapOn: { id: "completion-awesome" }
 - extendedWaitUntil: { notVisible: { id: "completion-popup" }, timeout: 10000 }

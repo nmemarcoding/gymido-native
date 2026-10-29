@@ -2,7 +2,7 @@ import { AccessibilityInfo, Platform, Share, StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { colors, shadows } from '../../../shared/theme/tokens';
-import { CompleteWorkoutButton, CompletionPopup, DiscardButton, DiscardDialog, ExactAlarmDialog, SpeakIntroDialog } from './RuntimeOverlays';
+import { CompletionPopup, DiscardButton, DiscardDialog, ExactAlarmDialog, SpeakIntroDialog } from './RuntimeOverlays';
 
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('react-native-svg', () => {
@@ -362,15 +362,9 @@ describe('Hear your rest timer, A3 (UX F2)', () => {
 });
 
 describe('page buttons (UX F1 ND4)', () => {
-  it('Complete workout: gold primary by default, glass when a live set is left, spinner while completing', () => {
-    const gold = render(<CompleteWorkoutButton completing={false} onPress={() => {}} />);
-    expect(flat(host(gold, 'complete-workout')).backgroundColor).toBe(colors.gold);
-    expect(texts(gold)).toContain('Complete workout');
-    const glass = render(<CompleteWorkoutButton completing={false} primary={false} onPress={() => {}} />);
-    expect(flat(host(glass, 'complete-workout')).backgroundColor).toBe(colors.fillButton);
-    const busy = render(<CompleteWorkoutButton completing onPress={() => {}} />);
-    expect(host(busy, 'complete-workout').props.accessibilityState).toEqual({ disabled: true, busy: true });
-  });
+  // DECLARED (T-105, PM OK 29 Oct): "Complete workout: gold primary by default, glass when a live set is left, spinner
+  // while completing" tested CompleteWorkoutButton, removed with the end-of-column button. The same checks (gold,
+  // glass, busy spinner) now run on the header's Complete in RuntimeParts.test.js (SessionChrome T-105).
 
   it('Discard workout: ghost with danger text; danger-faint when pressed; "Exiting…" while abandoning', () => {
     const tree = render(<DiscardButton abandoning={false} onPress={() => {}} />);

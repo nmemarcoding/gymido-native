@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
-import { CompleteWorkoutButton } from '../runtime/RuntimeOverlays';
+import { SessionChrome } from '../runtime/RuntimeParts';
 import HubDayRows from './hub/HubDayRows';
 
 // Android blank-render class: a rounded view that clips (overflow hidden)
@@ -27,11 +27,17 @@ function render(element) {
 }
 
 describe('no clipping on views whose style changes (Android)', () => {
+  // DECLARED (T-105, PM OK 29 Oct): was CompleteWorkoutButton (the end-of-column button, removed); the same check on
+  // the header's Complete, in both tones.
   it('Complete workout: the pressable never clips, in either press state', () => {
-    const tree = render(<CompleteWorkoutButton completing={false} onPress={() => {}} />);
-    const button = tree.root.findAll((node) => node.props.testID === 'complete-workout' && typeof node.type !== 'string')[0];
-    expect(flat(button.props.style).overflow).toBeUndefined();
-    expect(flatPressed(button.props.style).overflow).toBeUndefined();
+    for (const completePrimary of [false, true]) {
+      const tree = render(
+        <SessionChrome planName="Plan" completedSets={1} totalSets={4} exerciseCount={2} onExit={() => {}} onAll={() => {}} onComplete={() => {}} completePrimary={completePrimary} />
+      );
+      const button = tree.root.findAll((node) => node.props.testID === 'complete-workout' && typeof node.type !== 'string')[0];
+      expect(flat(button.props.style).overflow).toBeUndefined();
+      expect(flatPressed(button.props.style).overflow).toBeUndefined();
+    }
   });
 
   // DECLARED (T-76): was the PlanDayCard card (retired); the hub day row, which fades when done.

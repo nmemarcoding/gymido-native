@@ -4,7 +4,7 @@ import { act, create } from 'react-test-renderer';
 import { abandonWorkout, completeWorkout, updateSessionSet } from '../api/workoutApi';
 import { ExerciseSheet } from './ExerciseNavigation';
 import { SessionChrome } from './RuntimeParts';
-import { CompleteWorkoutButton, RestTimerWidget } from './RuntimeOverlays';
+import { FinishEarlyDialog, RestTimerWidget } from './RuntimeOverlays';
 import SessionRuntime, { ENDED_ELSEWHERE, exerciseImageMap } from './SessionRuntime';
 import * as restPresentation from './restPresentation';
 import { endSessionState, peekSession } from './workoutSessionStore';
@@ -98,6 +98,17 @@ afterEach(() => {
 // remount of the screen (a font-scale remount, a rotation, leaving and coming
 // back); the session's end (finish, abandon incl. a 409, ended elsewhere)
 // clears them with the rest.
+
+// T-105 (DECLARED, PM OK 29 Oct; owner D1): Complete with sets left opens "Finish early?" first. The tests that
+// finished with sets left now also tap "Finish anyway" and expect exactly what they did before.
+function finishAnyway(tree) {
+  return tree.root.findByType(FinishEarlyDialog).props.onFinish();
+}
+async function completeAnyway(tree) {
+  await act(async () => byId(tree, 'complete-workout').props.onPress());
+  await act(async () => finishAnyway(tree));
+}
+
 describe('session state outlives a remount (T-59 follow-up)', () => {
   it('a typed weight survives a remount of the same session', () => {
     let { tree } = render();
@@ -117,10 +128,10 @@ describe('session state outlives a remount (T-59 follow-up)', () => {
   });
 
   it.each([
-    ['finish', async (tree) => act(async () => byId(tree, 'complete-workout').props.onPress())],
+    ['finish', async (tree) => completeAnyway(tree)],
     ['finish 409 (ended elsewhere)', async (tree) => {
       completeWorkout.mockRejectedValueOnce({ response: { status: 409, data: { message: 'Session is not active' } } });
-      await act(async () => byId(tree, 'complete-workout').props.onPress());
+      await completeAnyway(tree);
     }],
     ['discard', async (tree) => {
       act(() => byId(tree, 'discard-workout').props.onPress());
@@ -220,8 +231,9 @@ describe('SessionRuntime', () => {
     const complete = byId(tree, 'complete-workout').props.onPress;
     await act(async () => byId(tree, 'set-action-12').props.onPress());
     let finishing;
+    await act(async () => complete());
     await act(async () => {
-      finishing = complete();
+      finishing = finishAnyway(tree);
     });
     expect(completeWorkout).not.toHaveBeenCalled();
     await act(async () => {
@@ -242,8 +254,9 @@ describe('SessionRuntime', () => {
     const complete = byId(tree, 'complete-workout').props.onPress;
     await act(async () => byId(tree, 'set-action-12').props.onPress());
     let finishing;
+    await act(async () => complete());
     await act(async () => {
-      finishing = complete();
+      finishing = finishAnyway(tree);
     });
     // The done set's Undo (set-action-11) is a set save too (is_completed false).
     await act(async () => byId(tree, 'set-action-11').props.onPress());
@@ -338,7 +351,7 @@ describe('SessionRuntime', () => {
       const onCompleted = jest.fn();
       const reloadWithLoader = jest.fn(() => Promise.resolve());
       const { tree, setActionError } = render({ onCompleted, reloadWithLoader });
-      await act(async () => byId(tree, 'complete-workout').props.onPress());
+      await completeAnyway(tree);
       expect(onCompleted).not.toHaveBeenCalled();
       expect(setActionError).toHaveBeenLastCalledWith(ENDED_ELSEWHERE);
       expect(reloadWithLoader).toHaveBeenCalledTimes(1);
@@ -468,7 +481,10 @@ describe('v2 F1 live and browsing states (ND3)', () => {
     expect(host(tree, 'session-chrome')).toBeDefined();
     expect(text(tree, 'Exit')).toHaveLength(1);
     expect(text(tree, 'Plan')).toHaveLength(1);
-    expect(text(tree, '1/4 sets done')).toHaveLength(1);
+    // DECLARED (T-105, PM OK 29 Oct): was the text '1/4 sets done'; phones show '1/4 sets' · clock, and screen
+    // readers still hear "1/4 sets done".
+    expect(text(tree, '1/4 sets')).toHaveLength(1);
+    expect(byId(tree, 'session-subline-count').props.accessibilityLabel).toBe('1/4 sets done');
     expect(text(tree, 'All (2)')).toHaveLength(1);
     expect(byId(tree, 'session-timer').props.accessibilityRole).toBe('timer');
     expect(text(tree, '0:00')).toHaveLength(1);
@@ -743,7 +759,7 @@ describe('v2 F1 volume rule (PM, 27 Oct): kg sum in the member unit', () => {
     useProfileStore.setState({ profile: { goal_weight_unit: 'lb' } });
     const onCompleted = jest.fn();
     const { tree } = render({ session: MIXED, onCompleted });
-    await act(async () => byId(tree, 'complete-workout').props.onPress());
+    await completeAnyway(tree);
     const snapshot = onCompleted.mock.calls[0][0];
     expect(snapshot.volumeUnit).toBe('lb');
     expect(Math.round(snapshot.totalVolume)).toBe(3205);
@@ -752,12 +768,16 @@ describe('v2 F1 volume rule (PM, 27 Oct): kg sum in the member unit', () => {
 
 describe('v2 F1 Complete / Discard (ND4)', () => {
   it('"Complete workout" is glass while a live set is left, primary when none is', () => {
+    // DECLARED (T-105, PM OK 29 Oct): was findByType(CompleteWorkoutButton).props.primary (the button at the end of
+    // the column); Complete now lives in the header, so the same glass / gold check reads the header's Complete.
     const { tree } = render();
-    expect(tree.root.findByType(CompleteWorkoutButton).props.primary).toBe(false);
+    expect(tree.root.findByType(SessionChrome).props.completePrimary).toBe(false);
+    expect(host(tree, 'complete-workout-glass')).toBeDefined();
     act(() => mounted.unmount());
     const allDone = { ...SESSION, exercises: [{ ...SESSION.exercises[0], sets: [set(11, true)] }] };
     const done = render({ session: allDone }).tree;
-    expect(done.root.findByType(CompleteWorkoutButton).props.primary).toBe(true);
+    expect(done.root.findByType(SessionChrome).props.completePrimary).toBe(true);
+    expect(flat(host(done, 'complete-workout-gold')).backgroundColor).toBe(colors.gold);
     expect(text(done, 'Discard workout')).toHaveLength(1);
   });
 });
@@ -819,10 +839,11 @@ describe('v2 F1 large text (UX §9; QA AX5 chrome)', () => {
     const style = StyleSheet.flatten(chrome.props.style);
     if (scale > 1.3) {
       expect(style.position).toBeUndefined();
-      // Row 1 holds Exit, the timer and All; the plan pill has its own row.
       // DECLARED path change (Batch 2 item 3): the chrome's first child is the rows, the second the gold rail.
+      // DECLARED (T-105, PM OK 29 Oct): was 2 rows (Exit · timer · All, then the plan pill); now 3 rows:
+      // Exit · All / timer · Complete / the plan pill.
       expect(chrome.props.children).toHaveLength(2);
-      expect(chrome.props.children[0].props.children).toHaveLength(2);
+      expect(chrome.props.children[0].props.children).toHaveLength(3);
     } else {
       expect(style.position).toBe('absolute');
     }
@@ -851,7 +872,7 @@ describe('3c hand-off (lead, 27 Oct)', () => {
     const onCompleted = jest.fn();
     const session = { ...SESSION, exercises: [{ ...SESSION.exercises[0], exercise: { id: 3, thumbnail: { url: 'https://example.com/a.gif' } } }, SESSION.exercises[1]] };
     const { tree } = render({ session, onCompleted });
-    await act(async () => byId(tree, 'complete-workout').props.onPress());
+    await completeAnyway(tree);
     expect(onCompleted.mock.calls[0][0]).toMatchObject({ personalRecords: records, volumeUnit: 'kg', exerciseImages: { 3: 'https://example.com/a.gif' } });
   });
 
@@ -860,7 +881,7 @@ describe('3c hand-off (lead, 27 Oct)', () => {
       completeWorkout.mockResolvedValueOnce(result);
       const onCompleted = jest.fn();
       const { tree } = render({ onCompleted });
-      await act(async () => byId(tree, 'complete-workout').props.onPress());
+      await completeAnyway(tree);
       return onCompleted.mock.calls[0][0].durationSeconds;
     };
     expect(await run({ session: { id: 1, duration_seconds: 2712 }, new_personal_records: [] })).toBe(2712);

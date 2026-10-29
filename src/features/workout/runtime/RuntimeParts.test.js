@@ -83,9 +83,11 @@ describe('hit areas (F1 §0.6)', () => {
 describe('SessionChrome (ND3)', () => {
   const props = { planName: 'Upper / Lower Split', completedSets: 4, totalSets: 15, exerciseCount: 5, elapsed: 1122, onExit: jest.fn(), onAll: jest.fn() };
 
-  it('shows Exit · plan + sets done · timer m:ss · All (n), with 44 hit areas', () => {
+  // DECLARED (T-105, PM OK 29 Oct): was '4/15 sets done' + the '18:42' pill on the phone; phones now show the subline
+  // '4/15 sets' · '18:42' (no pill). The tablet keeps '4/15 sets done' + the pill (T-105 block below).
+  it('shows Exit · plan + sets · m:ss · All (n), with 44 hit areas', () => {
     const tree = render(<SessionChrome {...props} />);
-    expect(texts(tree)).toEqual(expect.arrayContaining(['Exit', 'Upper / Lower Split', '4/15 sets done', '18:42', 'All (5)']));
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Exit', 'Upper / Lower Split', '4/15 sets', '18:42', 'All (5)']));
     expect(byId(tree, 'session-exit').props.hitSlop).toBe(2);
     expect(byId(tree, 'session-all').props.hitSlop).toBe(2);
     act(() => byId(tree, 'session-exit').props.onPress());
@@ -120,11 +122,94 @@ describe('SessionChrome (ND3)', () => {
     const [rows, rail] = host(tree, 'session-chrome').props.children;
     expect(rail.type).toBe(SessionRail);
     expect(rail.props).toMatchObject({ completedSets: props.completedSets, totalSets: props.totalSets, inChrome: true });
+    // DECLARED (T-105, PM OK 29 Oct): was 2 rows past 1.3× (Exit · timer · All / the plan) and 4 children in one row;
+    // now 3 rows (Exit · All / timer · Complete / the plan) and 5 children (+ Complete).
     if (scale > 1.3) {
-      expect(rows.props.children).toHaveLength(2);
+      expect(rows.props.children).toHaveLength(3);
     } else {
-      expect(rows.props.children).toHaveLength(4);
+      expect(rows.props.children).toHaveLength(5);
     }
+  });
+});
+
+
+// T-105 (owner B, D1–D3; UX ruling §1 + look verdict 9bdb33c8; RN-SPEC-workout dated 29 Oct 2026).
+describe('SessionChrome T-105: Complete in the header', () => {
+  const props = { planName: 'Upper / Lower Split', completedSets: 4, totalSets: 15, exerciseCount: 5, elapsed: 1122, onExit: jest.fn(), onAll: jest.fn(), onComplete: jest.fn() };
+  const timers = (tree) => tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'timer');
+
+  it('phone: "Complete" last in the row, 36 tall with a 44 hit, spoken "Complete workout"; tapping calls onComplete', () => {
+    const tree = render(<SessionChrome {...props} />);
+    const complete = byId(tree, 'complete-workout');
+    expect(complete.props.accessibilityLabel).toBe('Complete workout');
+    expect(complete.props.hitSlop).toBe(4);
+    expect(texts(tree)).toContain('Complete');
+    expect(texts(tree)).not.toContain('Complete workout');
+    expect(flat(host(tree, 'complete-workout-glass'))).toMatchObject({ minHeight: 36, paddingHorizontal: 14, borderRadius: 999 });
+    const [rows] = host(tree, 'session-chrome').props.children;
+    expect(rows.props.children.at(-1).props.onPress).toBe(props.onComplete);
+    act(() => complete.props.onPress());
+    expect(props.onComplete).toHaveBeenCalled();
+  });
+
+  it('≥ 1024 the label is "Complete workout"', () => {
+    const tree = render(<SessionChrome {...props} tablet wide />);
+    expect(texts(tree)).toContain('Complete workout');
+  });
+
+  // Moved from RuntimeOverlays.test.js (DECLARED C): gold when no set is left, glass while one is, spinner while completing.
+  it('tone: glass while sets are left, gold (+ glow) when none are; busy while completing; disabled while a save runs', () => {
+    expect(host(render(<SessionChrome {...props} />), 'complete-workout-glass')).toBeDefined();
+    const gold = render(<SessionChrome {...props} completePrimary />);
+    expect(flat(host(gold, 'complete-workout-gold'))).toMatchObject({ backgroundColor: colors.gold });
+    expect(flat(host(gold, 'complete-workout-gold')).boxShadow).toBeTruthy();
+    const busy = render(<SessionChrome {...props} completing />);
+    expect(byId(busy, 'complete-workout').props.accessibilityState).toEqual({ disabled: true, busy: true });
+    expect(busy.root.findAll((node) => node.type?.name === 'Spinner').length).toBe(1);
+    const saving = render(<SessionChrome {...props} completeDisabled />);
+    expect(byId(saving, 'complete-workout').props.disabled).toBe(true);
+  });
+
+  it('phone: no timer pill; the subline "4/15 sets · 18:42" holds the ONE accessible timer (reviewer M1); SR "4/15 sets done"', () => {
+    const tree = render(<SessionChrome {...props} />);
+    const all = timers(tree);
+    expect(all).toHaveLength(1);
+    expect(all[0].props.testID).toBe('session-timer');
+    expect(all[0].props.accessibilityElementsHidden).toBeFalsy();
+    expect(all[0].props.accessibilityLabel).toBe('Elapsed time 18 minutes 30 seconds');
+    expect(host(tree, 'session-subline')).toBeDefined();
+    expect(host(tree, 'session-subline-count').props.accessibilityLabel).toBe('4/15 sets done');
+    expect(texts(tree)).toEqual(expect.arrayContaining(['4/15 sets', ' · ', '18:42']));
+  });
+
+  it('phone: when "4/15 sets" does not fit on one line, "sets" drops ("4/15 · 18:42"); SR unchanged', () => {
+    const tree = render(<SessionChrome {...props} />);
+    act(() => host(tree, 'session-subline-count').props.onTextLayout({ nativeEvent: { lines: [{}, {}] } }));
+    expect(texts(tree)).toContain('4/15');
+    expect(texts(tree)).not.toContain('4/15 sets');
+    expect(host(tree, 'session-subline-count').props.accessibilityLabel).toBe('4/15 sets done');
+    const fits = render(<SessionChrome {...props} />);
+    act(() => host(fits, 'session-subline-count').props.onTextLayout({ nativeEvent: { lines: [{}] } }));
+    expect(texts(fits)).toContain('4/15 sets');
+  });
+
+  it('tablet: the timer pill stays (the one timer) and the subline reads "4/15 sets done"', () => {
+    const tree = render(<SessionChrome {...props} tablet />);
+    expect(timers(tree)).toHaveLength(1);
+    expect(host(tree, 'session-subline')).toBeUndefined();
+    expect(texts(tree)).toEqual(expect.arrayContaining(['4/15 sets done', '18:42', 'Complete']));
+  });
+
+  it('large text: Exit · All / timer · Complete / the plan, all inside the sticky header', () => {
+    mockFontScale = 2;
+    const tree = render(<SessionChrome {...props} tablet />);
+    const [rows] = host(tree, 'session-chrome').props.children;
+    const [first, second, third] = rows.props.children;
+    const ids = (row) => [].concat(row.props.children).map((child) => child?.props?.testID ?? child?.props?.label ?? null);
+    expect(ids(first)).toEqual(['session-exit', null, 'session-all']);
+    expect(ids(second)[0]).toBe('session-timer');
+    expect(ids(second)[2]).toBe('Complete');
+    expect(third.props.children.props.testID).toBe('session-plan');
   });
 });
 

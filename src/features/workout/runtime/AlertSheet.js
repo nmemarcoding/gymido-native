@@ -21,7 +21,8 @@ import { colors, font, gradients, radii, shadows, spacing, typography } from '..
 // `onRequestClose`: Android back.
 // `tone`: 'gold' | 'teal' | 'danger' (icon tile + the tablet card glow).
 // `icon`: ({ size }) => node.  `variant`: 'prompt' (A2/A3, tablet radius 36)
-// or 'confirm' (Discard: tablet radius 32, danger card on tablet).
+// or 'confirm' (Discard / T-105 Finish early: tablet radius 32; the danger
+// card fill and edge only with tone 'danger', i.e. Discard).
 // The prompts' backdrop blur (px), as drawn on the Rest alert / Discard
 // boards (and v1's dialogs). No blur token holds 8 (blur.scrim 4 /
 // scrimTablet 6 are U12's AppModal values): reported to the lead.
@@ -52,10 +53,11 @@ export default function AlertSheet({
   const insets = useSafeAreaInsets();
   const tablet = isTabletWidth(width);
   const confirm = variant === 'confirm';
+  const dangerCard = confirm && tone === 'danger';
   const tileSize = tablet ? (confirm ? 72 : 84) : confirm ? 56 : 76;
   const iconSize = tablet ? (confirm ? 32 : 40) : confirm ? 26 : 34;
   const card = tablet
-    ? [styles.card, confirm ? styles.cardConfirm : styles.cardPrompt, { maxHeight: height - 2 * spacing[6] - insets.top - insets.bottom }]
+    ? [styles.card, confirm ? [styles.cardConfirm, dangerCard && styles.cardDanger] : styles.cardPrompt, { maxHeight: height - 2 * spacing[6] - insets.top - insets.bottom }]
     : [styles.sheet, { maxHeight: height - spacing['2_5'] - insets.top }];
   return (
     <Modal transparent visible={open} animationType="fade" onRequestClose={onRequestClose} statusBarTranslucent>
@@ -78,8 +80,8 @@ export default function AlertSheet({
             // The card's fill, mounted with the card (Android gradient hazard).
             <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.cardClip, confirm ? styles.radiusConfirm : styles.radiusPrompt]}>
               <GradientFill
-                angle={(confirm ? gradients.dangerCard : gradients.card).angle}
-                colors={(confirm ? gradients.dangerCard : gradients.card).colors}
+                angle={(dangerCard ? gradients.dangerCard : gradients.card).angle}
+                colors={(dangerCard ? gradients.dangerCard : gradients.card).colors}
               />
             </View>
           ) : null}
@@ -118,13 +120,13 @@ export default function AlertSheet({
 
 // Body copy in the sheet's style (phone 15/22 secondary, max 310; tablet
 // 18/28 strong-2, or 17/26 secondary on the Discard card).
-export function SheetBody({ children, tablet, confirm = false, muted = false, testID }) {
+export function SheetBody({ children, tablet, confirm = false, muted = false, testID, accessibilityLabel }) {
   let style = styles.bodyPhone;
   if (tablet) {
     style = confirm ? styles.bodyConfirmTablet : styles.bodyTablet;
   }
   return (
-    <Text testID={testID} {...CAP_BODY} style={[styles.body, style, muted && (tablet ? styles.mutedTablet : styles.mutedPhone)]}>
+    <Text testID={testID} {...CAP_BODY} accessibilityLabel={accessibilityLabel} style={[styles.body, style, muted && (tablet ? styles.mutedTablet : styles.mutedPhone)]}>
       {children}
     </Text>
   );
@@ -169,6 +171,8 @@ const styles = StyleSheet.create({
   },
   cardConfirm: {
     borderRadius: radii.xxxl,
+  },
+  cardDanger: {
     borderColor: colors.dangerLine,
   },
   cardClip: {

@@ -48,6 +48,7 @@ import {
   SpeakerIcon,
   TrashIcon,
 } from './RestParts';
+import { FlagIcon } from './SessionIcons';
 import {
   MINI_RING,
   REST_RING,
@@ -731,6 +732,38 @@ export function DiscardDialog({ open, onKeep, onDiscard }) {
   );
 }
 
+// T-105 "Finish early?" (UX ruling §2/§3, owner D1–D3): Discard's twin. The
+// flag on the gold tile; gold "Keep going" (focused on open) + glass "Finish
+// anyway"; phone stacked gold on top, tablet glass left · gold right. Back =
+// Keep going; the scrim does nothing. `message` = finishEarlyMessage(): the
+// emoji is drawn last and left out of what a screen reader says.
+export function FinishEarlyDialog({ open, message, onKeep, onFinish }) {
+  const tablet = useTablet();
+  const keepRef = useRef(null);
+  useEffect(() => (open ? focusLater(keepRef) : undefined), [open]);
+  const keep = <PillButton ref={keepRef} testID="finish-early-keep" title="Keep going" variant="primary" fullWidth onPress={onKeep} style={tablet ? styles.action60 : styles.action56} />;
+  const finish = <PillButton testID="finish-early-finish" title="Finish anyway" variant="secondary" fullWidth onPress={onFinish} style={tablet ? styles.action60 : styles.action56} />;
+  return (
+    <AlertSheet
+      open={open}
+      testID="finish-early-dialog"
+      label={message ? `Finish early? ${message.label}` : 'Finish early?'}
+      title="Finish early?"
+      tone="gold"
+      variant="confirm"
+      icon={({ size }) => <FlagIcon size={size} color={colors.gold} />}
+      onRequestClose={onKeep}
+      actions={<SheetActions secondary={finish} primary={keep} stack={!tablet} />}
+    >
+      {message ? (
+        <SheetBody testID="finish-early-message" tablet={tablet} confirm accessibilityLabel={message.label}>
+          {message.emoji ? `${message.text} ${message.emoji}` : message.text}
+        </SheetBody>
+      ) : null}
+    </AlertSheet>
+  );
+}
+
 // The aria-hidden "Alarms & reminders" settings preview (switch drawn on).
 function AlarmSettingsPreview({ tablet }) {
   return (
@@ -830,25 +863,6 @@ export function SpeakIntroDialog({ open, onKeepOn, onTurnOff, onOpenAnnounceSett
 }
 
 // ---- Page buttons (UX F1 ND4) -------------------------------------------------
-
-// §23.1 manual completion. `primary` (SessionRuntime): true when no live set
-// is left (the forward action, flat gold); otherwise the glass secondary, so
-// "Did it" stays the one gold action. Defaults to v1's gold.
-// T-89: `disabled` while a set save is in flight (SessionRuntime).
-export function CompleteWorkoutButton({ completing, onPress, primary = true, disabled = false }) {
-  return (
-    <PillButton
-      testID="complete-workout"
-      title="Complete workout"
-      variant={primary ? 'primary' : 'secondary'}
-      size="cta"
-      fullWidth
-      loading={completing}
-      disabled={disabled}
-      onPress={onPress}
-    />
-  );
-}
 
 // "Discard workout": ghost with danger text; pressed = danger-faint (UX
 // §8.6a 5, the transparent danger text button).
