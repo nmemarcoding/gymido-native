@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 
 import ExerciseImage, { TILE_ALPHA, muscleColor, muscleTextColor } from '../../../shared/components/ExerciseImage';
 import GlassSurface from '../../../shared/components/GlassSurface';
@@ -55,6 +55,9 @@ const PHONE_PLAN_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.title, 
 // Q8: the no-photo stage's in-flow initials tile (112, 56 initials).
 export const NO_PHOTO_TILE = 112;
 const NO_PHOTO_INITIALS = 56;
+// Q7 (V16): the phone weight / reps value box, measured from the owner's web
+// shot (value centred between the label and the steppers; FE exact pending).
+export const PHONE_VALUE_BOX = 58;
 // Q6: the Up next thumb (22) radius.
 export const UP_NEXT_THUMB_RADIUS = 6;
 export const PHONE_BROWSE_STAGE_HEIGHT = 318;
@@ -722,12 +725,19 @@ export function SetEditor({
   cardRef,
 }) {
   const stacked = useLargeTextReflow();
+  const { fontScale } = useWindowDimensions();
   const [focus, setFocus] = useState('');
   const sets = exercise.sets ?? [];
   const unit = draft?.actualWeightUnit || 'lb';
   const weightValue = draft?.actualWeightValue === undefined || draft?.actualWeightValue === null ? '' : String(draft.actualWeightValue);
   const setNumber = set?.set_number;
-  const valueStyle = [styles.cellValue, tablet && styles.cellValueTablet];
+  // T-132 V16 (web 2.1.15 SE:24-25, 141): on phones the value sits centred
+  // in a 58 box (grows with the 1.3 display cap); iOS drops the line height,
+  // which drew the digits high in a 44 box. The tablet is unchanged.
+  const valueStyle = [
+    styles.cellValue,
+    tablet ? styles.cellValueTablet : [styles.cellValuePhone, { minHeight: Math.round(PHONE_VALUE_BOX * Math.min(Math.max(fontScale || 1, 1), textScale.display)) }],
+  ];
   return (
     <View ref={cardRef} collapsable={false} testID="set-editor" style={[styles.card, tablet && styles.cardTablet, highlighted && styles.cardHighlighted]}>
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.cardClip]}>
@@ -1725,6 +1735,12 @@ const styles = StyleSheet.create({
     letterSpacing: -1.92,
     alignSelf: 'flex-start',
     textAlign: 'left',
+  },
+  cellValuePhone: {
+    paddingVertical: 0,
+    textAlignVertical: 'center',
+    includeFontPadding: false,
+    ...(Platform.OS === 'ios' ? { lineHeight: undefined } : null),
   },
   cellValueError: {
     color: colors.dangerText,

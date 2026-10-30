@@ -10,6 +10,7 @@ import {
   HowToButton,
   NO_PHOTO_TILE,
   PHONE_STAGE_HEIGHT,
+  PHONE_VALUE_BOX,
   ReloadErrorBar,
   SessionChrome,
   SessionRail,
@@ -403,7 +404,45 @@ describe('SetEditor (single editor + strip)', () => {
     act(() => byId(tree, 'set-reps-12').props.onBlur());
   });
 
-  it('highlight after rest: the 2 px gold ring', () => {
+  // T-132 V16 (web 2.1.15 SE:23-25, 141; FE Q7): the phone value is centred in a 58 box (no iOS line height), so it
+  // sits evenly between the label and the steppers; the box grows with the 1.3 display cap. The tablet is unchanged.
+  it('phone: weight and reps values sit centred in the 58 value box (placeholder and typed alike); the cell is label → value → steppers', () => {
+    const tree = render(<SetEditor {...base} draft={{ actualWeightUnit: 'lb' }} />);
+    [byId(tree, 'set-weight-12'), byId(tree, 'set-reps-12')].forEach((input) => {
+      const style = flat(input);
+      expect(style).toMatchObject({ minHeight: PHONE_VALUE_BOX, textAlignVertical: 'center', includeFontPadding: false, paddingVertical: 0, fontSize: 44, textAlign: 'center' });
+      expect(style.lineHeight).toBeUndefined();
+    });
+    expect(PHONE_VALUE_BOX).toBe(58);
+    expect(byId(tree, 'set-weight-12').props.value).toBe('');
+    let cell = host(tree, 'set-weight-12').parent;
+    while (cell && !(typeof cell.type === 'string' && flat(cell).padding === 12)) {
+      cell = cell.parent;
+    }
+    expect(flat(cell)).toMatchObject({ gap: 8, padding: 12, borderRadius: 20 });
+    const [column, steppers] = cell.children;
+    expect(column.findAll((node) => node.props.testID === 'set-weight-12').length).toBeGreaterThan(0);
+    expect(steppers.findAll((node) => node.props.testID === 'set-weight-plus-12').length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    [2, Math.round(58 * 1.3)],
+    [1.2, Math.round(58 * 1.2)],
+  ])('phone at %sx: the value box grows with the text, capped at the 1.3 display scale', (scale, box) => {
+    mockFontScale = scale;
+    const tree = render(<SetEditor {...base} />);
+    expect(flat(byId(tree, 'set-reps-12')).minHeight).toBe(box);
+  });
+
+  it('tablet: the value keeps its 48 / 50 style and no box', () => {
+    const tree = render(<SetEditor {...base} tablet />);
+    const style = flat(byId(tree, 'set-weight-12'));
+    expect(style).toMatchObject({ fontSize: 48, lineHeight: 50 });
+    expect(style.minHeight).toBeUndefined();
+    expect(style.textAlignVertical).toBeUndefined();
+  });
+
+    it('highlight after rest: the 2 px gold ring', () => {
     const tree = render(<SetEditor {...base} highlighted />);
     expect(flat(host(tree, 'set-editor'))).toMatchObject({ outlineWidth: 2, outlineColor: colors.goldStrong });
   });
