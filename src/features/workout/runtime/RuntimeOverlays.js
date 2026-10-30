@@ -295,8 +295,9 @@ function RingFace({ timer, ringSize, tablet, digitsStyle = null, warn }) {
 // the eyebrow ("{n} sets left", rest 1/2) and the name → 24 → the 92 timer;
 // the −5 · Skip rest · +5 bar at the bottom. The time left is a drain fill in
 // the zone under the photo (red in the last 5 s). Rest 3 (`hero.mode`
-// 'next'): the NEXT exercise's photo with "Go to the next exercise" on its
-// top, and a gold Start now (Skip's action). No photo (none, not loaded yet,
+// 'next'): "Go to the next exercise" ABOVE the NEXT exercise's photo (owner
+// 30 Oct: never on it; catalog images carry baked-in text), and a gold Start
+// now (Skip's action). No photo (none, not loaded yet,
 // or failed): no card and no copy; the text moves up. Nothing scrolls: on
 // short phones the photo gives up the room it lacks (floor 160, Q5); the
 // timer is clamp(72, 11 % of the height, 92); the buttons never move.
@@ -307,17 +308,21 @@ function PhoneRest({ timer, hero, onMinimize, onAdjust, onSkip, window, insets }
   const image = useMemo(() => exerciseImageProps(hero?.exercise), [hero?.exercise]);
   const [photo, setPhoto] = useState(null);
   const [textHeight, setTextHeight] = useState(REST_TEXT_ESTIMATE);
+  const [headlineHeight, setHeadlineHeight] = useState(REST_HEADLINE_ESTIMATE);
   const [fade] = useState(() => new Animated.Value(0));
   const loaded = image.url && photo?.url === image.url ? photo : null;
 
   const top = insets.top + spacing[2] + layout.touchMin;
+  // Rest 3 with a photo: the headline row, then the photo 12 below it.
+  const headlineRow = next && loaded;
+  const photoTop = headlineRow ? top + headlineHeight + spacing[3] : top;
   const barBottom = insets.bottom + REST_BAR_BOTTOM;
   const textGap = loaded ? REST_TEXT_GAP : REST_TEXT_GAP_NO_PHOTO;
   // RN-SPEC dated 30 Oct: the timer is clamp(72, 11 % of the height, 92).
   const digits = restDigitsSize(window.height);
-  const around = top + textGap + textHeight + REST_TIMER_GAP + digits + REST_MIN_FREE + BUTTON_HEIGHTS.default + barBottom;
+  const around = photoTop + textGap + textHeight + REST_TIMER_GAP + digits + REST_MIN_FREE + BUTTON_HEIGHTS.default + barBottom;
   const photoHeight = loaded ? restPhotoHeight({ width: window.width, aspect: loaded.aspect, windowHeight: window.height, room: window.height - around }) : 0;
-  const zoneTop = top + photoHeight;
+  const zoneTop = photoTop + photoHeight;
 
   const onLoad = (source) => {
     const aspect = source?.width > 0 && source?.height > 0 ? source.width / source.height : null;
@@ -333,26 +338,28 @@ function PhoneRest({ timer, hero, onMinimize, onAdjust, onSkip, window, insets }
 
   return (
     <View testID="rest-timer" accessibilityViewIsModal role="dialog" accessibilityLabel="Rest timer" style={styles.full}>
-      {loaded ? <RestPhotoBlend image={image} top={top} height={photoHeight} width={window.width} opacity={fade} /> : null}
+      {loaded ? <RestPhotoBlend image={image} top={photoTop} height={photoHeight} width={window.width} opacity={fade} /> : null}
       {image.url ? (
         <Animated.View
           testID="rest-photo"
-          style={[styles.restPhoto, { top, width: window.width, height: loaded ? photoHeight : 1, opacity: loaded ? fade : 0 }]}
+          style={[styles.restPhoto, { top: photoTop, width: window.width, height: loaded ? photoHeight : 1, opacity: loaded ? fade : 0 }]}
         >
           {/* Decorative (web alt=""): the name is printed right under it. */}
           <RemoteImage {...image} resizeMode="contain" style={StyleSheet.absoluteFill} onLoad={onLoad} />
         </Animated.View>
       ) : null}
       <DrainFill timer={timer} warn={warn} top={zoneTop} height={window.height - zoneTop} reducedMotion={reducedMotion} />
-      {next && loaded ? (
-        <>
-          <View pointerEvents="none" style={[styles.headlineShade, { top }]}>
-            <GradientFill angle={180} colors={REST_HEADLINE_SHADE} stops={[0, 0.5, 1]} />
-          </View>
-          <Text {...CAP_BODY} accessibilityRole="header" numberOfLines={2} style={[styles.restHeadline, styles.restHeadlineOnPhoto, { top: top + spacing[3] }]}>
-            Go to the next exercise
-          </Text>
-        </>
+      {headlineRow ? (
+        <Text
+          {...CAP_BODY}
+          testID="rest-headline"
+          accessibilityRole="header"
+          numberOfLines={2}
+          onLayout={(event) => setHeadlineHeight(event.nativeEvent.layout.height)}
+          style={[styles.restHeadline, styles.restHeadlineRow, { top, left: insets.left + layout.gutter, right: insets.right + layout.gutter }]}
+        >
+          Go to the next exercise
+        </Text>
       ) : null}
       <View style={[styles.restMinimise, { top: insets.top + spacing[2], right: insets.right + layout.gutter }]}>
         <MinimizeButton onMinimize={onMinimize} />
@@ -482,12 +489,13 @@ const REST_DIGITS = 92;
 const REST_EDGE = 2;
 // First frame: the eyebrow (20) + 8 + a one-line name (38).
 const REST_TEXT_ESTIMATE = 66;
+// One 24/32 headline line.
+const REST_HEADLINE_ESTIMATE = 32;
 const REST_BLEND_SIDE = 24;
 const REST_BLEND_OUT = 56;
 const REST_BLEND_BLUR = 20;
 const REST_BLEND_FADE_TOP = Object.freeze([colors.ground, colors.groundClear]);
 const REST_BLEND_FADE_BOTTOM = Object.freeze([colors.groundClear, colors.ground]);
-const REST_HEADLINE_SHADE = Object.freeze([colors.restShadeTop, colors.restShadeMid, colors.groundClear]);
 
 // T-88: the ±5 row's gap above it (the tablet card's adjustRow).
 const REST_ADJUST_GAP = 44;
@@ -1087,12 +1095,6 @@ const styles = StyleSheet.create({
   drainEdgeWarn: {
     backgroundColor: colors.dangerText,
   },
-  headlineShade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 76,
-  },
   restHeadline: {
     ...font(800),
     fontSize: 24,
@@ -1101,13 +1103,8 @@ const styles = StyleSheet.create({
     color: colors.gold,
     textAlign: 'center',
   },
-  restHeadlineOnPhoto: {
+  restHeadlineRow: {
     position: 'absolute',
-    left: layout.gutter,
-    right: layout.gutter,
-    textShadowColor: colors.onPhoto,
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 12,
   },
   restMinimise: {
     position: 'absolute',

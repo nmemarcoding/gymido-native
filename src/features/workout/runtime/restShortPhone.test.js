@@ -99,6 +99,17 @@ describe('PhoneRest (T-146 fit)', () => {
     expect(digits(tree).fontSize).toBe(72);
   });
 
+  // Owner change (30 Oct, from live web): rest 3's headline sits ABOVE the photo, never on it (no photo shade).
+  it('rest 3: "Go to the next exercise" in its own row under the chevron; the photo starts 12 below it', () => {
+    const tree = renderHero({ mode: 'next', name: 'Seated Leg Curl', exercise: HERO.exercise, left: 0 });
+    loadPhoto(tree);
+    const headline = host(tree, 'rest-headline');
+    expect(StyleSheet.flatten(headline.props.style).top).toBe(52);
+    layout(headline, 64);
+    expect(StyleSheet.flatten(host(tree, 'rest-photo').props.style).top).toBe(52 + 64 + 12);
+    expect(StyleSheet.flatten(host(tree, 'rest-photo-blend').props.style).top).toBe(52 + 64 + 12 - 56);
+  });
+
   it('no photo (none, or not loaded yet): no card and no blend; the text starts 24 under the top bar', () => {
     mockHeight = 640;
     const tree = renderHero({ ...HERO, exercise: null });
