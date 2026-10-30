@@ -387,8 +387,9 @@ describe('T-121 Trainer today', () => {
 
   it.each([
     [390, 'primary'],
-    [834, 'secondary'],
-    [1194, 'secondary'],
+    // T-121 (UX 29 Oct, corrects PM Q2; my own new test, declared): 834 / 1194 were 'secondary'.
+    [834, 'primary'],
+    [1194, 'primary'],
     [1366, 'primary'],
   ])('M1 %ipx: "Invite a client" in the chip row (%s) after Clients · Plans; it opens the invite sheet', async (width, variant) => {
     setWindow(width);

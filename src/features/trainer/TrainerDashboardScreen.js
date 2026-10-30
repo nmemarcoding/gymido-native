@@ -36,8 +36,8 @@ import { keepUnitsTogether } from '../../shared/format/counts';
 // attention only with BE data). 4 tiles = 2×2 (tablet ≥ 1280: 4 across).
 // T-121 M1: "+ Invite a client" joins the chip row at every width.
 
-// Web's gold Invite returns at 1280 (wide desktop).
-export const INVITE_GOLD_FROM = 1280;
+// From 1280 the tablet's 4 KPI tiles sit in one row (web's wide desktop).
+export const KPI_ONE_ROW_FROM = 1280;
 export default function TrainerDashboardScreen() {
   const remountKey = useFocusRemountKey();
   return (
@@ -122,11 +122,11 @@ function Dashboard() {
             size="compact"
             onPress={() => openShellPath('/trainer/plans')}
           />
-          {/* T-121 M1 + PM Q2: gold on the phone and ≥ 1280, glass 768-1279 (web). */}
+          {/* T-121 M1 (UX ruling 29 Oct, corrects Q2): gold at every width, the screen's one gold action. */}
           <PillButton
             testID="trainer-dashboard-invite"
             title="Invite a client"
-            variant={!tablet || width >= INVITE_GOLD_FROM ? 'primary' : 'secondary'}
+            variant="primary"
             size="compact"
             icon={({ color }) => <PlusGlyph size={16} color={color} />}
             onPress={() => setInviteOpen(true)}
@@ -192,7 +192,7 @@ function Dashboard() {
     // Tablet: hero tiles with the sublines; 4 = 2×2 below 1280.
     let tileStyle = styles.statThird;
     if (tablet) {
-      tileStyle = count === 4 && width < INVITE_GOLD_FROM ? styles.statPair : styles.statHalf;
+      tileStyle = count === 4 && width < KPI_ONE_ROW_FROM ? styles.statPair : styles.statHalf;
     } else if (reflow) {
       tileStyle = styles.statFull;
     } else if (count === 4) {
