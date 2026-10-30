@@ -174,3 +174,7 @@ modules/*/ios/build/
 
 # Release APKs from `npm run apk`
 /builds/
+
+# Latest APK from apk/build-latest.sh
+/apk/*.apk
+/apk/.incoming.apk.tmp
