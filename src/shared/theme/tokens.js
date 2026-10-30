@@ -116,6 +116,8 @@ const V2_COLORS = {
   cardEdge: 'rgba(255, 255, 255, 0.08)',
   markRing: 'rgba(255, 255, 255, 0.25)',
   dayFutureRing: 'rgba(255, 255, 255, 0.32)',
+  // T-146 Rest set progress (UX build ruling §1): a not-done segment.
+  setSegmentTrack: '#2A2E37',
   // §8.5 alpha ladder (Phase 2+; the Phase 1 kit re-folds after QA's gate):
   // faint 0.08 · tint 0.14 · line 0.30 · strong 0.60 per accent. Danger
   // fills/borders use #FF5A4E; #FF7A70 is for text only.

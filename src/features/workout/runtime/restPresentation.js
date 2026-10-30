@@ -73,25 +73,70 @@ function nextWeight(set, draft) {
 // U4 Next card / "Next: set…" line (F2 N1: as drawn, from data the session
 // already has). null when there is no next set (`nextSetKey` '' = the last
 // set of the session): the card is hidden.
-//   { exerciseName, exercise (the library exercise, for the photo), line }
-//   line = "Set 3 · 8–10 reps · 135 lb" (the weight part only when known).
-export function restNextPreview(session, nextSetKey, drafts) {
+//   { exerciseName, exercise (the library exercise, for the photo), line,
+//     setNumber, total (that exercise's sets), detail, newExercise }
+//   line = "Set 3 · 8–10 reps · 135 lb" (the weight part only when known);
+//   detail = the same without "Set n". T-146: newExercise when the next set
+//   is in another exercise than `doneSetId` (the set the rest follows).
+export function restNextPreview(session, nextSetKey, drafts, doneSetId = null) {
   const found = findSet(session, nextSetKey);
   if (!found) {
     return null;
   }
   const { exercise, set, index } = found;
   const number = Number(set.set_number) > 0 ? Number(set.set_number) : index + 1;
-  const parts = [`Set ${number}`, setRepsLabel(set)];
+  const detail = [setRepsLabel(set)];
   const weight = nextWeight(set, drafts?.[set.id]);
   if (weight) {
-    parts.push(weight);
+    detail.push(weight);
   }
+  const done = doneSetId == null ? null : findExerciseOfSet(session, doneSetId);
   return {
     exerciseName: exerciseName(exercise),
     exercise: exercise.exercise ?? null,
-    line: parts.join(' · '),
+    line: [`Set ${number}`, ...detail].join(' · '),
+    setNumber: number,
+    total: (exercise.sets ?? []).length,
+    detail: detail.join(' · '),
+    newExercise: Boolean(done) && done.id !== exercise.id,
   };
+}
+
+function findExerciseOfSet(session, setId) {
+  return (session?.exercises ?? []).find((exercise) => (exercise.sets ?? []).some((set) => set.id === setId)) ?? null;
+}
+
+// T-146 (UX build ruling §2): the Rest screen's set progress for the
+// exercise just worked: done = its completed sets, the set the rest follows
+// counted as done (the overlay may land a render later), never over the
+// total. `workoutDone` when no set is left in the session (`nextSetKey` '').
+// null when the set is unknown.
+//   { exerciseName, done, total, left, complete, workoutDone }
+export function restSetProgress(session, doneSetId, nextSetKey) {
+  const exercise = doneSetId == null ? null : findExerciseOfSet(session, doneSetId);
+  if (!exercise) {
+    return null;
+  }
+  const sets = exercise.sets ?? [];
+  const total = sets.length;
+  const done = Math.min(total, sets.filter((set) => set.is_completed || set.id === doneSetId).length);
+  return {
+    exerciseName: exerciseName(exercise),
+    done,
+    total,
+    left: total - done,
+    complete: done >= total,
+    workoutDone: nextSetKey === '',
+  };
+}
+
+// "{exercise}: 1 of 5 sets done, 4 left" / "{exercise}: all 5 sets done"
+// (ruling §3; one accessible group).
+export function setProgressLabel(progress) {
+  if (progress.complete) {
+    return `${progress.exerciseName}: all ${progress.total} ${progress.total === 1 ? 'set' : 'sets'} done`;
+  }
+  return `${progress.exerciseName}: ${progress.done} of ${progress.total} sets done, ${progress.left} left`;
 }
 
 // The VoiceOver / TalkBack reading of a PB line: "145 lb × 8" → "145 pounds
