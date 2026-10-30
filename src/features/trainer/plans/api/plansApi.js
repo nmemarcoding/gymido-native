@@ -1,22 +1,22 @@
 import { apiClient } from '../../../../shared/api/client';
 import { getStatus } from '../../../../shared/api/apiError';
+import { loadAllPages } from '../../../../shared/api/loadAllPages';
 
 // Endpoints of the trainer plans spec §A10. Every function returns the keys
 // the screens read from `body.data`.
 
 const items = (response) => response.data?.data?.items ?? [];
 
-export async function listTrainerPlans(page) {
-  const response = await apiClient.get('/trainer/plans', { params: { page, per_page: 20 } });
-  const data = response.data?.data ?? {};
-  const pagination = data.pagination ?? {};
-  return {
-    items: data.items ?? [],
-    currentPage: pagination.page ?? 1,
-    totalPages: pagination.total_pages ?? 1,
-    totalRecords: pagination.total ?? 0,
-    perPage: pagination.per_page ?? 20,
-  };
+// T-121 H1 (web 2.1.10): the trainer's whole plan pool, every page (search
+// and the ownership split work over all of it; no pager).
+export async function listTrainerPlans() {
+  return loadAllPages('/trainer/plans');
+}
+
+// T-121 H1: the whole public catalog. GET /plans hides private plans from
+// non-admins, so a pool plan missing here is the trainer's own.
+export async function listCatalogPlans() {
+  return loadAllPages('/plans');
 }
 
 export async function getTrainerPlan(planId) {

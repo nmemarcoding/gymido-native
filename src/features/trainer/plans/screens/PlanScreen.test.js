@@ -862,3 +862,35 @@ describe('T-65 back control (builder)', () => {
   });
 
 });
+
+// T-121 M8 (web 2.1.10): the trainer phone's day actions sit INSIDE the selected day: on the line under the day
+// chips, before "Add a day", labelled "Edit day" · "Delete day" (a11y "Edit day n" / "Delete day n"). Member unchanged.
+describe('T-121 M8 trainer phone day actions', () => {
+  const order = (tree, ids) =>
+    tree.root.findAll((node) => typeof node.type === 'string' && ids.includes(node.props.testID)).map((node) => node.props.testID).filter((id, i, all) => all.indexOf(id) === i);
+
+  it('trainer 390: strip (Edit day · Delete day) under the chips, then Add a day, then the day panel', async () => {
+    mockWidth = 390;
+    mockRoute = { key: 'r', name: 'TrainerPlan', params: { planId: '9' } };
+    setRoutes({ root: '/trainer/plans/9', count: 3 });
+    const tree = await renderTrainer();
+    expect(order(tree, ['plan-day-tabs', 'plan-day-strip', 'plan-add-day', 'plan-day-panel'])).toEqual(['plan-day-tabs', 'plan-day-strip', 'plan-add-day', 'plan-day-panel']);
+    const strip = hosts(tree, 'plan-day-strip')[0];
+    const labels = strip.findAll((node) => node.type === Text).map((node) => node.props.children);
+    expect(labels).toEqual(expect.arrayContaining(['Edit day', 'Delete day']));
+    expect(StyleSheet.flatten(strip.props.style)).toMatchObject({ flexDirection: 'column', alignItems: 'flex-start' });
+    expect(pressable(tree, 'plan-day-edit-1').props.accessibilityLabel).toBe('Edit day 1');
+    expect(pressable(tree, 'plan-day-delete-1').props.accessibilityLabel).toBe('Delete day 1');
+  });
+
+  it('member 390: the strip stays inside the panel with "Edit" / "Delete"', async () => {
+    mockWidth = 390;
+    setRoutes();
+    const tree = await renderMember();
+    const panel = hosts(tree, 'plan-day-panel')[0];
+    expect(panel.findAll((node) => node.props.testID === 'plan-day-strip').length).toBeGreaterThan(0);
+    const labels = hosts(tree, 'plan-day-strip')[0].findAll((node) => node.type === Text).map((node) => node.props.children);
+    expect(labels).toEqual(expect.arrayContaining(['Edit', 'Delete']));
+    expect(labels).not.toContain('Edit day');
+  });
+});

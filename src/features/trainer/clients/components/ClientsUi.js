@@ -232,6 +232,27 @@ export function StatusLine({ tone, text, testID }) {
   );
 }
 
+// T-121 M3 (UX option B): a client row's one plan line. The reason (warning)
+// leads, then the muted plan name; one line cut at the END, so truncation only
+// ever eats the plan name. Nothing to show → null.
+export function PlanLine({ reason, plan, testID }) {
+  if (!reason && !plan) {
+    return null;
+  }
+  return (
+    <Text testID={testID} {...LINE_TEXT} style={clientStyles.planLine}>
+      {reason ? (
+        <>
+          <Text style={clientStyles.planLineReason}>{reason}</Text>
+          {plan ? ` · ${plan}` : null}
+        </>
+      ) : (
+        plan
+      )}
+    </Text>
+  );
+}
+
 // The small weekly ring beside "3/4" (decorative; the text carries it).
 export const WEEK_RING = 20;
 // Dated 27 Oct 2026 (TRAINER-CLIENTS audit b2): the phone list row and the
@@ -269,6 +290,16 @@ export const clientStyles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 20,
     color: colors.textPrimary,
+  },
+  planLine: {
+    ...font(400),
+    marginTop: 2,
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textMuted,
+  },
+  planLineReason: {
+    color: colors.warning,
   },
   rowMeta: {
     ...font(400),

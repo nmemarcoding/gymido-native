@@ -43,6 +43,19 @@ export function CategoryChip({ label, size = 'phone', testID }) {
   );
 }
 
+// T-121 H1: the small neutral "Private" chip of an own plan, the category
+// chip's size; white 8 % fill, secondary text.
+export function PrivateChip({ size = 'phone', testID }) {
+  const tablet = size === 'tablet';
+  return (
+    <View testID={testID} style={[styles.category, styles.private, tablet ? styles.categoryTablet : styles.categoryPhone]}>
+      <Text {...CAP_PILL} style={[tablet ? styles.categoryTextTablet : styles.categoryText, styles.privateText]}>
+        Private
+      </Text>
+    </View>
+  );
+}
+
 // The "+" of "Create a plan" (boards: a 2-stroke plus). Explicit size (the
 // Android SVG rule); hidden from screen readers (the label names the action).
 export function PlusIcon({ color, size = 16 }) {
@@ -88,6 +101,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     justifyContent: 'center',
     borderRadius: radii.full,
+  },
+  private: {
+    backgroundColor: colors.glass,
+    borderWidth: 1,
+    borderColor: colors.choiceBorder,
+  },
+  privateText: {
+    color: colors.textSecondary,
   },
   categoryPhone: {
     minHeight: 24,

@@ -38,6 +38,8 @@ jest.mock('../../shell/ShellPage', () => {
 });
 jest.mock('../TrainerOnly', () => ({ children }) => children);
 jest.mock('./clientLinks', () => ({ openClientDetail: jest.fn(), openAssignPlan: jest.fn() }));
+// T-121 H2 (setup only): the detail's best-effort plan pool read for history names.
+jest.mock('../plans/api/plansApi', () => ({ listTrainerPlans: jest.fn(() => Promise.resolve([])) }));
 jest.mock('./api/clientsApi', () => ({
   getClientProfileAndEmail: jest.fn(async (id) => ({ profile: await require('./api/clientsApi').getClientProfile(id), clientEmail: null })),
   listActiveClients: jest.fn(),
@@ -153,7 +155,8 @@ describe('the selection is KEPT (route params, web ?client=)', () => {
     let tree = await render();
     const change = tree.root.find((node) => node.props?.testID === 'client-assign-plan' && typeof node.props.onPress === 'function' && typeof node.type !== 'string');
     act(() => change.props.onPress());
-    expect(openAssignPlan).toHaveBeenCalledWith(22);
+    // T-121 M10 (declared, addendum A2). Was: toHaveBeenCalledWith(22). The pane's shown name (the profile mock's) rides along.
+    expect(openAssignPlan).toHaveBeenCalledWith(22, 'Alex Kim');
     // The Plans tab takes over (the Clients screen leaves), then Back returns
     // to the same TrainerClients route: a fresh mount with its params.
     act(() => tree.unmount());

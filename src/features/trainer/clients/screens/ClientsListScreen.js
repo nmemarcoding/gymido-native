@@ -1,17 +1,18 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, ScrollView, StyleSheet, Text, TextInput, View, findNodeHandle, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, ScrollView, StyleSheet, Text, View, findNodeHandle, useWindowDimensions } from 'react-native';
 
 import Chip from '../../../../shared/components/Chip';
 import EmptyState from '../../../../shared/components/EmptyState';
 import ErrorAlert from '../../../../shared/components/ErrorAlert';
 import IconButton from '../../../../shared/components/IconButton';
-import { CAP_BODY, LINE_TEXT, NAME_TEXT, useLargeTextReflow } from '../../../../shared/components/largeText';
+import { CAP_BODY, NAME_TEXT, useLargeTextReflow } from '../../../../shared/components/largeText';
 import Loader from '../../../../shared/components/Loader';
 import StateSlot from '../../../../shared/components/StateSlot';
 import StatusPill from '../../../../shared/components/StatusPill';
 import { useFocusRemountKey } from '../../../../shared/hooks/useFocusRemountKey';
-import { breakpoints, colors, font, radii, spacing, textInputColors } from '../../../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, radii, spacing } from '../../../../shared/theme/tokens';
+import GradientFill from '../../../../shared/components/GradientFill';
 import ShellPage from '../../../shell/ShellPage';
 import TrainerOnly from '../../TrainerOnly';
 import {
@@ -20,19 +21,20 @@ import {
   anyActivity,
   filterClients,
   filterCounts,
-  inactivityLabel,
   inviteLabel,
   isOnTrack,
-  missedOf,
   planNameOf,
   rowInitials,
+  rowReason,
+  rowStatusChip,
   weekRatio,
 } from '../clientActivity';
 import { clientRowLabel } from '../clientFormat';
 import { openClientDetail } from '../clientLinks';
 import ClientAvatar from '../components/ClientAvatar';
-import { ListCard, ListRow, PageIntro, PHONE_WEEK_RING, StatusLine, WEEK_RING, WeekRing, clientStyles } from '../components/ClientsUi';
-import { PlusGlyph, SearchGlyph } from '../components/clientIcons';
+import { ListCard, ListRow, PageIntro, PHONE_WEEK_RING, PlanLine, WEEK_RING, WeekRing, clientStyles } from '../components/ClientsUi';
+import { PlusGlyph } from '../components/clientIcons';
+import PillSearchField from '../components/PillSearchField';
 import InviteClientModal from '../components/InviteClientModal';
 import { useTrainerOverview } from '../useTrainerOverview';
 import ClientDetailContent from './ClientDetailContent';
@@ -54,6 +56,11 @@ import { keepUnitsTogether } from '../../../../shared/format/counts';
 export const LIST_PANE_WIDTH = 320;
 
 // The kept id (a string, as in the route), else the first client, else none.
+// T-121 L11: a chip is cut at the right edge (more than a pixel hidden).
+export function chipsCut({ view, content, x }) {
+  return view > 0 && content - (x + view) > 1;
+}
+
 export function selectedClientId(selected, clients) {
   if (selected !== undefined && selected !== null && String(selected) !== '') {
     return String(selected);
@@ -83,8 +90,8 @@ function ClientsList() {
   const { clients, outgoing, loading, error, reload } = useTrainerOverview();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [chipEdge, setChipEdge] = useState({ view: 0, content: 0, x: 0 });
   const [filter, setFilter] = useState(ClientFilter.all);
-  const [focused, setFocused] = useState(false);
   // Mirrors the `client` param so a tap swaps the pane at once.
   const [selectedId, setSelectedId] = useState(() => paramId(kept));
   const [paneKey, setPaneKey] = useState(0);
@@ -213,29 +220,7 @@ function ClientsList() {
   }
 
   function renderSearch() {
-    return (
-      <View testID="clients-search-box" style={[styles.search, tablet && styles.searchTablet, focused && styles.searchFocused]}>
-        <View style={styles.searchIcon}>
-          <SearchGlyph size={18} color={colors.textMuted} />
-        </View>
-        <TextInput
-          {...textInputColors}
-          {...CAP_BODY}
-          testID="clients-search"
-          accessibilityLabel="Search clients"
-          placeholder="Search clients"
-          placeholderTextColor={colors.textMuted}
-          value={query}
-          onChangeText={setQuery}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          autoCorrect={false}
-          autoCapitalize="none"
-          returnKeyType="search"
-          style={[styles.searchInput, tablet && styles.searchInputTablet]}
-        />
-      </View>
-    );
+    return <PillSearchField testID="clients-search" label="Search clients" value={query} onChangeText={setQuery} tablet={tablet} />;
   }
 
   function renderChips() {
@@ -247,28 +232,43 @@ function ClientsList() {
     ].filter(Boolean);
     // Dated 27 Oct 2026 (§C3.2, audit b2): ONE row that never wraps; it
     // scrolls sideways (no scrollbar) and each chip keeps its width.
+    // T-121 L11: the right edge fades only while a chip is cut off there.
     return (
-      <ScrollView
-        testID="clients-filter-row"
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        style={styles.chipScroll}
-        contentContainerStyle={styles.chips}
-      >
-        <View testID="clients-filter-group" accessibilityRole="radiogroup" accessibilityLabel="Filter clients" style={styles.chips}>
-          {chips.map((chip) => (
-            <Chip
-              key={chip.key}
-              testID={`clients-filter-${chip.key}`}
-              label={hasData ? `${chip.label} · ${chip.count}` : chip.label}
-              accessibilityLabel={hasData ? `${chip.label}, ${chip.count} clients` : chip.label}
-              selected={activeFilter === chip.key}
-              onPress={() => setFilter(chip.key)}
-            />
-          ))}
-        </View>
-      </ScrollView>
+      <View style={styles.chipRow}>
+        <ScrollView
+          testID="clients-filter-row"
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          style={styles.chipScroll}
+          contentContainerStyle={styles.chips}
+          onLayout={(event) => setChipEdge((edge) => ({ ...edge, view: event.nativeEvent.layout.width }))}
+          onContentSizeChange={(contentWidth) => setChipEdge((edge) => ({ ...edge, content: contentWidth }))}
+          onScroll={(event) => {
+            const x = event.nativeEvent.contentOffset.x;
+            setChipEdge((edge) => (edge.x === x ? edge : { ...edge, x }));
+          }}
+          scrollEventThrottle={32}
+        >
+          <View testID="clients-filter-group" accessibilityRole="radiogroup" accessibilityLabel="Filter clients" style={styles.chips}>
+            {chips.map((chip) => (
+              <Chip
+                key={chip.key}
+                testID={`clients-filter-${chip.key}`}
+                label={hasData ? `${chip.label} · ${chip.count}` : chip.label}
+                accessibilityLabel={hasData ? `${chip.label}, ${chip.count} clients` : chip.label}
+                selected={activeFilter === chip.key}
+                onPress={() => setFilter(chip.key)}
+              />
+            ))}
+          </View>
+        </ScrollView>
+        {chipsCut(chipEdge) ? (
+          <View testID="clients-filter-fade" pointerEvents="none" style={styles.chipFade}>
+            <GradientFill angle={gradients.edgeFade.angle} colors={gradients.edgeFade.colors} />
+          </View>
+        ) : null}
+      </View>
     );
   }
 
@@ -287,10 +287,15 @@ function ClientsList() {
   function renderClientRow(row) {
     const name = clientRowLabel(row);
     const ratio = weekRatio(row);
-    const sub = subLine(row);
     const isSelected = Boolean(tablet && selected && selected.client_user_id === row.client_user_id);
-    const plan = keepUnitsTogether(planNameOf(row));
-    const label = [name, plan, sub?.text && sub.text !== plan ? sub.text : null, isOnTrack(row) ? 'On track' : null, ratio ? `${ratio.done} of ${ratio.planned} this week` : null]
+    // T-121 M3 (UX option B): one anatomy for every row: avatar · name · plan
+    // line (reason first) · the ring + "x/y" with a plan this week, else the
+    // status chip. The whole row opens the client (no "View →").
+    const withData = activityOf(row) !== null;
+    const reason = rowReason(row);
+    const plan = withData ? keepUnitsTogether(planNameOf(row)) ?? 'No plan yet' : null;
+    const chip = ratio ? null : rowStatusChip(row);
+    const label = [name, reason, plan, isOnTrack(row) ? 'On track' : null, ratio ? `${ratio.done} of ${ratio.planned} this week` : null, chip && chip.label !== 'On track' ? chip.label : null]
       .filter(Boolean)
       .join(', ');
     return (
@@ -322,15 +327,7 @@ function ClientsList() {
           <Text {...NAME_TEXT} style={clientStyles.rowLabel}>
             {name}
           </Text>
-          {sub ? (
-            sub.tone ? (
-              <StatusLine tone={sub.tone} text={sub.text} />
-            ) : (
-              <Text {...LINE_TEXT} style={clientStyles.rowMeta}>
-                {sub.text}
-              </Text>
-            )
-          ) : null}
+          <PlanLine testID={`clients-row-line-${row.client_user_id}`} reason={reason} plan={plan} />
         </View>
         {ratio ? (
           <View style={styles.trailing}>
@@ -340,10 +337,8 @@ function ClientsList() {
               {ratio.text}
             </Text>
           </View>
-        ) : activityOf(row) ? null : (
-          <Text {...CAP_BODY} style={clientStyles.viewLink}>
-            View →
-          </Text>
+        ) : (
+          <StatusPill compact tone={chip.tone} label={chip.label} />
         )}
       </ListRow>
     );
@@ -364,24 +359,6 @@ function ClientsList() {
       </ListRow>
     );
   }
-}
-
-// The row's second line (BE data only): missed (amber), inactivity (amber),
-// else the plan name, else "No plan yet".
-function subLine(row) {
-  const activity = activityOf(row);
-  if (!activity) {
-    return null;
-  }
-  const missed = missedOf(row);
-  if (missed > 0) {
-    return { tone: 'warning', text: `Missed ${missed} this week` };
-  }
-  const inactive = inactivityLabel(row);
-  if (inactive) {
-    return { tone: 'warning', text: inactive };
-  }
-  return { text: keepUnitsTogether(planNameOf(row)) ?? 'No plan yet' };
 }
 
 const styles = StyleSheet.create({
@@ -421,46 +398,22 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  search: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 52,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.choiceBorder,
-    backgroundColor: colors.surface,
-  },
-  searchTablet: {
-    minHeight: 48,
-  },
-  searchFocused: {
-    borderColor: colors.gold,
-    outlineWidth: 4,
-    outlineColor: colors.goldFocus,
-    outlineStyle: 'solid',
-  },
-  searchIcon: {
-    paddingLeft: spacing[4],
-    paddingRight: spacing['2_5'],
-  },
-  searchInput: {
-    ...font(400),
-    flex: 1,
-    minHeight: 50,
-    paddingRight: spacing[4],
-    fontSize: 16,
-    color: colors.textPrimary,
-  },
-  searchInputTablet: {
-    minHeight: 46,
-    fontSize: 15,
-  },
   chips: {
     flexDirection: 'row',
     gap: spacing[2],
   },
   chipScroll: {
     flexGrow: 0,
+  },
+  chipRow: {
+    position: 'relative',
+  },
+  chipFade: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: 32,
   },
   tabletList: {
     // Tablet rows are separate rounded rows on the ground (as drawn).

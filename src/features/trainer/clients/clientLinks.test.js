@@ -73,3 +73,19 @@ describe('openAssignPlan (unchanged at every width)', () => {
     });
   });
 });
+
+describe('T-121 M10: openAssignPlan carries the client name', () => {
+  it('a real name rides along as assignName (trimmed); blank → no key (T1 falls back to "client #id")', () => {
+    setWidth(390);
+    openAssignPlan(7, '  Sara Lopez ');
+    expect(mockNavigate).toHaveBeenLastCalledWith('AppShell', {
+      screen: 'TPlans',
+      params: { screen: 'TrainerPlans', params: { assignTo: '7', assignName: 'Sara Lopez' } },
+    });
+    openAssignPlan(7, '   ');
+    expect(mockNavigate).toHaveBeenLastCalledWith('AppShell', {
+      screen: 'TPlans',
+      params: { screen: 'TrainerPlans', params: { assignTo: '7' } },
+    });
+  });
+});

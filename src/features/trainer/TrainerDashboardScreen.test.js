@@ -118,7 +118,9 @@ describe('Trainer today, phone', () => {
     expect(openShellPath.mock.calls).toEqual([['/trainer/clients'], ['/trainer/plans']]);
   });
 
-  it('without BE data: 2 tiles (no "Need you"), no Need attention, rows name + "View →" only', async () => {
+  // T-121 M2/M3 (declared #13/#19/#20). Was: rows name + "View →" ×2 and no StatusPill. Now no "View →"; each row
+  // ends in the status chip "Active" (no week known). Still 2 tiles: Adherence + Need attention hide without data.
+  it('without BE data: 2 tiles (no Adherence / Need attention), no Need attention card, rows name + the "Active" chip', async () => {
     const tree = await render();
     const tiles = tree.root.findAllByType(StatTile);
     expect(tiles.map((tile) => tile.props.label)).toEqual(['Active clients', 'Awaiting you']);
@@ -129,9 +131,12 @@ describe('Trainer today, phone', () => {
     expect(tiles[1].props.accessibilityLabel).toBe('Awaiting you, 0, requests to answer');
     expect(host(tree, 'dashboard-attention')).toBeUndefined();
     expect(host(tree, 'dashboard-requests')).toBeUndefined();
-    expect(texts(tree).filter((text) => text === 'View →')).toHaveLength(2);
+    expect(texts(tree).filter((text) => text === 'View →')).toHaveLength(0);
     expect(texts(tree).some((text) => /this week/.test(text))).toBe(false);
-    expect(tree.root.findAllByType(StatusPill)).toHaveLength(0);
+    expect(tree.root.findAllByType(StatusPill).map((pill) => [pill.props.label, pill.props.tone])).toEqual([
+      ['Active', 'active'],
+      ['Active', 'active'],
+    ]);
   });
 
   it('the Active clients tile is a link to Clients; a row opens Client detail', async () => {
@@ -153,14 +158,19 @@ describe('Trainer today, phone', () => {
     ]);
   });
 
-  it('with BE data: "Need you" count, Need attention (missed → View, no plan → Assign), weekly lines, On track', async () => {
+  // T-121 M2/M3 (declared #14/#21/#22). Was: tiles Active · Awaiting · "Need you" (tiles[2]); the phone weekly line
+  // '3 of 4 this week · Mon Tue Thu Fri'; pills [['On track','completed']]. Now the four KPIs in web order (Adherence
+  // = round(Σdone ÷ Σplanned) = 4/7 = 57 %), rows = plan line + ring "x/y", else the status chip.
+  it('with BE data: the four KPIs, Need attention (missed → View, no plan → Assign), ring rows, status chip', async () => {
     listActiveClients.mockResolvedValue([alexData, saraData, diegoData]);
     const tree = await render();
     const tiles = tree.root.findAllByType(StatTile);
-    expect(tiles.map((tile) => tile.props.label)).toEqual(['Active clients', 'Awaiting you', 'Need you']);
-    expect(tiles[2].props.value).toBe(2);
-    expect(tiles[2].props.valueColor).toBe(colors.warning);
-    expect(texts(tree)).toEqual(expect.arrayContaining(['Need attention', 'Missed 2 this week', 'No active plan', '3 of 4 this week · Mon Tue Thu Fri']));
+    expect(tiles.map((tile) => tile.props.label)).toEqual(['Active clients', 'Awaiting you', 'Adherence this week', 'Need attention']);
+    expect(tiles[2].props.value).toBe('57%');
+    expect(tiles[3].props.value).toBe(2);
+    expect(tiles[3].props.valueColor).toBe(colors.warning);
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Need attention', 'Missed 2 this week', 'No active plan', '3/4', '1/3']));
+    expect(texts(tree).some((text) => /of 4 this week/.test(text))).toBe(false);
     const view = byTestID(tree, 'attention-action-12');
     const assign = byTestID(tree, 'attention-action-13');
     expect([view.props.title, view.props.accessibilityLabel]).toEqual(['View', 'View Sara Lopez']);
@@ -168,18 +178,21 @@ describe('Trainer today, phone', () => {
     await act(async () => view.props.onPress());
     expect(openClientDetail).toHaveBeenCalledWith(12, saraData.client_activity);
     await act(async () => assign.props.onPress());
-    expect(openAssignPlan).toHaveBeenCalledWith(13);
+    // T-121 M10 (declared, addendum A3). Was: toHaveBeenCalledWith(13). The row's name rides along.
+    expect(openAssignPlan).toHaveBeenCalledWith(13, 'Diego Cruz');
     await act(async () => byTestID(tree, 'dashboard-attention-all').props.onPress());
     expect(openShellPath).toHaveBeenCalledWith('/trainer/clients');
     // ND-2: On track = plan + no missed; GREEN (completed tone), never teal.
     const pills = tree.root.findAllByType(StatusPill);
-    expect(pills.map((pill) => [pill.props.label, pill.props.tone])).toEqual([['On track', 'completed']]);
+    // Alex + Sara have a ring; Diego (no plan this week) gets the status chip "Active".
+    expect(pills.map((pill) => [pill.props.label, pill.props.tone])).toEqual([['Active', 'active']]);
   });
 
   it('0 need-attention with data: tile 0 in text-primary, card hidden', async () => {
     listActiveClients.mockResolvedValue([alexData]);
     const tree = await render();
-    const tile = tree.root.findAllByType(StatTile)[2];
+    // T-121 M2 (declared #15). Was: tiles[2]. Need attention is the 4th tile (Adherence 75 % is the 3rd).
+    const tile = tree.root.findAllByType(StatTile)[3];
     expect([tile.props.value, tile.props.valueColor]).toEqual([0, colors.textPrimary]);
     expect(host(tree, 'dashboard-attention')).toBeUndefined();
   });
@@ -300,7 +313,8 @@ describe('Trainer today, tablet', () => {
     setWindow(1024);
   });
 
-  it('2 hero tiles with the code sublines; Need attention under them (ND-12); Requests 2-up; Your clients | Invitations', async () => {
+  // T-121 M2 (declared #16). Was: 2 hero tiles (Active, Awaiting) only. Now the same four as the phone, with sublines.
+  it('the four hero tiles with the code sublines; Need attention under them (ND-12); Requests 2-up; Your clients | Invitations', async () => {
     listActiveClients.mockResolvedValue([alexData, saraData]);
     listPendingRequests.mockResolvedValue([request, invite]);
     const tree = await render();
@@ -308,6 +322,8 @@ describe('Trainer today, tablet', () => {
     expect(tiles.map((tile) => [tile.props.label, tile.props.large, tile.props.sub])).toEqual([
       ['Active clients', true, 'people you coach'],
       ['Awaiting you', true, 'request to answer'],
+      ['Adherence this week', true, 'workouts done vs planned'],
+      ['Need attention', true, 'clients to check'],
     ]);
     const order = tree.root
       .findAll((node) => typeof node.type === 'string' && ['dashboard-attention', 'dashboard-requests', 'dashboard-invitations'].includes(node.props.testID))
@@ -361,5 +377,86 @@ describe.each([
     names.forEach((node) => expect(pick(node, NAME_TEXT)).toEqual(NAME_TEXT));
     const asked = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'asked you to coach them')[0];
     expect(pick(asked, LINE_TEXT)).toEqual(LINE_TEXT);
+  });
+});
+
+// T-121 M1/M2/M3 (web 2.1.10; PM Q1/Q2 29 Oct).
+describe('T-121 Trainer today', () => {
+  const InviteClientModal = require('./clients/components/InviteClientModal').default;
+  const tileStyle = (tree, id) => StyleSheet.flatten(byTestID(tree, id).props.style);
+
+  it.each([
+    [390, 'primary'],
+    [834, 'secondary'],
+    [1194, 'secondary'],
+    [1366, 'primary'],
+  ])('M1 %ipx: "Invite a client" in the chip row (%s) after Clients · Plans; it opens the invite sheet', async (width, variant) => {
+    setWindow(width);
+    const tree = await render();
+    const buttons = tree.root.findAllByType(PillButton).filter((button) => /^trainer-dashboard-/.test(button.props.testID ?? ''));
+    expect(buttons.map((button) => button.props.title)).toEqual(['Clients', 'Plans', 'Invite a client']);
+    const invite = byTestID(tree, 'trainer-dashboard-invite');
+    expect([invite.props.variant, typeof invite.props.icon]).toEqual([variant, 'function']);
+    expect(tree.root.findByType(InviteClientModal).props.isOpen).toBe(false);
+    await act(async () => invite.props.onPress());
+    expect(tree.root.findByType(InviteClientModal).props.isOpen).toBe(true);
+    await act(async () => tree.root.findByType(InviteClientModal).props.onClose());
+    expect(tree.root.findByType(InviteClientModal).props.isOpen).toBe(false);
+  });
+
+  it('M1: a sent invite reloads the overview', async () => {
+    const tree = await render();
+    const calls = listActiveClients.mock.calls.length;
+    await act(async () => tree.root.findByType(InviteClientModal).props.onInvited());
+    expect(listActiveClients.mock.calls.length).toBeGreaterThan(calls);
+  });
+
+  it('M2 phone: 4 tiles = 2×2, a11y names carry the sublines', async () => {
+    listActiveClients.mockResolvedValue([alexData, saraData]);
+    const tree = await render();
+    ['dashboard-stat-active', 'dashboard-stat-awaiting', 'dashboard-stat-adherence', 'dashboard-stat-attention'].forEach((id) =>
+      expect(tileStyle(tree, id)).toMatchObject({ flexBasis: '40%', flexGrow: 1 }),
+    );
+    expect(byTestID(tree, 'dashboard-stat-adherence').props.accessibilityLabel).toBe('Adherence this week, 57%, workouts done vs planned');
+    expect(byTestID(tree, 'dashboard-stat-attention').props.accessibilityLabel).toBe('Need attention, 1, clients to check');
+    expect(byTestID(tree, 'dashboard-stat-adherence').props.sub).toBeUndefined();
+  });
+
+  it('M2: nothing planned → Adherence hides, the other three keep their order (3 across)', async () => {
+    listActiveClients.mockResolvedValue([diegoData]);
+    const tree = await render();
+    expect(tree.root.findAllByType(StatTile).map((tile) => tile.props.label)).toEqual(['Active clients', 'Awaiting you', 'Need attention']);
+    expect(tileStyle(tree, 'dashboard-stat-active')).toMatchObject({ flexBasis: 0, flexGrow: 1 });
+  });
+
+  it.each([
+    [834, '40%'],
+    [1366, undefined],
+  ])('M2 tablet %ipx: 4 tiles are 2×2 below 1280, 4 across from 1280', async (width, basis) => {
+    setWindow(width);
+    listActiveClients.mockResolvedValue([alexData, saraData]);
+    const tree = await render();
+    expect(tree.root.findAllByType(StatTile)).toHaveLength(4);
+    expect(tileStyle(tree, 'dashboard-stat-adherence').flexBasis).toBe(basis);
+  });
+
+  it('M3 phone rows: plan line with the reason first ("Missed 2"), the ring + "x/y"; no "View →"', async () => {
+    listActiveClients.mockResolvedValue([alexData, saraData, diegoData]);
+    const tree = await render();
+    const flatten = (node) => (typeof node === 'string' ? node : node && node.children ? node.children.map(flatten).join('') : '');
+    expect(flatten(host(tree, 'dashboard-client-line-11'))).toBe('Upper / Lower Split');
+    expect(flatten(host(tree, 'dashboard-client-line-12'))).toBe('Missed 2 · Upper / Lower Split');
+    expect(flatten(host(tree, 'dashboard-client-line-13'))).toBe('No plan yet');
+    expect(byTestID(tree, 'dashboard-client-12').props.accessibilityLabel).toBe('Sara Lopez, Missed 2, Upper / Lower Split, 1 of 3 this week');
+    expect(byTestID(tree, 'dashboard-client-13').props.accessibilityLabel).toBe('Diego Cruz, No plan yet, Active');
+    expect(texts(tree)).not.toContain('View →');
+  });
+
+  it('M3: tablet rows keep name + "View →" (web kept its ≥ 768 rows)', async () => {
+    setWindow(1024);
+    listActiveClients.mockResolvedValue([alexData]);
+    const tree = await render();
+    expect(host(tree, 'dashboard-client-line-11')).toBeUndefined();
+    expect(texts(tree)).toContain('View →');
   });
 });

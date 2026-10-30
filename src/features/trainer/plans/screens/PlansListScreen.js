@@ -19,14 +19,18 @@ import ShellPage from '../../../shell/ShellPage';
 import TrainerOnly from '../../TrainerOnly';
 import { assignPlan } from '../../clients/api/clientsApi';
 import { openClientSelection } from '../../clients/clientLinks';
-import { listTrainerPlans } from '../api/plansApi';
+import { listCatalogPlans, listTrainerPlans } from '../api/plansApi';
+import PillSearchField from '../../clients/components/PillSearchField';
+import { PLANS_SUBTITLE, matchesPlanName, splitPlans } from '../plansListFormat';
+import { useAuthStore } from '../../../auth/authStore';
+import { isAdminUser } from '../../../shell/shellRules';
 import PlanCard from '../components/PlanCard';
 import { CoachingChip, PlusIcon } from '../components/TrainerChips';
 import { keepUnitsTogether } from '../../../../shared/format/counts';
 import { HeroTitleMark } from '../../../shell/heroTitle';
 
-export const BROWSE_SUBTITLE =
-  'The public catalog plus your own private plans. You can edit the plans you created; to change any other plan, copy it first, then assign the copy.';
+// T-121 H1: the one-line copy (was the long "The public catalog plus …" paragraph).
+export const BROWSE_SUBTITLE = PLANS_SUBTITLE;
 
 // TabletTrainerPlans' page wash (70 % 36 % at 90 % −6 %): the §8.5 gold
 // ambient (0.18; the board's 0.16 folds onto the ladder). Phones: none.
@@ -58,21 +62,23 @@ export function chunkRows(items, columns) {
 // T1 (spec §A4): browse mode, or assign mode with the `assignTo` param.
 export default function PlansListScreen() {
   const remountKey = useFocusRemountKey();
-  const assignTo = useRoute().params?.assignTo;
+  const params = useRoute().params;
+  const assignTo = params?.assignTo;
   return (
     <TrainerOnly>
-      <PlansList key={`${assignTo ?? 'browse'}-${remountKey}`} assignTo={assignTo} />
+      <PlansList key={`${assignTo ?? 'browse'}-${remountKey}`} assignTo={assignTo} assignName={params?.assignName} />
     </TrainerOnly>
   );
 }
 
-function PlansList({ assignTo }) {
+function PlansList({ assignTo, assignName }) {
   const navigation = useNavigation();
   const { width } = useWindowDimensions();
   const tablet = width >= breakpoints.md;
   const reflow = useLargeTextReflow();
-  const [page, setPage] = useState(1);
+  const admin = useAuthStore((auth) => isAdminUser(auth.user));
   const [reloadCount, setReloadCount] = useState(0);
+  const [query, setQuery] = useState('');
   const [state, setState] = useState({ status: 'loading', result: null, error: '' });
   const mounted = useRef(true);
 
@@ -86,8 +92,11 @@ function PlansList({ assignTo }) {
   useEffect(() => {
     let current = true;
     setState({ status: 'loading', result: null, error: '' });
-    listTrainerPlans(page)
-      .then((result) => {
+    // T-121 H1: the pool and (not for admins) the catalog, both in full. A
+    // catalog that can't load in full is an error + Retry, never a guessed split.
+    Promise.all([listTrainerPlans(), admin ? Promise.resolve(null) : listCatalogPlans()])
+      .then(([pool, catalog]) => {
+        const result = splitPlans({ pool, catalog, admin });
         if (current && mounted.current) {
           setState({ status: 'loaded', result, error: '' });
         }
@@ -100,7 +109,7 @@ function PlansList({ assignTo }) {
     return () => {
       current = false;
     };
-  }, [page, reloadCount]);
+  }, [admin, reloadCount]);
 
   const retry = useCallback(() => setReloadCount((count) => count + 1), []);
 
@@ -174,14 +183,14 @@ function PlansList({ assignTo }) {
             >
               Plans
             </Text>
-            {tablet ? <Subtitle assignTo={assignTo} tablet /> : null}
+            {tablet ? <Subtitle assignTo={assignTo} assignName={assignName} tablet /> : null}
           </View>
           {createButton}
         </View>
-        {tablet ? null : <Subtitle assignTo={assignTo} />}
+        {tablet ? null : <Subtitle assignTo={assignTo} assignName={assignName} />}
         {assignTo ? (
-          // ⚠T1-2: the client is named by id.
-          <TextLink testID="plans-back-to-client" label={`← Back to client #${assignTo}`} onPress={() => openClientSelection(assignTo)} />
+          // T-121 M10: the client's name when it rode along, else "client #id".
+          <TextLink testID="plans-back-to-client" label={`← Back to ${assigneeLabel(assignTo, assignName)}`} onPress={() => openClientSelection(assignTo)} />
         ) : null}
         {renderBody()}
       </View>
@@ -214,68 +223,124 @@ function PlansList({ assignTo }) {
         </StateSlot>
       );
     }
-    const { items, currentPage, totalPages, totalRecords } = state.result;
-    if (items.length === 0) {
+    const { split, own, catalog } = state.result;
+    if (own.length + catalog.length === 0) {
       return (
         <StateSlot>
           <EmptyState title="No plans yet" message="Create a private plan to build one for your clients." />
         </StateSlot>
       );
     }
-    const columns = planColumns({ tablet, assigning: Boolean(assignTo), reflow });
-    // UX ruling 2: the phone grid ends with the dashed "Create a plan" tile
-    // (the header button's action), in browse mode.
-    const cells = items.map((plan) => ({ key: `plan-${plan.id}`, plan }));
-    if (!tablet && !assignTo) {
-      cells.push({ key: 'create-tile', tile: true });
+    const searching = query.trim() !== '';
+    const ownShown = own.filter((plan) => matchesPlanName(plan, query));
+    const catalogShown = catalog.filter((plan) => matchesPlanName(plan, query));
+    const search = <PillSearchField testID="plans-search" label="Search plans" value={query} onChangeText={setQuery} tablet={tablet} />;
+    if (searching && ownShown.length + catalogShown.length === 0) {
+      return (
+        <>
+          {search}
+          <StateSlot>
+            <EmptyState title="No plans found" message="Try a different name." live />
+          </StateSlot>
+        </>
+      );
     }
+    if (!split) {
+      return (
+        <>
+          {search}
+          {renderGrid('plans-grid', catalogShown, !searching)}
+        </>
+      );
+    }
+    // A section with no match steps aside while searching.
+    const showOwn = !searching || ownShown.length > 0;
+    const showCatalog = catalogShown.length > 0;
     return (
       <>
-        <View testID="plans-grid" style={[styles.grid, tablet && styles.gridTablet]}>
-          {chunkRows(cells, columns).map((row) => (
-            <View key={row[0].key} style={[styles.row, tablet && styles.rowTablet]}>
-              {row.map((cell) =>
-                cell.tile ? (
-                  <CreateTile key={cell.key} onPress={openCreate} />
-                ) : (
-                  <PlanCard
-                    key={cell.key}
-                    plan={cell.plan}
-                    tablet={tablet}
-                    stacked={reflow}
-                    style={styles.cell}
-                    // ⚠T1-3: the spinner shows only while T1a's replace runs for this plan.
-                    assignLoading={assigningId === cell.plan.id}
-                    onAssign={assignTo ? () => assign(cell.plan, false) : undefined}
-                    onView={() => navigation.push(routes.TrainerPlan, { planId: cell.plan.id })}
-                  />
-                ),
-              )}
-              {Array.from({ length: columns - row.length }, (_, index) => (
-                <View key={`pad-${index}`} style={styles.cell} />
-              ))}
-            </View>
-          ))}
-        </View>
-        {totalPages > 1 ? (
-          <Pager
-            tablet={tablet}
-            reflow={reflow}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalRecords={totalRecords}
-            onPage={setPage}
-          />
+        {search}
+        {showOwn ? (
+          <View testID="plans-section-own" style={styles.section}>
+            <SectionTitle tablet={tablet}>Your plans</SectionTitle>
+            {ownShown.length > 0 ? (
+              renderGrid('plans-grid-own', ownShown, !searching)
+            ) : (
+              <EmptyState
+                title="No plans of your own yet"
+                message="Create a private plan to build one for your clients."
+                actionLabel="Create a plan"
+                actionTestID="plans-own-create"
+                onAction={openCreate}
+              />
+            )}
+          </View>
+        ) : null}
+        {showCatalog ? (
+          <View testID="plans-section-catalog" style={styles.section}>
+            <SectionTitle tablet={tablet}>Catalog</SectionTitle>
+            {renderGrid('plans-grid', catalogShown, false)}
+          </View>
         ) : null}
       </>
     );
   }
+
+  // `withTile`: the phone browse grid ends with the dashed "Create a plan"
+  // tile (UX ruling 2); since T-121 it ends "Your plans" (web).
+  function renderGrid(testID, plans, withTile) {
+    const columns = planColumns({ tablet, assigning: Boolean(assignTo), reflow });
+    const cells = plans.map((plan) => ({ key: `plan-${plan.id}`, plan }));
+    if (withTile && !tablet && !assignTo) {
+      cells.push({ key: 'create-tile', tile: true });
+    }
+    return (
+      <View testID={testID} style={[styles.grid, tablet && styles.gridTablet]}>
+        {chunkRows(cells, columns).map((row) => (
+          <View key={row[0].key} style={[styles.row, tablet && styles.rowTablet]}>
+            {row.map((cell) =>
+              cell.tile ? (
+                <CreateTile key={cell.key} onPress={openCreate} />
+              ) : (
+                <PlanCard
+                  key={cell.key}
+                  plan={cell.plan}
+                  tablet={tablet}
+                  stacked={reflow}
+                  privateChip={testID === 'plans-grid-own'}
+                  style={styles.cell}
+                  // ⚠T1-3: the spinner shows only while T1a's replace runs for this plan.
+                  assignLoading={assigningId === cell.plan.id}
+                  onAssign={assignTo ? () => assign(cell.plan, false) : undefined}
+                  onView={() => navigation.push(routes.TrainerPlan, { planId: cell.plan.id })}
+                />
+              ),
+            )}
+            {Array.from({ length: columns - row.length }, (_, index) => (
+              <View key={`pad-${index}`} style={styles.cell} />
+            ))}
+          </View>
+        ))}
+      </View>
+    );
+  }
 }
 
-function Subtitle({ assignTo, tablet = false }) {
+function SectionTitle({ tablet, children }) {
+  return (
+    <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.sectionTitle, tablet && styles.sectionTitleTablet]}>
+      {children}
+    </Text>
+  );
+}
+
+export function assigneeLabel(assignTo, assignName) {
+  return typeof assignName === 'string' && assignName.trim() ? assignName.trim() : `client #${assignTo}`;
+}
+
+function Subtitle({ assignTo, assignName, tablet = false }) {
   return (
     <Text testID="plans-subtitle" {...CAP_BODY} style={tablet ? styles.subtitleTablet : styles.subtitle}>
-      {assignTo ? `Pick a plan to assign to client #${assignTo}.` : BROWSE_SUBTITLE}
+      {assignTo ? `Pick a plan to assign to ${assigneeLabel(assignTo, assignName)}.` : BROWSE_SUBTITLE}
     </Text>
   );
 }
@@ -299,72 +364,6 @@ function CreateTile({ onPress }) {
         </>
       )}
     </Pressable>
-  );
-}
-
-// "Page {c} of {t} · {n} total" (code; the board's "Sample data" is an
-// annotation). Phone: Previous | text | Next on one row (text first and the
-// buttons below at large text); tablet: the glass pill with the text at the
-// left and Previous + a LIGHT Next at the right.
-function Pager({ tablet, reflow, currentPage, totalPages, totalRecords, onPage }) {
-  const text = (
-    <Text
-      testID="plans-page-status"
-      {...CAP_BODY}
-      accessibilityLiveRegion="polite"
-      style={[styles.pagerText, tablet && styles.pagerTextTablet, !tablet && !reflow && styles.pagerTextPhone]}
-    >
-      Page {currentPage} of {totalPages} · {totalRecords} total
-    </Text>
-  );
-  const previous = (
-    <PillButton
-      testID="plans-previous"
-      title="Previous"
-      variant="secondary"
-      size="compact"
-      disabled={currentPage <= 1}
-      onPress={() => onPage(currentPage - 1)}
-    />
-  );
-  const next = (
-    <PillButton
-      testID="plans-next"
-      title="Next"
-      variant={tablet ? 'light' : 'secondary'}
-      size="compact"
-      disabled={currentPage >= totalPages}
-      onPress={() => onPage(currentPage + 1)}
-    />
-  );
-  if (tablet) {
-    return (
-      <View testID="plans-pager" accessibilityLabel="Pagination" style={[styles.pagerTablet, reflow && styles.pagerStacked]}>
-        {text}
-        <View style={styles.pagerButtons}>
-          {previous}
-          {next}
-        </View>
-      </View>
-    );
-  }
-  if (reflow) {
-    return (
-      <View testID="plans-pager" accessibilityLabel="Pagination" style={styles.pagerStacked}>
-        {text}
-        <View style={styles.pagerButtons}>
-          {previous}
-          {next}
-        </View>
-      </View>
-    );
-  }
-  return (
-    <View testID="plans-pager" accessibilityLabel="Pagination" style={styles.pager}>
-      {previous}
-      {text}
-      {next}
-    </View>
   );
 }
 
@@ -466,46 +465,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: colors.textSecondary,
   },
-  pager: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing[2],
+  section: {
+    gap: spacing[3],
+  },
+  // T-121 H1 section headings ("Your plans", "Catalog"): title-sm.
+  sectionTitle: {
+    ...typography.titleSm,
     paddingHorizontal: spacing[1],
+    color: colors.textPrimary,
   },
-  pagerStacked: {
-    gap: spacing[3],
-  },
-  pagerTablet: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing[3],
-    paddingVertical: spacing['1_5'],
-    paddingLeft: spacing['4_5'],
-    paddingRight: spacing['1_5'],
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.choiceBorder,
-    backgroundColor: colors.glass,
-  },
-  pagerText: {
-    ...typography.label,
-    ...font(400),
-    color: colors.textMuted,
-  },
-  pagerTextPhone: {
-    flexShrink: 1,
-    textAlign: 'center',
-  },
-  pagerTextTablet: {
-    ...typography.bodySm,
-    flexShrink: 1,
-  },
-  pagerButtons: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing['2_5'],
+  sectionTitleTablet: {
+    ...typography.titleMd,
   },
 });

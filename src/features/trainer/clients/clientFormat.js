@@ -145,6 +145,38 @@ export function formatTrainerDate(value) {
   return Number.isNaN(date.getTime()) ? null : date.toLocaleDateString();
 }
 
+// T-121 L2: the app's short date ("Oct 27, 2026"), same parsing as above.
+export function formatTrainerShortDate(value) {
+  if (!value) {
+    return null;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// T-121 H2: the Current plan chip. "Assigned by you" when an ACTIVE
+// assignment of this trainer is for the enrolled plan, else "Chosen by client".
+export function planOriginLabel(plan, assignments) {
+  const enrolledId = plan?.enrollment?.plan?.id ?? plan?.enrollment?.workout_plan_id;
+  const mine =
+    enrolledId !== undefined &&
+    enrolledId !== null &&
+    (assignments ?? []).some((row) => row?.status === 'active' && row.workout_plan_id !== undefined && row.workout_plan_id !== null && String(row.workout_plan_id) === String(enrolledId));
+  return mine ? 'Assigned by you' : 'Chosen by client';
+}
+
+// T-121 H2 (+ UX must-fix 759ce94e): a history row's title = the plan name
+// from the trainer's pool, else "Plan #id" when the id exists, else "A plan".
+// Never "Plan #undefined".
+export function assignmentTitle(assignment, planNames) {
+  const id = assignment?.workout_plan_id;
+  if (id === undefined || id === null || id === '') {
+    return 'A plan';
+  }
+  const name = planNames?.get(String(id));
+  return typeof name === 'string' && name.trim() ? name.trim() : `Plan #${id}`;
+}
+
 export function formatTrainerDateTime(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date.toLocaleString();

@@ -138,6 +138,38 @@ export function inactivityLabel(row, now = new Date()) {
   return days !== null && days >= 7 ? `No workout in ${days} days` : null;
 }
 
+// T-121 M3 (UX option B): the row's reason, in front of the plan name
+// ("Missed 2 · Upper / Lower Split"); the short "Missed n" is web's row copy
+// (PM 29 Oct; the Need attention card keeps "Missed n this week").
+export function rowReason(row, now = new Date()) {
+  const missed = missedOf(row);
+  if (missed > 0) {
+    return `Missed ${missed}`;
+  }
+  return inactivityLabel(row, now);
+}
+
+// T-121 M3: the right side of a row without a ring this week: "On track"
+// (green), else "Active".
+export function rowStatusChip(row) {
+  return isOnTrack(row) ? { label: 'On track', tone: 'completed' } : { label: 'Active', tone: 'active' };
+}
+
+// T-121 M2 (RN-SPEC-v2-phase6 ND-5): round(Σ done ÷ Σ planned × 100) over the
+// active clients this week; null when nothing is planned (the tile hides).
+export function weekAdherence(rows) {
+  let planned = 0;
+  let done = 0;
+  rows.forEach((row) => {
+    const activity = activityOf(row);
+    if (activity) {
+      planned += activity.planned;
+      done += activity.done;
+    }
+  });
+  return planned > 0 ? Math.round((done / planned) * 100) : null;
+}
+
 // Approved "Need attention" (screen-map §C8): clients with a missed workout
 // this week, or no plan. Only rows that carry the data can qualify.
 export function attentionOf(row) {

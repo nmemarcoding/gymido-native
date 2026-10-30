@@ -42,13 +42,19 @@ export function openClientSelection(clientUserId) {
 
 // Opens T1 in assign mode for a client (trainer plans spec §A1 entry 3):
 // switch to the Plans tab with `assignTo`; Android back returns here through
-// the tab history.
-export function openAssignPlan(clientUserId) {
+// the tab history. T-121 M10: the shown client name rides along
+// (`assignName`) so T1 says "Pick a plan to assign to {name}."; without it,
+// T1 falls back to "client #id".
+export function openAssignPlan(clientUserId, clientName) {
   if (!navigationRef.isReady()) {
     return;
   }
+  const params = { assignTo: String(clientUserId) };
+  if (typeof clientName === 'string' && clientName.trim()) {
+    params.assignName = clientName.trim();
+  }
   navigationRef.navigate(routes.AppShell, {
     screen: ShellTab.TPlans,
-    params: { screen: routes.TrainerPlans, params: { assignTo: String(clientUserId) } },
+    params: { screen: routes.TrainerPlans, params },
   });
 }

@@ -40,6 +40,8 @@ jest.mock('../clientLinks', () => ({ openClientDetail: jest.fn(), openAssignPlan
 jest.mock('../components/WorkoutDetailModal', () => jest.fn(() => null));
 jest.mock('../components/WeightHistoryModal', () => jest.fn(() => null));
 jest.mock('../../../trainers/components/EndCoachingDialog', () => jest.fn(() => null));
+// T-121 H2 (setup only): the history's best-effort plan pool read; [] keeps the "Plan #id" fallback.
+jest.mock('../../plans/api/plansApi', () => ({ listTrainerPlans: jest.fn(() => Promise.resolve([])) }));
 jest.mock('../api/clientsApi', () => ({
   getClientProfileAndEmail: jest.fn(),
   endCoaching: jest.fn(),
@@ -158,7 +160,8 @@ describe('Client detail, phone', () => {
     expect(plan).toHaveLength(1);
     expect([plan[0].props.title, plan[0].props.variant]).toEqual(['Change plan', undefined]);
     await act(async () => plan[0].props.onPress());
-    expect(openAssignPlan).toHaveBeenCalledWith(12);
+    // T-121 M10 (declared, addendum A1). Was: toHaveBeenCalledWith(12). The shown name rides along.
+    expect(openAssignPlan).toHaveBeenCalledWith(12, 'Sara Lopez');
     open.mockRestore();
   });
 
@@ -254,13 +257,20 @@ describe('Client detail, phone', () => {
     expect(byTestID(tree, 'client-current-weight')).toBeUndefined();
   });
 
-  it('Assigned plan: the gold-gradient card, name, start date, days/week · category', async () => {
+  // T-121 H2 + L2 (declared #9/#10). Was: 'Assigned plan' eyebrow + `Started ${toLocaleDateString()}`. The fixture's
+  // enrolled plan has no id, so no assignment matches: "Chosen by client".
+  it('Current plan: the gold-gradient card, the origin chip, name, short start date, days/week · category', async () => {
     const tree = await render();
     const card = host(tree, 'client-plan-card');
     const fill = card.findAll((node) => node.type === GradientFill)[0];
     expect(fill.props.colors).toEqual(gradients.gold.colors);
     expect(texts(tree)).toEqual(
-      expect.arrayContaining(['Assigned plan', 'Upper / Lower Split', `Started ${new Date('2026-09-14').toLocaleDateString()}`, '4\u00a0days / week · Strength'])
+      expect.arrayContaining([
+        'Chosen by client',
+        'Upper / Lower Split',
+        `Started ${new Date('2026-09-14').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
+        '4\u00a0days / week · Strength',
+      ])
     );
     load({ plan: { enrollment: { plan: {} } } });
     const bare = await render();
@@ -282,6 +292,7 @@ describe('Client detail, phone', () => {
     expect(WorkoutDetailModal.mock.calls.at(-1)[0]).toEqual(expect.objectContaining({ clientUserId: 12, workoutId: 101, profile: PROFILE, clientName: 'Sara Lopez' }));
   });
 
+  // T-121 H2 (declared #11): kept as the fallback; the pool mock is [] so ids 12 and 7 have no name.
   it('Assignment history: "Plan #id", Active = teal, replaced = neutral', async () => {
     const tree = await render();
     expect(texts(tree)).toEqual(expect.arrayContaining(['Plan #12', 'Plan #7']));
@@ -292,10 +303,11 @@ describe('Client detail, phone', () => {
     ]);
   });
 
-  it('empty sections: No workouts yet / Nothing assigned yet', async () => {
+  // T-121 H2 (declared #12). Was: 'Nothing assigned yet'.
+  it('empty sections: No workouts yet / You haven’t assigned a plan yet', async () => {
     load({ sessions: [], assignments: [] });
     const tree = await render();
-    expect(texts(tree)).toEqual(expect.arrayContaining(['No workouts yet', 'Nothing assigned yet']));
+    expect(texts(tree)).toEqual(expect.arrayContaining(['No workouts yet', 'You haven’t assigned a plan yet']));
   });
 
   it('status line from the row activity: amber Missed, green On track, none without the data', async () => {
@@ -442,5 +454,84 @@ describe('T-65 back control (client detail)', () => {
     expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
     expect(mockNavigation.replace).toHaveBeenCalledWith('TrainerClients');
     expect(mockNavigation.push).not.toHaveBeenCalledWith('TrainerClients');
+  });
+});
+
+// T-121 H2 (web 2.1.10 + the UX must-fix on 430de8c7), built from the real wire shape: GET
+// /trainer/clients/{id}/plan → data.plan.enrollment { id, user_id, workout_plan_id, status, started_on, created_at,
+// updated_at, plan }, GET …/assignments → data.items { id, workout_plan_id, status, created_at }.
+describe('T-121 H2 Current plan + history names', () => {
+  const { listTrainerPlans } = require('../../plans/api/plansApi');
+  const { assignmentTitle, planOriginLabel } = require('../clientFormat');
+  const WIRE_PLAN = {
+    enrollment: {
+      id: 5,
+      user_id: 12,
+      workout_plan_id: 12,
+      status: 'active',
+      started_on: '2026-10-26',
+      created_at: '2026-10-26T09:00:00Z',
+      updated_at: '2026-10-26T09:00:00Z',
+      plan: { id: 12, name: 'Upper / Lower Split', days_per_week: 4, category: { name: 'Strength' } },
+    },
+  };
+
+  it('"Assigned by you" when an ACTIVE assignment is for the enrolled plan', async () => {
+    load({ plan: WIRE_PLAN });
+    const tree = await render();
+    expect(host(tree, 'client-plan-origin').props.children).toBe('Assigned by you');
+  });
+
+  it('"Chosen by client" when the active assignment is for another plan, or only a replaced one matches', async () => {
+    load({ plan: WIRE_PLAN, assignments: [{ id: 1, workout_plan_id: 9, status: 'active', created_at: '2026-10-01T00:00:00Z' }] });
+    let tree = await render();
+    expect(host(tree, 'client-plan-origin').props.children).toBe('Chosen by client');
+    load({ plan: WIRE_PLAN, assignments: [{ id: 1, workout_plan_id: 12, status: 'replaced', created_at: '2026-10-01T00:00:00Z' }] });
+    tree = await render();
+    expect(host(tree, 'client-plan-origin').props.children).toBe('Chosen by client');
+  });
+
+  it('no enrollment: the section is "Current plan" with its existing empty state', async () => {
+    load({ plan: null });
+    const tree = await render();
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Current plan', 'No active plan']));
+    expect(texts(tree)).not.toContain('Assigned plan');
+  });
+
+  it('history rows: the pool name, else "Plan #id"; the pool loads once and only with history', async () => {
+    listTrainerPlans.mockResolvedValueOnce([{ id: 12, name: 'Upper / Lower Split' }]);
+    load({ plan: WIRE_PLAN });
+    const tree = await render();
+    expect(listTrainerPlans).toHaveBeenCalledTimes(1);
+    const rowText = (id) => host(tree, `client-assignment-${id}`).findAll((node) => node.type === 'Text').map((node) => node.props.children);
+    expect(rowText(1)).toContain('Upper / Lower Split');
+    expect(rowText(2)).toContain('Plan #7');
+    listTrainerPlans.mockClear();
+    load({ assignments: [] });
+    await render();
+    expect(listTrainerPlans).not.toHaveBeenCalled();
+  });
+
+  it('a failed pool read keeps "Plan #id" (no error shown)', async () => {
+    listTrainerPlans.mockRejectedValueOnce(new Error('down'));
+    const tree = await render();
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Plan #12', 'Plan #7']));
+  });
+
+  it('helpers: never "Plan #undefined"; chip needs a real enrolled id', () => {
+    expect(assignmentTitle({ workout_plan_id: undefined }, new Map())).toBe('A plan');
+    expect(assignmentTitle({ workout_plan_id: null })).toBe('A plan');
+    expect(assignmentTitle({ workout_plan_id: 7 }, new Map([['7', '  ']]))).toBe('Plan #7');
+    expect(assignmentTitle({ workout_plan_id: '7' }, new Map([['7', 'PPL']]))).toBe('PPL');
+    expect(planOriginLabel({ enrollment: { plan: {} } }, [{ status: 'active', workout_plan_id: undefined }])).toBe('Chosen by client');
+    expect(planOriginLabel({ enrollment: { workout_plan_id: 3 } }, [{ status: 'active', workout_plan_id: '3' }])).toBe('Assigned by you');
+  });
+
+  it('L2: "Started Oct 26, 2026" (the short app date)', async () => {
+    load({ plan: WIRE_PLAN });
+    const tree = await render();
+    const expected = new Date('2026-10-26').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    expect(texts(tree)).toContain(`Started ${expected}`);
+    expect(expected).toMatch(/^Oct 2[56], 2026$/);
   });
 });

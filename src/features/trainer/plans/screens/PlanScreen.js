@@ -690,6 +690,16 @@ function PlanBuilder({ planId, adapter }) {
     </Text>
   ) : null;
 
+  const dayStrip = (
+    <SelectedDayStrip
+      day={selectedDay}
+      look={look}
+      capabilities={capabilities}
+      onEditDay={openDayEdit}
+      onDeleteDay={(day) => openAction(PlanAction.deleteDay, { day })}
+    />
+  );
+
   return (
     <PlanPage testID="plan-screen" nestable maxWidth={tablet ? layout.contentMax : undefined} gap={tablet ? spacing['4_5'] : spacing[3]}>
       <View style={styles.topRow}>
@@ -750,14 +760,11 @@ function PlanBuilder({ planId, adapter }) {
             onSelect={selectDay}
             canAddDay={capabilities.addDay}
             onAddDay={openAddDay}
+            // T-121 M8: the trainer's day actions sit under the chips, before "Add a day".
+            beforeAddDay={trainer ? dayStrip : null}
           />
           <DayTabPanel day={selectedDay}>
-            <SelectedDayStrip
-              day={selectedDay}
-              capabilities={capabilities}
-              onEditDay={openDayEdit}
-              onDeleteDay={(day) => openAction(PlanAction.deleteDay, { day })}
-            />
+            {trainer ? null : dayStrip}
             <View style={styles.section}>{renderSelectedDay()}</View>
           </DayTabPanel>
         </>

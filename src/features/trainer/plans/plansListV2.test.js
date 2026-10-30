@@ -11,7 +11,7 @@ import { addToast } from '../../../shared/components/toastStore';
 import { colors, gradients, muscle, radii, textScale } from '../../../shared/theme/tokens';
 import { assignPlan } from '../clients/api/clientsApi';
 import { openClientSelection } from '../clients/clientLinks';
-import { listTrainerPlans } from './api/plansApi';
+import { listCatalogPlans, listTrainerPlans } from './api/plansApi';
 import PlanCard from './components/PlanCard';
 import { CategoryChip, CoachingChip } from './components/TrainerChips';
 import { CATEGORY_COLORS, CATEGORY_FILL_ALPHA, categoryColor, categoryColorIndex, planCategoryLabel } from './planCategoryColor';
@@ -36,7 +36,7 @@ jest.mock('../../shell/ShellPage', () => (props) => {
 jest.mock('../TrainerOnly', () => ({ children }) => children);
 jest.mock('../clients/clientLinks', () => ({ openClientSelection: jest.fn() }));
 jest.mock('../clients/api/clientsApi', () => ({ assignPlan: jest.fn() }));
-jest.mock('./api/plansApi', () => ({ listTrainerPlans: jest.fn() }));
+jest.mock('./api/plansApi', () => ({ listTrainerPlans: jest.fn(), listCatalogPlans: jest.fn() }));
 jest.mock('../../../shared/components/toastStore', () => ({ ...jest.requireActual('../../../shared/components/toastStore'),
   ToastTone: { success: 'success', error: 'error' },
   addToast: jest.fn(),
@@ -47,7 +47,9 @@ const PLANS = [
   { id: 2, name: 'Push / Pull / Legs', days_per_week: 6, category: { name: 'Hypertrophy' } },
   { id: 3, name: 'Full Body Basics', days_per_week: 0, category: null },
 ];
-const page = (overrides = {}) => ({ items: PLANS, currentPage: 1, totalPages: 1, totalRecords: 3, ...overrides });
+// T-121 H1 (setup only): plans 1 + 2 are in the public catalog, so plan 3 is
+// the trainer's own ("Your plans"), the shape web 2.1.10 tested with.
+const CATALOG = [PLANS[0], PLANS[1]];
 
 const texts = (root) =>
   root
@@ -90,7 +92,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockParams = {};
   setWindow(390);
-  listTrainerPlans.mockResolvedValue(page());
+  listTrainerPlans.mockResolvedValue(PLANS);
+  listCatalogPlans.mockResolvedValue(CATALOG);
 });
 afterEach(() => {
   act(() => mounted.splice(0).forEach((tree) => tree.unmount()));
@@ -247,10 +250,10 @@ describe('PlansListScreen (phone)', () => {
 
   it('browse: 2-col rows; the dashed "Create a plan" tile ends the grid and opens create', async () => {
     const tree = await render();
-    const grid = hosts(tree.root, 'plans-grid')[0];
-    const rows = grid.props.children;
-    // 3 plans + the tile = 2 full rows.
-    expect(rows).toHaveLength(2);
+    // T-121 H1 (declared #2). Was: one 'plans-grid', "3 plans + the tile = 2 full rows".
+    // Now "Your plans" = plan 3 + the tile (1 row), "Catalog" = plans 1 + 2 (1 row).
+    expect(hosts(tree.root, 'plans-grid-own')[0].props.children).toHaveLength(1);
+    expect(hosts(tree.root, 'plans-grid')[0].props.children).toHaveLength(1);
     const tile = comp(tree.root, 'plans-create-tile');
     expect(tile.props.accessibilityRole).toBe('button');
     expect(tile.props.accessibilityLabel).toBe('Create a plan');
@@ -279,11 +282,14 @@ describe('PlansListScreen (phone)', () => {
     mockParams = { assignTo: 42 };
     const tree = await render();
     const shown = texts(tree.root);
+    // T-121 M10: no name rode along → the "client #id" fallback (declared #7: kept).
     expect(shown).toContain('Pick a plan to assign to client #42.');
     expect(shown).not.toContain(BROWSE_SUBTITLE);
     expect(comp(tree.root, 'plans-create').props.variant).toBe('secondary');
     expect(tree.root.findAll((node) => node.props.testID === 'plans-create-tile')).toHaveLength(0);
-    expect(hosts(tree.root, 'plans-grid')[0].props.children).toHaveLength(3);
+    // T-121 H1 (declared #3). Was: 'plans-grid' 3 rows (3 plans, 1 column). Now Your plans 1 + Catalog 2.
+    expect(hosts(tree.root, 'plans-grid-own')[0].props.children).toHaveLength(1);
+    expect(hosts(tree.root, 'plans-grid')[0].props.children).toHaveLength(2);
     const back = comp(tree.root, 'plans-back-to-client');
     expect(back.props.label).toBe('← Back to client #42');
     back.props.onPress();
@@ -413,7 +419,7 @@ describe('PlansListScreen (phone)', () => {
     const alert = tree.root.findByType(ErrorAlert);
     expect(alert.props.title).toBe('Could not load plans');
     expect(alert.props.description).toBe('Boom');
-    listTrainerPlans.mockResolvedValueOnce(page({ items: [] }));
+    listTrainerPlans.mockResolvedValueOnce([]);
     await act(async () => alert.props.onRetry());
     const empty = tree.root.findByType(EmptyState);
     expect(empty.props.title).toBe('No plans yet');
@@ -422,28 +428,15 @@ describe('PlansListScreen (phone)', () => {
     expect(tree.root.findAll((node) => node.props.testID === 'plans-create-tile')).toHaveLength(0);
   });
 
-  it('pager: hidden on 1 page; Previous | status | Next; disabled ends; page change reloads', async () => {
-    let tree = await render();
+  // T-121 H1 (declared #4/#6). Was: 'pager: hidden on 1 page; Previous | status | Next; disabled ends; page change
+  // reloads' (listTrainerPlans(1|2)). Now every page loads (per_page 100, as web): no pager, one load of each list.
+  it('loads the whole pool and catalog once; no pager', async () => {
+    const tree = await render();
+    expect(listTrainerPlans).toHaveBeenCalledTimes(1);
+    expect(listTrainerPlans).toHaveBeenCalledWith();
+    expect(listCatalogPlans).toHaveBeenCalledTimes(1);
     expect(tree.root.findAll((node) => node.props.testID === 'plans-pager')).toHaveLength(0);
-
-    listTrainerPlans.mockResolvedValue(page({ totalPages: 2, totalRecords: 24 }));
-    tree = await render();
-    const status = hosts(tree.root, 'plans-page-status')[0];
-    expect(texts(tree.root)).toContain('Page 1 of 2 · 24 total');
-    expect(status.props.accessibilityLiveRegion).toBe('polite');
-    const pager = hosts(tree.root, 'plans-pager')[0];
-    expect(pager.props.accessibilityLabel).toBe('Pagination');
-    expect(flat(pager.props.style).flexDirection).toBe('row');
-    expect(comp(tree.root, 'plans-previous').props.disabled).toBe(true);
-    expect(comp(tree.root, 'plans-next').props.disabled).toBe(false);
-    expect(comp(tree.root, 'plans-next').props.variant).toBe('secondary');
-    listTrainerPlans.mockResolvedValue(page({ currentPage: 2, totalPages: 2, totalRecords: 24 }));
-    await act(async () => comp(tree.root, 'plans-next').props.onPress());
-    expect(listTrainerPlans).toHaveBeenLastCalledWith(2);
-    expect(comp(tree.root, 'plans-next').props.disabled).toBe(true);
-    expect(comp(tree.root, 'plans-previous').props.disabled).toBe(false);
-    await act(async () => comp(tree.root, 'plans-previous').props.onPress());
-    expect(listTrainerPlans).toHaveBeenLastCalledWith(1);
+    expect(texts(tree.root).some((text) => /^Page \d/.test(text))).toBe(false);
   });
 });
 
@@ -459,51 +452,47 @@ describe('PlansListScreen (tablet)', () => {
     expect(title.props.maxFontSizeMultiplier).toBe(textScale.display);
     expect(tree.root.findAll((node) => node.props.testID === 'plans-create-tile')).toHaveLength(0);
     expect(card(tree.root, 1).props.tablet).toBe(true);
-    // 3 plans in 2 columns: 2 rows, the last padded.
-    expect(hosts(tree.root, 'plans-grid')[0].props.children).toHaveLength(2);
+    // T-121 H1 (declared #3). Was: 'plans-grid' 2 rows (3 plans in 2 columns). Now Your plans 1 row
+    // (plan 3, padded; no tile on the tablet) + Catalog 1 row.
+    expect(hosts(tree.root, 'plans-grid-own')[0].props.children).toHaveLength(1);
+    expect(hosts(tree.root, 'plans-grid')[0].props.children).toHaveLength(1);
   });
 
   it('assign mode keeps 2 columns', async () => {
     mockParams = { assignTo: 7 };
     const tree = await render();
-    expect(hosts(tree.root, 'plans-grid')[0].props.children).toHaveLength(2);
+    // T-121 H1 (declared #3). Was: 'plans-grid' 2 rows. Now Catalog 1 row (plans 1 + 2).
+    expect(hosts(tree.root, 'plans-grid')[0].props.children).toHaveLength(1);
     expect(comp(tree.root, 'plan-card-assign-3')).toBeTruthy();
   });
-
-  it('pager pill: glass fill, status left, Previous + a LIGHT Next', async () => {
-    listTrainerPlans.mockResolvedValue(page({ totalPages: 3, currentPage: 1, totalRecords: 30 }));
-    const tree = await render();
-    const pager = flat(hosts(tree.root, 'plans-pager')[0].props.style);
-    expect(pager).toEqual(expect.objectContaining({ borderRadius: radii.full, backgroundColor: colors.glass }));
-    expect(comp(tree.root, 'plans-next').props.variant).toBe('light');
-  });
+  // T-121 H1 (declared #5): 'pager pill: glass fill, status left, Previous + a LIGHT Next' removed with the pager.
 });
 
 describe('PlansListScreen large text (UX §9)', () => {
   it.each([1, 2, 3.1])('fontScale %p: titles capped, header and grid reflow above 1.3', async (fontScale) => {
     setWindow(390, fontScale);
-    listTrainerPlans.mockResolvedValue(page({ totalPages: 2, totalRecords: 24 }));
     const tree = await render();
     const reflow = fontScale > textScale.reflowAbove;
     const title = tree.root.findAllByType(Text).find((node) => node.props.children === 'Plans');
     expect(title.props.maxFontSizeMultiplier).toBe(textScale.title);
     expect(title.props.numberOfLines).toBe(3);
     expect(flat(hosts(tree.root, 'plans-header')[0].props.style).flexDirection).toBe(reflow ? 'column' : 'row');
-    // Phone browse: 2 columns at 1×, 1 column above the reflow point (3 plans + tile).
-    expect(hosts(tree.root, 'plans-grid')[0].props.children).toHaveLength(reflow ? 4 : 2);
+    // T-121 H1 (declared #3). Was: 'plans-grid' reflow ? 4 : 2 (3 plans + tile). Now Your plans = plan 3 +
+    // the tile, Catalog = 2 plans: each reflow ? 2 : 1. Phone browse: 2 columns at 1×, 1 above the reflow point.
+    expect(hosts(tree.root, 'plans-grid-own')[0].props.children).toHaveLength(reflow ? 2 : 1);
+    expect(hosts(tree.root, 'plans-grid')[0].props.children).toHaveLength(reflow ? 2 : 1);
     expect(card(tree.root, 1).props.stacked).toBe(reflow);
     // Every label keeps the body cap; buttons never truncate (kit PillButton).
     tree.root.findAllByType(PillButton).forEach((button) => expect(button.props.title).toBeTruthy());
-    const status = hosts(tree.root, 'plans-page-status')[0];
-    expect(status.props.maxFontSizeMultiplier).toBe(textScale.body);
-    expect(status.props.numberOfLines).toBeUndefined();
+    // T-121 H1 (declared #5): the plans-page-status cap checks went with the pager.
   });
 
   it('fontScale 3.1 on a tablet keeps 2 columns with stacked card buttons', async () => {
     setWindow(834, 3.1);
     mockParams = { assignTo: 9 };
     const tree = await render();
-    expect(hosts(tree.root, 'plans-grid')[0].props.children).toHaveLength(2);
+    // T-121 H1 (declared #3). Was: 'plans-grid' 2 rows. Now Catalog 1 row (plans 1 + 2).
+    expect(hosts(tree.root, 'plans-grid')[0].props.children).toHaveLength(1);
     expect(card(tree.root, 1).props.stacked).toBe(true);
   });
 });

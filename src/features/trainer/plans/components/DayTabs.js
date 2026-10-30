@@ -11,7 +11,9 @@ import { PlusIcon } from './pickerIcons';
 // 40 tall, the selected pill light (text-primary + on-light), "Add a day" a
 // 40 dashed circle at the end. Trainer: the "Plan days" label, 48-tall pills,
 // the selected one gold, and a full-width dashed "Add a day" below.
-export default function DayTabs({ days, selectedDayId, onSelect, look = 'member', canAddDay = false, onAddDay }) {
+// T-121 M8: `beforeAddDay` (the trainer's selected-day strip) sits on the line
+// under the day chips, before the trainer's full-width "Add a day".
+export default function DayTabs({ days, selectedDayId, onSelect, look = 'member', canAddDay = false, onAddDay, beforeAddDay = null }) {
   const trainer = look === 'trainer';
   const addDay = canAddDay ? (
     <Pressable
@@ -84,6 +86,7 @@ export default function DayTabs({ days, selectedDayId, onSelect, look = 'member'
         </View>
         {trainer ? null : addDay}
       </ScrollView>
+      {trainer ? beforeAddDay : null}
       {trainer ? addDay : null}
     </View>
   );
@@ -112,16 +115,19 @@ export function DayTabPanel({ day, children }) {
 
 // The selected day's strip under the tabs (UX phase4 I Behaviour 1): its
 // description, then "Edit" / "Delete" for that day (the code's day buttons).
-export function SelectedDayStrip({ day, capabilities, onEditDay, onDeleteDay }) {
+// T-121 M8 trainer look: "Edit day" · "Delete day", aligned left under the
+// description (the a11y names stay "Edit day n" / "Delete day n").
+export function SelectedDayStrip({ day, capabilities, onEditDay, onDeleteDay, look = 'member' }) {
   if (!day) {
     return null;
   }
+  const trainer = look === 'trainer';
   const hasButtons = capabilities.editDay || capabilities.deleteDay;
   if (!day.description && !hasButtons) {
     return null;
   }
   return (
-    <View testID="plan-day-strip" style={styles.strip}>
+    <View testID="plan-day-strip" style={[styles.strip, trainer && styles.stripTrainer]}>
       {day.description ? (
         <Text {...CAP_BODY} style={styles.stripText}>
           {day.description}
@@ -129,11 +135,11 @@ export function SelectedDayStrip({ day, capabilities, onEditDay, onDeleteDay }) 
       ) : null}
       {hasButtons ? (
         <View style={styles.stripButtons}>
-          {capabilities.editDay ? <TextAction testID={`plan-day-edit-${day.id}`} label="Edit" accessibilityLabel={`Edit day ${day.day_number}`} onPress={() => onEditDay(day)} /> : null}
+          {capabilities.editDay ? <TextAction testID={`plan-day-edit-${day.id}`} label={trainer ? 'Edit day' : 'Edit'} accessibilityLabel={`Edit day ${day.day_number}`} onPress={() => onEditDay(day)} /> : null}
           {capabilities.deleteDay ? (
             <TextAction
               testID={`plan-day-delete-${day.id}`}
-              label="Delete"
+              label={trainer ? 'Delete day' : 'Delete'}
               tone="danger"
               accessibilityLabel={`Delete day ${day.day_number}`}
               onPress={() => onDeleteDay(day)}
@@ -250,6 +256,11 @@ const styles = StyleSheet.create({
     columnGap: spacing[3],
     paddingHorizontal: spacing[1],
     minHeight: layout.touchMin,
+  },
+  stripTrainer: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
   },
   stripText: {
     ...font(400),

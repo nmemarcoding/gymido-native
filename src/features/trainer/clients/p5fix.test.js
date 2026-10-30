@@ -47,6 +47,8 @@ jest.mock('../../shell/ShellPage', () => {
 });
 jest.mock('../TrainerOnly', () => ({ children }) => children);
 jest.mock('./clientLinks', () => ({ openClientDetail: jest.fn(), openAssignPlan: jest.fn() }));
+// T-121 H2 (setup only): the detail's best-effort plan pool read for history names.
+jest.mock('../plans/api/plansApi', () => ({ listTrainerPlans: jest.fn(() => Promise.resolve([])) }));
 jest.mock('./api/clientsApi', () => ({
   getClientProfileAndEmail: jest.fn(),
   endCoaching: jest.fn(),

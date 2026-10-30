@@ -22,7 +22,7 @@ import WeightHistoryModal from './clients/components/WeightHistoryModal';
 import WorkoutDetailModal from './clients/components/WorkoutDetailModal';
 import ClientDetailScreen from './clients/screens/ClientDetailScreen';
 import ClientsListScreen from './clients/screens/ClientsListScreen';
-import { listTrainerPlans } from './plans/api/plansApi';
+import { listCatalogPlans, listTrainerPlans } from './plans/api/plansApi';
 import PlansListScreen from './plans/screens/PlansListScreen';
 import TrainerDashboardScreen from './TrainerDashboardScreen';
 
@@ -67,7 +67,8 @@ jest.mock('./clients/api/clientsApi', () => ({
 }));
 // v2 phase 6 (p6n): Client detail reads the profile (+ client_email) through
 // clientsApi.getClientProfileAndEmail (T-52); it follows the mocked getClientProfile here.
-jest.mock('./plans/api/plansApi', () => ({ listTrainerPlans: jest.fn() }));
+// T-121 H1 (setup only): the pool and the catalog load in full (arrays).
+jest.mock('./plans/api/plansApi', () => ({ listTrainerPlans: jest.fn(), listCatalogPlans: jest.fn(() => Promise.resolve([])) }));
 jest.mock('../../shared/components/toastStore', () => ({ ...jest.requireActual('../../shared/components/toastStore'),
   ToastTone: { success: 'success', error: 'error' },
   addToast: jest.fn(),
@@ -226,12 +227,15 @@ describe('Client detail (rows 5-10)', () => {
       ['No profile yet', 'This client hasn’t completed their profile, so there are no body details to show.', false],
       ['No active plan', 'This client isn’t enrolled in a plan. Assign one to get them started.', false],
       ['No workouts yet', 'Their sessions will appear here once they train.', false],
-      ['Nothing assigned yet', 'Plans you assign to this client show up here.', false],
+      // T-121 H2 (declared #12). Was: 'Nothing assigned yet'.
+      ['You haven’t assigned a plan yet', 'Plans you assign to this client show up here.', false],
     ]);
   });
 });
 
 describe('Trainer plans (rows 11-12)', () => {
+  beforeEach(() => listCatalogPlans.mockResolvedValue([]));
+
   it('loading: "Loading plans" in the column', async () => {
     listTrainerPlans.mockReturnValue(pending());
     const tree = await render(<PlansListScreen />);
@@ -240,7 +244,7 @@ describe('Trainer plans (rows 11-12)', () => {
 
   it('row 11: ErrorAlert + Retry; Retry re-requests', async () => {
     listTrainerPlans.mockRejectedValueOnce(serverError());
-    listTrainerPlans.mockResolvedValue({ items: [], currentPage: 1, totalPages: 1, totalRecords: 0 });
+    listTrainerPlans.mockResolvedValue([]);
     const tree = await render(<PlansListScreen />);
     const alert = expectInSlot(tree, ErrorAlert, { title: 'Could not load plans' });
     expect(alert.props.description).toBe(SERVER);
@@ -250,7 +254,7 @@ describe('Trainer plans (rows 11-12)', () => {
   });
 
   it('row 12: EmptyState "No plans yet", no action', async () => {
-    listTrainerPlans.mockResolvedValue({ items: [], currentPage: 1, totalPages: 1, totalRecords: 0 });
+    listTrainerPlans.mockResolvedValue([]);
     const tree = await render(<PlansListScreen />);
     const empty = expectInSlot(tree, EmptyState, { title: 'No plans yet' });
     expect(empty.props.message).toBe('Create a private plan to build one for your clients.');

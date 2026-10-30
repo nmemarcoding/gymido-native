@@ -202,3 +202,30 @@ describe('VOLUME RULE helpers and pill helpers', () => {
     expect(statusTone('cancelled')).toBe('neutral');
   });
 });
+
+describe('T-121 row + KPI helpers', () => {
+  const { rowReason, rowStatusChip, weekAdherence } = require('./clientActivity');
+  const row = (activity) => ({ client_user_id: 1, client_activity: activity });
+  const plan = { name: 'PPL' };
+
+  it('rowReason: "Missed n" (short, web row copy) first, else "No workout in n days", else null', () => {
+    const now = new Date('2026-10-29T12:00:00');
+    expect(rowReason(row({ current_plan: plan, week: { planned: 3, done: 0, missed: 2 } }), now)).toBe('Missed 2');
+    expect(rowReason(row({ current_plan: plan, week: { planned: 3, done: 0, missed: 0 }, last_completed_at: '2026-10-19T12:00:00' }), now)).toBe('No workout in 10 days');
+    expect(rowReason(row({ current_plan: plan, week: { planned: 3, done: 1, missed: 0 } }), now)).toBeNull();
+    expect(rowReason({ client_user_id: 1 }, now)).toBeNull();
+  });
+
+  it('rowStatusChip: On track (plan + no missed) else Active', () => {
+    expect(rowStatusChip(row({ current_plan: plan, week: { planned: 0, done: 0, missed: 0 } }))).toEqual({ label: 'On track', tone: 'completed' });
+    expect(rowStatusChip(row({ current_plan: null, week: { planned: 0 } }))).toEqual({ label: 'Active', tone: 'active' });
+    expect(rowStatusChip({ client_user_id: 1 })).toEqual({ label: 'Active', tone: 'active' });
+  });
+
+  it('weekAdherence: round(Σdone ÷ Σplanned × 100); nothing planned or no data → null', () => {
+    expect(weekAdherence([row({ week: { planned: 4, done: 3 } }), row({ week: { planned: 3, done: 1 } })])).toBe(57);
+    expect(weekAdherence([row({ week: { planned: 2, done: 2 } })])).toBe(100);
+    expect(weekAdherence([row({ week: { planned: 0, done: 0 } }), { client_user_id: 2 }])).toBeNull();
+    expect(weekAdherence([])).toBeNull();
+  });
+});

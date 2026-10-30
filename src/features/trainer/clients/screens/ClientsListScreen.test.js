@@ -44,6 +44,12 @@ const texts = (tree) =>
     .map((node) => [].concat(node.props.children).filter((part) => typeof part !== 'object').join(''));
 const byTestID = (tree, testID) => tree.root.findAll((node) => node.props.testID === testID && typeof node.type !== 'string')[0];
 const host = (tree, testID) => tree.root.findAll((node) => node.props.testID === testID && typeof node.type === 'string')[0];
+// T-121 M3: a row's plan line as one string (the reason is a nested Text).
+const lineText = (tree, userId) => {
+  const flatten = (node) => (typeof node === 'string' ? node : node && node.children ? node.children.map(flatten).join('') : '');
+  const line = host(tree, `clients-row-line-${userId}`);
+  return line ? flatten(line) : null;
+};
 const chipLabels = (tree) => tree.root.findAllByType(Chip).map((chip) => [chip.props.label, chip.props.selected]);
 
 function setWindow(width, fontScale = 1) {
@@ -89,7 +95,9 @@ describe('Clients, phone', () => {
     expect(box().borderColor).toBe(colors.choiceBorder);
   });
 
-  it('without BE data: chips All / Active (no counts, no Missed); rows name + "View →"; invited row under All', async () => {
+  // T-121 M3 (declared #23). Was: rows name + "View →" ×2 and pills [['Pending','gold']]. Now no "View →"; the
+  // status chip "Active" on each client row (no plan this week known), the invited row keeps its gold Pending.
+  it('without BE data: chips All / Active (no counts, no Missed); rows name + the "Active" chip; invited row under All', async () => {
     const tree = await render();
     // DECLARED (web parity, PM 27 Oct): the Invited chip joins the row.
     expect(chipLabels(tree)).toEqual([
@@ -97,14 +105,18 @@ describe('Clients, phone', () => {
       ['Active', false],
       ['Invited', false],
     ]);
-    expect(texts(tree).filter((text) => text === 'View →')).toHaveLength(2);
+    expect(texts(tree).filter((text) => text === 'View →')).toHaveLength(0);
     expect(tree.root.findAllByType(WeekRing)).toHaveLength(0);
     // ND-9: not tappable, the invitee name, the gold "Pending" pill; incoming requests are not listed here.
     const invited = host(tree, 'clients-invited-60');
     expect(invited.props.onPress).toBeUndefined();
     expect(texts(tree)).toContain('Jordan Park');
     expect(texts(tree)).not.toContain('Maya Reed');
-    expect(tree.root.findAllByType(StatusPill).map((pill) => [pill.props.label, pill.props.tone])).toEqual([['Pending', 'gold']]);
+    expect(tree.root.findAllByType(StatusPill).map((pill) => [pill.props.label, pill.props.tone])).toEqual([
+      ['Active', 'active'],
+      ['Active', 'active'],
+      ['Pending', 'gold'],
+    ]);
   });
 
   it('a row tap pushes Client detail with the row activity', async () => {
@@ -162,10 +174,18 @@ describe('Clients, phone', () => {
     expect(byTestID(tree, 'clients-filter-invited').props.accessibilityLabel).toBe('Invited, 1 clients');
     expect(byTestID(tree, 'clients-filter-active').props.accessibilityLabel).toBe('Active, 3 clients');
     expect(texts(tree)).toEqual(expect.arrayContaining(['Upper / Lower Split', '3/4', '0/4', '0/3', 'No plan yet']));
-    expect(tree.root.findAllByType(StatusLine).map((line) => [line.props.tone, line.props.text])).toEqual([
-      ['warning', 'Missed 2 this week'],
-      ['warning', 'No workout in 9 days'],
-    ]);
+    // T-121 M3 option B (declared #24). Was: StatusLines ['warning','Missed 2 this week'] / ['warning','No workout in
+    // 9 days'] under the name. Now the plan line leads with the reason (warning), then the muted plan name.
+    expect(tree.root.findAllByType(StatusLine)).toHaveLength(0);
+    expect(lineText(tree, 12)).toBe('Missed 2 · Upper / Lower Split');
+    expect(lineText(tree, 13)).toBe('No workout in 9 days · Upper / Lower Split');
+    const line = host(tree, 'clients-row-line-12');
+    const reason = line.findAll((node) => node.type === 'Text' && node !== line)[0];
+    expect(reason.props.children).toBe('Missed 2');
+    expect(StyleSheet.flatten(reason.props.style).color).toBe(colors.warning);
+    // Diego: no plan this week → the status chip, not a ring.
+    expect(lineText(tree, 14)).toBe('No plan yet');
+    expect(host(tree, 'clients-row-14').findAll((node) => node.type === StatusPill).map((pill) => pill.props.label)).toEqual(['Active']);
     expect(tree.root.findAllByType(WeekRing)).toHaveLength(3);
     expect(texts(tree)).not.toContain('View →');
     expect(byTestID(tree, 'clients-row-11').props.accessibilityLabel).toBe('Alex Kim, Upper / Lower Split, On track, 3 of 4 this week');
@@ -326,5 +346,30 @@ describe('Clients audit b2: one chip row, the 32 phone ring', () => {
     const rings = tree.root.findAllByType(WeekRing);
     expect(rings.length).toBeGreaterThan(0);
     rings.forEach((ring) => expect(ring.props.size ?? 20).toBe(size));
+  });
+});
+
+// T-121 L11: the chip row fades at its right edge only while a chip is cut off there.
+describe('T-121 L11 chip row edge fade', () => {
+  const { chipsCut } = jest.requireActual('./ClientsListScreen');
+
+  it('chipsCut: only when content runs past the visible edge (> 1 px), never before layout', () => {
+    expect(chipsCut({ view: 0, content: 500, x: 0 })).toBe(false);
+    expect(chipsCut({ view: 358, content: 420, x: 0 })).toBe(true);
+    expect(chipsCut({ view: 358, content: 420, x: 62 })).toBe(false);
+    expect(chipsCut({ view: 358, content: 359, x: 0 })).toBe(false);
+  });
+
+  it('the fade mounts while cut and leaves once scrolled to the end; it never takes touches', async () => {
+    const tree = await render();
+    const row = () => byTestID(tree, 'clients-filter-row');
+    expect(host(tree, 'clients-filter-fade')).toBeUndefined();
+    await act(async () => row().props.onLayout({ nativeEvent: { layout: { width: 300, height: 40 } } }));
+    await act(async () => row().props.onContentSizeChange(420, 40));
+    const fade = host(tree, 'clients-filter-fade');
+    expect(fade.props.pointerEvents).toBe('none');
+    expect(StyleSheet.flatten(fade.props.style)).toMatchObject({ position: 'absolute', right: 0, width: 32 });
+    await act(async () => row().props.onScroll({ nativeEvent: { contentOffset: { x: 120, y: 0 } } }));
+    expect(host(tree, 'clients-filter-fade')).toBeUndefined();
   });
 });

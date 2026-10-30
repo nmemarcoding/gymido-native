@@ -277,6 +277,8 @@ const GLOW = Object.freeze({
 // gold is for avatars, initials tiles and the logo only (buttons are flat).
 export const gradients = Object.freeze({
   card: Object.freeze({ angle: 160, colors: Object.freeze(['#1E2129', '#14161C']) }),
+  // T-121 L11: a sideways chip row's right-edge fade into the page ground (#0A0B0F).
+  edgeFade: Object.freeze({ angle: 90, colors: Object.freeze(['rgba(10, 11, 15, 0)', 'rgba(10, 11, 15, 1)']) }),
   gold: Object.freeze({ angle: 145, colors: Object.freeze(['#FFD45C', '#FFC21A', '#F29E00']), stops: Object.freeze([0, 0.45, 1]) }),
   goldAmbient: Object.freeze({
     radial: Object.freeze({ cx: 0.5, cy: 0.42, rx: 0.8, ry: 0.45 }),

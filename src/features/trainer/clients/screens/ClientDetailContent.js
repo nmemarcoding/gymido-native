@@ -31,13 +31,17 @@ import {
   formatHeight,
   formatSessionDetail,
   formatSex,
+  assignmentTitle,
   formatTrainerDate,
+  formatTrainerShortDate,
   formatVolume,
   formatWeight,
+  planOriginLabel,
   sentenceCase,
   statusTone,
 } from '../clientFormat';
 import { openAssignPlan } from '../clientLinks';
+import { listTrainerPlans } from '../../plans/api/plansApi';
 import ClientAvatar from '../components/ClientAvatar';
 import { ListCard, ListRow, PHONE_WEEK_RING, SectionHeading, StatTile, StatusLine, WeekRing, clientStyles } from '../components/ClientsUi';
 import { ChevronGlyph } from '../components/clientIcons';
@@ -61,6 +65,7 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
   const [weightOpen, setWeightOpen] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
   const [ending, setEnding] = useState(false);
+  const [planNames, setPlanNames] = useState(null);
   const tablet = layout === 'tablet';
 
   // §C4.1: five loads in parallel; any 404 → not your client.
@@ -98,6 +103,27 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
     }
   }, [clientUserId]);
 
+  // T-121 H2: history rows show plan NAMES from the trainer's pool (every
+  // page), a best-effort read only when there is history; any failure keeps
+  // "Plan #id".
+  const hasHistory = state.status === 'loaded' && (state.data?.assignments?.length ?? 0) > 0;
+  useEffect(() => {
+    if (!hasHistory) {
+      return undefined;
+    }
+    let current = true;
+    listTrainerPlans()
+      .then((pool) => {
+        if (current && mounted.current) {
+          setPlanNames(new Map(pool.filter((plan) => plan && plan.id !== undefined && plan.id !== null).map((plan) => [String(plan.id), plan.name])));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [hasHistory]);
+
   useEffect(() => {
     mounted.current = true;
     load();
@@ -133,6 +159,8 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
   const loaded = state.status === 'loaded';
   const profile = loaded ? state.data.profile : hadProfile;
   const heading = profile || loaded ? clientDisplayName(profile) : 'Client';
+  // T-121 M10: assign mode names the client only with a real name (else T1's "client #id").
+  const assignName = heading === 'Client' || heading === 'Unnamed client' ? undefined : heading;
   const row = clientActivity ? { client_activity: clientActivity } : null;
   const activity = activityOf(row);
 
@@ -299,7 +327,7 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
       <PillButton
         testID="client-assign-plan"
         title={planLabel}
-        onPress={() => openAssignPlan(clientUserId)}
+        onPress={() => openAssignPlan(clientUserId, assignName)}
         fullWidth={reflow}
         style={reflow ? null : styles.flexButton}
       />
@@ -434,7 +462,8 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
       return (
         <View>
           <View style={styles.headRow}>
-            <SectionHeading>Assigned plan</SectionHeading>
+            {/* T-121 H2: "Current plan" (was "Assigned plan"). */}
+            <SectionHeading>Current plan</SectionHeading>
             {withButton ? renderInkButton(planLabel, true) : null}
           </View>
           <EmptyState
@@ -446,7 +475,7 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
       );
     }
     const planInfo = plan.enrollment?.plan;
-    const started = formatTrainerDate(plan.enrollment?.started_on);
+    const started = formatTrainerShortDate(plan.enrollment?.started_on);
     // ND-11: days/week + category from the existing plan data; weekday chips
     // only with BE's weekly data.
     const meta = [planInfo?.days_per_week ? `${formatCount(planInfo.days_per_week, 'day', 'days')} / week` : null, planInfo?.category?.name || null]
@@ -458,8 +487,8 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
         <GradientFill angle={gradients.gold.angle} colors={gradients.gold.colors} stops={gradients.gold.stops} />
         <View style={[styles.planRow, reflow && styles.stack]}>
           <View style={styles.identityText}>
-            <Text {...CAP_BODY} style={styles.planEyebrow}>
-              Assigned plan
+            <Text testID="client-plan-origin" {...CAP_BODY} style={styles.planEyebrow}>
+              {planOriginLabel(plan, state.data?.assignments)}
             </Text>
             <Text {...TITLE_TEXT} style={[styles.planName, tablet && styles.planNameTablet]}>
               {keepUnitsTogether(planInfo?.name) || 'Current plan'}
@@ -494,14 +523,14 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
   // Without a plan it sits by the heading as the gold primary.
   function renderInkButton(planLabel, noPlan) {
     if (noPlan) {
-      return <PillButton testID="client-assign-plan" title={planLabel} size="compact" onPress={() => openAssignPlan(clientUserId)} />;
+      return <PillButton testID="client-assign-plan" title={planLabel} size="compact" onPress={() => openAssignPlan(clientUserId, assignName)} />;
     }
     return (
       <Pressable
         testID="client-assign-plan"
         accessibilityRole="button"
         accessibilityLabel={planLabel}
-        onPress={() => openAssignPlan(clientUserId)}
+        onPress={() => openAssignPlan(clientUserId, assignName)}
         style={styles.inkButton}
       >
         {({ pressed }) => (
@@ -575,15 +604,15 @@ export default function ClientDetailContent({ clientUserId, clientActivity, layo
       <View>
         <SectionHeading>Assignment history</SectionHeading>
         {assignments.length === 0 ? (
-          <EmptyState style={styles.sectionBody} title="Nothing assigned yet" message="Plans you assign to this client show up here." />
+          <EmptyState style={styles.sectionBody} title="You haven’t assigned a plan yet" message="Plans you assign to this client show up here." />
         ) : (
           <ListCard style={styles.sectionBody}>
             {assignments.map((assignment) => (
               <ListRow key={assignment.id} testID={`client-assignment-${assignment.id}`} style={styles.sessionRow}>
                 <View style={styles.sessionText}>
-                  {/* ⚠C-4: the id, not the plan name. */}
+                  {/* T-121 H2: the plan name from the pool, else "Plan #id", else "A plan". */}
                   <Text {...CAP_BODY} style={clientStyles.rowLabel}>
-                    Plan #{assignment.workout_plan_id}
+                    {keepUnitsTogether(assignmentTitle(assignment, planNames))}
                   </Text>
                   <Text {...CAP_BODY} style={clientStyles.rowMeta}>
                     {formatTrainerDate(assignment.created_at) ?? ''}
