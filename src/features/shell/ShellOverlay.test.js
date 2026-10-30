@@ -54,6 +54,40 @@ describe('ShellOverlay tab bar visibility (v1 rules kept)', () => {
   });
 });
 
+// T-53 device bug (iPhone, 29 Oct 2026): the onboarding bridge resets to
+// AppShell › Plans with the inner screen named only in the tab route's params
+// (no stack state yet). The bar follows that screen from the first frame,
+// exactly like a pushed one.
+describe('ShellOverlay after a reset into a tab (T-53 bridge)', () => {
+  const reset = (tab, screen, params) => ({ index: 0, routes: [{ name: tab, params: { screen, params } }] });
+  function barFor(navState) {
+    useWindowDimensions.mockReturnValue({ width: 390, height: 844, scale: 3, fontScale: 1 });
+    let tree;
+    act(() => {
+      tree = create(<ShellOverlay state={navState} />);
+    });
+    return tree.root.findAll((node) => node.props.testID === 'bottom-nav').length > 0;
+  }
+
+  it('"Build my plan" (Plans › PlanGenerator, from onboarding): no bottom nav on the generator', () => {
+    expect(barFor(reset('PlansTab', 'PlanGenerator', { from: 'onboarding' }))).toBe(false);
+  });
+
+  it('"Browse plans" (Plans › PlansLibrary) and "Not now" (Today › Home): the main pages keep the bar', () => {
+    expect(barFor(reset('PlansTab', 'PlansLibrary'))).toBe(true);
+    expect(barFor(reset('TodayTab', 'Home'))).toBe(true);
+  });
+
+  it('a tab route with neither state nor a target still reads its root (unchanged)', () => {
+    expect(barFor({ index: 0, routes: [{ name: 'PlansTab' }] })).toBe(true);
+  });
+
+  it('once the stack has a state, its focused screen wins over the reset target', () => {
+    const settled = { index: 0, routes: [{ name: 'PlansTab', params: { screen: 'PlansLibrary' }, state: { index: 0, routes: [{ name: 'PlanGenerator', params: {} }] } }] };
+    expect(barFor(settled)).toBe(false);
+  });
+});
+
 // T-56: the overlay (one instance above every tab stack) draws the tablet rail.
 describe('ShellOverlay tablet rail', () => {
   function renderAt(width, height = 1024, navState = state) {

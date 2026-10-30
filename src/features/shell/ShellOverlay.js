@@ -14,11 +14,21 @@ import { usePhoneChromeStore } from './phoneChromeStore';
 import { closePanel, useShellUiStore } from './shellUiStore';
 
 // The current web path from the tab navigator's state.
+// T-53 device fix (29 Oct 2026): a reset INTO a tab's inner screen (the
+// onboarding bridge's "Build my plan" → AppShell › Plans › PlanGenerator)
+// names that screen only in the tab route's params until its stack has a
+// state of its own; reading the tab root then ('/plans', a main page) drew
+// the phone tab bar over the generator's step bar. The pending target wins
+// over the root, so the bar follows the screen from the first frame.
 export function getTabsPath(state) {
   const tabRoute = state.routes[state.index];
   const stack = tabRoute.state;
   const leaf = stack?.routes?.[stack.index ?? 0];
-  return leaf ? getScreenPath(leaf.name, leaf.params) : getScreenPath(TAB_ROOTS[tabRoute.name]);
+  if (leaf) {
+    return getScreenPath(leaf.name, leaf.params);
+  }
+  const pending = tabRoute.params?.screen;
+  return pending ? getScreenPath(pending, tabRoute.params?.params) : getScreenPath(TAB_ROOTS[tabRoute.name]);
 }
 
 // The bottom-tabs `tabBar`: the chrome drawn over the screens, in the spec's
