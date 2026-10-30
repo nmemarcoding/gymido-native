@@ -329,7 +329,7 @@ describe('Trainer today, tablet', () => {
       .findAll((node) => typeof node.type === 'string' && ['dashboard-attention', 'dashboard-requests', 'dashboard-invitations'].includes(node.props.testID))
       .map((node) => node.props.testID);
     expect(order).toEqual(['dashboard-attention', 'dashboard-requests', 'dashboard-invitations']);
-    // Tablet rows: name + "View →" (no weekly line, as drawn).
+    // Tablet rows: no weekly sentence (T-121: the M3 plan line + ring, like the phone).
     expect(texts(tree).some((text) => /of 4 this week/.test(text))).toBe(false);
     expect(tree.root.findAllByType(ClientAvatar).find((a) => a.props.userId === 11 && a.props.size === 44)).toBeTruthy();
     expect(host(tree, 'request-50')).toBeTruthy();
@@ -420,7 +420,8 @@ describe('T-121 Trainer today', () => {
     );
     expect(byTestID(tree, 'dashboard-stat-adherence').props.accessibilityLabel).toBe('Adherence this week, 57%, workouts done vs planned');
     expect(byTestID(tree, 'dashboard-stat-attention').props.accessibilityLabel).toBe('Need attention, 1, clients to check');
-    expect(byTestID(tree, 'dashboard-stat-adherence').props.sub).toBeUndefined();
+    // T-121 UX verdict (PM OK, my own new test). Was: toBeUndefined() (phone sublines only in the a11y name).
+    expect(tree.root.findAllByType(StatTile).map((tile) => tile.props.sub)).toEqual(['people you coach', 'requests to answer', 'workouts done vs planned', 'clients to check']);
   });
 
   it('M2: nothing planned → Adherence hides, the other three keep their order (3 across)', async () => {
@@ -453,11 +454,23 @@ describe('T-121 Trainer today', () => {
     expect(texts(tree)).not.toContain('View →');
   });
 
-  it('M3: tablet rows keep name + "View →" (web kept its ≥ 768 rows)', async () => {
+  // T-121 UX verdict (PM OK, my own new test). Was: 'M3: tablet rows keep name + "View →"'.
+  it('M3: tablet rows use the same anatomy (plan line, ring 20 + x/y or the status chip), no "View →"', async () => {
     setWindow(1024);
+    listActiveClients.mockResolvedValue([alexData, diegoData]);
+    const tree = await render();
+    const flatten = (node) => (typeof node === 'string' ? node : node && node.children ? node.children.map(flatten).join('') : '');
+    expect(flatten(host(tree, 'dashboard-client-line-11'))).toBe('Upper / Lower Split');
+    expect(host(tree, 'dashboard-client-11').findAll((node) => node.props.testID === 'week-ring').length).toBeGreaterThan(0);
+    expect(texts(tree)).toContain('3/4');
+    expect(host(tree, 'dashboard-client-13').findAll((node) => node.type === StatusPill).map((pill) => pill.props.label)).toEqual(['Active']);
+    expect(texts(tree)).not.toContain('View →');
+  });
+
+  it('large text (row tiles) drops the phone sublines', async () => {
+    setWindow(390, 3.1);
     listActiveClients.mockResolvedValue([alexData]);
     const tree = await render();
-    expect(host(tree, 'dashboard-client-line-11')).toBeUndefined();
-    expect(texts(tree)).toContain('View →');
+    tree.root.findAllByType(StatTile).forEach((tile) => expect(tile.props.sub).toBeUndefined());
   });
 });

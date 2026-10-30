@@ -20,7 +20,7 @@ import { activityOf, anyActivity, inviteLabel, needAttention, planNameOf, rowIni
 import { clientRowLabel, plural } from './clients/clientFormat';
 import { openAssignPlan, openClientDetail } from './clients/clientLinks';
 import ClientAvatar from './clients/components/ClientAvatar';
-import { BrandLink, ListCard, ListRow, PHONE_WEEK_RING, PageIntro, PlanLine, SectionHead, StatTile, StatusLine, WeekRing, clientStyles } from './clients/components/ClientsUi';
+import { BrandLink, ListCard, ListRow, PHONE_WEEK_RING, PageIntro, PlanLine, SectionHead, StatTile, StatusLine, WEEK_RING, WeekRing, clientStyles } from './clients/components/ClientsUi';
 import InviteClientModal from './clients/components/InviteClientModal';
 import { PlusGlyph } from './clients/components/clientIcons';
 import { useTrainerOverview } from './clients/useTrainerOverview';
@@ -199,6 +199,9 @@ function Dashboard() {
       tileStyle = styles.statPair;
     }
     const shared = tablet ? { large: true, hero: true } : { row: reflow };
+    // UX T-121 verdict: the sublines on every width (web); the phone's
+    // large-text row layout drops them.
+    const showSub = tablet || !reflow;
     return (
       <View testID="dashboard-stats" style={[styles.stats, tablet && reflow && styles.stack]}>
         <StatTile
@@ -206,7 +209,7 @@ function Dashboard() {
           {...shared}
           label="Active clients"
           value={clients.length}
-          sub={tablet ? activeSub : undefined}
+          sub={showSub ? activeSub : undefined}
           valueColor={colors.teal}
           accessibilityLabel={`Active clients, ${clients.length}, ${activeSub}`}
           onPress={() => openShellPath('/trainer/clients')}
@@ -219,7 +222,7 @@ function Dashboard() {
           gold={gold}
           label="Awaiting you"
           value={incoming.length}
-          sub={tablet ? awaitingSub : undefined}
+          sub={showSub ? awaitingSub : undefined}
           accessibilityLabel={`Awaiting you, ${incoming.length}, ${awaitingSub}`}
           style={tileStyle}
         />
@@ -229,7 +232,7 @@ function Dashboard() {
             {...shared}
             label="Adherence this week"
             value={`${adherence}%`}
-            sub={tablet ? adherenceSub : undefined}
+            sub={showSub ? adherenceSub : undefined}
             accessibilityLabel={`Adherence this week, ${adherence}%, ${adherenceSub}`}
             style={tileStyle}
           />
@@ -240,7 +243,7 @@ function Dashboard() {
             {...shared}
             label="Need attention"
             value={attention.length}
-            sub={tablet ? attentionSub : undefined}
+            sub={showSub ? attentionSub : undefined}
             valueColor={attention.length > 0 ? colors.warning : colors.textPrimary}
             accessibilityLabel={`Need attention, ${attention.length}, ${attentionSub}`}
             style={tileStyle}
@@ -378,10 +381,7 @@ function Dashboard() {
           <ListCard style={[styles.sectionBody, tablet && styles.flatList]}>
             {clients.map((client) => {
               const name = clientRowLabel(client);
-              if (tablet) {
-                return renderTabletClientRow(client, name);
-              }
-              // T-121 M3 (UX option B, web phone rows): avatar · name · plan line
+              // T-121 M3 (UX option B; UX verdict: every width, as web 834): avatar · name · plan line
               // (reason first) · the ring + "x/y" with a plan this week, else the
               // status chip. No "View →"; the whole row opens the client.
               const ratio = weekRatio(client);
@@ -394,10 +394,10 @@ function Dashboard() {
                   key={client.id}
                   testID={`dashboard-client-${client.client_user_id}`}
                   accessibilityLabel={label}
-                  style={styles.clientRow}
+                  style={[styles.clientRow, tablet && styles.clientRowTablet]}
                   onPress={() => openClientDetail(client.client_user_id, client.client_activity)}
                 >
-                  <ClientAvatar userId={client.client_user_id} initials={rowInitials(client)} size={36} />
+                  <ClientAvatar userId={client.client_user_id} initials={rowInitials(client)} size={tablet ? 44 : 36} />
                   <View style={styles.flexText}>
                     <Text {...NAME_TEXT} style={clientStyles.rowLabel}>
                       {name}
@@ -406,7 +406,7 @@ function Dashboard() {
                   </View>
                   {ratio ? (
                     <View style={styles.trailing}>
-                      <WeekRing done={ratio.done} planned={ratio.planned} size={PHONE_WEEK_RING} />
+                      <WeekRing done={ratio.done} planned={ratio.planned} size={tablet ? WEEK_RING : PHONE_WEEK_RING} />
                       <Text {...CAP_BODY} style={styles.ratio}>
                         {ratio.text}
                       </Text>
@@ -420,30 +420,6 @@ function Dashboard() {
           </ListCard>
         )}
       </View>
-    );
-  }
-
-  // Tablet rows (≥ 768): name + "View →", unchanged by T-121 (web kept its
-  // ≥ 768 rows).
-  function renderTabletClientRow(client, name) {
-    return (
-      <ListRow
-        key={client.id}
-        testID={`dashboard-client-${client.client_user_id}`}
-        accessibilityLabel={name}
-        style={[styles.clientRow, styles.clientRowTablet]}
-        onPress={() => openClientDetail(client.client_user_id, client.client_activity)}
-      >
-        <ClientAvatar userId={client.client_user_id} initials={rowInitials(client)} size={44} />
-        <View style={styles.flexText}>
-          <Text {...NAME_TEXT} style={clientStyles.rowLabel}>
-            {name}
-          </Text>
-        </View>
-        <Text {...CAP_BODY} style={clientStyles.viewLink}>
-          View →
-        </Text>
-      </ListRow>
     );
   }
 
