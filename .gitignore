@@ -177,4 +177,5 @@ modules/*/ios/build/
 
 # Latest APK from apk/build-latest.sh
 /apk/*.apk
-/apk/.incoming.apk.tmp
+/apk/.incoming.*
+/apk/.lock/
