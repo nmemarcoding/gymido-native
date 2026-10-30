@@ -82,7 +82,7 @@ export function WeekRing({ done, total, size = 164, numberSize = 52, ofSize = 24
 
 // §5 the day circle by type (status reads by shape too: ✓ / dashed ! / ring /
 // dot / empty).
-function DayCircle({ cell, selected }) {
+function DayCircle({ cell }) {
   const doneToday = cell.type === 'done' && cell.isToday;
   const look = [
     styles.circle,
@@ -105,19 +105,18 @@ function DayCircle({ cell, selected }) {
       ) : null}
     </View>
   );
-  // The done-today gold ring (2 gap + 2 ring) and the open day's outline (3
-  // offset + 2) are overlays, like the board's box-shadow / outline: the
-  // 40 px circle keeps its size in a ~47 px column.
+  // The done-today gold ring (2 gap + 2 ring) is an overlay, like the board's
+  // box-shadow: the 40 px circle keeps its size in a ~47 px column. No
+  // selected ring on the open day (web parity, UX L1).
   return (
     <View>
       {circle}
       {doneToday ? <View pointerEvents="none" style={styles.todayRing} /> : null}
-      {selected ? <View testID="workout-day-selected" pointerEvents="none" style={styles.selected} /> : null}
     </View>
   );
 }
 
-export default function WeekCard({ cells, progress, label, openIndex = -1, onOpenDay, dayRefs, ring }) {
+export default function WeekCard({ cells, progress, label, onOpenDay, dayRefs, ring }) {
   return (
     <View testID="workout-week-card" accessibilityLabel="This week" style={styles.card}>
       <View pointerEvents="none" style={styles.fill}>
@@ -144,7 +143,7 @@ export default function WeekCard({ cells, progress, label, openIndex = -1, onOpe
             onPress={() => onOpenDay(cell)}
             style={styles.day}
           >
-            <DayCircle cell={cell} selected={openIndex === cell.index} />
+            <DayCircle cell={cell} />
             <Text maxFontSizeMultiplier={NUMBER_CAP} {...hidden} style={[styles.letter, cell.isToday && styles.letterToday]}>
               {cell.letter}
             </Text>
@@ -216,16 +215,6 @@ const styles = StyleSheet.create({
     minHeight: 64,
     alignItems: 'center',
     gap: 6,
-  },
-  selected: {
-    position: 'absolute',
-    top: -5,
-    left: -5,
-    right: -5,
-    bottom: -5,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: colors.textPrimary,
   },
   circle: {
     width: 40,

@@ -13,7 +13,7 @@ import { CAP_BODY, DISPLAY_TITLE_TEXT, LINE_TEXT, TITLE_TEXT } from '../../../sh
 import PillButton from '../../../shared/components/PillButton';
 import Skeleton from '../../../shared/components/Skeleton';
 import { useSheetFocus } from '../../../shared/hooks/useSheetFocus';
-import { breakpoints, colors, font, gradients, spacing, titleTracking } from '../../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, spacing, textScale, titleTracking } from '../../../shared/theme/tokens';
 import { listDayExercises } from '../../plans/api/libraryApi';
 import ScheduleSetupCard from '../../plans/components/ScheduleSetupCard';
 import { WEEKDAYS, planDayTitle } from '../../plans/libraryFormat';
@@ -285,7 +285,13 @@ function WorkoutPage() {
     }
 
     return (
-      <ShellPage testID="workout-screen">
+      <ShellPage
+        testID="workout-screen"
+        // T-140 ruling §2.1: Back left · bell right, ONE row. M1 (U5): always
+        // the Today root; goBack under backBehavior "history" could land on
+        // another tab.
+        headerLeading={<BackPill testID="workout-back-today" label="Today" onPress={() => openShellPath('/')} />}
+      >
         <Hub
           status={status}
           loadError={loadError}
@@ -298,9 +304,6 @@ function WorkoutPage() {
           isStartingDayId={isStartingDayId}
           onRetry={() => load()}
           onStart={handleStart}
-          // M1 (U5): always the Today root; goBack under backBehavior
-          // "history" could land on another tab.
-          onBackToToday={() => openShellPath('/')}
           onScheduleSaved={async () => {
             setSuccessMessage('Training days saved.');
             await load();
@@ -325,18 +328,16 @@ function WorkoutPage() {
 }
 
 
-// U5 "‹ Today", the page title and (T-140 §6) the plan line "{plan} · week N".
-// T-65 (PHONE-NAV spec §3): the page's one back control is the kit BackPill;
-// it opens the Today root (M1). The bell is the shell's (unchanged).
-function HubHeader({ wide, planText, onBack }) {
+// The page title and (T-140 §6) the plan line "{plan} · week N". The kit
+// BackPill (T-65, M1) sits on the shell header's bell row (headerLeading).
+function HubHeader({ wide, planText, large = false }) {
   return (
     <View testID="workout-hub-header" style={styles.header}>
-      <BackPill testID="workout-back-today" label="Today" onPress={onBack} />
       <Text testID="workout-title" accessibilityRole="header" {...DISPLAY_TITLE_TEXT} style={wide ? styles.titleWide : styles.title}>
         Workout
       </Text>
       {planText ? (
-        <Text testID="workout-plan-line" {...LINE_TEXT} style={[styles.planLine, wide && styles.planLineWide]}>
+        <Text testID="workout-plan-line" {...LINE_TEXT} numberOfLines={large ? 2 : 1} style={[styles.planLine, wide && styles.planLineWide]}>
           {planText}
         </Text>
       ) : null}
@@ -414,7 +415,7 @@ const SHEET_TO_CONFIRM_MS = 320;
 // left, stats / Last workout / missed line / the gold action right. Every
 // Start runs today's flows unchanged: today's Start starts at once; a
 // catch-up and a start-early ask first (T-80 / T-102 confirms).
-function Hub({ status, page, width, height = 0, actionError, successMessage, isStartingDayId, onRetry, onStart, onScheduleSaved, onBackToToday, fontScale = 1 }) {
+function Hub({ status, page, width, height = 0, actionError, successMessage, isStartingDayId, onRetry, onStart, onScheduleSaved, fontScale = 1 }) {
   const tablet = width >= breakpoints.md;
   const wide = width >= breakpoints.lg && width > height;
   const profile = useProfileStore((state) => state.profile);
@@ -472,7 +473,10 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
   const now = new Date();
   const finished = currentPlan?.enrollment?.plan ? null : finishedPlan(page.myPlans);
   const planText = finished ? `${finished.name} · finished` : planLine(currentPlan?.enrollment?.plan, currentPlan?.enrollment?.started_on, weekReference(week, now));
-  const header = <HubHeader wide={wide} planText={planText ? keepUnitsTogether(planText) : null} onBack={onBackToToday} />;
+  // UX (a) / L2: past the large-text reflow the plan line and the Last
+  // workout text may wrap to 2 lines.
+  const large = fontScale > textScale.reflowAbove;
+  const header = <HubHeader wide={wide} large={large} planText={planText ? keepUnitsTogether(planText) : null} />;
   const pageStyle = [styles.page, tablet && !wide && styles.pageTablet, wide && styles.pageWide];
 
   if (status === 'loading') {
@@ -671,7 +675,6 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
         cells={cells}
         progress={progress}
         label={ringLabel(state)}
-        openIndex={openCell?.index ?? -1}
         dayRefs={dayRefs}
         ring={wide ? { size: 190, numberSize: 60, ofSize: 26 } : tablet ? { size: 180 } : undefined}
         onOpenDay={(cell) => openSheet(cell, { current: dayRefs.current[cell.index] })}
@@ -682,6 +685,7 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
     <LastWorkoutRow
       ref={lastRef}
       tall={wide}
+      wrap={large}
       title={workoutTitle(last)}
       when={lastWhenText(last, now)}
       onPress={() => openSheet(lastWorkoutCell(last, cells, now), lastRef)}

@@ -44,7 +44,12 @@ jest.mock('../../plans/components/ScheduleSetupCard', () => () => {
 });
 jest.mock('../../plans/api/libraryApi', () => ({ listDayExercises: jest.fn() }));
 jest.mock('../loadWorkoutPage', () => ({ loadWorkoutPage: jest.fn() }));
-jest.mock('../../shell/ShellPage', () => ({ children }) => children);
+jest.mock('../../shell/ShellPage', () => ({ children, headerLeading }) => (
+  <>
+    {headerLeading}
+    {children}
+  </>
+));
 jest.mock('../../shell/shellLinks', () => ({ openShellPath: jest.fn() }));
 jest.mock('../../shell/AppHeader', () => () => null);
 jest.mock('../runtime/SessionRuntime', () => () => {
@@ -320,9 +325,10 @@ describe('day sheets (§5)', () => {
     expect(listDayExercises).toHaveBeenCalledTimes(4);
     await act(async () => {});
     const sheet = sheetTexts(tree);
-    expect(sheet).toEqual(expect.arrayContaining(['Today · Thursday', 'Upper B', '6 exercises', '+3 more']));
-    expect(hosts(tree.root, 'workout-sheet-list')[0].findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel?.startsWith?.('Upper '))).toHaveLength(5);
-    expect(hosts(tree.root, 'workout-day-selected')).toHaveLength(1);
+    expect(sheet).toEqual(expect.arrayContaining(['Today · Thursday', 'Upper B', '6 exercises', '+2 more']));
+    expect(hosts(tree.root, 'workout-sheet-list')[0].findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel?.startsWith?.('Upper '))).toHaveLength(6);
+    // UX L1 (web parity): no selected ring on the open day.
+    expect(hosts(tree.root, 'workout-day-selected')).toHaveLength(0);
     await press(tree, 'workout-sheet-action');
     expect(sheetOpen(tree)).toBe(false);
     expect(startWorkout).toHaveBeenCalledWith({ user_plan_enrollment_id: 31, workout_plan_day_id: 3 });

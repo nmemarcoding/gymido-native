@@ -32,7 +32,9 @@ export function StatsCard({ time, volume, large = false }) {
   );
 }
 
-export function LastWorkoutRow({ title, when, onPress, tall = false, ref }) {
+// `wrap` (past the large-text reflow, UX (a)): the text takes up to 2 lines
+// and keeps its "Last workout ·" lead; the when-text + chevron stay right, top.
+export function LastWorkoutRow({ title, when, onPress, tall = false, wrap = false, ref }) {
   return (
     <Pressable
       ref={ref}
@@ -41,12 +43,12 @@ export function LastWorkoutRow({ title, when, onPress, tall = false, ref }) {
       accessibilityLabel={`Last workout: ${title}, ${when}`}
       accessibilityHint="Opens that day's workout"
       onPress={onPress}
-      style={[styles.last, tall && styles.lastTall]}
+      style={[styles.last, tall && styles.lastTall, wrap && styles.lastWrap]}
     >
       <View {...hidden} style={styles.lastTick}>
         <CheckIcon size={14} color={colors.onGold} />
       </View>
-      <Text {...LINE_TEXT} style={styles.lastText}>
+      <Text {...LINE_TEXT} numberOfLines={wrap ? 2 : 1} style={styles.lastText}>
         <Text style={styles.lastLead}>Last workout · </Text>
         <Text style={styles.lastName}>{title}</Text>
       </Text>
@@ -133,6 +135,10 @@ const styles = StyleSheet.create({
   lastTall: {
     minHeight: 60,
     marginTop: 0,
+  },
+  lastWrap: {
+    alignItems: 'flex-start',
+    paddingVertical: 12,
   },
   lastTick: {
     width: 26,

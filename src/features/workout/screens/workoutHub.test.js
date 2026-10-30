@@ -53,7 +53,13 @@ jest.mock('../../../shared/components/ExerciseImage', () => (props) => {
   return <View testID={props.loading ? `${props.testID}-loading` : props.testID} style={props.style} />;
 });
 jest.mock('../loadWorkoutPage', () => ({ loadWorkoutPage: jest.fn() }));
-jest.mock('../../shell/ShellPage', () => ({ children }) => children);
+// DECLARED (T-140, UX C1): the Back pill is the shell header's leading control now, so the mock draws it too.
+jest.mock('../../shell/ShellPage', () => ({ children, headerLeading }) => (
+  <>
+    {headerLeading}
+    {children}
+  </>
+));
 jest.mock('../../shell/shellLinks', () => ({ openShellPath: jest.fn() }));
 jest.mock('../../shell/AppHeader', () => () => null);
 jest.mock('../runtime/SessionRuntime', () => () => null);

@@ -36,12 +36,14 @@ import { INNER_PAGE_CONTENT_PADDING, TAB_BAR_CONTENT_PADDING } from './tabBarMet
 // programmatically (the generator's Review opens at the top, G1.3).
 // `headerActions` (optional): drawn right-aligned on the shell header's title
 // row (AppHeader); tablet Progress puts its Body/Activity switch there.
+// `headerLeading` (optional, T-140 ruling §2.1): a page's own control on the
+// left of that row (the Workout page's Back pill, on the bell's row).
 // `dockHeight` (optional): the measured height of the page's PinnedDock (UX
 // native final audit 27 Oct 2026, ruling 1). The scroll's contentContainer
 // bottom padding is then exactly that height (it already holds the tab bar,
 // the gap and the safe area) instead of the tab-bar padding; null = not
 // measured yet / no dock.
-export default function ShellPage({ children, nestable = false, glow = false, testID = 'app-root', scrollRef, headerActions, dockHeight = null }) {
+export default function ShellPage({ children, nestable = false, glow = false, testID = 'app-root', scrollRef, headerActions, headerLeading = null, dockHeight = null }) {
   const route = useRoute();
   const path = getScreenPath(route.name, route.params);
   const { width, fontScale } = useWindowDimensions();
@@ -76,7 +78,7 @@ export default function ShellPage({ children, nestable = false, glow = false, te
           scale; state kept above ShellPage (the screen component) survives.
           The active workout renders outside ShellPage and is not remounted.
           Details: ~/gymido-mobile-work/v2/phase1-qa-fixes.md. */}
-      <AppHeader key={`header-scale-${fontScale}`} path={path} mode={mode} headerActions={headerActions} heroTitleShown={heroTitleShown} />
+      <AppHeader key={`header-scale-${fontScale}`} path={path} mode={mode} headerActions={headerActions} headerLeading={headerLeading} heroTitleShown={heroTitleShown} />
       {!tablet && showsMobileModeSwitch({ user, path }) ? (
         <View style={styles.mobileSwitch}>
           <Text style={styles.mobileSwitchLabel}>Workspace</Text>

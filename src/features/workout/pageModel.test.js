@@ -156,8 +156,9 @@ describe('day cells + sheets (§5)', () => {
     expect(sheetRows([1, 4], { 1: [ex(1)] })).toBeUndefined();
     const merged = sheetRows([1, 4], { 1: [ex(1), ex(2), ex(3), ex(4)], 4: [ex(4), ex(5), ex(6), ex(7), ex(8)] });
     expect(merged.count).toBe(8);
-    expect(merged.rows.map((row) => row.name)).toEqual(['E1', 'E2', 'E3', 'E4', 'E5']);
-    expect(merged.more).toBe(3);
+    // UX C2 (web parity): up to 6 rows, then "+N more".
+    expect(merged.rows.map((row) => row.name)).toEqual(['E1', 'E2', 'E3', 'E4', 'E5', 'E6']);
+    expect(merged.more).toBe(2);
     expect(merged.rows[0].meta).toBe('3×8');
     expect(sheetRows([1], { 1: [ex(1), ex(2), ex(3), ex(4), ex(5), ex(6)] })).toMatchObject({ more: 0, count: 6 });
   });

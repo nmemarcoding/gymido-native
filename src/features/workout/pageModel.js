@@ -243,9 +243,10 @@ export function doneRows(details) {
   return capRows([...byId.values()].map((row) => ({ key: row.key, name: row.name, meta: `${row.sets} ${row.sets === 1 ? 'set' : 'sets'}` })));
 }
 
+// Up to SHEET_ROWS rows, then "+N more" (7 → 6 + "+1 more"; web parity, UX C2).
 function capRows(rows) {
-  const more = rows.length > SHEET_ROWS ? rows.length - (SHEET_ROWS - 1) : 0;
-  return { rows: more ? rows.slice(0, SHEET_ROWS - 1) : rows, more, count: rows.length };
+  const more = Math.max(0, rows.length - SHEET_ROWS);
+  return { rows: rows.slice(0, SHEET_ROWS), more, count: rows.length };
 }
 
 // §5 day sheet: { tone, eyebrow, title, meta, list ('done' | 'plan' | null),

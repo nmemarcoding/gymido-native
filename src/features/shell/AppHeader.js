@@ -24,6 +24,9 @@ import { useInnerBack } from './useInnerBack';
 // `heroTitleShown` (§6.1, audit b1 X1): the page's own hero title is on
 // screen (ShellPage's HeroTitleMark registry); until it is, a coaching /
 // trainer page keeps the header title "Coaching" as its one heading.
+// `headerLeading` (optional, T-140 ruling §2.1): a page's own control on the
+// left of the bell's row when the header draws no title or back link (the
+// Workout page's Back pill: one row, Back left · bell right).
 const TITLE_TEXT = Object.freeze({
   textBreakStrategy: 'simple',
   maxFontSizeMultiplier: textScale.display,
@@ -32,7 +35,7 @@ const TITLE_TEXT = Object.freeze({
   minimumFontScale: 0.7,
 });
 
-export default function AppHeader({ path, query = '', mode, headerActions = null, heroTitleShown = false }) {
+export default function AppHeader({ path, query = '', mode, headerActions = null, headerLeading = null, heroTitleShown = false }) {
   const { width } = useWindowDimensions();
   const isFocused = useIsFocused();
   const compact = isCompactHeader(path, query);
@@ -97,7 +100,7 @@ export default function AppHeader({ path, query = '', mode, headerActions = null
             ) : null}
           </View>
         ) : (
-          <View />
+          (headerLeading ?? <View />)
         )}
         {actions}
       </View>
