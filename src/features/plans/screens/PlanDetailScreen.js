@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { routes } from '../../../navigation/routes';
-import { getServerMessage, getStatus } from '../../../shared/api/apiError';
+import { getApiErrorMessage, getServerMessage, getStatus } from '../../../shared/api/apiError';
+import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { RetryButton } from '../../../shared/components/ErrorAlert';
 import { InlineError } from '../../../shared/components/FeedbackBox';
 import { CAP_BODY } from '../../../shared/components/largeText';
@@ -11,13 +12,15 @@ import Loader from '../../../shared/components/Loader';
 import StateSlot from '../../../shared/components/StateSlot';
 import StatusPill from '../../../shared/components/StatusPill';
 import { InlineToast } from '../../../shared/components/ToastHost';
-import { ToastTone } from '../../../shared/components/toastStore';
+import { ToastTone, addToast } from '../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
+import { SHEET_FOCUS_DELAY_MS, focusNode } from '../../../shared/hooks/useSheetFocus';
 import { breakpoints, colors, font, gradients, spacing } from '../../../shared/theme/tokens';
 import { formatLocalDateForInput } from '../../../shared/time/format';
 import CopyToMyPlansCard from '../../myPlans/components/CopyToMyPlansCard';
 import ShellPage from '../../shell/ShellPage';
-import { handOffToWorkout, openShellPath } from '../../shell/shellLinks';
+import { handOffToToday, handOffToWorkout, openShellPath } from '../../shell/shellLinks';
+import { getCurrentWorkout } from '../../workout/api/workoutApi';
 import {
   cancelEnrollment,
   createSchedule,
@@ -30,6 +33,7 @@ import {
   replaceSchedule,
 } from '../api/libraryApi';
 import DayRow from '../components/DayRow';
+import PlanActionsSheet, { PlanActionsButton } from '../components/PlanActionsSheet';
 import PlanScheduleCard, { TrainerLockBanner } from '../components/PlanScheduleCard';
 import { PlanHero, PlanSummary } from '../components/PlanSummary';
 import ThisWeek from '../components/ThisWeek';
@@ -44,6 +48,7 @@ import {
   workoutDaysLabel,
 } from '../libraryFormat';
 import { keepUnitsTogether } from '../../../shared/format/counts';
+import { END_PLAN_COPY, endPlanBody, endPlanSuccess, endPlanTitle, sessionBlocksEnd } from '../endPlan';
 
 // The phone board's page glow: radial-gradient(110% 45% at 80% −8%,
 // glow-gold-ambient 0.18, transparent 60%). The tablet hero draws its own.
@@ -84,14 +89,27 @@ function PlanDetail() {
   const [isActivating, setIsActivating] = useState(false);
   const [lockedEnrollmentId, setLockedEnrollmentId] = useState(null);
   const [reloadCount, setReloadCount] = useState(0);
+  // T-91 End plan: the ⋯ menu, then the confirm (`endConfirm` keeps its
+  // content while it closes; `blocked` = a workout in progress). Both are
+  // mounted on the first ⋯ press and kept for their close animations.
+  const [endMounted, setEndMounted] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [endOpen, setEndOpen] = useState(false);
+  const [endConfirm, setEndConfirm] = useState(null);
+  const [ending, setEnding] = useState(false);
+  const [endError, setEndError] = useState('');
   const tablet = useIsTablet();
   const mounted = useRef(true);
   const activating = useRef(false);
+  const endingRef = useRef(false);
+  const actionsRef = useRef(null);
+  const focusTimer = useRef(null);
 
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
+      clearTimeout(focusTimer.current);
     };
   }, []);
 
@@ -255,6 +273,143 @@ function PlanDetail() {
     }
   }
 
+  // T-91 §4: screen-reader focus back on the ⋯ once the sheet / dialog has gone.
+  function focusActionsLater() {
+    clearTimeout(focusTimer.current);
+    focusTimer.current = setTimeout(() => {
+      if (mounted.current) {
+        focusNode(actionsRef);
+      }
+    }, SHEET_FOCUS_DELAY_MS);
+  }
+
+  function openActions() {
+    if (endingRef.current) {
+      return;
+    }
+    setEndMounted(true);
+    setMenuOpen(true);
+  }
+
+  // Cancel / scrim / back → the ⋯; the End plan row hands off to the confirm.
+  function closeActions(options) {
+    setMenuOpen(false);
+    if (!options?.handoff) {
+      focusActionsLater();
+    }
+  }
+
+  // §2: one GET /workouts/current decides the body; a failed read doesn't
+  // block (the confirm then sends the cancel as usual).
+  async function openEndConfirm() {
+    if (!mounted.current || endingRef.current) {
+      return;
+    }
+    let session = null;
+    try {
+      session = await getCurrentWorkout();
+    } catch {
+      session = null;
+    }
+    if (!mounted.current) {
+      return;
+    }
+    setEndError('');
+    setEndConfirm({ blocked: sessionBlocksEnd(session, currentEnrollmentId) });
+    setEndOpen(true);
+  }
+
+  // Blocked while the request runs (dismissible false does the scrim/back).
+  function cancelEnd() {
+    if (endingRef.current) {
+      return;
+    }
+    setEndOpen(false);
+    setEndError('');
+    focusActionsLater();
+  }
+
+  // §3: 200 → Today + the neutral toast; 409 (the trainer lock, PM decision
+  // 2) → close + TrainerLockBanner; 404 → close, re-read, toast; else the
+  // dialog stays open with the inline error.
+  async function confirmEnd() {
+    if (!endOpen || endingRef.current) {
+      return;
+    }
+    if (endConfirm?.blocked) {
+      setEndOpen(false);
+      openShellPath('/workout');
+      return;
+    }
+    endingRef.current = true;
+    setEnding(true);
+    setEndError('');
+    try {
+      await cancelEnrollment(currentEnrollmentId);
+    } catch (error) {
+      endingRef.current = false;
+      if (!mounted.current) {
+        return;
+      }
+      setEnding(false);
+      const status = getStatus(error);
+      if (status === 409) {
+        setEndOpen(false);
+        setLockedEnrollmentId(currentEnrollmentId);
+      } else if (status === 404) {
+        setEndOpen(false);
+        addToast(ToastTone.info, END_PLAN_COPY.gone);
+        setReloadCount((count) => count + 1);
+      } else {
+        setEndError(getApiErrorMessage(error, END_PLAN_COPY.failed));
+      }
+      return;
+    }
+    endingRef.current = false;
+    if (!mounted.current) {
+      return;
+    }
+    setEnding(false);
+    setEndOpen(false);
+    addToast(ToastTone.info, endPlanSuccess(plan?.name));
+    handOffToToday(navigation, route);
+  }
+
+  // §1: only on the member's current plan (Plan detail is a member route,
+  // so never in Trainer mode), never while loading or failed.
+  const planActions =
+    isCurrentPlan && currentEnrollmentId ? (
+      <PlanActionsButton ref={actionsRef} planName={plan?.name} onPress={openActions} />
+    ) : null;
+
+  const blocked = Boolean(endConfirm?.blocked);
+  const endPlan = planActions && endMounted ? (
+    <>
+      <PlanActionsSheet isOpen={menuOpen} onClose={closeActions} onEnd={openEndConfirm} />
+      <ConfirmDialog
+        testID="end-plan-dialog"
+        hideClose
+        isOpen={endOpen}
+        onClose={cancelEnd}
+        onConfirm={confirmEnd}
+        title={endPlanTitle(plan?.name)}
+        description={endPlanBody(blocked)}
+        confirmLabel={blocked ? END_PLAN_COPY.goToWorkout : ending ? END_PLAN_COPY.sending : END_PLAN_COPY.confirm}
+        confirmVariant={blocked ? 'secondary' : undefined}
+        tone="danger"
+        loading={ending}
+        dismissible={!ending}
+        cancelDisabled={ending}
+      >
+        {endError ? (
+          <Text testID="end-plan-error" {...CAP_BODY} accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.endError}>
+            {endError}
+          </Text>
+        ) : null}
+      </ConfirmDialog>
+    </>
+  ) : null;
+
   const topBar = (
     <View style={styles.topBar}>
       <BackToPlans tablet={tablet} onPress={goBack} />
@@ -311,12 +466,13 @@ function PlanDetail() {
     return (
       <View style={[styles.page, styles.pageTablet]}>
         {topBar}
-        <PlanHero plan={plan} dayCount={days.length} totalExercises={totalExercises} />
+        <PlanHero plan={plan} dayCount={days.length} totalExercises={totalExercises} actions={planActions} />
         {thisWeek}
         <View testID="plan-detail-columns" style={styles.columns}>
           <View style={styles.leftColumn}>{workoutDays}</View>
           <View style={styles.rightColumn}>{actions}</View>
         </View>
+        {endPlan}
       </View>
     );
   }
@@ -324,10 +480,11 @@ function PlanDetail() {
   return (
     <View style={styles.page}>
       {topBar}
-      <PlanSummary plan={plan} dayCount={days.length} totalExercises={totalExercises} />
+      <PlanSummary plan={plan} dayCount={days.length} totalExercises={totalExercises} actions={planActions} />
       {thisWeek}
       {workoutDays}
       {actions}
+      {endPlan}
     </View>
   );
 }
@@ -350,6 +507,13 @@ const styles = StyleSheet.create({
   retry: {
     alignSelf: 'flex-start',
     marginTop: spacing[3],
+  },
+  // T-91 §3: the inline error under the body, 13/600 danger (Delete workout's).
+  endError: {
+    ...font(600),
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.dangerText,
   },
   daysSection: {
     marginTop: spacing[2],

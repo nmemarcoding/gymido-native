@@ -38,6 +38,9 @@ export default function ConfirmDialog({
   // `disabled`: dimmed, accessibilityState disabled) while a request runs.
   // Pair it with `dismissible` false, which also blocks the scrim and back.
   cancelDisabled = false,
+  // T-91 (opt-in): the confirm's PillButton variant, when it isn't the tone's
+  // (End plan's "Go to workout" is glass).
+  confirmVariant,
 }) {
   const close = () => {
     if (dismissible) {
@@ -65,7 +68,7 @@ export default function ConfirmDialog({
           <PillButton
             testID={confirmTestID ?? (testID ? `${testID}-confirm` : undefined)}
             title={confirmLabel}
-            variant={tone === 'danger' ? 'danger' : 'primary'}
+            variant={confirmVariant ?? (tone === 'danger' ? 'danger' : 'primary')}
             loading={loading}
             onPress={onConfirm}
           />

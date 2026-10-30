@@ -628,9 +628,12 @@ describe('Guard: footer dismiss ⇒ footerDismiss (FINAL-AUDIT batch 1)', () => 
   });
   // DECLARED (T-80, UX T80-start-confirm-copy "Footer Cancel → no ×"): + the hub's start confirm.
   // DECLARED (T-102, PM OK 29 Oct): + Today's catch-up confirm (the same T-80 dialog).
+  // DECLARED (T-91, PM OK 29 Oct, UX T91 §2 "footer Cancel, no ×"): + Plan detail's End plan confirm.
+  // Was: HomeScreen, PlanGeneratorPreviewScreen and WorkoutScreen only.
   const CONFIRM_NO_CLOSE = [
     'features/home/HomeScreen.js',
     'features/planGenerator/screens/PlanGeneratorPreviewScreen.js',
+    'features/plans/screens/PlanDetailScreen.js',
     'features/workout/screens/WorkoutScreen.js',
   ];
   it('only the ConfirmDialogs whose boards draw no × at any width pass hideClose', () => {

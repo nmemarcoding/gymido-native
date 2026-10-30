@@ -43,9 +43,19 @@ export function openShellPath(path, params) {
 // opened alone from Home), the stack falls back to its tab root: a reset to
 // no routes is rejected by the router and would leave the screen in place.
 export function handOffToWorkout(navigation, route, message) {
+  handOffTo(navigation, route, '/workout', { message });
+}
+
+// T-91 §3 (End plan): the same replace, onto the Today root (its no-plan
+// state is the "what next" screen); the toast is the caller's.
+export function handOffToToday(navigation, route) {
+  handOffTo(navigation, route, '/');
+}
+
+function handOffTo(navigation, route, path, params) {
   const state = navigation.getState();
   const remaining = state.routes.filter((item) => item.key !== route.key);
-  openShellPath('/workout', { message });
+  openShellPath(path, params);
   const reset = remaining.length
     ? CommonActions.reset({ ...state, routes: remaining, index: remaining.length - 1 })
     : CommonActions.reset({ index: 0, routes: [{ name: TAB_ROOTS[getScreenTab(route.name)] }] });

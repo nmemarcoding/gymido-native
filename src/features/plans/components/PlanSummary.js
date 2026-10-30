@@ -14,22 +14,29 @@ const HIDDEN = { accessibilityElementsHidden: true, importantForAccessibility: '
 const HERO_GLOW = Object.freeze({ radial: Object.freeze({ cx: 0.5, cy: 0.5, rx: 0.5, ry: 0.5 }), colors: gradients.accountGlow.colors, stops: Object.freeze([0, 1]) });
 
 // UX H Plan detail (phone): eyebrow, the 38/40 name, the description (3
-// lines), the 3 stat tiles and the "{d}× / week" pill.
-export function PlanSummary({ plan, dayCount, totalExercises }) {
+// lines), the 3 stat tiles and the "{d}× / week" pill. T-91 (PM amendment):
+// `actions` (the ⋯) sits beside the whole title block, top-aligned with the
+// name's first line, so it never overlaps the name at large text.
+export function PlanSummary({ plan, dayCount, totalExercises, actions = null }) {
   return (
     <>
       <View testID="plan-summary" style={styles.summary}>
         <Text {...CAP_BODY} style={styles.eyebrow}>
           {plan?.category?.name || 'Workout plan'}
         </Text>
-        <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.name}>
-          {keepUnitsTogether(plan?.name)}
-        </Text>
-        {plan?.description ? (
-          <Text {...CAP_BODY} numberOfLines={3} ellipsizeMode="tail" style={styles.description}>
-            {plan.description}
-          </Text>
-        ) : null}
+        <View style={styles.titleBlockRow}>
+          <View style={styles.titleBlock}>
+            <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.name}>
+              {keepUnitsTogether(plan?.name)}
+            </Text>
+            {plan?.description ? (
+              <Text {...CAP_BODY} numberOfLines={3} ellipsizeMode="tail" style={styles.description}>
+                {plan.description}
+              </Text>
+            ) : null}
+          </View>
+          {actions ? <View style={styles.titleActions}>{actions}</View> : null}
+        </View>
       </View>
       <StatRow plan={plan} dayCount={dayCount} totalExercises={totalExercises} />
       <View style={styles.pill}>
@@ -108,13 +115,14 @@ function StatRow({ plan, dayCount, totalExercises, hero = false }) {
 
 // UX H Tablet: Plan detail hero: radius 36, min 340, padding 32; the plan
 // photo (N3: the first exercise's photo, opacity 0.5 under the photo fade)
-// or gradient-card, the ambient gold glow, content at the bottom.
-export function PlanHero({ plan, dayCount, totalExercises }) {
+// or gradient-card, the ambient gold glow, content at the bottom. T-91 (PM
+// Q3): `actions` (the ⋯) sits top-right of the hero.
+export function PlanHero({ plan, dayCount, totalExercises, actions = null }) {
   // Review M4: the v2 chain (no uc link; none → the gradient card at once).
   const photoSources = getRemoteImageSources(planPhotoUrl(plan));
   const photo = photoSources.length > 0;
   return (
-    <View testID="plan-hero" style={styles.hero}>
+    <View testID="plan-hero" style={[styles.hero, actions && styles.heroWithActions]}>
       <View {...HIDDEN} pointerEvents="none" style={StyleSheet.absoluteFill}>
         <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
         {photo ? (
@@ -146,6 +154,7 @@ export function PlanHero({ plan, dayCount, totalExercises }) {
         </View>
         <StatRow plan={plan} dayCount={dayCount} totalExercises={totalExercises} hero />
       </View>
+      {actions ? <View style={styles.heroActions}>{actions}</View> : null}
     </View>
   );
 }
@@ -162,10 +171,23 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: colors.gold,
   },
+  titleBlockRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[3],
+    marginTop: spacing[2],
+  },
+  titleBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  // The 36 ⋯ centred on the name's first 40 line.
+  titleActions: {
+    marginTop: 2,
+  },
   // 38/40/700 −0.045em (no type token, as drawn).
   name: {
     ...font(700),
-    marginTop: spacing[2],
     fontSize: 38,
     lineHeight: 40,
     letterSpacing: titleTracking(38, -0.045),
@@ -260,6 +282,15 @@ const styles = StyleSheet.create({
   },
   heroPhoto: {
     opacity: 0.5,
+  },
+  // Tall content (large text) stops under the ⋯ row, never beside it.
+  heroWithActions: {
+    paddingTop: spacing[8] + 36 + spacing[3],
+  },
+  heroActions: {
+    position: 'absolute',
+    top: spacing[8],
+    right: spacing[8],
   },
   heroGlow: {
     position: 'absolute',

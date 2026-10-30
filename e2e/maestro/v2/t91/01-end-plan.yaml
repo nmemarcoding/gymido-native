@@ -1,0 +1,87 @@
+# T-91 (UX T91 §6 E2E 1-3): Plans → the active plan → Plan detail → ⋯ →
+# "Plan actions" → End plan → the confirm → Cancel changes nothing (always).
+# Ending the plan itself only runs with END_PLAN=true (a disposable member,
+# PM OK first: it ends the account's current plan) → Today's no-plan state.
+# With a workout in progress the confirm is "Go to workout" (E2E 6), so the
+# opt-in part needs none open.
+# Skips cleanly when the member has no active plan. IDs only.
+appId: com.gymido.app
+---
+- runFlow: ../subflows/signed-in-start.yaml
+# Phone bottom tab or the tablet rail.
+- runFlow:
+    when:
+      visible:
+        id: "tab-Plans"
+    commands:
+      - tapOn:
+          id: "tab-Plans"
+- runFlow:
+    when:
+      visible:
+        id: "rail-Plans"
+    commands:
+      - tapOn:
+          id: "rail-Plans"
+- extendedWaitUntil:
+    visible:
+      id: "plans-library-screen"
+    timeout: 30000
+- runFlow:
+    when:
+      visible:
+        id: "plans-see-full-plan"
+    commands:
+      - tapOn:
+          id: "plans-see-full-plan"
+      - extendedWaitUntil:
+          visible:
+            id: "plan-detail-current"
+          timeout: 30000
+      # §1: the ⋯ on the current plan → the menu → End plan → the confirm.
+      - tapOn:
+          id: "plan-actions-button"
+      - extendedWaitUntil:
+          visible:
+            id: "plan-actions-end"
+          timeout: 10000
+      - assertVisible:
+          id: "plan-actions-cancel"
+      - tapOn:
+          id: "plan-actions-end"
+      - extendedWaitUntil:
+          visible:
+            id: "end-plan-dialog-confirm"
+          timeout: 10000
+      # E2E 2: Cancel closes and changes nothing.
+      - tapOn:
+          id: "end-plan-dialog-cancel"
+      - extendedWaitUntil:
+          notVisible:
+            id: "end-plan-dialog-confirm"
+          timeout: 10000
+      - assertVisible:
+          id: "plan-detail-current"
+      # E2E 1 (opt-in): end it → Today's no-plan state ("Choose a plan").
+      - runFlow:
+          when:
+            true: ${END_PLAN == 'true'}
+          commands:
+            - tapOn:
+                id: "plan-actions-button"
+            - extendedWaitUntil:
+                visible:
+                  id: "plan-actions-end"
+                timeout: 10000
+            - tapOn:
+                id: "plan-actions-end"
+            - extendedWaitUntil:
+                visible:
+                  id: "end-plan-dialog-confirm"
+                timeout: 10000
+            - tapOn:
+                id: "end-plan-dialog-confirm"
+            - extendedWaitUntil:
+                visible:
+                  id: "home-choose-plan"
+                timeout: 30000
