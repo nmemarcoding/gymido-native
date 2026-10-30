@@ -66,6 +66,10 @@ describe('small helpers', () => {
 });
 
 describe('thisWeekCards (approved #9)', () => {
+  // Hardened 30 Oct 2026 (jest gate): "today" comes from the clock, so the fixture's Thursday is pinned (it failed on
+  // every other day). Assertions unchanged.
+  beforeAll(() => jest.useFakeTimers({ now: new Date(2026, 9, 29, 12), doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] }));
+  afterAll(() => jest.useRealTimers());
   const week = [
     { weekday: wd(1, 'Monday'), is_workout_day: true, plan_day: day(11, 'Upper A'), date: '2026-10-26', status: 'done' },
     { weekday: wd(2, 'Tuesday'), is_workout_day: true, plan_day: day(12, 'Lower A'), date: '2026-10-27', status: 'done' },
