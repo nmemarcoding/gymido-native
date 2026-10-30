@@ -8,6 +8,8 @@ import {
   ExerciseSegments,
   ExerciseStage,
   HowToButton,
+  NO_PHOTO_TILE,
+  PHONE_STAGE_HEIGHT,
   ReloadErrorBar,
   SessionChrome,
   SessionRail,
@@ -123,7 +125,15 @@ describe('SessionChrome (ND3)', () => {
     mockFontScale = scale;
     const tree = render(<SessionChrome {...props} tablet={scale === 2} />);
     const name = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Upper / Lower Split')[0];
-    expect(name.props).toMatchObject({ textBreakStrategy: 'simple', adjustsFontSizeToFit: true, minimumFontScale: 0.7, maxFontSizeMultiplier: 1.6 });
+    // T-132 (PM OK 29 Oct; web 2.1.15 SC:119-121): the phone plan name is one line that cuts off (ellipsis) and never
+    // shrinks; the tablet (scale 2 here) keeps the title rule. Was: every scale adjustsFontSizeToFit true,
+    // minimumFontScale 0.7.
+    if (scale === 2) {
+      expect(name.props).toMatchObject({ textBreakStrategy: 'simple', adjustsFontSizeToFit: true, minimumFontScale: 0.7, maxFontSizeMultiplier: 1.6 });
+    } else {
+      expect(name.props).toMatchObject({ textBreakStrategy: 'simple', numberOfLines: 1, ellipsizeMode: 'tail', maxFontSizeMultiplier: 1.6 });
+      expect(name.props.adjustsFontSizeToFit).toBeUndefined();
+    }
     // DECLARED path change (Batch 2 item 3): children = [rows, the gold rail].
     const [rows, rail] = host(tree, 'session-chrome').props.children;
     expect(rail.type).toBe(SessionRail);
@@ -221,8 +231,14 @@ describe('SessionChrome T-105: Complete in the header', () => {
 });
 
 describe('ExerciseStage', () => {
-  it('T-110 (UX): the ground behind the caption (≥ 0.85) grows with it, with a 32 band above; drawn from the first render', () => {
-    const tree = render(<ExerciseStage exercise={EXERCISE} index={0} count={2} isActive variant="live" completedSets={4} totalSets={15} />);
+  // T-132 B2 (PM OK 29 Oct; web 2.1.15 ES:79-80): the phone live photo has NO solid block behind the caption, only the
+  // 170 bottom fade to the ground; the T-110 scrim stays on the tablet stages (checked here on the tablet split).
+  // Was: the phone live stage drew the scrim (32 band + the 0.86 solid block that grows with the caption).
+  it('phone live: no solid block behind the caption, the 170 fade to the ground; the tablet keeps the T-110 scrim', () => {
+    const phone = render(<ExerciseStage exercise={EXERCISE} index={0} count={2} isActive variant="live" />);
+    expect(host(phone, 'exercise-stage-scrim')).toBeUndefined();
+    expect(phone.root.findAll((node) => typeof node.type === 'string' && flat(node).height === 170 && flat(node).bottom === 0)).toHaveLength(1);
+    const tree = render(<ExerciseStage exercise={EXERCISE} index={0} count={2} isActive variant="split" tablet />);
     expect(flat(host(tree, 'exercise-stage-scrim')).height).toBe(32);
     act(() => host(tree, 'exercise-stage-caption').props.onLayout({ nativeEvent: { layout: { height: 220 } } }));
     expect(flat(host(tree, 'exercise-stage-scrim')).height).toBe(252);
@@ -230,17 +246,25 @@ describe('ExerciseStage', () => {
     expect(host(tree, 'exercise-stage-scrim').props.pointerEvents).toBe('none');
   });
 
-  it('live: the photo, "Current exercise · muscle · n/m sets done", the name as the header, How to', () => {
-    const tree = render(
-      <ExerciseStage exercise={EXERCISE} index={0} count={5} isActive completedSets={4} totalSets={15} howTo={<HowToButton onPress={jest.fn()} />} />
-    );
+  // T-132 B1 (PM OK 29 Oct; web 2.1.15 phone): the live photo carries the ring top-left and How to top-right, and its
+  // bottom the eyebrow "Current exercise · n sets · reps · rest", the name and the muscle chip. Was: the eyebrow
+  // 'Current exercise · Chest · 4/15 sets done', no chip, no ring, How to above the caption, minHeight 330.
+  it('live: the photo; the ring top-left and How to top-right on it; "Current exercise · 3 sets · 8–10 reps · rest 90s", the name as the header, the chip', () => {
+    const tree = render(<ExerciseStage exercise={EXERCISE} index={0} count={5} isActive howTo={<HowToButton onPress={jest.fn()} />} />);
     expect(host(tree, 'remote-image').props.url).toBe('https://example.com/b.jpg');
-    expect(texts(tree)).toEqual(expect.arrayContaining(['Current exercise · Chest · 4/15 sets done', 'Barbell Bench Press', 'How to']));
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Current exercise · 3 sets · 8–10 reps · rest 90s', 'Barbell Bench Press', 'Chest', '1/3', 'How to']));
+    expect(host(tree, 'stage-muscle-chip')).toBeDefined();
+    const top = host(tree, 'exercise-stage-top');
+    const ids = top.findAll((node) => typeof node.type === 'string' && ['stage-ring', 'how-to-open'].includes(node.props.testID)).map((node) => node.props.testID);
+    expect(ids).toEqual(['stage-ring', 'how-to-open']);
+    expect(host(tree, 'exercise-stage-content').findAll((node) => node.props.testID === 'how-to-open')).toHaveLength(0);
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === '1 of 3 sets done').length).toBeGreaterThan(0);
     const name = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Barbell Bench Press')[0];
     expect(name.props.accessibilityRole).toBe('header');
     expect(name.props.maxFontSizeMultiplier).toBe(1.3);
     expect(byId(tree, 'how-to-open').props.hitSlop).toBe(4);
-    expect(flat(host(tree, 'exercise-stage')).minHeight).toBe(330);
+    expect(flat(host(tree, 'exercise-stage')).height).toBe(PHONE_STAGE_HEIGHT);
+    expect(PHONE_STAGE_HEIGHT).toBe(300);
   });
 
   it('browsing: "Exercise i of n", the muscle chip and the 64 ring "done/total"', () => {
@@ -257,7 +281,34 @@ describe('ExerciseStage', () => {
     expect(texts(tree)).toEqual(expect.arrayContaining(['Current exercise · 3 sets · 8–10 reps · rest 90s']));
   });
 
-  it('shows the exercise notes (v1 §19.2 kept)', () => {
+  // T-132 (web 2.1.15 ES:39-40, 55-77, 84; FE Q8): a phone stage with no photo grows from a 300 minimum, with the 112
+  // initials tile and the caption in flow; the ring and How to keep their top corners.
+  it('phone, no photo: a 300 minimum, the 112 tile and the caption in flow, the ring + How to in the top row', () => {
+    const bare = { ...EXERCISE, exercise: { id: 7, primary_muscle_group: { name: 'Chest', code: 'CHEST' } } };
+    const tree = render(<ExerciseStage exercise={bare} index={0} count={5} isActive howTo={<HowToButton onPress={jest.fn()} />} />);
+    const stage = flat(host(tree, 'exercise-stage'));
+    expect(stage.minHeight).toBe(300);
+    expect(stage.height).toBeUndefined();
+    expect(flat(host(tree, 'stage-image-initials'))).toMatchObject({ width: NO_PHOTO_TILE, height: NO_PHOTO_TILE, borderRadius: 24 });
+    expect(NO_PHOTO_TILE).toBe(112);
+    expect(flat(host(tree, 'exercise-stage-content')).position).toBeUndefined();
+    const ids = host(tree, 'exercise-stage-top').findAll((node) => typeof node.type === 'string' && ['stage-ring', 'how-to-open'].includes(node.props.testID));
+    expect(ids.map((node) => node.props.testID)).toEqual(['stage-ring', 'how-to-open']);
+    expect(flat(host(tree, 'exercise-stage-top')).position).toBe('absolute');
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Current exercise · 3 sets · 8–10 reps · rest 90s', 'Barbell Bench Press', 'Chest']));
+  });
+
+  // T-132 (web 2.1.15 ES:145-152; FE Q4): on phones the notes are a card UNDER the photo, not on it; blank → none.
+  it('phone: the notes card sits under the photo (not in the stage); blank notes draw no card', () => {
+    const tree = render(<ExerciseStage exercise={{ ...EXERCISE, notes: ' Slow down \nPause ' }} index={0} count={1} isActive />);
+    const card = host(tree, 'exercise-notes');
+    expect(flat(card)).toMatchObject({ marginHorizontal: 16, marginTop: 12, borderRadius: 16, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 12 });
+    expect(host(tree, 'exercise-stage').findAll((node) => node.props.testID === 'exercise-notes')).toHaveLength(0);
+    expect(texts(tree)).toContain('Slow down \nPause');
+    expect(host(render(<ExerciseStage exercise={{ ...EXERCISE, notes: '  ' }} index={0} count={1} isActive />), 'exercise-notes')).toBeUndefined();
+  });
+
+    it('shows the exercise notes (v1 §19.2 kept)', () => {
     const tree = render(<ExerciseStage exercise={{ ...EXERCISE, notes: ' Slow down ' }} index={0} count={1} isActive />);
     expect(texts(tree)).toContain('Slow down');
   });

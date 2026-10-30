@@ -37,11 +37,10 @@ import {
   seedRepsDrafts,
   segmentLabel,
   setOfLabel,
+  liveEyebrow,
   setVolumeKg,
-  stageEyebrow,
   stepReps,
   stepWeight,
-  tabletEyebrow,
   targetRange,
   volumeInUnit,
 } from './sessionMath';
@@ -481,10 +480,12 @@ describe('v2 F1 texts', () => {
   });
 
   it('writes the stage eyebrows, segment labels and set headers', () => {
-    expect(stageEyebrow({ isActive: true, index: 1, count: 5, muscle: 'Chest', completedSets: 4, totalSets: 15 })).toBe('Current exercise · Chest · 4/15 sets done');
-    expect(stageEyebrow({ isActive: false, index: 3, count: 5, muscle: '', completedSets: 0, totalSets: 0 })).toBe('Exercise 4 of 5');
+    // T-132 E1 (PM OK 29 Oct): the phone live photo now uses the tablet eyebrow (web 2.1.15), so stageEyebrow is gone and
+    // tabletEyebrow is renamed liveEyebrow. Was: stageEyebrow(active, 'Chest', 4/15) → 'Current exercise · Chest · 4/15 sets done'
+    // and stageEyebrow(not active, no muscle, 0/0) → 'Exercise 4 of 5'.
     const ex = { sets: [{ is_completed: true, target_reps_min: 8, target_reps_max: 10, rest_seconds_planned: 90 }, { is_completed: false }, {}] };
-    expect(tabletEyebrow({ isActive: true, index: 1, count: 5, exercise: ex })).toBe('Current exercise · 3 sets · 8–10 reps · rest 90s');
+    expect(liveEyebrow({ isActive: true, index: 1, count: 5, exercise: ex })).toBe('Current exercise · 3 sets · 8–10 reps · rest 90s');
+    expect(liveEyebrow({ isActive: false, index: 3, count: 5, exercise: ex })).toBe('Exercise 4 of 5 · 3 sets · 8–10 reps · rest 90s');
     expect(segmentLabel(ex, 0)).toBe('Exercise 1: 1 of 3 sets done');
     expect(setOfLabel({ rest_seconds_planned: 90 }, 3)).toBe('of 3 · rest 90s');
     expect(setOfLabel({}, 3)).toBe('of 3');

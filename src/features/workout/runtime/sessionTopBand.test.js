@@ -3,7 +3,7 @@ import { act, create } from 'react-test-renderer';
 
 import SessionRuntime from './SessionRuntime';
 import { endSessionState } from './workoutSessionStore';
-import { motion, spacing } from '../../../shared/theme/tokens';
+import { colors, motion, spacing } from '../../../shared/theme/tokens';
 
 // UX native final audit 27 Oct 2026, row A116 + ruling 2 amendment (1): the
 // workout session draws no band while the edge-to-edge stage photo sits under
@@ -92,6 +92,15 @@ function layOut(tree) {
   act(() => host(tree, 'exercise-stage').props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 390, height: STAGE_HEIGHT } } }));
 }
 const scrollTo = (tree, y) => act(() => pageScroll(tree).props.onScroll({ nativeEvent: { contentOffset: { x: 0, y } } }));
+// T-132 (web 2.1.15 phone): phones draw a solid header bar above the scroll, so the band only lives where pills
+// float over one scroll: tablet browsing.
+const TABLET = { width: 1024, height: 768, scale: 2, fontScale: 1 };
+function renderTabletBrowsing() {
+  mockWindow = TABLET;
+  const tree = render();
+  act(() => byId(tree, 'session-exercise-row-1').props.onPress());
+  return tree;
+}
 
 beforeEach(() => {
   mockReducedMotion = true;
@@ -106,11 +115,13 @@ afterEach(() => {
 });
 
 describe('session top band (UX native final audit 27 Oct 2026, A116 + ruling 2 amendment 1)', () => {
+  // T-132 A1 (PM OK 29 Oct): checked at tablet browsing (the phone has no band; see the T-132 block below). Was: the
+  // phone render (390 × 844), chrome top = insets.top + 10.
   it('spans the top edge to the pills’ bottom, full column width, under the pills and over the scroll, never a touch target', () => {
-    const tree = render();
+    const tree = renderTabletBrowsing();
     layOut(tree);
     const chromeTop = flat(host(tree, 'session-chrome')).top;
-    expect(chromeTop).toBe(mockInsets.top + spacing['2_5']);
+    expect(chromeTop).toBe(mockInsets.top + spacing['2_5'] + spacing[3]);
     expect(flat(band(tree))).toMatchObject({ position: 'absolute', top: 0, left: 0, right: 0, height: chromeTop + CHROME_HEIGHT });
     expect(band(tree).props.pointerEvents).toBe('none');
     expect(band(tree).props.importantForAccessibility).toBe('no-hide-descendants');
@@ -121,8 +132,9 @@ describe('session top band (UX native final audit 27 Oct 2026, A116 + ruling 2 a
     expect(pageScroll(tree).findAll((node) => node.props.testID === 'session-top-band')).toHaveLength(0);
   });
 
+  // T-132 A2 (PM OK 29 Oct): at tablet browsing. Was: the phone render.
   it('no band while the photo is under the pills; the band once the photo has scrolled out from under them; gone again back at the top', () => {
-    const tree = render();
+    const tree = renderTabletBrowsing();
     expect(flat(band(tree)).opacity).toBe(0);
     layOut(tree);
     const bandHeight = flat(band(tree)).height;
@@ -143,10 +155,11 @@ describe('session top band (UX native final audit 27 Oct 2026, A116 + ruling 2 a
     expect(pageScroll(tree).props.scrollEventThrottle).toBe(16);
   });
 
+  // T-132 A4 (PM OK 29 Oct): at tablet browsing. Was: the phone render.
   it('fades in over 150 ms (and out) without reduced motion', () => {
     mockReducedMotion = false;
     const timing = jest.spyOn(Animated, 'timing');
-    const tree = render();
+    const tree = renderTabletBrowsing();
     layOut(tree);
     timing.mockClear();
     scrollTo(tree, STAGE_HEIGHT);
@@ -157,18 +170,22 @@ describe('session top band (UX native final audit 27 Oct 2026, A116 + ruling 2 a
     expect(timing).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ toValue: 0, duration: motion.durationFast }));
   });
 
+  // T-132 A5 (PM OK 29 Oct): at tablet browsing. Was: the phone render.
   it('uses the status-bar backdrop colours (ruling 2 amendment 2): the 0.86 ground fill', () => {
-    const tree = render();
+    const tree = renderTabletBrowsing();
     expect(flat(host(tree, 'session-top-band-fill')).backgroundColor).toBe('rgba(10, 11, 15, 0.86)');
   });
 
-  it('large text (pills in flow, scrolling with the stage): the band covers the status bar only', () => {
+  // T-132 A6 (PM OK 29 Oct; web 2.1.15 phone, sticky at large text pending FE Q2): phones have no band at large text
+  // either; the solid header bar above the scroll covers the status bar (the chrome starts at insets.top + 10).
+  // Was: a band of the status bar's height that faded in once the stage scrolled away.
+  it('large text: no band on phones; the solid header bar above the scroll covers the status bar', () => {
     mockWindow = { ...mockWindow, fontScale: 2 };
     const tree = render();
-    layOut(tree);
-    expect(flat(band(tree)).height).toBe(mockInsets.top);
-    scrollTo(tree, STAGE_HEIGHT - mockInsets.top);
-    expect(flat(band(tree)).opacity).toBe(1);
+    expect(band(tree)).toBeUndefined();
+    const bar = host(tree, 'session-header-bar');
+    expect(pageScroll(tree).findAll((node) => node.props.testID === 'session-header-bar')).toHaveLength(0);
+    expect(flat(bar.findAll((node) => node.props.testID === 'session-chrome' && typeof node.type === 'string')[0]).paddingTop).toBe(mockInsets.top + spacing['2_5']);
   });
 
   it('tablet live: no band (the logger column already starts below the pills and the stage column does not scroll)', () => {
@@ -190,58 +207,31 @@ describe('session top band (UX native final audit 27 Oct 2026, A116 + ruling 2 a
   });
 });
 
-// A116 device FAIL (iPhone, Release cc3b39b, 27 Oct 2026): the band waited for
-// the whole stage to clear the pills. A short live page scrolls about 100, so
-// it never came while "Current exercise" and How to ran under the floating
-// Exit / plan / timer / All pills. The band now shows as soon as content
-// passes under the PILLS: the open photo's bottom edge (where the stage's How
-// to + caption block starts, minus the scroll) above the pills' bottom.
-describe('A116 fix: the band follows the content under the pills, on a short scroll', () => {
-  const PHONE_STAGE = 330;
-  const CONTENT_TOP = 180; // the How to + caption block's top inside the stage (the open photo ends there)
-  const SCROLL_RANGE = 100;
-  const realTop = mockInsets.top;
-  afterEach(() => {
-    mockInsets.top = realTop;
-  });
-
-  function layOutShort(tree) {
-    act(() => host(tree, 'session-chrome').props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 390, height: CHROME_HEIGHT } } }));
-    act(() => host(tree, 'exercise-stage').props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 390, height: PHONE_STAGE } } }));
-    act(() => host(tree, 'exercise-stage-content').props.onLayout({ nativeEvent: { layout: { x: 0, y: CONTENT_TOP, width: 390, height: PHONE_STAGE - CONTENT_TOP } } }));
-  }
-
+// T-132 A7 (PM OK 29 Oct; web 2.1.15 phone): the "A116 fix" phone block (375 × 667 and 390 × 844: the band came in as
+// soon as the open photo's edge passed the floating pills' bottom, with the same 150 ms fade) is removed. Phones have
+// no floating pills and no band: the chrome sits in a solid header bar above the page scroll, at every scroll.
+describe('T-132 phones: a solid header bar above the scroll, no band', () => {
   it.each([
-    ['375 × 667', { width: 375, height: 667, scale: 2, fontScale: 1 }, 20],
-    ['390 × 844', { width: 390, height: 844, scale: 3, fontScale: 1 }, 47],
-  ])('%s: the band comes within the short scroll, the moment the content reaches the pills\' bottom', (_name, window, top) => {
+    ['375 × 667', { width: 375, height: 667, scale: 2, fontScale: 1 }],
+    ['390 × 844', { width: 390, height: 844, scale: 3, fontScale: 1 }],
+    ['320 × 568', { width: 320, height: 568, scale: 2, fontScale: 1 }],
+  ])('%s: the header bar (status bar + chrome) is above the page scroll, the ground-bar fill + hairline; the photo starts the scroll; no band at any scroll', (_name, window) => {
     mockWindow = window;
-    mockInsets.top = top;
     const tree = render();
-    layOutShort(tree);
-    const pillsBottom = flat(band(tree)).height;
-    expect(pillsBottom).toBe(top + spacing['2_5'] + CHROME_HEIGHT);
-    const edge = CONTENT_TOP - pillsBottom;
-    // Reached inside the short page's scroll range; the old whole-stage rule could not be.
-    expect(edge).toBeLessThan(SCROLL_RANGE);
-    expect(PHONE_STAGE - pillsBottom).toBeGreaterThan(SCROLL_RANGE);
-    scrollTo(tree, edge - 1);
-    expect(flat(band(tree)).opacity).toBe(0);
-    scrollTo(tree, edge);
-    expect(flat(band(tree)).opacity).toBe(1);
-    scrollTo(tree, SCROLL_RANGE);
-    expect(flat(band(tree)).opacity).toBe(1);
+    const bar = host(tree, 'session-header-bar');
+    expect(flat(bar)).toMatchObject({ backgroundColor: colors.groundBar, borderBottomWidth: 1, borderBottomColor: colors.hairline });
+    const column = host(tree, 'session-column');
+    const order = column.children.filter((child) => typeof child !== 'string').map((child) => child.props.testID ?? child.type.displayName ?? child.type.name ?? child.type);
+    expect(order.indexOf('session-header-bar')).toBe(0);
+    const chrome = bar.findAll((node) => node.props.testID === 'session-chrome' && typeof node.type === 'string')[0];
+    expect(flat(chrome).position).toBeUndefined();
+    expect(flat(chrome).paddingTop).toBe(mockInsets.top + spacing['2_5']);
+    expect(pageScroll(tree).findAll((node) => node.props.testID === 'session-chrome')).toHaveLength(0);
+    expect(flat(host(tree, 'exercise-stage')).paddingTop ?? 0).toBe(0);
+    expect(flat(host(tree, 'exercise-stage')).height).toBe(300);
+    expect(band(tree)).toBeUndefined();
     scrollTo(tree, 0);
-    expect(flat(band(tree)).opacity).toBe(0);
-  });
-
-  it('the same fade: 150 ms without reduced motion (none with it, above)', () => {
-    mockReducedMotion = false;
-    const timing = jest.spyOn(Animated, 'timing');
-    const tree = render();
-    layOutShort(tree);
-    timing.mockClear();
-    scrollTo(tree, CONTENT_TOP - flat(band(tree)).height);
-    expect(timing).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ toValue: 1, duration: motion.durationFast }));
+    scrollTo(tree, 400);
+    expect(band(tree)).toBeUndefined();
   });
 });

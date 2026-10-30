@@ -7,7 +7,6 @@ import { getServerMessage, getStatus } from '../../../shared/api/apiError';
 import { formatNumber, formatWeight } from '../../../shared/format/numbers';
 import { formatDuration } from '../../../shared/time/format';
 import { InlineToast } from '../../../shared/components/ToastHost';
-import PinnedDock, { DOCK_FADE_HEIGHT } from '../../../shared/components/PinnedDock';
 import { useLargeTextReflow } from '../../../shared/components/largeText';
 import { useKeyboardOverlap } from '../../../shared/hooks/useKeyboardHeight';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
@@ -84,6 +83,16 @@ const TABLET_DOCK_BOTTOM = 40;
 // The dock's estimate before it is measured: the room under Did it (Up next).
 const UP_NEXT_ESTIMATE = 32;
 const LOCK_REST = 'Rest timer running — wait or skip it first';
+// T-132 web 2.1.15 phone values (FE answers, web main 93d9eae3), one spot.
+// Q2: the phone header bar is sticky at every size, large text included.
+export const PHONE_HEADER_STICKY_AT_LARGE_TEXT = true;
+// Q1: the gold rail is the header's last row: no room under it.
+export const PHONE_HEADER_BOTTOM_GAP = 0;
+// Q6: the live page's bottom: mb-10 (40) + the layout's 24, + the safe area.
+export const PHONE_PAGE_BOTTOM = 40 + spacing[6];
+// Q7: the minimised rest disc sits 24 above the bottom (+ the safe area);
+// nothing keeps it off Did it (web RT:94-100).
+export const PHONE_DISC_BOTTOM = spacing[6];
 
 // The session runtime (RN-SPEC-workout Part B, v2 Phase 3 §3 / UX F1).
 // `session` is already the O12-overlaid view; every derived value reads it.
@@ -490,7 +499,10 @@ export default function SessionRuntime({
   const contentWidth = width - insets.left - insets.right;
   const tablet = contentWidth >= breakpoints.md;
   const liveSetLeft = progress.completedSets < progress.totalSets;
-  const chromeOverlay = !stacked;
+  // T-132 (web 2.1.15 phone): phones draw the chrome in a solid header bar
+  // ABOVE the scroll, never over the photo; the tablet keeps its floating
+  // pills (in flow at large text).
+  const chromeOverlay = tablet && !stacked;
   // Batch 2 item 3: the per-exercise segments only live, with 2+ exercises
   // (the gold session rail is in SessionChrome, always).
   const showSegments = !browsing && exercises.length > 1;
@@ -521,7 +533,11 @@ export default function SessionRuntime({
       allRef={allRef}
       tablet={tablet}
       onLayout={chromeOverlay ? (event) => setChromeHeight(event.nativeEvent.layout.height) : undefined}
-      style={chromeOverlay ? [styles.chromeOverlay, { top: chromeTop }] : [styles.chromeInFlow, { paddingTop: chromeTop }]}
+      style={
+        chromeOverlay
+          ? [styles.chromeOverlay, { top: chromeTop }]
+          : [styles.chromeInFlow, { paddingTop: chromeTop }, !tablet && { paddingBottom: PHONE_HEADER_BOTTOM_GAP }]
+      }
     />
   );
   const stageTop = chromeOverlay ? chromeTop + chromeHeight + spacing[3] : 0;
@@ -531,9 +547,12 @@ export default function SessionRuntime({
   // pills scroll in flow, large text). No band while the edge-to-edge photo
   // is under it; it fades in (150 ms, at once with reduced motion) once the
   // photo has scrolled out from under it. Only where one scroll holds the
-  // stage (phone, tablet browsing): the tablet live logger column already
-  // starts below the pills and its stage column does not scroll.
-  const oneScroll = !(tablet && !browsing);
+  // stage under floating pills (tablet browsing): the tablet live logger
+  // column already starts below the pills and its stage column does not
+  // scroll.
+  // T-132: phones have no band: their header bar is solid and above the
+  // scroll (tablet browsing keeps it).
+  const oneScroll = tablet && browsing;
   const bandHeight = oneScroll ? (chromeOverlay ? chromeTop + chromeHeight : header ? 0 : insets.top) : 0;
   // A116 device FAIL (27 Oct 2026, iPhone Release cc3b39b): the band waited
   // for the whole stage to clear the pills, so on a short live page (about
@@ -620,17 +639,30 @@ export default function SessionRuntime({
       onRepsChange={(value) => setRepsDrafts((current) => ({ ...current, [editorSet.id]: sanitizeReps(value) }))}
       onStep={(field, direction) => step(exercise, editorSet, field, direction)}
       onToggleSet={dismiss((item) => toggleSet(exercise, item))}
+      // T-132 (web 2.1.15 phone): Did it sits INSIDE the set card; the
+      // tablet keeps it in the logger column's dock.
+      action={tablet ? null : didIt}
     />
   ) : null;
 
-  const endActions = (
+  const lastNote = isActiveView && isLastIncomplete ? <LastExerciseNote /> : null;
+  const discard = <DiscardWorkoutAction abandoning={isAbandoning} onPress={dismiss(() => setShowDiscard(true))} />;
+  // T-132 (web WP:1076-1115, phone): card → Up next / "Last exercise" →
+  // Discard, 12 apart, with 12 more above Discard.
+  const endActions = tablet ? (
     <View style={styles.endActions}>
-      {isActiveView && isLastIncomplete ? <LastExerciseNote /> : null}
+      {lastNote}
       {/* T-105: Complete moved to the header; Discard stays here. */}
-      <DiscardWorkoutAction abandoning={isAbandoning} onPress={dismiss(() => setShowDiscard(true))} />
+      {discard}
     </View>
+  ) : (
+    <>
+      {lastNote}
+      <View style={styles.discardPhone}>{discard}</View>
+    </>
   );
 
+  const browsingBar = <BrowsingBar tablet={tablet} onResume={dismiss(() => setViewingIndex(activeIndex))} />;
   const volume = formatWeight(volumeInUnit(progress.volumeKg, volumeUnit), null, 0);
   const stats = <SessionStats time={formatDuration(elapsed)} volume={volume} volumeUnit={volumeUnit} reps={formatNumber(progress.actualReps, 0)} tablet={tablet} />;
 
@@ -643,9 +675,7 @@ export default function SessionRuntime({
       variant={browsing ? 'browse' : tablet ? 'split' : 'live'}
       tablet={tablet}
       top={tablet && !browsing ? (chromeOverlay ? stageTop : 0) : stageTop}
-      chrome={chromeOverlay || (tablet && !browsing) ? null : chrome}
-      completedSets={progress.completedSets}
-      totalSets={progress.totalSets}
+      chrome={tablet && browsing && !chromeOverlay ? chrome : null}
       howTo={howToButton}
       segments={tablet && showSegments ? <ExerciseSegments exercises={exercises} viewingIndex={viewing} tablet /> : null}
       onLayout={(event) => {
@@ -670,15 +700,21 @@ export default function SessionRuntime({
   };
   const androidKeyboard = Platform.OS === 'android' ? keyboardHeight : 0;
   const upNext = !tablet && isActiveView && laterIncomplete !== -1 ? exercises[laterIncomplete] : null;
-  const showDock = !browsing && (Boolean(didIt) || Boolean(upNext));
-  // P3-2: the dock is an opaque band down to the screen bottom; its measured
-  // height already holds the safe area. Tablet: the room is that height + a
-  // gap. Phone (UX native final audit 27 Oct 2026, ruling 1, A115): the dock
-  // is the shared PinnedDock (32 fade, then solid ground to the edge) and the
-  // room is exactly its measured height, so "Complete workout" and "Discard
-  // workout" scroll fully clear above the fade.
-  const dockHeight = measuredDock ?? (tablet ? DID_IT_HEIGHT + UP_NEXT_ESTIMATE + spacing[3] + TABLET_DOCK_BOTTOM : DOCK_FADE_HEIGHT + DID_IT_HEIGHT + UP_NEXT_ESTIMATE + spacing[7]) + insets.bottom;
-  const bottomRoom = browsing ? navHeight + spacing[5] + insets.bottom : showDock ? dockHeight + (tablet ? spacing[4] : 0) : spacing[6] + insets.bottom;
+  // T-132: only the tablet has a dock (Did it under the logger column); the
+  // phone's Did it is in the card and Up next follows the card.
+  const showDock = !browsing && tablet && Boolean(didIt);
+  // P3-2: the tablet dock is an opaque band down to the screen bottom; its
+  // measured height already holds the safe area, and the room is that height
+  // + a gap. T-132: phones have no dock (24 + the safe area).
+  const dockHeight = measuredDock ?? DID_IT_HEIGHT + UP_NEXT_ESTIMATE + spacing[3] + TABLET_DOCK_BOTTOM + insets.bottom;
+  const bottomRoom = browsing
+    ? navHeight + spacing[5] + insets.bottom
+    : showDock
+      ? dockHeight + spacing[4]
+      : (tablet ? spacing[6] : PHONE_PAGE_BOTTOM) + insets.bottom;
+  // The room the minimised disc docks above: the tablet dock's / the nav's;
+  // T-132 the live phone's is 24 + the safe area (web: right 24 / bottom 24).
+  const discDockRoom = !tablet && !browsing ? PHONE_DISC_BOTTOM + insets.bottom : bottomRoom;
   // I2 follow-up (a) + UX I2-r ruling: the minimised disc docks just above
   // `bottomRoom`; while it shows, the scroll also keeps the disc (92) + its 24
   // gap, so every row, the last included, scrolls fully clear. Phones too
@@ -692,6 +728,16 @@ export default function SessionRuntime({
     importantForAccessibility: restExpanded ? 'no-hide-descendants' : 'auto',
     accessibilityElementsHidden: restExpanded,
   };
+
+  // T-132 (web 2.1.15 phone): the solid header bar (the status-bar area, the
+  // chrome and its gold rail) sits ABOVE the page scroll, so the photo starts
+  // under it and never runs under the clock or the pills.
+  const phoneHeader = tablet ? null : (
+    <View testID="session-header-bar" style={styles.headerBar}>
+      {chrome}
+    </View>
+  );
+  const phoneHeaderSticky = Boolean(phoneHeader) && (!stacked || PHONE_HEADER_STICKY_AT_LARGE_TEXT);
 
   let body;
   if (tablet && !browsing) {
@@ -733,13 +779,20 @@ export default function SessionRuntime({
     body = (
       <ScrollView {...scrollProps} onScroll={onPageScroll} scrollEventThrottle={16} contentContainerStyle={{ paddingBottom: bottomRoom + discRoom + androidKeyboard }}>
         <View ref={contentRef} collapsable={false}>
+          {phoneHeader && !phoneHeaderSticky ? phoneHeader : null}
+          {/* T-132 (web WP:869-882, 1075): phone browsing puts the bar above the photo. */}
+          {browsing && !tablet ? <View style={styles.phoneBrowsingBar}>{browsingBar}</View> : null}
           {stage}
           {showSegments ? <ExerciseSegments exercises={exercises} viewingIndex={viewing} /> : null}
-          <View style={[styles.main, tablet && styles.mainTablet, browsing && styles.mainBrowsing]}>
-            {browsing ? <BrowsingBar tablet={tablet} onResume={dismiss(() => setViewingIndex(activeIndex))} /> : null}
-            {browsing ? stats : null}
+          {/* T-132 (web WP:1093-1099): phone browsing shows the stats strip under the photo. */}
+          {browsing && !tablet ? <View style={styles.phoneStats}>{stats}</View> : null}
+          <View style={[styles.main, tablet && styles.mainTablet, tablet && browsing && styles.mainBrowsing, !tablet && styles.mainPhone]}>
+            {browsing && tablet ? browsingBar : null}
+            {browsing && tablet ? stats : null}
             {messages}
             {setCard}
+            {/* T-132 (web 2.1.15 phone): Up next follows the card. */}
+            {upNext ? <UpNextLink exercise={upNext} onPress={dismiss(() => setViewingIndex(laterIncomplete))} /> : null}
             {endActions}
           </View>
         </View>
@@ -760,25 +813,12 @@ export default function SessionRuntime({
       ) : null}
       <View testID="session-column" {...behindRest} style={[styles.column, !tablet && styles.columnPhone]}>
         {tablet && !browsing && !chromeOverlay ? chrome : null}
+        {phoneHeaderSticky ? phoneHeader : null}
         {body}
         {bandHeight > 0 ? (
           <BackdropBand testID="session-top-band" height={bandHeight} opacity={reducedMotion ? (bandOn ? 1 : 0) : bandOpacity} />
         ) : null}
         {chromeOverlay ? chrome : null}
-        {showDock && !tablet ? (
-          <PinnedDock
-            testID="session-dock"
-            onHeight={setDockHeight}
-            overTabBar={false}
-            bottomGap={spacing[7]}
-            contentStyle={styles.dockContent}
-            // Until measured: Did it + the Up next link (the fallback above).
-            estimate={DID_IT_HEIGHT + UP_NEXT_ESTIMATE}
-          >
-            {didIt}
-            {upNext ? <UpNextLink exercise={upNext} onPress={dismiss(() => setViewingIndex(laterIncomplete))} /> : null}
-          </PinnedDock>
-        ) : null}
         {browsing ? (
           <WorkoutExerciseNav
             exercises={exercises}
@@ -805,7 +845,7 @@ export default function SessionRuntime({
         onPosition={rest.setPosition}
         // UX verdict I2 (iPad): the tablet disc docks above the opaque dock,
         // in the same room the scroll keeps for it (ignored on phones).
-        dockRoom={bottomRoom}
+        dockRoom={discDockRoom}
       />
       <ExerciseSheet
         open={showSheet}
@@ -896,11 +936,29 @@ const styles = StyleSheet.create({
     gap: spacing[3],
     marginTop: spacing[4],
   },
-  // UX verdict P3-2 + ruling 1: the phone dock is the shared PinnedDock
-  // (opaque ground, edge to edge, down to the screen bottom); Did it + Up next
-  // keep the phone's 16 sides.
-  dockContent: {
-    paddingHorizontal: spacing[4],
+  // T-132 (web 2.1.15 phone): the page column (mt 16, 12 apart), Discard's
+  // extra 12, and the browsing bar / stats placed around the photo.
+  mainPhone: {
+    gap: spacing[3],
+  },
+  discardPhone: {
+    paddingTop: spacing[3],
+  },
+  phoneBrowsingBar: {
+    marginHorizontal: spacing[4],
+    marginTop: spacing[3],
+  },
+  phoneStats: {
+    marginHorizontal: spacing[4],
+    marginTop: spacing['2_5'],
+  },
+  // T-132 (web 2.1.15 SC:108, Q1): the header bar: the ground-bar fill
+  // (0.88; it sits over the page ground, above the scroll, so it reads solid)
+  // and a 1 px white-7% hairline at the bottom, under the rail.
+  headerBar: {
+    backgroundColor: colors.groundBar,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.hairline,
   },
   splitRow: {
     flex: 1,

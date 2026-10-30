@@ -837,19 +837,22 @@ describe('v2 F1 large text (UX §9; QA AX5 chrome)', () => {
     const { tree } = render();
     const chrome = host(tree, 'session-chrome');
     const style = StyleSheet.flatten(chrome.props.style);
+    // T-132 C1 (PM OK 29 Oct; web 2.1.15 phone): the phone chrome sits in the solid header bar above the scroll at every
+    // scale, never absolute. Was: position 'absolute' (floating over the photo) up to 1.3×, in flow above it.
+    expect(style.position).toBeUndefined();
+    expect(host(tree, 'session-header-bar').findAll((node) => node.props.testID === 'session-chrome').length).toBeGreaterThan(0);
     if (scale > 1.3) {
-      expect(style.position).toBeUndefined();
       // DECLARED path change (Batch 2 item 3): the chrome's first child is the rows, the second the gold rail.
       // DECLARED (T-105, PM OK 29 Oct): was 2 rows (Exit · timer · All, then the plan pill); now 3 rows:
       // Exit · All / timer · Complete / the plan pill.
       expect(chrome.props.children).toHaveLength(2);
       expect(chrome.props.children[0].props.children).toHaveLength(3);
-    } else {
-      expect(style.position).toBe('absolute');
     }
-    // The plan name follows the title rule (word wrap, shrink a long word).
+    // T-132 (PM OK 29 Oct; web 2.1.15 SC:119-121): the phone plan name is one line that cuts off and never shrinks.
+    // Was: the title rule (word wrap, adjustsFontSizeToFit true to shrink a long word).
     const name = text(tree, 'Plan')[0];
-    expect(name.props.adjustsFontSizeToFit).toBe(true);
+    expect(name.props.adjustsFontSizeToFit).toBeUndefined();
+    expect(name.props).toMatchObject({ numberOfLines: 1, ellipsizeMode: 'tail' });
     expect(name.props.textBreakStrategy).toBe('simple');
     // "Did it" never truncates.
     const didIt = text(tree, 'Did it')[0];
@@ -911,47 +914,38 @@ describe('opaque dock + scroll room (P3-2)', () => {
   };
   const layout = (node, height) => act(() => node.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 390, height } } }));
 
-  // DECLARED change (UX native final audit 27 Oct 2026, ruling 1, row A115): the phone dock is now the shared
-  // PinnedDock. Was: the dock View itself drew the ground with paddingTop 12 / paddingHorizontal 16 /
-  // paddingBottom 28 + inset. Now: the root is the full-width layer to the screen bottom, a 32 fade sits above
-  // Did it (no 12 band), and the SOLID ground body holds Did it + Up next (16 sides, 28 + inset below).
-  it.each([0, 34])('phone (inset %s): the dock is the shared layer: 32 fade, then an opaque ground body to the screen bottom', (inset) => {
+  // T-132 C2 (PM OK 29 Oct; web 2.1.15 phone): no phone dock; Did it sits INSIDE the set card and Up next follows the
+  // card in the scroll. Was: the shared PinnedDock (absolute to the screen bottom, a 32 fade, an opaque ground body with
+  // 16 sides and 28 + inset below) holding Did it + Up next.
+  it.each([0, 34])('phone (inset %s): no dock; Did it is inside the set card and Up next follows the card', (inset) => {
     mockInsetBottom = inset;
     const { tree } = render();
-    expect(flat(host(tree, 'session-dock'))).toMatchObject({ position: 'absolute', left: 0, right: 0, bottom: 0 });
-    expect(flat(host(tree, 'session-dock-fade')).height).toBe(32);
-    const style = flat(host(tree, 'session-dock-body'));
-    expect(style.backgroundColor).toBe(colors.ground);
-    expect(style.backgroundColor).not.toMatch(/rgba/);
-    expect(style.opacity).toBeUndefined();
-    expect(style.paddingBottom).toBe(spacing[7] + inset);
-    expect(style.paddingTop ?? 0).toBe(0);
-    expect(style.paddingHorizontal).toBe(spacing[4]);
-    expect(host(tree, 'session-dock-body').findAll((node) => /^set-action-/.test(node.props.testID ?? '')).length).toBeGreaterThan(0);
+    expect(host(tree, 'session-dock')).toBeUndefined();
+    const card = host(tree, 'set-editor');
+    expect(card.findAll((node) => node.props.testID === 'set-action-12' && node.props.accessibilityLabel === 'Did it').length).toBeGreaterThan(0);
+    // In page order, the first tagged node after the card's own subtree is Up next.
+    const tagged = tree.root.findAll((node) => typeof node.type === 'string' && typeof node.props.testID === 'string');
+    const inCard = new Set(card.findAll((node) => typeof node.type === 'string'));
+    const after = tagged.slice(tagged.indexOf(card) + 1).find((node) => !inCard.has(node));
+    expect(after.props.testID).toBe('up-next');
   });
 
-  // DECLARED change (ruling 1, A115): was dockHeight + spacing[4]; the room is now exactly the measured dock
-  // (which includes the 32 fade and the safe area), so Complete / Discard scroll fully clear above the fade.
-  it.each([0, 34])('phone (inset %s): the scroll room = the measured dock height (fade + Did it + Up next + safe area)', (inset) => {
+  // T-132 C3 + C4 (PM OK 29 Oct; web WP:1011 mb-10 + AppLayout 24, FE Q6): no phone dock, so the room is the page's
+  // bottom 40 + 24 + the safe area. Was: the measured dock height (32 fade + Did it 64 + Up next 44 + 28 + inset), and
+  // before measuring at least 32 + 64 + 28 + inset.
+  it.each([0, 34])('phone (inset %s): the scroll room is the page bottom 40 + 24 + the safe area (no dock)', (inset) => {
     mockInsetBottom = inset;
     const { tree } = render();
-    const dockHeight = 32 + 64 + 44 + spacing[7] + inset;
-    layout(host(tree, 'session-dock'), dockHeight);
-    expect(scrollPad(tree)).toBe(dockHeight);
-  });
-
-  it.each([0, 34])('phone (inset %s): before the dock is measured the room already covers its padding + the safe area', (inset) => {
-    mockInsetBottom = inset;
-    const { tree } = render();
-    expect(scrollPad(tree)).toBeGreaterThanOrEqual(32 + 64 + spacing[7] + inset);
+    expect(scrollPad(tree)).toBe(40 + spacing[6] + inset);
   });
 
   it('during a rest the dock stays opaque and Did it shows the disabled glass look, not a dim gold', async () => {
     const RESTING = { ...SESSION, exercises: [{ ...SESSION.exercises[0], sets: [set(11, true), { ...set(12), rest_seconds_planned: 60 }] }, SESSION.exercises[1]] };
     const { tree } = render({ session: RESTING });
     await act(async () => byId(tree, 'set-action-12').props.onPress());
-    // DECLARED (ruling 1): the ground is on the shared dock's body now (was on 'session-dock' itself).
-    expect(flat(host(tree, 'session-dock-body')).backgroundColor).toBe(colors.ground);
+    // T-132 C5 (PM OK 29 Oct): no phone dock; Did it is in the card. Was: the dock body's ground checked here too
+    // (expect session-dock-body backgroundColor colors.ground).
+    expect(host(tree, 'session-dock')).toBeUndefined();
     const button = flat(byId(tree, 'set-action-12'));
     expect(button).toMatchObject({ backgroundColor: colors.fillChip, borderWidth: 1, borderColor: colors.choiceBorder });
     expect(button.opacity).toBeUndefined();
@@ -997,14 +991,20 @@ describe('opaque dock + scroll room (P3-2)', () => {
     const RESTING = { ...SESSION, exercises: [{ ...SESSION.exercises[0], sets: [set(11, true), { ...set(12), rest_seconds_planned: 60 }] }, SESSION.exercises[1]] };
     it.each([
       ['tablet', 1024, 64 + spacing[3] + 40 + 20],
-      ['phone', 750, 32 + 64 + 44 + spacing[7] + 20],
+      // T-132 C6 (PM OK 29 Oct): the phone has no dock (its row's height is unused). Was: 32 + 64 + 44 + 28 + 20,
+      // laid out on the phone's 'session-dock'.
+      ['phone', 750, null],
     ])('%s: no disc → dock room; disc minimised → room + 92 + 24 (phone too, A121); expanded → dock room', async (kind, width, dockHeight) => {
       mockWidth = width;
       mockInsetBottom = 20;
-      // DECLARED (ruling 1, A115): the phone room is the measured dock itself (was dock + 16); tablet unchanged.
-      const room = kind === 'tablet' ? dockHeight + spacing[4] : dockHeight;
+      // T-132 C6: the phone room is 40 + 24 + the inset (no dock); the disc docks 24 + the inset above the bottom
+      // (web RT:94-100, nothing keeps it off Did it). Was: the measured phone dock for both. Tablet unchanged.
+      const room = kind === 'tablet' ? dockHeight + spacing[4] : 40 + spacing[6] + 20;
+      const discRoom = kind === 'tablet' ? room : spacing[6] + 20;
       const { tree } = render({ session: RESTING });
-      layout(host(tree, 'session-dock'), dockHeight);
+      if (kind === 'tablet') {
+        layout(host(tree, 'session-dock'), dockHeight);
+      }
       expect(scrollPad(tree)).toBe(room);
       await act(async () => byId(tree, 'set-action-12').props.onPress());
       expect(scrollPad(tree)).toBe(room);
@@ -1013,7 +1013,7 @@ describe('opaque dock + scroll room (P3-2)', () => {
       // minimised; the phone disc now docks above the dock too, so the phone room also keeps the disc 92 + 24.
       expect(scrollPad(tree)).toBe(room + 92 + 24);
       // The disc itself still docks just above the dock (the room it is given is unchanged).
-      expect(tree.root.findByType(RestTimerWidget).props.dockRoom).toBe(room);
+      expect(tree.root.findByType(RestTimerWidget).props.dockRoom).toBe(discRoom);
     });
   });
 

@@ -94,8 +94,9 @@ function clampPosition(position, size, window, insets, bottom = insets.bottom + 
 // 2026; was right 20 / top 112, over "How to"): right 20, the same dock rule.
 export const DISC_SIZE = 92;
 
-function defaultDiscPosition(tablet, size, window, insets, bottom) {
-  return { x: window.width - insets.right - (tablet ? 24 : 20) - size, y: window.height - bottom - size };
+// T-132 (web 2.1.15 RT:94-100 / RP:12): right 24 on phones too (was 20).
+function defaultDiscPosition(size, window, insets, bottom) {
+  return { x: window.width - insets.right - 24 - size, y: window.height - bottom - size };
 }
 
 const EXPAND_ACTIONS = [{ name: 'activate', label: 'Expand rest timer' }];
@@ -116,7 +117,7 @@ export function RestTimerWidget({ timer, minimized, onMinimize, onExpand, onAdju
   // room (the measured dock); the disc stays above it, by default and while
   // dragged.
   const bottom = Math.max(insets.bottom + MARGIN, dockRoom);
-  const current = clampPosition(position ?? defaultDiscPosition(tablet, size, window, insets, bottom), size, window, insets, bottom);
+  const current = clampPosition(position ?? defaultDiscPosition(size, window, insets, bottom), size, window, insets, bottom);
   const drag = useRef({ moved: false, startX: 0, startY: 0, origin: current });
   const latest = useRef({ current, minimized, onExpand, onPosition, size, window, insets, bottom });
   latest.current = { current, minimized, onExpand, onPosition, size, window, insets, bottom };

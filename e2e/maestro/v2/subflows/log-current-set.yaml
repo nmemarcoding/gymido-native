@@ -5,13 +5,13 @@
 # - The one-time session dialogs (Android's exact-alarm "Get rest alerts on
 #   time?", the speak intro) are dismissed BEFORE the set tap: one left over
 #   from the previous rest covers the dock (T-82 device check, 28 Oct 2026).
-# - T-69 (640 dp phone): the weight + stepper can sit under the pinned dock,
-#   so a plain tap on it lands on "Did it". It is scrolled to the centre first.
+# - T-69 (640 dp phone): the weight + stepper is scrolled to the centre first.
+# - T-132 (web 2.1.15 phone): "Did it" is INSIDE the set card (no dock), so
+#   it is scrolled into view before its tap (it can be below the fold).
 # - Exact set tap: `set-action-<id>` is also every strip chip's id (a done
 #   chip is "Undo", a pending one "Set N"), so the tap needs the text
-#   "Did it", which only the dock's button has. No `childOf: session-dock`:
-#   the dock's wrapper is not the button's parent in the native hierarchy on
-#   either platform (T-74 device check, 28 Oct 2026).
+#   "Did it", which only the Did it button has (the phone's in the card, the
+#   tablet's in the logger dock; T-74 device check, 28 Oct 2026).
 appId: com.gymido.app
 ---
 - runFlow: dismiss-session-dialogs.yaml
@@ -28,6 +28,13 @@ appId: com.gymido.app
     id: "set-weight-plus-.*"
     childOf:
       id: "set-editor"
+- scrollUntilVisible:
+    element:
+      id: "set-action-.*"
+      text: "Did it"
+    direction: DOWN
+    centerElement: true
+    timeout: 10000
 - runFlow: dismiss-session-dialogs.yaml
 - tapOn:
     id: "set-action-.*"

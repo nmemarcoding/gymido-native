@@ -252,12 +252,14 @@ describe('Rest minimised (UX F2 Rest minimised)', () => {
   // DECLARED change (UX ruling A121, option B, 27 Oct 2026): was "phone: a 92 dark disc at right 20 / top 112"
   // with top: 112 (it sat over the stage's "How to" pill). The phone disc now docks ABOVE the session's bottom bar
   // (the tablet I2 rule): right 20, top = window height − the dock room − 92.
-  it('phone: a 92 dark disc at right 20, docked above the dock room, with the r40 ring and 24 digits', () => {
+  // T-132 (PM OK 29 Oct; web 2.1.15 RT:94-100): the phone disc sits right 24, as on the tablet. Was: right 20
+  // (left 390 − 20 − 92).
+  it('phone: a 92 dark disc at right 24, docked above the dock room, with the r40 ring and 24 digits', () => {
     const dockRoom = 202;
     const tree = renderTree({ minimized: true, dockRoom });
     const disc = host(tree, 'rest-timer');
     const style = StyleSheet.flatten(disc.props.style);
-    expect(style).toEqual(expect.objectContaining({ width: 92, height: 92, borderRadius: 46, left: 390 - 20 - 92, top: 844 - dockRoom - 92, borderColor: colors.hairlineBright }));
+    expect(style).toEqual(expect.objectContaining({ width: 92, height: 92, borderRadius: 46, left: 390 - 24 - 92, top: 844 - dockRoom - 92, borderColor: colors.hairlineBright }));
     const arc = tree.root.findAll((node) => node.props.testID === 'rest-mini-ring-arc')[0];
     expect(arc.props.r).toBe(40);
     expect(arc.props.strokeWidth).toBe(6);
@@ -306,19 +308,22 @@ describe('Rest minimised (UX F2 Rest minimised)', () => {
     expect(StyleSheet.flatten(host(above, 'rest-timer').props.style).top).toBe(400);
   });
 
-  // UX ruling A121 (option B, 27 Oct 2026): docked above the bottom bar, the phone disc clears the top of the
-  // screen: the session top bar (Exit, about 60 with a 2-line plan name) and the stage's "How to" pill, which
-  // both live inside the 330 phone stage, on a small (667) and a regular (844) phone with the live dock.
+  // UX ruling A121 (option B, 27 Oct 2026): docked above the bottom room, the phone disc clears the top of the
+  // screen: the session header bar (Exit, about 60 with a 2-line plan name) and the live photo's top row (the ring
+  // and "How to"), on a small (667) and a regular (844) phone.
+  // T-132 D1 (PM OK 29 Oct; web 2.1.15 phone): no phone dock, so the room is 24 + inset, and the header bar now sits
+  // ABOVE the photo, whose top row holds the ring and How to. Was: dockRoom 32 + 64 + 44 + 28 + inset,
+  // PHONE_STAGE_HEIGHT === 330 (pills inside the stage) and the disc top > 330 and > 60 + 44.
   it.each([
     [667, 0],
     [844, 34],
-  ])('phone %s (inset %s): the docked disc clears "How to" and Exit (inside the 330 stage)', (height, inset) => {
-    const { PHONE_STAGE_HEIGHT } = require('./RuntimeParts');
-    const dockRoom = 32 + 64 + 44 + 28 + inset;
+  ])('phone %s (inset %s): the docked disc clears the header bar and the photo\'s ring / How to row', (height, inset) => {
+    const { PHONE_STAGE_HEIGHT, LIVE_PHOTO_INSET, LIVE_RING_SIZE } = require('./RuntimeParts');
+    const dockRoom = 24 + inset;
     const top = height - dockRoom - 92;
-    expect(PHONE_STAGE_HEIGHT).toBe(330);
-    expect(top).toBeGreaterThan(PHONE_STAGE_HEIGHT);
-    expect(top).toBeGreaterThan(60 + 44);
+    const headerBar = 60 + 44;
+    expect(top).toBeGreaterThan(headerBar + LIVE_PHOTO_INSET + LIVE_RING_SIZE);
+    expect(top).toBeGreaterThan(headerBar + PHONE_STAGE_HEIGHT);
     const tree = renderTree({ minimized: true, dockRoom });
     expect(StyleSheet.flatten(host(tree, 'rest-timer').props.style).top).toBe(844 - dockRoom - 92);
   });

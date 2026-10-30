@@ -123,15 +123,31 @@ onFlowComplete:
     id: "set-reps-plus-.*"
 - tapOn:
     id: "set-reps-minus-.*"
-# No set was logged: no Rest, and the dock still offers the current set's
-# "Did it" (a stepper tap that reached the dock would have logged it).
+# No set was logged: no Rest, and the card still offers the current set's
+# "Did it" (T-132: in the set card, scrolled into view).
 - assertNotVisible:
     id: "rest-timer"
+- scrollUntilVisible:
+    element:
+      id: "set-action-.*"
+      text: "Did it"
+    direction: DOWN
+    centerElement: true
+    timeout: 10000
 - assertVisible:
     id: "set-action-.*"
     text: "Did it"
 
 # Browsing: Up next (when there is a later exercise) → bar, stats, nav; Resume.
+# T-132: Up next follows the set card in the page (no dock), so it is scrolled
+# to first; without a later exercise there is none (optional). The browsing
+# bar sits above the photo, so the wait scrolls back up to it.
+- scrollUntilVisible:
+    element:
+      id: "up-next"
+    direction: DOWN
+    timeout: 10000
+    optional: true
 - runFlow:
     when:
       visible:
@@ -139,10 +155,11 @@ onFlowComplete:
     commands:
       - tapOn:
           id: "up-next"
-      - extendedWaitUntil:
-          visible:
+      - scrollUntilVisible:
+          element:
             id: "browsing-bar"
-          timeout: 5000
+          direction: UP
+          timeout: 10000
       - assertVisible:
           id: "session-stats"
       - assertVisible:

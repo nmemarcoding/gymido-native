@@ -23,7 +23,7 @@ tags:
       - runFlow: ../subflows/signed-in-start.yaml
       - runFlow: ../subflows/start-workout.yaml
       - runFlow: ../subflows/dismiss-session-dialogs.yaml
-      # Weight + (centred, clear of the dock), then the dock's "Did it" only
+      # Weight + (centred), then "Did it" only (in the card since T-132, scrolled to)
       # (never a strip chip's Undo), with the exact-alarm / speak dialogs
       # dismissed before and after the tap (T-69 / T-82; DECLARED, was a
       # plain weight tap + any enabled set-action-.*).

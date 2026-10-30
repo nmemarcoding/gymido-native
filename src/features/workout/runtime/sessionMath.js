@@ -598,21 +598,9 @@ export function exerciseDone(exercise) {
   return { done: sets.filter((set) => set.is_completed).length, total: sets.length };
 }
 
-// The stage eyebrow (code wins: "Current exercise" on the active one, else
-// "Exercise {i} of {n}"), with the muscle and the session count as drawn.
-export function stageEyebrow({ isActive, index, count, muscle, completedSets, totalSets }) {
-  const parts = [isActive ? 'Current exercise' : `Exercise ${index + 1} of ${count}`];
-  if (muscle) {
-    parts.push(muscle);
-  }
-  if (totalSets > 0) {
-    parts.push(`${completedSets}/${totalSets} ${setsWord(totalSets)} done`);
-  }
-  return parts.join(' · ');
-}
-
-// The tablet eyebrow: "Current exercise · 3 sets · 8–10 reps · rest 90s".
-export function tabletEyebrow({ isActive, index, count, exercise }) {
+// The live eyebrow (tablet split and, since T-132 / web 2.1.15, the phone
+// live photo): "Current exercise · 3 sets · 8–10 reps · rest 90s".
+export function liveEyebrow({ isActive, index, count, exercise }) {
   const sets = exercise?.sets ?? [];
   const first = sets[0];
   const parts = [isActive ? 'Current exercise' : `Exercise ${index + 1} of ${count}`, `${sets.length} ${setsWord(sets.length)}`];

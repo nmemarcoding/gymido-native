@@ -82,6 +82,14 @@ tags:
     timeout: 10000
 - assertVisible:
     id: "set-reps-.*"
+# T-132: Did it is in the set card, below the weight; scrolled into view.
+- scrollUntilVisible:
+    element:
+      id: "set-action-.*"
+      text: "Did it"
+    direction: DOWN
+    centerElement: true
+    timeout: 10000
 - assertVisible:
     id: "set-action-.*"
     text: "Did it"
@@ -105,7 +113,7 @@ tags:
         text: "Exercise 1 of .*"
     times: 10
     commands:
-      # Weight + (centred, clear of the dock), the dock's "Did it" only (the
+      # Weight + (centred), "Did it" only (in the card since T-132; the
       # strip's done chips share set-action-<id> and are "Undo"), the PATCH
       # wait and the session dialogs, before and after the tap (T-69 / T-82;
       # DECLARED, was a plain weight tap + "Did it" on any set-action-.*).
@@ -219,6 +227,14 @@ tags:
 - scrollUntilVisible:
     element:
       id: "set-weight-.*"
+    direction: DOWN
+    centerElement: true
+    timeout: 10000
+# T-132: Did it is in the set card, below the weight; scrolled into view.
+- scrollUntilVisible:
+    element:
+      id: "set-action-.*"
+      text: "Did it"
     direction: DOWN
     centerElement: true
     timeout: 10000

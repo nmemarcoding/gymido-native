@@ -31,11 +31,13 @@ appId: com.gymido.app
 - takeScreenshot: ${SHOT}-dialog-longest
 - tapOn: { id: "finish-early-keep" }
 - extendedWaitUntil: { notVisible: { id: "finish-early-dialog" }, timeout: 5000 }
-# Browsing: "Up next" opens the next exercise (the phone dock; the tablet has no such link).
+# Browsing: "Up next" opens the next exercise (T-132: below the phone's set card, scrolled to; the tablet has no such
+# link, so the scroll is optional). The browsing bar sits above the photo: scroll back up to it.
+- scrollUntilVisible: { element: { id: "up-next" }, direction: DOWN, timeout: 10000, optional: true }
 - runFlow:
     when: { visible: { id: "up-next" } }
     commands:
       - tapOn: { id: "up-next" }
-      - extendedWaitUntil: { visible: { id: "browsing-bar" }, timeout: 10000 }
+      - scrollUntilVisible: { element: { id: "browsing-bar" }, direction: UP, timeout: 10000 }
       - takeScreenshot: ${SHOT}-header-browsing
 - runFlow: ../subflows/discard-workout.yaml

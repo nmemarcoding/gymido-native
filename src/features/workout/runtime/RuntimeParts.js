@@ -20,15 +20,43 @@ import {
   formatClock,
   repsFieldLabel,
   setOfLabel,
+  liveEyebrow,
   setsWord,
-  stageEyebrow,
-  tabletEyebrow,
 } from './sessionMath';
 import { NBSP, keepUnitsTogether } from '../../../shared/format/counts';
 
 const CLEAR = gradients.photoFade.colors[0];
+const PHOTO_TOP = gradients.photoFade.colors[1];
 // UX F1 drawn sizes (phone / tablet). Heights hold text, so they are minimums.
-export const PHONE_STAGE_HEIGHT = 330;
+// T-132 (web 2.1.15 phone, owner's shot; FE Q3 pending): the live photo
+// starts under the solid header bar, so its height is the photo alone
+// (measured ≈300 at 440 wide). Was 330, which held the floating pills too.
+export const PHONE_STAGE_HEIGHT = 300;
+// T-132 web 2.1.15 phone values (FE answers from web main 93d9eae3,
+// ~/gymido-frontend-work/v2/mobile-live-workout-phone-answers.md), in one spot.
+// Q3: the ring (56, stroke 9 in the 100 viewBox) top-left ON the photo.
+export const LIVE_RING_SIZE = 56;
+export const LIVE_RING_THICKNESS = 9;
+// Q3: the ring / How to inset from the photo's top and sides (16 / 16).
+export const LIVE_PHOTO_INSET = spacing[4];
+// Q3: the photo's bottom fade (170, transparent → the ground; no solid block).
+export const LIVE_BOTTOM_FADE = 170;
+// Q5: the caption box: absolute, 20 from the sides, 12 from the bottom.
+export const LIVE_CAPTION_SIDE = spacing[5];
+export const LIVE_CAPTION_BOTTOM = spacing[3];
+// Q1: phones draw the plan name as plain text in the header bar (no pill).
+export const PHONE_PLAN_PILL = false;
+// Q1: the plan name is ONE line on phones (truncated).
+export const PHONE_PLAN_LINES = 1;
+// Q1: the gold rail runs the full column width as the header's last row.
+export const PHONE_RAIL_FULL_WIDTH = true;
+// Q1: the phone plan name's text rule: one line, an ellipsis, no shrink.
+const PHONE_PLAN_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.title, textBreakStrategy: 'simple', ellipsizeMode: 'tail' });
+// Q8: the no-photo stage's in-flow initials tile (112, 56 initials).
+export const NO_PHOTO_TILE = 112;
+const NO_PHOTO_INITIALS = 56;
+// Q6: the Up next thumb (22) radius.
+export const UP_NEXT_THUMB_RADIUS = 6;
 export const PHONE_BROWSE_STAGE_HEIGHT = 318;
 export const TABLET_BROWSE_STAGE_HEIGHT = 520;
 export const DID_IT_HEIGHT = 64;
@@ -128,9 +156,10 @@ export function SessionChrome({
       </Text>
     </GlassSurface>
   ) : null;
-  const plan = (
-    <GlassSurface testID="session-plan" tone="onPhoto" radius={radii.full} shadow={false} style={[styles.planPill, tablet && styles.planPillTablet, stacked && styles.planPillStacked]}>
-      <Text {...TITLE_TEXT} numberOfLines={2} style={[styles.planName, tablet && styles.planNameTablet]}>
+  const planContent = (
+    <>
+      {/* T-132 (web SC:119-121): the phone plan name cuts off on one line, never shrinks; the tablet keeps the title rule. */}
+      <Text {...(tablet ? TITLE_TEXT : PHONE_PLAN_TEXT)} numberOfLines={tablet ? 2 : PHONE_PLAN_LINES} style={[styles.planName, tablet && styles.planNameTablet]}>
         {keepUnitsTogether(planName)}
       </Text>
       {tablet ? (
@@ -138,8 +167,20 @@ export function SessionChrome({
       ) : (
         <PhoneSubline completedSets={completedSets} totalSets={totalSets} elapsed={elapsed} />
       )}
-    </GlassSurface>
+    </>
   );
+  // T-132 (web 2.1.15 phone): the phone header bar draws the plan as plain
+  // centred text (no glass pill); the tablet keeps the pill.
+  const plan =
+    tablet || PHONE_PLAN_PILL ? (
+      <GlassSurface testID="session-plan" tone="onPhoto" radius={radii.full} shadow={false} style={[styles.planPill, tablet && styles.planPillTablet, stacked && styles.planPillStacked]}>
+        {planContent}
+      </GlassSurface>
+    ) : (
+      <View testID="session-plan" style={[styles.planPlain, stacked && styles.planPlainStacked]}>
+        {planContent}
+      </View>
+    );
   return (
     <View testID="session-chrome" onLayout={onLayout} style={[styles.chrome, tablet && styles.chromeTablet, style]}>
       {stacked ? (
@@ -166,7 +207,7 @@ export function SessionChrome({
         </View>
       )}
       {/* Batch 2 item 3 (web SessionChrome): the gold rail, always. */}
-      <SessionRail completedSets={completedSets} totalSets={totalSets} inChrome />
+      <SessionRail completedSets={completedSets} totalSets={totalSets} inChrome fullWidth={!tablet && PHONE_RAIL_FULL_WIDTH} />
     </View>
   );
 }
@@ -273,13 +314,19 @@ function MuscleChip({ exercise, tablet }) {
   );
 }
 
-function StageRing({ exercise, tablet }) {
+function StageRing({ exercise, tablet, live = false }) {
   const { done, total } = exerciseDone(exercise);
-  const size = tablet ? 104 : 64;
+  const size = live ? LIVE_RING_SIZE : tablet ? 104 : 64;
   return (
-    <GlassSurface tone="onPhoto" radius={radii.full} shadow={false} style={[styles.ringGlass, { width: size, height: size }]}>
-      <ProgressRing value={done} total={total} size={size - 2} thickness={11} label={`${done} of ${total} ${setsWord(total)} done`}>
-        <Text {...TIMER_CAP} numberOfLines={1} textBreakStrategy="simple" style={[styles.ringText, tablet && styles.ringTextTablet]}>{`${done}/${total}`}</Text>
+    <GlassSurface
+      testID={live ? 'stage-ring' : undefined}
+      tone="onPhoto"
+      radius={radii.full}
+      shadow={false}
+      style={[styles.ringGlass, live && styles.ringGlassLive, { width: size, height: size }]}
+    >
+      <ProgressRing value={done} total={total} size={size - 2} thickness={live ? LIVE_RING_THICKNESS : 11} label={`${done} of ${total} ${setsWord(total)} done`}>
+        <Text {...TIMER_CAP} numberOfLines={1} textBreakStrategy="simple" style={[styles.ringText, tablet && !live && styles.ringTextTablet, live && styles.ringTextLive]}>{`${done}/${total}`}</Text>
       </ProgressRing>
     </GlassSurface>
   );
@@ -309,6 +356,16 @@ function StagePhoto({ exercise, variant }) {
         <View pointerEvents="none" style={[styles.fadeBottom, styles.fadeSplit]}>
           <GradientFill angle={180} colors={[CLEAR, colors.ground]} stops={[0, 0.7]} />
         </View>
+      ) : variant === 'phone' ? (
+        // T-132 (web 2.1.15 ES:79-80): top 120 (0.9 → clear), bottom 170 (clear → the ground), no solid block.
+        <>
+          <View pointerEvents="none" style={styles.fadeTop}>
+            <GradientFill angle={180} colors={[PHOTO_TOP, CLEAR]} />
+          </View>
+          <View pointerEvents="none" style={[styles.fadeBottom, styles.fadeBottomPhone]}>
+            <GradientFill angle={180} colors={[CLEAR, colors.ground]} />
+          </View>
+        </>
       ) : (
         <>
           <View pointerEvents="none" style={styles.fadeTop}>
@@ -326,7 +383,11 @@ function StagePhoto({ exercise, variant }) {
 // F1 Workout / Workout browsing / Tablet stage. `variant`: 'live' (phone),
 // 'browse' (phone or tablet browsing), 'split' (the tablet live stage
 // column). `top` is the room the overlaid chrome takes; `chrome` an in-flow
-// chrome (large text). Notes (v1 §19.2) stay under the name. `onLayout`
+// chrome (large text). Notes (v1 §19.2) stay under the name (live: under the
+// chip; web position pending FE Q4). T-132 (web 2.1.15 phone): the live photo
+// carries the sets ring top-left and How to top-right, and its bottom the
+// eyebrow "Current exercise · n sets · a–b reps · rest Ns", the name and the
+// muscle chip. `onLayout`
 // reports the stage's frame (the session's top band, A116); `onContentLayout`
 // the frame of its bottom block (How to + the caption) inside the stage: the
 // open photo ends where it starts (A116 device FAIL, 27 Oct 2026).
@@ -339,8 +400,6 @@ export function ExerciseStage({
   tablet = false,
   top = 0,
   chrome = null,
-  completedSets = 0,
-  totalSets = 0,
   howTo = null,
   segments = null,
   onLayout,
@@ -348,19 +407,70 @@ export function ExerciseStage({
 }) {
   const notes = exerciseNotes(exercise);
   const name = exerciseName(exercise);
-  const muscle = exercise.exercise?.primary_muscle_group?.name;
   // T-110 (UX): the caption block's height; the scrim behind it follows it.
   const [captionHeight, setCaptionHeight] = useState(0);
   const browse = variant === 'browse';
   const split = variant === 'split';
+  // T-132 (web 2.1.15 phone, live AND browse): a fixed 300 photo; the ring
+  // top-left and How to top-right ON it; the caption bottom-anchored on it
+  // (it grows UPWARD over the photo, even into the ring row, as on web); the
+  // notes in a card UNDER it. The tablet stages are unchanged.
+  const phone = !tablet && !split;
+  const browseEyebrow = isActive ? 'Current exercise' : `Exercise ${index + 1} of ${count}`;
+  if (phone) {
+    // T-132 (web ES:39-40, 55-77, 84; FE Q8): with no photo the stage has a
+    // 300 MINIMUM and grows: the 112 initials tile and the caption are in
+    // flow; the ring and How to keep their absolute top corners.
+    const hasPhoto = Boolean(exercise.exercise?.thumbnail?.url);
+    return (
+      <View testID="exercise-stage-frame">
+        <View testID="exercise-stage" onLayout={onLayout} style={[styles.stage, hasPhoto ? { height: PHONE_STAGE_HEIGHT } : { minHeight: PHONE_STAGE_HEIGHT }]}>
+          {hasPhoto ? (
+            <StagePhoto exercise={exercise} variant="phone" />
+          ) : (
+            <View testID="exercise-stage-tile" style={styles.noPhotoTile}>
+              <ExerciseImage
+                testID="stage-image"
+                url={null}
+                name={name}
+                muscleCode={exercise.exercise?.primary_muscle_group?.code}
+                size={NO_PHOTO_TILE}
+                initialsFontSize={NO_PHOTO_INITIALS}
+                style={styles.noPhotoTileImage}
+              />
+            </View>
+          )}
+          {/* Web DOM / paint order (ES:84-142): the ring row, then the caption. */}
+          <View testID="exercise-stage-top" pointerEvents="box-none" style={styles.liveTopRow}>
+            <StageRing exercise={exercise} live />
+            <View style={styles.flex} pointerEvents="none" />
+            {howTo}
+          </View>
+          <View testID="exercise-stage-content" onLayout={onContentLayout} style={hasPhoto ? styles.captionPhone : styles.captionNoPhoto}>
+            <View testID="exercise-stage-caption" onLayout={(event) => setCaptionHeight(event.nativeEvent.layout.height)}>
+              <Text {...CAP_BODY} style={styles.eyebrow}>
+                {browse ? browseEyebrow : liveEyebrow({ isActive, index, count, exercise })}
+              </Text>
+              <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.stageName}>
+                {name}
+              </Text>
+              <MuscleChip exercise={exercise} />
+            </View>
+          </View>
+        </View>
+        {notes ? (
+          <View testID="exercise-notes" style={styles.notesCard}>
+            <Text {...CAP_BODY} style={styles.notesText}>
+              {notes}
+            </Text>
+          </View>
+        ) : null}
+        {segments}
+      </View>
+    );
+  }
   const minHeight = split ? undefined : browse ? (tablet ? TABLET_BROWSE_STAGE_HEIGHT : PHONE_BROWSE_STAGE_HEIGHT) : PHONE_STAGE_HEIGHT;
-  const eyebrow = browse
-    ? isActive
-      ? 'Current exercise'
-      : `Exercise ${index + 1} of ${count}`
-    : split
-      ? tabletEyebrow({ isActive, index, count, exercise })
-      : stageEyebrow({ isActive, index, count, muscle, completedSets, totalSets });
+  const eyebrow = browse ? browseEyebrow : liveEyebrow({ isActive, index, count, exercise });
   return (
     <View testID="exercise-stage" onLayout={onLayout} style={[styles.stage, split && styles.stageSplit, { minHeight, paddingTop: top }]}>
       <StagePhoto exercise={exercise} variant={variant} />
@@ -423,7 +533,8 @@ export function HowToButton({ onPress, tablet }) {
       onPress={onPress}
       height={tablet ? 40 : 36}
       tablet={tablet}
-      icon={<PlayIcon size={14} color={colors.textPrimary} />}
+      // T-132 (web ES:99-113): the phone play icon is 16; the tablet keeps 14.
+      icon={<PlayIcon size={tablet ? 14 : 16} color={colors.textPrimary} />}
     />
   );
 }
@@ -454,10 +565,16 @@ export function ExerciseSegments({ exercises, viewingIndex, tablet = false }) {
 
 // ND3 the gold session rail: sets done / all sets. aria-hidden. Batch 2
 // item 3: drawn at the bottom of the session header in every state.
-export function SessionRail({ completedSets, totalSets, inChrome = false }) {
+// T-132: `fullWidth` (phone header bar) runs it past the chrome's 16 sides.
+export function SessionRail({ completedSets, totalSets, inChrome = false, fullWidth = false }) {
   const ratio = totalSets > 0 ? completedSets / totalSets : 0;
   return (
-    <View testID="session-rail" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.rail, inChrome && styles.railInChrome]}>
+    <View
+      testID="session-rail"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={[styles.rail, inChrome && styles.railInChrome, fullWidth && styles.railFullWidth]}
+    >
       <View style={[styles.railFill, { width: `${Math.round(ratio * 100)}%` }]} />
     </View>
   );
@@ -828,8 +945,10 @@ export function UpNextLink({ exercise, onPress }) {
             name={name}
             muscleCode={exercise.exercise?.primary_muscle_group?.code}
             size={22}
+            // T-132 (web UN:39-49): the 22 thumb is a rounded square (radius 6).
+            style={styles.upNextThumb}
           />
-          <Text {...CAP_BODY} style={[styles.upNextText, pressed && styles.upNextPressed]}>{`Up next: ${name}`}</Text>
+          <Text {...CAP_BODY} numberOfLines={1} style={[styles.upNextText, pressed && styles.upNextPressed]}>{`Up next: ${name}`}</Text>
         </>
       )}
     </Pressable>
@@ -989,13 +1108,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[5],
     paddingVertical: spacing[2],
   },
+  // T-132: the phone plan, plain text in the header bar.
+  planPlain: {
+    maxWidth: '100%',
+    alignItems: 'center',
+    paddingHorizontal: spacing[1],
+  },
+  planPlainStacked: {
+    alignSelf: 'stretch',
+  },
   planPillStacked: {
     borderRadius: radii.xl,
   },
   planName: {
     ...font(700),
     fontSize: 13,
-    lineHeight: 17,
+    // T-132 (web 2.1.15 SC:119-121): 13 / 18. Was 17.
+    lineHeight: 18,
     textAlign: 'center',
     color: colors.textPrimary,
   },
@@ -1049,6 +1178,9 @@ const styles = StyleSheet.create({
   fadeSplit: {
     height: 420,
   },
+  fadeBottomPhone: {
+    height: LIVE_BOTTOM_FADE,
+  },
   scrimHost: {
     position: 'absolute',
     left: 0,
@@ -1060,6 +1192,55 @@ const styles = StyleSheet.create({
   },
   scrimSolid: {
     backgroundColor: colors.groundTranslucent,
+  },
+  // T-132 (web ES:84-113): the phone photo's top row (ring left, How to
+  // right), 16 / 16, over the caption.
+  liveTopRow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: LIVE_PHOTO_INSET,
+    paddingTop: LIVE_PHOTO_INSET,
+  },
+  // T-132 (web ES:117-142): the caption box, bottom-anchored on the photo.
+  captionPhone: {
+    position: 'absolute',
+    left: LIVE_CAPTION_SIDE,
+    right: LIVE_CAPTION_SIDE,
+    bottom: LIVE_CAPTION_BOTTOM,
+  },
+  // T-132 (web ES:55-77): the no-photo stage: the tile (64 above, 8 below)
+  // and the caption (20 sides, 12 below) in flow.
+  noPhotoTile: {
+    alignItems: 'center',
+    paddingTop: 64,
+    paddingBottom: spacing[2],
+  },
+  noPhotoTileImage: {
+    borderRadius: radii.xl,
+  },
+  captionNoPhoto: {
+    paddingHorizontal: LIVE_CAPTION_SIDE,
+    paddingBottom: LIVE_CAPTION_BOTTOM,
+  },
+  // T-132 (web ES:145-152): the notes card under the photo.
+  notesCard: {
+    marginHorizontal: spacing[4],
+    marginTop: spacing[3],
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+  },
+  notesText: {
+    ...typography.bodySm,
+    lineHeight: 24,
+    color: colors.textSecondary,
   },
   howToRow: {
     alignItems: 'flex-end',
@@ -1169,12 +1350,22 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     borderWidth: 0,
   },
+  // T-132 (web ES:84-97): the ring body has the 1 px white-12% glass edge.
+  ringGlassLive: {
+    borderWidth: 1,
+    borderColor: colors.hairlineButton,
+  },
   ringText: {
     ...font(700),
     fontSize: 15,
     lineHeight: 18,
     fontVariant: ['tabular-nums'],
     color: colors.textPrimary,
+  },
+  // T-132 (web ES:28): "{done}/{total}" 14 bold.
+  ringTextLive: {
+    fontSize: 14,
+    lineHeight: 18,
   },
   ringTextTablet: {
     fontSize: 24,
@@ -1215,6 +1406,12 @@ const styles = StyleSheet.create({
   railInChrome: {
     marginTop: spacing[2],
     marginHorizontal: 0,
+  },
+  // T-132 (web SC:109, 171-176): full column width, 10 under the row (the
+  // chrome's gap 8 + 2).
+  railFullWidth: {
+    marginTop: spacing['0_5'],
+    marginHorizontal: -spacing[4],
   },
   railFill: {
     height: '100%',
@@ -1625,8 +1822,9 @@ const styles = StyleSheet.create({
   chipTextLocked: {
     color: colors.textFaint,
   },
+  // T-132 (web SE:236-249): Did it 16 under the set chips.
   cardAction: {
-    marginTop: spacing['3_5'],
+    marginTop: spacing[4],
   },
   // Did it.
   didIt: {
@@ -1658,13 +1856,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: colors.onGold,
   },
+  // T-132 (web UN:39-49): a centred inline button in the page, min-h 44,
+  // 12 sides, gap 8. Was 22 tall, 10 below Did it in the dock.
   upNext: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'center',
+    maxWidth: '100%',
     gap: spacing[2],
-    marginTop: spacing['2_5'],
-    minHeight: 22,
+    minHeight: layout.touchMin,
+    paddingHorizontal: spacing[3],
+  },
+  upNextThumb: {
+    borderRadius: UP_NEXT_THUMB_RADIUS,
   },
   upNextText: {
     ...typography.caption,

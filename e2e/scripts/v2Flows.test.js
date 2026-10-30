@@ -602,7 +602,9 @@ describe('T-69 batch flow fixes', () => {
       expect(flow.indexOf('scrollUntilVisible:\n    element:\n      id: "set-weight-plus-.*"')).toBeLessThan(flow.indexOf('- tapOn:\n    id: "set-weight-plus-.*"'));
     });
 
-    it('never taps a set action, and proves no set was logged (no Rest, the dock still offers Did it)', () => {
+    // T-132 F1 (PM OK 29 Oct): wording only; Did it is in the phone's set card now (scrolled to first). Was: "the dock
+    // still offers Did it".
+    it('never taps a set action, and proves no set was logged (no Rest, the card still offers Did it)', () => {
       expect(taps(flow).filter((sel) => /set-action-/.test(sel))).toEqual([]);
       const guard = flow.indexOf('- assertNotVisible:\n    id: "rest-timer"');
       expect(guard).toBeGreaterThan(flow.indexOf('id: "set-reps-minus-.*"'));
@@ -629,7 +631,8 @@ describe('T-69 batch flow fixes', () => {
     });
   });
 
-  describe('item 2: set taps are exact (the dock\'s Did it, never a strip chip\'s Undo)', () => {
+  // T-132 F2 (PM OK 29 Oct): wording only. Was: "the dock's Did it".
+  describe('item 2: set taps are exact (the Did it button, never a strip chip\'s Undo)', () => {
     it('the app still gives the strip chips and Did it the same set-action-<id>; only Did it has the text "Did it"', () => {
       const parts = src('src/features/workout/runtime/RuntimeParts.js');
       expect(parts.match(/testID=\{`set-action-\$\{set\.id\}`\}/g)).toHaveLength(3);
