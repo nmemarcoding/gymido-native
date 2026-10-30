@@ -35,9 +35,11 @@ import {
 } from './RuntimeParts';
 import { DISC_SIZE, DiscardDialog, ExactAlarmDialog, FinishEarlyDialog, RestTimerWidget, SpeakIntroDialog } from './RuntimeOverlays';
 import { finishEarlyMessage, pickMessageIndex, readLastMessageIndex, saveLastMessageIndex } from './finishEarly';
-import { restNextPreview } from './restPresentation';
+import { restHero, restNextPreview } from './restPresentation';
+import SetArcCard from './SetArcCard';
 import restAlertPlatform from './restAlertPlatform';
 import {
+  buildSetEditPatch,
   buildSetPatch,
   centeredScrollOffset,
   completionDurationSeconds,
@@ -166,6 +168,8 @@ export default function SessionRuntime({
   const [drafts, setDrafts] = useSessionValue(session.id, 'drafts', {});
   const [repsDrafts, setRepsDrafts] = useSessionValue(session.id, 'repsDrafts', {});
   const [validation, setValidation] = useState({});
+  // T-146 (FE Q1 default): the done set opened for editing on the phone card.
+  const [editingSetId, setEditingSetId] = useState(null);
   const pendingSets = useRef(null);
   if (pendingSets.current === null) {
     pendingSets.current = createPendingSets();
@@ -280,14 +284,16 @@ export default function SessionRuntime({
     }
   }, [progress.totalSets, progress.completedSets]);
 
-  async function toggleSet(exercise, set) {
+  // `saved` (T-146 M1): un-logging a done set from the edit state sends its
+  // SAVED values, never an unsaved edit.
+  async function toggleSet(exercise, set, saved = null) {
     // T-89 review LOW: no new set save once Complete has started (it would
     // land after POST /complete and get the server's 409).
     if (completingRef.current) {
       return;
     }
     setHighlightedSetKey('');
-    const draft = drafts[set.id];
+    const draft = saved ?? drafts[set.id];
     if (!set.is_completed) {
       const error = validateDraftWeight(draft?.actualWeightValue);
       if (error) {
@@ -323,8 +329,11 @@ export default function SessionRuntime({
       }
       // O12 §3: the rest starts before anything else, then the overlay, then the reload.
       if (body.is_completed) {
-        const seconds = restSecondsFor(set);
         const nextKey = nextSetKeyAfter(ordered, set.id);
+        // T-146 §1.4 (owner-approved change): no rest after the workout's
+        // final set (no set left anywhere), even with a rest time; open sets
+        // in an earlier exercise still rest.
+        const seconds = nextKey ? restSecondsFor(set) : 0;
         if (seconds > 0) {
           rest.start(set.id, seconds, nextKey);
         } else {
@@ -353,6 +362,97 @@ export default function SessionRuntime({
       // [O9]: the server's message.
       setActionError(getServerMessage(error));
     }
+  }
+
+  // T-146 (FE Q1 default): "Save set k" re-saves a done set with the edited
+  // weight and reps (it stays done); the card then returns to the live set.
+  async function saveEditedSet(exercise, set) {
+    if (completingRef.current) {
+      return;
+    }
+    const draft = drafts[set.id];
+    const error = validateDraftWeight(draft?.actualWeightValue);
+    if (error) {
+      setValidation((current) => ({ ...current, [set.id]: error }));
+      return;
+    }
+    if (!pendingSets.current.begin(set.id)) {
+      return;
+    }
+    setActionError('');
+    setPendingSetIds(pendingSets.current.snapshot());
+    const body = buildSetEditPatch(set, { ...draft, actualReps: repsDrafts[set.id] });
+    const finish = () => {
+      pendingSets.current.end(set.id);
+      setPendingSetIds(pendingSets.current.snapshot());
+    };
+    try {
+      const request = updateSessionSet(session.id, exercise.id, set.id, body);
+      setRequests.current.set(set.id, request);
+      let result;
+      try {
+        result = await request;
+      } finally {
+        setRequests.current.delete(set.id);
+      }
+      const saved = result?.workout_session_exercise_set;
+      writeOverlay(set.id, {
+        is_completed: true,
+        actual_reps: body.actual_reps,
+        actual_weight_value: saved ? saved.actual_weight_value ?? null : body.actual_weight_value,
+        actual_weight_unit: saved ? saved.actual_weight_unit ?? null : body.actual_weight_unit,
+        completed_at: body.completed_at,
+      });
+      setValidation((current) => ({ ...current, [set.id]: undefined }));
+      setEditingSetId(null);
+      finish();
+      reload();
+    } catch (failure) {
+      finish();
+      if (getStatus(failure) === 409) {
+        endedElsewhere();
+        return;
+      }
+      setActionError(getServerMessage(failure));
+    }
+  }
+
+  // A done set's saved values as drafts (§20.2 + its saved reps).
+  const savedDraftOf = (set) => draftFromSavedSet(set, set.actual_weight_unit || set.target_weight_unit || 'lb');
+  const savedRepsOf = (set) => (set.actual_reps != null ? String(set.actual_reps) : '');
+
+  // T-146 M1: leaving a done set's edit (Cancel, another set, Undo) puts its
+  // saved values back; nothing is sent.
+  function restoreSaved(set) {
+    setDrafts((current) => ({ ...current, [set.id]: savedDraftOf(set) }));
+    setRepsDrafts((current) => ({ ...current, [set.id]: savedRepsOf(set) }));
+    setValidation((current) => (current[set.id] ? { ...current, [set.id]: undefined } : current));
+  }
+
+  // Opening a done set loads its saved values; picking another (or the same
+  // one again) restores the one left first.
+  function selectDoneSet(set) {
+    const open = editingSetId != null ? (session.exercises ?? []).flatMap((item) => item.sets ?? []).find((item) => item.id === editingSetId) : null;
+    if (open) {
+      restoreSaved(open);
+    }
+    if (editingSetId === set.id) {
+      setEditingSetId(null);
+      return;
+    }
+    restoreSaved(set);
+    setEditingSetId(set.id);
+  }
+
+  function cancelEdit(set) {
+    restoreSaved(set);
+    setEditingSetId(null);
+  }
+
+  function undoDoneSet(exercise, set) {
+    restoreSaved(set);
+    setEditingSetId(null);
+    toggleSet(exercise, set, savedDraftOf(set));
   }
 
   // T-37: clear the rest and the highlight, show the message, go to the top
@@ -614,11 +714,58 @@ export default function SessionRuntime({
       isLocked={Boolean(rest.timer)}
       lockReason={LOCK_REST}
       onPress={dismiss(() => toggleSet(exercise, editorSet))}
+      arc={!tablet}
     />
+  ) : null;
+  // T-146 phone: the done set being edited (FE Q1), only while it is still done.
+  const editingSet = !tablet && exercise ? (exercise.sets ?? []).find((item) => item.id === editingSetId && item.is_completed) ?? null : null;
+  const saveSet = editingSet ? (
+    <DidItButton
+      set={editingSet}
+      title={`Save set ${editingSet.set_number}`}
+      isPending={pendingSetIds.has(editingSet.id)}
+      isLocked={false}
+      onPress={dismiss(() => saveEditedSet(exercise, editingSet))}
+      arc
+    />
+  ) : null;
+  // The set the phone card's steppers edit.
+  const cardSet = editingSet ?? editorSet;
+  // Every set of the viewed exercise done: the glass "Undo" un-logs the last
+  // one, with its saved values (RN-SPEC dated 30 Oct).
+  const viewedSets = exercise?.sets ?? [];
+  const lastDone = !tablet && !editorSet && viewedSets.length > 0 && viewedSets.every((item) => item.is_completed) ? viewedSets[viewedSets.length - 1] : null;
+  const undoLast = lastDone ? (
+    <DidItButton set={lastDone} title="Undo" glass arc isPending={pendingSetIds.has(lastDone.id)} isLocked={false} onPress={dismiss(() => undoDoneSet(exercise, lastDone))} />
   ) : null;
 
   const editorKey = editorSet ? setKey(exercise.id, editorSet.id) : '';
-  const setCard = exercise ? (
+  const setCard = exercise && !tablet ? (
+    <SetArcCard
+      exercise={exercise}
+      set={editorSet}
+      editing={editingSet}
+      draft={cardSet ? drafts[cardSet.id] : undefined}
+      reps={cardSet ? repsDrafts[cardSet.id] : undefined}
+      lastTime={editorSet ? lastTimeLabel(previousSetFor(exercise, editorSet), drafts[editorSet.id]?.actualWeightUnit || 'lb') : null}
+      highlighted={Boolean(editorKey) && highlightedSetKey === editorKey}
+      validationError={cardSet ? validation[cardSet.id] : undefined}
+      pendingSetIds={pendingSetIds}
+      cardRef={(node) => {
+        if (editorKey) {
+          rowRefs.current[editorKey] = node;
+        }
+      }}
+      onWeightChange={(value) => changeDraft(exercise, cardSet, 'actualWeightValue', value)}
+      onUnitChange={(value) => changeDraft(exercise, cardSet, 'actualWeightUnit', value)}
+      onRepsChange={(value) => setRepsDrafts((current) => ({ ...current, [cardSet.id]: sanitizeReps(value) }))}
+      onStep={(field, direction) => step(exercise, cardSet, field, direction)}
+      onSelectDone={dismiss(selectDoneSet)}
+      onCancel={dismiss(cancelEdit)}
+      onUndo={dismiss((item) => undoDoneSet(exercise, item))}
+      action={editingSet ? saveSet : didIt ?? undoLast}
+    />
+  ) : exercise ? (
     <SetEditor
       exercise={exercise}
       set={editorSet}
@@ -783,7 +930,6 @@ export default function SessionRuntime({
           {/* T-132 (web WP:869-882, 1075): phone browsing puts the bar above the photo. */}
           {browsing && !tablet ? <View style={styles.phoneBrowsingBar}>{browsingBar}</View> : null}
           {stage}
-          {showSegments ? <ExerciseSegments exercises={exercises} viewingIndex={viewing} /> : null}
           {/* T-132 (web WP:1093-1099): phone browsing shows the stats strip under the photo. */}
           {browsing && !tablet ? <View style={styles.phoneStats}>{stats}</View> : null}
           <View style={[styles.main, tablet && styles.mainTablet, tablet && browsing && styles.mainBrowsing, !tablet && styles.mainPhone]}>
@@ -833,6 +979,7 @@ export default function SessionRuntime({
       <RestTimerWidget
         timer={rest.timer}
         next={restNextPreview(session, rest.timer?.nextSetKey, drafts)}
+        hero={rest.timer ? restHero(session, rest.timer.setId, rest.timer.nextSetKey) : null}
         minimized={rest.minimized}
         onMinimize={dismiss(() => rest.setMinimized(true))}
         onExpand={dismiss(() => rest.setMinimized(false))}

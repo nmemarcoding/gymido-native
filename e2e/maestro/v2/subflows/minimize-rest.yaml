@@ -4,6 +4,8 @@
 # Run it before every session-exit tap.
 appId: com.gymido.app
 ---
+# DECLARED (T-146, PM-approved): the expanded-Rest marker "rest-ring-box" is now "rest-ring-box|rest-text"
+# (the phone Rest has no ring; the tablet keeps it).
 - runFlow:
     when:
       visible:
@@ -13,5 +15,5 @@ appId: com.gymido.app
           id: "rest-timer-minimize"
       - extendedWaitUntil:
           notVisible:
-            id: "rest-ring-box"
+            id: "rest-ring-box|rest-text"
           timeout: 5000

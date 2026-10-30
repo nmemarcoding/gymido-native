@@ -8,8 +8,8 @@ import {
   ExerciseSegments,
   ExerciseStage,
   HowToButton,
-  NO_PHOTO_TILE,
-  PHONE_STAGE_HEIGHT,
+  NO_PHOTO_TILE_LIVE,
+  PHONE_LIVE_STAGE_HEIGHT,
   PHONE_VALUE_BOX,
   ReloadErrorBar,
   SessionChrome,
@@ -132,8 +132,21 @@ describe('SessionChrome (ND3)', () => {
     if (scale === 2) {
       expect(name.props).toMatchObject({ textBreakStrategy: 'simple', adjustsFontSizeToFit: true, minimumFontScale: 0.7, maxFontSizeMultiplier: 1.6 });
     } else {
-      expect(name.props).toMatchObject({ textBreakStrategy: 'simple', numberOfLines: 1, ellipsizeMode: 'tail', maxFontSizeMultiplier: 1.6 });
+      // DECLARED D3 (T-146 rev 25/26, PM-approved): never "…": 14 on one line, then one step smaller down to 12,
+      // then 2 lines at 12/16 (measured). Was: numberOfLines 1 + ellipsizeMode 'tail'.
+      expect(name.props).toMatchObject({ textBreakStrategy: 'simple', maxFontSizeMultiplier: 1.6 });
+      expect(name.props.ellipsizeMode).toBeUndefined();
       expect(name.props.adjustsFontSizeToFit).toBeUndefined();
+      expect(StyleSheet.flatten(name.props.style)).toMatchObject({ fontSize: 14, lineHeight: 18 });
+      act(() => name.props.onTextLayout({ nativeEvent: { lines: [{}, {}] } }));
+      act(() => name.props.onTextLayout({ nativeEvent: { lines: [{}, {}] } }));
+      const twelve = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Upper / Lower Split')[0];
+      expect(StyleSheet.flatten(twelve.props.style)).toMatchObject({ fontSize: 12, lineHeight: 16 });
+      expect(twelve.props.numberOfLines).toBeUndefined();
+      act(() => twelve.props.onTextLayout({ nativeEvent: { lines: [{}, {}] } }));
+      const wrapped = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Upper / Lower Split')[0];
+      expect(wrapped.props.numberOfLines).toBe(2);
+      expect(StyleSheet.flatten(wrapped.props.style).fontSize).toBe(12);
     }
     // DECLARED path change (Batch 2 item 3): children = [rows, the gold rail].
     const [rows, rail] = host(tree, 'session-chrome').props.children;
@@ -250,22 +263,24 @@ describe('ExerciseStage', () => {
   // T-132 B1 (PM OK 29 Oct; web 2.1.15 phone): the live photo carries the ring top-left and How to top-right, and its
   // bottom the eyebrow "Current exercise · n sets · reps · rest", the name and the muscle chip. Was: the eyebrow
   // 'Current exercise · Chest · 4/15 sets done', no chip, no ring, How to above the caption, minHeight 330.
-  it('live: the photo; the ring top-left and How to top-right on it; "Current exercise · 3 sets · 8–10 reps · rest 90s", the name as the header, the chip', () => {
+  // DECLARED E10 (T-146 rev 17/26, owner delegated OK 30 Oct; RN-SPEC dated 30 Oct): the live phone photo is 200 tall,
+  // with no "1/3" ring chip, no "Current exercise · …" line and no muscle chip; its one line is "Rest {s}s · {muscle}".
+  it('live: the 200 photo, How to top-right; "Rest 90s · Chest" over the name as the header; no ring chip, no muscle chip', () => {
     const tree = render(<ExerciseStage exercise={EXERCISE} index={0} count={5} isActive howTo={<HowToButton onPress={jest.fn()} />} />);
     expect(host(tree, 'remote-image').props.url).toBe('https://example.com/b.jpg');
-    expect(texts(tree)).toEqual(expect.arrayContaining(['Current exercise · 3 sets · 8–10 reps · rest 90s', 'Barbell Bench Press', 'Chest', '1/3', 'How to']));
-    expect(host(tree, 'stage-muscle-chip')).toBeDefined();
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Rest 90s · Chest', 'Barbell Bench Press', 'How to']));
+    expect(texts(tree)).not.toContain('Current exercise · 3 sets · 8–10 reps · rest 90s');
+    expect(texts(tree)).not.toContain('1/3');
+    expect(host(tree, 'stage-muscle-chip')).toBeUndefined();
+    expect(host(tree, 'stage-ring')).toBeUndefined();
     const top = host(tree, 'exercise-stage-top');
-    const ids = top.findAll((node) => typeof node.type === 'string' && ['stage-ring', 'how-to-open'].includes(node.props.testID)).map((node) => node.props.testID);
-    expect(ids).toEqual(['stage-ring', 'how-to-open']);
-    expect(host(tree, 'exercise-stage-content').findAll((node) => node.props.testID === 'how-to-open')).toHaveLength(0);
-    expect(tree.root.findAll((node) => node.props.accessibilityLabel === '1 of 3 sets done').length).toBeGreaterThan(0);
+    expect(top.findAll((node) => typeof node.type === 'string' && node.props.testID === 'how-to-open')).toHaveLength(1);
     const name = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Barbell Bench Press')[0];
     expect(name.props.accessibilityRole).toBe('header');
     expect(name.props.maxFontSizeMultiplier).toBe(1.3);
     expect(byId(tree, 'how-to-open').props.hitSlop).toBe(4);
-    expect(flat(host(tree, 'exercise-stage')).height).toBe(PHONE_STAGE_HEIGHT);
-    expect(PHONE_STAGE_HEIGHT).toBe(300);
+    expect(flat(host(tree, 'exercise-stage')).height).toBe(PHONE_LIVE_STAGE_HEIGHT);
+    expect(PHONE_LIVE_STAGE_HEIGHT).toBe(200);
   });
 
   it('browsing: "Exercise i of n", the muscle chip and the 64 ring "done/total"', () => {
@@ -282,21 +297,20 @@ describe('ExerciseStage', () => {
     expect(texts(tree)).toEqual(expect.arrayContaining(['Current exercise · 3 sets · 8–10 reps · rest 90s']));
   });
 
-  // T-132 (web 2.1.15 ES:39-40, 55-77, 84; FE Q8): a phone stage with no photo grows from a 300 minimum, with the 112
-  // initials tile and the caption in flow; the ring and How to keep their top corners.
-  it('phone, no photo: a 300 minimum, the 112 tile and the caption in flow, the ring + How to in the top row', () => {
+  // DECLARED (T-146, RN-SPEC dated 30 Oct; was T-132's 300 minimum + 112 tile + the ring): a live phone stage with no
+  // photo grows from a 180 minimum with the 80 initials tile (r20) and the caption in flow; How to keeps its corner.
+  it('phone, no photo: a 180 minimum, the 80 tile and the caption in flow, How to in the top row (no ring)', () => {
     const bare = { ...EXERCISE, exercise: { id: 7, primary_muscle_group: { name: 'Chest', code: 'CHEST' } } };
     const tree = render(<ExerciseStage exercise={bare} index={0} count={5} isActive howTo={<HowToButton onPress={jest.fn()} />} />);
     const stage = flat(host(tree, 'exercise-stage'));
-    expect(stage.minHeight).toBe(300);
+    expect(stage.minHeight).toBe(180);
     expect(stage.height).toBeUndefined();
-    expect(flat(host(tree, 'stage-image-initials'))).toMatchObject({ width: NO_PHOTO_TILE, height: NO_PHOTO_TILE, borderRadius: 24 });
-    expect(NO_PHOTO_TILE).toBe(112);
+    expect(flat(host(tree, 'stage-image-initials'))).toMatchObject({ width: NO_PHOTO_TILE_LIVE, height: NO_PHOTO_TILE_LIVE });
+    expect(NO_PHOTO_TILE_LIVE).toBe(80);
     expect(flat(host(tree, 'exercise-stage-content')).position).toBeUndefined();
     const ids = host(tree, 'exercise-stage-top').findAll((node) => typeof node.type === 'string' && ['stage-ring', 'how-to-open'].includes(node.props.testID));
-    expect(ids.map((node) => node.props.testID)).toEqual(['stage-ring', 'how-to-open']);
+    expect(ids.map((node) => node.props.testID)).toEqual(['how-to-open']);
     expect(flat(host(tree, 'exercise-stage-top')).position).toBe('absolute');
-    expect(texts(tree)).toEqual(expect.arrayContaining(['Current exercise · 3 sets · 8–10 reps · rest 90s', 'Barbell Bench Press', 'Chest']));
   });
 
   // T-132 (web 2.1.15 ES:145-152; FE Q4): on phones the notes are a card UNDER the photo, not on it; blank → none.
@@ -534,11 +548,17 @@ describe('DidItButton', () => {
 });
 
 describe('the rest of the parts', () => {
-  it('Up next: "Up next: {name}" with a 44 hit area', () => {
+  // DECLARED E9 (T-146 board 4, PM-approved; FE Q3: still a button): the h64 card, 48 thumb, "Up next · {name}".
+  it('Up next: the 64 card "Up next · {name}" with its 48 thumb, still a button', () => {
     const onPress = jest.fn();
     const tree = render(<UpNextLink exercise={EXERCISE} onPress={onPress} />);
     const link = byId(tree, 'up-next');
-    expect(link.props).toMatchObject({ accessibilityLabel: 'Up next: Barbell Bench Press', hitSlop: 11 });
+    expect(link.props).toMatchObject({ accessibilityLabel: 'Up next: Barbell Bench Press', accessibilityRole: 'button' });
+    expect(StyleSheet.flatten(host(tree, 'up-next').props.style).minHeight).toBe(64);
+    expect(byId(tree, 'up-next-thumb').props.size).toBe(48);
+    expect(texts(tree)).toContain('Up next · ');
+    const line = tree.root.findAll((node) => node.type === 'Text' && [].concat(node.props.children).includes('Barbell Bench Press'))[0];
+    expect(line.props.numberOfLines).toBe(1);
     act(() => link.props.onPress());
     expect(onPress).toHaveBeenCalled();
   });

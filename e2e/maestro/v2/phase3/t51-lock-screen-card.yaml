@@ -10,13 +10,15 @@ tags:
   - member
   - ios
 ---
+# DECLARED (T-146, PM-approved): the expanded-Rest marker "rest-ring-box" is now "rest-ring-box|rest-text"
+# (the phone Rest has no ring; the tablet keeps it).
 - runFlow: ../subflows/signed-in-start.yaml
 - runFlow: ../subflows/start-workout.yaml
 - runFlow: ../subflows/dismiss-session-dialogs.yaml
 - runFlow: ../subflows/log-current-set.yaml
 - extendedWaitUntil:
     visible:
-      id: "rest-ring-box"
+      id: "rest-ring-box|rest-text"
     timeout: 15000
 - repeat:
     times: 6

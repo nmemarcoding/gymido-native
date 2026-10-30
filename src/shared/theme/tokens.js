@@ -118,6 +118,17 @@ const V2_COLORS = {
   dayFutureRing: 'rgba(255, 255, 255, 0.32)',
   // T-146 Rest set progress (UX build ruling §1): a not-done segment.
   setSegmentTrack: '#2A2E37',
+  // T-146 (FINAL boards 1–5): the set card's edge, the previous-set pill,
+  // the stepper press, the Up next card, the Rest photo blend + headline shade.
+  setCardEdge: '#6B5A1E',
+  goldPill: 'rgba(255, 194, 26, 0.10)',
+  goldPillEdge: 'rgba(255, 194, 26, 0.22)',
+  fillPressed: 'rgba(255, 255, 255, 0.16)',
+  upNextCard: 'rgba(21, 23, 29, 0.82)',
+  groundClear: 'rgba(10, 11, 15, 0)',
+  restBlendDim: 'rgba(10, 11, 15, 0.3)',
+  restShadeTop: 'rgba(10, 11, 15, 0.62)',
+  restShadeMid: 'rgba(10, 11, 15, 0.34)',
   // §8.5 alpha ladder (Phase 2+; the Phase 1 kit re-folds after QA's gate):
   // faint 0.08 · tint 0.14 · line 0.30 · strong 0.60 per accent. Danger
   // fills/borders use #FF5A4E; #FF7A70 is for text only.

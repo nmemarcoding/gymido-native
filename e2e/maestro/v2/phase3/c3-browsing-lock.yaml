@@ -1,16 +1,25 @@
 # Phase 3 batch 2 item 2 (browsing lock, web parity; SessionRuntime editorSet
-# is null while browsing). In a fresh session: browse exercise 2 → its pending
-# rows are locked chips (no "Did it", no weight/reps inputs); Resume → the
-# live editor is back. Then log every set of exercise 1 (exercise 2 becomes
-# active), browse exercise 1 → its DONE rows keep Undo; Undo one → exercise 1
-# is active again and the live editor returns. Ends by DISCARDING the session
-# (the set PATCHes belong to the discarded session only).
+# is null while browsing). In a fresh session: browse exercise 2 → no live set
+# (no "Did it", no weight/reps inputs, no set buttons for its to-do sets);
+# Resume → the live editor is back. Then log every set of exercise 1 (exercise
+# 2 becomes active), browse exercise 1 → every set done, its glass "Undo";
+# Undo → exercise 1 is active again and the live editor returns. Ends by
+# DISCARDING the session (the set PATCHes belong to the discarded session only).
+#
+# DECLARED (T-146, owner delegated OK 30 Oct; PM-approved E4/D-items): the
+# phone has no per-exercise dashes ("Exercise n of m") and no strip chips any
+# more. Markers now: the set card (set-editor) instead of set-strip; the end of
+# exercise 1 = the rest after its last set ("Go to the next exercise", its
+# gold "Start now"); the done exercise's Undo is the card's glass "Undo"
+# (set-action-<id>, the last done set). Was: exercise-segments text
+# "Exercise n of m", set-strip, a done chip "Undo", locked chips.
 #
 # Signed-in start (the lead's safe runner). Fixture: an ACTIVE plan whose
-# session has 2+ exercises and whose first exercise has at most 10 sets
-# (the logging loop's cap). IDs only (plus the accessible names "Did it",
-# "Undo", "Saving…" and "Exercise n of m" on id-matched nodes). Uses the v2
-# subflows (e2e/maestro/v2/subflows); not run by the writer (no devices).
+# session has 2+ exercises, whose first exercise has at most 10 sets (the
+# logging loop's cap) and a rest time on its last set (rest 3). IDs only (plus
+# the accessible names "Did it", "Undo", "Saving…", "Skip rest" and "Go to the
+# next exercise" on id-matched or text nodes). Uses the v2 subflows
+# (e2e/maestro/v2/subflows).
 appId: com.gymido.app
 tags:
   - member
@@ -18,14 +27,12 @@ tags:
 - runFlow: ../subflows/signed-in-start.yaml
 - runFlow: ../subflows/start-workout.yaml
 - runFlow: ../subflows/dismiss-session-dialogs.yaml
-# Live on exercise 1 of 2+ (the segments only draw live, with 2+ exercises).
 - extendedWaitUntil:
     visible:
-      id: "exercise-segments"
-      text: "Exercise 1 of .*"
+      id: "session-chrome"
     timeout: 15000
 
-# --- A. Browse exercise 2 (nothing logged yet): every row is locked. -------
+# --- A. Browse exercise 2: no live set. ------------------------------------
 - tapOn:
     id: "session-all"
 - extendedWaitUntil:
@@ -44,25 +51,16 @@ tags:
     timeout: 5000
 - scrollUntilVisible:
     element:
-      id: "set-strip"
+      id: "set-editor"
     direction: DOWN
     centerElement: true
     timeout: 10000
-# Locked chips only: disabled set rows, none enabled, no live editor.
-- assertVisible:
-    id: "set-action-.*"
-    enabled: false
 - assertNotVisible:
     id: "set-action-.*"
-    enabled: true
 - assertNotVisible:
     id: "set-weight-.*"
 - assertNotVisible:
     id: "set-reps-.*"
-- assertNotVisible:
-    id: "set-action-.*"
-    text: "Did it"
-# Resume → back on the active exercise with the live editor.
 - scrollUntilVisible:
     element:
       id: "browsing-resume"
@@ -82,7 +80,6 @@ tags:
     timeout: 10000
 - assertVisible:
     id: "set-reps-.*"
-# T-132: Did it is in the set card, below the weight; scrolled into view.
 - scrollUntilVisible:
     element:
       id: "set-action-.*"
@@ -95,36 +92,20 @@ tags:
     text: "Did it"
     enabled: true
 
-# Back to the top so the loop can read the segments.
-- scrollUntilVisible:
-    element:
-      id: "exercise-segments"
-    direction: UP
-    timeout: 10000
-
-# --- B. Log every set of exercise 1 so exercise 2 becomes active. ---------
-# The view follows the active exercise, so the loop ends when the segments
-# read "Exercise 2 of m". Each pass: Did it → wait for the PATCH → close the
-# Rest (it locks "Did it" and hides the segments while expanded).
+# --- B. Log every set of exercise 1, until the rest after its last set. ----
 - repeat:
     while:
-      visible:
-        id: "exercise-segments"
-        text: "Exercise 1 of .*"
+      notVisible: "Go to the next exercise"
     times: 10
     commands:
-      # Weight + (centred), "Did it" only (in the card since T-132; the
-      # strip's done chips share set-action-<id> and are "Undo"), the PATCH
-      # wait and the session dialogs, before and after the tap (T-69 / T-82;
-      # DECLARED, was a plain weight tap + "Did it" on any set-action-.*).
       - runFlow: ../subflows/log-current-set.yaml
       - waitForAnimationToEnd:
           timeout: 3000
       - runFlow: ../subflows/dismiss-session-dialogs.yaml
+      # A mid-exercise rest: skip it (rest 3 has "Start now" instead and ends the loop).
       - runFlow:
           when:
-            visible:
-              id: "rest-timer-skip"
+            visible: "Skip rest"
           commands:
             - tapOn:
                 id: "rest-timer-skip"
@@ -132,37 +113,18 @@ tags:
                 notVisible:
                   id: "rest-timer"
                 timeout: 5000
-      # A Rest still on screen here is the minimised disc: expand, then skip.
-      - runFlow:
-          when:
-            visible:
-              id: "rest-timer"
-          commands:
-            - tapOn:
-                id: "rest-timer"
-            - extendedWaitUntil:
-                visible:
-                  id: "rest-timer-skip"
-                timeout: 5000
-            - tapOn:
-                id: "rest-timer-skip"
-      - extendedWaitUntil:
-          notVisible:
-            id: "rest-timer"
-          timeout: 5000
-      - runFlow: ../subflows/dismiss-session-dialogs.yaml
-      - scrollUntilVisible:
-          element:
-            id: "exercise-segments"
-          direction: UP
-          timeout: 10000
 - extendedWaitUntil:
-    visible:
-      id: "exercise-segments"
-      text: "Exercise 2 of .*"
+    visible: "Go to the next exercise"
     timeout: 10000
+- tapOn:
+    id: "rest-timer-skip"
+- extendedWaitUntil:
+    notVisible:
+      id: "rest-timer"
+    timeout: 5000
+- runFlow: ../subflows/dismiss-session-dialogs.yaml
 
-# --- C. Browse exercise 1 (all done): its done rows keep Undo. ------------
+# --- C. Browse exercise 1 (all done): its glass Undo. -----------------------
 - scrollUntilVisible:
     element:
       id: "session-all"
@@ -186,7 +148,7 @@ tags:
     timeout: 5000
 - scrollUntilVisible:
     element:
-      id: "set-strip"
+      id: "set-editor"
     direction: DOWN
     centerElement: true
     timeout: 10000
@@ -195,14 +157,11 @@ tags:
     text: "Undo"
     enabled: true
 - assertNotVisible:
-    id: "set-action-.*"
-    enabled: false
-- assertNotVisible:
     id: "set-weight-.*"
 - assertNotVisible:
     id: "set-action-.*"
     text: "Did it"
-# Undo one done row of the browsed exercise.
+# Undo the browsed exercise's last set.
 - tapOn:
     id: "set-action-.*"
     text: "Undo"
@@ -219,18 +178,12 @@ tags:
     notVisible:
       id: "browsing-bar"
     timeout: 10000
-- extendedWaitUntil:
-    visible:
-      id: "exercise-segments"
-      text: "Exercise 1 of .*"
-    timeout: 10000
 - scrollUntilVisible:
     element:
       id: "set-weight-.*"
     direction: DOWN
     centerElement: true
     timeout: 10000
-# T-132: Did it is in the set card, below the weight; scrolled into view.
 - scrollUntilVisible:
     element:
       id: "set-action-.*"

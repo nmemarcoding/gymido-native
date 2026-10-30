@@ -665,7 +665,10 @@ describe('T-69 batch flow fixes', () => {
       const parts = src('src/features/workout/runtime/RuntimeParts.js');
       expect(parts.match(/testID=\{`set-action-\$\{set\.id\}`\}/g)).toHaveLength(3);
       expect(parts).toContain("accessibilityLabel={pending ? 'Saving…' : 'Undo'}");
-      expect(parts).toContain("const label = isPending ? 'Saving…' : 'Did it';");
+      // DECLARED E4 (T-146, owner delegated OK 30 Oct): Did it takes a `title` ("Save set k" while a done set is
+      // edited on the phone), "Did it" by default. Was: the literal label line.
+      expect(parts).toContain("const label = isPending ? 'Saving…' : title;");
+      expect(parts).toContain("title = 'Did it' }) {");
       // DECLARED (T-74 device check): was runtime has 2 testID="session-dock" (the flows no longer scope to it).
       expect(parts.match(/'Did it'/g)).toHaveLength(1);
       expect(parts).toContain('accessibilityLabel={`Set ${set.set_number}`}');

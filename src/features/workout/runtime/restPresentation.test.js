@@ -2,9 +2,12 @@ import {
   completionSetsLine,
   completionVolume,
   isFinalTen,
+  isRestWarn,
   personalBestLines,
   remainingRatio,
+  restHero,
   restNextPreview,
+  restTimerLabel,
   restTotalLabel,
   ringCircumference,
   ringDashOffset,
@@ -172,5 +175,47 @@ describe('completion text (U6, VOLUME RULE)', () => {
   it('sets line, singular at 1', () => {
     expect(completionSetsLine(popup)).toBe('15/15 sets done. Consistency wins.');
     expect(completionSetsLine({ completedSets: 1, totalSets: 1 })).toBe('1/1 set done. Consistency wins.');
+  });
+});
+
+describe('T-146 rest rules', () => {
+  it('isRestWarn: the last 5 s, only for a rest ≥ 10 s', () => {
+    expect(isRestWarn(5, 90)).toBe(true);
+    expect(isRestWarn(1, 10)).toBe(true);
+    expect(isRestWarn(6, 90)).toBe(false);
+    expect(isRestWarn(0, 90)).toBe(false);
+    expect(isRestWarn(5, 9)).toBe(false);
+  });
+
+  it('restTimerLabel: minutes and seconds, singular at 1', () => {
+    expect(restTimerLabel(108)).toBe('Resting, 1 minute 48 seconds left');
+    expect(restTimerLabel(120)).toBe('Resting, 2 minutes left');
+    expect(restTimerLabel(4)).toBe('Resting, 4 seconds left');
+    expect(restTimerLabel(1)).toBe('Resting, 1 second left');
+    expect(restTimerLabel(0)).toBe('Resting, 0 seconds left');
+  });
+
+  describe('restHero', () => {
+    const photo = { thumbnail: { url: 'https://example.com/leg.jpg' } };
+    const SESSION = {
+      exercises: [
+        { id: 1, exercise_name_snapshot: 'Leg Press', exercise: photo, sets: [{ id: 11, is_completed: true }, { id: 12 }, { id: 13 }, { id: 14 }] },
+        { id: 2, exercise_name_snapshot: 'Seated Leg Curl', exercise: null, sets: [{ id: 21 }] },
+      ],
+    };
+
+    it('mid-exercise: that exercise\'s photo and name; left counts the set just done (overlay not landed yet)', () => {
+      expect(restHero(SESSION, 12, '1:13')).toEqual({ mode: 'mid', name: 'Leg Press', exercise: photo, left: 2 });
+    });
+
+    it('after the exercise\'s last set: the NEXT exercise\'s photo and name', () => {
+      const done = { exercises: [{ ...SESSION.exercises[0], sets: SESSION.exercises[0].sets.map((set) => ({ ...set, is_completed: set.id !== 14 })) }, SESSION.exercises[1]] };
+      expect(restHero(done, 14, '2:21')).toEqual({ mode: 'next', name: 'Seated Leg Curl', exercise: null, left: 0 });
+    });
+
+    it('an unknown set → null; no next set stays mid (never below 0 left)', () => {
+      expect(restHero(SESSION, 99, '1:13')).toBeNull();
+      expect(restHero({ exercises: [{ ...SESSION.exercises[1], sets: [{ id: 21, is_completed: true }] }] }, 21, '')).toMatchObject({ mode: 'mid', left: 0 });
+    });
   });
 });

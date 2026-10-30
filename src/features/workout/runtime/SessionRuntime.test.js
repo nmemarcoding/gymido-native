@@ -169,20 +169,25 @@ describe('SessionRuntime', () => {
     expect(byId(tree, 'set-action-12').props.disabled).toBe(false);
     // v2 F1 (ND3): the live state has no bottom nav; jump through All (n).
     act(() => tree.root.findByType(ExerciseSheet).props.onSelect(1));
-    expect(byId(tree, 'set-action-21').props.disabled).toBe(true);
-    expect(byId(tree, 'set-action-21').props.accessibilityLabel).toBe('Set 1');
-    expect(byId(tree, 'set-action-22').props.disabled).toBe(true);
+    // DECLARED E4 (T-146, owner delegated OK 30 Oct): the strip chips are gone; a browsed exercise's to-do sets are
+    // arc segments that are not buttons (was: locked chips "Set 1", disabled).
+    expect(byId(tree, 'set-action-21')).toBeUndefined();
+    expect(byId(tree, 'set-segment-21')).toBeUndefined();
+    expect(byId(tree, 'set-segment-22')).toBeUndefined();
     expect(byId(tree, 'set-weight-21')).toBeUndefined();
     expect(byId(tree, 'set-reps-21')).toBeUndefined();
     expect(text(tree, 'Did it')).toHaveLength(0);
   });
 
   // Review "untested": undo from a done chip through SessionRuntime, and a "Did it" double tap at runtime level.
-  it('live: the done chip is Undo and PATCHes is_completed false', async () => {
+  // DECLARED D1 (T-146 Q1, owner delegated OK 30 Oct): Undo is reached through the previous-set pill → "Undo set k"
+  // (was the done chip "Undo"); the same request.
+  it('live: the previous-set pill → "Undo set 1" PATCHes is_completed false', async () => {
     updateSessionSet.mockClear();
     const { tree } = render();
-    const undo = byId(tree, 'set-action-11');
-    expect(undo.props.accessibilityLabel).toBe('Undo');
+    act(() => byId(tree, 'set-previous-11').props.onPress());
+    const undo = byId(tree, 'set-undo-11');
+    expect(undo.props.accessibilityLabel).toBe('Undo set 1');
     await act(async () => undo.props.onPress());
     expect(updateSessionSet).toHaveBeenCalledTimes(1);
     expect(updateSessionSet).toHaveBeenCalledWith(1, 1, 11, expect.objectContaining({ is_completed: false }));
@@ -258,8 +263,10 @@ describe('SessionRuntime', () => {
     await act(async () => {
       finishing = finishAnyway(tree);
     });
-    // The done set's Undo (set-action-11) is a set save too (is_completed false).
-    await act(async () => byId(tree, 'set-action-11').props.onPress());
+    // The done set's Undo is a set save too (is_completed false). DECLARED (T-146 Q1): reached through the pill
+    // → "Undo set 1" (was the done chip set-action-11).
+    act(() => byId(tree, 'set-previous-11').props.onPress());
+    await act(async () => byId(tree, 'set-undo-11').props.onPress());
     expect(updateSessionSet).toHaveBeenCalledTimes(1);
     await act(async () => {
       resolve();
@@ -277,10 +284,11 @@ describe('SessionRuntime', () => {
     const { tree } = render({ session });
     act(() => tree.root.findByType(ExerciseSheet).props.onSelect(1));
     expect(host(tree, 'browsing-bar')).toBeDefined();
-    const undo = byId(tree, 'set-action-21');
-    expect(undo.props.accessibilityLabel).toBe('Undo');
+    // DECLARED D2 (T-146 Q1, owner delegated OK 30 Oct): through the pill → "Undo set 1"; the to-do set 22 is no button.
+    act(() => byId(tree, 'set-previous-21').props.onPress());
+    const undo = byId(tree, 'set-undo-21');
     expect(undo.props.disabled).toBe(false);
-    expect(byId(tree, 'set-action-22').props.disabled).toBe(true);
+    expect(byId(tree, 'set-segment-22')).toBeUndefined();
     await act(async () => undo.props.onPress());
     expect(updateSessionSet).toHaveBeenCalledWith(1, 2, 21, expect.objectContaining({ is_completed: false }));
   });
@@ -488,7 +496,8 @@ describe('v2 F1 live and browsing states (ND3)', () => {
     expect(text(tree, 'All (2)')).toHaveLength(1);
     expect(byId(tree, 'session-timer').props.accessibilityRole).toBe('timer');
     expect(text(tree, '0:00')).toHaveLength(1);
-    expect(host(tree, 'exercise-segments')).toBeDefined();
+    // DECLARED D3 (T-146 rev 17, PM-approved): the phone's exercise dashes are gone (the header bar holds the progress).
+    expect(host(tree, 'exercise-segments')).toBeUndefined();
     expect(byId(tree, 'set-action-12').props.accessibilityLabel).toBe('Did it');
     expect(byId(tree, 'up-next').props.accessibilityLabel).toBe('Up next: Press');
     expect(host(tree, 'exercise-nav')).toBeUndefined();
@@ -519,8 +528,10 @@ describe('v2 F1 live and browsing states (ND3)', () => {
     expect(text(tree, 'Exercise 2 of 2')).not.toHaveLength(0);
     // DECLARED change (Batch 2 item 2): was "The browsed exercise's first set stays actionable (v1 #15)" with
     // accessibilityLabel 'Did it'; now the browsed exercise's pending rows are locked and "Did it" goes.
-    expect(byId(tree, 'set-action-21').props.accessibilityLabel).toBe('Set 1');
-    expect(byId(tree, 'set-action-21').props.disabled).toBe(true);
+    // DECLARED E4 (T-146, owner delegated OK 30 Oct): the browsed exercise's to-do sets are arc segments, not
+    // buttons (was the locked chip 'Set 1').
+    expect(byId(tree, 'set-action-21')).toBeUndefined();
+    expect(byId(tree, 'set-segment-21')).toBeUndefined();
     expect(text(tree, 'Did it')).toHaveLength(0);
     // Batch 2 item 3: the gold rail stays (in the session header); the per-exercise segments go while browsing.
     expect(host(tree, 'exercise-segments')).toBeUndefined();
@@ -538,7 +549,12 @@ describe('v2 F1 live and browsing states (ND3)', () => {
       expect(inChrome(tree)).toHaveLength(1);
       expect(tree.root.findAll((node) => node.props.testID === 'session-rail' && typeof node.type === 'string')).toHaveLength(1);
       expect(StyleSheet.flatten(host(tree, 'session-rail').findAll((node) => typeof node.type === 'string')[1].props.style).width).toBe('25%');
-      expect(host(tree, 'exercise-segments')).toBeDefined();
+      // DECLARED D4 (T-146 rev 17, PM-approved): the dashes stay on the tablet only (FE Q2); the phone has the bar alone.
+      if (width >= 768) {
+        expect(host(tree, 'exercise-segments')).toBeDefined();
+      } else {
+        expect(host(tree, 'exercise-segments')).toBeUndefined();
+      }
       act(() => sheet(tree).props.onSelect(1));
       expect(inChrome(tree)).toHaveLength(1);
       expect(host(tree, 'exercise-segments')).toBeUndefined();
@@ -662,6 +678,96 @@ describe('v2 F1 steppers (ND1 / ND2) and the real reps (U3)', () => {
     expect(action.props.disabled).toBe(true);
     expect(action.props.accessibilityHint).toBe('Rest timer running — wait or skip it first');
   });
+
+  // T-146 §1.4 (owner-approved change): no rest after the workout's final set, even with a rest time.
+  const lastExercise = (firstDone) => ({
+    ...SESSION,
+    exercises: [
+      { ...SESSION.exercises[0], sets: [set(11, true), set(12, true)] },
+      { ...SESSION.exercises[1], sets: [{ ...set(21, firstDone), rest_seconds_planned: 60 }, { ...set(22), rest_seconds_planned: 60 }] },
+    ],
+  });
+
+  it('T-146: a set with sets still left rests as before', async () => {
+    const { tree } = render({ session: lastExercise(false) });
+    await act(async () => byId(tree, 'set-action-21').props.onPress());
+    expect(tree.root.findByType(RestTimerWidget).props.timer).toMatchObject({ setId: 21 });
+  });
+
+  // T-146 (FE Q1 default): the phone card's previous-set pill opens that set; "Save set k" re-saves it (still done),
+  // "Undo set k" un-logs it with the same request as before.
+  it('T-146: edit a done set: Save set 1 PATCHes it as done with the new reps; Undo set 1 un-logs it', async () => {
+    updateSessionSet.mockClear();
+    const DONE = { ...SESSION, exercises: [{ ...SESSION.exercises[0], sets: [{ ...set(11, true), actual_reps: 9, completed_at: '2026-10-30T10:00:00.000Z' }, set(12)] }, SESSION.exercises[1]] };
+    let { tree } = render({ session: DONE });
+    act(() => byId(tree, 'set-previous-11').props.onPress());
+    expect(byId(tree, 'set-reps-11').props.value).toBe('9');
+    act(() => byId(tree, 'set-reps-plus-11').props.onPress());
+    expect(byId(tree, 'set-action-11').props.accessibilityLabel).toBe('Save set 1');
+    await act(async () => byId(tree, 'set-action-11').props.onPress());
+    expect(updateSessionSet).toHaveBeenLastCalledWith(1, 1, 11, expect.objectContaining({ is_completed: true, actual_reps: 10, completed_at: '2026-10-30T10:00:00.000Z' }));
+    // Back on the live set.
+    expect(byId(tree, 'set-action-12').props.accessibilityLabel).toBe('Did it');
+    act(() => mounted.unmount());
+    ({ tree } = render({ session: DONE }));
+    act(() => byId(tree, 'set-previous-11').props.onPress());
+    await act(async () => byId(tree, 'set-undo-11').props.onPress());
+    expect(updateSessionSet).toHaveBeenLastCalledWith(1, 1, 11, expect.objectContaining({ is_completed: false }));
+  });
+
+  // T-146 reviewer M1 (web c56a4c06, RN-SPEC dated 30 Oct): a done set's edit never leaks.
+  const THREE = {
+    ...SESSION,
+    exercises: [
+      {
+        ...SESSION.exercises[0],
+        sets: [
+          { ...set(11, true), actual_weight_value: 100, actual_weight_unit: 'lb', actual_reps: 9 },
+          { ...set(12, true), actual_weight_value: 110, actual_weight_unit: 'lb', actual_reps: 8 },
+          { ...set(13), target_weight_value: 120 },
+        ],
+      },
+      SESSION.exercises[1],
+    ],
+  };
+
+  it('T-146 M1: editing a done set\'s weight stays on it (never another done set, never the live set)', () => {
+    const { tree } = render({ session: THREE });
+    act(() => byId(tree, 'set-previous-12').props.onPress());
+    act(() => byId(tree, 'set-segment-11').props.onPress());
+    act(() => byId(tree, 'set-weight-11').props.onChangeText('150'));
+    act(() => byId(tree, 'set-cancel-11').props.onPress());
+    expect(byId(tree, 'set-weight-13').props.value).not.toBe('150');
+    act(() => byId(tree, 'set-previous-12').props.onPress());
+    expect(byId(tree, 'set-weight-12').props.value).toBe('110');
+  });
+
+  it('T-146 M1: a live-set weight change spreads to later open sets only, never into a done set', () => {
+    const OPEN_AFTER = { ...THREE, exercises: [{ ...THREE.exercises[0], sets: [...THREE.exercises[0].sets, set(14)] }, THREE.exercises[1]] };
+    const { tree } = render({ session: OPEN_AFTER });
+    act(() => byId(tree, 'set-weight-13').props.onChangeText('130'));
+    act(() => byId(tree, 'set-previous-12').props.onPress());
+    expect(byId(tree, 'set-weight-12').props.value).toBe('110');
+  });
+
+  it('T-146 M1: Cancel and picking another set put the saved values back; Undo sends the SAVED values', async () => {
+    updateSessionSet.mockClear();
+    const { tree } = render({ session: THREE });
+    act(() => byId(tree, 'set-previous-12').props.onPress());
+    act(() => byId(tree, 'set-weight-12').props.onChangeText('999'));
+    act(() => byId(tree, 'set-segment-11').props.onPress());
+    act(() => byId(tree, 'set-segment-12').props.onPress());
+    expect(byId(tree, 'set-weight-12').props.value).toBe('110');
+    act(() => byId(tree, 'set-weight-12').props.onChangeText('999'));
+    await act(async () => byId(tree, 'set-undo-12').props.onPress());
+    expect(updateSessionSet).toHaveBeenLastCalledWith(1, 1, 12, expect.objectContaining({ is_completed: false, actual_weight_value: 110 }));
+  });
+
+  it('T-146: the workout\'s final set starts no rest, even with a rest time', async () => {
+    const { tree } = render({ session: lastExercise(true) });
+    await act(async () => byId(tree, 'set-action-22').props.onPress());
+    expect(tree.root.findByType(RestTimerWidget).props.timer).toBeNull();
+  });
 });
 
 // Review M6 (TalkBack half): the full-screen Rest is modal on Android too: while it is expanded, everything behind
@@ -702,7 +808,10 @@ describe('v2 F1 "Last time" (U3, per set number, no fallback)', () => {
   };
 
   it('shows the same set number converted to the current unit (lb whole), and prefills reps from it', () => {
-    const { tree } = render({ session: LAST });
+    // DECLARED D8 fixture change (T-146 §2.7, PM-approved): on the phone the 32 row shows "Last time" only before
+    // the exercise's first logged set (after it, the previous set's pill), so set 12 is the first set here.
+    // Assertions unchanged.
+    const { tree } = render({ session: { ...LAST, exercises: [{ ...LAST.exercises[0], sets: [LAST.exercises[0].sets[1]] }, LAST.exercises[1]] } });
     expect(host(tree, 'set-last-time-12').props.children).toBe('Last time 220 × 8');
     expect(byId(tree, 'set-reps-12').props.value).toBe('8');
     act(() => byId(tree, 'set-unit-12').props.onChange('kg'));
@@ -850,14 +959,16 @@ describe('v2 F1 large text (UX §9; QA AX5 chrome)', () => {
     }
     // T-132 (PM OK 29 Oct; web 2.1.15 SC:119-121): the phone plan name is one line that cuts off and never shrinks.
     // Was: the title rule (word wrap, adjustsFontSizeToFit true to shrink a long word).
+    // DECLARED D3 (T-146 rev 25, PM-approved): never "…" (it shrinks to 12, then wraps to 2 lines). Was:
+    // numberOfLines 1 + ellipsizeMode 'tail'.
     const name = text(tree, 'Plan')[0];
     expect(name.props.adjustsFontSizeToFit).toBeUndefined();
-    expect(name.props).toMatchObject({ numberOfLines: 1, ellipsizeMode: 'tail' });
+    expect(name.props.ellipsizeMode).toBeUndefined();
     expect(name.props.textBreakStrategy).toBe('simple');
-    // "Did it" never truncates.
+    // "Did it" never truncates. DECLARED E7 (T-146 board 4, PM-approved): the arc's 184×52 action (was 64 tall).
     const didIt = text(tree, 'Did it')[0];
     expect(didIt.props.numberOfLines).toBeUndefined();
-    expect(flat(byId(tree, 'set-action-12')).minHeight).toBe(64);
+    expect(flat(byId(tree, 'set-action-12')).minHeight).toBe(52);
   });
 });
 

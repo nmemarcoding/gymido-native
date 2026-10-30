@@ -22,6 +22,7 @@ import {
   setOfLabel,
   liveEyebrow,
   setsWord,
+  stageRestLine,
 } from './sessionMath';
 import { NBSP, keepUnitsTogether } from '../../../shared/format/counts';
 
@@ -32,6 +33,11 @@ const PHOTO_TOP = gradients.photoFade.colors[1];
 // starts under the solid header bar, so its height is the photo alone
 // (measured ≈300 at 440 wide). Was 330, which held the floating pills too.
 export const PHONE_STAGE_HEIGHT = 300;
+// T-146 rev 26: the live phone photo.
+export const PHONE_LIVE_STAGE_HEIGHT = 200;
+export const PHONE_LIVE_STAGE_SHORT = 180;
+export const NO_PHOTO_TILE_LIVE = 80;
+const NO_PHOTO_INITIALS_LIVE = 40;
 // T-132 web 2.1.15 phone values (FE answers from web main 93d9eae3,
 // ~/gymido-frontend-work/v2/mobile-live-workout-phone-answers.md), in one spot.
 // Q3: the ring (56, stroke 9 in the 100 viewBox) top-left ON the photo.
@@ -46,12 +52,10 @@ export const LIVE_CAPTION_SIDE = spacing[5];
 export const LIVE_CAPTION_BOTTOM = spacing[3];
 // Q1: phones draw the plan name as plain text in the header bar (no pill).
 export const PHONE_PLAN_PILL = false;
-// Q1: the plan name is ONE line on phones (truncated).
-export const PHONE_PLAN_LINES = 1;
 // Q1: the gold rail runs the full column width as the header's last row.
 export const PHONE_RAIL_FULL_WIDTH = true;
-// Q1: the phone plan name's text rule: one line, an ellipsis, no shrink.
-const PHONE_PLAN_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.title, textBreakStrategy: 'simple', ellipsizeMode: 'tail' });
+// The phone plan name's text rule (T-146: PhonePlanName fits it, never an ellipsis).
+const PHONE_PLAN_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.title, textBreakStrategy: 'simple' });
 // Q8: the no-photo stage's in-flow initials tile (112, 56 initials).
 export const NO_PHOTO_TILE = 112;
 const NO_PHOTO_INITIALS = 56;
@@ -78,7 +82,9 @@ function PressOverlay({ ink = false }) {
 }
 
 // A glass pill over the photo (UX §8.4 color-on-photo + blur 12).
-function GlassButton({ testID, label, onPress, height, tablet, buttonRef, accessibilityLabel, icon }) {
+// `narrow` (T-146, phones under 375): 12 side padding.
+function GlassButton({ testID, label, onPress, height, tablet, buttonRef, accessibilityLabel, icon, narrow = false }) {
+  const side = narrow ? 12 : 16;
   return (
     <Pressable
       ref={buttonRef}
@@ -94,7 +100,7 @@ function GlassButton({ testID, label, onPress, height, tablet, buttonRef, access
           tone="onPhoto"
           radius={radii.full}
           shadow={false}
-          style={[styles.glassButton, { minHeight: height, paddingLeft: icon ? (tablet ? 12 : 10) : tablet ? 20 : 16, paddingRight: tablet ? 20 : icon ? 14 : 16 }]}
+          style={[styles.glassButton, { minHeight: height, paddingLeft: icon ? (tablet ? 12 : 10) : tablet ? 20 : side, paddingRight: tablet ? 20 : icon ? 14 : side }]}
         >
           {pressed ? <PressOverlay /> : null}
           {icon}
@@ -136,9 +142,12 @@ export function SessionChrome({
   style,
 }) {
   const stacked = useLargeTextReflow();
+  const { width } = useWindowDimensions();
+  // RN-SPEC dated 30 Oct (T-146): below 375 wide the sides and pills are 12.
+  const narrow = !tablet && width < 375;
   const buttonHeight = tablet ? 48 : 40;
-  const exit = <GlassButton testID="session-exit" label="Exit" onPress={onExit} height={buttonHeight} tablet={tablet} />;
-  const all = <GlassButton testID="session-all" buttonRef={allRef} label={`All (${exerciseCount})`} onPress={onAll} height={buttonHeight} tablet={tablet} />;
+  const exit = <GlassButton testID="session-exit" label="Exit" onPress={onExit} height={buttonHeight} tablet={tablet} narrow={narrow} />;
+  const all = <GlassButton testID="session-all" buttonRef={allRef} label={`All (${exerciseCount})`} onPress={onAll} height={buttonHeight} tablet={tablet} narrow={narrow} />;
   const complete = (
     <CompleteButton label={wide ? 'Complete workout' : 'Complete'} primary={completePrimary} completing={completing} disabled={completeDisabled} onPress={onComplete} />
   );
@@ -162,9 +171,13 @@ export function SessionChrome({
   const planContent = (
     <>
       {/* T-132 (web SC:119-121): the phone plan name cuts off on one line, never shrinks; the tablet keeps the title rule. */}
-      <Text {...(tablet ? TITLE_TEXT : PHONE_PLAN_TEXT)} numberOfLines={tablet ? 2 : PHONE_PLAN_LINES} style={[styles.planName, tablet && styles.planNameTablet]}>
-        {keepUnitsTogether(planName)}
-      </Text>
+      {tablet ? (
+        <Text {...TITLE_TEXT} numberOfLines={2} style={[styles.planName, styles.planNameTablet]}>
+          {keepUnitsTogether(planName)}
+        </Text>
+      ) : (
+        <PhonePlanName planName={planName} />
+      )}
       {tablet ? (
         <Text {...CAP_PILL} style={[styles.planSub, styles.planSubTablet]}>{`${completedSets}/${totalSets} ${setsWord(totalSets)} done`}</Text>
       ) : (
@@ -185,7 +198,7 @@ export function SessionChrome({
       </View>
     );
   return (
-    <View testID="session-chrome" onLayout={onLayout} style={[styles.chrome, tablet && styles.chromeTablet, style]}>
+    <View testID="session-chrome" onLayout={onLayout} style={[styles.chrome, tablet && styles.chromeTablet, narrow && styles.chromeNarrow, style]}>
       {stacked ? (
         <>
           <View style={styles.chromeRow}>
@@ -212,6 +225,32 @@ export function SessionChrome({
       {/* Batch 2 item 3 (web SessionChrome): the gold rail, always. */}
       <SessionRail completedSets={completedSets} totalSets={totalSets} inChrome fullWidth={!tablet && PHONE_RAIL_FULL_WIDTH} />
     </View>
+  );
+}
+
+// T-146 rev 25/26 (owner: the full plan name always shows): 14 on one line;
+// else one step smaller at a time down to 12, still one line; else 2 lines at
+// 12/16, breaking between words. Never "…". Steps are chosen by the measured
+// line count, kept for the session.
+export const PHONE_PLAN_SIZES = Object.freeze([14, 13, 12]);
+function PhonePlanName({ planName }) {
+  const [step, setStep] = useState(0);
+  const wrap = step >= PHONE_PLAN_SIZES.length;
+  const fontSize = PHONE_PLAN_SIZES[Math.min(step, PHONE_PLAN_SIZES.length - 1)];
+  return (
+    <Text
+      {...PHONE_PLAN_TEXT}
+      testID="session-plan-name"
+      numberOfLines={wrap ? 2 : undefined}
+      onTextLayout={(event) => {
+        if (!wrap && event?.nativeEvent?.lines?.length > 1) {
+          setStep((current) => current + 1);
+        }
+      }}
+      style={[styles.planName, { fontSize, lineHeight: fontSize + 4 }]}
+    >
+      {keepUnitsTogether(planName)}
+    </Text>
   );
 }
 
@@ -410,6 +449,7 @@ export function ExerciseStage({
 }) {
   const notes = exerciseNotes(exercise);
   const name = exerciseName(exercise);
+  const { height: windowHeight } = useWindowDimensions();
   // T-110 (UX): the caption block's height; the scrim behind it follows it.
   const [captionHeight, setCaptionHeight] = useState(0);
   const browse = variant === 'browse';
@@ -425,9 +465,17 @@ export function ExerciseStage({
     // 300 MINIMUM and grows: the 112 initials tile and the caption are in
     // flow; the ring and How to keep their absolute top corners.
     const hasPhoto = Boolean(exercise.exercise?.thumbnail?.url);
+    // T-146 rev 17/26 (one form per fact): the live photo is 200 tall, without
+    // the sets ring (the half-circle has it); its line is only "Rest {s}s ·
+    // {muscle}" and the muscle chip goes. Browsing is unchanged.
+    // RN-SPEC dated 30 Oct: 180 under 700 tall; no photo: an 80 tile, the stage min 180.
+    const live = !browse;
+    const liveHeight = windowHeight < 700 || !hasPhoto ? PHONE_LIVE_STAGE_SHORT : PHONE_LIVE_STAGE_HEIGHT;
+    const stageHeight = live ? liveHeight : PHONE_STAGE_HEIGHT;
+    const liveLine = live ? stageRestLine(exercise) : '';
     return (
       <View testID="exercise-stage-frame">
-        <View testID="exercise-stage" onLayout={onLayout} style={[styles.stage, hasPhoto ? { height: PHONE_STAGE_HEIGHT } : { minHeight: PHONE_STAGE_HEIGHT }]}>
+        <View testID="exercise-stage" onLayout={onLayout} style={[styles.stage, hasPhoto ? { height: stageHeight } : { minHeight: stageHeight }]}>
           {hasPhoto ? (
             <StagePhoto exercise={exercise} variant="phone" />
           ) : (
@@ -437,27 +485,35 @@ export function ExerciseStage({
                 url={null}
                 name={name}
                 muscleCode={exercise.exercise?.primary_muscle_group?.code}
-                size={NO_PHOTO_TILE}
-                initialsFontSize={NO_PHOTO_INITIALS}
-                style={styles.noPhotoTileImage}
+                size={live ? NO_PHOTO_TILE_LIVE : NO_PHOTO_TILE}
+                initialsFontSize={live ? NO_PHOTO_INITIALS_LIVE : NO_PHOTO_INITIALS}
+                style={live ? styles.noPhotoTileLive : styles.noPhotoTileImage}
               />
             </View>
           )}
           {/* Web DOM / paint order (ES:84-142): the ring row, then the caption. */}
           <View testID="exercise-stage-top" pointerEvents="box-none" style={styles.liveTopRow}>
-            <StageRing exercise={exercise} live />
+            {live ? null : <StageRing exercise={exercise} live />}
             <View style={styles.flex} pointerEvents="none" />
             {howTo}
           </View>
           <View testID="exercise-stage-content" onLayout={onContentLayout} style={hasPhoto ? styles.captionPhone : styles.captionNoPhoto}>
             <View testID="exercise-stage-caption" onLayout={(event) => setCaptionHeight(event.nativeEvent.layout.height)}>
-              <Text {...CAP_BODY} style={styles.eyebrow}>
-                {browse ? browseEyebrow : liveEyebrow({ isActive, index, count, exercise })}
-              </Text>
+              {live ? (
+                liveLine ? (
+                  <Text {...CAP_BODY} testID="stage-rest-line" style={styles.eyebrowLive}>
+                    {liveLine}
+                  </Text>
+                ) : null
+              ) : (
+                <Text {...CAP_BODY} style={styles.eyebrow}>
+                  {browseEyebrow}
+                </Text>
+              )}
               <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.stageName}>
                 {name}
               </Text>
-              <MuscleChip exercise={exercise} />
+              {live ? null : <MuscleChip exercise={exercise} />}
             </View>
           </View>
         </View>
@@ -910,10 +966,13 @@ function SetChip({ set, isNow, tablet, pending, onPress }) {
 // Disabled while the PATCH runs or the rest locks it: the drawn glass look
 // (UX verdict P3-2: glass 0.05, 1px 0.08 border, text-faint), never a dimmed
 // gold that the content behind could show through.
-export function DidItButton({ set, isPending, isLocked, lockReason, onPress }) {
+// T-146 `arc`: the phone's 184×52 action inside the half-circle; `title`
+// replaces "Did it" ("Save set k" while a done set is edited).
+// `glass`: the all-done "Undo" (no check, the glass look, RN-SPEC 30 Oct).
+export function DidItButton({ set, isPending, isLocked, lockReason, onPress, arc = false, glass = false, title = 'Did it' }) {
   const disabled = isPending || isLocked;
-  const label = isPending ? 'Saving…' : 'Did it';
-  const ink = disabled ? colors.textFaint : colors.onGold;
+  const label = isPending ? 'Saving…' : title;
+  const ink = disabled ? colors.textFaint : glass ? colors.textPrimary : colors.onGold;
   // QA LOW: the dock sits outside the scroll; a swipe from here is no press.
   const swipe = useSwipeGuard();
   return (
@@ -927,13 +986,13 @@ export function DidItButton({ set, isPending, isLocked, lockReason, onPress }) {
       onPressIn={swipe.onPressIn}
       onPressMove={swipe.onPressMove}
       onPress={swipe.guard(onPress)}
-      style={[styles.didIt, disabled && styles.didItDisabled]}
+      style={[styles.didIt, arc && styles.didItArc, glass && styles.didItGlass, disabled && styles.didItDisabled]}
     >
       {({ pressed }) => (
         <>
           {pressed && !disabled ? <PressOverlay ink /> : null}
-          <CheckIcon size={20} color={ink} />
-          <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.didItText, disabled && styles.didItTextDisabled]}>
+          {glass ? null : <CheckIcon size={20} color={ink} />}
+          <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.didItText, arc && styles.didItTextArc, { color: ink }]}>
             {label}
           </Text>
         </>
@@ -942,25 +1001,24 @@ export function DidItButton({ set, isPending, isLocked, lockReason, onPress }) {
   );
 }
 
-// F1 dock "Up next: {name}" link (22 thumb), 44 hit area.
+// T-146 board 4 (FE Q3: still a button): the phone's "Up next" card, h64,
+// r20, a 48 thumb (r12) and "Up next · {name}" on one line.
 export function UpNextLink({ exercise, onPress }) {
   const name = exerciseName(exercise);
   return (
-    <Pressable testID="up-next" accessibilityRole="button" accessibilityLabel={`Up next: ${name}`} onPress={onPress} hitSlop={hitFor(22)} style={styles.upNext}>
-      {({ pressed }) => (
-        <>
-          <ExerciseImage
-            testID="up-next-thumb"
-            url={exercise.exercise?.thumbnail?.url ?? null}
-            name={name}
-            muscleCode={exercise.exercise?.primary_muscle_group?.code}
-            size={22}
-            // T-132 (web UN:39-49): the 22 thumb is a rounded square (radius 6).
-            style={styles.upNextThumb}
-          />
-          <Text {...CAP_BODY} numberOfLines={1} style={[styles.upNextText, pressed && styles.upNextPressed]}>{`Up next: ${name}`}</Text>
-        </>
-      )}
+    <Pressable testID="up-next" accessibilityRole="button" accessibilityLabel={`Up next: ${name}`} onPress={onPress} style={({ pressed }) => [styles.upNext, pressed && styles.upNextPressed]}>
+      <ExerciseImage
+        testID="up-next-thumb"
+        url={exercise.exercise?.thumbnail?.url ?? null}
+        name={name}
+        muscleCode={exercise.exercise?.primary_muscle_group?.code}
+        size={48}
+        style={styles.upNextThumb}
+      />
+      <Text {...CAP_BODY} numberOfLines={1} style={styles.upNextText}>
+        <Text style={styles.upNextLabel}>{'Up next · '}</Text>
+        {name}
+      </Text>
     </Pressable>
   );
 }
@@ -1013,6 +1071,9 @@ const styles = StyleSheet.create({
   },
   chromeTablet: {
     paddingHorizontal: spacing[6],
+  },
+  chromeNarrow: {
+    paddingHorizontal: spacing[3],
   },
   chromeRow: {
     flexDirection: 'row',
@@ -1232,6 +1293,9 @@ const styles = StyleSheet.create({
   noPhotoTileImage: {
     borderRadius: radii.xl,
   },
+  noPhotoTileLive: {
+    borderRadius: 20,
+  },
   captionNoPhoto: {
     paddingHorizontal: LIVE_CAPTION_SIDE,
     paddingBottom: LIVE_CAPTION_BOTTOM,
@@ -1289,6 +1353,12 @@ const styles = StyleSheet.create({
     ...font(400),
     fontSize: 14,
     lineHeight: 20,
+    color: colors.textStrong2,
+  },
+  eyebrowLive: {
+    ...font(500),
+    fontSize: 16,
+    lineHeight: 24,
     color: colors.textStrong2,
   },
   eyebrowBrowse: {
@@ -1421,7 +1491,8 @@ const styles = StyleSheet.create({
   // chrome's gap 8 + 2).
   railFullWidth: {
     marginTop: spacing['0_5'],
-    marginHorizontal: -spacing[4],
+    // T-146 rev 26: 6 from the screen edges.
+    marginHorizontal: -(spacing[4] - 6),
   },
   railFill: {
     height: '100%',
@@ -1854,14 +1925,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[6],
     boxShadow: shadows.goldGlow,
   },
+  // T-146 board 4: 184×52, padding 0 24, the softer gold shadow.
+  didItArc: {
+    width: 184,
+    minHeight: 52,
+    gap: spacing[2],
+    paddingHorizontal: spacing[6],
+    // The arc's softer drawn shadow (board 4), from the gold-strong tone (one glow token, T-86).
+    boxShadow: `0px 10px 26px -10px ${colors.goldStrong}`,
+  },
+  didItTextArc: {
+    ...font(600),
+    fontSize: 16,
+    lineHeight: 20,
+    letterSpacing: 0,
+  },
+  didItGlass: {
+    borderWidth: 1,
+    borderColor: colors.hairlineButton,
+    backgroundColor: colors.fillButton,
+    boxShadow: 'none',
+  },
   didItDisabled: {
     borderWidth: 1,
     borderColor: colors.glassDisabledBorder,
     backgroundColor: colors.fillChip,
     boxShadow: 'none',
-  },
-  didItTextDisabled: {
-    color: colors.textFaint,
   },
   didItText: {
     ...font(700),
@@ -1877,23 +1966,32 @@ const styles = StyleSheet.create({
   upNext: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-    maxWidth: '100%',
-    gap: spacing[2],
-    minHeight: layout.touchMin,
-    paddingHorizontal: spacing[3],
+    alignSelf: 'stretch',
+    gap: spacing[3],
+    minHeight: 64,
+    paddingLeft: spacing[2],
+    paddingRight: spacing[4],
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: colors.upNextCard,
   },
   upNextThumb: {
-    borderRadius: UP_NEXT_THUMB_RADIUS,
+    borderRadius: 12,
   },
   upNextText: {
-    ...typography.caption,
+    ...font(600),
     flexShrink: 1,
+    fontSize: 16,
+    lineHeight: 24,
+    color: colors.textPrimary,
+  },
+  upNextLabel: {
+    ...font(500),
     color: colors.textMuted,
   },
   upNextPressed: {
-    color: colors.textSecondary,
+    opacity: 0.8,
   },
   lastNote: {
     alignItems: 'center',

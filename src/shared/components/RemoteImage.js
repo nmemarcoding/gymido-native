@@ -28,7 +28,9 @@ export function nextImageState(state, event) {
 // its own fallback (plans §4.4, S2 only). `sources` (optional, memoised by the
 // caller) replaces the default candidate list (the Exercises grid's w400 Drive
 // thumbnail first, RN-SPEC-exercises F4); `accessibilityLabel` is the web alt.
-export default function RemoteImage({ url, sources: customSources, style, resizeMode = 'cover', onExhausted, accessibilityLabel, fadeDuration }) {
+// `onLoad` gets the loaded image's size ({ width, height }); `blurRadius` is
+// RN Image's (T-146: the rest photo's blurred copy).
+export default function RemoteImage({ url, sources: customSources, style, resizeMode = 'cover', onExhausted, accessibilityLabel, fadeDuration, blurRadius, onLoad }) {
   const sources = useMemo(() => customSources ?? getRemoteImageSources(url), [customSources, url]);
   const [state, setState] = useState({ index: 0, attempt: 0, cancels: 0 });
   const exhausted = state.index >= sources.length;
@@ -51,9 +53,11 @@ export default function RemoteImage({ url, sources: customSources, style, resize
       source={{ uri: sources[state.index] }}
       resizeMode={resizeMode}
       fadeDuration={fadeDuration}
+      blurRadius={blurRadius}
       style={style}
       accessible={Boolean(accessibilityLabel)}
       accessibilityLabel={accessibilityLabel}
+      onLoad={onLoad ? (event) => onLoad(event?.nativeEvent?.source ?? null) : undefined}
       onError={(event) => setState((current) => nextImageState(current, event))}
     />
   );

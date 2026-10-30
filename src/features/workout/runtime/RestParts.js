@@ -152,10 +152,14 @@ export function digitsInkPadVertical(style) {
   return Math.ceil(excess + fontSize * 0.05);
 }
 
-export function Countdown({ seconds, style, testID = 'rest-countdown' }) {
+// T-146: the full Rest passes `warn` (red in its last 5 s, colour only, no
+// pulse; rev 23) and its spoken label; the minimised disc passes neither and
+// keeps the last-10-s danger + pulse (FE Q4).
+export function Countdown({ seconds, style, testID = 'rest-countdown', warn, accessibilityLabel }) {
   const reducedMotion = useReducedMotion();
   const pulse = useRef(new Animated.Value(1)).current;
-  const finalTen = isFinalTen(seconds);
+  const fullRest = warn !== undefined;
+  const finalTen = !fullRest && isFinalTen(seconds);
   const padVertical = digitsInkPadVertical([styles.digits, style]);
   useEffect(() => {
     if (!finalTen || reducedMotion) {
@@ -175,6 +179,7 @@ export function Countdown({ seconds, style, testID = 'rest-countdown' }) {
     <Animated.Text
       testID={testID}
       accessibilityRole="timer"
+      accessibilityLabel={accessibilityLabel}
       maxFontSizeMultiplier={textScale.timer}
       numberOfLines={1}
       adjustsFontSizeToFit
@@ -188,7 +193,7 @@ export function Countdown({ seconds, style, testID = 'rest-countdown' }) {
           paddingVertical: padVertical,
           marginVertical: -padVertical,
         },
-        finalTen && styles.danger,
+        (fullRest ? warn : finalTen) && styles.danger,
         { transform: [{ scale: pulse }] },
       ]}
     >

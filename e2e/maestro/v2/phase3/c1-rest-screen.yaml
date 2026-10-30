@@ -11,6 +11,8 @@ appId: com.gymido.app
 tags:
   - member
 ---
+# DECLARED (T-146, PM-approved): the expanded-Rest marker "rest-ring-box" is now "rest-ring-box|rest-text"
+# (the phone Rest has no ring; the tablet keeps it).
 - runFlow: ../subflows/signed-in-start.yaml
 - runFlow: ../subflows/start-workout.yaml
 - runFlow: ../subflows/dismiss-session-dialogs.yaml
@@ -21,25 +23,24 @@ tags:
 - runFlow: ../subflows/log-current-set.yaml
 - extendedWaitUntil:
     visible:
-      id: "rest-ring-box"
+      id: "rest-ring-box|rest-text"
     timeout: 15000
-- assertVisible:
-    id: "rest-total"
 - assertVisible:
     id: "rest-countdown"
 - assertVisible:
     id: "rest-timer-skip"
-# +5 s grows the total ("of m:ss" follows); the screen stays open.
+# +5 s grows the total; the screen stays open. DECLARED (T-146): the "of m:ss" check (rest-total) is gone with the
+# phone ring (A4).
 - tapOn:
     id: "rest-timer-plus"
 - assertVisible:
-    id: "rest-ring-box"
+    id: "rest-ring-box|rest-text"
 # Minimise → the disc over the live workout.
 - tapOn:
     id: "rest-timer-minimize"
 - extendedWaitUntil:
     notVisible:
-      id: "rest-ring-box"
+      id: "rest-ring-box|rest-text"
     timeout: 5000
 - assertVisible:
     id: "rest-timer"
@@ -50,7 +51,7 @@ tags:
     id: "rest-timer"
 - extendedWaitUntil:
     visible:
-      id: "rest-ring-box"
+      id: "rest-ring-box|rest-text"
     timeout: 5000
 # Skip rest clears it.
 - tapOn:

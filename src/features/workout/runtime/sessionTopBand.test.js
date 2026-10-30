@@ -228,7 +228,8 @@ describe('T-132 phones: a solid header bar above the scroll, no band', () => {
     expect(flat(chrome).paddingTop).toBe(mockInsets.top + spacing['2_5']);
     expect(pageScroll(tree).findAll((node) => node.props.testID === 'session-chrome')).toHaveLength(0);
     expect(flat(host(tree, 'exercise-stage')).paddingTop ?? 0).toBe(0);
-    expect(flat(host(tree, 'exercise-stage')).height).toBe(300);
+    // DECLARED (T-146, RN-SPEC dated 30 Oct): the live phone photo is 200 (180 under 700 tall); was 300.
+    expect(flat(host(tree, 'exercise-stage')).height).toBe(window.height < 700 ? 180 : 200);
     expect(band(tree)).toBeUndefined();
     scrollTo(tree, 0);
     scrollTo(tree, 400);

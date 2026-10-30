@@ -152,7 +152,8 @@ export function seedDrafts(session, statsMap, previous) {
 }
 
 // §20.3 / ⚠W19: an edit on set i is written to set i and every later set of
-// the same exercise.
+// the same exercise. T-146 (RN-SPEC dated 30 Oct, reviewer M1): never into a
+// DONE set; an edit on a done set (the edit state) stays on that set only.
 export function propagateDraft(drafts, exercise, setId, field, value) {
   const sets = exercise.sets ?? [];
   const from = sets.findIndex((set) => set.id === setId);
@@ -160,7 +161,8 @@ export function propagateDraft(drafts, exercise, setId, field, value) {
     return drafts;
   }
   const next = { ...drafts };
-  for (const set of sets.slice(from)) {
+  const targets = sets[from].is_completed ? [sets[from]] : sets.slice(from).filter((set) => set.id === setId || !set.is_completed);
+  for (const set of targets) {
     next[set.id] = { ...(next[set.id] ?? {}), [field]: value };
   }
   return next;
@@ -220,6 +222,21 @@ export function buildSetPatch(set, draft, now = new Date()) {
     rest_seconds_actual: set.rest_seconds_actual ?? set.rest_seconds_planned ?? null,
     is_completed: completing,
     completed_at: completing ? now.toISOString() : null,
+  };
+}
+
+// T-146 (FE Q1 default): "Save set k" re-saves a DONE set with the edited
+// weight and reps; it stays completed (its completed_at is kept).
+export function buildSetEditPatch(set, draft) {
+  const number = parseWeight(draft?.actualWeightValue);
+  const weight = Number.isFinite(number) && number > 0 ? number : null;
+  return {
+    actual_reps: parseReps(draft?.actualReps) ?? set.actual_reps ?? set.target_reps_max ?? set.target_reps_min ?? 0,
+    actual_weight_value: weight,
+    actual_weight_unit: weight === null ? null : draft?.actualWeightUnit || set.actual_weight_unit || set.target_weight_unit || 'lb',
+    rest_seconds_actual: set.rest_seconds_actual ?? set.rest_seconds_planned ?? null,
+    is_completed: true,
+    completed_at: set.completed_at ?? null,
   };
 }
 
@@ -610,6 +627,21 @@ export function liveEyebrow({ isActive, index, count, exercise }) {
   }
   if (first && restSecondsFor(first) > 0) {
     parts.push(`rest ${restSecondsFor(first)}s`);
+  }
+  return parts.join(' · ');
+}
+
+// T-146 rev 17/26 (one form per fact): the live phone photo's line is only
+// "Rest {s}s · {muscle}" (either part when the other is missing).
+export function stageRestLine(exercise) {
+  const first = exercise?.sets?.[0];
+  const parts = [];
+  if (first && restSecondsFor(first) > 0) {
+    parts.push(`Rest ${restSecondsFor(first)}s`);
+  }
+  const muscle = exercise?.exercise?.primary_muscle_group?.name;
+  if (muscle) {
+    parts.push(muscle);
   }
   return parts.join(' · ');
 }

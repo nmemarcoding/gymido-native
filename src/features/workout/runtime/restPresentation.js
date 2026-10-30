@@ -36,6 +36,28 @@ export function isFinalTen(secondsLeft) {
   return secondsLeft > 0 && secondsLeft <= 10;
 }
 
+// T-146 rev 23 (owner): the full Rest turns red (fill, edge, digits) in the
+// last 5 s, only when the rest is ≥ 10 s; colour only, no pulse. The
+// minimised disc keeps isFinalTen (FE Q4).
+export function isRestWarn(secondsLeft, totalSeconds) {
+  return secondsLeft > 0 && secondsLeft <= 5 && totalSeconds >= 10;
+}
+
+// T-146 §1.0 a11y: "Resting, 1 minute 48 seconds left" / "Resting, 4 seconds left".
+export function restTimerLabel(secondsLeft) {
+  const total = Math.max(0, Math.round(secondsLeft || 0));
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  const parts = [];
+  if (minutes > 0) {
+    parts.push(`${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`);
+  }
+  if (seconds > 0 || minutes === 0) {
+    parts.push(`${seconds} ${seconds === 1 ? 'second' : 'seconds'}`);
+  }
+  return `Resting, ${parts.join(' ')} left`;
+}
+
 // "of m:ss" (U4) = the rest's total.
 export function restTotalLabel(totalSeconds) {
   return `of ${formatClock(Math.max(0, Math.round(totalSeconds || 0)))}`;
@@ -73,70 +95,47 @@ function nextWeight(set, draft) {
 // U4 Next card / "Next: set…" line (F2 N1: as drawn, from data the session
 // already has). null when there is no next set (`nextSetKey` '' = the last
 // set of the session): the card is hidden.
-//   { exerciseName, exercise (the library exercise, for the photo), line,
-//     setNumber, total (that exercise's sets), detail, newExercise }
-//   line = "Set 3 · 8–10 reps · 135 lb" (the weight part only when known);
-//   detail = the same without "Set n". T-146: newExercise when the next set
-//   is in another exercise than `doneSetId` (the set the rest follows).
-export function restNextPreview(session, nextSetKey, drafts, doneSetId = null) {
+//   { exerciseName, exercise (the library exercise, for the photo), line }
+//   line = "Set 3 · 8–10 reps · 135 lb" (the weight part only when known).
+export function restNextPreview(session, nextSetKey, drafts) {
   const found = findSet(session, nextSetKey);
   if (!found) {
     return null;
   }
   const { exercise, set, index } = found;
   const number = Number(set.set_number) > 0 ? Number(set.set_number) : index + 1;
-  const detail = [setRepsLabel(set)];
+  const parts = [`Set ${number}`, setRepsLabel(set)];
   const weight = nextWeight(set, drafts?.[set.id]);
   if (weight) {
-    detail.push(weight);
+    parts.push(weight);
   }
-  const done = doneSetId == null ? null : findExerciseOfSet(session, doneSetId);
   return {
     exerciseName: exerciseName(exercise),
     exercise: exercise.exercise ?? null,
-    line: [`Set ${number}`, ...detail].join(' · '),
-    setNumber: number,
-    total: (exercise.sets ?? []).length,
-    detail: detail.join(' · '),
-    newExercise: Boolean(done) && done.id !== exercise.id,
+    line: parts.join(' · '),
   };
 }
 
-function findExerciseOfSet(session, setId) {
-  return (session?.exercises ?? []).find((exercise) => (exercise.sets ?? []).some((set) => set.id === setId)) ?? null;
-}
-
-// T-146 (UX build ruling §2): the Rest screen's set progress for the
-// exercise just worked: done = its completed sets, the set the rest follows
-// counted as done (the overlay may land a render later), never over the
-// total. `workoutDone` when no set is left in the session (`nextSetKey` '').
+// T-146 (ruling rev 29/33/36): what the phone Rest shows, from the set the
+// rest follows (`doneSetId`, counted as done: the overlay may land a render
+// later) and the next set (`nextSetKey`).
+//   mid  (the next set is in the same exercise): that exercise's photo and
+//        name; left = its sets still to do (never below 0).
+//   next (the exercise is done): the NEXT exercise's photo and name.
+//   { mode, name, exercise (the library exercise, for the photo), left }
 // null when the set is unknown.
-//   { exerciseName, done, total, left, complete, workoutDone }
-export function restSetProgress(session, doneSetId, nextSetKey) {
-  const exercise = doneSetId == null ? null : findExerciseOfSet(session, doneSetId);
-  if (!exercise) {
+export function restHero(session, doneSetId, nextSetKey) {
+  const current = (session?.exercises ?? []).find((exercise) => (exercise.sets ?? []).some((set) => set.id === doneSetId));
+  if (!current) {
     return null;
   }
-  const sets = exercise.sets ?? [];
-  const total = sets.length;
-  const done = Math.min(total, sets.filter((set) => set.is_completed || set.id === doneSetId).length);
-  return {
-    exerciseName: exerciseName(exercise),
-    done,
-    total,
-    left: total - done,
-    complete: done >= total,
-    workoutDone: nextSetKey === '',
-  };
-}
-
-// "{exercise}: 1 of 5 sets done, 4 left" / "{exercise}: all 5 sets done"
-// (ruling §3; one accessible group).
-export function setProgressLabel(progress) {
-  if (progress.complete) {
-    return `${progress.exerciseName}: all ${progress.total} ${progress.total === 1 ? 'set' : 'sets'} done`;
+  const following = findSet(session, nextSetKey)?.exercise ?? null;
+  if (following && following.id !== current.id) {
+    return { mode: 'next', name: exerciseName(following), exercise: following.exercise ?? null, left: 0 };
   }
-  return `${progress.exerciseName}: ${progress.done} of ${progress.total} sets done, ${progress.left} left`;
+  const sets = current.sets ?? [];
+  const done = sets.filter((set) => set.is_completed || set.id === doneSetId).length;
+  return { mode: 'mid', name: exerciseName(current), exercise: current.exercise ?? null, left: Math.max(0, sets.length - done) };
 }
 
 // The VoiceOver / TalkBack reading of a PB line: "145 lb × 8" → "145 pounds

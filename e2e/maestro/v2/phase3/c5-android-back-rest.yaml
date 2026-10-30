@@ -16,6 +16,8 @@ tags:
   - member
   - android
 ---
+# DECLARED (T-146, PM-approved): the expanded-Rest marker "rest-ring-box" is now "rest-ring-box|rest-text"
+# (the phone Rest has no ring; the tablet keeps it).
 - runFlow:
     when:
       platform: Android
@@ -30,14 +32,14 @@ tags:
       - runFlow: ../subflows/log-current-set.yaml
       - extendedWaitUntil:
           visible:
-            id: "rest-ring-box"
+            id: "rest-ring-box|rest-text"
           timeout: 15000
 
       # Back #1 on the EXPANDED Rest → minimised to the disc, consumed.
       - pressKey: Back
       - extendedWaitUntil:
           notVisible:
-            id: "rest-ring-box"
+            id: "rest-ring-box|rest-text"
           timeout: 5000
       # QA flake (2.0.5): the minimised disc mounts a moment after the board
       # closes, so wait for it instead of asserting at once.

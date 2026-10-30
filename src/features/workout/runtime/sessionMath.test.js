@@ -502,3 +502,28 @@ describe('v2 F1 texts', () => {
     expect(doneSetLabel({ actual_weight_value: 62.5 })).toBe('62.5');
   });
 });
+
+describe('T-146 helpers', () => {
+  const { buildSetEditPatch, stageRestLine } = require('./sessionMath');
+
+  it('buildSetEditPatch: stays done, keeps completed_at, takes the edited weight and reps', () => {
+    const set = { id: 1, is_completed: true, actual_reps: 9, completed_at: '2026-10-30T10:00:00.000Z', rest_seconds_planned: 90 };
+    expect(buildSetEditPatch(set, { actualWeightValue: '135', actualWeightUnit: 'kg', actualReps: '10' })).toEqual({
+      actual_reps: 10,
+      actual_weight_value: 135,
+      actual_weight_unit: 'kg',
+      rest_seconds_actual: 90,
+      is_completed: true,
+      completed_at: '2026-10-30T10:00:00.000Z',
+    });
+    expect(buildSetEditPatch(set, { actualWeightValue: '' })).toMatchObject({ actual_reps: 9, actual_weight_value: null, actual_weight_unit: null });
+  });
+
+  it('stageRestLine: "Rest {s}s · {muscle}", either part alone', () => {
+    const exercise = (rest, muscle) => ({ sets: [{ rest_seconds_planned: rest }], exercise: muscle ? { primary_muscle_group: { name: muscle } } : null });
+    expect(stageRestLine(exercise(180, 'Quads'))).toBe('Rest 180s · Quads');
+    expect(stageRestLine(exercise(0, 'Quads'))).toBe('Quads');
+    expect(stageRestLine(exercise(90, null))).toBe('Rest 90s');
+    expect(stageRestLine({ sets: [] })).toBe('');
+  });
+});

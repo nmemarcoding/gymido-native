@@ -159,6 +159,8 @@ export default function PillButton({
   size = 'default',
   // Optional leading icon: a node, or ({ color }) => node (gap 8).
   icon,
+  // T-146: the icon after the label instead ("Skip rest →").
+  iconAfter = false,
   accessibilityLabel,
   testID,
   // Outer layout only (margins, width); BrandButton passes it through.
@@ -227,7 +229,7 @@ export default function PillButton({
                 track={look.spinnerTrack}
                 reducedMotionLoopMs={motion.spinnerReducedLoopMs}
               />
-            ) : (
+            ) : iconAfter ? null : (
               iconNode ?? null
             )}
             {/* Android's high-quality line breaking can measure a bold label slightly
@@ -240,6 +242,7 @@ export default function PillButton({
             >
               {title}
             </Text>
+            {iconAfter && !loading ? iconNode ?? null : null}
           </View>
         </>
       )}
