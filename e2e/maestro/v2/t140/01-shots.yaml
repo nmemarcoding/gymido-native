@@ -1,0 +1,68 @@
+# T-140 parity shots (read-only: opens and closes sheets, never taps a Start). The page as the
+# signed-in member's real week is today, then each day's sheet (one per day type that exists), then the
+# Last workout sheet. Starts signed in as a member with an active plan and no running session.
+# SHOT = an output path prefix. IDs only, no credentials.
+appId: com.gymido.app
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: { when: { visible: { id: "tab-Today" } }, commands: [ { tapOn: { id: "tab-Today" } } ] }
+- runFlow: { when: { visible: { id: "rail-Today" } }, commands: [ { tapOn: { id: "rail-Today" } } ] }
+- scrollUntilVisible: { element: { id: "home-today-primary" }, direction: UP, timeout: 20000 }
+- tapOn: { id: "home-today-primary" }
+- extendedWaitUntil: { visible: { id: "workout-week-card" }, timeout: 30000 }
+- assertNotVisible: { id: "session-chrome" }
+- waitForAnimationToEnd: { timeout: 5000 }
+- takeScreenshot: ${SHOT}-page
+- tapOn: { id: "workout-day-0" }
+- extendedWaitUntil: { visible: { id: "workout-day-sheet" }, timeout: 10000 }
+- waitForAnimationToEnd: { timeout: 5000 }
+- takeScreenshot: ${SHOT}-sheet-0
+- tapOn: { id: "app-modal-close" }
+- extendedWaitUntil: { notVisible: { id: "workout-day-sheet" }, timeout: 10000 }
+- tapOn: { id: "workout-day-1" }
+- extendedWaitUntil: { visible: { id: "workout-day-sheet" }, timeout: 10000 }
+- waitForAnimationToEnd: { timeout: 5000 }
+- takeScreenshot: ${SHOT}-sheet-1
+- tapOn: { id: "app-modal-close" }
+- extendedWaitUntil: { notVisible: { id: "workout-day-sheet" }, timeout: 10000 }
+- tapOn: { id: "workout-day-2" }
+- extendedWaitUntil: { visible: { id: "workout-day-sheet" }, timeout: 10000 }
+- waitForAnimationToEnd: { timeout: 5000 }
+- takeScreenshot: ${SHOT}-sheet-2
+- tapOn: { id: "app-modal-close" }
+- extendedWaitUntil: { notVisible: { id: "workout-day-sheet" }, timeout: 10000 }
+- tapOn: { id: "workout-day-3" }
+- extendedWaitUntil: { visible: { id: "workout-day-sheet" }, timeout: 10000 }
+- waitForAnimationToEnd: { timeout: 5000 }
+- takeScreenshot: ${SHOT}-sheet-3
+- tapOn: { id: "app-modal-close" }
+- extendedWaitUntil: { notVisible: { id: "workout-day-sheet" }, timeout: 10000 }
+- tapOn: { id: "workout-day-4" }
+- extendedWaitUntil: { visible: { id: "workout-day-sheet" }, timeout: 10000 }
+- waitForAnimationToEnd: { timeout: 5000 }
+- takeScreenshot: ${SHOT}-sheet-4
+- tapOn: { id: "app-modal-close" }
+- extendedWaitUntil: { notVisible: { id: "workout-day-sheet" }, timeout: 10000 }
+- tapOn: { id: "workout-day-5" }
+- extendedWaitUntil: { visible: { id: "workout-day-sheet" }, timeout: 10000 }
+- waitForAnimationToEnd: { timeout: 5000 }
+- takeScreenshot: ${SHOT}-sheet-5
+- tapOn: { id: "app-modal-close" }
+- extendedWaitUntil: { notVisible: { id: "workout-day-sheet" }, timeout: 10000 }
+- tapOn: { id: "workout-day-6" }
+- extendedWaitUntil: { visible: { id: "workout-day-sheet" }, timeout: 10000 }
+- waitForAnimationToEnd: { timeout: 5000 }
+- takeScreenshot: ${SHOT}-sheet-6
+- tapOn: { id: "app-modal-close" }
+- extendedWaitUntil: { notVisible: { id: "workout-day-sheet" }, timeout: 10000 }
+- runFlow:
+    when:
+      visible: { id: "workout-last" }
+    commands:
+      - tapOn: { id: "workout-last" }
+      - extendedWaitUntil: { visible: { id: "workout-day-sheet" }, timeout: 10000 }
+      - waitForAnimationToEnd: { timeout: 5000 }
+      - takeScreenshot: ${SHOT}-sheet-last
+      - tapOn: { id: "app-modal-close" }
+- tapOn: { id: "workout-back-today" }
+- extendedWaitUntil: { visible: { id: "home-today-card" }, timeout: 30000 }
