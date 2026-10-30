@@ -6,7 +6,7 @@ import { askReminderPermissionOnTrainingDay } from './reminderSignals';
 import { openPersonalToday, resetWorkoutRemindersForTests, startWorkoutReminders } from './workoutReminders';
 import { useWorkoutReminders } from './workoutReminderSetting';
 
-// T-136 (owner, 30 Oct 2026): a trainer gets the T-103 reminders from their
+// T-136 (owner, 29 Oct 2026): a trainer gets the T-103 reminders from their
 // own plan, exactly as a member (the personal side).
 const mockPrefs = new Map();
 jest.mock('../../shared/storage/preferences', () => ({
@@ -97,6 +97,16 @@ describe('T-136 trainer reminders', () => {
     expect(openShellPath).toHaveBeenCalledWith('/');
     await flush();
     expect(mockPrefs.get('gymido-mode')).toBe(Workspace.member);
+  });
+
+  test('review N3: the default tap handler is openPersonalToday (trainer mode switched, then the Today root)', () => {
+    useAuthStore.setState({ workspace: Workspace.trainer });
+    const appState = { addEventListener: jest.fn(() => ({ remove: () => {} })) };
+    const navigation = { isReady: () => true, addListener: jest.fn(() => () => {}) };
+    startWorkoutReminders({ platform: { getPermission: jest.fn(async () => 'granted'), dismiss: jest.fn(async () => {}) }, api: {}, appState, navigation });
+    mockTap.listener(reminderTap());
+    expect(useAuthStore.getState().workspace).toBe(Workspace.member);
+    expect(openShellPath).toHaveBeenCalledWith('/');
   });
 
   test('openPersonalToday on the personal side: just the Today root, the preference untouched', () => {

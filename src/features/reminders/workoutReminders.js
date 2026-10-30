@@ -19,7 +19,7 @@ const AUTH_PENDING = new Set([AuthStatus.restoring, AuthStatus.authenticating, A
 let controller = null;
 let cleanups = [];
 
-// T-136 (owner, 30 Oct 2026): a trainer gets them too, from their own plan
+// T-136 (owner, 29 Oct 2026): a trainer gets them too, from their own plan
 // (the personal side), exactly as a member.
 function isSignedIn(state = useAuthStore.getState()) {
   return state.status === AuthStatus.signedIn;
