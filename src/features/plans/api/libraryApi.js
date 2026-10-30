@@ -15,6 +15,11 @@ export async function getCurrentPlan() {
   return data(await apiClient.get('/my-plans/current'));
 }
 
+// T-140 Plan finished: every enrollment, any status.
+export async function listMyPlans() {
+  return data(await apiClient.get('/my-plans')).items ?? [];
+}
+
 export async function getPlan(planId) {
   return data(await apiClient.get(`/plans/${planId}`));
 }

@@ -1,14 +1,16 @@
 import { getStatus } from '../../shared/api/apiError';
 import { isGeneratorAvailable } from '../myPlans/api/myPlansApi';
-import { getCurrentPlan, getCurrentWeek, listPlanDays } from '../plans/api/libraryApi';
+import { getCurrentPlan, getCurrentWeek, listMyPlans, listPlanDays } from '../plans/api/libraryApi';
 import { isValidWeek } from '../plans/libraryFormat';
-import { getCurrentWorkout, getTodayStatus, listCompletedWorkouts, listExerciseStats } from './api/workoutApi';
+import { getCurrentWorkout, getLastCompletedWorkout, getTodayStatus, listCompletedWorkouts, listExerciseStats } from './api/workoutApi';
 import { buildExerciseStatsMap, completedDayIds, currentWeekRange } from './workoutFormat';
 import { reconcileSessionState } from './runtime/workoutSessionStore';
 
 const DEFAULT_API = {
   getCurrentWorkout,
   getCurrentPlan,
+  getLastCompletedWorkout,
+  listMyPlans,
   getTodayStatus,
   getCurrentWeek,
   isGeneratorAvailable,
@@ -70,8 +72,18 @@ export async function loadWorkoutPage({ api = DEFAULT_API, now = new Date() } = 
     reconcileSessionState(session?.id ?? null);
     const completed = await completedForWeek(api, completedLocal, week, range);
     const planId = currentPlan?.enrollment?.plan?.id;
-    const planDays = planId ? await api.listPlanDays(planId) : [];
-    const generatorAvailable = planId ? false : await api.isGeneratorAvailable().catch(() => false);
+    // T-140 (web review lesson 1): an open session renders the live workout,
+    // so the page-only reads never delay it; otherwise they run in parallel.
+    // Best-effort (a failure hides what it feeds): the newest completed
+    // workout only when this week has none (Last workout; null = none ever)
+    // and GET /my-plans only without an active plan (Plan finished).
+    const open = Boolean(session?.id);
+    const [planDays, generatorAvailable, lastCompleted, myPlans] = await Promise.all([
+      planId && !open ? api.listPlanDays(planId) : [],
+      planId || open ? false : api.isGeneratorAvailable().catch(() => false),
+      open || completed?.length ? null : api.getLastCompletedWorkout().catch(() => null),
+      planId || open ? [] : api.listMyPlans().catch(() => []),
+    ]);
     return {
       ok: true,
       data: {
@@ -82,6 +94,10 @@ export async function loadWorkoutPage({ api = DEFAULT_API, now = new Date() } = 
         week,
         generatorAvailable,
         completedThisWeek: completed ?? [],
+        // T-140: the stats card hides when this week's list failed.
+        completedThisWeekFailed: completed == null,
+        lastCompleted,
+        myPlans,
         completedThisWeekDayIds: completedDayIds(completed),
         exerciseStatsMap: buildExerciseStatsMap(stats),
       },

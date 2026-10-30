@@ -1,9 +1,5 @@
-import { StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
-import { colors } from '../../../shared/theme/tokens';
-import ConfirmDialog from '../../../shared/components/ConfirmDialog';
-import { NBSP } from '../../../shared/format/counts';
 import { listDayExercises } from '../../plans/api/libraryApi';
 import { loadWorkoutPage } from '../loadWorkoutPage';
 import WorkoutScreen from './WorkoutScreen';
@@ -55,19 +51,7 @@ jest.mock('../runtime/SessionDialogs', () => ({ LeaveWorkoutDialog: () => null }
 jest.mock('../api/workoutApi', () => ({ startWorkout: jest.fn(() => Promise.resolve({ session: null })) }));
 jest.mock('../runtime/restAlertPlatform', () => ({ getPermission: jest.fn(() => Promise.resolve('granted')), requestPermission: jest.fn(() => Promise.resolve('granted')) }));
 
-const s = (text) => text.replace(/(\d) /g, `$1${NBSP}`);
-// T-74: a row's meta keeps each "·" with the text before it (NBSP + "· ").
-const m = (text) => s(text).replace(/ · /g, `${NBSP}· `);
-function textOf(node) {
-  return []
-    .concat(node.props.children)
-    .map((child) => (typeof child === 'string' || typeof child === 'number' ? String(child) : child?.props ? textOf(child) : ''))
-    .join('');
-}
 const hosts = (root, id) => root.findAll((node) => node.props.testID === id && typeof node.type === 'string');
-const host = (root, id) => hosts(root, id)[0];
-const texts = (root) => root.findAll((node) => node.type === 'Text').map(textOf);
-const confirmDialog = (tree) => tree.root.findAll((node) => node.type === ConfirmDialog && node.props.testID === 'workout-start-confirm')[0];
 // DECLARED (T-116 review N1, PM OK 29 Oct): was ^workout-day-start-\d+$; a plan day's 2nd slot is {dayId}-{date}.
 const dayButtons = (root) =>
   root.findAll((node) => typeof node.props.testID === 'string' && /^workout-day-start-[\d-]+$/.test(node.props.testID) && typeof node.props.onPress === 'function');
@@ -154,56 +138,16 @@ beforeEach(() => {
 afterEach(() => act(() => mounted.splice(0).forEach((tree) => tree.unmount())));
 
 
-const MISSED_MON = item(1, '2026-10-26', 'missed', DAYS[0]);
-const MISSED_TUE = item(2, '2026-10-27', 'missed', DAYS[1]);
 const weekWith = (...slots) => WEEK.map((slot) => slots.find((other) => other.date === slot.date) ?? slot);
 const REST = { is_workout_day: false, already_completed: false, plan_day: null };
 const restWeek = (...slots) => weekWith(item(4, '2026-10-29', 'rest'), ...slots);
 
-const UPCOMING_FRI = item(5, '2026-10-30', 'upcoming', DAYS[2]);
-const DONE_WED = item(3, '2026-10-28', 'done', DAYS[3]);
 const restDay = (week, data = {}) => hub({ todayStatus: REST, week, completedThisWeek: [], completedThisWeekDayIds: [], ...data });
 const labels = (tree) => dayButtons(tree.root).map((row) => row.props.accessibilityLabel);
 
+// DECLARED (T-140, owner OK 30 Oct 2026 via PM): DELETED 9 tests of the removed "Train anyway?" / other-days rows (incl. T-118 "Made up"); their
+// still-live rules are re-tested in workoutPage.t140.test.js.
 describe('T-116 "Train anyway?" = this week only, in week order', () => {
-  it('2 missed + 1 done + tomorrow + upcoming: Mon → Sun; each meta "{Status} · {Weekday} · n exercises"; today not listed', async () => {
-    const week = restWeek(MISSED_MON, MISSED_TUE, DONE_WED, UPCOMING_FRI);
-    const tree = await renderScreen(restDay(week));
-    expect(labels(tree)).toEqual(['Start Upper A, missed Monday', 'Start Lower A, missed Tuesday', 'Repeat Lower B', 'Start Upper B, tomorrow, Friday', 'Start Lower B, upcoming, Saturday']);
-    expect(texts(host(tree.root, 'workout-other-days'))).toEqual(
-      expect.arrayContaining([m('Missed · Monday · 5 exercises'), m('Missed · Tuesday · 5 exercises'), m('Wednesday · 5 exercises'), m('Tomorrow · Friday · 6 exercises'), m('Upcoming · Saturday · 5 exercises')])
-    );
-    // ✓ Done stays the existing mark (+ "·") before the meta.
-    expect(hosts(tree.root, 'workout-day-done-4')).toHaveLength(1);
-  });
-
-  it('a missed meta is text-muted; tomorrow / upcoming stay text-secondary', async () => {
-    const tree = await renderScreen(restDay(restWeek(MISSED_MON, UPCOMING_FRI)));
-    const meta = (text) => tree.root.findAll((node) => node.type === 'Text' && textOf(node) === m(text))[0];
-    expect(StyleSheet.flatten(meta('Missed · Monday · 5 exercises').props.style).color).toBe(colors.textMuted);
-    expect(StyleSheet.flatten(meta('Tomorrow · Friday · 6 exercises').props.style).color).toBe(colors.textSecondary);
-  });
-
-  it('taps: Missed → the catch-up rest copy for its weekday; Tomorrow / Upcoming → "Start {title} today?"; Done → Repeat', async () => {
-    const tree = await renderScreen(restDay(restWeek(MISSED_MON, DONE_WED, UPCOMING_FRI)));
-    const open = async (label) => {
-      const row = dayButtons(tree.root).find((node) => node.props.accessibilityLabel === label);
-      await act(async () => row.props.onPress());
-      const props = confirmDialog(tree).props;
-      await act(async () => props.onClose());
-      return { title: props.title, description: props.description };
-    };
-    expect(await open('Start Upper A, missed Monday')).toEqual({ title: 'Catch up on Upper A?', description: 'You missed it on Monday. Today is a rest day. This starts a live workout.' });
-    expect(await open('Start Upper B, tomorrow, Friday')).toEqual({ title: 'Start Upper B today?', description: 'Today is a rest day. This starts a live workout.' });
-    expect(await open('Repeat Lower B')).toMatchObject({ title: 'Do Lower B again?' });
-  });
-
-  it('a plan day on two weekdays gets one row per slot; a plan day with no slot this week is not listed', async () => {
-    const week = restWeek(MISSED_MON, item(5, '2026-10-30', 'upcoming', DAYS[0]));
-    const tree = await renderScreen(restDay(week));
-    expect(labels(tree)).toEqual(['Start Upper A, missed Monday', 'Repeat Lower A', 'Start Upper A, tomorrow, Friday', 'Start Lower B, upcoming, Saturday']);
-    expect(labels(tree).some((label) => /Upper B/.test(label))).toBe(false);
-  });
 
   it('a past slot that is neither missed nor done (e.g. before the plan started) is not listed', async () => {
     const week = restWeek(item(1, '2026-10-26', 'rest_not_started', DAYS[0]));
@@ -215,50 +159,6 @@ describe('T-116 "Train anyway?" = this week only, in week order', () => {
     const empty = WEEK.map((slot) => ({ ...slot, status: 'rest', is_workout_day: false, plan_day: null }));
     const tree = await renderScreen(restDay(empty));
     expect(hosts(tree.root, 'workout-other-days')).toHaveLength(0);
-  });
-
-  it('only the rest day changes: the training day keeps its "Other days" (every other plan day)', async () => {
-    const tree = await renderScreen(hub({ week: weekWith(MISSED_MON) }));
-    expect(texts(host(tree.root, 'workout-other-days'))).toContain('Other days');
-    expect(labels(tree)).toEqual(expect.arrayContaining(['Start Lower B']));
-  });
-});
-
-// T-118 (UX, T-116 native verdict) + T-116 review N1.
-describe('T-118 "Made up" + unique row ids', () => {
-  const doneMark = (tree, key) => textOf(host(tree.root, `workout-day-done-${key}`).findAll((node) => node.type === 'Text')[0]);
-
-  it('a done slot whose day was NOT started on that date reads "✓ Made up"; one started that day reads "✓ Done"', async () => {
-    // Mon: Upper A done, started Monday (DONE_MON) → Done. Wed: Lower B done, started only on Thursday (later) → Made up.
-    const lowerBThu = { workout_plan_day_id: 4, started_at: new Date(2026, 9, 29, 8).toISOString(), completed_at: new Date(2026, 9, 29, 9).toISOString() };
-    const tree = await renderScreen(restDay(restWeek(item(1, '2026-10-26', 'done', DAYS[0]), DONE_WED), { completedThisWeek: [DONE_MON, DONE_TUE, lowerBThu] }));
-    expect(doneMark(tree, 1)).toBe('Done');
-    expect(doneMark(tree, 4)).toBe('Made up');
-    // The SR name and the tap are unchanged (Repeat).
-    expect(labels(tree)).toEqual(expect.arrayContaining(['Repeat Upper A', 'Repeat Lower B']));
-  });
-
-  it('reviewer M1: a slot done EARLY (started before its date, e.g. "Start … early") reads "✓ Done", not "Made up"', async () => {
-    // Saturday's Lower B slot is done, started Thursday (today, early).
-    const early = { workout_plan_day_id: 4, started_at: new Date(2026, 9, 29, 8).toISOString(), completed_at: new Date(2026, 9, 29, 9).toISOString() };
-    // Tuesday stays missed, so the week isn't complete (the hub stays on the rest day).
-    const tree = await renderScreen(restDay(restWeek(MISSED_TUE, item(6, '2026-10-31', 'done', DAYS[3])), { completedThisWeek: [DONE_MON, early] }));
-    expect(doneMark(tree, 4)).toBe('Done');
-    // A past slot done early (Mon's Upper A started the Sunday before → not this week's data) stays Done too.
-    const past = await renderScreen(restDay(restWeek(MISSED_TUE, item(1, '2026-10-26', 'done', DAYS[0])), { completedThisWeek: [early] }));
-    expect(doneMark(past, 1)).toBe('Done');
-  });
-
-  it('without this week\'s completed workouts the slot keeps "Done" (never guesses a make-up)', async () => {
-    const tree = await renderScreen(restDay(restWeek(DONE_WED), { completedThisWeek: [] }));
-    expect(doneMark(tree, 4)).toBe('Done');
-  });
-
-  it('N1: a plan day on two slots gets unique ids (day id, then day id + date)', async () => {
-    const tree = await renderScreen(restDay(restWeek(MISSED_MON, item(5, '2026-10-30', 'upcoming', DAYS[0]))));
-    expect(hosts(tree.root, 'workout-day-start-1')).toHaveLength(1);
-    expect(hosts(tree.root, 'workout-day-start-1-2026-10-30')).toHaveLength(1);
-    expect(host(tree.root, 'workout-day-start-1-2026-10-30').props.accessibilityLabel).toBe('Start Upper A, tomorrow, Friday');
   });
 });
 

@@ -5,46 +5,57 @@ import { AccessibilityInfo, StyleSheet, Text, View, findNodeHandle, useWindowDim
 import { getServerMessage } from '../../../shared/api/apiError';
 import { keepUnitsTogether } from '../../../shared/format/counts';
 import BackPill from '../../../shared/components/BackPill';
-import CatchUpRow from '../../../shared/components/CatchUpRow';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { InlineToast } from '../../../shared/components/ToastHost';
 import { ToastTone } from '../../../shared/components/toastStore';
-import { CAP_BODY, DISPLAY_TITLE_TEXT } from '../../../shared/components/largeText';
+import GradientFill from '../../../shared/components/GradientFill';
+import { CAP_BODY, DISPLAY_TITLE_TEXT, LINE_TEXT, TITLE_TEXT } from '../../../shared/components/largeText';
+import PillButton from '../../../shared/components/PillButton';
+import Skeleton from '../../../shared/components/Skeleton';
 import { useSheetFocus } from '../../../shared/hooks/useSheetFocus';
-import { breakpoints, colors, font, spacing, textScale, titleTracking } from '../../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, spacing, titleTracking } from '../../../shared/theme/tokens';
 import { listDayExercises } from '../../plans/api/libraryApi';
 import ScheduleSetupCard from '../../plans/components/ScheduleSetupCard';
 import { WEEKDAYS, planDayTitle } from '../../plans/libraryFormat';
-import { catchUpConfirmCopy, catchUpRowCopy, missedLayout, weekMisses } from '../../plans/missedCatchUp';
+import { catchUpConfirmCopy, weekMisses } from '../../plans/missedCatchUp';
+import { useProfileStore } from '../../profile/profileStore';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
 import { useShellUiStore } from '../../shell/shellUiStore';
-import { startWorkout } from '../api/workoutApi';
+import { getWorkout, startWorkout } from '../api/workoutApi';
+import { PlayIcon } from '../components/hub/HubIcons';
 import HubDayRows from '../components/hub/HubDayRows';
 import HubTodayCard from '../components/hub/HubTodayCard';
-import HubWeekCard from '../components/hub/HubWeekCard';
-import WorkoutSkeleton from '../components/WorkoutSkeleton';
+import DaySheet from '../components/page/DaySheet';
+import { LastWorkoutRow, MissedLine, StatsCard } from '../components/page/PageRows';
+import WeekCard from '../components/page/WeekCard';
 import { WorkoutEmptyState, WorkoutErrorState } from '../components/WorkoutStates';
+import { OTHER_DAYS_COPY, dayRows, hubState, hubWeek, missedBase, startConfirmCopy } from '../hubModel';
 import { loadWorkoutPage } from '../loadWorkoutPage';
+import {
+  dayCells,
+  daySheet,
+  doneRows,
+  finishedPlan,
+  lastWhenText,
+  lastWorkoutCell,
+  missedLine,
+  newestWorkout,
+  planLine,
+  primaryAction,
+  ringLabel,
+  sheetDayIds,
+  sheetRows,
+  weekReference,
+  weekStats,
+  workoutTitle,
+} from '../pageModel';
 import { CompletionPopup } from '../runtime/RuntimeOverlays';
 import restAlertPlatform from '../runtime/restAlertPlatform';
 import { requestPermissionAtWorkoutStart } from '../runtime/restAlerts';
 import { LeaveWorkoutDialog } from '../runtime/SessionDialogs';
 import SessionRuntime from '../runtime/SessionRuntime';
-import { applyOverlay, reconcileOverlay } from '../runtime/sessionMath';
-import {
-  OTHER_DAYS_COPY,
-  dayRows,
-  hubState,
-  hubWeek,
-  missedBase,
-  startConfirmCopy,
-  todayDoneDetail,
-  todayDurationMinutes,
-  todayMeta,
-  upNext,
-  weekCompleteDetail,
-} from '../hubModel';
+import { applyOverlay, memberWeightUnit, reconcileOverlay } from '../runtime/sessionMath';
 import useLeaveWorkoutGuard from './useLeaveWorkoutGuard';
 
 const SAVED_TOAST_MS = 3500;
@@ -314,60 +325,76 @@ function WorkoutPage() {
 }
 
 
-// U5 "‹ Today", the page title and the plan name (T-76 boards: 40/44 phone,
-// 52/56 tablet). T-65 (PHONE-NAV spec §3): the page's one back control is the
-// kit BackPill; it opens the Today root (M1).
-function HubHeader({ tablet, planName, onBack }) {
+// U5 "‹ Today", the page title and (T-140 §6) the plan line "{plan} · week N".
+// T-65 (PHONE-NAV spec §3): the page's one back control is the kit BackPill;
+// it opens the Today root (M1). The bell is the shell's (unchanged).
+function HubHeader({ wide, planText, onBack }) {
   return (
     <View testID="workout-hub-header" style={styles.header}>
       <BackPill testID="workout-back-today" label="Today" onPress={onBack} />
-      <Text testID="workout-title" accessibilityRole="header" {...DISPLAY_TITLE_TEXT} style={tablet ? styles.titleTablet : styles.title}>
+      <Text testID="workout-title" accessibilityRole="header" {...DISPLAY_TITLE_TEXT} style={wide ? styles.titleWide : styles.title}>
         Workout
       </Text>
-      {planName ? (
-        <Text testID="workout-plan-name" {...CAP_BODY} style={styles.planName}>
-          {keepUnitsTogether(planName)}
+      {planText ? (
+        <Text testID="workout-plan-line" {...LINE_TEXT} style={[styles.planLine, wide && styles.planLineWide]}>
+          {planText}
         </Text>
       ) : null}
     </View>
   );
 }
 
-// T-76: each plan day's exercises (photos + primary muscles), lazy: one GET
-// /plans/{id}/days/{dayId}/exercises per day, today's first. undefined while
-// loading, [] on a failure (the row draws the initials tile). Fetched again
-// only when the plan or its days change, never on a silent reload.
-function useDayExercises(planId, dayIdsKey, firstId) {
-  // Results are kept with the plan + days they belong to, so a new plan reads
-  // as nothing loaded yet without a reset.
-  const key = `${planId}|${dayIdsKey}`;
-  const [store, setStore] = useState({ key: '', byDay: {} });
-  // Today's day only orders the first fetch; a new day (midnight) never refetches.
-  // (Declared before the fetch effect, so it updates first on each commit.)
-  const firstRef = useRef(firstId);
-  useEffect(() => {
-    firstRef.current = firstId;
-  }, [firstId]);
-  useEffect(() => {
-    if (!planId || !dayIdsKey) {
-      return undefined;
+// T-140 (RN-SPEC): the plan days' exercises, one GET
+// /plans/{id}/days/{dayId}/exercises per day, each once, after the load
+// (undefined while loading, [] on a failure). Kept per plan.
+function useSheetExercises(planId) {
+  const [store, setStore] = useState({ planId: null, byDay: {} });
+  const asked = useRef({ planId: null, ids: new Set() });
+  const byDay = store.planId === planId ? store.byDay : {};
+  const ensure = useCallback(
+    (dayIds) => {
+      if (!planId) {
+        return;
+      }
+      if (asked.current.planId !== planId) {
+        asked.current = { planId, ids: new Set() };
+      }
+      for (const dayId of dayIds) {
+        if (asked.current.ids.has(dayId)) {
+          continue;
+        }
+        asked.current.ids.add(dayId);
+        const save = (items) =>
+          setStore((current) => ({ planId, byDay: { ...(current.planId === planId ? current.byDay : {}), [dayId]: items } }));
+        listDayExercises(planId, dayId)
+          .then(save)
+          .catch(() => save([]));
+      }
+    },
+    [planId]
+  );
+  return [byDay, ensure];
+}
+
+// T-140 (RN-SPEC): a Done sheet's sessions, GET /workouts/{id} once per
+// session when a Done sheet opens (undefined while loading, null on a
+// failure: the sheet falls back to the planned rows with ✓).
+function useSessionDetails() {
+  const [byId, setById] = useState({});
+  const asked = useRef(new Set());
+  const ensure = useCallback((ids) => {
+    for (const id of ids) {
+      if (id == null || asked.current.has(id)) {
+        continue;
+      }
+      asked.current.add(id);
+      const save = (session) => setById((current) => ({ ...current, [id]: session }));
+      getWorkout(id)
+        .then(save)
+        .catch(() => save(null));
     }
-    let live = true;
-    const ids = dayIdsKey.split(',').map(Number);
-    const first = firstRef.current;
-    const ordered = ids.includes(first) ? [first, ...ids.filter((id) => id !== first)] : ids;
-    const save = (dayId, items) =>
-      live && setStore((current) => ({ key, byDay: { ...(current.key === key ? current.byDay : {}), [dayId]: items } }));
-    for (const dayId of ordered) {
-      listDayExercises(planId, dayId)
-        .then((items) => save(dayId, items))
-        .catch(() => save(dayId, []));
-    }
-    return () => {
-      live = false;
-    };
-  }, [key, planId, dayIdsKey]);
-  return store.key === key ? store.byDay : {};
+  }, []);
+  return [byId, ensure];
 }
 
 function focus(ref) {
@@ -377,36 +404,56 @@ function focus(ref) {
   }
 }
 
-// T-76 (RN-SPEC-workout T-76 block, shared with web): today first, then the
-// week, then the other days. Phone: stacked. Tablet portrait: today full
-// width, then the week and the other days side by side (1 : 1.15). Tablet
-// landscape: today and the week side by side (2 : 1), the other days below
-// as cards in auto columns (min 300). Past the large-text reflow: stacked.
+// The confirm opens once the day sheet has slid away (two modals never
+// animate at once).
+const SHEET_TO_CONFIRM_MS = 320;
+
+// T-140 Workout page "A-balanced" (owner approved 30 Oct 2026; UX
+// T140-workout-page-BUILD-ruling; web parity). Phone / tablet portrait: one
+// column (tablet: centred, max 600, ring 180). ≥ 1024 wide: the week card
+// left, stats / Last workout / missed line / the gold action right. Every
+// Start runs today's flows unchanged: today's Start starts at once; a
+// catch-up and a start-early ask first (T-80 / T-102 confirms).
 function Hub({ status, page, width, height = 0, actionError, successMessage, isStartingDayId, onRetry, onStart, onScheduleSaved, onBackToToday, fontScale = 1 }) {
   const tablet = width >= breakpoints.md;
-  const reflow = fontScale > textScale.reflowAbove;
-  const split = tablet && !reflow;
-  const landscape = split && width > height;
+  const wide = width >= breakpoints.lg && width > height;
+  const profile = useProfileStore((state) => state.profile);
   const { currentPlan, todayStatus, planDays, week } = page;
   const planId = currentPlan?.enrollment?.plan?.id;
   const todayDayId = todayStatus?.plan_day?.id;
-  const exercisesByDay = useDayExercises(planId, planDays.map((day) => day.id).join(','), todayDayId);
+  const [exercisesByDay, ensureExercises] = useSheetExercises(planId);
+  const [sessionsById, ensureSessions] = useSessionDetails();
+  const dayIdsKey = (planDays ?? []).map((day) => day.id).join(',');
+  useEffect(() => {
+    if (dayIdsKey) {
+      ensureExercises(dayIdsKey.split(',').map(Number));
+    }
+  }, [dayIdsKey, ensureExercises]);
+  // UX M3 (the no-schedule day rows): the content width picks the photo size.
+  const [contentWidth, setContentWidth] = useState(0);
   // C2: "Choose training days" opens the schedule setup in place; focus goes
   // to its heading, and back to the button on Cancel.
   const [settingUp, setSettingUp] = useState(false);
-  // UX M3: the hub's content width picks the day rows' photo size.
-  const [contentWidth, setContentWidth] = useState(0);
+  const [openCell, setOpenCell] = useState(null);
+  const [sheetMounted, setSheetMounted] = useState(false);
+  const sheetReturnRef = useRef(null);
+  useSheetFocus(Boolean(openCell), { returnRef: sheetReturnRef });
   // T-80: starting a day other than today's planned workout asks first.
-  // Focus returns to the row (or "Start early") when the dialog is cancelled.
+  // Focus returns to the control that asked when the dialog is cancelled.
   const [confirm, setConfirm] = useState(null);
   // Mounted on the first ask (and kept, for its close animation).
   const [confirmMounted, setConfirmMounted] = useState(false);
   const confirmReturnRef = useRef(null);
   useSheetFocus(Boolean(confirm), { returnRef: confirmReturnRef });
-  const catchUpRef = useRef(null);
+  const dayRefs = useRef([]);
+  const lastRef = useRef(null);
+  const missedRef = useRef(null);
+  const actionRef = useRef(null);
   const headingRef = useRef(null);
   const chooseRef = useRef(null);
   const wasSettingUp = useRef(false);
+  const timers = useRef([]);
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
   useEffect(() => {
     if (settingUp !== wasSettingUp.current) {
       wasSettingUp.current = settingUp;
@@ -422,14 +469,17 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
       {actionError ? <InlineToast testID="workout-action-error" tone={ToastTone.error} title="Workout error" message={actionError} /> : null}
     </>
   );
-  const header = <HubHeader tablet={tablet} planName={currentPlan?.enrollment?.plan?.name} onBack={onBackToToday} />;
-  const pageStyle = [styles.page, tablet && styles.pageTablet];
+  const now = new Date();
+  const finished = currentPlan?.enrollment?.plan ? null : finishedPlan(page.myPlans);
+  const planText = finished ? `${finished.name} · finished` : planLine(currentPlan?.enrollment?.plan, currentPlan?.enrollment?.started_on, weekReference(week, now));
+  const header = <HubHeader wide={wide} planText={planText ? keepUnitsTogether(planText) : null} onBack={onBackToToday} />;
+  const pageStyle = [styles.page, tablet && !wide && styles.pageTablet, wide && styles.pageWide];
 
   if (status === 'loading') {
     return (
       <View style={pageStyle}>
         {header}
-        <WorkoutSkeleton split={split && !landscape} />
+        <PageSkeleton />
       </View>
     );
   }
@@ -442,7 +492,19 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
       </View>
     );
   }
+  if (finished) {
+    // RN-SPEC T-140 Plan finished: the newest enrollment is completed.
+    return (
+      <View testID="workout-hub" style={pageStyle}>
+        {toasts}
+        {header}
+        <PlanFinishedCard planName={finished.name} />
+        <PillButton testID="workout-primary-action" size="cta" fullWidth title="Find your next plan" onPress={() => openShellPath('/plans')} />
+      </View>
+    );
+  }
   if (!currentPlan?.enrollment?.plan) {
+    // §8 No plan: today's empty state (copy + routes unchanged).
     return (
       <View style={pageStyle}>
         {toasts}
@@ -456,7 +518,6 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
     );
   }
 
-  const now = new Date();
   // T-81: by date on the server's /week; the fallback stays as before.
   const thisWeek = hubWeek({
     week,
@@ -466,37 +527,17 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
     startedOn: currentPlan.enrollment.started_on,
     now,
   });
-  const weekNow = thisWeek.week;
-  const state = hubState({ ...page, week: weekNow, byDate: thisWeek.byDate });
-  const progress = thisWeek.progress;
-  const strip = state === 'noSchedule' ? null : thisWeek.strip;
-  const caption = strip ? thisWeek.caption : null;
-  const next = upNext({ week: weekNow, schedule: currentPlan.schedule, planDays, now });
+  const state = hubState({ ...page, week: thisWeek.week, byDate: thisWeek.byDate });
   const todayTitle = planDayTitle(todayStatus?.plan_day);
-  const todayCount = planDays.find((day) => day.id === todayDayId)?.exercises_count ?? todayStatus?.plan_day?.exercises_count;
-  const todayExercises = exercisesByDay[todayDayId];
-  // T-102: this week's open misses from /week (none without it). T-113: the
-  // hero is never a missed day; ONE Catch-up row under it (rest included).
+  // T-102: this week's open misses from /week (none without it).
   const misses = weekMisses(week, now);
   const base = missedBase(state);
-  const layout = settingUp ? { hero: null, catchUp: null } : missedLayout(base, misses);
-  const catchUp = layout.catchUp;
-  const rows = dayRows({ planDays, schedule: currentPlan.schedule, doneIds: page.completedThisWeekDayIds, state, todayDayId, misses, week: weekNow, completed: page.completedThisWeek, now });
+
   const ask = (dayId, copy, ref) => {
     confirmReturnRef.current = ref?.current ?? null;
     setConfirmMounted(true);
     setConfirm({ dayId, ...copy });
   };
-  // T-80: a row (Start or Repeat) or "Start {Day} early": the copy for this
-  // context; T-102 an open-miss row asks with the catch-up rest copy.
-  const requestStart = (day, ref) =>
-    ask(
-      day.dayId,
-      day.missedWeekday
-        ? catchUpConfirmCopy({ miss: { weekdayName: day.missedWeekday }, base: 'rest', title: day.title })
-        : startConfirmCopy({ state, title: day.title, done: Boolean(day.done), isToday: Boolean(todayStatus?.already_completed) && day.dayId === todayDayId, todayTitle }),
-      ref
-    );
   const confirmDialog = confirmMounted ? (
     <ConfirmDialog
       testID="workout-start-confirm"
@@ -516,164 +557,359 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
       playTile
     />
   ) : null;
-  const catchUpRow = catchUp ? (
-    <CatchUpRow
-      ref={catchUpRef}
-      testID="workout-catch-up"
-      copy={catchUpRowCopy(catchUp)}
-      disabled={isStartingDayId != null}
-      onPress={() => ask(catchUp.miss.planDay?.id, catchUpConfirmCopy({ miss: catchUp.miss, base, todayTitle }), catchUpRef)}
-    />
-  ) : null;
-  const todayCard =
-    state === 'noSchedule' && settingUp ? (
-      <ScheduleSetupCard
-        planName={currentPlan.enrollment.plan.name}
-        planDays={planDays}
-        enrollmentId={currentPlan.enrollment.id}
-        headingRef={headingRef}
-        onCancel={() => setSettingUp(false)}
-        onSaved={async () => {
-          await onScheduleSaved();
-          setSettingUp(false);
-        }}
-      />
-    ) : (
-      <HubTodayCard
-        state={state}
-        tablet={tablet}
-        weekdayName={WEEKDAYS[(now.getDay() + 6) % 7].name}
-        title={todayTitle}
-        meta={todayMeta(todayCount, todayExercises)}
-        exercises={todayExercises}
-        detail={
-          state === 'todayDone'
-            ? todayDoneDetail(todayCount, todayDurationMinutes(page.completedThisWeek, todayDayId, now))
-            : weekCompleteDetail(progress, currentPlan.schedule)
-        }
-        upNext={next}
-        upNextExercises={next ? exercisesByDay[next.dayId] : undefined}
-        starting={isStartingDayId != null && (isStartingDayId === todayDayId || isStartingDayId === next?.dayId)}
-        onStart={() => onStart(todayDayId)}
-        onStartEarly={requestStart}
-        onViewProgress={() => openShellPath('/progress')}
-        onChooseDays={() => setSettingUp(true)}
-        chooseRef={chooseRef}
-      />
+
+  if (state === 'noSchedule') {
+    // A plan without training days: today's setup state as before (T-76 C2):
+    // "Choose training days" + "Or start now" (each day asks first, T-80).
+    const rows = dayRows({ planDays, schedule: currentPlan.schedule, doneIds: page.completedThisWeekDayIds, state, todayDayId, misses, week: thisWeek.week, completed: page.completedThisWeek, now });
+    const requestStart = (day, ref) =>
+      ask(day.dayId, startConfirmCopy({ state, title: day.title, done: Boolean(day.done), isToday: Boolean(todayStatus?.already_completed) && day.dayId === todayDayId, todayTitle }), ref);
+    return (
+      <View testID="workout-hub" style={pageStyle} onLayout={(event) => setContentWidth(event.nativeEvent.layout.width)}>
+        {toasts}
+        {header}
+        {settingUp ? (
+          <ScheduleSetupCard
+            planName={currentPlan.enrollment.plan.name}
+            planDays={planDays}
+            enrollmentId={currentPlan.enrollment.id}
+            headingRef={headingRef}
+            onCancel={() => setSettingUp(false)}
+            onSaved={async () => {
+              await onScheduleSaved();
+              setSettingUp(false);
+            }}
+          />
+        ) : (
+          <HubTodayCard state={state} tablet={tablet} weekdayName={WEEKDAYS[(now.getDay() + 6) % 7].name} title={todayTitle} onChooseDays={() => setSettingUp(true)} chooseRef={chooseRef} />
+        )}
+        {rows.length ? (
+          <HubDayRows
+            copy={OTHER_DAYS_COPY[state]}
+            rows={rows}
+            exercisesByDay={exercisesByDay}
+            startingDayId={isStartingDayId}
+            onStart={requestStart}
+            contentWidth={contentWidth}
+            fontScale={fontScale}
+          />
+        ) : null}
+        {confirmDialog}
+      </View>
     );
-  const weekCard =
-    strip && progress ? <HubWeekCard strip={strip} progress={progress} caption={caption} reflow={reflow} style={split ? (landscape ? styles.sideWeek : styles.splitWeek) : null} /> : null;
-  const otherDays = rows.length ? (
-    <HubDayRows
-      copy={OTHER_DAYS_COPY[state]}
+  }
+
+  const cells = dayCells({ strip: thisWeek.strip, week: thisWeek.week, completed: page.completedThisWeek, misses });
+  const progress = thisWeek.progress;
+  const stats = page.completedThisWeekFailed ? null : weekStats(page.completedThisWeek, memberWeightUnit(profile));
+  const last = newestWorkout(page.completedThisWeek, page.lastCompleted);
+  const missed = missedLine(misses);
+  const action = primaryAction({ state, todayDayId, todayTitle, misses });
+
+  const openSheet = (cell, ref) => {
+    sheetReturnRef.current = ref?.current ?? null;
+    ensureExercises(sheetDayIds(cell));
+    if (cell.type === 'done') {
+      ensureSessions(cell.done.map((item) => item?.id));
+    }
+    setSheetMounted(true);
+    setOpenCell(cell);
+  };
+  const missCopy = (miss, title) => catchUpConfirmCopy({ miss, base, todayTitle, title });
+  // The sheet closes first; the confirm (or today's start) follows, and a
+  // cancelled confirm gives focus back to the day that opened the sheet.
+  const runSheetAction = () => {
+    const cell = openCell;
+    const ref = sheetReturnRef.current;
+    sheetReturnRef.current = null;
+    setOpenCell(null);
+    const dayId = cell.planDay?.id;
+    if (cell.type === 'today') {
+      onStart(dayId);
+      return;
+    }
+    const copy =
+      cell.type === 'missed'
+        ? missCopy({ weekdayName: cell.weekday.name, planDay: cell.planDay }, planDayTitle(cell.planDay))
+        : startConfirmCopy({ state, title: planDayTitle(cell.planDay), todayTitle });
+    timers.current.push(setTimeout(() => ask(dayId, copy, { current: ref }), SHEET_TO_CONFIRM_MS));
+  };
+  const runAction = () => {
+    if (action.kind === 'start') {
+      onStart(action.dayId);
+    } else {
+      ask(action.dayId, missCopy(action.miss), actionRef);
+    }
+  };
+
+  // A Done sheet lists what was logged (GET /workouts/{id}); if any detail
+  // failed, the planned rows with ✓ and no detail.
+  let rows = null;
+  if (openCell?.type === 'done') {
+    rows = doneRows(openCell.done.map((item) => (item?.id == null ? null : sessionsById[item.id])));
+    if (rows === null) {
+      rows = sheetRows(sheetDayIds(openCell), exercisesByDay, { bare: true });
+    }
+  } else if (openCell) {
+    rows = sheetRows(sheetDayIds(openCell), exercisesByDay);
+  }
+  const sheet = openCell ? daySheet(openCell, { count: rows?.count ?? null }) : null;
+  const daySheetView = sheetMounted ? (
+    <DaySheet
+      isOpen={Boolean(openCell)}
+      sheet={sheet}
       rows={rows}
-      exercisesByDay={exercisesByDay}
-      startingDayId={isStartingDayId}
-      onStart={requestStart}
-      contentWidth={contentWidth}
-      fontScale={fontScale}
-      cards={landscape}
-      style={split && !landscape && weekCard ? styles.splitDays : null}
+      starting={isStartingDayId != null}
+      onClose={() => setOpenCell(null)}
+      onAction={runSheetAction}
     />
   ) : null;
 
-  const measure = (event) => setContentWidth(event.nativeEvent.layout.width);
-  if (landscape && weekCard) {
-    // T-102: the Catch-up row sits under the hero, in the Today column.
+  const weekCard =
+    cells.length && progress ? (
+      <WeekCard
+        cells={cells}
+        progress={progress}
+        label={ringLabel(state)}
+        openIndex={openCell?.index ?? -1}
+        dayRefs={dayRefs}
+        ring={wide ? { size: 190, numberSize: 60, ofSize: 26 } : tablet ? { size: 180 } : undefined}
+        onOpenDay={(cell) => openSheet(cell, { current: dayRefs.current[cell.index] })}
+      />
+    ) : null;
+  const statsCard = stats ? <StatsCard time={stats.time} volume={stats.volume} large={wide} /> : null;
+  const lastRow = last ? (
+    <LastWorkoutRow
+      ref={lastRef}
+      tall={wide}
+      title={workoutTitle(last)}
+      when={lastWhenText(last, now)}
+      onPress={() => openSheet(lastWorkoutCell(last, cells, now), lastRef)}
+    />
+  ) : null;
+  const missedRow = missed ? (
+    <MissedLine
+      ref={missedRef}
+      weekday={missed.weekday}
+      more={missed.more}
+      onPress={() => {
+        const cell = cells.find((item) => item.openMiss && item.weekday.name === missed.weekday);
+        if (cell) {
+          openSheet(cell, missedRef);
+        }
+      }}
+    />
+  ) : null;
+  const actionButton = action ? (
+    <PillButton
+      ref={actionRef}
+      testID="workout-primary-action"
+      size="cta"
+      fullWidth
+      title={action.label}
+      loading={isStartingDayId != null && isStartingDayId === action.dayId}
+      disabled={isStartingDayId != null}
+      icon={({ color }) => <PlayIcon size={18} color={color} />}
+      onPress={runAction}
+      style={wide ? styles.actionWide : null}
+    />
+  ) : null;
+
+  if (wide) {
     return (
-      <View style={pageStyle} onLayout={measure}>
+      <View testID="workout-hub" style={pageStyle}>
         {toasts}
         {header}
         <View testID="workout-split" style={styles.split}>
-          <View testID="workout-side-today" style={[styles.sideToday, styles.column]}>
-            {todayCard}
-            {catchUpRow}
+          {weekCard ? <View style={styles.splitLeft}>{weekCard}</View> : null}
+          <View testID="workout-side" style={styles.splitRight}>
+            {statsCard}
+            {lastRow}
+            {missedRow}
+            {actionButton}
           </View>
-          {weekCard}
         </View>
-        {otherDays}
+        {daySheetView}
         {confirmDialog}
       </View>
     );
   }
 
   return (
-    <View testID="workout-hub" style={pageStyle} onLayout={measure}>
+    <View testID="workout-hub" style={pageStyle}>
       {toasts}
       {header}
-      {todayCard}
-      {catchUpRow}
-      {split && weekCard && otherDays ? (
-        <View testID="workout-split" style={styles.split}>
-          {weekCard}
-          {otherDays}
-        </View>
-      ) : (
-        <>
-          {weekCard}
-          {otherDays}
-        </>
-      )}
+      {weekCard}
+      {statsCard}
+      {lastRow}
+      {missedRow}
+      {actionButton}
+      {daySheetView}
       {confirmDialog}
+    </View>
+  );
+}
+
+// RN-SPEC T-140 Plan finished: eyebrow "Plan complete" (gold 13/600) and
+// "You finished {plan}" 28/32/700 on the card ground with the gold glow.
+function PlanFinishedCard({ planName }) {
+  return (
+    <View testID="workout-plan-finished" style={styles.finished}>
+      <View pointerEvents="none" style={styles.finishedFill}>
+        <GradientFill colors={gradients.card.colors} angle={gradients.card.angle} />
+        <GradientFill radial={gradients.workoutFinishedGlow.radial} colors={gradients.workoutFinishedGlow.colors} stops={gradients.workoutFinishedGlow.stops} />
+      </View>
+      <Text {...CAP_BODY} style={styles.finishedEyebrow}>
+        Plan complete
+      </Text>
+      <Text accessibilityRole="header" {...TITLE_TEXT} style={styles.finishedTitle}>
+        {`You finished ${keepUnitsTogether(planName)}`}
+      </Text>
+    </View>
+  );
+}
+
+// §8 loading: the ring circle, 7 day circles and the stats card.
+function PageSkeleton() {
+  return (
+    <View testID="workout-skeleton" accessibilityRole="progressbar" accessibilityLabel="Loading workout" accessibilityState={{ busy: true }} style={styles.skeleton}>
+      <View style={styles.skeletonCard}>
+        <Skeleton radius={82} style={styles.skeletonRing} />
+        <View style={styles.skeletonDays}>
+          {[0, 1, 2, 3, 4, 5, 6].map((index) => (
+            <Skeleton key={index} radius={20} style={styles.skeletonDay} />
+          ))}
+        </View>
+      </View>
+      <Skeleton radius={20} style={styles.skeletonStats} />
+      <Text testID="workout-skeleton-status" accessibilityLiveRegion="polite" {...CAP_BODY} style={styles.skeletonText}>
+        Loading your workout…
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   page: {
-    gap: 14,
+    gap: 20,
   },
   pageTablet: {
-    gap: 18,
+    width: '100%',
+    maxWidth: 600,
+    alignSelf: 'center',
+  },
+  pageWide: {
+    width: '100%',
+    maxWidth: 920,
+    alignSelf: 'center',
   },
   header: {
     paddingHorizontal: spacing[1],
   },
   title: {
     ...font(700),
-    marginTop: spacing['0_5'],
-    fontSize: 40,
-    lineHeight: 44,
-    letterSpacing: titleTracking(40, -0.05),
+    marginTop: 20,
+    fontSize: 34,
+    lineHeight: 38,
+    letterSpacing: titleTracking(34, -0.04),
     color: colors.textPrimary,
   },
-  titleTablet: {
+  titleWide: {
     ...font(700),
-    marginTop: spacing['0_5'],
-    fontSize: 52,
-    lineHeight: 56,
-    letterSpacing: titleTracking(52, -0.05),
+    marginTop: 20,
+    fontSize: 44,
+    lineHeight: 48,
+    letterSpacing: titleTracking(44, -0.04),
     color: colors.textPrimary,
   },
-  planName: {
+  planLine: {
     ...font(400),
-    marginTop: spacing[1],
+    marginTop: 4,
     fontSize: 15,
-    lineHeight: 22,
+    lineHeight: 20,
     color: colors.textSecondary,
+  },
+  planLineWide: {
+    fontSize: 16,
+    lineHeight: 22,
   },
   split: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 18,
+    flexWrap: 'wrap',
+    alignItems: 'stretch',
+    gap: 24,
   },
-  splitWeek: {
-    flex: 1,
-    minWidth: 0,
+  splitLeft: {
+    flexGrow: 3,
+    flexShrink: 1,
+    flexBasis: 420,
   },
-  splitDays: {
-    flex: 1.15,
-    minWidth: 0,
+  splitRight: {
+    flexGrow: 2,
+    flexShrink: 1,
+    flexBasis: 280,
+    gap: 16,
   },
-  sideToday: {
-    flex: 2,
-    minWidth: 0,
+  actionWide: {
+    marginTop: 'auto',
   },
-  sideWeek: {
-    flex: 1,
-    minWidth: 0,
+  finished: {
+    borderRadius: 32,
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: colors.cardEdge,
+    overflow: 'hidden',
+    alignItems: 'center',
+    gap: 10,
   },
-  column: {
+  finishedFill: {
+    ...StyleSheet.absoluteFill,
+  },
+  finishedEyebrow: {
+    ...font(600),
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.gold,
+  },
+  finishedTitle: {
+    ...font(700),
+    fontSize: 28,
+    lineHeight: 32,
+    letterSpacing: titleTracking(28, -0.04),
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  skeleton: {
     gap: 14,
+  },
+  skeletonCard: {
+    alignItems: 'center',
+    gap: 22,
+    paddingTop: 20,
+    paddingBottom: 14,
+  },
+  skeletonRing: {
+    width: 164,
+    height: 164,
+  },
+  skeletonDays: {
+    flexDirection: 'row',
+    alignSelf: 'stretch',
+    justifyContent: 'space-around',
+  },
+  skeletonDay: {
+    width: 40,
+    height: 40,
+  },
+  skeletonStats: {
+    height: 70,
+  },
+  skeletonText: {
+    ...font(400),
+    marginHorizontal: spacing[1],
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textSecondary,
   },
 });

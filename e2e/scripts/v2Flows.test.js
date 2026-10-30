@@ -164,7 +164,8 @@ describe('2.0.7 flow waits scroll to below-the-fold targets', () => {
   const flow = (rel) => steps(fs.readFileSync(path.join(V2, rel), 'utf8'));
   it.each([
     ['phase4/subflows/open-first-my-plan.yaml', 'my-plans-entry'],
-    ['subflows/start-workout.yaml', 'workout-hero-start|workout-day-start-.*|session-chrome|workout-error|workout-empty|schedule-setup'],
+    // DECLARED (T-140, PM-approved): was workout-hero-start|workout-day-start-.*|… (the retired hub).
+    ['subflows/start-workout.yaml', 'workout-primary-action|workout-day-[0-6]|session-chrome|workout-error|workout-empty|schedule-setup'],
   ])('%s: scrollUntilVisible DOWN to %s, no bare wait for it', (rel, id) => {
     const text = flow(rel);
     const quoted = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -503,42 +504,69 @@ describe('QA candidate 2941880 flow fixes', () => {
 
 // T-76 Workout hub redesign (28 Oct 2026): the retired hero's badge/detail ids
 // are gone; the flows use ids the new hub renders in every state with a plan.
-describe('T-76 hub flow ids', () => {
+// DECLARED (T-140, PM-approved: the A-balanced Workout page replaces the T-76 hub): the flows use the
+// page's ids (was workout-hero / workout-hero-start / workout-plan-name / workout-other-days /
+// workout-day-start-*).
+describe('T-140 Workout page flow ids', () => {
   const read = (rel) => fs.readFileSync(path.join(V2, rel), 'utf8');
   const steps = (src) => src.split('\n').filter((line) => !line.trim().startsWith('#')).join('\n');
-  const hubSource = ['src/features/workout/screens/WorkoutScreen.js', 'src/features/workout/components/hub/HubTodayCard.js', 'src/features/workout/components/hub/HubDayRows.js']
+  const pageSource = [
+    'src/features/workout/screens/WorkoutScreen.js',
+    'src/features/workout/components/page/WeekCard.js',
+    'src/features/workout/components/page/PageRows.js',
+    'src/features/workout/components/page/DaySheet.js',
+    'src/shared/components/AppModal.js',
+  ]
     .map((rel) => fs.readFileSync(path.join(__dirname, '../..', rel), 'utf8'))
     .join('\n');
 
-  it('02-workout-hub asserts the plan name and Other days, never the retired badge/detail', () => {
+  it('02-workout-hub asserts the week card, the plan line and the strip, never a retired hub id', () => {
     const flow = steps(read('phase3/02-workout-hub.yaml'));
-    expect(flow).not.toMatch(/workout-hero-(badge|detail)/);
-    expect(flow).toMatch(/id: "workout-plan-name"/);
-    expect(flow).toMatch(/id: "workout-other-days"/);
+    expect(flow).not.toMatch(/workout-hero|workout-plan-name|workout-other-days/);
+    expect(flow).toMatch(/id: "workout-week-card"/);
+    expect(flow).toMatch(/id: "workout-plan-line"/);
+    expect(flow).toMatch(/id: "workout-days"/);
   });
 
-  it('every hub id the flows use is rendered by the new hub', () => {
-    ['workout-hero', 'workout-hero-start', 'workout-plan-name', 'workout-other-days', 'workout-hub-header', 'workout-back-today', 'workout-title'].forEach((id) =>
-      expect(hubSource).toContain(`"${id}"`)
+  it('every page id the flows use is rendered by the page', () => {
+    ['workout-week-card', 'workout-primary-action', 'workout-plan-line', 'workout-days', 'workout-missed-line', 'workout-day-sheet', 'workout-sheet-action', 'workout-hub-header', 'workout-back-today', 'workout-title', 'app-modal-close'].forEach((id) =>
+      expect(pageSource).toContain(`"${id}"`)
     );
-    // DECLARED (T-116 review N1, PM OK 29 Oct): was '`workout-day-start-${row.dayId}`'; a plan day's 2nd slot gets a unique id.
-    expect(hubSource).toContain('`workout-day-start-${row.testKey ?? row.dayId}`');
-    expect(steps(read('subflows/start-workout.yaml'))).toMatch(/id: "workout-day-start-\.\*"/);
+    expect(pageSource).toContain('`workout-day-${cell.index}`');
+    const start = steps(read('subflows/start-workout.yaml'));
+    expect(start).toMatch(/id: "workout-primary-action"/);
+    [0, 1, 2, 3, 4, 5, 6].forEach((n) => expect(start).toContain(`id: "workout-day-${n}"`));
+    expect(start).toMatch(/id: "workout-sheet-action"/);
+  });
+
+  it('no flow outside __qa uses a retired hub id', () => {
+    const walk = (dir) =>
+      fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          return entry.name === '__qa' ? [] : walk(full);
+        }
+        return entry.name.endsWith('.yaml') ? [full] : [];
+      });
+    const offenders = walk(V2).filter((file) => /id: "workout-(hero|day-start|catch-up|plan-name|other-days)/.test(steps(fs.readFileSync(file, 'utf8'))));
+    expect(offenders).toEqual([]);
   });
 });
 
 // T-80 (28 Oct 2026): starting a non-today day from the hub asks first; the subflow confirms it.
+// DECLARED (T-140, PM-approved): the row was workout-day-start-.* (retired); a day sheet's Start now, and
+// the confirm step is optional (only a catch-up / start-early asks; today's Start stays one tap).
 describe('T-80 start-workout confirms a non-today day', () => {
   const steps = (src) => src.split('\n').filter((line) => !line.trim().startsWith('#')).join('\n');
-  it('after tapping a day row it waits for and taps the confirm\'s "Start workout"', () => {
+  it('after a day sheet\'s Start it waits for and taps the confirm\'s "Start workout"', () => {
     const flow = steps(fs.readFileSync(path.join(V2, 'subflows/start-workout.yaml'), 'utf8'));
-    const row = flow.indexOf('id: "workout-day-start-.*"\n          index: 0');
+    const row = flow.lastIndexOf('id: "workout-sheet-action"');
     const confirm = flow.indexOf('tapOn:\n          id: "workout-start-confirm-confirm"');
     expect(row).toBeGreaterThan(-1);
     expect(confirm).toBeGreaterThan(row);
-    // Today's own Start stays one tap: no confirm step in the hero branch.
-    const hero = flow.slice(flow.indexOf('id: "workout-hero-start"\n'), row);
-    expect(hero).not.toMatch(/workout-start-confirm/);
+    // Today's own Start stays one tap: no confirm step between it and the day sheets.
+    const primary = flow.slice(flow.indexOf('id: "workout-primary-action"\n      - evalScript'), flow.indexOf('id: "workout-day-0"'));
+    expect(primary).not.toMatch(/workout-start-confirm/);
   });
 });
 

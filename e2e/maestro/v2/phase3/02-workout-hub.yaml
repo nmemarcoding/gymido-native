@@ -45,16 +45,16 @@ appId: com.gymido.app
     timeout: 30000
 - assertVisible:
     id: "workout-back-today"
+# DECLARED (T-140, PM-approved): was workout-hero / workout-plan-name /
+# workout-other-days (the retired hub). Now the week card, the plan line and
+# the 7-day strip, present in every state with a scheduled plan.
 - assertVisible:
-    id: "workout-hero"
-# T-76 (DECLARED): was workout-hero-badge + workout-hero-detail (the retired
-# hero's status pill and detail line). Now the plan name under the title and
-# the Other days block, present in every state with a plan.
+    id: "workout-week-card"
 - assertVisible:
-    id: "workout-plan-name"
+    id: "workout-plan-line"
 - scrollUntilVisible:
     element:
-      id: "workout-other-days"
+      id: "workout-days"
     direction: DOWN
     timeout: 20000
 - scrollUntilVisible:

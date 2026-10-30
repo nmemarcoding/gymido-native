@@ -16,19 +16,23 @@ appId: com.gymido.app
 - assertVisible: { id: "home-catch-up" }
 - takeScreenshot: ${SHOT}-today
 - tapOn: { id: "home-today-primary" }
-- extendedWaitUntil: { visible: { id: "workout-hero" }, timeout: 30000 }
+# DECLARED (T-140, PM-approved: the A-balanced Workout page): was the Rest hero + the Catch-up row +
+# "Train anyway?" (retired). Now "Rest day today" under the ring, the missed line (it opens that day's
+# sheet: "{Weekday} · Missed" + the note) and the ONE gold action = the most recent miss's catch-up.
+- extendedWaitUntil: { visible: { id: "workout-hub-header" }, timeout: 30000 }
 - assertNotVisible: { id: "session-chrome" }
-- assertVisible: "Rest day"
-- assertVisible: "Recovery is part of the plan.*"
+- assertVisible: "Rest day today"
 - assertNotVisible: { id: "workout-missed-headline" }
-- assertVisible: { id: "workout-catch-up" }
+- assertVisible: { id: "workout-missed-line" }
 - takeScreenshot: ${SHOT}-workout
-- scrollUntilVisible: { element: { text: "Train anyway\\?" }, direction: DOWN, centerElement: true, timeout: 20000 }
-# iOS exposes a row as its one SR label (the meta text is pinned in jest).
-- assertVisible: "Start .*, missed .*day"
-- takeScreenshot: ${SHOT}-workout-train-anyway
-- scrollUntilVisible: { element: { id: "workout-catch-up" }, direction: UP, centerElement: true, timeout: 20000 }
-- tapOn: { id: "workout-catch-up" }
+- tapOn: { id: "workout-missed-line" }
+- extendedWaitUntil: { visible: { id: "workout-day-sheet" }, timeout: 10000 }
+- assertVisible: ".*day · Missed"
+- assertVisible: "Catch up works this week only."
+- takeScreenshot: ${SHOT}-workout-missed-sheet
+- tapOn: { id: "app-modal-close" }
+- scrollUntilVisible: { element: { id: "workout-primary-action" }, direction: DOWN, centerElement: true, timeout: 20000 }
+- tapOn: { id: "workout-primary-action" }
 - extendedWaitUntil: { visible: { id: "workout-start-confirm" }, timeout: 10000 }
 - assertVisible: "Catch up on .*\\?"
 - assertVisible: "You missed it on .*day\\. Today is a rest day\\. This starts a live workout\\."

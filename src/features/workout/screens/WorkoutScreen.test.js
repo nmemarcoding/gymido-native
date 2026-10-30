@@ -60,12 +60,9 @@ jest.mock('../runtime/SessionDialogs', () => {
 });
 
 // T-50: the Start tap is the one notification-permission moment.
-// DECLARED (T-76): the mocked hero is now the hub's today card (was TodayHeroCard + PlanDayCard).
-let mockHero = null;
-jest.mock('../components/hub/HubTodayCard', () => (props) => {
-  mockHero = props;
-  return null;
-});
+// DECLARED (T-140, PM-approved): the Start pressed is the page's gold action
+// (was the mocked hub today card's onStart).
+jest.mock('../components/hub/HubTodayCard', () => () => null);
 jest.mock('../components/hub/HubDayRows', () => () => null);
 jest.mock('../components/hub/HubWeekCard', () => () => null);
 jest.mock('../api/workoutApi', () => ({ startWorkout: jest.fn(() => Promise.resolve({ session: { id: 9, exercises: [] } })) }));
@@ -267,7 +264,19 @@ describe('WorkoutScreen', () => {
   });
 
   // T-50 ask timing (RN-SPEC-time §7.2 step 3, dated 2026-10-27, gymido b0a8965e).
-  const startHub = { ok: true, data: { ...noSession.data, currentPlan: { enrollment: { id: 3, plan: { name: 'Plan' } } }, planDays: [{ id: 11 }] } };
+  // DECLARED (T-140, PM-approved locator update): the Start these two press is
+  // now the page's gold action (today's planned workout); the assertions are
+  // unchanged.
+  const startHub = {
+    ok: true,
+    data: {
+      ...noSession.data,
+      currentPlan: { enrollment: { id: 3, plan: { name: 'Plan' } }, schedule: [{ weekday: { id: 1 }, plan_day: { id: 11, title: 'Day' } }] },
+      todayStatus: { is_workout_day: true, already_completed: false, plan_day: { id: 11, title: 'Day' } },
+      planDays: [{ id: 11, title: 'Day' }],
+    },
+  };
+  const pressStart = (tree) => tree.root.findAll((node) => node.props.testID === 'workout-primary-action' && typeof node.props.onPress === 'function')[0].props.onPress();
 
   it('the Start tap asks BEFORE the start request and does not wait for the answer; the hub alone never asks (T-50)', async () => {
     const platform = require('../runtime/restAlertPlatform');
@@ -282,7 +291,7 @@ describe('WorkoutScreen', () => {
     expect(platform.requestPermission).not.toHaveBeenCalled();
     loadWorkoutPage.mockResolvedValue(withSession);
     await act(async () => {
-      await mockHero.onStart();
+      await pressStart(tree);
     });
     expect(platform.requestPermission).toHaveBeenCalledTimes(1);
     expect(startWorkout).toHaveBeenCalledTimes(1);
@@ -300,7 +309,7 @@ describe('WorkoutScreen', () => {
     loadWorkoutPage.mockResolvedValue(startHub);
     const tree = await render();
     await act(async () => {
-      await mockHero.onStart();
+      await pressStart(tree);
     });
     expect(platform.requestPermission).toHaveBeenCalledTimes(1);
     act(() => tree.unmount());

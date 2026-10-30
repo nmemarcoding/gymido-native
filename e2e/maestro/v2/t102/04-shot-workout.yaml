@@ -8,9 +8,11 @@ appId: com.gymido.app
 - runFlow: { when: { visible: { id: "rail-Today" } }, commands: [ { tapOn: { id: "rail-Today" } } ] }
 - extendedWaitUntil: { visible: { id: "home-today-card" }, timeout: 30000 }
 - tapOn: { id: "home-today-primary" }
-- extendedWaitUntil: { visible: { id: "workout-hero" }, timeout: 30000 }
+# DECLARED (T-140, PM-approved): was workout-hero (retired); the page header.
+- extendedWaitUntil: { visible: { id: "workout-hub-header" }, timeout: 30000 }
 - setOrientation: ${ORIENT}
-- extendedWaitUntil: { visible: { id: "workout-hero-photo" }, timeout: 30000 }
+# DECLARED (T-140, PM-approved): was workout-hero-photo (retired); the week card.
+- extendedWaitUntil: { visible: { id: "workout-week-card" }, timeout: 30000 }
 - waitForAnimationToEnd: { timeout: 10000 }
 - takeScreenshot: ${SHOT}
 - setOrientation: PORTRAIT

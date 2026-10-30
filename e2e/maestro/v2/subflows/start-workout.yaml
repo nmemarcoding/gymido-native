@@ -46,12 +46,15 @@ appId: com.gymido.app
           label: "Fixture missing: this account has no active plan, so no workout can start (Today shows the empty or error state)."
 - tapOn:
     id: "home-today-primary"
-# 2.0.7 device check: after "Week complete" the hub's day-start buttons sit
-# below the fold on a 360 dp phone; scroll (it returns at once when one of
-# these is already on screen).
+# DECLARED (T-140, PM-approved: the A-balanced Workout page): was
+# workout-hero-start / workout-day-start-.* (the retired hub). Now the page's
+# ONE gold action (today's Start, or the most recent missed day's catch-up),
+# else a day sheet's Start ("Start early" / catch-up). Both of those ask
+# first (T-80 / T-102 confirm). Known limit (accepted by design): a Sunday
+# with nothing missed and no day left offers no start.
 - scrollUntilVisible:
     element:
-      id: "workout-hero-start|workout-day-start-.*|session-chrome|workout-error|workout-empty|schedule-setup"
+      id: "workout-primary-action|workout-day-[0-6]|session-chrome|workout-error|workout-empty|schedule-setup"
     direction: DOWN
     centerElement: true
     timeout: 30000
@@ -67,31 +70,211 @@ appId: com.gymido.app
 - runFlow:
     when:
       visible:
-        id: "workout-hero-start"
+        id: "workout-primary-action"
     commands:
       - tapOn:
-          id: "workout-hero-start"
+          id: "workout-primary-action"
       - evalScript: ${output.v2WorkoutTapped = true}
-# Not a training day today: start the plan's first listed day instead.
+# Day 0: open its sheet; take its Start (start early / catch-up) when it
+# has one, else close it.
 - runFlow:
     when:
       true: ${output.v2WorkoutTapped !== true}
     commands:
-      - scrollUntilVisible:
-          element:
-            id: "workout-day-start-.*"
-          direction: DOWN
-          centerElement: true
-          timeout: 20000
       - tapOn:
-          id: "workout-day-start-.*"
-          index: 0
-      # T-80 (DECLARED): a day other than today's planned one asks first
-      # ("Start {Day} …?"); confirm with its gold "Start workout".
+          id: "workout-day-0"
       - extendedWaitUntil:
           visible:
-            id: "workout-start-confirm-confirm"
+            id: "workout-day-sheet"
           timeout: 10000
+      - runFlow:
+          when:
+            visible:
+              id: "workout-sheet-action"
+          commands:
+            - tapOn:
+                id: "workout-sheet-action"
+            - evalScript: ${output.v2WorkoutTapped = true}
+      - runFlow:
+          when:
+            true: ${output.v2WorkoutTapped !== true}
+          commands:
+            - tapOn:
+                id: "app-modal-close"
+# Day 1: open its sheet; take its Start (start early / catch-up) when it
+# has one, else close it.
+- runFlow:
+    when:
+      true: ${output.v2WorkoutTapped !== true}
+    commands:
+      - tapOn:
+          id: "workout-day-1"
+      - extendedWaitUntil:
+          visible:
+            id: "workout-day-sheet"
+          timeout: 10000
+      - runFlow:
+          when:
+            visible:
+              id: "workout-sheet-action"
+          commands:
+            - tapOn:
+                id: "workout-sheet-action"
+            - evalScript: ${output.v2WorkoutTapped = true}
+      - runFlow:
+          when:
+            true: ${output.v2WorkoutTapped !== true}
+          commands:
+            - tapOn:
+                id: "app-modal-close"
+# Day 2: open its sheet; take its Start (start early / catch-up) when it
+# has one, else close it.
+- runFlow:
+    when:
+      true: ${output.v2WorkoutTapped !== true}
+    commands:
+      - tapOn:
+          id: "workout-day-2"
+      - extendedWaitUntil:
+          visible:
+            id: "workout-day-sheet"
+          timeout: 10000
+      - runFlow:
+          when:
+            visible:
+              id: "workout-sheet-action"
+          commands:
+            - tapOn:
+                id: "workout-sheet-action"
+            - evalScript: ${output.v2WorkoutTapped = true}
+      - runFlow:
+          when:
+            true: ${output.v2WorkoutTapped !== true}
+          commands:
+            - tapOn:
+                id: "app-modal-close"
+# Day 3: open its sheet; take its Start (start early / catch-up) when it
+# has one, else close it.
+- runFlow:
+    when:
+      true: ${output.v2WorkoutTapped !== true}
+    commands:
+      - tapOn:
+          id: "workout-day-3"
+      - extendedWaitUntil:
+          visible:
+            id: "workout-day-sheet"
+          timeout: 10000
+      - runFlow:
+          when:
+            visible:
+              id: "workout-sheet-action"
+          commands:
+            - tapOn:
+                id: "workout-sheet-action"
+            - evalScript: ${output.v2WorkoutTapped = true}
+      - runFlow:
+          when:
+            true: ${output.v2WorkoutTapped !== true}
+          commands:
+            - tapOn:
+                id: "app-modal-close"
+# Day 4: open its sheet; take its Start (start early / catch-up) when it
+# has one, else close it.
+- runFlow:
+    when:
+      true: ${output.v2WorkoutTapped !== true}
+    commands:
+      - tapOn:
+          id: "workout-day-4"
+      - extendedWaitUntil:
+          visible:
+            id: "workout-day-sheet"
+          timeout: 10000
+      - runFlow:
+          when:
+            visible:
+              id: "workout-sheet-action"
+          commands:
+            - tapOn:
+                id: "workout-sheet-action"
+            - evalScript: ${output.v2WorkoutTapped = true}
+      - runFlow:
+          when:
+            true: ${output.v2WorkoutTapped !== true}
+          commands:
+            - tapOn:
+                id: "app-modal-close"
+# Day 5: open its sheet; take its Start (start early / catch-up) when it
+# has one, else close it.
+- runFlow:
+    when:
+      true: ${output.v2WorkoutTapped !== true}
+    commands:
+      - tapOn:
+          id: "workout-day-5"
+      - extendedWaitUntil:
+          visible:
+            id: "workout-day-sheet"
+          timeout: 10000
+      - runFlow:
+          when:
+            visible:
+              id: "workout-sheet-action"
+          commands:
+            - tapOn:
+                id: "workout-sheet-action"
+            - evalScript: ${output.v2WorkoutTapped = true}
+      - runFlow:
+          when:
+            true: ${output.v2WorkoutTapped !== true}
+          commands:
+            - tapOn:
+                id: "app-modal-close"
+# Day 6: open its sheet; take its Start (start early / catch-up) when it
+# has one, else close it.
+- runFlow:
+    when:
+      true: ${output.v2WorkoutTapped !== true}
+    commands:
+      - tapOn:
+          id: "workout-day-6"
+      - extendedWaitUntil:
+          visible:
+            id: "workout-day-sheet"
+          timeout: 10000
+      - runFlow:
+          when:
+            visible:
+              id: "workout-sheet-action"
+          commands:
+            - tapOn:
+                id: "workout-sheet-action"
+            - evalScript: ${output.v2WorkoutTapped = true}
+      - runFlow:
+          when:
+            true: ${output.v2WorkoutTapped !== true}
+          commands:
+            - tapOn:
+                id: "app-modal-close"
+- runFlow:
+    when:
+      true: ${output.v2WorkoutTapped !== true}
+    commands:
+      - assertTrue:
+          condition: ${false}
+          label: "Fixture: this week offers no start on the Workout page (no training day today, nothing missed, no day left)."
+# A catch-up or a start-early asks first; confirm with its gold "Start workout".
+- extendedWaitUntil:
+    visible:
+      id: "workout-start-confirm-confirm"
+    timeout: 3000
+    optional: true
+- runFlow:
+    when:
+      visible:
+        id: "workout-start-confirm-confirm"
+    commands:
       - tapOn:
           id: "workout-start-confirm-confirm"
 # E1 (final pass 5f53f3d): on a fresh install the first start asks for

@@ -109,6 +109,13 @@ const V2_COLORS = {
   inkTint: 'rgba(10, 11, 15, 0.10)',
   // Borders on photos and glass chips, grab handles.
   hairlineBright: 'rgba(255, 255, 255, 0.18)',
+  // T-140 Workout page (UX build ruling §3/§5): the stats / Last workout
+  // card edge and row hairlines 0.06, the week card edge 0.08, a sheet row's
+  // open mark ring 0.25 and a future day's ring 0.32.
+  hairlineFaint: 'rgba(255, 255, 255, 0.06)',
+  cardEdge: 'rgba(255, 255, 255, 0.08)',
+  markRing: 'rgba(255, 255, 255, 0.25)',
+  dayFutureRing: 'rgba(255, 255, 255, 0.32)',
   // §8.5 alpha ladder (Phase 2+; the Phase 1 kit re-folds after QA's gate):
   // faint 0.08 · tint 0.14 · line 0.30 · strong 0.60 per accent. Danger
   // fills/borders use #FF5A4E; #FF7A70 is for text only.
@@ -290,6 +297,18 @@ export const gradients = Object.freeze({
     radial: Object.freeze({ cx: 0.5, cy: 0.45, rx: 0.8, ry: 0.45 }),
     colors: Object.freeze(['rgba(255, 194, 26, 0.18)', 'rgba(255, 194, 26, 0)']),
     stops: Object.freeze([0, 0.65]),
+  }),
+  // T-140 Workout page: the week card's teal glow and the Plan finished
+  // card's gold glow (radial 90 % 70 % at 50 % 0).
+  workoutWeekGlow: Object.freeze({
+    radial: Object.freeze({ cx: 0.5, cy: 0, rx: 0.9, ry: 0.7 }),
+    colors: Object.freeze(['rgba(79, 216, 196, 0.16)', 'rgba(79, 216, 196, 0)']),
+    stops: Object.freeze([0, 0.6]),
+  }),
+  workoutFinishedGlow: Object.freeze({
+    radial: Object.freeze({ cx: 0.5, cy: 0, rx: 0.9, ry: 0.7 }),
+    colors: Object.freeze(['rgba(255, 194, 26, 0.14)', 'rgba(255, 194, 26, 0)']),
+    stops: Object.freeze([0, 0.6]),
   }),
   // v2 kit: card
   // §4.8 the exercise hero image's 90 px bottom fade under the name

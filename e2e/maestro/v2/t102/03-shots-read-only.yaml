@@ -20,8 +20,10 @@ appId: com.gymido.app
       - extendedWaitUntil: { notVisible: { id: "home-catch-up-confirm" }, timeout: 5000 }
 - scrollUntilVisible: { element: { id: "home-today-primary" }, direction: UP, centerElement: true, timeout: 20000 }
 - tapOn: { id: "home-today-primary" }
-- extendedWaitUntil: { visible: { id: "workout-hero" }, timeout: 30000 }
+# DECLARED (T-140, PM-approved): was workout-hero (retired); the page header.
+- extendedWaitUntil: { visible: { id: "workout-hub-header" }, timeout: 30000 }
 - assertNotVisible: { id: "session-chrome" }
 - takeScreenshot: ${SHOT}-workout
-- scrollUntilVisible: { element: { text: "Train anyway\\?" }, direction: DOWN, centerElement: true, timeout: 20000 }
-- takeScreenshot: ${SHOT}-workout-train-anyway
+# DECLARED (T-140, PM-approved): was the "Train anyway?" list (retired); the bottom of the page instead.
+- scrollUntilVisible: { element: { id: "workout-days" }, direction: DOWN, centerElement: true, timeout: 20000 }
+- takeScreenshot: ${SHOT}-workout-bottom

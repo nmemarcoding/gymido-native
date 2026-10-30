@@ -10,7 +10,8 @@ appId: com.gymido.app
 - runFlow: { when: { visible: { id: "rail-Today" } }, commands: [ { tapOn: { id: "rail-Today" } } ] }
 - extendedWaitUntil: { visible: { id: "home-today-primary" }, timeout: 30000 }
 - tapOn: { id: "home-today-primary" }
-- extendedWaitUntil: { visible: { id: "workout-hero" }, timeout: 30000 }
+# DECLARED (T-140, PM-approved): was workout-hero (retired); the page header.
+- extendedWaitUntil: { visible: { id: "workout-hub-header" }, timeout: 30000 }
 - scrollUntilVisible: { element: { text: "${ROW}" }, direction: DOWN, centerElement: true, timeout: 20000 }
 - tapOn: { text: "${ROW}" }
 - extendedWaitUntil: { visible: { id: "workout-start-confirm" }, timeout: 10000 }

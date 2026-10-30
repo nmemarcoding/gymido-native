@@ -24,6 +24,17 @@ export async function listCompletedWorkouts({ startDate, endDate }) {
   return data(await apiClient.get('/workouts', { params })).items ?? [];
 }
 
+// T-140: the newest completed workout (the page's Last workout row).
+export async function getLastCompletedWorkout() {
+  const params = { status: 'completed', per_page: 1 };
+  return (data(await apiClient.get('/workouts', { params })).items ?? [])[0] ?? null;
+}
+
+// T-140: one session's detail (a Done sheet's logged exercises).
+export async function getWorkout(sessionId) {
+  return data(await apiClient.get(`/workouts/${sessionId}`)).session ?? null;
+}
+
 export async function startWorkout(body) {
   return data(await apiClient.post('/workouts', body));
 }

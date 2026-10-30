@@ -1,7 +1,5 @@
 import { act, create } from 'react-test-renderer';
 
-import ConfirmDialog from '../../../shared/components/ConfirmDialog';
-import { NBSP } from '../../../shared/format/counts';
 import { listDayExercises } from '../../plans/api/libraryApi';
 import { startWorkout } from '../api/workoutApi';
 import { loadWorkoutPage } from '../loadWorkoutPage';
@@ -55,25 +53,7 @@ jest.mock('../runtime/SessionDialogs', () => ({ LeaveWorkoutDialog: () => null }
 jest.mock('../api/workoutApi', () => ({ startWorkout: jest.fn(() => Promise.resolve({ session: null })) }));
 jest.mock('../runtime/restAlertPlatform', () => ({ getPermission: jest.fn(() => Promise.resolve('granted')), requestPermission: jest.fn(() => Promise.resolve('granted')) }));
 
-const s = (text) => text.replace(/(\d) /g, `$1${NBSP}`);
-// T-74: a row's meta keeps each "·" with the text before it (NBSP + "· ").
-const m = (text) => s(text).replace(/ · /g, `${NBSP}· `);
-function textOf(node) {
-  return []
-    .concat(node.props.children)
-    .map((child) => (typeof child === 'string' || typeof child === 'number' ? String(child) : child?.props ? textOf(child) : ''))
-    .join('');
-}
 const hosts = (root, id) => root.findAll((node) => node.props.testID === id && typeof node.type === 'string');
-const host = (root, id) => hosts(root, id)[0];
-const texts = (root) => root.findAll((node) => node.type === 'Text').map(textOf);
-// The pressable itself (role button), not a wrapper component with the same testID.
-const pressable = (root, id) =>
-  root.findAll((node) => node.props.testID === id && typeof node.props.onPress === 'function' && node.props.accessibilityRole === 'button')[0];
-const confirmDialog = (tree) => tree.root.findAll((node) => node.type === ConfirmDialog && node.props.testID === 'workout-start-confirm')[0];
-// DECLARED (T-116 review N1, PM OK 29 Oct): was ^workout-day-start-\d+$; a plan day's 2nd slot is {dayId}-{date}.
-const dayButtons = (root) =>
-  root.findAll((node) => typeof node.props.testID === 'string' && /^workout-day-start-[\d-]+$/.test(node.props.testID) && typeof node.props.onPress === 'function');
 
 // Thursday 29 Oct 2026 (local). The board's plan: Upper A Mon, Lower A Tue,
 // Upper B Thu, Lower B Sat.
@@ -158,112 +138,17 @@ afterEach(() => act(() => mounted.splice(0).forEach((tree) => tree.unmount())));
 
 
 const MISSED_MON = item(1, '2026-10-26', 'missed', DAYS[0]);
-const MISSED_TUE = item(2, '2026-10-27', 'missed', DAYS[1]);
 const weekWith = (...slots) => WEEK.map((slot) => slots.find((other) => other.date === slot.date) ?? slot);
-const REST = { is_workout_day: false, already_completed: false, plan_day: null };
-const restWeek = (...slots) => weekWith(item(4, '2026-10-29', 'rest'), ...slots);
-const press = (tree, id) => act(async () => pressable(tree.root, id).props.onPress());
 
+// DECLARED (T-140, owner OK 30 Oct 2026 via PM): DELETED 7 tests of the removed Catch-up ROW and rest hero; their
+// still-live rules are re-tested in workoutPage.t140.test.js.
 describe('Catch-up row (training / done)', () => {
-  it('training + 1 miss: the row under the hero names Monday, no line 2; tap = the T-80 confirm with the training copy → one start', async () => {
-    const tree = await renderScreen(hub({ week: weekWith(MISSED_MON), completedThisWeek: [DONE_TUE], completedThisWeekDayIds: [2] }));
-    const row = pressable(tree.root, 'workout-catch-up');
-    expect(row.props.accessibilityLabel).toBe("Catch up on Monday's Upper A.");
-    expect(textOf(host(tree.root, 'workout-catch-up-line1'))).toBe("Catch up: Monday's Upper A");
-    expect(hosts(tree.root, 'workout-catch-up-line2')).toHaveLength(0);
-    // Order: the hero, then the row, then This week.
-    const ids = tree.root.findAll((node) => typeof node.type === 'string' && ['workout-hero', 'workout-catch-up', 'workout-week'].includes(node.props.testID)).map((node) => node.props.testID);
-    expect([...new Set(ids)].slice(0, 2)).toEqual(['workout-hero', 'workout-catch-up']);
-    await press(tree, 'workout-catch-up');
-    expect(confirmDialog(tree).props).toMatchObject({
-      isOpen: true,
-      title: 'Catch up on Upper A?',
-      description: 'You missed it on Monday. Today’s plan is Upper B. This starts a live workout.',
-    });
-    expect(startWorkout).not.toHaveBeenCalled();
-    await act(async () => confirmDialog(tree).props.onConfirm());
-    expect(startWorkout).toHaveBeenCalledTimes(1);
-    expect(startWorkout).toHaveBeenCalledWith({ user_plan_enrollment_id: 31, workout_plan_day_id: 1 });
-  });
-
-  it('today done + 2 misses: names the most recent (Tuesday) with "+1 more", the done copy', async () => {
-    const done = { ...TRAINING, already_completed: true };
-    const tree = await renderScreen(hub({ todayStatus: done, week: weekWith(MISSED_MON, MISSED_TUE), completedThisWeek: [], completedThisWeekDayIds: [3] }));
-    expect(pressable(tree.root, 'workout-catch-up').props.accessibilityLabel).toBe("Catch up on Tuesday's Lower A. 1 more missed this week.");
-    expect(textOf(host(tree.root, 'workout-catch-up-line2'))).toBe('+1 more missed this week');
-    await press(tree, 'workout-catch-up');
-    expect(confirmDialog(tree).props.description).toBe('You missed it on Tuesday. You’ve already done Upper B today. This starts a live workout.');
-  });
 
   it('no misses, or no /week → no row', async () => {
     let tree = await renderScreen();
     expect(hosts(tree.root, 'workout-catch-up')).toHaveLength(0);
     tree = await renderScreen(hub({ week: null }));
     expect(hosts(tree.root, 'workout-catch-up')).toHaveLength(0);
-  });
-});
-
-// DECLARED (T-113, owner OK 29 Oct via PM): DELETED the T-108 "ONE card" tests (one hero card + footer, T-109
-// hairline, one-tap "Do it now", "View plan" + "Start early" in the card, no footer without a next day): the Missed
-// card is gone. CHANGED "2 misses: the card names the latest…": was the Missed card (Tuesday) + a row (Monday); now
-// the Rest hero + ONE row naming Tuesday with "+1 more". "a rest day WITHOUT a miss is unchanged" is kept.
-describe('T-113 rest day + open misses: the Rest hero + ONE Catch-up row', () => {
-  const restWithMisses = (...slots) => hub({ todayStatus: REST, week: restWeek(...slots), completedThisWeek: [], completedThisWeekDayIds: [] });
-  const restHero = (tree) => texts(host(tree.root, 'workout-hero'));
-
-  it('rest + 1: the normal Rest hero (copy, Up next, outlined Start early) and a one-line row under it; no Missed card', async () => {
-    const tree = await renderScreen(restWithMisses(MISSED_MON));
-    expect(hosts(tree.root, 'workout-hero')).toHaveLength(1);
-    expect(restHero(tree)).toEqual(expect.arrayContaining(['Rest day', 'Recovery is part of the plan. Nothing is scheduled today.', 'Start Lower B early']));
-    expect(hosts(tree.root, 'workout-missed-headline')).toHaveLength(0);
-    expect(texts(tree.root).join('|')).not.toMatch(/You missed|Do it now|REST DAY/);
-    expect(pressable(tree.root, 'workout-catch-up').props.accessibilityLabel).toBe("Catch up on Monday's Upper A.");
-    expect(hosts(tree.root, 'workout-catch-up-line2')).toHaveLength(0);
-    const ids = tree.root.findAll((node) => typeof node.type === 'string' && ['workout-hero', 'workout-catch-up', 'workout-week'].includes(node.props.testID)).map((node) => node.props.testID);
-    expect([...new Set(ids)]).toEqual(['workout-hero', 'workout-catch-up', 'workout-week']);
-  });
-
-  it('the row: T-80 confirm with the rest copy → one start; Cancel starts nothing', async () => {
-    const tree = await renderScreen(restWithMisses(MISSED_MON));
-    await press(tree, 'workout-catch-up');
-    expect(confirmDialog(tree).props).toMatchObject({ isOpen: true, title: 'Catch up on Upper A?', description: 'You missed it on Monday. Today is a rest day. This starts a live workout.' });
-    await act(async () => confirmDialog(tree).props.onClose());
-    expect(startWorkout).not.toHaveBeenCalled();
-    await press(tree, 'workout-catch-up');
-    await act(async () => confirmDialog(tree).props.onConfirm());
-    expect(startWorkout).toHaveBeenCalledTimes(1);
-    expect(startWorkout).toHaveBeenCalledWith({ user_plan_enrollment_id: 31, workout_plan_day_id: 1 });
-  });
-
-  // DECLARED (T-116, owner OK via PM 29 Oct): was '"Train anyway?" lists misses first' ([Lower A missed Tue, Upper A
-  // missed Mon, Upper B, Lower B]); now this week's slots in week order with the "Missed · Monday · …" meta.
-  it('2 misses: the Rest hero + ONE row naming the latest (Tuesday) with "+1 more"; "Train anyway?" in week order (T-116)', async () => {
-    const tree = await renderScreen(restWithMisses(MISSED_MON, MISSED_TUE));
-    expect(restHero(tree)).toContain('Rest day');
-    expect(hosts(tree.root, 'workout-catch-up')).toHaveLength(1);
-    expect(pressable(tree.root, 'workout-catch-up').props.accessibilityLabel).toBe("Catch up on Tuesday's Lower A. 1 more missed this week.");
-    expect(textOf(host(tree.root, 'workout-catch-up-line2'))).toBe('+1 more missed this week');
-    await press(tree, 'workout-catch-up');
-    expect(confirmDialog(tree).props).toMatchObject({ title: 'Catch up on Lower A?', description: 'You missed it on Tuesday. Today is a rest day. This starts a live workout.' });
-    await act(async () => confirmDialog(tree).props.onClose());
-    const rows = dayButtons(tree.root);
-    expect(rows.map((row) => row.props.accessibilityLabel)).toEqual(['Start Upper A, missed Monday', 'Start Lower A, missed Tuesday', 'Start Lower B, upcoming, Saturday']);
-    expect(texts(tree.root)).toEqual(expect.arrayContaining([m('Missed · Monday · 5 exercises'), m('Missed · Tuesday · 5 exercises')]));
-    await act(async () => rows[0].props.onPress());
-    expect(confirmDialog(tree).props).toMatchObject({ title: 'Catch up on Upper A?', description: 'You missed it on Monday. Today is a rest day. This starts a live workout.' });
-  });
-
-  it('rest + 3: the row says "+2 more missed this week"', async () => {
-    const MISSED_WED = item(3, '2026-10-28', 'missed', DAYS[2]);
-    const tree = await renderScreen(restWithMisses(MISSED_MON, MISSED_TUE, MISSED_WED));
-    expect(textOf(host(tree.root, 'workout-catch-up-line1'))).toBe("Catch up: Wednesday's Upper B");
-    expect(textOf(host(tree.root, 'workout-catch-up-line2'))).toBe('+2 more missed this week');
-  });
-
-  it('a rest day WITHOUT a miss is unchanged: the full rest card with its copy', async () => {
-    const tree = await renderScreen(hub({ todayStatus: REST, week: restWeek(), completedThisWeek: [DONE_MON, DONE_TUE] }));
-    expect(texts(host(tree.root, 'workout-hero'))).toEqual(expect.arrayContaining(['Rest day', 'Recovery is part of the plan. Nothing is scheduled today.']));
-    expect(hosts(tree.root, 'workout-missed-headline')).toHaveLength(0);
   });
 });
 

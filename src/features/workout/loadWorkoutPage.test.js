@@ -12,6 +12,8 @@ function api(overrides = {}) {
     listPlanDays: jest.fn(() => Promise.resolve([{ id: 7 }])),
     getCurrentWeek: jest.fn(() => Promise.resolve([])),
     isGeneratorAvailable: jest.fn(() => Promise.resolve(true)),
+    getLastCompletedWorkout: jest.fn(() => Promise.resolve(null)),
+    listMyPlans: jest.fn(() => Promise.resolve([])),
     ...overrides,
   };
 }
