@@ -2,6 +2,7 @@ import { Animated, Keyboard, ScrollView, StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import SessionRuntime from './SessionRuntime';
+import { livePhotoMax } from './LiveStage';
 import { endSessionState } from './workoutSessionStore';
 import { colors, motion, spacing } from '../../../shared/theme/tokens';
 
@@ -17,7 +18,7 @@ const mockInsets = { top: 47, bottom: 34, left: 0, right: 0 };
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => mockInsets }));
 jest.mock('react-native-svg', () => {
   const Mock = ({ children }) => children ?? null;
-  return { __esModule: true, default: Mock, Circle: Mock, Path: Mock, Defs: Mock, LinearGradient: Mock, Stop: Mock };
+  return { __esModule: true, default: Mock, Circle: Mock, Path: Mock, Rect: Mock, Defs: Mock, LinearGradient: Mock, Stop: Mock };
 });
 jest.mock('../../../shared/components/GradientFill', () => () => null);
 jest.mock('../../../shared/components/BlurLayer', () => () => null);
@@ -228,8 +229,10 @@ describe('T-132 phones: a solid header bar above the scroll, no band', () => {
     expect(flat(chrome).paddingTop).toBe(mockInsets.top + spacing['2_5']);
     expect(pageScroll(tree).findAll((node) => node.props.testID === 'session-chrome')).toHaveLength(0);
     expect(flat(host(tree, 'exercise-stage')).paddingTop ?? 0).toBe(0);
-    // DECLARED (T-146, RN-SPEC dated 30 Oct): the live phone photo is 200 (180 under 700 tall); was 300.
-    expect(flat(host(tree, 'exercise-stage')).height).toBe(window.height < 700 ? 180 : 200);
+    // DECLARED S4 (T-146 rev 39, PM-approved; was 300): the contain photo at its aspect (16:9 until loaded), at most
+    // livePhotoMax (240, shrinking to a 160 floor so Did it stays on screen).
+    const max = livePhotoMax({ windowHeight: window.height, insetsTop: mockInsets.top, insetsBottom: mockInsets.bottom, textHeight: 80 });
+    expect(flat(host(tree, 'exercise-stage')).height).toBe(Math.min(max, Math.round(window.width / (16 / 9))));
     expect(band(tree)).toBeUndefined();
     scrollTo(tree, 0);
     scrollTo(tree, 400);

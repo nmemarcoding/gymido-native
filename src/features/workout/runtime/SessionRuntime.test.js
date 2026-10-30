@@ -16,7 +16,7 @@ let mockInsetBottom = 0;
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: mockInsetBottom, left: 12, right: 8 }) }));
 jest.mock('react-native-svg', () => {
   const Mock = ({ children }) => children ?? null;
-  return { __esModule: true, default: Mock, Circle: Mock, Path: Mock, Defs: Mock, LinearGradient: Mock, Stop: Mock };
+  return { __esModule: true, default: Mock, Circle: Mock, Path: Mock, Rect: Mock, Defs: Mock, LinearGradient: Mock, Stop: Mock };
 });
 jest.mock('../../../shared/components/GradientFill', () => () => null);
 jest.mock('../../../shared/components/BlurLayer', () => () => null);
@@ -284,13 +284,30 @@ describe('SessionRuntime', () => {
     const { tree } = render({ session });
     act(() => tree.root.findByType(ExerciseSheet).props.onSelect(1));
     expect(host(tree, 'browsing-bar')).toBeDefined();
-    // DECLARED D2 (T-146 Q1, owner delegated OK 30 Oct): through the pill → "Undo set 1"; the to-do set 22 is no button.
-    act(() => byId(tree, 'set-previous-21').props.onPress());
+    // DECLARED D2 (T-146 Q1, owner delegated OK 30 Oct) + B4 (rev 40, PM-approved): through the DONE SEGMENT → "Undo set 1"
+    // (the browse row holds the rep target, no pill); the to-do set 22 is no button; no steppers, no Save.
+    act(() => byId(tree, 'set-segment-21').props.onPress());
+    expect(byId(tree, 'set-weight-21')).toBeUndefined();
+    expect(text(tree, 'Save set 1')).toHaveLength(0);
+    expect(byId(tree, 'set-cancel-21')).toBeDefined();
     const undo = byId(tree, 'set-undo-21');
     expect(undo.props.disabled).toBe(false);
     expect(byId(tree, 'set-segment-22')).toBeUndefined();
     await act(async () => undo.props.onPress());
     expect(updateSessionSet).toHaveBeenCalledWith(1, 2, 21, expect.objectContaining({ is_completed: false }));
+  });
+
+  // PM condition (web parity): with ALL sets of a browsed exercise done, a done segment still gives "Undo set k".
+  it('T-146: browsing an all-done exercise: "Done", "Locked"; its done segment → "Undo set 2" un-logs it', async () => {
+    updateSessionSet.mockClear();
+    const session = { ...SESSION, exercises: [{ ...SESSION.exercises[0], sets: [set(11, true), set(12, true)] }, SESSION.exercises[1]] };
+    const { tree } = render({ session });
+    act(() => tree.root.findByType(ExerciseSheet).props.onSelect(0));
+    expect(host(tree, 'browsing-bar')).toBeDefined();
+    expect(host(tree, 'set-locked')).toBeDefined();
+    act(() => byId(tree, 'set-segment-12').props.onPress());
+    await act(async () => byId(tree, 'set-undo-12').props.onPress());
+    expect(updateSessionSet).toHaveBeenCalledWith(1, 1, 12, expect.objectContaining({ is_completed: false }));
   });
 
   it('closes the keyboard on "Did it" and on the runtime buttons (#17)', async () => {
@@ -522,7 +539,11 @@ describe('v2 F1 live and browsing states (ND3)', () => {
     act(() => sheet(tree).props.onSelect(1));
     expect(host(tree, 'browsing-bar')).toBeDefined();
     expect(host(tree, 'session-rail')).toBeDefined();
-    expect(host(tree, 'session-stats')).toBeDefined();
+    // DECLARED B2 (T-146 rev 40, PM-approved): phone browsing: the stats strip is one muted line under the card; the
+    // read-only arc shows "Locked" and no steppers (was the Time/Volume/Reps strip).
+    expect(host(tree, 'session-stats')).toBeUndefined();
+    expect(host(tree, 'session-stats-line')).toBeDefined();
+    expect(host(tree, 'set-locked')).toBeDefined();
     expect(host(tree, 'exercise-nav')).toBeDefined();
     expect(byId(tree, 'up-next')).toBeUndefined();
     expect(text(tree, 'Exercise 2 of 2')).not.toHaveLength(0);
@@ -609,7 +630,9 @@ describe('v2 F1 steppers (ND1 / ND2) and the real reps (U3)', () => {
     updateSessionSet.mockClear();
     const { tree } = render({ session: NO_TARGET });
     expect(byId(tree, 'set-reps-12').props.value).toBe('10');
-    expect(text(tree, 'Reps · target 8–10')).toHaveLength(1);
+    // DECLARED S6 (T-146 F3, PM-approved): the visible label is "Reps · 8–10"; its accessible name keeps "target".
+    expect(text(tree, 'Reps · 8–10')).toHaveLength(1);
+    expect(text(tree, 'Reps · 8–10')[0].props.accessibilityLabel).toBe('Reps · target 8–10');
     act(() => byId(tree, 'set-reps-12').props.onChangeText('1a2'));
     expect(byId(tree, 'set-reps-12').props.value).toBe('12');
     act(() => byId(tree, 'set-reps-plus-12').props.onPress());
@@ -860,8 +883,8 @@ describe('v2 F1 volume rule (PM, 27 Oct): kg sum in the member unit', () => {
     useProfileStore.setState({ profile: { current_weight_unit: 'kg' } });
     const { tree } = render({ session: MIXED });
     act(() => sheet(tree).props.onSelect(1));
-    expect(text(tree, '1,454 kg')).toHaveLength(1);
-    expect(text(tree, '20')).toHaveLength(1);
+    // DECLARED B3 (T-146 rev 40, PM-approved): the same values, as one line under the card (was the stats tiles).
+    expect(text(tree, '1,454 kg volume · 20 reps')).toHaveLength(1);
   });
 
   it('the completion snapshot carries the same volume and its unit', async () => {

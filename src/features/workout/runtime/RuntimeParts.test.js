@@ -8,8 +8,6 @@ import {
   ExerciseSegments,
   ExerciseStage,
   HowToButton,
-  NO_PHOTO_TILE_LIVE,
-  PHONE_LIVE_STAGE_HEIGHT,
   PHONE_VALUE_BOX,
   ReloadErrorBar,
   SessionChrome,
@@ -21,6 +19,7 @@ import {
   hitFor,
 } from './RuntimeParts';
 import { NBSP } from '../../../shared/format/counts';
+import { NO_PHOTO_TILE as NO_PHOTO_TILE_LIVE } from './LiveStage';
 import { colors } from '../../../shared/theme/tokens';
 
 jest.mock('react-native-svg', () => {
@@ -248,10 +247,11 @@ describe('ExerciseStage', () => {
   // T-132 B2 (PM OK 29 Oct; web 2.1.15 ES:79-80): the phone live photo has NO solid block behind the caption, only the
   // 170 bottom fade to the ground; the T-110 scrim stays on the tablet stages (checked here on the tablet split).
   // Was: the phone live stage drew the scrim (32 band + the 0.86 solid block that grows with the caption).
-  it('phone live: no solid block behind the caption, the 170 fade to the ground; the tablet keeps the T-110 scrim', () => {
+  // DECLARED S2 (T-146 rev 39, PM-approved): nothing on the phone photo, so no fade either (was the 170 bottom fade).
+  it('phone live: no scrim and no fade on the photo; the tablet keeps the T-110 scrim', () => {
     const phone = render(<ExerciseStage exercise={EXERCISE} index={0} count={2} isActive variant="live" />);
     expect(host(phone, 'exercise-stage-scrim')).toBeUndefined();
-    expect(phone.root.findAll((node) => typeof node.type === 'string' && flat(node).height === 170 && flat(node).bottom === 0)).toHaveLength(1);
+    expect(phone.root.findAll((node) => typeof node.type === 'string' && flat(node).height === 170 && flat(node).bottom === 0)).toHaveLength(0);
     const tree = render(<ExerciseStage exercise={EXERCISE} index={0} count={2} isActive variant="split" tablet />);
     expect(flat(host(tree, 'exercise-stage-scrim')).height).toBe(32);
     act(() => host(tree, 'exercise-stage-caption').props.onLayout({ nativeEvent: { layout: { height: 220 } } }));
@@ -263,31 +263,37 @@ describe('ExerciseStage', () => {
   // T-132 B1 (PM OK 29 Oct; web 2.1.15 phone): the live photo carries the ring top-left and How to top-right, and its
   // bottom the eyebrow "Current exercise · n sets · reps · rest", the name and the muscle chip. Was: the eyebrow
   // 'Current exercise · Chest · 4/15 sets done', no chip, no ring, How to above the caption, minHeight 330.
-  // DECLARED E10 (T-146 rev 17/26, owner delegated OK 30 Oct; RN-SPEC dated 30 Oct): the live phone photo is 200 tall,
-  // with no "1/3" ring chip, no "Current exercise · …" line and no muscle chip; its one line is "Rest {s}s · {muscle}".
-  it('live: the 200 photo, How to top-right; "Rest 90s · Chest" over the name as the header; no ring chip, no muscle chip', () => {
-    const tree = render(<ExerciseStage exercise={EXERCISE} index={0} count={5} isActive howTo={<HowToButton onPress={jest.fn()} />} />);
-    expect(host(tree, 'remote-image').props.url).toBe('https://example.com/b.jpg');
+  // DECLARED S1 (T-146 rev 39, PM-approved; was E10's 200 photo with How to + the caption ON it): the full photo (contain,
+  // ≤ 240; 16:9 = 219 at 390 until loaded) with nothing on it; below it "Rest 90s · Chest" + How to on one row, then the
+  // name. No ring chip, no muscle chip.
+  it('live: the contain photo (≤ 240) with nothing on it; "Rest 90s · Chest" + How to on the row below; then the name', () => {
+    const tree = render(<ExerciseStage exercise={EXERCISE} index={0} count={5} isActive howTo={<HowToButton onPress={jest.fn()} onPage />} />);
+    const photo = host(tree, 'exercise-stage');
+    expect(photo.findAll((node) => node.props.testID === 'remote-image')[0].props.resizeMode).toBe('contain');
+    expect(photo.findAll((node) => node.type === 'Text')).toHaveLength(0);
+    expect(photo.findAll((node) => node.props.testID === 'how-to-open')).toHaveLength(0);
+    expect(flat(photo).height).toBe(Math.round(390 / (16 / 9)));
+    const content = host(tree, 'exercise-stage-content');
+    expect(content.findAll((node) => node.props.testID === 'how-to-open' && typeof node.type === 'string')).toHaveLength(1);
     expect(texts(tree)).toEqual(expect.arrayContaining(['Rest 90s · Chest', 'Barbell Bench Press', 'How to']));
-    expect(texts(tree)).not.toContain('Current exercise · 3 sets · 8–10 reps · rest 90s');
     expect(texts(tree)).not.toContain('1/3');
     expect(host(tree, 'stage-muscle-chip')).toBeUndefined();
-    expect(host(tree, 'stage-ring')).toBeUndefined();
-    const top = host(tree, 'exercise-stage-top');
-    expect(top.findAll((node) => typeof node.type === 'string' && node.props.testID === 'how-to-open')).toHaveLength(1);
     const name = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Barbell Bench Press')[0];
     expect(name.props.accessibilityRole).toBe('header');
     expect(name.props.maxFontSizeMultiplier).toBe(1.3);
+    // The on-page How to: a 36 secondary pill with a 44 hit.
+    expect(host(tree, 'how-to-open').findAll((node) => typeof node.type === 'string' && flat(node).minHeight === 36)).toHaveLength(1);
     expect(byId(tree, 'how-to-open').props.hitSlop).toBe(4);
-    expect(flat(host(tree, 'exercise-stage')).height).toBe(PHONE_LIVE_STAGE_HEIGHT);
-    expect(PHONE_LIVE_STAGE_HEIGHT).toBe(200);
   });
 
-  it('browsing: "Exercise i of n", the muscle chip and the 64 ring "done/total"', () => {
+  // DECLARED B1 (T-146 rev 40, PM-approved): the phone browse stage is the rev 39 stage; "Exercise i of n" is the bottom
+  // navigator's, the muscle folds into the line, no ring (was: "Exercise 4 of 5", the chip and the 64 ring).
+  it('browsing (phone): the rev 39 stage; no "Exercise i of n", no muscle chip, no ring', () => {
     const tree = render(<ExerciseStage exercise={EXERCISE} index={3} count={5} isActive={false} variant="browse" />);
-    expect(texts(tree)).toEqual(expect.arrayContaining(['Exercise 4 of 5', 'Chest', '1/3']));
-    expect(host(tree, 'stage-muscle-chip')).toBeDefined();
-    expect(tree.root.findAll((node) => node.props.accessibilityLabel === '1 of 3 sets done').length).toBeGreaterThan(0);
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Rest 90s · Chest', 'Barbell Bench Press']));
+    expect(texts(tree)).not.toContain('Exercise 4 of 5');
+    expect(host(tree, 'stage-muscle-chip')).toBeUndefined();
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === '1 of 3 sets done')).toHaveLength(0);
   });
 
   it('no photo: the hero initials tile; tablet split: the tablet eyebrow and display name', () => {
@@ -297,20 +303,15 @@ describe('ExerciseStage', () => {
     expect(texts(tree)).toEqual(expect.arrayContaining(['Current exercise · 3 sets · 8–10 reps · rest 90s']));
   });
 
-  // DECLARED (T-146, RN-SPEC dated 30 Oct; was T-132's 300 minimum + 112 tile + the ring): a live phone stage with no
-  // photo grows from a 180 minimum with the 80 initials tile (r20) and the caption in flow; How to keeps its corner.
-  it('phone, no photo: a 180 minimum, the 80 tile and the caption in flow, How to in the top row (no ring)', () => {
+  // DECLARED S3 (T-146 rev 39, PM-approved; was the 180 minimum stage with a top row): no photo → the 80 initials tile,
+  // then the same text block under it (row + name); How to sits in the row.
+  it('phone, no photo: the 80 tile, then "Rest · muscle" + How to and the name below it', () => {
     const bare = { ...EXERCISE, exercise: { id: 7, primary_muscle_group: { name: 'Chest', code: 'CHEST' } } };
-    const tree = render(<ExerciseStage exercise={bare} index={0} count={5} isActive howTo={<HowToButton onPress={jest.fn()} />} />);
-    const stage = flat(host(tree, 'exercise-stage'));
-    expect(stage.minHeight).toBe(180);
-    expect(stage.height).toBeUndefined();
+    const tree = render(<ExerciseStage exercise={bare} index={0} count={5} isActive howTo={<HowToButton onPress={jest.fn()} onPage />} />);
     expect(flat(host(tree, 'stage-image-initials'))).toMatchObject({ width: NO_PHOTO_TILE_LIVE, height: NO_PHOTO_TILE_LIVE });
     expect(NO_PHOTO_TILE_LIVE).toBe(80);
-    expect(flat(host(tree, 'exercise-stage-content')).position).toBeUndefined();
-    const ids = host(tree, 'exercise-stage-top').findAll((node) => typeof node.type === 'string' && ['stage-ring', 'how-to-open'].includes(node.props.testID));
-    expect(ids.map((node) => node.props.testID)).toEqual(['how-to-open']);
-    expect(flat(host(tree, 'exercise-stage-top')).position).toBe('absolute');
+    expect(host(tree, 'exercise-stage-content').findAll((node) => node.props.testID === 'how-to-open' && typeof node.type === 'string')).toHaveLength(1);
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Rest 90s · Chest', 'Barbell Bench Press']));
   });
 
   // T-132 (web 2.1.15 ES:145-152; FE Q4): on phones the notes are a card UNDER the photo, not on it; blank → none.

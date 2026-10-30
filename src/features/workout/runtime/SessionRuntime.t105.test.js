@@ -15,7 +15,7 @@ let mockInsetBottom = 0;
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: mockInsetBottom, left: 12, right: 8 }) }));
 jest.mock('react-native-svg', () => {
   const Mock = ({ children }) => children ?? null;
-  return { __esModule: true, default: Mock, Circle: Mock, Path: Mock, Defs: Mock, LinearGradient: Mock, Stop: Mock };
+  return { __esModule: true, default: Mock, Circle: Mock, Path: Mock, Rect: Mock, Defs: Mock, LinearGradient: Mock, Stop: Mock };
 });
 jest.mock('../../../shared/components/GradientFill', () => () => null);
 jest.mock('../../../shared/components/BlurLayer', () => () => null);

@@ -11,6 +11,7 @@ import { CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT, TITLE_TEXT, useLargeTextReflow 
 import { colors, font, gradients, layout, radii, shadows, spacing, textInputColors, textScale, titleTracking, typography } from '../../../shared/theme/tokens';
 import ProgressRing from '../components/ProgressRing';
 import { CheckIcon, PlayIcon } from './SessionIcons';
+import LiveStage from './LiveStage';
 import {
   doneSetLabel,
   elapsedSpokenLabel,
@@ -22,22 +23,16 @@ import {
   setOfLabel,
   liveEyebrow,
   setsWord,
-  stageRestLine,
 } from './sessionMath';
 import { NBSP, keepUnitsTogether } from '../../../shared/format/counts';
 
 const CLEAR = gradients.photoFade.colors[0];
-const PHOTO_TOP = gradients.photoFade.colors[1];
 // UX F1 drawn sizes (phone / tablet). Heights hold text, so they are minimums.
 // T-132 (web 2.1.15 phone, owner's shot; FE Q3 pending): the live photo
 // starts under the solid header bar, so its height is the photo alone
 // (measured ≈300 at 440 wide). Was 330, which held the floating pills too.
 export const PHONE_STAGE_HEIGHT = 300;
 // T-146 rev 26: the live phone photo.
-export const PHONE_LIVE_STAGE_HEIGHT = 200;
-export const PHONE_LIVE_STAGE_SHORT = 180;
-export const NO_PHOTO_TILE_LIVE = 80;
-const NO_PHOTO_INITIALS_LIVE = 40;
 // T-132 web 2.1.15 phone values (FE answers from web main 93d9eae3,
 // ~/gymido-frontend-work/v2/mobile-live-workout-phone-answers.md), in one spot.
 // Q3: the ring (56, stroke 9 in the 100 viewBox) top-left ON the photo.
@@ -58,7 +53,6 @@ export const PHONE_RAIL_FULL_WIDTH = true;
 const PHONE_PLAN_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.title, textBreakStrategy: 'simple' });
 // Q8: the no-photo stage's in-flow initials tile (112, 56 initials).
 export const NO_PHOTO_TILE = 112;
-const NO_PHOTO_INITIALS = 56;
 // Q7 (V16): the phone weight / reps value box, measured from the owner's web
 // shot (value centred between the label and the steppers; FE exact pending).
 export const PHONE_VALUE_BOX = 58;
@@ -398,16 +392,6 @@ function StagePhoto({ exercise, variant }) {
         <View pointerEvents="none" style={[styles.fadeBottom, styles.fadeSplit]}>
           <GradientFill angle={180} colors={[CLEAR, colors.ground]} stops={[0, 0.7]} />
         </View>
-      ) : variant === 'phone' ? (
-        // T-132 (web 2.1.15 ES:79-80): top 120 (0.9 → clear), bottom 170 (clear → the ground), no solid block.
-        <>
-          <View pointerEvents="none" style={styles.fadeTop}>
-            <GradientFill angle={180} colors={[PHOTO_TOP, CLEAR]} />
-          </View>
-          <View pointerEvents="none" style={[styles.fadeBottom, styles.fadeBottomPhone]}>
-            <GradientFill angle={180} colors={[CLEAR, colors.ground]} />
-          </View>
-        </>
       ) : (
         <>
           <View pointerEvents="none" style={styles.fadeTop}>
@@ -449,7 +433,6 @@ export function ExerciseStage({
 }) {
   const notes = exerciseNotes(exercise);
   const name = exerciseName(exercise);
-  const { height: windowHeight } = useWindowDimensions();
   // T-110 (UX): the caption block's height; the scrim behind it follows it.
   const [captionHeight, setCaptionHeight] = useState(0);
   const browse = variant === 'browse';
@@ -461,71 +444,23 @@ export function ExerciseStage({
   const phone = !tablet && !split;
   const browseEyebrow = isActive ? 'Current exercise' : `Exercise ${index + 1} of ${count}`;
   if (phone) {
-    // T-132 (web ES:39-40, 55-77, 84; FE Q8): with no photo the stage has a
-    // 300 MINIMUM and grows: the 112 initials tile and the caption are in
-    // flow; the ring and How to keep their absolute top corners.
-    const hasPhoto = Boolean(exercise.exercise?.thumbnail?.url);
-    // T-146 rev 17/26 (one form per fact): the live photo is 200 tall, without
-    // the sets ring (the half-circle has it); its line is only "Rest {s}s ·
-    // {muscle}" and the muscle chip goes. Browsing is unchanged.
-    // RN-SPEC dated 30 Oct: 180 under 700 tall; no photo: an 80 tile, the stage min 180.
-    const live = !browse;
-    const liveHeight = windowHeight < 700 || !hasPhoto ? PHONE_LIVE_STAGE_SHORT : PHONE_LIVE_STAGE_HEIGHT;
-    const stageHeight = live ? liveHeight : PHONE_STAGE_HEIGHT;
-    const liveLine = live ? stageRestLine(exercise) : '';
+    // T-146 rev 39 (live) + rev 40 (browse): the phone stage (full photo, text below it).
     return (
-      <View testID="exercise-stage-frame">
-        <View testID="exercise-stage" onLayout={onLayout} style={[styles.stage, hasPhoto ? { height: stageHeight } : { minHeight: stageHeight }]}>
-          {hasPhoto ? (
-            <StagePhoto exercise={exercise} variant="phone" />
-          ) : (
-            <View testID="exercise-stage-tile" style={styles.noPhotoTile}>
-              <ExerciseImage
-                testID="stage-image"
-                url={null}
-                name={name}
-                muscleCode={exercise.exercise?.primary_muscle_group?.code}
-                size={live ? NO_PHOTO_TILE_LIVE : NO_PHOTO_TILE}
-                initialsFontSize={live ? NO_PHOTO_INITIALS_LIVE : NO_PHOTO_INITIALS}
-                style={live ? styles.noPhotoTileLive : styles.noPhotoTileImage}
-              />
-            </View>
-          )}
-          {/* Web DOM / paint order (ES:84-142): the ring row, then the caption. */}
-          <View testID="exercise-stage-top" pointerEvents="box-none" style={styles.liveTopRow}>
-            {live ? null : <StageRing exercise={exercise} live />}
-            <View style={styles.flex} pointerEvents="none" />
-            {howTo}
-          </View>
-          <View testID="exercise-stage-content" onLayout={onContentLayout} style={hasPhoto ? styles.captionPhone : styles.captionNoPhoto}>
-            <View testID="exercise-stage-caption" onLayout={(event) => setCaptionHeight(event.nativeEvent.layout.height)}>
-              {live ? (
-                liveLine ? (
-                  <Text {...CAP_BODY} testID="stage-rest-line" style={styles.eyebrowLive}>
-                    {liveLine}
-                  </Text>
-                ) : null
-              ) : (
-                <Text {...CAP_BODY} style={styles.eyebrow}>
-                  {browseEyebrow}
-                </Text>
-              )}
-              <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.stageName}>
-                {name}
+      <LiveStage
+        exercise={exercise}
+        howTo={howTo}
+        onLayout={onLayout}
+        onContentLayout={onContentLayout}
+        notes={
+          notes ? (
+            <View testID="exercise-notes" style={styles.notesCard}>
+              <Text {...CAP_BODY} style={styles.notesText}>
+                {notes}
               </Text>
-              {live ? null : <MuscleChip exercise={exercise} />}
             </View>
-          </View>
-        </View>
-        {notes ? (
-          <View testID="exercise-notes" style={styles.notesCard}>
-            <Text {...CAP_BODY} style={styles.notesText}>
-              {notes}
-            </Text>
-          </View>
-        ) : null}
-        {segments}
-      </View>
+          ) : null
+        }
+      />
     );
   }
   const minHeight = split ? undefined : browse ? (tablet ? TABLET_BROWSE_STAGE_HEIGHT : PHONE_BROWSE_STAGE_HEIGHT) : PHONE_STAGE_HEIGHT;
@@ -584,7 +519,23 @@ function CaptionScrim({ height }) {
   );
 }
 
-export function HowToButton({ onPress, tablet }) {
+// T-146 rev 39 `onPage`: on the phone's live screen the pill sits OFF the
+// photo, in the row under it: 36 tall, 16/600, the secondary look, 44 hit.
+export function HowToButton({ onPress, tablet, onPage = false }) {
+  if (onPage) {
+    return (
+      <Pressable testID="how-to-open" accessibilityRole="button" accessibilityLabel="How to" onPress={onPress} hitSlop={hitFor(36)} style={styles.noShrink}>
+        {({ pressed }) => (
+          <View style={[styles.howToPage, pressed && styles.howToPagePressed]}>
+            <PlayIcon size={14} color={colors.textPrimary} />
+            <Text {...CAP_BODY} textBreakStrategy="simple" style={styles.howToPageLabel}>
+              How to
+            </Text>
+          </View>
+        )}
+      </Pressable>
+    );
+  }
   return (
     <GlassButton
       testID="how-to-open"
@@ -671,13 +622,16 @@ export function BrowsingBar({ onResume, tablet = false }) {
     <View
       testID="browsing-bar"
       accessibilityLiveRegion="polite"
-      style={[styles.browsingBar, tablet && styles.browsingBarTablet, stacked && styles.browsingBarStacked]}
+      style={[styles.browsingBar, tablet ? styles.browsingBarTablet : styles.browsingBarPhone, stacked && styles.browsingBarStacked]}
     >
-      <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.browsingClip, tablet && styles.browsingClipTablet]}>
-        <GradientFill angle={tablet ? 140 : 90} colors={[colors.goldTint, colors.goldFaint]} />
-      </View>
+      {/* T-146 rev 40: the phone banner is a flat gold .08 card (no gradient). */}
+      {tablet ? (
+        <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.browsingClip, styles.browsingClipTablet]}>
+          <GradientFill angle={140} colors={[colors.goldTint, colors.goldFaint]} />
+        </View>
+      ) : null}
       {tablet ? <View style={styles.browsingDot} /> : null}
-      <Text {...CAP_BODY} style={[styles.browsingText, tablet && styles.browsingTextTablet, stacked && styles.browsingTextStacked]}>
+      <Text {...CAP_BODY} style={[styles.browsingText, tablet ? styles.browsingTextTablet : styles.browsingTextPhone, stacked && styles.browsingTextStacked]}>
         You're browsing — active set is waiting
       </Text>
       <PillButton testID="browsing-resume" title="Resume" size={tablet ? 'default' : 'compact'} fullWidth={stacked} onPress={onResume} />
@@ -968,11 +922,10 @@ function SetChip({ set, isNow, tablet, pending, onPress }) {
 // gold that the content behind could show through.
 // T-146 `arc`: the phone's 184×52 action inside the half-circle; `title`
 // replaces "Did it" ("Save set k" while a done set is edited).
-// `glass`: the all-done "Undo" (no check, the glass look, RN-SPEC 30 Oct).
-export function DidItButton({ set, isPending, isLocked, lockReason, onPress, arc = false, glass = false, title = 'Did it' }) {
+export function DidItButton({ set, isPending, isLocked, lockReason, onPress, arc = false, title = 'Did it' }) {
   const disabled = isPending || isLocked;
   const label = isPending ? 'Saving…' : title;
-  const ink = disabled ? colors.textFaint : glass ? colors.textPrimary : colors.onGold;
+  const ink = disabled ? colors.textFaint : colors.onGold;
   // QA LOW: the dock sits outside the scroll; a swipe from here is no press.
   const swipe = useSwipeGuard();
   return (
@@ -986,12 +939,12 @@ export function DidItButton({ set, isPending, isLocked, lockReason, onPress, arc
       onPressIn={swipe.onPressIn}
       onPressMove={swipe.onPressMove}
       onPress={swipe.guard(onPress)}
-      style={[styles.didIt, arc && styles.didItArc, glass && styles.didItGlass, disabled && styles.didItDisabled]}
+      style={[styles.didIt, arc && styles.didItArc, disabled && styles.didItDisabled]}
     >
       {({ pressed }) => (
         <>
           {pressed && !disabled ? <PressOverlay ink /> : null}
-          {glass ? null : <CheckIcon size={20} color={ink} />}
+          <CheckIcon size={20} color={ink} />
           <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.didItText, arc && styles.didItTextArc, { color: ink }]}>
             {label}
           </Text>
@@ -1249,9 +1202,6 @@ const styles = StyleSheet.create({
   fadeSplit: {
     height: 420,
   },
-  fadeBottomPhone: {
-    height: LIVE_BOTTOM_FADE,
-  },
   scrimHost: {
     position: 'absolute',
     left: 0,
@@ -1263,42 +1213,6 @@ const styles = StyleSheet.create({
   },
   scrimSolid: {
     backgroundColor: colors.groundTranslucent,
-  },
-  // T-132 (web ES:84-113): the phone photo's top row (ring left, How to
-  // right), 16 / 16, over the caption.
-  liveTopRow: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingHorizontal: LIVE_PHOTO_INSET,
-    paddingTop: LIVE_PHOTO_INSET,
-  },
-  // T-132 (web ES:117-142): the caption box, bottom-anchored on the photo.
-  captionPhone: {
-    position: 'absolute',
-    left: LIVE_CAPTION_SIDE,
-    right: LIVE_CAPTION_SIDE,
-    bottom: LIVE_CAPTION_BOTTOM,
-  },
-  // T-132 (web ES:55-77): the no-photo stage: the tile (64 above, 8 below)
-  // and the caption (20 sides, 12 below) in flow.
-  noPhotoTile: {
-    alignItems: 'center',
-    paddingTop: 64,
-    paddingBottom: spacing[2],
-  },
-  noPhotoTileImage: {
-    borderRadius: radii.xl,
-  },
-  noPhotoTileLive: {
-    borderRadius: 20,
-  },
-  captionNoPhoto: {
-    paddingHorizontal: LIVE_CAPTION_SIDE,
-    paddingBottom: LIVE_CAPTION_BOTTOM,
   },
   // T-132 (web ES:145-152): the notes card under the photo.
   notesCard: {
@@ -1355,11 +1269,25 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: colors.textStrong2,
   },
-  eyebrowLive: {
-    ...font(500),
+  howToPage: {
+    minHeight: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    paddingHorizontal: 14,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.hairlineButton,
+    backgroundColor: colors.fillButton,
+  },
+  howToPagePressed: {
+    backgroundColor: colors.fillPressed,
+  },
+  howToPageLabel: {
+    ...font(600),
     fontSize: 16,
-    lineHeight: 24,
-    color: colors.textStrong2,
+    lineHeight: 20,
+    color: colors.textPrimary,
   },
   eyebrowBrowse: {
     ...font(600),
@@ -1491,8 +1419,7 @@ const styles = StyleSheet.create({
   // chrome's gap 8 + 2).
   railFullWidth: {
     marginTop: spacing['0_5'],
-    // T-146 rev 26: 6 from the screen edges.
-    marginHorizontal: -(spacing[4] - 6),
+    marginHorizontal: -spacing[4],
   },
   railFill: {
     height: '100%',
@@ -1559,6 +1486,17 @@ const styles = StyleSheet.create({
     borderColor: colors.goldLine,
     paddingVertical: spacing['4_5'],
     paddingHorizontal: spacing['5_5'],
+  },
+  // T-146 rev 40 (phone): min 56, r28, gold .08 + 1px gold .30; Resume is the gold 44 pill.
+  browsingBarPhone: {
+    minHeight: 56,
+    borderRadius: 28,
+    borderColor: colors.goldLine,
+    backgroundColor: colors.goldFaint,
+  },
+  browsingTextPhone: {
+    fontSize: 16,
+    lineHeight: 22,
   },
   browsingBarStacked: {
     flexDirection: 'column',
@@ -1939,12 +1877,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 20,
     letterSpacing: 0,
-  },
-  didItGlass: {
-    borderWidth: 1,
-    borderColor: colors.hairlineButton,
-    backgroundColor: colors.fillButton,
-    boxShadow: 'none',
   },
   didItDisabled: {
     borderWidth: 1,

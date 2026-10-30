@@ -1,17 +1,17 @@
 import { useIsFocused } from '@react-navigation/native';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Keyboard, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Animated, Keyboard, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getServerMessage, getStatus } from '../../../shared/api/apiError';
 import { formatNumber, formatWeight } from '../../../shared/format/numbers';
 import { formatDuration } from '../../../shared/time/format';
 import { InlineToast } from '../../../shared/components/ToastHost';
-import { useLargeTextReflow } from '../../../shared/components/largeText';
+import { CAP_BODY, useLargeTextReflow } from '../../../shared/components/largeText';
 import { useKeyboardOverlap } from '../../../shared/hooks/useKeyboardHeight';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { ToastTone } from '../../../shared/components/toastStore';
-import { breakpoints, colors, motion, spacing } from '../../../shared/theme/tokens';
+import { breakpoints, colors, font, motion, spacing } from '../../../shared/theme/tokens';
 import { BackdropBand } from '../../shell/StatusBarBackdrop';
 import { useProfileStore } from '../../profile/profileStore';
 import { abandonWorkout, completeWorkout, updateSessionSet } from '../api/workoutApi';
@@ -66,6 +66,7 @@ import {
   stepReps,
   targetReps,
   stepWeight,
+  targetRange,
   validateDraftWeight,
   volumeInUnit,
 } from './sessionMath';
@@ -681,6 +682,7 @@ export default function SessionRuntime({
     exercise?.exercise?.id && showHowToPill(howToEntry, exercise) ? (
       <HowToButton
         tablet={tablet}
+        onPage={!tablet && !browsing}
         onPress={dismiss(() => {
           howTo.fetchEntry(exercise.exercise.id);
           setShowHowTo(true);
@@ -731,13 +733,14 @@ export default function SessionRuntime({
   ) : null;
   // The set the phone card's steppers edit.
   const cardSet = editingSet ?? editorSet;
-  // Every set of the viewed exercise done: the glass "Undo" un-logs the last
-  // one, with its saved values (RN-SPEC dated 30 Oct).
-  const viewedSets = exercise?.sets ?? [];
-  const lastDone = !tablet && !editorSet && viewedSets.length > 0 && viewedSets.every((item) => item.is_completed) ? viewedSets[viewedSets.length - 1] : null;
-  const undoLast = lastDone ? (
-    <DidItButton set={lastDone} title="Undo" glass arc isPending={pendingSetIds.has(lastDone.id)} isLocked={false} onPress={dismiss(() => undoDoneSet(exercise, lastDone))} />
-  ) : null;
+  // T-146 rev 40 (phone browsing): the row under the read-only arc: the rep
+  // target + "Last time …" of the exercise's next (else first) set.
+  const browseSet = exercise ? (exercise.sets ?? []).find((item) => !item.is_completed) ?? exercise.sets?.[0] ?? null : null;
+  const browseLine = browsing && browseSet
+    ? [targetRange(browseSet) ? `${targetRange(browseSet)} reps` : '', lastTimeLabel(previousSetFor(exercise, browseSet), drafts[browseSet.id]?.actualWeightUnit || 'lb') ?? '']
+        .filter(Boolean)
+        .join(' · ')
+    : '';
 
   const editorKey = editorSet ? setKey(exercise.id, editorSet.id) : '';
   const setCard = exercise && !tablet ? (
@@ -763,7 +766,9 @@ export default function SessionRuntime({
       onSelectDone={dismiss(selectDoneSet)}
       onCancel={dismiss(cancelEdit)}
       onUndo={dismiss((item) => undoDoneSet(exercise, item))}
-      action={editingSet ? saveSet : didIt ?? undoLast}
+      action={editingSet ? saveSet : didIt}
+      browsing={browsing}
+      browseLine={browseLine}
     />
   ) : exercise ? (
     <SetEditor
@@ -930,13 +935,17 @@ export default function SessionRuntime({
           {/* T-132 (web WP:869-882, 1075): phone browsing puts the bar above the photo. */}
           {browsing && !tablet ? <View style={styles.phoneBrowsingBar}>{browsingBar}</View> : null}
           {stage}
-          {/* T-132 (web WP:1093-1099): phone browsing shows the stats strip under the photo. */}
-          {browsing && !tablet ? <View style={styles.phoneStats}>{stats}</View> : null}
           <View style={[styles.main, tablet && styles.mainTablet, tablet && browsing && styles.mainBrowsing, !tablet && styles.mainPhone]}>
             {browsing && tablet ? browsingBar : null}
             {browsing && tablet ? stats : null}
             {messages}
             {setCard}
+            {/* T-146 rev 40: phone browsing: Volume + Reps as one muted line under the card (Time is the header clock). */}
+            {browsing && !tablet ? (
+              <Text {...CAP_BODY} testID="session-stats-line" style={styles.statsLine}>
+                {`${volume} ${volumeUnit} volume · ${formatNumber(progress.actualReps, 0)} reps`}
+              </Text>
+            ) : null}
             {/* T-132 (web 2.1.15 phone): Up next follows the card. */}
             {upNext ? <UpNextLink exercise={upNext} onPress={dismiss(() => setViewingIndex(laterIncomplete))} /> : null}
             {endActions}
@@ -1095,9 +1104,12 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing[4],
     marginTop: spacing[3],
   },
-  phoneStats: {
-    marginHorizontal: spacing[4],
-    marginTop: spacing['2_5'],
+  statsLine: {
+    ...font(500),
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: 'center',
+    color: colors.textMuted,
   },
   // T-132 (web 2.1.15 SC:108, Q1): the header bar: the ground-bar fill
   // (0.88; it sits over the page ground, above the scroll, so it reads solid)

@@ -65,6 +65,7 @@ import {
   spokenRecordLine,
 } from './restPresentation';
 import { consumeRestBack, setRestBackConsumer } from './restBackGate';
+import PhotoBlend from './PhotoBlend';
 import { setsWord } from './sessionMath';
 import { keepUnitsTogether } from '../../../shared/format/counts';
 
@@ -313,16 +314,23 @@ function PhoneRest({ timer, hero, onMinimize, onAdjust, onSkip, window, insets }
   const loaded = image.url && photo?.url === image.url ? photo : null;
 
   const top = insets.top + spacing[2] + layout.touchMin;
-  // Rest 3 with a photo: the headline row, then the photo 12 below it.
+  // Rev 38 A: rest 3 with a photo: 12 → the headline → 12 → the photo.
   const headlineRow = next && loaded;
-  const photoTop = headlineRow ? top + headlineHeight + spacing[3] : top;
+  const photoTop = headlineRow ? top + spacing[3] + headlineHeight + spacing[3] : top;
   const barBottom = insets.bottom + REST_BAR_BOTTOM;
-  const textGap = loaded ? REST_TEXT_GAP : REST_TEXT_GAP_NO_PHOTO;
   // RN-SPEC dated 30 Oct: the timer is clamp(72, 11 % of the height, 92).
   const digits = restDigitsSize(window.height);
-  const around = photoTop + textGap + textHeight + REST_TIMER_GAP + digits + REST_MIN_FREE + BUTTON_HEIGHTS.default + barBottom;
-  const photoHeight = loaded ? restPhotoHeight({ width: window.width, aspect: loaded.aspect, windowHeight: window.height, room: window.height - around }) : 0;
+  // Rev 38 B: the timer zone runs from the photo's bottom to 24 above the
+  // control bar; the text group is centred in it (at least 24 above), else
+  // top-aligned; the photo gives up the room it lacks first (floor 160).
+  const zoneBottom = barBottom + BUTTON_HEIGHTS.default + REST_ZONE_PAD;
+  const group = textHeight + REST_TIMER_GAP + digits;
+  const photoHeight = loaded
+    ? restPhotoHeight({ width: window.width, aspect: loaded.aspect, windowHeight: window.height, room: window.height - photoTop - REST_ZONE_PAD - group - zoneBottom })
+    : 0;
   const zoneTop = photoTop + photoHeight;
+  const zoneHeight = window.height - zoneTop - zoneBottom;
+  const centred = zoneHeight >= group + 2 * REST_ZONE_PAD;
 
   const onLoad = (source) => {
     const aspect = source?.width > 0 && source?.height > 0 ? source.width / source.height : null;
@@ -338,7 +346,7 @@ function PhoneRest({ timer, hero, onMinimize, onAdjust, onSkip, window, insets }
 
   return (
     <View testID="rest-timer" accessibilityViewIsModal role="dialog" accessibilityLabel="Rest timer" style={styles.full}>
-      {loaded ? <RestPhotoBlend image={image} top={photoTop} height={photoHeight} width={window.width} opacity={fade} /> : null}
+      {loaded ? <PhotoBlend testID="rest-photo-blend" image={image} top={photoTop} height={photoHeight} width={window.width} opacity={fade} upward={!headlineRow} /> : null}
       {image.url ? (
         <Animated.View
           testID="rest-photo"
@@ -348,7 +356,7 @@ function PhoneRest({ timer, hero, onMinimize, onAdjust, onSkip, window, insets }
           <RemoteImage {...image} resizeMode="contain" style={StyleSheet.absoluteFill} onLoad={onLoad} />
         </Animated.View>
       ) : null}
-      <DrainFill timer={timer} warn={warn} top={zoneTop} height={window.height - zoneTop} reducedMotion={reducedMotion} />
+      <DrainFill timer={timer} warn={warn} top={zoneTop} height={Math.max(0, zoneHeight)} reducedMotion={reducedMotion} />
       {headlineRow ? (
         <Text
           {...CAP_BODY}
@@ -356,15 +364,18 @@ function PhoneRest({ timer, hero, onMinimize, onAdjust, onSkip, window, insets }
           accessibilityRole="header"
           numberOfLines={2}
           onLayout={(event) => setHeadlineHeight(event.nativeEvent.layout.height)}
-          style={[styles.restHeadline, styles.restHeadlineRow, { top, left: insets.left + layout.gutter, right: insets.right + layout.gutter }]}
+          style={[styles.restHeadline, styles.restHeadlineRow, { top: top + spacing[3], left: insets.left + layout.gutter, right: insets.right + layout.gutter }]}
         >
           Go to the next exercise
         </Text>
       ) : null}
-      <View style={[styles.restMinimise, { top: insets.top + spacing[2], right: insets.right + layout.gutter }]}>
-        <MinimizeButton onMinimize={onMinimize} />
-      </View>
-      <View testID="rest-column" style={[styles.restColumn, { top: zoneTop + textGap, left: insets.left + layout.gutter, right: insets.right + layout.gutter }]}>
+      <View
+        testID="rest-column"
+        style={[
+          styles.restColumn,
+          { top: zoneTop, bottom: zoneBottom, left: insets.left + layout.gutter, right: insets.right + layout.gutter, justifyContent: centred ? 'center' : 'flex-start' },
+        ]}
+      >
         <View testID="rest-text" style={styles.restText} onLayout={(event) => setTextHeight(event.nativeEvent.layout.height)}>
           {next && !loaded ? (
             <Text {...CAP_BODY} accessibilityRole="header" numberOfLines={2} style={styles.restHeadline}>
@@ -402,30 +413,11 @@ function PhoneRest({ timer, hero, onMinimize, onAdjust, onSkip, window, insets }
         />
         <PillButton testID="rest-timer-plus" title="+5" variant="secondary" accessibilityLabel="Increase rest timer by 5 seconds" onPress={() => onAdjust(5)} style={styles.restAdjust} />
       </View>
+      {/* Drawn last, so no layer can ever sit over it (web 2.3.0's chevron was covered). */}
+      <View testID="rest-minimise-row" style={[styles.restMinimise, { top: insets.top + spacing[2], right: insets.right + layout.gutter }]}>
+        <MinimizeButton onMinimize={onMinimize} />
+      </View>
     </View>
-  );
-}
-
-// Rev 31: the blend lives OUTSIDE the photo: a cover copy 48 larger each side
-// (−24 left, 56 above and below), blurred, at brightness .7, whose outer 22 %
-// top and bottom fade into the ground (an svg gradient over the copy: over
-// the solid ground it reads the same as a mask, no MaskedView dependency).
-function RestPhotoBlend({ image, top, height, width, opacity }) {
-  return (
-    <Animated.View
-      pointerEvents="none"
-      testID="rest-photo-blend"
-      style={[styles.restBlend, { top: top - REST_BLEND_OUT, width: width + 2 * REST_BLEND_SIDE, height: height + 2 * REST_BLEND_OUT, opacity }]}
-    >
-      <RemoteImage {...image} resizeMode="cover" blurRadius={REST_BLEND_BLUR} style={StyleSheet.absoluteFill} />
-      <View style={[StyleSheet.absoluteFill, styles.restBlendDim]} />
-      <View style={[styles.restBlendEdge, styles.restBlendTop]}>
-        <GradientFill angle={180} colors={REST_BLEND_FADE_TOP} />
-      </View>
-      <View style={[styles.restBlendEdge, styles.restBlendBottom]}>
-        <GradientFill angle={180} colors={REST_BLEND_FADE_BOTTOM} />
-      </View>
-    </Animated.View>
   );
 }
 
@@ -478,12 +470,11 @@ const REST_PHOTO_MAX = 320;
 const REST_PHOTO_SHARE = 0.38;
 const REST_DIGITS_SHARE = 0.11;
 const REST_DIGITS_MIN = 72;
-const REST_TEXT_GAP_NO_PHOTO = 24;
+// Rev 38 B: the timer zone's minimum top room and its gap above the buttons.
+const REST_ZONE_PAD = 24;
 const REST_PHOTO_FLOOR = 160;
 const REST_PHOTO_FADE_MS = 200;
-const REST_TEXT_GAP = 40;
 const REST_TIMER_GAP = 24;
-const REST_MIN_FREE = 16;
 const REST_BAR_BOTTOM = 24;
 const REST_DIGITS = 92;
 const REST_EDGE = 2;
@@ -491,11 +482,6 @@ const REST_EDGE = 2;
 const REST_TEXT_ESTIMATE = 66;
 // One 24/32 headline line.
 const REST_HEADLINE_ESTIMATE = 32;
-const REST_BLEND_SIDE = 24;
-const REST_BLEND_OUT = 56;
-const REST_BLEND_BLUR = 20;
-const REST_BLEND_FADE_TOP = Object.freeze([colors.ground, colors.groundClear]);
-const REST_BLEND_FADE_BOTTOM = Object.freeze([colors.groundClear, colors.ground]);
 
 // T-88: the ±5 row's gap above it (the tablet card's adjustRow).
 const REST_ADJUST_GAP = 44;
@@ -1045,27 +1031,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
   },
-  restBlend: {
-    position: 'absolute',
-    left: -24,
-    overflow: 'hidden',
-  },
-  // brightness .7
-  restBlendDim: {
-    backgroundColor: colors.restBlendDim,
-  },
-  restBlendEdge: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: '22%',
-  },
-  restBlendTop: {
-    top: 0,
-  },
-  restBlendBottom: {
-    bottom: 0,
-  },
   drainZone: {
     position: 'absolute',
     left: 0,
@@ -1112,6 +1077,7 @@ const styles = StyleSheet.create({
   restColumn: {
     position: 'absolute',
     alignItems: 'center',
+    paddingTop: 24,
     gap: 24,
   },
   restText: {

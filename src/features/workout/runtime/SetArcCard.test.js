@@ -7,7 +7,7 @@ import SetArcCard, { arcLabel, arcSegments } from './SetArcCard';
 jest.mock('react-native-svg', () => {
   const { View } = require('react-native');
   const Mock = ({ children, ...props }) => <View {...props}>{children}</View>;
-  return { __esModule: true, default: Mock, Path: (props) => <View {...props} /> };
+  return { __esModule: true, default: Mock, Path: (props) => <View {...props} />, Rect: (props) => <View {...props} /> };
 });
 jest.mock('../../../shared/components/Select', () => {
   const { View } = require('react-native');
@@ -163,14 +163,40 @@ describe('SetArcCard', () => {
     nowPaths.forEach((node) => expect(node.props.strokeOpacity).toBeUndefined());
   });
 
-  it('large text: the Weight / Reps cells stack; a 128 minimum, never a fixed height', () => {
+  // DECLARED S5 (T-146 rev 39, PM-approved): the steppers are 116 (was 128).
+  it('large text: the Weight / Reps cells stack; a 116 minimum, never a fixed height', () => {
     mockFontScale = 2;
     const exercise = exerciseWith(4, 1);
     const tree = render({ exercise, set: exercise.sets[1] });
     const cell = tree.root.findAll((node) => node.props.testID === 'set-cell-weight' && typeof node.type === 'string')[0];
     const style = StyleSheet.flatten(cell.props.style);
-    expect(style.minHeight).toBe(128);
+    expect(style.minHeight).toBe(116);
     expect(style.height).toBeUndefined();
     expect(style.alignSelf).toBe('stretch');
+  });
+
+  // T-146 rev 40: the phone browse card is read-only.
+  it('browsing: no now outline, "Locked" in the Did it slot, the reps/Last time line, no steppers; done segments still edit', () => {
+    const onSelectDone = jest.fn();
+    const fresh = exerciseWith(4, 0);
+    let tree = render({ exercise: fresh, set: null, browsing: true, browseLine: '8–12 reps · Last time 270 × 12', action: null });
+    expect(text(tree.root.findAll((node) => node.props.testID === 'set-arc-count' && typeof node.type !== 'string')[0])).toBe('4 sets');
+    expect(one(tree, 'set-locked')).toBeDefined();
+    expect(text(one(tree, 'set-browse-line'))).toBe('8–12 reps · Last time 270 × 12');
+    expect(all(tree, 'set-weight-10')).toHaveLength(0);
+    expect(allMatching(tree, /^set-segment-now-/)).toHaveLength(0);
+    expect(one(tree, 'set-arc').props.accessibilityLabel).toBe('Leg Press: 0 of 4 sets done, locked');
+    const partly = exerciseWith(4, 2);
+    tree = render({ exercise: partly, set: null, browsing: true, browseLine: '', onSelectDone });
+    expect(text(tree.root.findAll((node) => node.props.testID === 'set-arc-count' && typeof node.type !== 'string')[0])).toBe('2 sets left');
+    expect(all(tree, 'set-previous-row')).toHaveLength(0);
+    act(() => tree.root.findAll((node) => node.props.testID === 'set-segment-10' && node.props.onPress)[0].props.onPress());
+    expect(onSelectDone.mock.calls[0][0].id).toBe(10);
+  });
+
+  it('rev 39: the 32 row collapses when there is nothing to show (set 1, no history)', () => {
+    const fresh = exerciseWith(4, 0);
+    const tree = render({ exercise: fresh, set: fresh.sets[0], lastTime: null });
+    expect(all(tree, 'set-previous-row')).toHaveLength(0);
   });
 });

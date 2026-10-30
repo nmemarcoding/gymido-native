@@ -695,7 +695,8 @@ describe('T-69 batch flow fixes', () => {
 
     it('the tap scan sees the set taps it checks (not vacuous)', () => {
       expect(taps(body('subflows/log-current-set.yaml')).filter((sel) => /set-action-/.test(sel))).toHaveLength(1);
-      expect(taps(body('phase3/c3-browsing-lock.yaml')).filter((sel) => /text: "Undo"/.test(sel))).toHaveLength(1);
+      // DECLARED B5 (T-146 rev 40, PM-approved): c3's Undo is "Undo set n" after a done segment (was the glass "Undo").
+      expect(taps(body('phase3/c3-browsing-lock.yaml')).filter((sel) => /id: "set-undo-\.\*"\n\s+text: "Undo set \.\*"/.test(sel))).toHaveLength(1);
       const optional = FLOWS.flatMap((file) => blocks(steps(fs.readFileSync(file, 'utf8')), 'extendedWaitUntil')).filter((b) => /optional: true/.test(b));
       expect(optional.length).toBeGreaterThanOrEqual(2);
     });

@@ -2,22 +2,23 @@
 # is null while browsing). In a fresh session: browse exercise 2 → no live set
 # (no "Did it", no weight/reps inputs, no set buttons for its to-do sets);
 # Resume → the live editor is back. Then log every set of exercise 1 (exercise
-# 2 becomes active), browse exercise 1 → every set done, its glass "Undo";
-# Undo → exercise 1 is active again and the live editor returns. Ends by
+# 2 becomes active), browse exercise 1 → every set done, "Locked"; its done
+# segment → "Undo set k" → exercise 1 is active again and the live editor returns. Ends by
 # DISCARDING the session (the set PATCHes belong to the discarded session only).
 #
 # DECLARED (T-146, owner delegated OK 30 Oct; PM-approved E4/D-items): the
 # phone has no per-exercise dashes ("Exercise n of m") and no strip chips any
 # more. Markers now: the set card (set-editor) instead of set-strip; the end of
 # exercise 1 = the rest after its last set ("Go to the next exercise", its
-# gold "Start now"); the done exercise's Undo is the card's glass "Undo"
-# (set-action-<id>, the last done set). Was: exercise-segments text
-# "Exercise n of m", set-strip, a done chip "Undo", locked chips.
+# gold "Start now"); a browsed done set is undone through its done segment
+# (set-segment-<id>) → "Undo set k" (set-undo-<id>; rev 40 + PM, web parity).
+# Was: exercise-segments text "Exercise n of m", set-strip, a done chip
+# "Undo", locked chips.
 #
 # Signed-in start (the lead's safe runner). Fixture: an ACTIVE plan whose
 # session has 2+ exercises, whose first exercise has at most 10 sets (the
 # logging loop's cap) and a rest time on its last set (rest 3). IDs only (plus
-# the accessible names "Did it", "Undo", "Saving…", "Skip rest" and "Go to the
+# the accessible names "Did it", "Undo set n", "Locked", "Skip rest" and "Go to the
 # next exercise" on id-matched or text nodes). Uses the v2 subflows
 # (e2e/maestro/v2/subflows).
 appId: com.gymido.app
@@ -124,7 +125,7 @@ tags:
     timeout: 5000
 - runFlow: ../subflows/dismiss-session-dialogs.yaml
 
-# --- C. Browse exercise 1 (all done): its glass Undo. -----------------------
+# --- C. Browse exercise 1 (all done): Locked; Undo through a done segment. --
 - scrollUntilVisible:
     element:
       id: "session-all"
@@ -153,25 +154,24 @@ tags:
     centerElement: true
     timeout: 10000
 - assertVisible:
-    id: "set-action-.*"
-    text: "Undo"
-    enabled: true
+    id: "set-locked"
 - assertNotVisible:
     id: "set-weight-.*"
 - assertNotVisible:
     id: "set-action-.*"
     text: "Did it"
-# Undo the browsed exercise's last set.
+# Undo one done set of the browsed exercise: its segment, then "Undo set n".
 - tapOn:
-    id: "set-action-.*"
-    text: "Undo"
-    enabled: true
+    id: "set-segment-.*"
     index: 0
 - extendedWaitUntil:
-    notVisible:
-      id: "set-action-.*"
-      text: "Saving…"
-    timeout: 15000
+    visible:
+      id: "set-undo-.*"
+    timeout: 5000
+- tapOn:
+    id: "set-undo-.*"
+    text: "Undo set .*"
+    enabled: true
 # Exercise 1 has a pending set again, so it is the active exercise: the view
 # is live (no browsing bar) with the editor on the undone set.
 - extendedWaitUntil:

@@ -5,8 +5,8 @@ import Svg, { Path } from 'react-native-svg';
 import Select from '../../../shared/components/Select';
 import { CAP_BODY, CAP_PILL, useLargeTextReflow } from '../../../shared/components/largeText';
 import { colors, font, layout, radii, spacing, textInputColors, textScale, titleTracking } from '../../../shared/theme/tokens';
-import { CheckIcon } from './SessionIcons';
-import { doneSetLabel, repsFieldLabel } from './sessionMath';
+import { CheckIcon, LockIcon } from './SessionIcons';
+import { doneSetLabel, repsFieldLabel, targetRange } from './sessionMath';
 
 // T-146 (ruling rev 15–18, 26; FINAL boards 4/5; FE Q1 default): the phone's
 // live set card. An upper half-circle split into one segment per set (done
@@ -21,11 +21,10 @@ import { doneSetLabel, repsFieldLabel } from './sessionMath';
 const ARC_STROKE = 14;
 const ARC_NOW_INNER = 9;
 const ARC_MAX_RADIUS = 140;
-// The arc's centre sits this far below its top (radius + room for the stroke
-// and the now glow); the box is 4 taller.
-const ARC_TOP_ROOM = 32;
+// Rev 39 (compact card): the arc's centre sits radius + 14 below its top and
+// the box ends at the arc's baseline (154 at radius 140).
+const ARC_TOP_ROOM = 14;
 const HIT = 44;
-const SHORT_BELOW = 700;
 
 // The segments of an upper half-circle (180° → 360°, y down), one per set,
 // 4° gaps (3° above 6 sets), butt ends. Each: { d, mid: { x, y } }.
@@ -48,6 +47,29 @@ export function arcSegments(total, radius, cx, cy) {
   });
 }
 
+// Inside the arc: "{left}" + " sets left" / "Last set" / "Done"; browsing a
+// not-started exercise (rev 40): "{N}" + " sets", and "{n} left" never reads
+// "Last set" there (nothing is live).
+function arcCount({ left, total, browsing }) {
+  if (left === 0) {
+    return 'Done';
+  }
+  if (browsing) {
+    return `${left === total ? total : left}`;
+  }
+  return left === 1 ? 'Last set' : `${left}`;
+}
+
+function arcUnit({ left, total, browsing }) {
+  if (left === 0) {
+    return '';
+  }
+  if (browsing) {
+    return left === total ? ` ${total === 1 ? 'set' : 'sets'}` : ` ${left === 1 ? 'set' : 'sets'} left`;
+  }
+  return left === 1 ? '' : ' sets left';
+}
+
 // "{left} sets left" / "Last set" / "All sets done": the arc's one
 // accessible name (RN-SPEC dated 30 Oct).
 export function arcLabel(left) {
@@ -65,22 +87,21 @@ function EditIcon({ size = 16, color }) {
   );
 }
 
-function SetArc({ sets, nowId, selectedId, width, onSelect }) {
-  const left = sets.filter((set) => !set.is_completed).length;
+function SetArc({ sets, nowId, selectedId, width, onSelect, label }) {
   const radius = Math.min(ARC_MAX_RADIUS, Math.floor((width - ARC_STROKE) / 2));
   const cx = width / 2;
   const cy = radius + ARC_TOP_ROOM;
   const segments = arcSegments(sets.length, radius, cx, cy);
   return (
-    <View style={[styles.arcBox, { height: cy + 4 }]}>
+    <View style={[styles.arcBox, { height: cy }]}>
       <View
         testID="set-arc"
         accessible
         accessibilityRole="image"
-        accessibilityLabel={arcLabel(left)}
+        accessibilityLabel={label}
         style={StyleSheet.absoluteFill}
       >
-        <Svg width={width} height={cy + 4}>
+        <Svg width={width} height={cy}>
           {segments.map((segment, index) => {
             const set = sets[index];
             const now = set.id === nowId || set.id === selectedId;
@@ -128,7 +149,7 @@ function SetArc({ sets, nowId, selectedId, width, onSelect }) {
 
 function Stepper({ testID, label, glyph, onPress }) {
   return (
-    <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.stepper, pressed && styles.stepperPressed]}>
+    <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={label} onPress={onPress} hitSlop={2} style={({ pressed }) => [styles.stepper, pressed && styles.stepperPressed]}>
       <Text allowFontScaling={false} style={styles.stepperGlyph}>
         {glyph}
       </Text>
@@ -136,9 +157,9 @@ function Stepper({ testID, label, glyph, onPress }) {
   );
 }
 
-function Cell({ testID, label, value, steppers, error, stacked, short }) {
+function Cell({ testID, label, value, steppers, error, stacked }) {
   return (
-    <View testID={testID} style={[styles.cell, short && styles.cellShort, stacked ? styles.cellStacked : styles.cellHalf, error && styles.cellError]}>
+    <View testID={testID} style={[styles.cell, stacked ? styles.cellStacked : styles.cellHalf, error && styles.cellError]}>
       {label}
       {value}
       <View style={styles.steppers}>{steppers}</View>
@@ -164,11 +185,12 @@ export default function SetArcCard({
   onUndo,
   onCancel,
   action = null,
+  browsing = false,
+  browseLine = '',
   cardRef,
 }) {
   const stacked = useLargeTextReflow();
-  const { width, height } = useWindowDimensions();
-  const short = height < SHORT_BELOW;
+  const { width } = useWindowDimensions();
   const [arcWidth, setArcWidth] = useState(width - 4 * layout.gutter);
   const sets = exercise.sets ?? [];
   const done = sets.filter((item) => item.is_completed);
@@ -184,56 +206,83 @@ export default function SetArcCard({
   return (
     <View ref={cardRef} collapsable={false} testID="set-editor" style={[styles.card, highlighted && styles.cardHighlighted]}>
       <View onLayout={(event) => setArcWidth(event.nativeEvent.layout.width)}>
-        <SetArc sets={sets} nowId={editing ? null : set?.id} selectedId={editing?.id} width={arcWidth} onSelect={onSelectDone} />
+        <SetArc
+          sets={sets}
+          nowId={editing ? null : set?.id}
+          selectedId={editing?.id}
+          width={arcWidth}
+          onSelect={onSelectDone}
+          // Rev 40: browsing reads "{name}: {done} of {N} sets done, locked".
+          label={browsing ? `${exercise.exercise_name_snapshot ?? ''}: ${done.length} of ${sets.length} sets done, locked` : arcLabel(left)}
+        />
         <View pointerEvents="box-none" style={styles.arcCentre}>
-          <Text {...CAP_BODY} testID="set-arc-count" style={[styles.count, left <= 1 && styles.countLast]}>
-            {left === 0 ? 'Done' : left === 1 ? 'Last set' : `${left}`}
-            {left > 1 ? <Text style={styles.countUnit}>{' sets left'}</Text> : null}
+          <Text {...CAP_BODY} testID="set-arc-count" style={[styles.count, (left === 0 || (left === 1 && !browsing)) && styles.countLast]}>
+            {arcCount({ left, total: sets.length, browsing })}
+            {arcUnit({ left, total: sets.length, browsing }) ? <Text style={styles.countUnit}>{arcUnit({ left, total: sets.length, browsing })}</Text> : null}
           </Text>
-          {action}
+          {/* Browsing (rev 40 + web parity): "Locked" stays even while a done set is open (Undo / Cancel only). */}
+          {browsing ? (
+            <View testID="set-locked" style={styles.locked}>
+              <LockIcon size={20} color={colors.textMuted} />
+              <Text {...CAP_BODY} style={styles.lockedText}>Locked</Text>
+            </View>
+          ) : (
+            action
+          )}
         </View>
       </View>
-      <View testID="set-previous-row" style={styles.previousRow}>
-        {editing ? (
-          <>
-            <Pressable testID={`set-undo-${editing.id}`} accessibilityRole="button" accessibilityLabel={`Undo set ${editing.set_number}`} disabled={pending} onPress={() => onUndo(editing)} hitSlop={6} style={styles.rowButton}>
-              <Text {...CAP_PILL} style={styles.undoText}>{`Undo set ${editing.set_number}`}</Text>
-            </Pressable>
-            <Pressable testID={`set-cancel-${editing.id}`} accessibilityRole="button" accessibilityLabel="Cancel" disabled={pending} onPress={() => onCancel(editing)} hitSlop={6} style={styles.rowButton}>
-              <Text {...CAP_PILL} style={styles.cancelText}>Cancel</Text>
-            </Pressable>
-          </>
-        ) : previous ? (
-          <>
-            <Pressable
-              testID={`set-previous-${previous.id}`}
-              accessibilityRole="button"
-              accessibilityLabel={`Set ${previous.set_number} done, ${doneSetLabel(previous).replace(' × ', ' by ')}. Tap to edit`}
-              accessibilityState={{ disabled: pending }}
-              disabled={pending}
-              onPress={() => onSelectDone(previous)}
-              style={({ pressed }) => [styles.pill, pressed && styles.pillPressed]}
-            >
-              <CheckIcon size={16} color={colors.gold} />
-              <Text {...CAP_PILL} numberOfLines={1} style={styles.pillText}>
-                {pending ? 'Saving…' : `Set ${previous.set_number} · ${doneSetLabel(previous)}`}
-              </Text>
-              <EditIcon color={colors.textSecondary} />
-            </Pressable>
-          </>
-        ) : lastTime ? (
-          <Text {...CAP_BODY} testID={`set-last-time-${target?.id}`} style={styles.lastTime}>
-            {lastTime}
-          </Text>
-        ) : null}
-      </View>
-      {target ? (
+      {/* Rev 39: the row collapses when there is nothing to show. */}
+      {browsing && !editing ? (
+        browseLine ? (
+          <View testID="set-previous-row" style={styles.previousRow}>
+            <Text {...CAP_BODY} testID="set-browse-line" style={styles.lastTime}>
+              {browseLine}
+            </Text>
+          </View>
+        ) : null
+      ) : editing || previous || lastTime ? (
+        <View testID="set-previous-row" style={styles.previousRow}>
+          {editing ? (
+            <>
+              <Pressable testID={`set-undo-${editing.id}`} accessibilityRole="button" accessibilityLabel={`Undo set ${editing.set_number}`} disabled={pending} onPress={() => onUndo(editing)} hitSlop={6} style={styles.rowButton}>
+                <Text {...CAP_PILL} style={styles.undoText}>{`Undo set ${editing.set_number}`}</Text>
+              </Pressable>
+              <Pressable testID={`set-cancel-${editing.id}`} accessibilityRole="button" accessibilityLabel="Cancel" disabled={pending} onPress={() => onCancel(editing)} hitSlop={6} style={styles.rowButton}>
+                <Text {...CAP_PILL} style={styles.cancelText}>Cancel</Text>
+              </Pressable>
+            </>
+          ) : previous ? (
+            <>
+              <Pressable
+                testID={`set-previous-${previous.id}`}
+                accessibilityRole="button"
+                accessibilityLabel={`Set ${previous.set_number} done, ${doneSetLabel(previous).replace(' × ', ' by ')}. Tap to edit`}
+                accessibilityState={{ disabled: pending }}
+                disabled={pending}
+                onPress={() => onSelectDone(previous)}
+                style={({ pressed }) => [styles.pill, pressed && styles.pillPressed]}
+              >
+                <CheckIcon size={16} color={colors.gold} />
+                <Text {...CAP_PILL} numberOfLines={1} style={styles.pillText}>
+                  {pending ? 'Saving…' : `Set ${previous.set_number} · ${doneSetLabel(previous)}`}
+                </Text>
+                <EditIcon color={colors.textSecondary} />
+              </Pressable>
+            </>
+          ) : (
+            <Text {...CAP_BODY} testID={`set-last-time-${target?.id}`} style={styles.lastTime}>
+              {lastTime}
+            </Text>
+          )}
+        </View>
+      ) : null}
+      {/* Rev 40: no steppers while browsing (nothing to log; a done set there offers only Undo / Cancel). */}
+      {target && !browsing ? (
         <>
           <View style={[styles.cells, stacked && styles.cellsStacked]}>
             <Cell
               testID="set-cell-weight"
               stacked={stacked}
-              short={short}
               error={Boolean(validationError)}
               label={
                 <View style={styles.cellLabelRow}>
@@ -277,10 +326,10 @@ export default function SetArcCard({
             <Cell
               testID="set-cell-reps"
               stacked={stacked}
-              short={short}
               label={
-                <Text {...CAP_BODY} style={styles.cellLabel}>
-                  {repsFieldLabel(target)}
+                // Rev 37 F3: "Reps · 8–12" as drawn; the accessible name keeps "target 8–12".
+                <Text {...CAP_BODY} testID="set-reps-label" accessibilityLabel={repsFieldLabel(target)} style={styles.cellLabel}>
+                  {targetRange(target) ? `Reps · ${targetRange(target)}` : 'Reps'}
                 </Text>
               }
               value={
@@ -319,7 +368,7 @@ export default function SetArcCard({
 
 const styles = StyleSheet.create({
   card: {
-    padding: spacing[4],
+    padding: spacing[3],
     gap: spacing[2],
     borderRadius: 28,
     borderWidth: 1.5,
@@ -337,9 +386,10 @@ const styles = StyleSheet.create({
     width: HIT,
     height: HIT,
   },
+  // Rev 39: Did it's bottom sits on the arc's baseline.
   arcCentre: {
     position: 'absolute',
-    top: 60,
+    bottom: 0,
     left: 0,
     right: 0,
     alignItems: 'center',
@@ -361,6 +411,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     letterSpacing: 0,
     color: colors.textSecondary,
+  },
+  locked: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  lockedText: {
+    ...font(500),
+    fontSize: 16,
+    lineHeight: 20,
+    color: colors.textMuted,
   },
   previousRow: {
     minHeight: 32,
@@ -415,7 +477,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   cells: {
-    marginTop: spacing[2],
     flexDirection: 'row',
     gap: spacing[2],
   },
@@ -423,8 +484,8 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
   },
   cell: {
-    minHeight: 128,
-    paddingVertical: spacing[2],
+    minHeight: 116,
+    padding: spacing[2],
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'transparent',
@@ -432,10 +493,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing[1],
-  },
-  // Under 700 tall (RN-SPEC dated 30 Oct).
-  cellShort: {
-    minHeight: 120,
   },
   cellHalf: {
     flex: 1,
@@ -471,7 +528,7 @@ const styles = StyleSheet.create({
   value: {
     ...font(700),
     fontSize: 44,
-    lineHeight: 48,
+    lineHeight: 44,
     minWidth: 80,
     paddingVertical: 0,
     letterSpacing: titleTracking(44, -0.045),
@@ -486,9 +543,9 @@ const styles = StyleSheet.create({
     gap: spacing[2],
   },
   stepper: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.hairlineButton,
     backgroundColor: colors.fillButton,

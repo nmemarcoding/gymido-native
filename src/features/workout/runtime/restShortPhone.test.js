@@ -76,6 +76,7 @@ describe('PhoneRest (T-146 fit)', () => {
     expect(digits(tree).fontSize).toBe(92);
   });
 
+  // DECLARED R2 (T-146 rev 38 B, PM-approved): the zone budget (24 above the group, 24 above the buttons). Was 222 / 184.
   it('360x640 Android, 3-button nav (status 24, nav 48): digits 72 (11 %), the photo capped (38 %) and giving up the room', () => {
     mockHeight = 640;
     mockInsets = { top: 24, bottom: 48, left: 0, right: 0 };
@@ -83,10 +84,10 @@ describe('PhoneRest (T-146 fit)', () => {
     loadPhoto(tree);
     expect(digits(tree).fontSize).toBe(72);
     expect(digits(tree).lineHeight).toBe(72);
-    // around = top 76 + 40 + text 66 + 24 + digits 72 + 16 + bar 52 + bottom 72 = 418; room 222 (< the 243 cap).
-    expect(photoHeight(tree)).toBe(222);
+    // photoTop 76; room = 640 − 76 − 24 − (text 66 + 24 + digits 72) − (bottom 72 + bar 52 + 24) = 230 (< the 243 cap).
+    expect(photoHeight(tree)).toBe(230);
     layout(host(tree, 'rest-text'), 104);
-    expect(photoHeight(tree)).toBe(184);
+    expect(photoHeight(tree)).toBe(192);
   });
 
   it('the photo never goes below its 160 floor; the digits keep their clamp', () => {
@@ -99,15 +100,16 @@ describe('PhoneRest (T-146 fit)', () => {
     expect(digits(tree).fontSize).toBe(72);
   });
 
-  // Owner change (30 Oct, from live web): rest 3's headline sits ABOVE the photo, never on it (no photo shade).
-  it('rest 3: "Go to the next exercise" in its own row under the chevron; the photo starts 12 below it', () => {
+  // Owner change (30 Oct, from live web) + DECLARED R1 (rev 38 A, PM-approved): the headline 12 below the top bar and 12
+  // above the photo; on rest 3 the blend copy starts at the photo's top (was: headline at 52, the copy 56 above the photo).
+  it('rest 3: "Go to the next exercise" in its own row (12 · headline · 12); the photo below; no glow above it', () => {
     const tree = renderHero({ mode: 'next', name: 'Seated Leg Curl', exercise: HERO.exercise, left: 0 });
     loadPhoto(tree);
     const headline = host(tree, 'rest-headline');
-    expect(StyleSheet.flatten(headline.props.style).top).toBe(52);
+    expect(StyleSheet.flatten(headline.props.style).top).toBe(52 + 12);
     layout(headline, 64);
-    expect(StyleSheet.flatten(host(tree, 'rest-photo').props.style).top).toBe(52 + 64 + 12);
-    expect(StyleSheet.flatten(host(tree, 'rest-photo-blend').props.style).top).toBe(52 + 64 + 12 - 56);
+    expect(StyleSheet.flatten(host(tree, 'rest-photo').props.style).top).toBe(52 + 12 + 64 + 12);
+    expect(StyleSheet.flatten(host(tree, 'rest-photo-blend').props.style).top).toBe(52 + 12 + 64 + 12);
   });
 
   it('no photo (none, or not loaded yet): no card and no blend; the text starts 24 under the top bar', () => {
@@ -116,7 +118,11 @@ describe('PhoneRest (T-146 fit)', () => {
     expect(hosts(tree, 'rest-photo')).toHaveLength(0);
     expect(hosts(tree, 'rest-photo-blend')).toHaveLength(0);
     expect(digits(tree).fontSize).toBe(72);
-    // top bar = 0 + 8 + 44; the column = 24 below it.
-    expect(StyleSheet.flatten(host(tree, 'rest-column').props.style).top).toBe(52 + 24);
+    // DECLARED R3 (rev 38 B, PM-approved): the zone starts at the top bar (52) with a 24 top padding; the group is centred
+    // when the zone holds it + 48 (was: top 52 + 24, no centring).
+    const column = StyleSheet.flatten(host(tree, 'rest-column').props.style);
+    expect(column).toMatchObject({ top: 52, paddingTop: 24, justifyContent: 'center' });
+    layout(host(tree, 'rest-text'), 400);
+    expect(StyleSheet.flatten(host(tree, 'rest-column').props.style).justifyContent).toBe('flex-start');
   });
 });

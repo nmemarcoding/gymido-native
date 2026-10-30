@@ -232,6 +232,17 @@ describe('Rest, phone (UX F2 Rest board)', () => {
     expect(fill.transformOrigin).toBe('bottom');
   });
 
+  // Web 2.3.0 bug (PM 30 Oct): the chevron was covered. Native draws it LAST, so no layer sits over it, and it minimises.
+  it('the minimise chevron is the Rest\'s last child (nothing over it) and minimises', () => {
+    const onMinimize = jest.fn();
+    const tree = renderTree({ minimized: false, hero: HERO_NEXT, onMinimize });
+    const root = host(tree, 'rest-timer');
+    const children = root.children.filter((child) => typeof child !== 'string');
+    expect(children[children.length - 1].props.testID).toBe('rest-minimise-row');
+    act(() => tree.root.findAll((n) => n.props.testID === 'rest-timer-minimize' && n.props.onPress)[0].props.onPress());
+    expect(onMinimize).toHaveBeenCalledTimes(1);
+  });
+
   it('renders nothing without a rest', () => {
     const tree = renderTree({ timer: null, minimized: false });
     expect(tree.toJSON()).toBeNull();
