@@ -413,7 +413,8 @@ function PlanDetail() {
   const topBar = (
     <View style={styles.topBar}>
       <BackToPlans tablet={tablet} onPress={goBack} />
-      {isCurrentPlan ? <StatusPill testID="plan-detail-current" label="Current plan" tone={tablet ? 'active' : 'gold'} /> : null}
+      {/* T-91 UX (29 Oct): teal at every width, as web (the phone was gold). */}
+      {isCurrentPlan ? <StatusPill testID="plan-detail-current" label="Current plan" tone="active" /> : null}
     </View>
   );
 

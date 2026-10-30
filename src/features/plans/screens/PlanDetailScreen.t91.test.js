@@ -131,6 +131,17 @@ describe('T-91 the ⋯ (§1)', () => {
   });
 });
 
+// T-91 UX (29 Oct): the phone "Current plan" pill is teal, as iPad/web.
+describe('T-91 the phone Current plan pill', () => {
+  it('phone: teal (tealTint fill, teal text), the tablet tokens', async () => {
+    const root = await render();
+    const pill = host(root, 'plan-detail-current');
+    expect(StyleSheet.flatten(pill.props.style).backgroundColor).toBe(colors.tealTint);
+    const label = pill.findAll((node) => node.type === 'Text' && textOf(node) === 'Current plan')[0];
+    expect(StyleSheet.flatten(label.props.style).color).toBe(colors.teal);
+  });
+});
+
 describe('T-91 the menu and the confirm (§1–§2)', () => {
   it('the menu: "Plan actions", one danger menuitem "End plan" (no trash), a footer Cancel that returns focus to the ⋯', async () => {
     const root = await render();

@@ -212,14 +212,15 @@ describe('Plan detail states', () => {
 });
 
 describe('Plan detail (phone), the current plan', () => {
-  it('back pill → Plans; the gold "Current plan" pill; summary, stats and the × / week pill', async () => {
+  it('back pill → Plans; the teal "Current plan" pill; summary, stats and the × / week pill', async () => {
     const tree = await render();
     await act(async () => pressable(tree, 'plan-detail-back').props.onPress());
     // DECLARED (T-65, PHONE-NAV spec §3 / §5): was push('PlansLibrary'). The pill goes back in history (else replaces to Plans).
     expect(mockNavigation.goBack).toHaveBeenCalled();
     expect(mockNavigation.push).not.toHaveBeenCalledWith('PlansLibrary');
     const pill = tree.root.findAllByType(StatusPill).find((node) => node.props.testID === 'plan-detail-current');
-    expect([pill.props.label, pill.props.tone]).toEqual(['Current plan', 'gold']);
+    // DECLARED (T-91 UX, PM OK 29 Oct): teal at every width, as web. Was: 'gold'.
+    expect([pill.props.label, pill.props.tone]).toEqual(['Current plan', 'active']);
     expect(texts(tree)).toEqual(expect.arrayContaining(['Strength', 'Upper / Lower Split', 'Four days a week.', '3', 'Days', '6', 'Exercises', 'Intermediate', 'Level', '3× / week']));
     expect(flat(host(tree, 'plan-stat-days'))).toEqual(expect.objectContaining({ borderRadius: radii.lg, backgroundColor: colors.surface }));
   });
