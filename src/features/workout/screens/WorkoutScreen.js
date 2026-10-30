@@ -291,6 +291,8 @@ function WorkoutPage() {
         // the Today root; goBack under backBehavior "history" could land on
         // another tab.
         headerLeading={<BackPill testID="workout-back-today" label="Today" onPress={() => openShellPath('/')} />}
+        // The header row lines up with the page's centred column (Hub below).
+        contentMaxWidth={pageMaxWidth(width, height)}
       >
         <Hub
           status={status}
@@ -403,6 +405,15 @@ function focus(ref) {
   if (node) {
     AccessibilityInfo.setAccessibilityFocus(node);
   }
+}
+
+// The page's centred column: 600 on a tablet in portrait, 920 at ≥ 1024
+// landscape, none on a phone (ruling §9).
+function pageMaxWidth(width, height) {
+  if (width >= breakpoints.lg && width > height) {
+    return 920;
+  }
+  return width >= breakpoints.md ? 600 : null;
 }
 
 // The confirm opens once the day sheet has slid away (two modals never
