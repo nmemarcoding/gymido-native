@@ -1,10 +1,8 @@
-# Gymido mobile 1.0.2 — release guide (owner)
+# Gymido mobile — release guide (owner)
 
-> Paths assume the repo is cloned at `~/Desktop/coding/gymido-native` and the release checkout lives at `~/gymido-release`. Adjust them to your machine.
+> Paths: the repo is at `~/Desktop/coding/gymido-native`. Android is built in a throwaway worktree, `~/Desktop/coding/gymido-all/worktrees/gymido-native-release-<ver>`; the APK and its `NOTES.md` are kept in `~/Desktop/coding/gymido-all/releases/<ver>/`, and the worktree is removed afterwards. iOS is run from the main checkout.
 
-Build ref: the tag `1.0.2` (it points at the 1.0.2 merge on `main`). Version 1.0.2, iOS build number 3, Android versionCode 3. Build in a separate checkout, so your dev setup (dev client, localtest env) stays untouched.
-
-1.0.2 changes the build numbers in `app.config.js` (native config). Android's `npm run apk` always regenerates `android/`; for iOS, step 3.2 below ALWAYS regenerates `ios/` from the tag.
+Build ref: the release SHA (`<sha>`) on `main`. `<ver>` is `version` in `app.config.js`; `<build>` is its iOS `buildNumber`, equal to the Android `versionCode`. Don't copy the numbers here. Android's `npm run apk` always regenerates `android/`; every iOS release prebuild regenerates `ios/` (`--clean`).
 
 ---
 
@@ -40,30 +38,34 @@ Build ref: the tag `1.0.2` (it points at the 1.0.2 merge on `main`). Version 1.0
 
 ---
 
-## 1. Android: build and install the APK (one command)
-
-Do this once, to make the release checkout:
+## 1. Android: build the APK
 
 ```sh
-cd ~/Desktop/coding/gymido-native && git fetch --tags && git worktree add --detach ~/gymido-release 1.0.2
-```
-
-Then, for each build:
-
-```sh
-cd ~/gymido-release && git fetch --tags && git checkout --detach 1.0.2 && npm ci && npm run apk -- --install
+cd ~/Desktop/coding/gymido-native && git fetch && \
+  git worktree add --detach ~/Desktop/coding/gymido-all/worktrees/gymido-native-release-<ver> <sha>
+cd ~/Desktop/coding/gymido-all/worktrees/gymido-native-release-<ver> && npm ci && npm run apk
 ```
 
 What `npm run apk` does:
-- picks JDK 17 and the Android SDK by itself;
+- picks JDK 17 (`/usr/libexec/java_home -v 17`) and the Android SDK by itself. The machine's default JDK 25 fails in CMake, so a raw Gradle `assembleRelease` needs `JAVA_HOME=$(/usr/libexec/java_home -v 17)`;
 - writes `.env.production` from the public values if it's missing;
 - always regenerates `android/` for production, so a dev prebuild never leaks into a release;
 - signs the build (see §0);
-- copies the APK to `~/gymido-release/builds/gymido-release-<date>.apk`.
+- copies the APK to the worktree's `builds/gymido-release-<date>.apk`.
 
-`--install` installs it on the phone connected by USB (USB debugging on), or on a running emulator if no phone is connected.
+Then, by hand:
+1. Keep the APK and write its notes:
+   ```sh
+   mkdir -p ~/Desktop/coding/gymido-all/releases/<ver>
+   cp builds/gymido-release-<date>.apk ~/Desktop/coding/gymido-all/releases/<ver>/gymido-<ver>-<build>.apk
+   ```
+   `releases/<ver>/NOTES.md` records the release SHA, the changes, known issues, the APK's sha256 and the checks done.
+2. Remove the worktree (build output is several GB):
+   `cd ~/Desktop/coding/gymido-native && git worktree remove ~/Desktop/coding/gymido-all/worktrees/gymido-native-release-<ver>`
 
-If a **dev build** of Gymido is on the phone, the signatures differ and the install is refused. The script says so and gives the command: `adb uninstall com.gymido.app`. Uninstalling clears the app's sign-in.
+Install: `adb install -r ~/Desktop/coding/gymido-all/releases/<ver>/gymido-<ver>-<build>.apk` on the phone connected by USB (USB debugging on), or on a running emulator. (`npm run apk -- --install` in the worktree builds and installs in one go.) A newer release signed with the same key updates in place and keeps the sign-in.
+
+If a **dev build** of Gymido is on the phone, the signatures differ and the install is refused: `adb uninstall com.gymido.app` first. Uninstalling clears the app's sign-in.
 
 > **Local-test Release builds** (APP_ENV `localtest-*`, used for QA on the test stack) allow plain HTTP to reach the
 > local test API (`withLocalTestCleartext`). Never share or install a localtest APK outside the test stack; store builds
@@ -71,9 +73,8 @@ If a **dev build** of Gymido is on the phone, the signatures differ and the inst
 
 ## 2. (reference) Check the APK
 
-- Signer: `~/Library/Android/sdk/build-tools/36.0.0/apksigner verify --print-certs ~/gymido-release/builds/<file>.apk`. Internal builds show `CN=Android Debug`; with your upload key it shows your name.
-- Install by hand: `adb install -r ~/gymido-release/builds/<file>.apk`
-- **Version check (1.0.2):** `~/Library/Android/sdk/build-tools/36.0.0/aapt2 dump badging ~/gymido-release/builds/<file>.apk | grep versionCode` must show `versionCode='3'` and `versionName='1.0.2'`. Use your installed build-tools version in the path (list them with `ls ~/Library/Android/sdk/build-tools`). On the phone after installing: `adb shell dumpsys package com.gymido.app | grep -E 'versionCode|versionName'`.
+- Signer: `~/Library/Android/sdk/build-tools/36.0.0/apksigner verify --print-certs <apk>`. Internal builds show `CN=Android Debug`; with your upload key it shows your name.
+- **Version check:** `~/Library/Android/sdk/build-tools/36.0.0/aapt2 dump badging <apk> | grep versionCode` must match `version` / `versionCode` in `app.config.js`. Use your installed build-tools version in the path (`ls ~/Library/Android/sdk/build-tools`). On the phone after installing: `adb shell dumpsys package com.gymido.app | grep -E 'versionCode|versionName'`.
 
 ## 3. iOS: install on your iPhone (free Apple ID team)
 
@@ -81,96 +82,47 @@ Bundle IDs your personal team will register:
 - the app: **`com.gymido.app`**;
 - the Live Activity extension: **`com.gymido.app.RestCountdown`**.
 
-**What decides "release":** the Xcode **build configuration**. A Release-configuration build never shows the Expo dev launcher. Xcode's **Run** action uses **Debug** unless you change it, and Debug always opens the "Development servers" screen.
+**What decides "release":** the Xcode **build configuration**. A Release-configuration build never shows the Expo dev launcher. Debug always opens the "Development servers" screen.
 
-### Steps
+### Mobile prepares (every release)
 
-1. **Delete the old app from the iPhone** (long-press Gymido → Remove App). The dev build uses the same bundle ID.
-2. **ALWAYS regenerate the iOS project from the tag**, even if `~/gymido-release/ios` exists: an `ios/` left from 1.0.0 still says Version 1.0.0 / Build 1.
-   ```sh
-   cd ~/gymido-release && git fetch --tags && git checkout --detach 1.0.2 && npm ci && APP_ENV=production npx expo prebuild --clean
-   ```
-   `prebuild --clean` resets the Xcode project, so steps 4 and 5 (Team on both targets, Run = Release) must be redone every time.
-3. Open **ONLY** this workspace: `open ~/gymido-release/ios/Gymido.xcworkspace`
-   - **Not** `gymido-native/ios`: that's the dev project.
-4. Set your signing team:
+`~/Desktop/coding/gymido-native` is the release checkout (dev work happens in worktrees):
+1. Fast-forward it on `main` to `<sha>`; `npm ci` if the lockfile changed.
+2. `APP_ENV=production npx expo prebuild --platform ios --clean`.
+3. Set the Gymido scheme's **Run** action to **Release**: `prebuild --clean` resets it to Debug.
+4. Check that Info.plist shows `<ver>` (`<build>`).
+
+### Owner steps
+
+1. **Delete an old dev build from the iPhone** (long-press Gymido → Remove App). The dev build uses the same bundle ID. A newer release over an older one installs in place and keeps the sign-in.
+2. Open `~/Desktop/coding/gymido-native/ios/Gymido.xcworkspace`.
+3. Set your signing team:
    1. In the left sidebar, select the **Gymido** project.
    2. Select the **Gymido** target → **Signing & Capabilities** → set **Team** to your personal team.
    3. Do the same for the **RestCountdownWidget** target.
-5. Set Release for Run:
-   1. Open **Product → Scheme → Edit Scheme…**
-   2. Choose **Run** (left) → **Info** tab → set **Build Configuration** to **Release**.
-   3. Click **Close**.
-6. **Version check:** select the **Gymido** target → **General** → **Identity**: **Version 1.0.2**, **Build 3**. Anything else means step 2 didn't run on the tag; redo it.
-7. Pick your iPhone as the run destination (top bar), then **Product → Run (⌘R)**.
+4. Check **Product → Scheme → Edit Scheme… → Run → Info**: **Build Configuration** is **Release**.
+5. **Version check:** **Gymido** target → **General** → **Identity** shows `<ver>` and `<build>`.
+6. Pick your iPhone as the run destination (top bar), then **Product → Run (⌘R)**.
    - The first time, the iPhone may ask you to trust the developer: Settings → General → VPN & Device Management → your Apple ID → Trust.
 
 **Check:**
 - **Correct:** the app opens straight to the Gymido "Log in / Sign up" card.
-- **Wrong (still a Debug build):** a "Development servers" screen or a grey Tools gear. Redo step 5.
+- **Wrong (still a Debug build):** a "Development servers" screen or a grey Tools gear. Redo step 4.
 
 ### Terminal alternative (same result)
 
-After step 2 (the prebuild from the tag):
-
 ```sh
-cd ~/gymido-release && APP_ENV=production npx expo run:ios --device --configuration Release
+cd ~/Desktop/coding/gymido-native && APP_ENV=production npx expo run:ios --device --configuration Release
 ```
 
 ### Notes
 - With a free Apple ID, the app **expires after 7 days**. Rebuild with the same steps to reinstall; your data stays on the server.
-- This build talks to the **production** API, so sign in with your real account.
+- Release builds talk to the **production** API (`https://workoutapi.nimamemarzadeh.com`), so sign in with your real account.
+- **Siri "Announce Notifications" for the rest alert (locked phone, AirPods/CarPlay)** needs a **paid** Apple Developer account: free (personal) teams can't sign the Time Sensitive capability. With a paid team, prebuild with `GYMIDO_IOS_TIME_SENSITIVE=1 APP_ENV=production npx expo prebuild --platform ios --clean`. The spoken cue while the app is open works on any team.
 
-## Updating an installed release build to a newer commit
+## 4. Per-release verification
 
-Use this when only app code changed (no new packages or native config). Reuse `~/gymido-release`:
-
-```sh
-cd ~/gymido-release && git fetch --tags && git checkout --detach 1.0.2 && git log --oneline -1
-```
-
-- **iOS:** same workspace and scheme (Run = Release), then ⌘R with the iPhone selected. It installs over the old build and keeps your sign-in. Terminal alternative:
-  `cd ~/gymido-release && APP_ENV=production npx expo run:ios --device --configuration Release`
-- **Android:** `cd ~/gymido-release && npm run apk -- --install`. It's signed with the same key as before, so it updates in place.
-
-### When the update adds native code (a new package or config plugin)
-
-Example: `2413e95`, spoken rest alerts (`expo-speech`).
-
-```sh
-cd ~/gymido-release && git fetch --tags && git checkout --detach 1.0.2 && npm ci && APP_ENV=production npx expo prebuild --clean
-```
-
-- **iOS:** `prebuild --clean` regenerates the Xcode project, so redo these steps:
-  1. Open `~/gymido-release/ios/Gymido.xcworkspace`.
-  2. Set **Team** on **both** targets, **Gymido** and **RestCountdownWidget** (Signing & Capabilities).
-  3. Product → Scheme → Edit Scheme… → Run → **Release**.
-  4. Press ⌘R.
-- **Android:** `npm run apk -- --install` (it always regenerates `android/`).
-
-**Siri "Announce Notifications" for the rest alert (locked phone, AirPods/CarPlay)** needs a **paid** Apple Developer account: free (personal) teams can't sign the Time Sensitive capability. With a paid team, prebuild with `GYMIDO_IOS_TIME_SENSITIVE=1 APP_ENV=production npx expo prebuild --clean`.
-
-The spoken cue while the app is open works on any team.
-
-## 4. What was verified (23 Oct 2026, on a clean copy of `3d546cd`)
-
-**Android:**
-- `assembleRelease` with JDK 17 and `APP_ENV=production`:
-  - **without** a key, it fails with the message above (fail closed);
-  - **with** a key, it produces a signed APK.
-- The APK's permissions are exactly: INTERNET, ACCESS_NETWORK_STATE, POST_NOTIFICATIONS, SCHEDULE_EXACT_ALARM, VIBRATE, WAKE_LOCK, MODIFY_AUDIO_SETTINGS.
-- `allowBackup=false`, and cleartext traffic is off.
-
-**iOS:**
-- `xcodebuild -configuration Release -sdk iphoneos` (unsigned) passes.
-- The Info.plist has strict ATS only: no background modes, no local-network keys, no push entitlement.
-- The Live Activity extension is embedded, and the JS bundle is built into the app (no Metro).
-
-**Not verified by me:** signing and installing on your own iPhone. That needs your Apple ID and device. The command is the standard Expo one, and the extension-team fallback is listed above.
-
-**Before installing:**
-- The build talks to the **production** API (`https://workoutapi.nimamemarzadeh.com`), so sign in with your real account.
-- Clean up afterwards with `git worktree remove ~/gymido-release` from the main repo. Build output is several GB, and the disk was nearly full today.
+Each release's checks (manifest, permissions, signing, smoke launch) are recorded in `releases/<ver>/NOTES.md`. What they check: release builds carry no dev-server keys, only the Android permissions `app.config.js` allows, `allowBackup=false`, no cleartext traffic, the JS bundle embedded (no Metro) and no push entitlement.
 
 ## Testing rest alerts on your phone
 
