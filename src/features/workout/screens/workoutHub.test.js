@@ -429,7 +429,7 @@ describe('state 2: rest day', () => {
     expect(startWorkout).toHaveBeenCalledWith({ user_plan_enrollment_id: 31, workout_plan_day_id: 4 });
     expect(texts(host(tree.root, 'workout-other-days'))).toEqual(expect.arrayContaining(['Train anyway?', 'Tap a day to start it now.']));
     expect(hosts(tree.root, 'workout-day-start-3')).toHaveLength(0);
-    expect(dayButtons(tree.root).map((row) => row.props.accessibilityLabel)).toEqual(['Repeat Upper A', 'Repeat Lower A', 'Start Lower B, upcoming Saturday']);
+    expect(dayButtons(tree.root).map((row) => row.props.accessibilityLabel)).toEqual(['Repeat Upper A', 'Repeat Lower A', 'Start Lower B, upcoming, Saturday']);
     expect(host(tree.root, 'workout-week-day-4').props.accessibilityLabel).toBe('Thu: today, rest');
   });
 

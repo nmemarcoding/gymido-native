@@ -35,7 +35,7 @@ export async function updateSessionSet(sessionId, exerciseId, setId, body) {
 
 export async function completeWorkout(sessionId) {
   const result = data(await apiClient.post(`/workouts/${sessionId}/complete`));
-  signalReminders('workoutFinished');
+  signalReminders('workoutFinished', result?.session ?? null);
   return result;
 }
 

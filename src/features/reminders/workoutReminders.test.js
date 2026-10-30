@@ -46,6 +46,7 @@ function start({ permission = 'granted', canAskAgain = false, ready = true } = {
     requestPermission: jest.fn(async () => 'granted'),
     openNotificationSettings: jest.fn(),
     dismiss: jest.fn(async () => {}),
+    deleteChannel: jest.fn(),
   };
   const navigation = { isReady: jest.fn(() => ready), addListener: jest.fn((_event, listener) => {
       stateListeners.push(listener);
@@ -77,10 +78,12 @@ beforeEach(() => {
 });
 
 describe('T-103 startWorkoutReminders', () => {
-  test('once only; creates the Android channel; syncs once the setting has loaded', async () => {
+  // DECLARED (review L3): was "creates the Android channel" at startup; the
+  // channel now comes with a member's first scheduled reminder (the sync).
+  test('once only; no channel at startup; syncs once the setting has loaded', async () => {
     const { controller } = start();
     expect(start().controller).toBe(controller);
-    expect(initReminderChannel).toHaveBeenCalledTimes(1);
+    expect(initReminderChannel).not.toHaveBeenCalled();
     await flush();
     expect(mockSync.sync).toHaveBeenCalledTimes(1);
   });
@@ -217,9 +220,11 @@ describe('T-103 tap → Today (UX ruling §5)', () => {
 });
 
 describe('T-103 permission (UX ruling §3 + §4)', () => {
-  test('Today\'s training day asks through the T-50 asked-once rule, then reschedules; never for a trainer', async () => {
+  // DECLARED (review N1): was "asks … then reschedules" with a granted
+  // permission; a settled permission now does nothing (no ask, no resync).
+  test('Today\'s training day, permission not asked yet: asks through the T-50 asked-once rule, then reschedules; never for a trainer', async () => {
     useAuthStore.setState({ status: AuthStatus.signedIn, user: MEMBER });
-    const { platform } = start();
+    const { platform } = start({ permission: 'undetermined' });
     await flush();
     mockSync.sync.mockClear();
     await askReminderPermissionOnTrainingDay();
@@ -229,6 +234,39 @@ describe('T-103 permission (UX ruling §3 + §4)', () => {
     useAuthStore.setState({ user: TRAINER });
     await askReminderPermissionOnTrainingDay();
     expect(requestPermissionAtWorkoutStart).toHaveBeenCalledTimes(1);
+  });
+
+  test.each(['granted', 'denied'])('Today\'s training day, permission already %s: no ask, no resync (review N1)', async (permission) => {
+    useAuthStore.setState({ status: AuthStatus.signedIn, user: MEMBER });
+    start({ permission });
+    await flush();
+    mockSync.sync.mockClear();
+    await askReminderPermissionOnTrainingDay();
+    expect(requestPermissionAtWorkoutStart).not.toHaveBeenCalled();
+    expect(mockSync.sync).not.toHaveBeenCalled();
+  });
+
+  test('a trainer account removes the reminders channel once (review L3)', async () => {
+    const { platform } = start();
+    useAuthStore.setState({ status: AuthStatus.signedIn, user: TRAINER });
+    expect(await mockAllowed()).toBe(false);
+    expect(await mockAllowed()).toBe(false);
+    expect(platform.deleteChannel).toHaveBeenCalledTimes(1);
+    useAuthStore.setState({ user: MEMBER });
+    await mockAllowed();
+    expect(platform.deleteChannel).toHaveBeenCalledTimes(1);
+  });
+
+  test('a finished workout\'s session is handed to the sync (review L4)', async () => {
+    const { createReminderSync } = require('./reminderSync');
+    start();
+    await flush();
+    const { localCompleted } = createReminderSync.mock.calls.at(-1)[0];
+    expect(localCompleted()).toEqual([]);
+    signalReminders('workoutFinished', { id: 9, workout_plan_day_id: 12, started_at: '2026-10-29T15:00:00Z' });
+    signalReminders('workoutFinished', null);
+    expect(localCompleted()).toEqual([{ id: 9, workout_plan_day_id: 12, started_at: '2026-10-29T15:00:00Z' }]);
+    expect(mockSync.sync).toHaveBeenCalled();
   });
 
   test('before the controller starts, the screens\' calls are no-ops', async () => {

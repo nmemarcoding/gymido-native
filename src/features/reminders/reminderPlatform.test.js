@@ -1,11 +1,12 @@
 import * as Notifications from 'expo-notifications';
 
 import restAlertPlatform from '../workout/runtime/restAlertPlatform';
-import { addReminderTapListener, initReminderChannel, lastReminderTap, reminderPlatform } from './reminderPlatform';
+import { addReminderTapListener, deleteReminderChannel, initReminderChannel, lastReminderTap, reminderPlatform } from './reminderPlatform';
 
 jest.mock('expo-notifications', () => ({
   AndroidImportance: { DEFAULT: 3, HIGH: 4 },
   setNotificationChannelAsync: jest.fn(() => Promise.resolve()),
+  deleteNotificationChannelAsync: jest.fn(() => Promise.resolve()),
   getPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'denied', canAskAgain: true })),
   addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
   getLastNotificationResponseAsync: jest.fn(() => Promise.resolve(null)),
@@ -25,6 +26,13 @@ describe('T-103 reminder platform', () => {
       importance: 3,
       showBadge: false,
     });
+  });
+
+  test('deleteReminderChannel: Android removes the channel (trainer accounts, review L3); iOS does nothing', () => {
+    deleteReminderChannel('ios');
+    expect(Notifications.deleteNotificationChannelAsync).not.toHaveBeenCalled();
+    deleteReminderChannel('android');
+    expect(Notifications.deleteNotificationChannelAsync).toHaveBeenCalledWith('workout-reminders');
   });
 
   test('iOS: no channel', () => {

@@ -169,7 +169,7 @@ describe('T-116 "Train anyway?" = this week only, in week order', () => {
   it('2 missed + 1 done + tomorrow + upcoming: Mon → Sun; each meta "{Status} · {Weekday} · n exercises"; today not listed', async () => {
     const week = restWeek(MISSED_MON, MISSED_TUE, DONE_WED, UPCOMING_FRI);
     const tree = await renderScreen(restDay(week));
-    expect(labels(tree)).toEqual(['Start Upper A, missed Monday', 'Start Lower A, missed Tuesday', 'Repeat Lower B', 'Start Upper B, tomorrow, Friday', 'Start Lower B, upcoming Saturday']);
+    expect(labels(tree)).toEqual(['Start Upper A, missed Monday', 'Start Lower A, missed Tuesday', 'Repeat Lower B', 'Start Upper B, tomorrow, Friday', 'Start Lower B, upcoming, Saturday']);
     expect(texts(host(tree.root, 'workout-other-days'))).toEqual(
       expect.arrayContaining([m('Missed · Monday · 5 exercises'), m('Missed · Tuesday · 5 exercises'), m('Wednesday · 5 exercises'), m('Tomorrow · Friday · 6 exercises'), m('Upcoming · Saturday · 5 exercises')])
     );
@@ -201,7 +201,7 @@ describe('T-116 "Train anyway?" = this week only, in week order', () => {
   it('a plan day on two weekdays gets one row per slot; a plan day with no slot this week is not listed', async () => {
     const week = restWeek(MISSED_MON, item(5, '2026-10-30', 'upcoming', DAYS[0]));
     const tree = await renderScreen(restDay(week));
-    expect(labels(tree)).toEqual(['Start Upper A, missed Monday', 'Repeat Lower A', 'Start Upper A, tomorrow, Friday', 'Start Lower B, upcoming Saturday']);
+    expect(labels(tree)).toEqual(['Start Upper A, missed Monday', 'Repeat Lower A', 'Start Upper A, tomorrow, Friday', 'Start Lower B, upcoming, Saturday']);
     expect(labels(tree).some((label) => /Upper B/.test(label))).toBe(false);
   });
 

@@ -247,7 +247,7 @@ describe('T-113 rest day + open misses: the Rest hero + ONE Catch-up row', () =>
     expect(confirmDialog(tree).props).toMatchObject({ title: 'Catch up on Lower A?', description: 'You missed it on Tuesday. Today is a rest day. This starts a live workout.' });
     await act(async () => confirmDialog(tree).props.onClose());
     const rows = dayButtons(tree.root);
-    expect(rows.map((row) => row.props.accessibilityLabel)).toEqual(['Start Upper A, missed Monday', 'Start Lower A, missed Tuesday', 'Start Lower B, upcoming Saturday']);
+    expect(rows.map((row) => row.props.accessibilityLabel)).toEqual(['Start Upper A, missed Monday', 'Start Lower A, missed Tuesday', 'Start Lower B, upcoming, Saturday']);
     expect(texts(tree.root)).toEqual(expect.arrayContaining([m('Missed · Monday · 5 exercises'), m('Missed · Tuesday · 5 exercises')]));
     await act(async () => rows[0].props.onPress());
     expect(confirmDialog(tree).props).toMatchObject({ title: 'Catch up on Upper A?', description: 'You missed it on Monday. Today is a rest day. This starts a live workout.' });

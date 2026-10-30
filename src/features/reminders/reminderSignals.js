@@ -12,10 +12,12 @@ export function onReminderSignal(listener) {
   return () => listeners.delete(listener);
 }
 
-export function signalReminders(signal) {
+// `payload`: 'workoutFinished' carries the completed session when the
+// response has one.
+export function signalReminders(signal, payload) {
   for (const listener of [...listeners]) {
     try {
-      listener(signal);
+      listener(signal, payload);
     } catch {
       // A listener's failure never breaks the API call that signalled.
     }

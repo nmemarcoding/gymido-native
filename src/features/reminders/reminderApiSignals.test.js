@@ -41,7 +41,11 @@ test('myPlansApi.startPlan → planChanged, still returns the enrollment', async
 
 test('workoutApi.completeWorkout → workoutFinished', async () => {
   await expect(completeWorkout(5)).resolves.toEqual({ enrollment: { id: 1 }, ok: true });
-  expect(signalReminders.mock.calls).toEqual([['workoutFinished']]);
+  // DECLARED (review L4): the signal now carries the response's session (none here → null).
+  expect(signalReminders.mock.calls).toEqual([['workoutFinished', null]]);
+  apiClient.post.mockImplementationOnce(() => ok({ session: { id: 5, workout_plan_day_id: 12, started_at: 'x' } }));
+  await completeWorkout(5);
+  expect(signalReminders.mock.calls[1]).toEqual(['workoutFinished', { id: 5, workout_plan_day_id: 12, started_at: 'x' }]);
 });
 
 test('a failed call signals nothing', async () => {

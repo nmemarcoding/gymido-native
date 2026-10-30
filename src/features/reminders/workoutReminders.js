@@ -5,7 +5,7 @@ import { isTrainerUser } from '../shell/shellRules';
 import { openShellPath, shellNavigation } from '../shell/shellLinks';
 import { requestPermissionAtWorkoutStart } from '../workout/runtime/restAlerts';
 import { isReminder } from './reminderPlan';
-import { addReminderTapListener, initReminderChannel, lastReminderTap, reminderApi, reminderPlatform } from './reminderPlatform';
+import { addReminderTapListener, lastReminderTap, reminderApi, reminderPlatform } from './reminderPlatform';
 import { onReminderSignal, registerReminderActions } from './reminderSignals';
 import { createReminderSync } from './reminderSync';
 import { isWorkoutRemindersOn, loadWorkoutReminders, setReminderPermission, useWorkoutReminders } from './workoutReminderSetting';
@@ -35,10 +35,16 @@ export function startWorkoutReminders({
   if (controller) {
     return controller;
   }
-  initReminderChannel();
+  let channelRemoved = false;
   const allowed = async () => {
     if (AUTH_PENDING.has(useAuthStore.getState().status)) {
       return null;
+    }
+    const state = useAuthStore.getState();
+    // Review L3: a trainer account never keeps the reminders channel.
+    if (state.status === AuthStatus.signedIn && isTrainerUser(state.user) && !channelRemoved) {
+      channelRemoved = true;
+      platform.deleteChannel?.();
     }
     if (!isSignedInMember() || !isWorkoutRemindersOn()) {
       return false;
@@ -47,7 +53,11 @@ export function startWorkoutReminders({
     setReminderPermission(permission);
     return permission === 'granted';
   };
-  const sync = createReminderSync({ platform, api, allowed });
+  // Review L4: today's completions from this app (the complete response's
+  // session), kept for the process; the sync counts them even when its
+  // workouts read fails right after the finish.
+  const finishedHere = [];
+  const sync = createReminderSync({ platform, api, allowed, localCompleted: () => finishedHere });
   const resync = () => sync.sync().catch(() => {});
 
   // UX ruling §5: Today's root, after sign-in when signed out; dropped for a
@@ -101,7 +111,10 @@ export function startWorkoutReminders({
       resync();
     }
   });
-  const unsubscribeSignals = onReminderSignal((signal) => {
+  const unsubscribeSignals = onReminderSignal((signal, payload) => {
+    if (signal === 'workoutFinished' && payload?.started_at) {
+      finishedHere.push(payload);
+    }
     if (signal === 'workoutFinished' || signal === 'planChanged') {
       resync();
     }
@@ -132,6 +145,12 @@ export function startWorkoutReminders({
     // workout start, whichever comes first). Never for a trainer account.
     async askOnTrainingDay(platformOverride = platform) {
       if (!isSignedInMember()) {
+        return;
+      }
+      // Review N1: a settled permission (asked before, granted or denied)
+      // means nothing changes here, so no resync on every Today visit.
+      const before = await platformOverride.getPermission().catch(() => 'denied');
+      if (before !== 'undetermined') {
         return;
       }
       await requestPermissionAtWorkoutStart(platformOverride);

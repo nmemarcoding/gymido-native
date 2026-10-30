@@ -11,13 +11,14 @@ const reminder = (date, slot) => ({ identifier: `gymido.reminder.${date}.${slot}
 const REST = { identifier: 'gymido-rest-end', content: { data: { kind: 'restEnd', source: 'scheduled' } } };
 const shown = (item, date = 0) => ({ date, request: item });
 
-function setup({ allowed = true, plan = PLAN, completed = [], pending = [], presented = [], planError = null } = {}) {
+function setup({ allowed = true, plan = PLAN, completed = [], pending = [], presented = [], planError = null, local = [] } = {}) {
   const platform = {
     getScheduled: jest.fn(async () => pending),
     getPresented: jest.fn(async () => presented),
     cancelScheduled: jest.fn(async () => {}),
     dismiss: jest.fn(async () => {}),
     schedule: jest.fn(async () => 'id'),
+    ensureChannel: jest.fn(async () => {}),
   };
   const api = {
     getCurrentPlan: jest.fn(async () => {
@@ -28,7 +29,7 @@ function setup({ allowed = true, plan = PLAN, completed = [], pending = [], pres
     }),
     listCompletedWorkouts: jest.fn(async () => completed),
   };
-  const sync = createReminderSync({ platform, api, allowed: jest.fn(async () => allowed), now: () => NOW });
+  const sync = createReminderSync({ platform, api, allowed: jest.fn(async () => allowed), localCompleted: () => local, now: () => NOW });
   return { platform, api, sync };
 }
 
@@ -135,6 +136,31 @@ describe('T-103 reminder sync', () => {
     expect(platform.cancelScheduled).not.toHaveBeenCalled();
     expect(platform.dismiss).not.toHaveBeenCalled();
     expect(platform.schedule).not.toHaveBeenCalled();
+  });
+
+  test('the Android channel is ensured before the first schedule, and only when something is scheduled (review L3)', async () => {
+    const { platform, sync } = setup();
+    await sync.sync();
+    expect(platform.ensureChannel).toHaveBeenCalledTimes(1);
+    expect(platform.ensureChannel.mock.invocationCallOrder[0]).toBeLessThan(platform.schedule.mock.invocationCallOrder[0]);
+    const empty = setup({ planError: { response: { status: 404 } } });
+    await empty.sync.sync();
+    expect(empty.platform.ensureChannel).not.toHaveBeenCalled();
+  });
+
+  test('today\'s workout finished in this app counts even when the workouts read fails (review L4)', async () => {
+    const finished = { id: 77, workout_plan_day_id: 12, started_at: new Date(2026, 9, 29, 6).toISOString() };
+    const { api, sync } = setup({ local: [finished], presented: [shown(reminder('2026-10-29', 'morning'), 1)] });
+    api.listCompletedWorkouts.mockRejectedValue(new Error('500'));
+    const requests = await sync.sync();
+    expect(requests.some((request) => request.content.data.date === '2026-10-29')).toBe(false);
+  });
+
+  test('a local completion the read already has is not counted twice; a catch-up stays a catch-up (review L4)', async () => {
+    const finished = { id: 77, workout_plan_day_id: 99, started_at: new Date(2026, 9, 29, 6).toISOString() };
+    const { sync } = setup({ local: [finished], completed: [finished] });
+    const requests = await sync.sync();
+    expect(requests[0].identifier).toBe('gymido.reminder.2026-10-29.morning');
   });
 
   test('clearAll: every reminder, pending and shown; the rest alert stays', async () => {

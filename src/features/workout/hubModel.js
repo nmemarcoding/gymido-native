@@ -382,7 +382,8 @@ export function restWeekRows({ week, planDays = [], completed = [], now = new Da
       {
         ...row,
         meta: `${tomorrow ? 'Tomorrow' : 'Upcoming'} · ${weekday} · ${count}`,
-        action: tomorrow ? `Start ${title}, tomorrow, ${weekday}` : `Start ${title}, upcoming ${weekday}`,
+        // Web 2.1.9 (PM 29 Oct 2026): a comma before the weekday, like "tomorrow, {Wd}".
+        action: tomorrow ? `Start ${title}, tomorrow, ${weekday}` : `Start ${title}, upcoming, ${weekday}`,
       },
     ];
   });

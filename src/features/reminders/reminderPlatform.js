@@ -10,9 +10,13 @@ import { REMINDER_CHANNEL_ID } from './reminderSync';
 // OS permission (one permission per app, UX ruling §3).
 // `canAskAgain`: the OS would still show its dialog (Android after one "Don't
 // allow"); false = only the system settings can turn it on.
+// `ensureChannel` / `deleteChannel` (review L3): the Android channel exists
+// only once a member's reminders are scheduled; a trainer account removes it.
 export const reminderPlatform = {
   ...restAlertPlatform,
   canAskAgain: async () => Boolean((await Notifications.getPermissionsAsync()).canAskAgain),
+  ensureChannel: () => initReminderChannel(),
+  deleteChannel: () => deleteReminderChannel(),
 };
 
 export const reminderApi = { getCurrentPlan, listCompletedWorkouts };
@@ -20,14 +24,21 @@ export const reminderApi = { getCurrentPlan, listCompletedWorkouts };
 // UX ruling §2: default sound and vibration; no badge count.
 export function initReminderChannel(os = Platform.OS) {
   if (os !== 'android') {
-    return;
+    return Promise.resolve();
   }
-  Notifications.setNotificationChannelAsync(REMINDER_CHANNEL_ID, {
+  return Notifications.setNotificationChannelAsync(REMINDER_CHANNEL_ID, {
     name: 'Workout reminders',
     description: 'Reminders on your training days',
     importance: Notifications.AndroidImportance.DEFAULT,
     showBadge: false,
   }).catch(() => {});
+}
+
+export function deleteReminderChannel(os = Platform.OS) {
+  if (os !== 'android') {
+    return;
+  }
+  Notifications.deleteNotificationChannelAsync?.(REMINDER_CHANNEL_ID)?.catch?.(() => {});
 }
 
 export function addReminderTapListener(listener) {
