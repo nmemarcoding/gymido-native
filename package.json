@@ -1,6 +1,6 @@
 {
   "name": "gymido-native",
-  "version": "2.0.10",
+  "version": "2.0.11",
   "main": "index.js",
   "private": true,
   "scripts": {
