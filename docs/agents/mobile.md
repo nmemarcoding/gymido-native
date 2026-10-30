@@ -16,11 +16,11 @@ The mobile (React Native) agent's durable notes: how the work runs, the rules it
 - **Approvals:** owner decisions arrive through the PM session. Every block gets a parity pack (simulator/emulator screenshots, both platforms) and frontend's sign-off before commit.
 - **Branches:** `main` is the only long-lived branch (since 29 Oct 2026). Work on a short feature branch off `main`, in its own worktree; never on `main` directly.
 - **Commits:**
-  - Commit only on the owner's go, relayed by the PM. The owner is the sole author; no co-author trailer. Stage only your own paths.
+  - Commit and push your own feature branch freely (author nmemarcoding, own paths only, no co-author trailer).
   - Before a commit: `npm ci`, the full Jest suite through the Jest gate, and `expo export` for Android and iOS.
   - Merges into `main` happen only after review (and UX/QA where they apply) plus the owner's go, relayed by the PM.
 - **Parallel rule:** every client or trainer feature ships on mobile and web together; done means both are signed off.
-- **Shared test stack:** one agent at a time, on the local API only (never production), on simulators and emulators only (never the owner's phone).
+- **Shared test stack:** local API only (never production), simulators and emulators only (never the owner's phone). Several agents may use it at once, each with its own test account; nobody starts, stops or restarts the :8080 API while another agent is using it (the first user starts it, the last stops it, and tells the PM). The Mac device limits apply.
   - Release the slot at safe points, with no flows running.
   - Stop after about two failures and diagnose; no retry loops.
 - **Driving flows:** plain `maestro test` is forbidden. Only `e2e/scripts/maestro-guarded.sh` or the sign-in scripts drive flows; they run `e2e/scripts/apiGuard.js` (local test API only). `maestro hierarchy` is fine.
