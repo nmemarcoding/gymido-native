@@ -1,4 +1,4 @@
-import { Keyboard, PanResponder, StyleSheet } from 'react-native';
+import { Keyboard, PanResponder, ScrollView, StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { abandonWorkout, completeWorkout, updateSessionSet } from '../api/workoutApi';
@@ -586,6 +586,15 @@ describe('v2 F1 live and browsing states (ND3)', () => {
     const { tree } = render({ session: { ...SESSION, exercises: [SESSION.exercises[0]] } });
     expect(inChrome(tree)).toHaveLength(1);
     expect(host(tree, 'exercise-segments')).toBeUndefined();
+  });
+
+  // T-146 rev 40: another exercise in view starts at the top (the Resume banner first).
+  it('viewing another exercise scrolls the page to the top', () => {
+    const { tree } = render();
+    const scroll = tree.root.findAll((node) => node.type === ScrollView && node.props.onScroll)[0];
+    const scrollTo = jest.spyOn(scroll.instance, 'scrollTo').mockImplementation(() => {});
+    act(() => sheet(tree).props.onSelect(1));
+    expect(scrollTo).toHaveBeenCalledWith({ y: 0, animated: false });
   });
 
   it('Up next views the next incomplete exercise', () => {

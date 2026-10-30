@@ -331,6 +331,36 @@ function PhoneRest({ timer, hero, onMinimize, onAdjust, onSkip, window, insets }
   const zoneTop = photoTop + photoHeight;
   const zoneHeight = window.height - zoneTop - zoneBottom;
   const centred = zoneHeight >= group + 2 * REST_ZONE_PAD;
+  // Last resort (T-88, large text): the middle scrolls; the buttons stay pinned.
+  const overflows = zoneHeight < group + REST_ZONE_PAD;
+
+  const middle = (
+    <>
+          <View testID="rest-text" style={styles.restText} onLayout={(event) => setTextHeight(event.nativeEvent.layout.height)}>
+            {next && !loaded ? (
+              <Text {...CAP_BODY} accessibilityRole="header" numberOfLines={2} style={styles.restHeadline}>
+                Go to the next exercise
+              </Text>
+            ) : null}
+            {next ? null : (
+              <Text {...CAP_BODY} testID="rest-eyebrow" style={styles.restEyebrow}>
+                {`${hero?.left ?? 0} ${setsWord(hero?.left ?? 0)} left`}
+              </Text>
+            )}
+            {hero?.name ? (
+              <Text {...CAP_BODY} testID="rest-name" numberOfLines={2} style={styles.restName}>
+                {hero.name}
+              </Text>
+            ) : null}
+          </View>
+          <Countdown
+            seconds={timer.secondsLeft}
+            warn={warn}
+            accessibilityLabel={restTimerLabel(timer.secondsLeft)}
+            style={[styles.restDigits, restDigitsAt(digits)]}
+          />
+    </>
+  );
 
   const onLoad = (source) => {
     const aspect = source?.width > 0 && source?.height > 0 ? source.width / source.height : null;
@@ -376,29 +406,13 @@ function PhoneRest({ timer, hero, onMinimize, onAdjust, onSkip, window, insets }
           { top: zoneTop, bottom: zoneBottom, left: insets.left + layout.gutter, right: insets.right + layout.gutter, justifyContent: centred ? 'center' : 'flex-start' },
         ]}
       >
-        <View testID="rest-text" style={styles.restText} onLayout={(event) => setTextHeight(event.nativeEvent.layout.height)}>
-          {next && !loaded ? (
-            <Text {...CAP_BODY} accessibilityRole="header" numberOfLines={2} style={styles.restHeadline}>
-              Go to the next exercise
-            </Text>
-          ) : null}
-          {next ? null : (
-            <Text {...CAP_BODY} testID="rest-eyebrow" style={styles.restEyebrow}>
-              {`${hero?.left ?? 0} ${setsWord(hero?.left ?? 0)} left`}
-            </Text>
-          )}
-          {hero?.name ? (
-            <Text {...CAP_BODY} testID="rest-name" numberOfLines={2} style={styles.restName}>
-              {hero.name}
-            </Text>
-          ) : null}
-        </View>
-        <Countdown
-          seconds={timer.secondsLeft}
-          warn={warn}
-          accessibilityLabel={restTimerLabel(timer.secondsLeft)}
-          style={[styles.restDigits, restDigitsAt(digits)]}
-        />
+        {overflows ? (
+          <ScrollView testID="rest-middle-scroll" style={styles.restMiddleScroll} contentContainerStyle={styles.restMiddle} bounces={false}>
+            {middle}
+          </ScrollView>
+        ) : (
+          middle
+        )}
       </View>
       <View style={[styles.restBar, { bottom: barBottom, left: insets.left + layout.gutter, right: insets.right + layout.gutter }]}>
         <PillButton testID="rest-timer-minus" title="−5" variant="secondary" accessibilityLabel="Decrease rest timer by 5 seconds" onPress={() => onAdjust(-5)} style={styles.restAdjust} />
@@ -1073,6 +1087,14 @@ const styles = StyleSheet.create({
   },
   restMinimise: {
     position: 'absolute',
+  },
+  restMiddleScroll: {
+    flex: 1,
+    alignSelf: 'stretch',
+  },
+  restMiddle: {
+    alignItems: 'center',
+    gap: 24,
   },
   restColumn: {
     position: 'absolute',

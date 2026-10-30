@@ -1,0 +1,91 @@
+# T-146 parity shots (phone): the live set card (set 1, set 2 with the previous-set pill, the edit state), Rest 1, the
+# red last 5 s, Rest 3 (after an exercise's last set), and the browse states (not started, partly done, all done).
+# Fixture: a throwaway member with an ACTIVE plan that offers a Start today, 3+ exercises of 3 sets, rest times set.
+# Starts signed in (the lead's safe runner). Ends by DISCARDING the session it started. IDs + patterns only, no
+# credentials, no Profile shots. ${SHOT} prefixes every screenshot (e.g. android-411, android-360, ios-17).
+appId: com.gymido.app
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/start-workout.yaml
+- waitForAnimationToEnd: { timeout: 3000 }
+- takeScreenshot: ${SHOT}-01-set1
+# Set 1 → Rest 1 (mid-exercise).
+- runFlow: ../subflows/log-current-set.yaml
+- extendedWaitUntil: { visible: { id: "rest-timer-skip" }, timeout: 10000 }
+- waitForAnimationToEnd: { timeout: 3000 }
+- takeScreenshot: ${SHOT}-02-rest1
+- tapOn: { id: "rest-timer-skip" }
+- extendedWaitUntil: { notVisible: { id: "rest-timer" }, timeout: 5000 }
+- runFlow: ../subflows/dismiss-session-dialogs.yaml
+# Set 2: the previous-set pill; the edit state; Cancel.
+- scrollUntilVisible: { element: { id: "set-previous-.*" }, direction: DOWN, centerElement: true, timeout: 10000 }
+- takeScreenshot: ${SHOT}-03-set2
+- tapOn: { id: "set-previous-.*" }
+- extendedWaitUntil: { visible: { id: "set-cancel-.*" }, timeout: 5000 }
+- takeScreenshot: ${SHOT}-04-edit
+- tapOn: { id: "set-cancel-.*" }
+# Browse a not-started exercise (exercise 3).
+- scrollUntilVisible: { element: { id: "session-all" }, direction: UP, timeout: 10000 }
+- tapOn: { id: "session-all" }
+- extendedWaitUntil: { visible: { id: "exercise-sheet" }, timeout: 10000 }
+- tapOn: { id: "exercise-sheet-card-2" }
+- extendedWaitUntil: { visible: { id: "browsing-bar" }, timeout: 5000 }
+- waitForAnimationToEnd: { timeout: 3000 }
+- takeScreenshot: ${SHOT}-05-browse-not-started
+- tapOn: { id: "browsing-resume" }
+- extendedWaitUntil: { notVisible: { id: "browsing-bar" }, timeout: 5000 }
+# Set 2 → let this rest run into its last 5 s (red), then skip; set 3 → Rest 3.
+- runFlow: ../subflows/log-current-set.yaml
+- extendedWaitUntil: { visible: { id: "rest-timer-skip" }, timeout: 10000 }
+- extendedWaitUntil:
+    visible: { id: "rest-countdown", text: "0:0[2-5]" }
+    timeout: 240000
+- takeScreenshot: ${SHOT}-06-rest-red
+- tapOn: { id: "rest-timer-skip" }
+- extendedWaitUntil: { notVisible: { id: "rest-timer" }, timeout: 5000 }
+- runFlow: ../subflows/dismiss-session-dialogs.yaml
+- runFlow: ../subflows/log-current-set.yaml
+- extendedWaitUntil: { visible: "Go to the next exercise", timeout: 10000 }
+- waitForAnimationToEnd: { timeout: 3000 }
+- takeScreenshot: ${SHOT}-07-rest3
+- tapOn: { id: "rest-timer-skip" }
+- extendedWaitUntil: { notVisible: { id: "rest-timer" }, timeout: 5000 }
+- runFlow: ../subflows/dismiss-session-dialogs.yaml
+- waitForAnimationToEnd: { timeout: 3000 }
+- takeScreenshot: ${SHOT}-08-ex2-set1
+# Exercise 2, set 1 → skip its rest; browse exercise 1 (all done): Locked; its done segment → Undo set k + Cancel.
+- runFlow: ../subflows/log-current-set.yaml
+- extendedWaitUntil: { visible: { id: "rest-timer-skip" }, timeout: 10000 }
+- tapOn: { id: "rest-timer-skip" }
+- extendedWaitUntil: { notVisible: { id: "rest-timer" }, timeout: 5000 }
+- runFlow: ../subflows/dismiss-session-dialogs.yaml
+- scrollUntilVisible: { element: { id: "session-all" }, direction: UP, timeout: 10000 }
+- tapOn: { id: "session-all" }
+- extendedWaitUntil: { visible: { id: "exercise-sheet" }, timeout: 10000 }
+- tapOn: { id: "exercise-sheet-card-0" }
+- extendedWaitUntil: { visible: { id: "browsing-bar" }, timeout: 5000 }
+- waitForAnimationToEnd: { timeout: 3000 }
+- takeScreenshot: ${SHOT}-09-browse-all-done
+- tapOn: { id: "set-segment-.*", index: 0 }
+- extendedWaitUntil: { visible: { id: "set-undo-.*" }, timeout: 5000 }
+- takeScreenshot: ${SHOT}-10-browse-undo
+# Undo it: exercise 1 has an open set again, so it is live; exercise 2 (1 of 3 done) can now be browsed partly done.
+- tapOn: { id: "set-undo-.*", text: "Undo set .*" }
+- extendedWaitUntil: { notVisible: { id: "browsing-bar" }, timeout: 10000 }
+- waitForAnimationToEnd: { timeout: 3000 }
+- takeScreenshot: ${SHOT}-11-live-after-undo
+- scrollUntilVisible: { element: { id: "session-all" }, direction: UP, timeout: 10000 }
+- tapOn: { id: "session-all" }
+- extendedWaitUntil: { visible: { id: "exercise-sheet" }, timeout: 10000 }
+- tapOn: { id: "exercise-sheet-card-1" }
+- extendedWaitUntil: { visible: { id: "browsing-bar" }, timeout: 5000 }
+- waitForAnimationToEnd: { timeout: 3000 }
+- takeScreenshot: ${SHOT}-12-browse-partly
+- scrollUntilVisible: { element: { id: "session-stats-line" }, direction: DOWN, timeout: 10000 }
+- takeScreenshot: ${SHOT}-13-browse-partly-scrolled
+- scrollUntilVisible: { element: { id: "browsing-resume" }, direction: UP, timeout: 10000 }
+- tapOn: { id: "browsing-resume" }
+- extendedWaitUntil: { notVisible: { id: "browsing-bar" }, timeout: 5000 }
+# Cleanup: discard the session this flow started.
+- scrollUntilVisible: { element: { id: "session-exit" }, direction: UP, timeout: 10000 }
+- runFlow: ../subflows/discard-workout.yaml

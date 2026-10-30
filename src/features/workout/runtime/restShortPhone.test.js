@@ -112,6 +112,20 @@ describe('PhoneRest (T-146 fit)', () => {
     expect(StyleSheet.flatten(host(tree, 'rest-photo-blend').props.style).top).toBe(52 + 12 + 64 + 12);
   });
 
+  // T-88 + web review (PM 30 Oct): at large text the middle scrolls as the last resort; the buttons stay pinned outside it.
+  it('large text that overflows the zone: the middle scrolls; the −5 · Skip · +5 bar is outside the scroll', () => {
+    mockHeight = 640;
+    mockInsets = { top: 24, bottom: 48, left: 0, right: 0 };
+    const tree = renderHero();
+    expect(hosts(tree, 'rest-middle-scroll')).toHaveLength(0);
+    layout(host(tree, 'rest-text'), 600);
+    const scroll = tree.root.findAll((node) => node.props.testID === 'rest-middle-scroll')[0];
+    expect(scroll).toBeDefined();
+    expect(scroll.findAll((node) => node.props.testID === 'rest-countdown').length).toBeGreaterThan(0);
+    expect(scroll.findAll((node) => node.props.testID === 'rest-timer-skip')).toHaveLength(0);
+    expect(hosts(tree, 'rest-timer-skip')).toHaveLength(1);
+  });
+
   it('no photo (none, or not loaded yet): no card and no blend; the text starts 24 under the top bar', () => {
     mockHeight = 640;
     const tree = renderHero({ ...HERO, exercise: null });

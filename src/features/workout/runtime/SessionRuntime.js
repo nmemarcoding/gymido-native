@@ -242,6 +242,12 @@ export default function SessionRuntime({
     }
   }, [progress.activeExerciseIndex]);
 
+  // T-146 rev 40: another exercise in view starts at the top (the phone's
+  // Resume banner is the first thing under the bar, then the photo).
+  useEffect(() => {
+    scrollRef.current?.scrollTo?.({ y: 0, animated: false });
+  }, [viewingIndex]);
+
   // §26.1: the sheets and the discard dialog are dismissed on blur.
   useEffect(() => {
     if (!isFocused) {
