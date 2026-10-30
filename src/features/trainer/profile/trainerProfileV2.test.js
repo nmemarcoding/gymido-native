@@ -234,3 +234,12 @@ describe('T-90 version footer', () => {
   });
 });
 
+
+describe('T-136 workout reminders', () => {
+  it('the trainer-side Profile has no "Workout reminders" row (personal Profile only, UX ruling 2)', async () => {
+    useAuthStore.setState({ user: { email: 'coach@example.com', roles: ['member', 'trainer'] } });
+    const tree = await render();
+    expect(has(tree.root, 'settings-workout-reminders')).toBe(false);
+    expect(texts(tree.root)).not.toContain('Workout reminders');
+  });
+});

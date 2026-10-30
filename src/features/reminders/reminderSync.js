@@ -112,7 +112,7 @@ export function createReminderSync({ platform, api, allowed, localCompleted = ()
       }
       return waiting;
     },
-    // Sign-out, a trainer account, the switch off.
+    // Sign-out, the switch off.
     clearAll() {
       return enqueue(async () => {
         await cancelPending(() => true);

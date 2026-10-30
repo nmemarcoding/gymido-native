@@ -88,7 +88,9 @@ describe('T-103 startWorkoutReminders', () => {
     expect(mockSync.sync).toHaveBeenCalledTimes(1);
   });
 
-  test('allowed = signed-in member + switch on + permission granted (and the permission is stored for Settings)', async () => {
+  // DECLARED (T-136, PM-approved): a trainer account was not allowed; a
+  // trainer now gets them from their own plan, as a member.
+  test('allowed = signed-in member or trainer + switch on + permission granted (and the permission is stored for Settings)', async () => {
     start({ permission: 'granted' });
     await flush();
     useAuthStore.setState({ status: AuthStatus.signedOut, user: null });
@@ -100,7 +102,7 @@ describe('T-103 startWorkoutReminders', () => {
     expect(await mockAllowed()).toBe(false);
     useWorkoutReminders.setState({ enabled: true });
     useAuthStore.setState({ user: TRAINER });
-    expect(await mockAllowed()).toBe(false);
+    expect(await mockAllowed()).toBe(true);
   });
 
   test.each([AuthStatus.restoring, AuthStatus.authenticating, AuthStatus.loadingUser])('auth %s → not known yet (null), the permission is not read (review M1)', async (status) => {
@@ -203,7 +205,9 @@ describe('T-103 tap → Today (UX ruling §5)', () => {
     expect(openToday).toHaveBeenCalledTimes(1);
   });
 
-  test('signed out: Today after sign-in; a trainer sign-in drops it', () => {
+  // DECLARED (T-136, PM-approved): a trainer sign-in dropped the tap (1×);
+  // it now opens Today too (2×).
+  test('signed out: Today after sign-in; a trainer sign-in opens it too', () => {
     useAuthStore.setState({ status: AuthStatus.signedOut, user: null });
     const { openToday } = start();
     mockTap.listener(reminderTap());
@@ -215,14 +219,16 @@ describe('T-103 tap → Today (UX ruling §5)', () => {
     mockTap.listener(reminderTap());
     useAuthStore.setState({ status: AuthStatus.signedIn, user: TRAINER });
     useAuthStore.setState({ status: AuthStatus.signedIn, user: MEMBER });
-    expect(openToday).toHaveBeenCalledTimes(1);
+    expect(openToday).toHaveBeenCalledTimes(2);
   });
 });
 
 describe('T-103 permission (UX ruling §3 + §4)', () => {
   // DECLARED (review N1): was "asks … then reschedules" with a granted
   // permission; a settled permission now does nothing (no ask, no resync).
-  test('Today\'s training day, permission not asked yet: asks through the T-50 asked-once rule, then reschedules; never for a trainer', async () => {
+  // DECLARED (T-136, PM-approved): a trainer was never asked (1×); a trainer
+  // is now asked too (2×).
+  test('Today\'s training day, permission not asked yet: asks through the T-50 asked-once rule, then reschedules; a trainer too', async () => {
     useAuthStore.setState({ status: AuthStatus.signedIn, user: MEMBER });
     const { platform } = start({ permission: 'undetermined' });
     await flush();
@@ -233,7 +239,7 @@ describe('T-103 permission (UX ruling §3 + §4)', () => {
 
     useAuthStore.setState({ user: TRAINER });
     await askReminderPermissionOnTrainingDay();
-    expect(requestPermissionAtWorkoutStart).toHaveBeenCalledTimes(1);
+    expect(requestPermissionAtWorkoutStart).toHaveBeenCalledTimes(2);
   });
 
   test.each(['granted', 'denied'])('Today\'s training day, permission already %s: no ask, no resync (review N1)', async (permission) => {
@@ -246,15 +252,17 @@ describe('T-103 permission (UX ruling §3 + §4)', () => {
     expect(mockSync.sync).not.toHaveBeenCalled();
   });
 
-  test('a trainer account removes the reminders channel once (review L3)', async () => {
+  // DECLARED (T-136, PM-approved): was "a trainer account removes the
+  // reminders channel once (review L3)": allowed false, deleteChannel 1×.
+  test('a trainer account keeps the reminders channel (T-136)', async () => {
     const { platform } = start();
     useAuthStore.setState({ status: AuthStatus.signedIn, user: TRAINER });
-    expect(await mockAllowed()).toBe(false);
-    expect(await mockAllowed()).toBe(false);
-    expect(platform.deleteChannel).toHaveBeenCalledTimes(1);
+    expect(await mockAllowed()).toBe(true);
+    expect(await mockAllowed()).toBe(true);
+    expect(platform.deleteChannel).not.toHaveBeenCalled();
     useAuthStore.setState({ user: MEMBER });
     await mockAllowed();
-    expect(platform.deleteChannel).toHaveBeenCalledTimes(1);
+    expect(platform.deleteChannel).not.toHaveBeenCalled();
   });
 
   test('a finished workout\'s session is handed to the sync (review L4)', async () => {

@@ -11,7 +11,8 @@ import { REMINDER_CHANNEL_ID } from './reminderSync';
 // `canAskAgain`: the OS would still show its dialog (Android after one "Don't
 // allow"); false = only the system settings can turn it on.
 // `ensureChannel` / `deleteChannel` (review L3): the Android channel exists
-// only once a member's reminders are scheduled; a trainer account removes it.
+// only once reminders are scheduled. Since T-136 (trainers get reminders
+// too) nothing calls `deleteChannel`.
 export const reminderPlatform = {
   ...restAlertPlatform,
   canAskAgain: async () => Boolean((await Notifications.getPermissionsAsync()).canAskAgain),

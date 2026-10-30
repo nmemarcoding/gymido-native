@@ -1,8 +1,10 @@
 import { AppState } from 'react-native';
 
 import { AuthStatus, useAuthStore } from '../auth/authStore';
-import { isTrainerUser } from '../shell/shellRules';
 import { openShellPath, shellNavigation } from '../shell/shellLinks';
+import { isTrainerUser } from '../shell/shellRules';
+import { saveWorkspacePreference } from '../shell/shellUiStore';
+import { Workspace } from '../workspace/workspace';
 import { requestPermissionAtWorkoutStart } from '../workout/runtime/restAlerts';
 import { isReminder } from './reminderPlan';
 import { addReminderTapListener, lastReminderTap, reminderApi, reminderPlatform } from './reminderPlatform';
@@ -17,9 +19,19 @@ const AUTH_PENDING = new Set([AuthStatus.restoring, AuthStatus.authenticating, A
 let controller = null;
 let cleanups = [];
 
-// Members only (owner): a trainer account gets no reminders.
-function isSignedInMember(state = useAuthStore.getState()) {
-  return state.status === AuthStatus.signedIn && !isTrainerUser(state.user);
+// T-136 (owner, 30 Oct 2026): a trainer gets them too, from their own plan
+// (the personal side), exactly as a member.
+function isSignedIn(state = useAuthStore.getState()) {
+  return state.status === AuthStatus.signedIn;
+}
+
+// UX ruling §5: a tap opens the personal Today; a trainer in trainer mode is
+// switched to the personal side first (the mode switch's own steps, §6.2).
+export function openPersonalToday() {
+  if (useAuthStore.getState().workspace === Workspace.trainer) {
+    saveWorkspacePreference(Workspace.member);
+  }
+  openShellPath('/');
 }
 
 // T-103, once at startup (App.js). Reschedules on every app open and
@@ -29,24 +41,17 @@ export function startWorkoutReminders({
   platform = reminderPlatform,
   api = reminderApi,
   appState = AppState,
-  openToday = () => openShellPath('/'),
+  openToday = openPersonalToday,
   navigation = shellNavigation,
 } = {}) {
   if (controller) {
     return controller;
   }
-  let channelRemoved = false;
   const allowed = async () => {
     if (AUTH_PENDING.has(useAuthStore.getState().status)) {
       return null;
     }
-    const state = useAuthStore.getState();
-    // Review L3: a trainer account never keeps the reminders channel.
-    if (state.status === AuthStatus.signedIn && isTrainerUser(state.user) && !channelRemoved) {
-      channelRemoved = true;
-      platform.deleteChannel?.();
-    }
-    if (!isSignedInMember() || !isWorkoutRemindersOn()) {
+    if (!isSignedIn() || !isWorkoutRemindersOn()) {
       return false;
     }
     const permission = await platform.getPermission().catch(() => 'denied');
@@ -60,17 +65,13 @@ export function startWorkoutReminders({
   const sync = createReminderSync({ platform, api, allowed, localCompleted: () => finishedHere });
   const resync = () => sync.sync().catch(() => {});
 
-  // UX ruling §5: Today's root, after sign-in when signed out; dropped for a
-  // trainer account.
+  // UX ruling §5: Today's root, after sign-in when signed out.
   let tapPending = false;
   const openPendingTap = () => {
-    const state = useAuthStore.getState();
-    if (!tapPending || state.status !== AuthStatus.signedIn) {
+    if (!tapPending || !isSignedIn()) {
       return;
     }
-    if (isTrainerUser(state.user)) {
-      tapPending = false;
-    } else if (navigation.isReady()) {
+    if (navigation.isReady()) {
       tapPending = false;
       openToday();
     }
@@ -142,9 +143,11 @@ export function startWorkoutReminders({
     },
     // UX ruling §4 (owner, 29 Oct 2026; amends T-50): the one OS prompt, the
     // first time Today shows a training day with an active plan (or at the
-    // workout start, whichever comes first). Never for a trainer account.
+    // workout start, whichever comes first). A trainer too, but never in
+    // trainer mode (T-136, UX ruling 4).
     async askOnTrainingDay(platformOverride = platform) {
-      if (!isSignedInMember()) {
+      const state = useAuthStore.getState();
+      if (!isSignedIn(state) || (isTrainerUser(state.user) && state.workspace === Workspace.trainer)) {
         return;
       }
       // Review N1: a settled permission (asked before, granted or denied)

@@ -16,7 +16,6 @@ import { logout } from '../../auth/authService';
 import { useAuthStore } from '../../auth/authStore';
 import ShellPage from '../../shell/ShellPage';
 import { openShellPath } from '../../shell/shellLinks';
-import { isTrainerUser } from '../../shell/shellRules';
 import { reminderTimesLabel } from '../../reminders/reminderPlan';
 import { fixReminderPermission, refreshReminderPermission } from '../../reminders/reminderSignals';
 import { setWorkoutRemindersEnabled, useWorkoutReminders } from '../../reminders/workoutReminderSetting';
@@ -86,7 +85,6 @@ function Settings() {
   const vibrateRestAlerts = useVibrateRestAlerts((state) => state.enabled);
   const remindersOn = useWorkoutReminders((state) => state.enabled);
   const reminderPermission = useWorkoutReminders((state) => state.permission);
-  const trainer = useAuthStore((state) => isTrainerUser(state.user));
 
   // T-103: the row's denied state reads the OS permission on every visit.
   useEffect(() => {
@@ -144,9 +142,9 @@ function Settings() {
   // Phone tiles: speak gold-tint, vibrate teal-tint (Q1 as drawn); the
   // tablet board draws these two rows without tiles.
   // T-103 (UX ruling §3; teal clock tile, UX 29 Oct): "Workout reminders"
-  // first, members only. A denied OS permission shows the switch off;
-  // pressing it asks again or opens the system settings (the stored choice
-  // stays as it is).
+  // first (members, and trainers here on the personal side, T-136). A denied
+  // OS permission shows the switch off; pressing it asks again or opens the
+  // system settings (the stored choice stays as it is).
   const remindersDenied = remindersOn && reminderPermission === 'denied';
   const remindersRow = {
     id: 'reminders',
@@ -159,7 +157,7 @@ function Settings() {
     onChange: (next) => (remindersDenied ? fixReminderPermission() : setWorkoutRemindersEnabled(next)),
   };
   const workoutSwitches = [
-    ...(trainer ? [] : [remindersRow]),
+    remindersRow,
     {
       id: 'speak',
       testID: 'settings-speak-rest-alerts',

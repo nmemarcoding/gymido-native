@@ -103,10 +103,12 @@ describe('T-103 Settings row (UX ruling §3)', () => {
     expect(row(tree).props.accessibilityState).toEqual({ checked: true });
   });
 
-  test('trainer accounts don\'t see the row', () => {
+  // DECLARED (T-136, PM-approved): was "trainer accounts don't see the row"
+  // (ids [speak, vibrate], no "Workout reminders").
+  test('trainer accounts see the row on the personal Settings (T-136)', () => {
     useAuthStore.setState({ user: { email: 'coach@example.com', roles: ['member', 'trainer'] } });
     const tree = render();
-    expect(rowIds(tree)).toEqual(['settings-speak-rest-alerts', 'settings-vibrate-rest-alerts']);
-    expect(texts(tree.root)).not.toContain('Workout reminders');
+    expect(rowIds(tree)).toEqual(['settings-workout-reminders', 'settings-speak-rest-alerts', 'settings-vibrate-rest-alerts']);
+    expect(texts(tree.root)).toContain('Workout reminders');
   });
 });
