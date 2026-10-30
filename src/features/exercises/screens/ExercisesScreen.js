@@ -38,7 +38,7 @@ import { listEquipmentTypes, listExercisesPage, listMuscleGroups } from '../api/
 import { ActiveFilterLine, FilterButton, NoMatchState } from '../components/ExerciseFilterBar';
 import ExerciseFilterPanel from '../components/ExerciseFilterPanel';
 import ExerciseFilterSheet from '../components/ExerciseFilterSheet';
-import { getCachedList, setCachedList } from '../exerciseListCache';
+import { getCachedList, getFreshLookup, isCachedListFresh, setCachedList, setCachedLookup } from '../exerciseListCache';
 import {
   NO_FILTERS,
   activeFilterValues,
@@ -138,8 +138,10 @@ function ExercisesCatalog() {
   const [equipmentNames, setEquipmentNames] = useState(null);
   useEffect(() => {
     let alive = true;
+    // T-42: a list of types saved < 5 min ago is reused with no request.
+    const fresh = getFreshLookup('equipmentTypes');
     Promise.resolve()
-      .then(() => listEquipmentTypes())
+      .then(() => fresh ?? listEquipmentTypes().then((types) => (setCachedLookup('equipmentTypes', types), types)))
       .then((types) => {
         const names = equipmentNameMap(types);
         if (alive && names.size > 0) {
@@ -156,8 +158,9 @@ function ExercisesCatalog() {
   const [muscleSeed, setMuscleSeed] = useState(null);
   useEffect(() => {
     let alive = true;
+    const fresh = getFreshLookup('muscleGroups');
     Promise.resolve()
-      .then(() => listMuscleGroups())
+      .then(() => fresh ?? listMuscleGroups().then((groups) => (setCachedLookup('muscleGroups', groups), groups)))
       .then((groups) => {
         const names = seedMuscles(groups);
         if (alive && names.size > 0) {
@@ -232,6 +235,12 @@ function ExercisesCatalog() {
         if (searchReload) {
           scrollToTop();
         }
+      }
+      // T-42 (dated 29 Oct 2026, web 2.1.9): ARRIVING at the list (a return,
+      // or a mount with nothing on screen) with a list saved < 5 min ago sends
+      // no request. A search on the page still reloads quietly.
+      if (cached && !searchReload && isCachedListFresh(applied)) {
+        return;
       }
       loadExerciseCatalog({ fetchPage: listExercisesPage, search: applied })
         .then(({ items, partial }) => {

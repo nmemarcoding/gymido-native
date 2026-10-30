@@ -39,3 +39,26 @@ describe('exercise list cache (§E1.1a, LRU 10)', () => {
     expect(getCachedList('s5')).toEqual(['fresh']);
   });
 });
+
+describe('T-42 freshness (dated 29 Oct 2026)', () => {
+  const { FRESH_MS, getFreshLookup, isCachedListFresh, setCachedList: save, setCachedLookup, clearExerciseListCache: clear } = require('./exerciseListCache');
+  beforeEach(() => clear());
+
+  test('a list is fresh for 5 minutes from its save, then stale (still readable)', () => {
+    save('', [1], 1000);
+    expect(isCachedListFresh('', 1000 + FRESH_MS - 1)).toBe(true);
+    expect(isCachedListFresh('', 1000 + FRESH_MS)).toBe(false);
+    expect(isCachedListFresh('row', 1000)).toBe(false);
+    save('', [2], 1000 + FRESH_MS);
+    expect(isCachedListFresh('', 1000 + FRESH_MS + 1)).toBe(true);
+  });
+
+  test('lookups: fresh value, null when stale or missing; cleared with the lists', () => {
+    setCachedLookup('equipmentTypes', ['a'], 0);
+    expect(getFreshLookup('equipmentTypes', FRESH_MS - 1)).toEqual(['a']);
+    expect(getFreshLookup('equipmentTypes', FRESH_MS)).toBeNull();
+    expect(getFreshLookup('muscleGroups', 0)).toBeNull();
+    clear();
+    expect(getFreshLookup('equipmentTypes', 0)).toBeNull();
+  });
+});

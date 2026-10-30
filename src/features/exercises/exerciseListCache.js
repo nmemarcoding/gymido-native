@@ -6,7 +6,13 @@ import { AuthStatus, useAuthStore } from '../auth/authStore';
 // searches (LRU: a read or a store makes a search the newest). A Map keeps
 // insertion order, so the first key is the least recently used.
 export const MAX_CACHED_SEARCHES = 10;
+// T-42 (dated 29 Oct 2026, web 2.1.9): arriving at the list within 5 minutes
+// of saving it sends no request; freshness counts from the save.
+export const FRESH_MS = 5 * 60 * 1000;
+// search → { items, savedAt }.
 const lists = new Map();
+// T-42: GET /equipment-types and /muscle-groups, same freshness.
+const lookups = new Map();
 
 // No search is stored as ''.
 const keyOf = (search) => search ?? '';
@@ -16,23 +22,39 @@ export function getCachedList(search) {
   if (!lists.has(key)) {
     return null;
   }
-  const items = lists.get(key);
+  const entry = lists.get(key);
   lists.delete(key);
-  lists.set(key, items);
-  return items;
+  lists.set(key, entry);
+  return entry.items;
 }
 
-export function setCachedList(search, items) {
+export function isCachedListFresh(search, now = Date.now()) {
+  const entry = lists.get(keyOf(search));
+  return Boolean(entry) && now - entry.savedAt < FRESH_MS;
+}
+
+export function setCachedList(search, items, now = Date.now()) {
   const key = keyOf(search);
   lists.delete(key);
-  lists.set(key, items);
+  lists.set(key, { items, savedAt: now });
   if (lists.size > MAX_CACHED_SEARCHES) {
     lists.delete(lists.keys().next().value);
   }
 }
 
+// A lookup saved less than FRESH_MS ago, else null.
+export function getFreshLookup(name, now = Date.now()) {
+  const entry = lookups.get(name);
+  return entry && now - entry.savedAt < FRESH_MS ? entry.value : null;
+}
+
+export function setCachedLookup(name, value, now = Date.now()) {
+  lookups.set(name, { value, savedAt: now });
+}
+
 export function clearExerciseListCache() {
   lists.clear();
+  lookups.clear();
 }
 
 // The web drops it with the page on logout; native clears it itself on any

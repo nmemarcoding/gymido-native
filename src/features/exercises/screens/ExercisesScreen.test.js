@@ -2,8 +2,8 @@ import { AccessibilityInfo, Platform, StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { AuthStatus, useAuthStore } from '../../auth/authStore';
-import { listExercisesPage } from '../api/exercisesApi';
-import { clearExerciseListCache, getCachedList } from '../exerciseListCache';
+import { listEquipmentTypes, listExercisesPage, listMuscleGroups } from '../api/exercisesApi';
+import { FRESH_MS, clearExerciseListCache, getCachedList } from '../exerciseListCache';
 import ExercisesScreen from './ExercisesScreen';
 
 const mockListeners = {};
@@ -49,9 +49,12 @@ beforeEach(() => {
 });
 
 const mounted = [];
+let dateSpy = null;
 afterEach(() => {
   act(() => mounted.splice(0).forEach((tree) => tree.unmount()));
   jest.clearAllMocks();
+  dateSpy?.mockRestore();
+  dateSpy = null;
 });
 
 async function render() {
@@ -155,6 +158,13 @@ describe('§E1.1a session cache and return (T-12 F3)', () => {
     });
     return { promise, resolve, reject };
   };
+  // T-42: a list saved < 5 min ago is shown on return with no request, so
+  // the quiet-reload cases move the clock past the freshness first (as the
+  // web's owner-approved ExercisesPage.test.jsx change does).
+  const expireCache = () => {
+    const later = Date.now() + FRESH_MS + 1000;
+    dateSpy = jest.spyOn(Date, 'now').mockReturnValue(later);
+  };
   const leaveAndReturn = async () => {
     await act(async () => {
       mockListeners.blur();
@@ -170,6 +180,8 @@ describe('§E1.1a session cache and return (T-12 F3)', () => {
     const first = deferred();
     listExercisesPage.mockClear();
     listExercisesPage.mockImplementation((n) => (n === 1 ? first.promise : Promise.resolve(page([ex(5)], 2))));
+    // DECLARED (T-42): the cache is expired first (a fresh one sends no request).
+    expireCache();
     await leaveAndReturn();
     expect(listExercisesPage).toHaveBeenCalledWith(1, '');
     let shown = texts(tree.root);
@@ -189,7 +201,10 @@ describe('§E1.1a session cache and return (T-12 F3)', () => {
     listExercisesPage.mockImplementation((n) => Promise.resolve(page([ex(n)], 2)));
     const tree = await render();
     listExercisesPage.mockImplementation((n) => (n === 1 ? Promise.resolve(page([ex(9)], 2)) : Promise.reject(failure)));
+    // DECLARED (T-42): expired first, so the quiet reload (and its failure) happens.
+    expireCache();
     await leaveAndReturn();
+    expect(listExercisesPage).toHaveBeenCalledWith(1, '');
     const shown = texts(tree.root);
     expect(shown).toEqual(expect.arrayContaining(['Ex 1', 'Ex 2']));
     expect(shown).not.toContain("Some exercises didn't load");
@@ -214,12 +229,61 @@ describe('§E1.1a session cache and return (T-12 F3)', () => {
     expect(listExercisesPage).toHaveBeenLastCalledWith(1, 'row');
     listExercisesPage.mockClear();
     mockRouteParams = { entry: 1 };
+    // DECLARED (T-42): expired first; a fresh '' list would show with no request.
+    expireCache();
     await act(async () => {
       tree.update(<ExercisesScreen />);
     });
     expect(input().props.value).toBe('');
     expect(listExercisesPage).toHaveBeenCalledWith(1, '');
     expect(texts(tree.root)).not.toContain('Loading exercises');
+  });
+
+  describe('T-42 freshness (dated 29 Oct 2026, web 2.1.9)', () => {
+    it('a return within 5 minutes shows the cached list with no request at all', async () => {
+      listExercisesPage.mockImplementation((n) => Promise.resolve(page([ex(n)], 2)));
+      const tree = await render();
+      listExercisesPage.mockClear();
+      listEquipmentTypes.mockClear();
+      listMuscleGroups.mockClear();
+      await leaveAndReturn();
+      expect(listExercisesPage).not.toHaveBeenCalled();
+      expect(texts(tree.root)).toEqual(expect.arrayContaining(['Ex 1', 'Ex 2']));
+      // A new mount within 5 minutes reads nothing either (equipment + muscles cached too).
+      await render();
+      expect(listExercisesPage).not.toHaveBeenCalled();
+      expect(listEquipmentTypes).not.toHaveBeenCalled();
+      expect(listMuscleGroups).not.toHaveBeenCalled();
+    });
+
+    it('a list older than 5 minutes shows at once and reloads quietly; the lookups reload too', async () => {
+      listExercisesPage.mockImplementation((n) => Promise.resolve(page([ex(n)], 2)));
+      const tree = await render();
+      listExercisesPage.mockClear();
+      listEquipmentTypes.mockClear();
+      expireCache();
+      await leaveAndReturn();
+      expect(listExercisesPage).toHaveBeenCalledWith(1, '');
+      expect(texts(tree.root)).not.toContain('Loading exercises');
+      await render();
+      expect(listEquipmentTypes).toHaveBeenCalledTimes(1);
+    });
+
+    it('a search on the page still reloads a fresh cached list', async () => {
+      listExercisesPage.mockImplementation((n) => Promise.resolve(page([ex(n)], 1)));
+      const tree = await render();
+      const input = () => tree.root.find((node) => node.props.testID === 'exercises-search' && node.props.onChangeText);
+      act(() => input().props.onChangeText('row'));
+      await act(async () => {
+        input().props.onSubmitEditing();
+      });
+      listExercisesPage.mockClear();
+      act(() => input().props.onChangeText(''));
+      await act(async () => {
+        input().props.onSubmitEditing();
+      });
+      expect(listExercisesPage).toHaveBeenCalledWith(1, '');
+    });
   });
 
   it('a return with no cache but a list on screen reloads quietly (review M2)', async () => {
