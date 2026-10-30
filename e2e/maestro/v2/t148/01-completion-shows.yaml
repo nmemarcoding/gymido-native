@@ -1,0 +1,20 @@
+# T-148 (Android: no "Workout complete" page after the last set). Starts a workout (start-workout.yaml),
+# finishes it through Complete → "Finish anyway" and checks the completion page is ON SCREEN: Maestro's
+# visibility reads the accessibility tree, which keeps a view whose opacity is 0, so the screenshot right
+# after it is the proof (T-148: the page stayed transparent with animations on). Run it with the device's
+# animation scales at 1 (users' phones). Starts signed in (the lead's safe runner) as a throwaway member
+# with a plan. Writes ONE completed workout on that account. IDs + patterns, no credentials, no Profile shots.
+appId: com.gymido.app
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/start-workout.yaml
+- tapOn: { id: "complete-workout" }
+- extendedWaitUntil: { visible: { id: "finish-early-dialog" }, timeout: 10000 }
+- tapOn: { id: "finish-early-finish" }
+- extendedWaitUntil: { visible: { id: "completion-popup" }, timeout: 30000 }
+# Past the 260 ms fade, so the shot shows the settled page.
+- waitForAnimationToEnd: { timeout: 3000 }
+- takeScreenshot: t148-finish-anyway-completed
+- assertVisible: "Great job!"
+- tapOn: { id: "completion-awesome" }
+- extendedWaitUntil: { notVisible: { id: "completion-popup" }, timeout: 10000 }

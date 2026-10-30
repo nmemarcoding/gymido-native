@@ -1,0 +1,30 @@
+# T-148 (owner report, Android): finishing the workout's LAST set ("Did it", the §23.1 automatic completion)
+# must show the "Workout complete" page. Logs every set of a started workout (log-current-set.yaml), skipping
+# each rest, until the completion page opens; the screenshot right after is the proof it is on screen
+# (Maestro's visibility reads the accessibility tree). Run with the device's animation scales at 1.
+# Starts signed in (the lead's safe runner) as a throwaway member with a plan. Writes ONE completed workout
+# on that account. IDs + patterns, no credentials, no Profile shots.
+appId: com.gymido.app
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/start-workout.yaml
+- repeat:
+    times: 40
+    while:
+      notVisible:
+        id: "completion-popup"
+    commands:
+      - runFlow: ../subflows/log-current-set.yaml
+      - runFlow:
+          when:
+            visible:
+              id: "rest-timer-skip"
+          commands:
+            - tapOn:
+                id: "rest-timer-skip"
+- extendedWaitUntil: { visible: { id: "completion-popup" }, timeout: 30000 }
+- waitForAnimationToEnd: { timeout: 3000 }
+- takeScreenshot: t148-last-set-completed
+- assertVisible: "Great job!"
+- tapOn: { id: "completion-awesome" }
+- extendedWaitUntil: { notVisible: { id: "completion-popup" }, timeout: 10000 }
