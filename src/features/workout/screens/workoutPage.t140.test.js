@@ -421,6 +421,17 @@ describe('RN-SPEC T-140: logged Done rows + Plan finished', () => {
   });
 });
 
+describe('Last workout title from the real list shape (reviewer M1)', () => {
+  it('a list item with only workout_plan_day_id is titled from the plan days, row + sheet', async () => {
+    const { workout_plan_day: _unused, ...wire } = done(2, 12, { id: 70, duration_seconds: 3000 });
+    expect(wire.workout_plan_day).toBeUndefined();
+    const tree = await renderScreen(page({ completedThisWeek: [], completedThisWeekDayIds: [], lastCompleted: wire }));
+    expect(pressable(tree.root, 'workout-last').props.accessibilityLabel).toBe('Last workout: Lower A, Oct 12');
+    await press(tree, 'workout-last');
+    expect(sheetTexts(tree)).toEqual(expect.arrayContaining(['Oct 12 · Done', 'Lower A']));
+  });
+});
+
 describe('sizes (§9)', () => {
   it('tablet portrait: one column, max 600, ring 180', async () => {
     mockWidth = 834;

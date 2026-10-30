@@ -603,7 +603,7 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
     );
   }
 
-  const cells = dayCells({ strip: thisWeek.strip, week: thisWeek.week, completed: page.completedThisWeek, misses });
+  const cells = dayCells({ strip: thisWeek.strip, week: thisWeek.week, completed: page.completedThisWeek, misses, planDays });
   const progress = thisWeek.progress;
   const stats = page.completedThisWeekFailed ? null : weekStats(page.completedThisWeek, memberWeightUnit(profile));
   const last = newestWorkout(page.completedThisWeek, page.lastCompleted);
@@ -686,9 +686,9 @@ function Hub({ status, page, width, height = 0, actionError, successMessage, isS
       ref={lastRef}
       tall={wide}
       wrap={large}
-      title={workoutTitle(last)}
+      title={workoutTitle(last, planDays)}
       when={lastWhenText(last, now)}
-      onPress={() => openSheet(lastWorkoutCell(last, cells, now), lastRef)}
+      onPress={() => openSheet(lastWorkoutCell(last, cells, now, planDays), lastRef)}
     />
   ) : null;
   const missedRow = missed ? (

@@ -31,18 +31,18 @@ function weeksBetween(from, to) {
 // The week N counts to: the server week's first date (week[0].date), else the
 // device's today (RN-SPEC T-140 "Plan line").
 export function weekReference(week, now = new Date()) {
-  return isValidWeek(week) && typeof week[0]?.date === 'string' && startDateKey(week[0].date) ? dateOf(week[0].date) : now;
+  const first = isValidWeek(week) ? startDateKey(week[0]?.date) : null;
+  return first ? dateOf(first) : now;
 }
 
-// "week N": whole Monday weeks since started_on, its own week = 1. null with
-// no (or a future) start date.
+// "week N": whole Monday weeks since started_on, its own week = 1 (a future
+// start reads week 1, as web). null without a start date.
 export function planWeekNumber(startedOn, now = new Date()) {
   const start = startDateKey(startedOn);
   if (!start) {
     return null;
   }
-  const n = weeksBetween(dateOf(start), now) + 1;
-  return n >= 1 ? n : null;
+  return Math.max(1, weeksBetween(dateOf(start), now) + 1);
 }
 
 // §6: "{plan name} · week N"; "{days_per_week}-day split" only without a
@@ -101,8 +101,13 @@ export function workoutDateKey(item) {
   return Number.isNaN(at.getTime()) ? null : localDateKey(at);
 }
 
-export function workoutTitle(item) {
-  return item?.workout_plan_day?.title || 'Workout session';
+// A completed workout's title, web's chain (WorkoutPage): the plan day by
+// workout_plan_day_id (GET /workouts list items carry only the id), then the
+// session name, then an embedded plan day (the detail shape), then 'Workout'.
+export function workoutTitle(item, planDays = []) {
+  const id = item?.workout_plan_day_id;
+  const listed = id == null ? null : (planDays ?? []).find((day) => day?.id === id);
+  return listed?.title || item?.name || item?.plan_day?.title || item?.workout_plan_day?.title || 'Workout';
 }
 
 // §7 when-text: "Today" / "Yesterday" / "Wed" (this week) / "Last Wed" (last
@@ -138,7 +143,7 @@ const TYPE_OF = Object.freeze({ done: 'done', missed: 'missed', today: 'today', 
 
 // The 7 tappable days: each strip cell with its type, weekday, /week plan
 // day and the completed workouts of its date (by date only with /week).
-export function dayCells({ strip, week, completed = [], misses = [] }) {
+export function dayCells({ strip, week, completed = [], misses = [], planDays = [] }) {
   if (!strip) {
     return [];
   }
@@ -148,6 +153,7 @@ export function dayCells({ strip, week, completed = [], misses = [] }) {
     const done = cell.date ? (completed ?? []).filter((workout) => workoutDateKey(workout) === cell.date) : [];
     const planDay = item?.plan_day ?? null;
     const type = TYPE_OF[cell.kind] ?? 'rest';
+    done.sort((a, b) => String(a.started_at ?? a.completed_at).localeCompare(String(b.started_at ?? b.completed_at)));
     return {
       index,
       key: cell.key,
@@ -158,7 +164,9 @@ export function dayCells({ strip, week, completed = [], misses = [] }) {
       isToday: cell.kind === 'today' || cell.kind === 'todayRest' || Boolean(cell.isToday),
       weekday,
       planDay,
-      done: done.sort((a, b) => String(a.started_at ?? a.completed_at).localeCompare(String(b.started_at ?? b.completed_at))),
+      done,
+      // A done day's title: the slot's plan day, else the latest workout's.
+      doneName: planDay ? planDayTitle(planDay) : done.length ? workoutTitle(done[done.length - 1], planDays) : null,
       // An open miss (the server's /week still says missed) can be caught up.
       openMiss: type === 'missed' && misses.some((miss) => miss.planDay?.id === planDay?.id && miss.weekdayName === weekday.name),
     };
@@ -172,12 +180,9 @@ export function dayA11y(cell) {
   return [cell.weekday.name + (cell.isToday ? ', today' : ''), words[cell.type], name].filter(Boolean).join(', ');
 }
 
-// A done day's title: the planned workout's name, else the latest workout's.
+// A done day's title (dayCells / pastDoneCell resolve it with the plan days).
 function doneTitle(cell) {
-  if (cell.planDay) {
-    return planDayTitle(cell.planDay);
-  }
-  return workoutTitle(cell.done[cell.done.length - 1]);
+  return cell.doneName ?? (cell.planDay ? planDayTitle(cell.planDay) : workoutTitle(cell.done[cell.done.length - 1]));
 }
 
 function exercisesLabel(count) {
@@ -298,17 +303,17 @@ export function daySheet(cell, { count = null } = {}) {
 
 // §7: a Last workout before this week opens a read-only Done sheet with the
 // when-text as its eyebrow ("Last Fri · Done", "Oct 12 · Done").
-export function pastDoneCell(item, now = new Date()) {
+export function pastDoneCell(item, now = new Date(), planDays = []) {
   const key = workoutDateKey(item);
   const weekday = key ? WEEKDAYS[(dateOf(key).getDay() + 6) % 7] : WEEKDAYS[0];
-  return { index: -1, key: 'last', date: key ?? '', type: 'done', isToday: false, weekday: { ...weekday, name: lastWhenText(item, now) }, planDay: null, done: [item], openMiss: false };
+  return { index: -1, key: 'last', date: key ?? '', type: 'done', isToday: false, weekday: { ...weekday, name: lastWhenText(item, now) }, planDay: null, done: [item], doneName: workoutTitle(item, planDays), openMiss: false };
 }
 
 // The Last workout row's target: this week's day cell holding it, else a
 // past Done cell.
-export function lastWorkoutCell(item, cells, now = new Date()) {
+export function lastWorkoutCell(item, cells, now = new Date(), planDays = []) {
   const key = workoutDateKey(item);
-  return cells.find((cell) => key && cell.date === key && cell.type === 'done') ?? pastDoneCell(item, now);
+  return cells.find((cell) => key && cell.date === key && cell.type === 'done') ?? pastDoneCell(item, now, planDays);
 }
 
 // §4 the under-ring label.

@@ -1,4 +1,5 @@
 import {
+  workoutTitle,
   dayA11y,
   doneRows,
   finishedPlan,
@@ -31,7 +32,7 @@ describe('plan line (§6)', () => {
     expect(planWeekNumber('2026-10-26', NOW)).toBe(1);
     expect(planWeekNumber('2026-10-25', NOW)).toBe(2); // a Sunday: the week before
     expect(planWeekNumber('2026-10-12T00:00:00Z', NOW)).toBe(3); // date-only: the first 10 characters
-    expect(planWeekNumber('2026-11-02', NOW)).toBeNull(); // not started yet
+    expect(planWeekNumber('2026-11-02', NOW)).toBe(1); // not started yet: week 1, as web (reviewer L2)
     expect(planWeekNumber(null, NOW)).toBeNull();
   });
 
@@ -234,5 +235,28 @@ describe('RN-SPEC T-140 additions', () => {
     expect(finishedPlan([{ id: 3, status: 'completed', plan: { name: 'A' } }, { id: 7, status: 'completed', plan: { name: 'B' } }])).toEqual({ name: 'B' });
     expect(finishedPlan([{ id: 3, status: 'completed', plan: { name: 'A' } }, { id: 7, status: 'cancelled', plan: { name: 'B' } }])).toBeNull();
     expect(finishedPlan([])).toBeNull();
+  });
+});
+
+// Reviewer M1 (77dd372): GET /workouts LIST items carry only workout_plan_day_id
+// (the workout_plan_day object is on the detail only). Web's chain: the plan
+// day by id → the session name → an embedded plan day → 'Workout'.
+describe('titles from the real list shape (M1)', () => {
+  const planDays = [PD(1, 'Upper A'), PD(2, 'Lower A')];
+  const wire = (extra) => ({ id: 70, workout_plan_day_id: 2, status: 'completed', started_at: at(23), duration_seconds: 3000, ...extra });
+
+  it('the plan day by id, then the session name, then an embedded plan day, then "Workout"', () => {
+    expect(workoutTitle(wire(), planDays)).toBe('Lower A');
+    expect(workoutTitle(wire({ workout_plan_day_id: 99, name: 'Evening lift' }), planDays)).toBe('Evening lift');
+    expect(workoutTitle(wire({ workout_plan_day_id: null }), planDays)).toBe('Workout');
+    expect(workoutTitle({ workout_plan_day: { title: 'From detail' } }, [])).toBe('From detail');
+  });
+
+  it('a past Done sheet and a no-slot done day are titled from the plan days', () => {
+    expect(daySheet(lastWorkoutCell(wire(), [], NOW, planDays)).title).toBe('Lower A');
+    const strip = [cell('done', { key: '1', date: '2026-10-28' })];
+    const [rest] = dayCells({ strip, week: [{ date: '2026-10-28', plan_day: null }], completed: [wire({ started_at: at(28) })], planDays });
+    expect(daySheet(rest).title).toBe('Lower A');
+    expect(dayA11y(rest)).toBe('Monday, done, Lower A');
   });
 });
