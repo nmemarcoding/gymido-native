@@ -1,14 +1,20 @@
 import {
   INITIAL_PROFILE_FORM,
+  PROFILE_STEP_COUNT,
   SEX_OPTIONS,
+  aboutYouEmpty,
   buildCreateProfilePayload,
   clearFieldErrors,
   convertFeetAndInchesToUnitValue,
   convertHeightValueToFeetAndInches,
+  fieldsOfStep,
   firstErrorTarget,
   numberValue,
+  stepOfFirstError,
   updateHeightUnit,
   validateCreateProfile,
+  validateStep,
+  weightsEmpty,
 } from './createProfileForm';
 
 const form = (changes) => ({ ...INITIAL_PROFILE_FORM, ...changes });
@@ -202,5 +208,42 @@ describe('first field in error (⚠P8 retired)', () => {
 
   it('an empty message is not an error', () => {
     expect(firstErrorTarget({ first_name: '', sex: 'x' }, 'ft_in')).toBe('sex');
+  });
+});
+
+// T-53 (onboarding ruling §4): the same rules and messages, run per step.
+describe('T-53 steps', () => {
+  it('four steps; each owns its fields', () => {
+    expect(PROFILE_STEP_COUNT).toBe(4);
+    expect(fieldsOfStep(1)).toEqual(['first_name', 'last_name']);
+    expect(fieldsOfStep(2)).toEqual(['height_unit', 'height_value', 'height_feet', 'height_inches']);
+    expect(fieldsOfStep(3)).toEqual(['current_weight_value', 'goal_weight_value', 'current_weight_unit', 'goal_weight_unit']);
+    expect(fieldsOfStep(4)).toEqual(['date_of_birth', 'sex']);
+  });
+
+  it('validateStep runs only that step\'s rules (1–2, 3–5b, 6–7; none on P4)', () => {
+    const empty = form({ current_weight_value: '0' });
+    expect(validateStep(empty, 1)).toEqual({ first_name: 'First name is required', last_name: 'Last name is required' });
+    expect(validateStep(empty, 2)).toEqual({ height_value: 'Feet is required' });
+    expect(validateStep(form({ height_unit: 'cm', height_value: '0' }), 2)).toEqual({ height_value: 'Height must be greater than zero' });
+    expect(validateStep(empty, 3)).toEqual({ current_weight_value: 'Current weight must be greater than zero' });
+    expect(validateStep(empty, 4)).toEqual({});
+  });
+
+  it('a 422 lands on the step of its first error key, in step order', () => {
+    expect(stepOfFirstError({ sex: ['x'], last_name: ['x'] })).toBe(1);
+    expect(stepOfFirstError({ goal_weight_value: 'x', height_unit: 'x' })).toBe(2);
+    expect(stepOfFirstError({ current_weight_unit: 'x', date_of_birth: 'x' })).toBe(3);
+    expect(stepOfFirstError({ date_of_birth: 'x' })).toBe(4);
+    expect(stepOfFirstError({ first_name: '' })).toBeNull();
+    expect(stepOfFirstError({ body: 'x' })).toBeNull();
+  });
+
+  it('P3 "Skip" while both weights are empty after trim; P4 "Skip" while neither is set', () => {
+    expect(weightsEmpty(form({ current_weight_value: '  ', goal_weight_value: '' }))).toBe(true);
+    expect(weightsEmpty(form({ goal_weight_value: '70' }))).toBe(false);
+    expect(aboutYouEmpty(form({}))).toBe(true);
+    expect(aboutYouEmpty(form({ sex: 'male' }))).toBe(false);
+    expect(aboutYouEmpty(form({ date_of_birth: '1990-01-02' }))).toBe(false);
   });
 });

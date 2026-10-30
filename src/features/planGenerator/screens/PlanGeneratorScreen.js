@@ -21,7 +21,7 @@ import { Checkbox, Choice, ChoiceList, OptionPill, PillRow, ProgressSegments } f
 import { ArrowRightIcon, ChevronLeftIcon, CloseIcon, GoalIcon } from '../components/GeneratorIcons';
 import GeneratorReview, { ReviewButtons } from '../components/GeneratorReview';
 import { GENERATOR_STATE_MAX_WIDTH, GeneratorUnavailable } from '../components/GeneratorStates';
-import { leaveToPlans, sitsAbovePreview, useLeaveOnBack } from '../generatorExit';
+import { FROM_ONBOARDING, isFromOnboarding, leaveToPlans, leaveToToday, sitsAbovePreview, useLeaveOnBack } from '../generatorExit';
 import {
   COPY,
   QUESTIONS,
@@ -99,11 +99,13 @@ function PlanGenerator() {
   // REPLACE to Plans; Android back the same.
   // G1 (PM 28 Oct): opened from the preview, the ✕ / Cancel and Android back
   // (any step) reset the stack to Plans instead (no step ↔ preview loop).
-  const abovePreview = sitsAbovePreview(navigation);
-  const innerBack = useInnerBack(navigation, abovePreview ? null : '/plans');
-  useLeaveOnBack(navigation, abovePreview);
-  const exit = abovePreview ? () => leaveToPlans(navigation) : innerBack;
   const route = useRoute();
+  // T-53: from the onboarding bridge, Cancel (and Android back) → Today.
+  const onboarding = isFromOnboarding(route);
+  const abovePreview = sitsAbovePreview(navigation);
+  const innerBack = useInnerBack(navigation, abovePreview || onboarding ? null : '/plans');
+  useLeaveOnBack(navigation, abovePreview || onboarding, onboarding ? leaveToToday : leaveToPlans);
+  const exit = onboarding ? () => leaveToToday(navigation) : abovePreview ? () => leaveToPlans(navigation) : innerBack;
   const { width, fontScale } = useWindowDimensions();
   const reflow = isReflow(fontScale);
   const tablet = isTabletWidth(width);
@@ -230,7 +232,8 @@ function PlanGenerator() {
         await saveGeneratorProfile(buildProfileBody(answers, {}, goEasyAreasOf(options)));
         if (mounted.current) {
           setSaving(false);
-          navigation.push(generatorRoutes.PlanGeneratorPreview);
+          // T-53: the preview keeps the onboarding entry (its Accept → D).
+          navigation.push(generatorRoutes.PlanGeneratorPreview, ...(onboarding ? [{ from: FROM_ONBOARDING }] : []));
         }
       } catch (error) {
         if (!mounted.current) {

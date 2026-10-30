@@ -146,7 +146,8 @@ describe('ruling 5 (f2): routed titles per platform', () => {
   // module, style key, font size, board em
   const SAMPLES = [
     ['../../features/auth/screens/WelcomeScreen', 'titleTablet', 84, -0.06],
-    ['../../features/profile/CreateProfileScreen', 'titlePhone', 48, -0.055],
+    // DECLARED (T-53 item 37, Q1): was CreateProfileScreen titlePhone 48/−0.055 (one form); the step title is the generator's 46/−0.05.
+    ['../../features/profile/CreateProfileScreen', 'titlePhone', 46, -0.05],
     ['../../features/profile/CreateProfileScreen', 'titleTablet', 60, -0.055],
     ['../../features/progress/ProgressScreen', 'currentPhone', 52, -0.05],
     // DECLARED (T-76): was TodayHeroCard planNameTablet 60/−0.055 (card retired); the hub's today title.

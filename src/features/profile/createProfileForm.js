@@ -182,3 +182,42 @@ export function firstErrorTarget(errors, heightUnit) {
   }
   return null;
 }
+
+// T-53 (onboarding ruling §4, 29 Oct 2026): Create profile in four steps,
+// P1 names · P2 height · P3 weights · P4 date of birth + sex. Each step runs
+// its own rules (the same rules and messages); a server 422 lands on the
+// step that owns its first error key, in step order.
+export const PROFILE_STEP_COUNT = 4;
+const STEP_FIELDS = Object.freeze([
+  ['first_name', 'last_name'],
+  HEIGHT_ERROR_KEYS,
+  ['current_weight_value', 'goal_weight_value', ...UNIT_ERROR_KEYS],
+  ['date_of_birth', 'sex'],
+]);
+
+export function validateStep(form, step) {
+  const errors = validateCreateProfile(form);
+  const keys = STEP_FIELDS[step - 1] ?? [];
+  return Object.fromEntries(Object.entries(errors).filter(([key]) => keys.includes(key)));
+}
+
+// null when no key belongs to a step (the error stays on P4).
+export function stepOfFirstError(errors) {
+  const index = STEP_FIELDS.findIndex((keys) => keys.some((key) => Boolean(errors[key])));
+  return index === -1 ? null : index + 1;
+}
+
+// P3's primary reads "Skip" while both weights are empty after trim.
+export function weightsEmpty(form) {
+  return !String(form.current_weight_value).trim() && !String(form.goal_weight_value).trim();
+}
+
+// P4's primary reads "Skip" while neither the date of birth nor sex is set.
+export function aboutYouEmpty(form) {
+  return !form.date_of_birth && !form.sex;
+}
+
+// The keys a step owns (its rules re-run on its primary).
+export function fieldsOfStep(step) {
+  return STEP_FIELDS[step - 1] ?? [];
+}

@@ -1,0 +1,31 @@
+# T-53 onboarding (ruling §1): P1–P4 (Skips) → B "Build my plan" → generator
+# step 1 → Cancel REPLACES to Today. SAVES A PROFILE (see 01). Starts on
+# Create profile P1 with a profile-less member account the generator is open
+# to. IDs only; no credentials, no coordinates. Written, not yet run.
+appId: com.gymido.app
+---
+- runFlow: subflows/fill-p1-p2.yaml
+- tapOn:
+    id: "profile-next"
+- extendedWaitUntil:
+    visible:
+      id: "profile-sex"
+    timeout: 10000
+- tapOn:
+    id: "profile-submit"
+- extendedWaitUntil:
+    visible:
+      id: "bridge-build"
+    timeout: 30000
+- tapOn:
+    id: "bridge-build"
+- extendedWaitUntil:
+    visible:
+      id: "generator-cancel"
+    timeout: 30000
+- tapOn:
+    id: "generator-cancel"
+- extendedWaitUntil:
+    visible:
+      id: "tab-Today|rail-Today|desktop-sidebar"
+    timeout: 30000

@@ -130,10 +130,17 @@ Two consequences for anyone reading these flows:
   assert the `Roles: …` line — that is the real thing under test, since it proves the tenant Action
   populates `https://gymido.app/roles`. Asserting `Trainer dashboard` or `Home` would have been
   asserting the profile gate instead.
-- **KNOWN GAP: the trainer→TrainerDashboard and admin→Home branches cannot be reached from the
-  app at all today.** They need an account *with* a profile, and `OnboardingScreen` is still a
-  placeholder with no profile-creation form, so nothing can get past the gate. `resolveLanding.test.js`
-  covers both branches in unit form. Revisit 07 and 08 when onboarding ships.
+- **Updated 29 Oct 2026 (T-53):** the trainer account got a profile through the app on 25 Sep,
+  so 07 now asserts the trainer workspace. 08 (admin, still profile-less) asserts Create profile
+  (`create-profile-root`). The flows assert ids, never the placeholder-era text "Onboarding".
+  `resolveLanding.test.js` still covers every branch in unit form.
+
+## T-53 onboarding (`v2/t53/`)
+
+Written, NOT yet run. They need a profile-less account (a THROWAWAY account on the local API)
+signed in with the safe runner first. Every flow that saves a profile uses that profile-less state
+up; how the account is reset between runs is still open (PM), so run 01 and 03 once per reset.
+`02` and `04` never save.
 
 Flow 07 also leaves state behind: an interactive trainer login sets the stored workspace to
 `trainer`, and that survives sign-out by design (`workspacePreference.js`). Harmless, because the

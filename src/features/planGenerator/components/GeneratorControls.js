@@ -244,8 +244,8 @@ export function Checkbox({ checked }) {
 
 // The step progress: 6 segments, done/current gold, the rest white 0.12
 // (hairline-button). Phone 4 tall gap 5, tablet 5 tall gap 6. Read once as
-// "Step n of 6" (never per segment).
-export function ProgressSegments({ step, total, tablet = false, label }) {
+// "Step n of 6" (never per segment). T-53: onboarding draws it too (4 steps).
+export function ProgressSegments({ step, total, tablet = false, label, testID = 'generator-progress' }) {
   const segments = [];
   for (let index = 1; index <= total; index += 1) {
     segments.push(
@@ -258,7 +258,7 @@ export function ProgressSegments({ step, total, tablet = false, label }) {
   }
   return (
     <View
-      testID="generator-progress"
+      testID={testID}
       accessible
       accessibilityRole="progressbar"
       accessibilityLabel={label}

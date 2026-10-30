@@ -42,16 +42,18 @@ import WeightLogModal from './WeightLogModal';
 const SAVED_TOAST_MS = 3500;
 // Stat values (18–20 px): the title cap, never shrunk.
 const VALUE_TEXT = { maxFontSizeMultiplier: textScale.title };
+// T-53 (onboarding ruling D): the toast's entrance before the T-103 prompt.
+const TOAST_ENTRANCE_MS = 400;
 
 // Home (RN-SPEC-home), the Today tab root. Every focus is a fresh mount
 // (plans §8.1). v2 Phase 2 B3: the Today header in every state, and the
 // empty / error / loading states (TodayStates.js); the ambient gold glow
 // from the first render.
-export default function HomeScreen() {
+export default function HomeScreen({ route } = {}) {
   const remountKey = useFocusRemountKey();
   return (
     <ShellPage glow>
-      <Home key={remountKey} />
+      <Home key={remountKey} askAfterToast={route?.params?.askAfterToast === true} />
     </ShellPage>
   );
 }
@@ -106,7 +108,7 @@ export async function loadWeek() {
   }
 }
 
-function Home() {
+function Home({ askAfterToast = false }) {
   const email = useAuthStore((state) => state.user?.email);
   const { width } = useWindowDimensions();
   // Fixed per mount (every Today focus remounts): the states draw gradients,
@@ -190,11 +192,19 @@ function Home() {
   // notification prompt, once Today has loaded a training day of an active
   // plan (asked once ever; the workout start stays the fallback).
   const trainingDay = load.status === 'loaded' && Boolean(load.dashboard?.today_status?.is_workout_day);
+  // T-53: arriving from "Pick your days" (Save) the prompt waits for the
+  // "Training days saved." toast's entrance, never stacked on it.
   useEffect(() => {
-    if (trainingDay) {
-      askReminderPermissionOnTrainingDay().catch(() => {});
+    if (!trainingDay) {
+      return undefined;
     }
-  }, [trainingDay]);
+    if (!askAfterToast) {
+      askReminderPermissionOnTrainingDay().catch(() => {});
+      return undefined;
+    }
+    const timer = setTimeout(() => askReminderPermissionOnTrainingDay().catch(() => {}), TOAST_ENTRANCE_MS);
+    return () => clearTimeout(timer);
+  }, [trainingDay, askAfterToast]);
 
   // H1.7: after a weight log, refresh quietly; failures keep the old content.
   // T-24: the dashboard only; the profile store was patched from the log.

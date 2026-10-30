@@ -62,6 +62,15 @@ function handOffTo(navigation, route, path, params) {
   navigation.dispatch({ ...reset, target: state.key });
 }
 
+// T-53 (onboarding ruling D): the generator's onboarding Accept REPLACES
+// everything with the full-page "Pick your days" (a root screen: no tab bar).
+export function openOnboardingDays(params) {
+  if (!navigationRef.isReady()) {
+    return;
+  }
+  navigationRef.reset({ index: 0, routes: [{ name: routes.OnboardingDays, params }] });
+}
+
 // Home's "View plan" (RN-SPEC-home §H1.3): the Plans tab with its stack set to
 // [S2] alone. Navigating into an unmounted stack already gives [S2]; into a
 // mounted one it pushes, so trim that stack back to S2.

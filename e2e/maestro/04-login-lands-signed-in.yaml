@@ -18,4 +18,8 @@ appId: com.gymido.app
 - extendedWaitUntil:
     visible: "Signed in as ${MEMBER_EMAIL}"
     timeout: 90000
-- assertVisible: "Onboarding|Home"
+# T-53 item 40 (DECLARED): was the text "Onboarding|Home" (the 1.0 placeholder
+# era; no screen draws "Onboarding"). Any signed-in landing by id, Create
+# profile (P1, an account without a profile) included.
+- assertVisible:
+    id: "tab-Today|rail-Today|desktop-sidebar|create-profile-root"

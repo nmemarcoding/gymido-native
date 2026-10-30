@@ -1,24 +1,39 @@
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import {
+  AccessibilityInfo,
+  Animated,
+  BackHandler,
+  Easing,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  findNodeHandle,
+  useWindowDimensions,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { routes } from '../../navigation/routes';
 import { resolveLanding } from '../../navigation/resolveLanding';
 import { getServerMessage, getStatus } from '../../shared/api/apiError';
-import { CardSurface } from '../../shared/components/Card';
 import DateInput from '../../shared/components/DateInput';
-import { InlineError, SuccessState } from '../../shared/components/FeedbackBox';
+import { InlineError } from '../../shared/components/FeedbackBox';
 import FormField, { FieldFrame } from '../../shared/components/FormField';
 import GradientFill from '../../shared/components/GradientFill';
+import IconButton from '../../shared/components/IconButton';
 import PillButton from '../../shared/components/PillButton';
 import { AmbientGlow } from '../../shared/components/Screen';
 import SegmentedSwitch from '../../shared/components/SegmentedSwitch';
-import Select from '../../shared/components/Select';
 import { useKeyboardOverlap } from '../../shared/hooks/useKeyboardHeight';
 import { useReducedMotion } from '../../shared/hooks/useReducedMotion';
 import { breakpoints, colors, font, gradients, motion, radii, spacing, textScale, titleTracking, typography } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
+import { getGeneratorProfile } from '../planGenerator/api/generatorApi';
+import { OptionPill, PillRow, ProgressSegments } from '../planGenerator/components/GeneratorControls';
+import { CheckIcon, ChevronLeftIcon } from '../planGenerator/components/GeneratorIcons';
+import { FOCUS_DELAY_MS } from '../planGenerator/generatorLayout';
 import { getScreenTab } from '../shell/shellNavigation';
 import StatusBarBackdrop from '../shell/StatusBarBackdrop';
 import { createProfile } from './api/profileApi';
@@ -27,18 +42,24 @@ import { fetchProfile, setCreatedProfile, useProfileStore } from './profileStore
 import { weightPairStacks } from './weightPairLayout';
 import {
   INITIAL_PROFILE_FORM,
+  PROFILE_STEP_COUNT,
   SEX_OPTIONS,
+  aboutYouEmpty,
   buildCreateProfilePayload,
   clearFieldErrors,
+  fieldsOfStep,
   firstErrorTarget,
   numberValue,
+  stepOfFirstError,
   updateHeightUnit,
   validateCreateProfile,
+  validateStep,
+  weightsEmpty,
 } from './createProfileForm';
 
 const EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
-// v2 Phase 2 (B1, UX ND1 + PM 26 Oct): a three-segment switch in the board's
-// order ft/in · cm · in; the values and updateHeightUnit are v1's.
+
+// Board order ft/in · cm · in (ND1, PM 26 Oct 2026).
 export const HEIGHT_UNITS = [
   { value: 'ft_in', label: 'ft/in', testID: 'profile-height-unit-ft_in' },
   { value: 'cm', label: 'cm', testID: 'profile-height-unit-cm' },
@@ -48,49 +69,94 @@ export const WEIGHT_UNITS = [
   { value: 'lb', label: 'lb', testID: 'profile-weight-unit-lb' },
   { value: 'kg', label: 'kg', testID: 'profile-weight-unit-kg' },
 ];
-// Sex: SEX_OPTIONS (createProfileForm.js, shared with Edit profile), "Not set"
-// first and "Prefer not to say" once (D2, ⚠P5 retired 27 Oct 2026). UX native
-// final audit 27 Oct 2026, ruling 7 (A99): a Select on every device, no pills.
+// T-53 P4: the four pills; nothing selected = "Not set" (sent as null, D2).
+const SEX_PILLS = SEX_OPTIONS.filter((option) => option.value !== '');
+
 const NUMBER_FIELDS = ['height_value', 'height_feet', 'height_inches', 'current_weight_value', 'goal_weight_value'];
 const NUMBER_KEYBOARD = Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'numeric';
-// T-16: the weights are text with a decimal keypad, kept exactly as typed.
+// T-16: a decimal keypad for the weights.
 const WEIGHT_FIELDS = ['current_weight_value', 'goal_weight_value'];
 const NO_AUTOFILL = { autoComplete: 'off', textContentType: 'none', importantForAutofill: 'no' };
-// UX ruling: the caret and the selection are gold.
+// Batch k: the gold caret and selection on every input.
 const GOLD_CARET = { selectionColor: colors.gold, cursorColor: colors.gold };
 const HEIGHT_HELPER = 'Feet and inches are shown first. Switch to cm or inches if that is how you measure height.';
-// C2 (FE facts): like web, only the single Height field has a placeholder
-// (web HeightField.jsx:184); names, Feet / Inches and weights have none.
+
+// The single Height field's placeholders, as on web (no other field has one).
 export const PROFILE_PLACEHOLDERS = Object.freeze({
   height_cm: '180',
   height_in: '71',
 });
-// Phone CTA bar (ND2): padding 16 20 30 above the safe area.
-const BAR_BOTTOM = 30;
-// UX §9 large text: the page title caps at 1.3, wraps by word (max 3 lines)
-// and shrinks a single long word; body, labels and inputs scale to 2.0; the
-// G in its fixed 32 tile caps at 1.2.
-const TITLE = { numberOfLines: 3, adjustsFontSizeToFit: true, minimumFontScale: 0.7, textBreakStrategy: 'simple', maxFontSizeMultiplier: textScale.display };
+
+// T-53 open UX answers (29 Oct 2026), one spot each:
+// Q1 the step title: the generator's step title size (46 phone / 60 tablet,
+//    titlePhone / titleTablet below), at most 2 lines, wrapping between words
+//    (a single long word shrinks, never breaks).
+const TITLE_MAX_LINES = 2;
+// Q2 the tablet brand row stays (the phone has the top icon-button row).
+const TABLET_BRAND_ROW = true;
+// Q3 Date of birth above the Sex pills at every width.
+const DOB_ABOVE_SEX = true;
+// Q5 UX (29 Oct): no "In lb." / "In kg." on P3 (Edit profile keeps them).
+const WEIGHT_UNIT_HELPERS = false;
+// Q7 the height segments: the kit's 40 inside a 44 hit area (SegmentedSwitch
+// default size; nothing to set here).
+
+// §9: titles cap at 1.3 and wrap by word; body copy and inputs scale to 2.0.
+const TITLE = {
+  numberOfLines: TITLE_MAX_LINES,
+  adjustsFontSizeToFit: true,
+  minimumFontScale: 0.7,
+  textBreakStrategy: 'simple',
+  maxFontSizeMultiplier: textScale.display,
+};
 const BODY = { maxFontSizeMultiplier: textScale.body };
 const BADGE = { maxFontSizeMultiplier: textScale.badge };
-// The board draws every field label in text-strong-2.
+// P10 moot: every field label is text-strong-2 (13/500 per the board).
 const LABEL = { color: colors.textStrong2 };
-// ⚠P8 retired: these targets take keyboard focus; the others (Weight unit,
-// Date of Birth, Sex) take accessibility focus.
+
+// The fields a failed step can focus (a TextInput takes the keyboard focus;
+// the rest get accessibility focus).
 const TEXT_TARGETS = ['first_name', 'last_name', 'height_value', 'height_feet', 'height_inches', 'current_weight_value', 'goal_weight_value'];
 
-// Create profile (RN-SPEC-profile-create; v2 Phase 2 B1): one step, no back
-// or logout (a 409 continues to the app, ⚠P7 retired 27 Oct 2026). Shown by
-// the gate while the profile is missing. Phone: the board's sections with the big 64/32 numbers (ND6) and a sticky bottom
-// bar holding "Create profile" and Delete account (ND2). Tablet (≥ 768): the
-// two cards in a 640 column, the CTA inline and Delete account 40 below it.
+// T-53 B: the bridge is a state of this screen (after P4 saves).
+const BRIDGE = 'bridge';
+// §5 large text: the pinned bar goes in flow past 40 % of the screen.
+const BAR_MAX_SHARE = 0.4;
+// §3 P3: the weight pair stacks below 360 at any text size.
+const WEIGHTS_STACK_BELOW = 360;
+
+const COPY = Object.freeze({
+  titles: ['What should we call you?', 'How tall are you?', 'What do you weigh?', 'A bit about you'],
+  helpers: [null, null, 'Optional. It helps you track progress.', 'Optional. This stays private.'],
+  stepOf: (step) => `Step ${step} of ${PROFILE_STEP_COUNT}`,
+  next: 'Next',
+  skip: 'Skip',
+  back: 'Back',
+  create: 'Create profile',
+  saving: 'Saving…',
+  checkAnswer: 'Please check this answer',
+  exists: 'A profile already exists for this account.',
+  saved: 'Profile saved',
+  bridgeTitle: 'Want us to build your first plan?',
+  bridgeBody: "Answer 6 quick questions and we'll put together a plan for your goal, schedule and equipment. You'll see it before anything starts.",
+  bridgeTitleBrowse: 'Find your first plan',
+  bridgeBodyBrowse: 'Pick a ready-made plan to get your weekly schedule and guided workouts.',
+  build: 'Build my plan',
+  browse: 'Browse plans',
+  notNow: 'Not now',
+});
+
+// RN-SPEC-profile-create, T-53 (onboarding ruling, 29 Oct 2026): four steps,
+// P1 names → P2 height → P3 weights (optional) → P4 date of birth + sex
+// (optional; saves) → B the bridge. The answers live in memory only: Back
+// keeps them, quitting midway keeps nothing.
 export default function CreateProfileScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   // Batch k (PM, 27 Oct 2026): what the keyboard COVERS; the raw height
   // leaves out the Android nav bar under an edge-to-edge window.
   const keyboardHeight = useKeyboardOverlap();
-  const { width, fontScale } = useWindowDimensions();
+  const { width, height: windowHeight, fontScale } = useWindowDimensions();
   // §9 reflow (live): the 2-column pairs become one column and the weight
   // unit switch drops below its label.
   const reflow = fontScale > textScale.reflowAbove;
@@ -99,36 +165,49 @@ export default function CreateProfileScreen() {
   const [tablet] = useState(() => width >= breakpoints.md);
   const reducedMotion = useReducedMotion();
   const enter = useRef(new Animated.Value(0)).current;
+  const [step, setStep] = useState(1);
   const [form, setForm] = useState(INITIAL_PROFILE_FORM);
   // What each number input shows; state keeps only valid numbers (§3.4).
   const [display, setDisplay] = useState({});
   const [fieldErrors, setFieldErrors] = useState({});
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  // The InlineError above the title: { title?, message }.
+  const [banner, setBanner] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  // B: whether the generator is open to this member (§0).
+  const [canBuild, setCanBuild] = useState(false);
   const [barHeight, setBarHeight] = useState(0);
+  // §5: once the pinned bar is too tall it stays in flow (no gradient comes back).
+  const [barInFlow, setBarInFlow] = useState(false);
   // ⚠P9 retired: the synchronous lock (state alone lets a second tap in
   // before the re-render); `submitting` drives the look.
   const locked = useRef(false);
-  // ⚠P8 retired: one request per failed submit, run after the errors render.
+  // The saved profile, committed to the store when a B button is pressed.
+  const created = useRef(null);
+  // ⚠P8 retired: one request per failed step, run after the errors render.
   const [focusRequest, setFocusRequest] = useState(null);
+  // §2: every step change moves the accessibility focus to the title.
+  const [focusTitle, setFocusTitle] = useState(0);
   const targets = useRef({});
   const scrollRef = useRef(null);
   const formRef = useRef(null);
+  const titleRef = useRef(null);
   const bindTarget = (key) => (node) => {
     targets.current[key] = node;
   };
   const contentTop = insets.top + (tablet ? 64 : spacing[6]);
 
+  // §2 motion: a 200 ms cross-fade + 8 px slide on every step; Reduce Motion
+  // = an instant swap.
   useEffect(() => {
     if (reducedMotion) {
       enter.setValue(1);
       return undefined;
     }
-    const animation = Animated.timing(enter, { toValue: 1, duration: motion.fadeMs, easing: EASE_OUT, useNativeDriver: true });
+    enter.setValue(0);
+    const animation = Animated.timing(enter, { toValue: 1, duration: motion.durationBase, easing: EASE_OUT, useNativeDriver: true });
     animation.start();
     return () => animation.stop();
-  }, [enter, reducedMotion]);
+  }, [enter, reducedMotion, step]);
 
   // Brings the field into view, then focuses it.
   useEffect(() => {
@@ -149,6 +228,35 @@ export default function CreateProfileScreen() {
     // contentTop and reducedMotion are read at the request.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusRequest]);
+
+  // The first field is never auto-focused (no keyboard jump over the title).
+  useEffect(() => {
+    if (!focusTitle) {
+      return undefined;
+    }
+    scrollRef.current?.scrollTo?.({ y: 0, animated: false });
+    const timer = setTimeout(() => {
+      const node = titleRef.current ? findNodeHandle(titleRef.current) : null;
+      if (node) {
+        AccessibilityInfo.setAccessibilityFocus(node);
+      }
+    }, FOCUS_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [focusTitle]);
+
+  // §1 Android back: P2–P4 = Back; P1 and B do nothing (no exit, as before).
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (navigation?.isFocused && !navigation.isFocused()) {
+        return false;
+      }
+      if (typeof step === 'number' && step > 1 && !locked.current) {
+        goTo(step - 1);
+      }
+      return true;
+    });
+    return () => subscription.remove();
+  }, [navigation, step]);
 
   const shown = (key) => (key in display ? display[key] : String(form[key] ?? ''));
 
@@ -191,18 +299,18 @@ export default function CreateProfileScreen() {
     });
   }
 
-  // §5.3: store the profile and replace into the app (the gate passes).
-  function enterApp(profile) {
-    setCreatedProfile(profile);
-    const { user, workspace } = useAuthStore.getState();
-    const landing = resolveLanding({ roles: user?.roles ?? [], workspace });
-    navigation.reset({
-      index: 0,
-      routes: [{ name: routes.AppShell, params: { screen: getScreenTab(landing.name), params: { screen: landing.name } } }],
-    });
+  // §3 P4: tapping the selected pill clears it ("Not set").
+  function toggleSex(value) {
+    edit('sex', () => setForm((current) => ({ ...current, sex: current.sex === value ? '' : value })));
   }
 
-  // ⚠P8 retired 27 Oct 2026: focus the first field in error, once per submit.
+  function goTo(next) {
+    setBanner(null);
+    setStep(next);
+    setFocusTitle((value) => value + 1);
+  }
+
+  // ⚠P8 retired 27 Oct 2026: focus the first field in error, once per press.
   function focusFirstError(errors) {
     const target = firstErrorTarget(errors, form.height_unit);
     if (target) {
@@ -210,15 +318,69 @@ export default function CreateProfileScreen() {
     }
   }
 
-  async function submit() {
+  // §2/§4: the primary runs this step's rules; P4 saves.
+  function primary() {
     if (locked.current) {
       return;
     }
-    setErrorMessage('');
-    setSuccessMessage('');
-    const errors = validateCreateProfile(form);
-    setFieldErrors(errors);
+    if (step === PROFILE_STEP_COUNT) {
+      save();
+      return;
+    }
+    const errors = validateStep(form, step);
+    const stepKeys = fieldsOfStep(step);
+    // This step's errors are re-run; the other steps keep theirs (a 422).
+    setFieldErrors((current) => ({ ...Object.fromEntries(Object.entries(current).filter(([key]) => !stepKeys.includes(key))), ...errors }));
     if (Object.keys(errors).length > 0) {
+      setBanner(null);
+      focusFirstError(errors);
+      return;
+    }
+    goTo(step + 1);
+  }
+
+  // The store commit + the navigation happen together (B buttons, the 403
+  // and trainer destinations).
+  function enterApp(screen) {
+    setCreatedProfile(created.current);
+    navigation.reset({
+      index: 0,
+      routes: [{ name: routes.AppShell, params: { screen: getScreenTab(screen.name), params: { screen: screen.name, params: screen.params } } }],
+    });
+  }
+
+  // §0: after the 201 (or a 409's reload) the destination is decided once.
+  // The primary keeps its spinner meanwhile.
+  async function decide(profile) {
+    created.current = profile;
+    const { user, workspace } = useAuthStore.getState();
+    const landing = resolveLanding({ roles: user?.roles ?? [], workspace });
+    if (landing.name === routes.TrainerDashboard) {
+      enterApp(landing);
+      return;
+    }
+    let available = false;
+    try {
+      available = (await getGeneratorProfile())?.available === true;
+    } catch (error) {
+      // A coached member: their trainer assigns the plan (no bridge).
+      if (getStatus(error) === 403) {
+        enterApp({ name: routes.Home });
+        return;
+      }
+    }
+    setCanBuild(available);
+    locked.current = false;
+    setSubmitting(false);
+    goTo(BRIDGE);
+  }
+
+  async function save() {
+    setBanner(null);
+    const errors = validateCreateProfile(form);
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setStep(stepOfFirstError(errors) ?? PROFILE_STEP_COUNT);
       focusFirstError(errors);
       return;
     }
@@ -226,25 +388,22 @@ export default function CreateProfileScreen() {
     locked.current = true;
     setSubmitting(true);
     try {
-      const created = await createProfile(buildCreateProfilePayload(form));
-      // ⚠P6: set the message and leave in the same tick.
-      setSuccessMessage('Profile created successfully. Redirecting you to the app.');
-      enterApp(created);
+      await decide(await createProfile(buildCreateProfilePayload(form)));
     } catch (error) {
       const status = getStatus(error);
       if (status === 409) {
         // ⚠P7 retired 27 Oct 2026: a 409 counts as success. Reload the
-        // profile (the store's GET /profile) and go in like a create; only
+        // profile (the store's GET /profile) and go on like a create; only
         // a failed reload shows the message. Still locked meanwhile.
         await fetchProfile();
         const existing = useProfileStore.getState().profile;
         if (existing) {
-          enterApp(existing);
+          await decide(existing);
           return;
         }
-        setErrorMessage('A profile already exists for this account.');
+        setBanner({ message: COPY.exists });
       } else {
-        setErrorMessage(getServerMessage(error));
+        setBanner({ title: status === 422 ? COPY.checkAnswer : undefined, message: getServerMessage(error) });
       }
       const serverErrors = error?.response?.data?.errors ?? {};
       const next = {};
@@ -255,6 +414,11 @@ export default function CreateProfileScreen() {
       setFieldErrors(next);
       locked.current = false;
       setSubmitting(false);
+      // §4 422: the step that owns the first error key, its first field focused.
+      const owner = stepOfFirstError(next);
+      if (owner) {
+        setStep(owner);
+      }
       focusFirstError(next);
     }
   }
@@ -267,15 +431,17 @@ export default function CreateProfileScreen() {
     </View>
   );
 
-  const input = (key, props) => (
+  // §2: Return/Go in the last field of a step = the primary; elsewhere the
+  // next field.
+  const input = (key, { nextField, ...props }) => (
     <FormField
       ref={bindTarget(key)}
       testID={`profile-${key}`}
       value={shown(key)}
       error={fieldErrors[key]}
       onChangeText={(text) => setText(key, text)}
-      returnKeyType="go"
-      onSubmitEditing={submit}
+      returnKeyType={nextField ? 'next' : 'go'}
+      onSubmitEditing={nextField ? () => targets.current[nextField]?.focus?.() : primary}
       editable={!submitting}
       accessibilityState={{ invalid: Boolean(fieldErrors[key]) }}
       labelStyle={LABEL}
@@ -293,143 +459,259 @@ export default function CreateProfileScreen() {
   const number = (key, props) =>
     input(key, tablet ? props : { ...props, style: shown(key) === '' ? styles.bigInputEmpty : styles.bigInput });
 
-  const ftIn = form.height_unit === 'ft_in';
-  const firstName = input('first_name', { label: 'First Name' });
-  const lastName = input('last_name', { label: 'Last Name' });
-  const heightSwitch = (
-    <FieldFrame label="Height unit" helperText={HEIGHT_HELPER} error={fieldErrors.height_unit} labelStyle={LABEL}>
-      {lock(
-        'profile-height-unit-lock',
-        <SegmentedSwitch
-          testID="profile-height-unit"
-          accessibilityLabel="Height unit"
-          segments={HEIGHT_UNITS}
-          value={form.height_unit}
-          onChange={changeHeightUnit}
-          segmentWidth={tablet ? 96 : undefined}
-          style={tablet ? styles.switchWell : styles.switchStretch}
-        />
-      )}
-    </FieldFrame>
-  );
   // §9: past 1.3 every 2-column pair is one column.
   const pair = reflow ? styles.pairStacked : tablet ? styles.pairTablet : styles.pair;
   const cell = reflow ? styles.cellStacked : styles.cell;
-  // UX ruling f1 (27 Oct 2026, batch k): below 21rem (336 at 1×) the Date of
-  // Birth + Sex pair stacks full width, DOB first.
-  const dobSexStacked = !tablet && width < DOB_SEX_STACK_BELOW * fontScale;
-  // PM fix (27 Oct 2026, Edit profile "78" for 178 lb at 320): the phone
-  // weight pair stacks where a side-by-side input has no room for a whole
-  // weight (weightPairStacks; the 16 gutters, the box border, 16 | 40 paddings).
-  const weightsStacked = !tablet && !reflow && weightPairStacks({ column: width - 2 * spacing[4], gap: styles.pair.gap, chrome: PHONE_WEIGHT_CHROME, fontSize: styles.bigInput.fontSize, fontScale });
-  const weightsPair = weightsStacked ? styles.pairStacked : pair;
-  const weightCell = weightsStacked ? styles.cellStacked : cell;
-  const dobSexPair = dobSexStacked ? styles.pairStacked : pair;
-  const dobSexCell = dobSexStacked ? styles.cellStacked : cell;
-  const heightFields = ftIn ? (
-    <View testID="profile-height-pair" style={reflow ? styles.pairStacked : styles.pair}>
-      <View style={cell}>
-        {number('height_feet', {
-          label: 'Feet',
-          unit: 'ft',
-          helperText: 'Whole feet only.',
-          error: fieldErrors.height_value ?? fieldErrors.height_feet,
-        })}
+
+  function namesStep() {
+    const firstName = input('first_name', { label: 'First Name', nextField: 'last_name' });
+    const lastName = input('last_name', { label: 'Last Name' });
+    return (
+      <>
+        <View testID={tablet ? 'profile-names-pair' : 'profile-section-names'} style={tablet ? pair : [styles.section, pair]}>
+          <View style={cell}>{firstName}</View>
+          <View style={cell}>{lastName}</View>
+        </View>
+        {/* T-43 (P1b.4): P1 only, at the end of the content, 40 below it. */}
+        <DeleteAccountAction profileLess disabled={submitting} style={styles.deleteAction} />
+      </>
+    );
+  }
+
+  function heightStep() {
+    const ftIn = form.height_unit === 'ft_in';
+    const heightSwitch = (
+      <FieldFrame label="Height unit" helperText={HEIGHT_HELPER} error={fieldErrors.height_unit} labelStyle={LABEL}>
+        {lock(
+          'profile-height-unit-lock',
+          <SegmentedSwitch
+            testID="profile-height-unit"
+            accessibilityLabel="Height unit"
+            segments={HEIGHT_UNITS}
+            value={form.height_unit}
+            onChange={changeHeightUnit}
+            segmentWidth={tablet ? 96 : undefined}
+            style={tablet ? styles.switchWell : styles.switchStretch}
+          />
+        )}
+      </FieldFrame>
+    );
+    const heightFields = ftIn ? (
+      <View testID="profile-height-pair" style={reflow ? styles.pairStacked : styles.pair}>
+        <View style={cell}>
+          {number('height_feet', {
+            label: 'Feet',
+            unit: 'ft',
+            helperText: 'Whole feet only.',
+            error: fieldErrors.height_value ?? fieldErrors.height_feet,
+            nextField: 'height_inches',
+          })}
+        </View>
+        <View style={cell}>
+          {number('height_inches', {
+            label: 'Inches',
+            unit: 'in',
+            helperText: 'Use 0 to 11 inches. Leave blank if there are no extra inches.',
+          })}
+        </View>
       </View>
-      <View style={cell}>
-        {number('height_inches', {
-          label: 'Inches',
-          unit: 'in',
-          helperText: 'Use 0 to 11 inches. Leave blank if there are no extra inches.',
-        })}
-      </View>
-    </View>
-  ) : (
-    number('height_value', {
-      label: form.height_unit === 'cm' ? 'Height' : 'Height (inches)',
-      placeholder: form.height_unit === 'cm' ? PROFILE_PLACEHOLDERS.height_cm : PROFILE_PLACEHOLDERS.height_in,
-      unit: form.height_unit,
-      helperText: form.height_unit === 'cm' ? 'Enter your height in centimeters.' : 'Enter your height in inches.',
-    })
-  );
-  const weightUnitRow = (
-    <View testID="profile-weight-unit-row" style={[styles.unitRow, reflow && styles.unitRowStacked]}>
-      <Text ref={bindTarget('weight_unit')} testID="profile-weight-unit-label" {...BODY} style={styles.rowLabel}>
-        Weight unit
-      </Text>
-      {lock(
-        'profile-weight-unit-lock',
-        <SegmentedSwitch
-          testID="profile-weight-unit"
-          accessibilityLabel="Weight unit"
-          segments={WEIGHT_UNITS}
-          value={form.weight_unit}
-          onChange={(value) => edit('weight_unit', () => setForm((current) => ({ ...current, weight_unit: value })))}
-          compact={!tablet}
-          segmentWidth={tablet ? 72 : 64}
-          style={tablet ? styles.switchWell : null}
+    ) : (
+      number('height_value', {
+        label: form.height_unit === 'cm' ? 'Height' : 'Height (inches)',
+        placeholder: form.height_unit === 'cm' ? PROFILE_PLACEHOLDERS.height_cm : PROFILE_PLACEHOLDERS.height_in,
+        unit: form.height_unit,
+        helperText: form.height_unit === 'cm' ? 'Enter your height in centimeters.' : 'Enter your height in inches.',
+      })
+    );
+    return (
+      <>
+        <View testID="profile-section-height-unit" style={tablet ? null : styles.section}>
+          {heightSwitch}
+        </View>
+        {heightFields}
+      </>
+    );
+  }
+
+  function weightStep() {
+    // PM fix (27 Oct 2026, Edit profile "78" for 178 lb at 320): the phone
+    // weight pair stacks where a side-by-side input has no room for a whole
+    // weight (weightPairStacks; the 16 gutters, the box border, 16 | 40
+    // paddings), and below 360 at any size (T-53 §3 P3).
+    const weightsStacked =
+      !tablet &&
+      !reflow &&
+      (width < WEIGHTS_STACK_BELOW ||
+        weightPairStacks({ column: width - 2 * spacing[4], gap: styles.pair.gap, chrome: PHONE_WEIGHT_CHROME, fontSize: styles.bigInput.fontSize, fontScale }));
+    const weightsPair = weightsStacked ? styles.pairStacked : pair;
+    const weightCell = weightsStacked ? styles.cellStacked : cell;
+    // ND1: "In lb." / "In kg." under the weights (Q5).
+    const weightHelper = WEIGHT_UNIT_HELPERS ? `In ${form.weight_unit}.` : undefined;
+    return (
+      <>
+        <View testID="profile-weight-unit-row" style={[styles.unitRow, reflow && styles.unitRowStacked]}>
+          <Text ref={bindTarget('weight_unit')} testID="profile-weight-unit-label" {...BODY} style={styles.rowLabel}>
+            Weight unit
+          </Text>
+          {lock(
+            'profile-weight-unit-lock',
+            <SegmentedSwitch
+              testID="profile-weight-unit"
+              accessibilityLabel="Weight unit"
+              segments={WEIGHT_UNITS}
+              value={form.weight_unit}
+              onChange={(value) => edit('weight_unit', () => setForm((current) => ({ ...current, weight_unit: value })))}
+              compact={!tablet}
+              segmentWidth={tablet ? 72 : 64}
+              style={tablet ? styles.switchWell : null}
+            />
+          )}
+        </View>
+        <View testID="profile-weights-pair" style={weightsPair}>
+          <View style={weightCell}>
+            {number('current_weight_value', { label: 'Current Weight', unit: form.weight_unit, helperText: weightHelper, nextField: 'goal_weight_value' })}
+          </View>
+          <View style={weightCell}>{number('goal_weight_value', { label: 'Goal Weight', unit: form.weight_unit, helperText: weightHelper })}</View>
+        </View>
+      </>
+    );
+  }
+
+  function aboutStep() {
+    // ⚠P4 narrowed 27 Oct 2026: date_of_birth and sex server errors show
+    // under their fields (the unit errors still have none: the banner + focus only).
+    const dateOfBirth = (
+      <View
+        ref={bindTarget('date_of_birth')}
+        collapsable={false}
+        testID="profile-date-of-birth-field"
+        pointerEvents={submitting ? 'none' : 'auto'}
+        style={submitting ? styles.locked : null}
+      >
+        <DateInput
+          testID="profile-date-of-birth"
+          label="Date of Birth"
+          labelStyle={LABEL}
+          value={form.date_of_birth}
+          error={fieldErrors.date_of_birth}
+          onChange={(value) => edit('date_of_birth', () => setForm((current) => ({ ...current, date_of_birth: value })))}
         />
-      )}
-    </View>
-  );
-  // ND1: "In lb." / "In kg." under the weights.
-  const weightHelper = `In ${form.weight_unit}.`;
-  const currentWeight = number('current_weight_value', {
-    label: 'Current Weight',
-    unit: form.weight_unit,
-    helperText: weightHelper,
-  });
-  const goalWeight = number('goal_weight_value', { label: 'Goal Weight', unit: form.weight_unit, helperText: weightHelper });
-  // ⚠P4 narrowed 27 Oct 2026: date_of_birth and sex server errors show under
-  // their fields (the unit errors still have none: the banner + focus only).
-  const dateOfBirth = (
-    <View
-      ref={bindTarget('date_of_birth')}
-      collapsable={false}
-      testID="profile-date-of-birth-field"
-      pointerEvents={submitting ? 'none' : 'auto'}
-      style={submitting ? styles.locked : null}
-    >
-      <DateInput
-        testID="profile-date-of-birth"
-        label="Date of Birth"
-        labelStyle={LABEL}
-        value={form.date_of_birth}
-        error={fieldErrors.date_of_birth}
-        onChange={(value) => edit('date_of_birth', () => setForm((current) => ({ ...current, date_of_birth: value })))}
+      </View>
+    );
+    // T-53 §3 P4 / §5: a radiogroup "Sex" of four 44 pills that wrap; the
+    // wrapper is the focus target and takes the lock (DateInput's pattern).
+    const sex = (
+      <View
+        ref={bindTarget('sex')}
+        collapsable={false}
+        testID="profile-sex-field"
+        pointerEvents={submitting ? 'none' : 'auto'}
+        style={submitting ? styles.locked : null}
+      >
+        <FieldFrame label="Sex" error={fieldErrors.sex} labelStyle={LABEL}>
+          <PillRow testID="profile-sex" label="Sex" gap={spacing[2]}>
+            {SEX_PILLS.map((option) => (
+              <OptionPill
+                key={option.value}
+                testID={`profile-sex-${option.value}`}
+                label={option.label}
+                size="focusTablet"
+                accessibilityRole="radio"
+                selected={form.sex === option.value}
+                disabled={submitting}
+                onPress={() => toggleSex(option.value)}
+              />
+            ))}
+          </PillRow>
+        </FieldFrame>
+      </View>
+    );
+    const stacked = DOB_ABOVE_SEX || reflow;
+    return (
+      <View testID="profile-dob-sex-pair" style={stacked ? styles.pairStacked : pair}>
+        <View style={stacked ? styles.cellStacked : cell}>{dateOfBirth}</View>
+        <View style={stacked ? styles.cellStacked : cell}>{sex}</View>
+      </View>
+    );
+  }
+
+  const bridge = step === BRIDGE;
+  const STEP_BODIES = [namesStep, heightStep, weightStep, aboutStep];
+  const body = bridge ? null : STEP_BODIES[step - 1]();
+
+  // The buttons: the primary (gold), Back (glass) on P2–P4; B's three.
+  function stepButtons() {
+    const size = tablet ? 'default' : 'cta';
+    const row = tablet && !reflow;
+    if (bridge) {
+      const build = canBuild ? (
+        <PillButton
+          key="build"
+          testID="bridge-build"
+          title={COPY.build}
+          size={size}
+          fullWidth={!row}
+          onPress={() => enterApp({ name: routes.PlanGenerator, params: { from: 'onboarding' } })}
+        />
+      ) : null;
+      const browse = (
+        <PillButton
+          key="browse"
+          testID="bridge-browse"
+          title={COPY.browse}
+          variant={canBuild ? 'secondary' : 'primary'}
+          size={size}
+          fullWidth={!row}
+          onPress={() => enterApp({ name: routes.PlansLibrary })}
+        />
+      );
+      const notNow = (
+        <PillButton key="not-now" testID="bridge-not-now" title={COPY.notNow} variant="ghost" size="compact" fullWidth={!row} onPress={() => enterApp({ name: routes.Home })} />
+      );
+      return (
+        <View testID="profile-buttons" style={row ? styles.buttonsTablet : styles.buttonsStacked}>
+          {row ? [notNow, browse, build] : [build, browse, notNow]}
+        </View>
+      );
+    }
+    const last = step === PROFILE_STEP_COUNT;
+    const skip = (step === 3 && weightsEmpty(form)) || (last && aboutYouEmpty(form));
+    const title = submitting ? COPY.saving : skip ? COPY.skip : last ? COPY.create : COPY.next;
+    const first = (
+      <PillButton
+        key="primary"
+        testID={last ? 'profile-submit' : 'profile-next'}
+        title={title}
+        size={size}
+        fullWidth={!tablet || reflow}
+        loading={submitting}
+        style={!tablet && !reflow && step > 1 ? styles.flex : null}
+        onPress={primary}
       />
-    </View>
-  );
-  // Ruling 7 (A99): the kit Select, like Edit profile; the wrapper is the
-  // focus target and takes the lock (DateInput's pattern).
-  const sex = (
-    <View
-      ref={bindTarget('sex')}
-      collapsable={false}
-      testID="profile-sex-field"
-      pointerEvents={submitting ? 'none' : 'auto'}
-      style={submitting ? styles.locked : null}
-    >
-      <Select
-        testID="profile-sex"
-        label="Sex"
-        labelStyle={LABEL}
-        value={form.sex}
-        options={SEX_OPTIONS}
-        error={fieldErrors.sex}
-        disabled={submitting}
-        onChange={(value) => edit('sex', () => setForm((current) => ({ ...current, sex: value })))}
-      />
-    </View>
-  );
-  const submitButton = <PillButton testID="profile-submit" title="Create profile" size="cta" fullWidth loading={submitting} onPress={submit} />;
-  const feedback = (
-    <>
-      {successMessage ? <SuccessState message={successMessage} /> : null}
-      {errorMessage ? <InlineError testID="profile-error" message={errorMessage} /> : null}
-    </>
-  );
+    );
+    if (step === 1) {
+      return (
+        <View testID="profile-buttons" style={tablet ? styles.buttonsTablet : null}>
+          {first}
+        </View>
+      );
+    }
+    const back = (
+      <PillButton key="back" testID="profile-back" title={COPY.back} variant="secondary" size={size} fullWidth={reflow} disabled={submitting} onPress={() => goTo(step - 1)} />
+    );
+    return (
+      <View testID="profile-buttons" style={reflow ? styles.buttonsStacked : tablet ? styles.buttonsTablet : styles.buttonsPhone}>
+        {reflow ? [first, back] : [back, first]}
+      </View>
+    );
+  }
+
+  const eyebrow = bridge ? COPY.saved : COPY.stepOf(step);
+  const title = bridge ? (canBuild ? COPY.bridgeTitle : COPY.bridgeTitleBrowse) : COPY.titles[step - 1];
+  const helper = bridge ? (canBuild ? COPY.bridgeBody : COPY.bridgeBodyBrowse) : COPY.helpers[step - 1];
   const enterStyle = { opacity: enter, transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [motion.cardOffsetY, 0] }) }] };
+  const pinned = !tablet && !barInFlow;
+  const buttons = stepButtons();
   // Android edge-to-edge doesn't resize for the keyboard; iOS uses
   // automaticallyAdjustKeyboardInsets.
   const androidKeyboard = Platform.OS === 'android' && keyboardHeight > 0 ? keyboardHeight : 0;
@@ -442,8 +724,9 @@ export default function CreateProfileScreen() {
         testID="create-profile-screen"
         contentContainerStyle={{
           paddingTop: contentTop,
-          // Phone: room for the pinned bar so the last field never hides behind it.
-          paddingBottom: androidKeyboard || (tablet ? insets.bottom + 64 : barHeight + spacing[4]),
+          // Phone: room for the pinned bar (on the keyboard while it is up)
+          // so the last field never hides behind it.
+          paddingBottom: pinned ? (androidKeyboard ? androidKeyboard + barHeight : barHeight + spacing[4]) : androidKeyboard || insets.bottom + 64,
           paddingLeft: insets.left + (tablet ? 72 : spacing[4]),
           paddingRight: insets.right + (tablet ? 72 : spacing[4]),
         }}
@@ -451,7 +734,7 @@ export default function CreateProfileScreen() {
         automaticallyAdjustKeyboardInsets
       >
         <Animated.View ref={formRef} testID="create-profile-form" style={[tablet ? styles.formTablet : styles.formPhone, enterStyle]}>
-          {tablet ? (
+          {tablet && TABLET_BRAND_ROW ? (
             <View style={styles.brandRow}>
               <View style={styles.brandTile} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
                 <Text {...BADGE} style={styles.brandLetter}>
@@ -463,94 +746,71 @@ export default function CreateProfileScreen() {
               </Text>
             </View>
           ) : null}
+          {/* §2 phone top row: the 44 glass "Back" on P2–P4 (none on P1 and B). */}
+          {!tablet && !bridge && step > 1 ? (
+            <View testID="profile-top-row" style={styles.topRow}>
+              <IconButton testID="profile-top-back" accessibilityLabel={COPY.back} disabled={submitting} onPress={() => goTo(step - 1)}>
+                {({ color }) => <ChevronLeftIcon size={20} color={color} />}
+              </IconButton>
+            </View>
+          ) : null}
+          {bridge ? null : <ProgressSegments testID="profile-progress" step={step} total={PROFILE_STEP_COUNT} tablet={tablet} label={COPY.stepOf(step)} />}
+          {banner ? <InlineError testID="profile-error" title={banner.title} message={banner.message} /> : null}
           <View>
-            {/* Copy is the code's "Create Profile"; the phone board breaks it
-                over two lines with the second word in gold. */}
-            <Text
-              accessibilityRole="header"
-              accessibilityLabel="Create Profile"
-              {...TITLE}
-              style={tablet ? styles.titleTablet : styles.titlePhone}
-            >
-              {tablet ? 'Create Profile' : 'Create\n'}
-              {tablet ? null : <Text style={styles.titleGold}>Profile</Text>}
+            <View style={styles.eyebrowRow}>
+              {bridge ? (
+                <View testID="bridge-check" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                  <CheckIcon size={16} color={colors.teal} />
+                </View>
+              ) : null}
+              <Text {...BODY} testID="profile-step-eyebrow" style={styles.eyebrow}>
+                {eyebrow}
+              </Text>
+            </View>
+            <Text ref={titleRef} testID="profile-step-title" accessibilityRole="header" {...TITLE} style={tablet ? styles.titleTablet : styles.titlePhone}>
+              {title}
             </Text>
-            <Text {...BODY} style={tablet ? styles.subtitleTablet : styles.subtitlePhone}>
-              A quick setup so we can tailor your workout plan.
-            </Text>
+            {helper ? (
+              <Text {...BODY} testID="profile-step-helper" style={styles.helper}>
+                {helper}
+              </Text>
+            ) : null}
           </View>
-          {feedback}
-          {tablet ? (
-            <>
-              <CardSurface hero testID="profile-card-body" style={styles.tabletCard}>
-                <View testID="profile-names-pair" style={pair}>
-                  <View style={cell}>{firstName}</View>
-                  <View style={cell}>{lastName}</View>
-                </View>
-                {heightSwitch}
-                {heightFields}
-              </CardSurface>
-              <CardSurface hero testID="profile-card-weight" style={styles.tabletCard}>
-                {weightUnitRow}
-                <View testID="profile-weights-pair" style={pair}>
-                  <View style={cell}>{currentWeight}</View>
-                  <View style={cell}>{goalWeight}</View>
-                </View>
-                <View testID="profile-dob-sex-pair" style={pair}>
-                  <View style={cell}>{dateOfBirth}</View>
-                  <View style={cell}>{sex}</View>
-                </View>
-              </CardSurface>
-              <View>
-                {submitButton}
-                {/* T-43 (P1b.4): below the CTA, 40 apart, centred. */}
-                <DeleteAccountAction profileLess disabled={submitting} style={styles.deleteTablet} />
-              </View>
-            </>
-          ) : (
-            <>
-              <View testID="profile-section-names" style={[styles.section, pair]}>
-                <View style={cell}>{firstName}</View>
-                <View style={cell}>{lastName}</View>
-              </View>
-              <View testID="profile-section-height-unit" style={styles.section}>
-                {heightSwitch}
-              </View>
-              {heightFields}
-              {weightUnitRow}
-              <View testID="profile-weights-pair" style={weightsPair}>
-                <View style={weightCell}>{currentWeight}</View>
-                <View style={weightCell}>{goalWeight}</View>
-              </View>
-              <View testID="profile-dob-sex-pair" style={dobSexPair}>
-                <View style={dobSexCell}>{dateOfBirth}</View>
-                <View style={dobSexCell}>{sex}</View>
-              </View>
-            </>
-          )}
+          {body}
+          {pinned ? null : buttons}
         </Animated.View>
       </ScrollView>
       {/* UX native final audit 27 Oct 2026, ruling 2 (A101): the form scrolls
           under the status bar, so the band gets the backdrop. */}
       <StatusBarBackdrop />
-      {tablet ? null : (
+      {pinned ? (
         <View
           testID="profile-cta-bar"
-          style={[styles.bar, { paddingBottom: insets.bottom + BAR_BOTTOM, paddingLeft: insets.left + spacing[5], paddingRight: insets.right + spacing[5] }]}
-          onLayout={(event) => setBarHeight(event.nativeEvent.layout.height)}
+          style={[
+            styles.bar,
+            {
+              // Q4 (PM): the bar rides on the keyboard (useKeyboardOverlap).
+              bottom: keyboardHeight,
+              paddingBottom: (keyboardHeight ? 0 : insets.bottom) + spacing[4],
+              paddingLeft: insets.left + spacing[5],
+              paddingRight: insets.right + spacing[5],
+            },
+          ]}
+          onLayout={(event) => {
+            const measured = event.nativeEvent.layout.height;
+            setBarHeight(measured);
+            if (windowHeight > 0 && measured > windowHeight * BAR_MAX_SHARE) {
+              setBarInFlow(true);
+            }
+          }}
         >
           <GradientFill angle={gradients.ctaBarFade.angle} colors={gradients.ctaBarFade.colors} stops={gradients.ctaBarFade.stops} />
-          {submitButton}
-          {/* T-43 (P1b.4) in the bar under the CTA (ND2). */}
-          <DeleteAccountAction profileLess disabled={submitting} style={styles.deletePhone} />
+          {buttons}
         </View>
-      )}
+      ) : null}
     </View>
   );
 }
-
-// f1: 21rem (16 × 21) at 1× text.
-const DOB_SEX_STACK_BELOW = 336;
 
 const styles = StyleSheet.create({
   screen: {
@@ -560,9 +820,10 @@ const styles = StyleSheet.create({
   formPhone: {
     gap: spacing[3],
   },
+  // §2 tablet / web ≥768: one centred column, max-width 560.
   formTablet: {
     width: '100%',
-    maxWidth: 640,
+    maxWidth: 560,
     alignSelf: 'center',
     gap: spacing['5_5'],
   },
@@ -593,35 +854,46 @@ const styles = StyleSheet.create({
     letterSpacing: -0.57,
     color: colors.textPrimary,
   },
-  // Boards (UX B): phone 48/46, tablet 60/60, both 700 −0.055em. No type
-  // step has these (display-md 44/44, display-xl 56/58).
-  titlePhone: {
-    ...font(700),
-    fontSize: 48,
-    lineHeight: 46,
-    letterSpacing: titleTracking(48, -0.055),
-    color: colors.textPrimary,
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  titleGold: {
+  eyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing['1_5'],
+  },
+  // §2: the eyebrow caption 12/600 gold, sentence case.
+  eyebrow: {
+    ...font(600),
+    fontSize: 12,
+    lineHeight: 16,
     color: colors.gold,
   },
+  // Q1: the generator's step title, phone 46/44/700 −0.05em.
+  titlePhone: {
+    ...font(700),
+    marginTop: spacing[2],
+    fontSize: 46,
+    lineHeight: 44,
+    letterSpacing: titleTracking(46, -0.05),
+    color: colors.textPrimary,
+  },
+  // Q1: tablet 60/60/700 −0.055em (TabletGenerator).
   titleTablet: {
     ...font(700),
+    marginTop: spacing['2_5'],
     fontSize: 60,
     lineHeight: 60,
     letterSpacing: titleTracking(60, -0.055),
     color: colors.textPrimary,
   },
-  subtitlePhone: {
-    ...typography.body,
-    marginTop: spacing['1_5'],
-    color: colors.textSecondary,
-  },
-  subtitleTablet: {
+  // §2: the helper body 15/24 secondary.
+  helper: {
     ...font(400),
     marginTop: spacing[2],
-    fontSize: 17,
-    lineHeight: 26,
+    fontSize: 15,
+    lineHeight: 24,
     color: colors.textSecondary,
   },
   // Phone section cards: padding 14, radius 24, surface + hairline.
@@ -631,10 +903,6 @@ const styles = StyleSheet.create({
     borderColor: colors.hairline,
     backgroundColor: colors.surface,
     padding: spacing['3_5'],
-  },
-  tabletCard: {
-    padding: spacing[6],
-    gap: spacing['4_5'],
   },
   pair: {
     flexDirection: 'row',
@@ -703,17 +971,34 @@ const styles = StyleSheet.create({
     fontSize: typography.bodyLg.fontSize,
     color: colors.textFaint,
   },
+  // §2: the pinned CTA bar, padding 16 20 + the safe area.
   bar: {
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 0,
     paddingTop: spacing[4],
   },
-  deletePhone: {
-    marginTop: spacing['1_5'],
+  flex: {
+    flex: 1,
+    minWidth: 0,
   },
-  deleteTablet: {
+  // Phone P2–P4: glass Back, then the primary taking the rest (gap 10).
+  buttonsPhone: {
+    flexDirection: 'row',
+    gap: spacing['2_5'],
+  },
+  // Tablet: a right-aligned row, the primary last.
+  buttonsTablet: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: spacing[3],
+  },
+  // B (phone) and §9 reflow: stacked full width, the primary on top.
+  buttonsStacked: {
+    gap: spacing['2_5'],
+  },
+  deleteAction: {
     marginTop: 40,
   },
   // The kit's disabled look (FormField boxDisabled 0.5).

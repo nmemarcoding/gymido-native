@@ -19,12 +19,12 @@ import { useFocusRemountKey } from '../../../shared/hooks/useFocusRemountKey';
 import GradientFill from '../../../shared/components/GradientFill';
 import { breakpoints, colors, font, gradients, radii, spacing, titleTracking, typography } from '../../../shared/theme/tokens';
 import ShellPage from '../../shell/ShellPage';
-import { handOffToWorkout, openShellPath } from '../../shell/shellLinks';
+import { handOffToWorkout, openOnboardingDays, openShellPath } from '../../shell/shellLinks';
 import { acceptGeneratedPlan, getGeneratorProfile, previewGeneratedPlan, saveGeneratorProfile } from '../api/generatorApi';
 import { Callout, MuscleLabel, WhyLine } from '../components/GeneratorControls';
 import { ChevronLeftIcon } from '../components/GeneratorIcons';
 import { GeneratorUnavailable } from '../components/GeneratorStates';
-import { leaveToPlans, previewBackLeaves, useLeaveOnBack } from '../generatorExit';
+import { isFromOnboarding, leaveToPlans, previewBackLeaves, useLeaveOnBack } from '../generatorExit';
 import {
   COPY,
   activeNotice,
@@ -152,8 +152,16 @@ function PlanGeneratorPreview() {
     const preview = view.preview;
     setAccepting(true);
     try {
-      await acceptGeneratedPlan(buildAcceptBody(preview.preview_hash, replace));
-      if (mounted.current) {
+      const accepted = await acceptGeneratedPlan(buildAcceptBody(preview.preview_hash, replace));
+      if (!mounted.current) {
+        return;
+      }
+      // T-53 (onboarding ruling §1, D): from the onboarding bridge, Accept
+      // replaces to "Pick your days" for the new enrolment; elsewhere Workout.
+      const enrollment = accepted?.enrollment;
+      if (isFromOnboarding(route) && enrollment?.id && enrollment?.workout_plan_id) {
+        openOnboardingDays({ enrollmentId: enrollment.id, planId: enrollment.workout_plan_id, planName: enrollment.plan?.name ?? preview.plan_name });
+      } else {
         handOffToWorkout(navigation, route, createdMessage(preview.plan_name));
       }
     } catch (error) {

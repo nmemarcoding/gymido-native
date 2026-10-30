@@ -1,0 +1,37 @@
+# T-53 onboarding (ruling §7 E2E 5–6, client part): P1's Next with empty
+# names shows both errors; Back from P2 (the bar and the top icon) keeps the
+# answers. NEVER saves (no P4 press). Starts on Create profile P1 with a
+# profile-less account. IDs only; no credentials, no coordinates. Written, not yet run.
+appId: com.gymido.app
+---
+- extendedWaitUntil:
+    visible:
+      id: "create-profile-root"
+    timeout: 30000
+- tapOn:
+    id: "profile-next"
+- assertVisible: "First name is required"
+- assertVisible: "Last name is required"
+- runFlow: subflows/fill-p1-p2.yaml
+# P3 → bar Back → P2 keeps 5 ft.
+- tapOn:
+    id: "profile-back"
+- extendedWaitUntil:
+    visible:
+      id: "profile-height-unit"
+    timeout: 10000
+- assertVisible:
+    id: "profile-height_feet"
+    text: "5"
+# P2 → the top Back icon → P1 keeps the names.
+- tapOn:
+    id: "profile-top-back"
+- extendedWaitUntil:
+    visible:
+      id: "profile-first_name"
+    timeout: 10000
+- assertVisible:
+    id: "profile-first_name"
+    text: "Rig"
+- assertVisible:
+    id: "delete-account-open"

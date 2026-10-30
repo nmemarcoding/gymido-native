@@ -6,6 +6,7 @@ import SessionLoadingScreen from '../features/auth/screens/SessionLoadingScreen'
 import SignInFailedScreen from '../features/auth/screens/SignInFailedScreen';
 import WelcomeScreen from '../features/auth/screens/WelcomeScreen';
 import CreateProfileScreen from '../features/profile/CreateProfileScreen';
+import OnboardingDaysScreen from '../features/onboarding/OnboardingDaysScreen';
 import AppShell from '../features/shell/AppShell';
 import NotFoundScreen from '../features/shell/NotFoundScreen';
 import { getScreenTab, isShellScreen } from '../features/shell/shellNavigation';
@@ -79,6 +80,8 @@ export default function RootNavigator() {
             component={CreateProfileScreen}
             initialParams={initial.name === routes.Onboarding ? initial.params : undefined}
           />
+          {/* T-53 D: "Pick your days" after the onboarding generator's Accept. */}
+          <Stack.Screen name={routes.OnboardingDays} component={OnboardingDaysScreen} />
           <Stack.Screen name={routes.NotFound} component={NotFoundRoute} />
         </Stack.Group>
       ) : (

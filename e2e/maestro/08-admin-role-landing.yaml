@@ -26,7 +26,10 @@ appId: com.gymido.app
     timeout: 90000
 - assertVisible: "Roles: .*[Aa]dmin.*"
 # Profile gate wins over the role rule; see the note above.
-- assertVisible: "Onboarding"
+# T-53 item 40 (DECLARED): was the text "Onboarding" (the placeholder era);
+# Create profile's root by id.
+- assertVisible:
+    id: "create-profile-root"
 # The real invariant: no admin surface on mobile, whatever the landing.
 - assertNotVisible: "Trainer dashboard"
 - assertNotVisible: "Account unavailable"

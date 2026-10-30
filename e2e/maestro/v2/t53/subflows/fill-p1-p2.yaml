@@ -1,0 +1,34 @@
+# T-53: P1 names → Next → P2 5 ft → Next (lands on P3). Starts on P1.
+# Maestro's inputText APPENDS: every field is erased first.
+appId: com.gymido.app
+---
+- extendedWaitUntil:
+    visible:
+      id: "create-profile-root"
+    timeout: 30000
+- tapOn:
+    id: "profile-first_name"
+- eraseText
+- inputText: "Rig"
+- tapOn:
+    id: "profile-last_name"
+- eraseText
+- inputText: "Tfiftythree"
+- hideKeyboard
+- tapOn:
+    id: "profile-next"
+- extendedWaitUntil:
+    visible:
+      id: "profile-height-unit"
+    timeout: 10000
+- tapOn:
+    id: "profile-height_feet"
+- eraseText
+- inputText: "5"
+- hideKeyboard
+- tapOn:
+    id: "profile-next"
+- extendedWaitUntil:
+    visible:
+      id: "profile-weight-unit"
+    timeout: 10000

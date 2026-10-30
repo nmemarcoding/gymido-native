@@ -5,6 +5,8 @@ export const routes = Object.freeze({
   SignInFailed: 'SignInFailed',
   AccountUnavailable: 'AccountUnavailable',
   Onboarding: 'Onboarding',
+  // T-53 D: "Pick your days" after the onboarding generator's Accept.
+  OnboardingDays: 'OnboardingDays',
   NotFound: 'NotFound',
   // The signed-in tab shell (app-shell spec §3.4) and the screens inside it.
   AppShell: 'AppShell',

@@ -1,0 +1,34 @@
+# T-53 onboarding (ruling §1, §7 E2E 1–2): the profile-less rig walks
+# P1 → P2 → P3 Skip → P4 Skip (saves) → B → "Not now" → Today's no-plan state.
+# Starts signed in on Create profile P1 with a PROFILE-LESS throwaway account
+# (the lead's safe runner signs in first). SAVES A PROFILE: the account is no
+# longer profile-less afterwards (the reset between runs is open, see README).
+# IDs only; no credentials, no coordinates. Written, not yet run.
+appId: com.gymido.app
+---
+- runFlow: subflows/fill-p1-p2.yaml
+# P3: both weights empty → the primary reads "Skip".
+- assertVisible:
+    id: "profile-next"
+    text: "Skip"
+- tapOn:
+    id: "profile-next"
+# P4: neither field set → "Skip" saves the profile.
+- extendedWaitUntil:
+    visible:
+      id: "profile-sex"
+    timeout: 10000
+- tapOn:
+    id: "profile-submit"
+- extendedWaitUntil:
+    visible:
+      id: "bridge-not-now"
+    timeout: 30000
+- assertVisible:
+    id: "bridge-browse"
+- tapOn:
+    id: "bridge-not-now"
+- extendedWaitUntil:
+    visible:
+      id: "tab-Today|rail-Today|desktop-sidebar"
+    timeout: 30000

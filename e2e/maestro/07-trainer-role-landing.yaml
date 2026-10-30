@@ -35,6 +35,9 @@ appId: com.gymido.app
     visible: "Signed in as ${TRAINER_EMAIL}"
     timeout: 90000
 - assertVisible: "Roles: .*[Tt]rainer.*"
-# Profile gate wins over the role rule; see the note above.
-- assertVisible: "Onboarding"
+# T-53 item 40 (DECLARED): was the text "Onboarding" (the placeholder era).
+# Since 25 Sep 2026 this account has a profile (made in the app), so it lands
+# on the trainer workspace; the gap noted above is closed.
+- assertVisible:
+    id: "tab-TToday|rail-TToday|desktop-sidebar"
 - assertNotVisible: "Account unavailable"

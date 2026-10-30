@@ -1,0 +1,24 @@
+# T-53 onboarding (ruling §7 E2E 11): Delete account shows on P1 only; the
+# dialog opens and Cancel closes it. NEVER types DELETE, never taps the
+# dialog's Delete, never saves. Starts on Create profile P1 with a
+# profile-less account. IDs only; no credentials, no coordinates. Written, not yet run.
+appId: com.gymido.app
+---
+- extendedWaitUntil:
+    visible:
+      id: "create-profile-root"
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: "delete-account-open"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "delete-account-open"
+- assertVisible:
+    id: "delete-account-cancel"
+- tapOn:
+    id: "delete-account-cancel"
+- runFlow: subflows/fill-p1-p2.yaml
+- assertNotVisible:
+    id: "delete-account-open"

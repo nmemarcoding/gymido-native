@@ -40,6 +40,8 @@ const SCROLLED_SCREENS = {
   // Not on ShellPage: they draw StatusBarBackdrop themselves.
   Exercises: 'features/exercises/screens/ExercisesScreen.js',
   'Create profile': 'features/profile/CreateProfileScreen.js',
+  // T-53 item 38 (added): the onboarding "Pick your days" page (a root screen).
+  'Onboarding pick your days': 'features/onboarding/OnboardingDaysScreen.js',
 };
 
 // Files with a scroll view that are NOT a page scrolling under the status bar.

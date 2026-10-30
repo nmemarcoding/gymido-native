@@ -24,6 +24,10 @@ appId: com.gymido.app
           env:
             LOGIN_EMAIL: ${MEMBER_EMAIL}
             LOGIN_PASSWORD: ${MEMBER_PASSWORD}
+# T-53 item 40 (DECLARED): was the text "Home|Onboarding|Trainer dashboard|
+# Settings|Profile" (placeholder-era copy); any signed-in landing by id, as
+# ios-sign-in/stage-4-submit.yaml waits for it.
 - extendedWaitUntil:
-    visible: "Home|Onboarding|Trainer dashboard|Settings|Profile"
+    visible:
+      id: "tab-Today|tab-TToday|rail-Today|rail-TToday|desktop-sidebar|create-profile-root"
     timeout: 90000

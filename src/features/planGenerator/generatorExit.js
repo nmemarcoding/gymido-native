@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BackHandler } from 'react-native';
 
 import { routes } from '../../navigation/routes';
+import { openShellPath } from '../shell/shellLinks';
 import { generatorRoutes } from './generatorRoutes';
 
 // G1 (final pass 5f53f3d, PM 28 Oct 2026): the preview's "Back to your
@@ -46,9 +47,20 @@ export function leaveToPlans(navigation) {
   navigation.reset({ index: 0, routes: [{ name: routes.PlansLibrary }] });
 }
 
+// T-53 (onboarding ruling §1): entered from the onboarding bridge
+// (`from: 'onboarding'`), step 1's Cancel REPLACES to Today: the Plans stack
+// is reset to Plans alone (nothing to come back to), then Today shows.
+export const FROM_ONBOARDING = 'onboarding';
+export const isFromOnboarding = (route) => route?.params?.from === FROM_ONBOARDING;
+
+export function leaveToToday(navigation) {
+  leaveToPlans(navigation);
+  openShellPath('/');
+}
+
 // While `active`, the Android hardware / gesture back leaves the same way
-// (only while this screen is focused).
-export function useLeaveOnBack(navigation, active) {
+// (only while this screen is focused); `leave` defaults to Plans.
+export function useLeaveOnBack(navigation, active, leave = leaveToPlans) {
   useEffect(() => {
     if (!active) {
       return undefined;
@@ -57,9 +69,9 @@ export function useLeaveOnBack(navigation, active) {
       if (navigation?.isFocused && !navigation.isFocused()) {
         return false;
       }
-      leaveToPlans(navigation);
+      leave(navigation);
       return true;
     });
     return () => subscription.remove();
-  }, [navigation, active]);
+  }, [navigation, active, leave]);
 }

@@ -23,7 +23,7 @@ const STATS = { completed_workouts_total: 0, completed_workouts_this_week: 0, pl
 const PLAN = { current_plan: { enrollment: { plan: { id: 4, name: 'Upper / Lower' } } }, quick_stats: STATS, recent_workouts: [] };
 
 const mounted = [];
-async function render(dashboard) {
+async function render(dashboard, route) {
   if (dashboard instanceof Error) {
     getDashboard.mockRejectedValue(dashboard);
   } else {
@@ -31,7 +31,7 @@ async function render(dashboard) {
   }
   let tree;
   await act(async () => {
-    tree = create(<HomeScreen />);
+    tree = create(<HomeScreen route={route} />);
   });
   await flush();
   mounted.push(tree);
@@ -76,5 +76,39 @@ describe('T-103 Today permission moment', () => {
   test('a failed load never asks', async () => {
     await render(new Error('500'));
     expect(askReminderPermissionOnTrainingDay).not.toHaveBeenCalled();
+  });
+});
+
+// T-53 (onboarding ruling D): from "Pick your days" (Save) Today opens with
+// the "Training days saved." toast; the prompt waits ~400 ms for its entrance.
+describe('T-53 after Pick your days', () => {
+  const TRAINING = { ...PLAN, today_status: { is_workout_day: true, already_completed: false, plan_day: { title: 'Push' } } };
+
+  test('asks once the toast has come in, not stacked on it', async () => {
+    jest.useFakeTimers();
+    try {
+      getDashboard.mockResolvedValue(TRAINING);
+      let tree;
+      await act(async () => {
+        tree = create(<HomeScreen route={{ params: { askAfterToast: true } }} />);
+      });
+      mounted.push(tree);
+      expect(askReminderPermissionOnTrainingDay).not.toHaveBeenCalled();
+      await act(async () => {
+        jest.advanceTimersByTime(399);
+      });
+      expect(askReminderPermissionOnTrainingDay).not.toHaveBeenCalled();
+      await act(async () => {
+        jest.advanceTimersByTime(1);
+      });
+      expect(askReminderPermissionOnTrainingDay).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('without the flag it asks at once (unchanged)', async () => {
+    await render(TRAINING, { params: {} });
+    expect(askReminderPermissionOnTrainingDay).toHaveBeenCalledTimes(1);
   });
 });

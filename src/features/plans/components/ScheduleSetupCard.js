@@ -37,7 +37,9 @@ export function daysSelectedLabel(count, required) {
 // T-76 C2: the Workout hub opens this card in place of its "Set up your
 // week" card; there it also gets `onCancel` (a ghost "Cancel" under Save that
 // goes back) and `headingRef` (focus moves to the heading on open).
-export default function ScheduleSetupCard({ planName, planDays, enrollmentId, onSaved, onCancel, headingRef }) {
+// T-53 D (onboarding "Pick your days"): the same card on its own page, where
+// the secondary reads "Later" as a 44 text button (`cancelLabel`, `cancelSize`).
+export default function ScheduleSetupCard({ planName, planDays, enrollmentId, onSaved, onCancel, headingRef, cancelLabel = 'Cancel', cancelSize = 'default' }) {
   const { width, fontScale } = useWindowDimensions();
   // §9 reflow (live): the chips wrap 2 (phone) / 4 (tablet) per row and the
   // tablet ring drops below the title.
@@ -96,7 +98,7 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
     />
   );
   const cancelButton = onCancel ? (
-    <PillButton testID="schedule-setup-cancel" title="Cancel" variant="ghost" fullWidth disabled={saving} onPress={onCancel} style={styles.mt8} />
+    <PillButton testID="schedule-setup-cancel" title={cancelLabel} variant="ghost" size={cancelSize} fullWidth disabled={saving} onPress={onCancel} style={styles.mt8} />
   ) : null;
 
   if (tablet) {

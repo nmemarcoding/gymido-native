@@ -229,15 +229,18 @@ describe('P1b.3 dialog', () => {
 });
 
 describe('P1b.4 Create-profile variant', () => {
-  // v2 Phase 2 B1 (ND2): on a phone it sits in the sticky CTA bar, 6 under "Create profile".
-  it('sits under the Create profile CTA (phone: in the sticky bar, 6 below) with the short subline', () => {
+  // T-53 item 35 (onboarding ruling §3 P1): on P1 only, at the end of the
+  // content, 40 below it. Was (v2 Phase 2 B1, ND2): in the phone's sticky
+  // CTA bar, 6 under "Create profile".
+  it('sits at the end of P1 (not in the sticky bar), 40 below the content, with the short subline', () => {
     const tree = render(<CreateProfileScreen />);
     const shown = texts(tree.root);
     expect(shown).toEqual(expect.arrayContaining(['Delete account', "Don't want to continue? Permanently erase your sign-in."]));
-    expect(shown.indexOf('Delete account')).toBeGreaterThan(shown.indexOf('Create profile'));
+    expect(shown.indexOf('Delete account')).toBeLessThan(shown.indexOf('Next'));
     const bar = tree.root.find((node) => node.props.testID === 'profile-cta-bar' && typeof node.type === 'string');
-    const action = bar.find((node) => node.props.testID === 'delete-account-action' && typeof node.type === 'string');
-    expect([].concat(action.props.style)).toEqual(expect.arrayContaining([{ marginTop: 6 }]));
+    expect(bar.findAll((node) => node.props.testID === 'delete-account-action' && typeof node.type === 'string')).toHaveLength(0);
+    const action = tree.root.find((node) => node.props.testID === 'delete-account-action' && typeof node.type === 'string');
+    expect([].concat(action.props.style)).toEqual(expect.arrayContaining([{ marginTop: 40 }]));
   });
 
   it('is hidden for admins on Create profile', () => {
@@ -265,28 +268,26 @@ describe('P1b.4 Create-profile variant', () => {
     expect(shown.some((line) => line.startsWith('Plans your trainer made'))).toBe(false);
   });
 
-  it('is disabled (opacity 60) while the profile is being submitted', async () => {
-    const pending = deferred();
-    createProfile.mockReturnValueOnce(pending.promise);
+  // T-53 item 36: Delete account is on P1 only and the save is on P4, so it is
+  // never on screen while saving (the ruling keeps the disabled rule for
+  // parity). Was: 'is disabled (opacity 60) while the profile is being
+  // submitted' (one form: fill, submit, Delete disabled, then enabled again).
+  it('is on P1 only: gone from P2–P4', () => {
     const tree = render(<CreateProfileScreen />);
     const set = (id, value) => act(() => tree.root.find((node) => node.props.testID === id && node.props.onChangeText).props.onChangeText(value));
+    const nextStep = () => act(() => pressable(tree.root, 'profile-next').props.onPress());
+    const shown = () => tree.root.findAll((node) => node.props.testID === 'delete-account-action' && typeof node.type === 'string');
+    expect(shown()).toHaveLength(1);
     set('profile-first_name', 'Asad');
     set('profile-last_name', 'Khan');
+    nextStep();
+    expect(shown()).toHaveLength(0);
     set('profile-height_feet', '5');
-    set('profile-current_weight_value', '82');
-    set('profile-goal_weight_value', '78');
-    // Not awaited: the request stays pending.
-    act(() => {
-      pressable(tree.root, 'profile-submit').props.onPress();
-    });
-    expect(createProfile).toHaveBeenCalled();
-    const button = tree.root.find((node) => node.props.testID === 'delete-account-open' && node.props.onPress);
-    expect(button.props.disabled).toBe(true);
-    expect(button.props.accessibilityState).toEqual({ disabled: true });
-    await act(async () => {
-      pending.reject({ response: { status: 422, data: {} } });
-    });
-    expect(tree.root.find((node) => node.props.testID === 'delete-account-open' && node.props.onPress).props.disabled).toBe(false);
+    nextStep();
+    expect(shown()).toHaveLength(0);
+    nextStep();
+    expect(shown()).toHaveLength(0);
+    expect(createProfile).not.toHaveBeenCalled();
   });
 });
 
