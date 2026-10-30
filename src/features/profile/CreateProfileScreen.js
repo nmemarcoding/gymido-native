@@ -28,7 +28,7 @@ import { AmbientGlow } from '../../shared/components/Screen';
 import SegmentedSwitch from '../../shared/components/SegmentedSwitch';
 import { useKeyboardOverlap } from '../../shared/hooks/useKeyboardHeight';
 import { useReducedMotion } from '../../shared/hooks/useReducedMotion';
-import { breakpoints, colors, font, gradients, motion, radii, spacing, textScale, titleTracking, typography } from '../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, motion, spacing, textScale, titleTracking, typography } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
 import { getGeneratorProfile } from '../planGenerator/api/generatorApi';
 import { OptionPill, PillRow, ProgressSegments } from '../planGenerator/components/GeneratorControls';
@@ -244,6 +244,33 @@ export default function CreateProfileScreen() {
     return () => clearTimeout(timer);
   }, [focusTitle]);
 
+  // T-53 UX (29 Oct): with the keyboard up the focused field scrolls ABOVE
+  // the pinned bar (it rides on the keyboard): RN's keyboard scroll with the
+  // bar's height + 16 on top. The OS / automaticallyAdjustKeyboardInsets
+  // only clear the keyboard itself.
+  const focusedKey = useRef(null);
+  const clearBar = () => {
+    const node = focusedKey.current ? targets.current[focusedKey.current] : null;
+    const handle = node ? findNodeHandle(node) : null;
+    // Tablet's bar is in flow: the OS keyboard scroll is enough there.
+    if (handle && !tablet && !barInFlow) {
+      scrollRef.current?.scrollResponderScrollNativeHandleToKeyboard?.(handle, barHeight + spacing[4], true);
+    }
+  };
+  function focusedField(key) {
+    focusedKey.current = key;
+    if (keyboardHeight > 0) {
+      clearBar();
+    }
+  }
+  useEffect(() => {
+    if (keyboardHeight > 0) {
+      clearBar();
+    }
+    // Runs when the keyboard comes up or resizes (clearBar reads this render's bar).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keyboardHeight]);
+
   // §1 Android back: P2–P4 = Back; P1 and B do nothing (no exit, as before).
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -440,6 +467,7 @@ export default function CreateProfileScreen() {
       value={shown(key)}
       error={fieldErrors[key]}
       onChangeText={(text) => setText(key, text)}
+      onFocus={() => focusedField(key)}
       returnKeyType={nextField ? 'next' : 'go'}
       onSubmitEditing={nextField ? () => targets.current[nextField]?.focus?.() : primary}
       editable={!submitting}
@@ -468,9 +496,10 @@ export default function CreateProfileScreen() {
     const lastName = input('last_name', { label: 'Last Name' });
     return (
       <>
-        <View testID={tablet ? 'profile-names-pair' : 'profile-section-names'} style={tablet ? pair : [styles.section, pair]}>
-          <View style={cell}>{firstName}</View>
-          <View style={cell}>{lastName}</View>
+        {/* T-53 UX (29 Oct, as web): no card; First / Last name full width at every width. */}
+        <View testID={tablet ? 'profile-names-pair' : 'profile-section-names'} style={styles.pairStacked}>
+          <View style={styles.cellStacked}>{firstName}</View>
+          <View style={styles.cellStacked}>{lastName}</View>
         </View>
         {/* T-43 (P1b.4): P1 only, at the end of the content, 40 below it. */}
         <DeleteAccountAction profileLess disabled={submitting} style={styles.deleteAction} />
@@ -525,7 +554,8 @@ export default function CreateProfileScreen() {
     );
     return (
       <>
-        <View testID="profile-section-height-unit" style={tablet ? null : styles.section}>
+        {/* T-53 UX (29 Oct, as web): no card around the unit switch. */}
+        <View testID="profile-section-height-unit">
           {heightSwitch}
         </View>
         {heightFields}
@@ -616,6 +646,8 @@ export default function CreateProfileScreen() {
                 testID={`profile-sex-${option.value}`}
                 label={option.label}
                 size="focusTablet"
+                // T-53 UX (29 Oct, as web): selected = dark + gold border + ✓.
+                outlined
                 accessibilityRole="radio"
                 selected={form.sex === option.value}
                 disabled={submitting}
@@ -726,7 +758,7 @@ export default function CreateProfileScreen() {
           paddingTop: contentTop,
           // Phone: room for the pinned bar (on the keyboard while it is up)
           // so the last field never hides behind it.
-          paddingBottom: pinned ? (androidKeyboard ? androidKeyboard + barHeight : barHeight + spacing[4]) : androidKeyboard || insets.bottom + 64,
+          paddingBottom: pinned ? androidKeyboard + barHeight + spacing[4] : androidKeyboard || insets.bottom + 64,
           paddingLeft: insets.left + (tablet ? 72 : spacing[4]),
           paddingRight: insets.right + (tablet ? 72 : spacing[4]),
         }}
@@ -895,14 +927,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 24,
     color: colors.textSecondary,
-  },
-  // Phone section cards: padding 14, radius 24, surface + hairline.
-  section: {
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: colors.hairline,
-    backgroundColor: colors.surface,
-    padding: spacing['3_5'],
   },
   pair: {
     flexDirection: 'row',

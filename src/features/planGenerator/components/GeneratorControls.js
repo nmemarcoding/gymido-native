@@ -143,7 +143,12 @@ const hitSlopFor = (height) => {
   return { top: slop, bottom: slop, left: 0, right: 0 };
 };
 
-function pillLook(size, selected) {
+function pillLook(size, selected, outlined) {
+  // T-53 UX (29 Oct, P4 Sex): opt-in outlined on-state, a dark pill with a
+  // gold border and a gold ✓ (off = the size's own off look).
+  if (outlined && selected) {
+    return { box: styles.pillOutlinedOn, text: styles.pillTextOutlinedOn, ink: false, check: colors.gold };
+  }
   if (size === 'reason') {
     return selected
       ? { box: styles.reasonOn, text: styles.reasonTextOn, ink: true, check: colors.onLight }
@@ -169,9 +174,10 @@ export function OptionPill({
   accessibilityRole = 'button',
   accessibilityHint,
   size = 'default',
+  outlined = false,
 }) {
   const metrics = PILL_SIZES[size] ?? PILL_SIZES.default;
-  const look = pillLook(size, selected);
+  const look = pillLook(size, selected, outlined);
   const radio = accessibilityRole === 'radio';
   return (
     <Pressable
@@ -473,6 +479,15 @@ const styles = StyleSheet.create({
   pillOn: {
     borderColor: colors.gold,
     backgroundColor: colors.gold,
+  },
+  pillOutlinedOn: {
+    borderWidth: 1.5,
+    borderColor: colors.gold,
+    backgroundColor: colors.surfaceCard2,
+  },
+  pillTextOutlinedOn: {
+    ...font(600),
+    color: colors.textPrimary,
   },
   pillRest: {
     borderColor: colors.hairlineButton,

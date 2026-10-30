@@ -628,10 +628,11 @@ describe('§9 large text', () => {
   it.each([
     ['phone', 390, 'profile-section-names'],
     ['tablet', 834, 'profile-names-pair'],
-  ])('%s at fontScale 1: the 2-column pairs and the unit row sit side by side', (_, width, names) => {
+  ])('%s at fontScale 1: the 2-column pairs and the unit row sit side by side; the names stack', (_, width, names) => {
     mockWidth = width;
     const tree = render();
-    expect(flat(host(tree.root, names).props.style).flexDirection).toBe('row');
+    // DECLARED (T-53 UX, PM OK 29 Oct) Was: toBe('row'); First / Last name full width at every width (as web).
+    expect(flat(host(tree.root, names).props.style).flexDirection).toBe('column');
     fillValid(tree);
     expect(flat(host(tree.root, 'profile-weights-pair').props.style).flexDirection).toBe('row');
     expect(flat(host(tree.root, 'profile-weight-unit-row').props.style).flexDirection).toBe('row');
@@ -1149,13 +1150,15 @@ describe('Android keyboard: the scroll padding clears the keyboard top (useKeybo
   // T-53 item 33 (§2 "the bar stays above the keyboard", Q4: the PM's
   // useKeyboardOverlap). Was: only the scroll padding; the bar also rides on
   // the keyboard now.
-  it('keyboard up: the content ends at or above the keyboard top (padding = the 384 covered, not the raw 336); the bar sits on it', () => {
+  // DECLARED (T-53 UX, PM OK 29 Oct) Was: "(padding = the 384 covered, not the raw 336)"; the padding now also clears the bar + 16.
+  it('keyboard up: the content ends at or above the keyboard top (padding = the 384 covered + the bar + 16, not the raw 336); the bar sits on it', () => {
     mockWidth = ANDROID_WINDOW.width;
     const tree = render();
     act(() => listeners.keyboardDidShow({ endCoordinates: FRAME }));
     const padding = host(tree.root, 'create-profile-screen').props.contentContainerStyle.paddingBottom;
     expect(ANDROID_WINDOW.height - padding).toBeLessThanOrEqual(FRAME.screenY);
-    expect(padding).toBe(384);
+    // DECLARED (T-53 UX, PM OK 29 Oct) Was: toBe(384); 384 covered + the bar (0, unmeasured) + 16.
+    expect(padding).toBe(400);
     expect(flat(host(tree.root, 'profile-cta-bar').props.style).bottom).toBe(384);
     act(() => listeners.keyboardDidHide());
     expect(host(tree.root, 'create-profile-screen').props.contentContainerStyle.paddingBottom).not.toBe(384);
@@ -1256,5 +1259,62 @@ describe('Create profile weights: the full value always shows (320, 1×/1.3×)',
     const wide = render();
     fillValid(wide);
     expect(textRoom(wide, 390).stacked).toBe(false);
+  });
+});
+
+// T-53 UX (29 Oct 2026, as web): no cards around the P1/P2 groups; with the
+// keyboard up the focused field scrolls above the pinned bar; the selected
+// Sex pill is outlined (dark + gold border + ✓), not gold-filled.
+describe('T-53 UX: no field cards, the keyboard clears the bar, the outlined Sex pill', () => {
+  it('P1 names and P2 unit switch sit on the page (no border, no fill); Feet / Inches stay 2 columns', () => {
+    const tree = render();
+    const names = flat(host(tree.root, 'profile-section-names').props.style);
+    expect(names.borderWidth).toBeUndefined();
+    expect(names.backgroundColor).toBeUndefined();
+    toHeight(tree);
+    expect(flat(host(tree.root, 'profile-section-height-unit').props.style) ?? {}).toEqual({});
+    expect(flat(host(tree.root, 'profile-height-pair').props.style).flexDirection).toBe('row');
+  });
+
+  describe('keyboard', () => {
+    const { Keyboard } = require('react-native');
+    let listeners;
+    beforeEach(() => {
+      listeners = {};
+      jest.spyOn(Keyboard, 'addListener').mockImplementation((name, cb) => {
+        listeners[name] = cb;
+        return { remove: () => delete listeners[name] };
+      });
+    });
+    afterEach(() => jest.restoreAllMocks());
+    const ReactNative = require('react-native');
+
+    it('the focused field scrolls above the keyboard + the bar + 16 (keyboard up, then a focus)', () => {
+      jest.spyOn(ReactNative, 'findNodeHandle', 'get').mockReturnValue((ref) => (ref ? 99 : null));
+      const tree = render();
+      const scroll = tree.root.find((node) => node.props.testID === 'create-profile-screen' && node.instance && node.type !== 'RCTScrollView');
+      const toKeyboard = jest.fn();
+      scroll.instance.scrollResponderScrollNativeHandleToKeyboard = toKeyboard;
+      act(() => host(tree.root, 'profile-cta-bar').props.onLayout({ nativeEvent: { layout: { width: 390, height: 110 } } }));
+      act(() => textInput(tree.root, 'profile-first_name').props.onFocus());
+      expect(toKeyboard).not.toHaveBeenCalled();
+      act(() => listeners.keyboardWillShow({ endCoordinates: { height: 300, screenY: 544 } }));
+      expect(toKeyboard).toHaveBeenLastCalledWith(99, 110 + 16, true);
+      act(() => textInput(tree.root, 'profile-last_name').props.onFocus());
+      expect(toKeyboard).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('the selected Sex pill: a dark fill, the gold border and a gold ✓ (not gold-filled); the rest unchanged', () => {
+    const tree = render();
+    toAboutStep(tree);
+    tapSex(tree, 'female');
+    const on = flat(sexPill(tree, 'female').props.style);
+    expect(on).toMatchObject({ borderColor: colors.gold, borderWidth: 1.5, backgroundColor: colors.surfaceCard2 });
+    expect(on.backgroundColor).not.toBe(colors.gold);
+    const check = sexPill(tree, 'female').findAll((node) => node.props.testID === 'pill-check' && typeof node.type === 'string');
+    expect(check).toHaveLength(1);
+    expect(check[0].findAll((node) => node.props.stroke === colors.gold || node.props.color === colors.gold || node.props.fill === colors.gold).length).toBeGreaterThan(0);
+    expect(flat(sexPill(tree, 'male').props.style).backgroundColor).not.toBe(colors.surfaceCard2);
   });
 });
