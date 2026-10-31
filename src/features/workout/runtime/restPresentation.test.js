@@ -187,12 +187,13 @@ describe('T-146 rest rules', () => {
     expect(isRestWarn(5, 9)).toBe(false);
   });
 
+  // DECLARED (T-153 §2, PM-approved): "Rest, … left" (was "Resting, … left").
   it('restTimerLabel: minutes and seconds, singular at 1', () => {
-    expect(restTimerLabel(108)).toBe('Resting, 1 minute 48 seconds left');
-    expect(restTimerLabel(120)).toBe('Resting, 2 minutes left');
-    expect(restTimerLabel(4)).toBe('Resting, 4 seconds left');
-    expect(restTimerLabel(1)).toBe('Resting, 1 second left');
-    expect(restTimerLabel(0)).toBe('Resting, 0 seconds left');
+    expect(restTimerLabel(108)).toBe('Rest, 1 minute 48 seconds left');
+    expect(restTimerLabel(120)).toBe('Rest, 2 minutes left');
+    expect(restTimerLabel(4)).toBe('Rest, 4 seconds left');
+    expect(restTimerLabel(1)).toBe('Rest, 1 second left');
+    expect(restTimerLabel(0)).toBe('Rest, 0 seconds left');
   });
 
   describe('restHero', () => {

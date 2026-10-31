@@ -11,7 +11,9 @@ appId: com.gymido.app
 tags:
   - member
 ---
-# DECLARED (T-146, PM-approved): the expanded-Rest marker "rest-ring-box" is now "rest-ring-box|rest-text"
+# DECLARED (T-153, PM-approved): the phone rest is a sheet: marker "rest-ring-box|rest-sheet", minimise via the
+# handle "rest-sheet-handle" (the tablet keeps rest-timer-minimize), copy "Get ready for the next exercise!" / "Skip Rest".
+# DECLARED (T-146, PM-approved): the expanded-Rest marker "rest-ring-box" is now "rest-ring-box|rest-sheet"
 # (the phone Rest has no ring; the tablet keeps it).
 - runFlow: ../subflows/signed-in-start.yaml
 - runFlow: ../subflows/start-workout.yaml
@@ -23,7 +25,7 @@ tags:
 - runFlow: ../subflows/log-current-set.yaml
 - extendedWaitUntil:
     visible:
-      id: "rest-ring-box|rest-text"
+      id: "rest-ring-box|rest-sheet"
     timeout: 15000
 - assertVisible:
     id: "rest-countdown"
@@ -34,13 +36,13 @@ tags:
 - tapOn:
     id: "rest-timer-plus"
 - assertVisible:
-    id: "rest-ring-box|rest-text"
+    id: "rest-ring-box|rest-sheet"
 # Minimise → the disc over the live workout.
 - tapOn:
-    id: "rest-timer-minimize"
+    id: "rest-timer-minimize|rest-sheet-handle"
 - extendedWaitUntil:
     notVisible:
-      id: "rest-ring-box|rest-text"
+      id: "rest-ring-box|rest-sheet"
     timeout: 5000
 - assertVisible:
     id: "rest-timer"
@@ -51,7 +53,7 @@ tags:
     id: "rest-timer"
 - extendedWaitUntil:
     visible:
-      id: "rest-ring-box|rest-text"
+      id: "rest-ring-box|rest-sheet"
     timeout: 5000
 # Skip rest clears it.
 - tapOn:

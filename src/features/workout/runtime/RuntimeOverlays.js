@@ -21,11 +21,9 @@ import Svg, { Circle } from 'react-native-svg';
 
 import BlurLayer from '../../../shared/components/BlurLayer';
 import ExerciseImage from '../../../shared/components/ExerciseImage';
-import RemoteImage from '../../../shared/components/RemoteImage';
-import { exerciseImageProps } from '../../../shared/images/remoteImageSources';
 import GradientFill from '../../../shared/components/GradientFill';
 import IconButton from '../../../shared/components/IconButton';
-import PillButton, { BUTTON_HEIGHTS } from '../../../shared/components/PillButton';
+import PillButton from '../../../shared/components/PillButton';
 import TextLink from '../../../shared/components/TextLink';
 import { isTabletWidth } from '../../../shared/components/AppModal';
 import { CAP_BODY, DISPLAY_TITLE_TEXT, useLargeTextReflow } from '../../../shared/components/largeText';
@@ -37,7 +35,6 @@ import AlertSheet, { SheetBody } from './AlertSheet';
 import useForegroundBlur from './useForegroundBlur';
 import {
   AlarmIcon,
-  ArrowRightIcon,
   CheckIcon,
   ChevronDownIcon,
   Countdown,
@@ -58,14 +55,12 @@ import {
   completionVolume,
   isRestWarn,
   personalBestLines,
-  remainingRatio,
-  restTimerLabel,
   restTotalLabel,
   shareSummaryText,
   spokenRecordLine,
 } from './restPresentation';
 import { consumeRestBack, setRestBackConsumer } from './restBackGate';
-import PhotoBlend from './PhotoBlend';
+import RestSheet, { SkipIcon } from './RestSheet';
 import { setsWord } from './sessionMath';
 import { keepUnitsTogether } from '../../../shared/format/counts';
 
@@ -223,7 +218,7 @@ export function RestTimerWidget({ timer, minimized, onMinimize, onExpand, onAdju
   return tablet ? (
     <TabletRest timer={timer} next={next} hero={hero} onMinimize={onMinimize} onAdjust={onAdjust} onSkip={onSkip} window={window} insets={insets} />
   ) : (
-    <PhoneRest timer={timer} hero={hero} onMinimize={onMinimize} onAdjust={onAdjust} onSkip={onSkip} window={window} insets={insets} />
+    <RestSheet timer={timer} hero={hero} onMinimize={onMinimize} onAdjust={onAdjust} onSkip={onSkip} window={window} insets={insets} />
   );
 }
 
@@ -261,15 +256,17 @@ function AdjustButtons({ onAdjust, tablet, flex = false }) {
 
 // T-146 (FE Q2): after an exercise's last set (`start`) the tablet's Skip
 // becomes the gold "Start now", the same action.
-function SkipButton({ onSkip, tablet, start = false }) {
+// T-153 §5 (tablet): "Skip Rest" + ▶▶ in every state, the gold primary.
+function SkipButton({ onSkip, tablet }) {
   return (
     <PillButton
       testID="rest-timer-skip"
-      title={start ? 'Start now' : 'Skip rest'}
-      variant={start ? 'primary' : 'light'}
+      title="Skip Rest"
+      variant="primary"
       size="cta"
       fullWidth
-      icon={({ color }) => <ArrowRightIcon size={18} color={color} />}
+      iconAfter
+      icon={({ color }) => <SkipIcon size={20} color={color} />}
       onPress={onSkip}
       style={tablet ? styles.skipTablet : null}
     />
@@ -289,213 +286,6 @@ function RingFace({ timer, ringSize, tablet, digitsStyle = null, warn }) {
     </View>
   );
 }
-
-// T-146 (ruling rev 29/31/33/36, FINAL boards 1–3): the phone Rest. From the
-// top: the minimise chevron (44) → the exercise photo, full width, contain,
-// untouched, over a blurred, darkened copy that fades into the ground → 40 →
-// the eyebrow ("{n} sets left", rest 1/2) and the name → 24 → the 92 timer;
-// the −5 · Skip rest · +5 bar at the bottom. The time left is a drain fill in
-// the zone under the photo (red in the last 5 s). Rest 3 (`hero.mode`
-// 'next'): "Go to the next exercise" ABOVE the NEXT exercise's photo (owner
-// 30 Oct: never on it; catalog images carry baked-in text), and a gold Start
-// now (Skip's action). No photo (none, not loaded yet,
-// or failed): no card and no copy; the text moves up. Nothing scrolls: on
-// short phones the photo gives up the room it lacks (floor 160, Q5); the
-// timer is clamp(72, 11 % of the height, 92); the buttons never move.
-function PhoneRest({ timer, hero, onMinimize, onAdjust, onSkip, window, insets }) {
-  const reducedMotion = useReducedMotion();
-  const next = hero?.mode === 'next';
-  const warn = isRestWarn(timer.secondsLeft, timer.totalSeconds);
-  const image = useMemo(() => exerciseImageProps(hero?.exercise), [hero?.exercise]);
-  const [photo, setPhoto] = useState(null);
-  const [textHeight, setTextHeight] = useState(REST_TEXT_ESTIMATE);
-  const [headlineHeight, setHeadlineHeight] = useState(REST_HEADLINE_ESTIMATE);
-  const [fade] = useState(() => new Animated.Value(0));
-  const loaded = image.url && photo?.url === image.url ? photo : null;
-
-  const top = insets.top + spacing[2] + layout.touchMin;
-  // Rev 38 A: rest 3 with a photo: 12 → the headline → 12 → the photo.
-  const headlineRow = next && loaded;
-  const photoTop = headlineRow ? top + spacing[3] + headlineHeight + spacing[3] : top;
-  const barBottom = insets.bottom + REST_BAR_BOTTOM;
-  // RN-SPEC dated 30 Oct: the timer is clamp(72, 11 % of the height, 92).
-  const digits = restDigitsSize(window.height);
-  // Rev 38 B: the timer zone runs from the photo's bottom to 24 above the
-  // control bar; the text group is centred in it (at least 24 above), else
-  // top-aligned; the photo gives up the room it lacks first (floor 160).
-  const zoneBottom = barBottom + BUTTON_HEIGHTS.default + REST_ZONE_PAD;
-  const group = textHeight + REST_TIMER_GAP + digits;
-  const photoHeight = loaded
-    ? restPhotoHeight({ width: window.width, aspect: loaded.aspect, windowHeight: window.height, room: window.height - photoTop - REST_ZONE_PAD - group - zoneBottom })
-    : 0;
-  const zoneTop = photoTop + photoHeight;
-  const zoneHeight = window.height - zoneTop - zoneBottom;
-  const centred = zoneHeight >= group + 2 * REST_ZONE_PAD;
-  // Last resort (T-88, large text): the middle scrolls; the buttons stay pinned.
-  const overflows = zoneHeight < group + REST_ZONE_PAD;
-
-  const middle = (
-    <>
-          <View testID="rest-text" style={styles.restText} onLayout={(event) => setTextHeight(event.nativeEvent.layout.height)}>
-            {next && !loaded ? (
-              <Text {...CAP_BODY} accessibilityRole="header" numberOfLines={2} style={styles.restHeadline}>
-                Go to the next exercise
-              </Text>
-            ) : null}
-            {next ? null : (
-              <Text {...CAP_BODY} testID="rest-eyebrow" style={styles.restEyebrow}>
-                {`${hero?.left ?? 0} ${setsWord(hero?.left ?? 0)} left`}
-              </Text>
-            )}
-            {hero?.name ? (
-              <Text {...CAP_BODY} testID="rest-name" numberOfLines={2} style={styles.restName}>
-                {hero.name}
-              </Text>
-            ) : null}
-          </View>
-          <Countdown
-            seconds={timer.secondsLeft}
-            warn={warn}
-            accessibilityLabel={restTimerLabel(timer.secondsLeft)}
-            style={[styles.restDigits, restDigitsAt(digits)]}
-          />
-    </>
-  );
-
-  const onLoad = (source) => {
-    const aspect = source?.width > 0 && source?.height > 0 ? source.width / source.height : null;
-    if (!aspect) {
-      return;
-    }
-    setPhoto({ url: image.url, aspect });
-    fade.setValue(reducedMotion ? 1 : 0);
-    if (!reducedMotion) {
-      Animated.timing(fade, { toValue: 1, duration: REST_PHOTO_FADE_MS, useNativeDriver: true }).start();
-    }
-  };
-
-  return (
-    <View testID="rest-timer" accessibilityViewIsModal role="dialog" accessibilityLabel="Rest timer" style={styles.full}>
-      {loaded ? <PhotoBlend testID="rest-photo-blend" image={image} top={photoTop} height={photoHeight} width={window.width} opacity={fade} upward={!headlineRow} /> : null}
-      {image.url ? (
-        <Animated.View
-          testID="rest-photo"
-          style={[styles.restPhoto, { top: photoTop, width: window.width, height: loaded ? photoHeight : 1, opacity: loaded ? fade : 0 }]}
-        >
-          {/* Decorative (web alt=""): the name is printed right under it. */}
-          <RemoteImage {...image} resizeMode="contain" style={StyleSheet.absoluteFill} onLoad={onLoad} />
-        </Animated.View>
-      ) : null}
-      <DrainFill timer={timer} warn={warn} top={zoneTop} height={Math.max(0, zoneHeight)} reducedMotion={reducedMotion} />
-      {headlineRow ? (
-        <Text
-          {...CAP_BODY}
-          testID="rest-headline"
-          accessibilityRole="header"
-          numberOfLines={2}
-          onLayout={(event) => setHeadlineHeight(event.nativeEvent.layout.height)}
-          style={[styles.restHeadline, styles.restHeadlineRow, { top: top + spacing[3], left: insets.left + layout.gutter, right: insets.right + layout.gutter }]}
-        >
-          Go to the next exercise
-        </Text>
-      ) : null}
-      <View
-        testID="rest-column"
-        style={[
-          styles.restColumn,
-          { top: zoneTop, bottom: zoneBottom, left: insets.left + layout.gutter, right: insets.right + layout.gutter, justifyContent: centred ? 'center' : 'flex-start' },
-        ]}
-      >
-        {overflows ? (
-          <ScrollView testID="rest-middle-scroll" style={styles.restMiddleScroll} contentContainerStyle={styles.restMiddle} bounces={false}>
-            {middle}
-          </ScrollView>
-        ) : (
-          middle
-        )}
-      </View>
-      <View style={[styles.restBar, { bottom: barBottom, left: insets.left + layout.gutter, right: insets.right + layout.gutter }]}>
-        <PillButton testID="rest-timer-minus" title="−5" variant="secondary" accessibilityLabel="Decrease rest timer by 5 seconds" onPress={() => onAdjust(-5)} style={styles.restAdjust} />
-        <PillButton
-          testID="rest-timer-skip"
-          title={next ? 'Start now' : 'Skip rest'}
-          variant={next ? 'primary' : 'light'}
-          iconAfter
-          icon={({ color }) => <ArrowRightIcon size={18} color={color} />}
-          onPress={onSkip}
-          style={styles.restSkip}
-        />
-        <PillButton testID="rest-timer-plus" title="+5" variant="secondary" accessibilityLabel="Increase rest timer by 5 seconds" onPress={() => onAdjust(5)} style={styles.restAdjust} />
-      </View>
-      {/* Drawn last, so no layer can ever sit over it (web 2.3.0's chevron was covered). */}
-      <View testID="rest-minimise-row" style={[styles.restMinimise, { top: insets.top + spacing[2], right: insets.right + layout.gutter }]}>
-        <MinimizeButton onMinimize={onMinimize} />
-      </View>
-    </View>
-  );
-}
-
-// §1.0: the drain fill, anchored to the zone's bottom; its height is the time
-// left (scaleY from the bottom, native-driven) and its 2px edge rides on top.
-// Linear over each second; under reduced motion it steps each second.
-function DrainFill({ timer, warn, top, height, reducedMotion }) {
-  const target = remainingRatio(Math.max(0, timer.secondsLeft - 1), timer.totalSeconds);
-  const [level] = useState(() => new Animated.Value(remainingRatio(timer.secondsLeft, timer.totalSeconds)));
-  useEffect(() => {
-    if (reducedMotion) {
-      level.setValue(remainingRatio(timer.secondsLeft, timer.totalSeconds));
-      return undefined;
-    }
-    const animation = Animated.timing(level, { toValue: target, duration: 1000, easing: Easing.linear, useNativeDriver: true });
-    animation.start();
-    return () => animation.stop();
-  }, [level, target, reducedMotion, timer.secondsLeft, timer.totalSeconds]);
-  const edgeY = level.interpolate({ inputRange: [0, 1], outputRange: [Math.max(0, height - REST_EDGE), 0] });
-  return (
-    <View testID="rest-drain" pointerEvents="none" style={[styles.drainZone, { top, height }]}>
-      <Animated.View
-        testID="rest-drain-fill"
-        style={[styles.drainFill, warn && styles.drainFillWarn, { transform: [{ scaleY: level }] }]}
-      />
-      <Animated.View testID="rest-drain-edge" style={[styles.drainEdge, warn && styles.drainEdgeWarn, { transform: [{ translateY: edgeY }] }]} />
-    </View>
-  );
-}
-
-// The fitted photo's height: its own aspect at full width, at most
-// min(320, 38 % of the height) (RN-SPEC dated 30 Oct); on a short phone it
-// also gives up the `room` it lacks, never below 160 (Q5; or its own height
-// when that is smaller).
-export function restPhotoHeight({ width, aspect, windowHeight, room }) {
-  const natural = Math.min(REST_PHOTO_MAX, Math.floor(windowHeight * REST_PHOTO_SHARE), Math.round(width / aspect));
-  return Math.max(Math.min(natural, REST_PHOTO_FLOOR), Math.min(natural, Math.floor(room)));
-}
-
-export function restDigitsSize(windowHeight) {
-  return Math.max(REST_DIGITS_MIN, Math.min(REST_DIGITS, Math.round(windowHeight * REST_DIGITS_SHARE)));
-}
-
-// The 92/−0.06 em timer at any size (T-72's ink padding follows the style).
-export function restDigitsAt(size) {
-  return { fontSize: size, lineHeight: size, letterSpacing: titleTracking(size, -0.06) };
-}
-
-const REST_PHOTO_MAX = 320;
-const REST_PHOTO_SHARE = 0.38;
-const REST_DIGITS_SHARE = 0.11;
-const REST_DIGITS_MIN = 72;
-// Rev 38 B: the timer zone's minimum top room and its gap above the buttons.
-const REST_ZONE_PAD = 24;
-const REST_PHOTO_FLOOR = 160;
-const REST_PHOTO_FADE_MS = 200;
-const REST_TIMER_GAP = 24;
-const REST_BAR_BOTTOM = 24;
-const REST_DIGITS = 92;
-const REST_EDGE = 2;
-// First frame: the eyebrow (20) + 8 + a one-line name (38).
-const REST_TEXT_ESTIMATE = 66;
-// One 24/32 headline line.
-const REST_HEADLINE_ESTIMATE = 32;
 
 // T-88: the ±5 row's gap above it (the tablet card's adjustRow).
 const REST_ADJUST_GAP = 44;
@@ -524,7 +314,10 @@ function TabletRest({ timer, next, hero, onMinimize, onAdjust, onSkip, window, i
         <ScrollView bounces={false} contentContainerStyle={styles.restCardContent}>
           <View style={styles.header}>
             <View style={styles.headerSpacer} />
-            <Text {...CAP_BODY} accessibilityRole="header" style={[styles.resting, styles.restingTablet]}>Resting</Text>
+            {/* T-153 §5: the banner copy of the state. */}
+            <Text {...CAP_BODY} testID="rest-banner-text" accessibilityRole="header" style={[styles.resting, styles.restingTablet]}>
+              {hero?.mode === 'next' ? 'Get ready for the next exercise!' : `${hero?.left ?? 0} ${setsWord(hero?.left ?? 0)} left`}
+            </Text>
             <MinimizeButton onMinimize={onMinimize} />
           </View>
           <View style={styles.ringGapTablet} />
@@ -535,7 +328,7 @@ function TabletRest({ timer, next, hero, onMinimize, onAdjust, onSkip, window, i
           <View style={styles.nextTabletGap}>
             <NextCard next={next} tablet />
           </View>
-          <SkipButton onSkip={onSkip} tablet start={hero?.mode === 'next'} />
+          <SkipButton onSkip={onSkip} tablet />
         </ScrollView>
       </View>
     </View>
@@ -1039,104 +832,6 @@ const styles = StyleSheet.create({
     left: 0,
     zIndex: 50,
     backgroundColor: colors.ground,
-  },
-  // T-146 phone Rest (FINAL boards 1–3)
-  restPhoto: {
-    position: 'absolute',
-    left: 0,
-  },
-  drainZone: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    overflow: 'hidden',
-  },
-  drainFill: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    transformOrigin: 'bottom',
-    backgroundColor: colors.goldFaint,
-  },
-  drainFillWarn: {
-    backgroundColor: colors.dangerTextTint,
-  },
-  drainEdge: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 2,
-    backgroundColor: colors.gold,
-  },
-  drainEdgeWarn: {
-    backgroundColor: colors.dangerText,
-  },
-  restHeadline: {
-    ...font(800),
-    fontSize: 24,
-    lineHeight: 32,
-    letterSpacing: titleTracking(24, -0.02),
-    color: colors.gold,
-    textAlign: 'center',
-  },
-  restHeadlineRow: {
-    position: 'absolute',
-  },
-  restMinimise: {
-    position: 'absolute',
-  },
-  restMiddleScroll: {
-    flex: 1,
-    alignSelf: 'stretch',
-  },
-  restMiddle: {
-    alignItems: 'center',
-    gap: 24,
-  },
-  restColumn: {
-    position: 'absolute',
-    alignItems: 'center',
-    paddingTop: 24,
-    gap: 24,
-  },
-  restText: {
-    alignItems: 'center',
-    gap: spacing[2],
-  },
-  restEyebrow: {
-    ...font(700),
-    fontSize: 14,
-    lineHeight: 20,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-  restName: {
-    ...font(700),
-    fontSize: 34,
-    lineHeight: 38,
-    letterSpacing: titleTracking(34, -0.04),
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
-  restDigits: {
-    color: colors.textPrimary,
-  },
-  restBar: {
-    position: 'absolute',
-    flexDirection: 'row',
-    gap: spacing[2],
-  },
-  restAdjust: {
-    width: 52,
-    paddingHorizontal: 0,
-  },
-  restSkip: {
-    flex: 1,
   },
   header: {
     alignSelf: 'stretch',

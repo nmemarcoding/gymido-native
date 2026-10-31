@@ -59,6 +59,8 @@ const NOT_UNDER_THE_STATUS_BAR = {
   'features/workout/runtime/ExerciseNavigation.js': 'sheet / nav inside the session',
   'features/workout/runtime/RuntimeOverlays.js': 'Modal overlays',
   'features/workout/runtime/AlertSheet.js': 'Modal sheet',
+  // T-153: the rest sheet starts 44 below the safe area; its body scrolls only at large text.
+  'features/workout/runtime/RestSheet.js': 'rest sheet below the status bar',
   'features/notifications/NotificationPanel.js': 'panel',
   'features/trainer/plans/components/ExercisePickerSheet.js': 'Modal sheet',
   'features/trainer/plans/components/DayTabs.js': 'horizontal tabs',

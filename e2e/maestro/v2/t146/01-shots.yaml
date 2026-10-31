@@ -5,6 +5,8 @@
 # credentials, no Profile shots. ${SHOT} prefixes every screenshot (e.g. android-411, android-360, ios-17).
 appId: com.gymido.app
 ---
+# DECLARED (T-153, PM-approved): the phone rest is a sheet: marker "rest-ring-box|rest-sheet", minimise via the
+# handle "rest-sheet-handle" (the tablet keeps rest-timer-minimize), copy "Get ready for the next exercise!" / "Skip Rest".
 - runFlow: ../subflows/signed-in-start.yaml
 - runFlow: ../subflows/start-workout.yaml
 - waitForAnimationToEnd: { timeout: 3000 }
@@ -34,22 +36,22 @@ appId: com.gymido.app
 - takeScreenshot: ${SHOT}-05-browse-not-started
 - tapOn: { id: "browsing-resume" }
 - extendedWaitUntil: { notVisible: { id: "browsing-bar" }, timeout: 5000 }
-# Log the rest of exercise 1 (skipping each mid-exercise rest) until Rest 3 ("Go to the next exercise").
+# Log the rest of exercise 1 (skipping each mid-exercise rest) until Rest 3 ("Get ready for the next exercise!").
 - repeat:
     while:
-      notVisible: "Go to the next exercise"
+      notVisible: "Get ready for the next exercise!"
     times: 8
     commands:
       - runFlow: ../subflows/log-current-set.yaml
       - extendedWaitUntil: { visible: { id: "rest-timer-skip" }, timeout: 10000 }
       - runFlow:
           when:
-            visible: "Skip rest"
+            visible: "Skip Rest"
           commands:
             - tapOn: { id: "rest-timer-skip" }
             - extendedWaitUntil: { notVisible: { id: "rest-timer" }, timeout: 5000 }
             - runFlow: ../subflows/dismiss-session-dialogs.yaml
-- extendedWaitUntil: { visible: "Go to the next exercise", timeout: 10000 }
+- extendedWaitUntil: { visible: "Get ready for the next exercise!", timeout: 10000 }
 - waitForAnimationToEnd: { timeout: 3000 }
 - takeScreenshot: ${SHOT}-07-rest3
 - tapOn: { id: "rest-timer-skip" }

@@ -155,7 +155,8 @@ export function digitsInkPadVertical(style) {
 // T-146: the full Rest passes `warn` (red in its last 5 s, colour only, no
 // pulse; rev 23) and its spoken label; the minimised disc passes neither and
 // keeps the last-10-s danger + pulse (FE Q4).
-export function Countdown({ seconds, style, testID = 'rest-countdown', warn, accessibilityLabel }) {
+// `maxScale`: the large-text cap (T-153 sheet 1.3; the timer token elsewhere).
+export function Countdown({ seconds, style, testID = 'rest-countdown', warn, accessibilityLabel, maxScale = textScale.timer }) {
   const reducedMotion = useReducedMotion();
   const pulse = useRef(new Animated.Value(1)).current;
   const fullRest = warn !== undefined;
@@ -180,7 +181,7 @@ export function Countdown({ seconds, style, testID = 'rest-countdown', warn, acc
       testID={testID}
       accessibilityRole="timer"
       accessibilityLabel={accessibilityLabel}
-      maxFontSizeMultiplier={textScale.timer}
+      maxFontSizeMultiplier={maxScale}
       numberOfLines={1}
       adjustsFontSizeToFit
       minimumFontScale={0.7}

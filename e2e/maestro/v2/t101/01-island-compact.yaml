@@ -3,7 +3,9 @@
 # `xcrun simctl io <udid> screenshot --mask=ignored`, then runs zz-cleanup (discard: nothing recorded).
 appId: com.gymido.app
 ---
-# DECLARED (T-146, PM-approved): the expanded-Rest marker "rest-ring-box" is now "rest-ring-box|rest-text"
+# DECLARED (T-153, PM-approved): the phone rest is a sheet: marker "rest-ring-box|rest-sheet", minimise via the
+# handle "rest-sheet-handle" (the tablet keeps rest-timer-minimize), copy "Get ready for the next exercise!" / "Skip Rest".
+# DECLARED (T-146, PM-approved): the expanded-Rest marker "rest-ring-box" is now "rest-ring-box|rest-sheet"
 # (the phone Rest has no ring; the tablet keeps it).
 - runFlow: ../subflows/signed-in-start.yaml
 - runFlow: { when: { visible: { id: "tab-Today" } }, commands: [ { tapOn: { id: "tab-Today" } } ] }
@@ -18,7 +20,7 @@ appId: com.gymido.app
 - extendedWaitUntil: { visible: { id: "session-chrome" }, timeout: 30000 }
 - runFlow: ../subflows/dismiss-session-dialogs.yaml
 - runFlow: ../subflows/log-current-set.yaml
-- extendedWaitUntil: { visible: { id: "rest-ring-box|rest-text" }, timeout: 15000 }
+- extendedWaitUntil: { visible: { id: "rest-ring-box|rest-sheet" }, timeout: 15000 }
 - repeat:
     times: 6
     commands:

@@ -4,16 +4,18 @@
 # Run it before every session-exit tap.
 appId: com.gymido.app
 ---
-# DECLARED (T-146, PM-approved): the expanded-Rest marker "rest-ring-box" is now "rest-ring-box|rest-text"
+# DECLARED (T-153, PM-approved): the phone rest is a sheet: marker "rest-ring-box|rest-sheet", minimise via the
+# handle "rest-sheet-handle" (the tablet keeps rest-timer-minimize), copy "Get ready for the next exercise!" / "Skip Rest".
+# DECLARED (T-146, PM-approved): the expanded-Rest marker "rest-ring-box" is now "rest-ring-box|rest-sheet"
 # (the phone Rest has no ring; the tablet keeps it).
 - runFlow:
     when:
       visible:
-        id: "rest-timer-minimize"
+        id: "rest-timer-minimize|rest-sheet-handle"
     commands:
       - tapOn:
-          id: "rest-timer-minimize"
+          id: "rest-timer-minimize|rest-sheet-handle"
       - extendedWaitUntil:
           notVisible:
-            id: "rest-ring-box|rest-text"
+            id: "rest-ring-box|rest-sheet"
           timeout: 5000

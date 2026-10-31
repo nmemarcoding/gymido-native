@@ -2,6 +2,7 @@ import { StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import { RestTimerWidget } from './RuntimeOverlays';
+import { restSheetLayout } from './RestSheet';
 
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => mockInsets }));
 jest.mock('react-native-svg', () => {
@@ -22,10 +23,7 @@ jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
 }));
 jest.mock('../../../shared/hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 
-// T-146 phone Rest fit (RN-SPEC dated 30 Oct + Q5): the buttons sit at the
-// bottom at every height, nothing scrolls; the photo is at most min(320, 38 %
-// of the height) and gives up the room it lacks (floor 160); the timer is
-// clamp(72, 11 % of the height, 92).
+// T-153 rest sheet fit (ruling §6).
 const mounted = [];
 afterEach(() => {
   act(() => mounted.splice(0).forEach((tree) => tree.unmount()));
@@ -37,13 +35,13 @@ const host = (tree, id) => hosts(tree, id)[0];
 const within = (parent, id) => parent.findAll((node) => node.props.testID === id && typeof node.type === 'string');
 
 const digits = (tree) => StyleSheet.flatten(host(tree, 'rest-countdown').props.style);
-const layout = (node, height) => act(() => node.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 360, height } } }));
 
 // DELETED B1 (owner delegated OK 30 Oct): restRingSize / restDigitsStyle (the phone ring is gone).
 
-// T-146 (DECLARED B2/B3, PM-approved; RN-SPEC dated 30 Oct + Q5): the phone Rest no longer scrolls or docks: the
-// −5 · Skip rest · +5 bar sits at the bottom (insets.bottom + 24); the buttons never move.
-describe('PhoneRest (T-146 fit)', () => {
+// DECLARED (T-153 §6, PM-approved; were the 9 T-146 "PhoneRest fit" tests): the rest sheet's fit. The controls stay
+// pinned 40 above the bottom inset; the photo card shrinks first (floor 160), then the gaps go short; 360×640 fits
+// without a scroll; no photo → the name, with the bar + digits centred below it.
+describe('RestSheet fit (T-153 §6)', () => {
   const HERO = { mode: 'mid', name: 'Leg Press', exercise: { thumbnail: { url: 'https://example.com/leg.jpg', media_type: 'image' } }, left: 3 };
   function renderHero(hero = HERO) {
     let tree;
@@ -55,88 +53,41 @@ describe('PhoneRest (T-146 fit)', () => {
     mounted.push(tree);
     return tree;
   }
-  // The 390×277 board photo, loaded.
-  const loadPhoto = (tree) => act(() => tree.root.findAll((node) => node.props.testID === 'remote-image' && node.props.onLoad)[0].props.onLoad({ width: 390, height: 277 }));
+  const loadPhoto = (tree, width = 16, height = 9) => act(() => tree.root.findAll((node) => node.props.testID === 'remote-image' && node.props.onLoad)[0].props.onLoad({ width, height }));
   const photoHeight = (tree) => StyleSheet.flatten(host(tree, 'rest-photo').props.style).height;
 
-  it.each([844, 640])('%i tall: the buttons sit in the bottom bar (insets.bottom + 24); nothing scrolls', (height) => {
-    mockHeight = height;
+  it('restSheetLayout: 390×844 (sheet 753, inset 34): a 16:9 photo at full card width (366 → 206), the full gaps', () => {
+    expect(restSheetLayout({ sheetHeight: 753, insetsBottom: 34, photoAspect: 16 / 9, width: 390, hasPhoto: true })).toEqual({
+      gaps: { banner: 14, photo: 28, bar: 13, controls: 21 },
+      photo: 206,
+    });
+    // A portrait image stops at the 295 card.
+    expect(restSheetLayout({ sheetHeight: 753, insetsBottom: 34, photoAspect: 3 / 4, width: 390, hasPhoto: true }).photo).toBe(295);
+  });
+
+  it('restSheetLayout: 360×640 Android 3-button (top 24 → sheet 572, nav 48): the short gaps; the photo gives up the room (166, floor 160); it fits', () => {
+    const layout = restSheetLayout({ sheetHeight: 640 - 24 - 44, insetsBottom: 48, photoAspect: 3 / 4, width: 360, hasPhoto: true });
+    expect(layout.gaps).toEqual({ banner: 8, photo: 16, bar: 8, controls: 16 });
+    // 572 − (48 + 8 + 60 + 8 + 16 + 23 + 8 + 76 + 16 + 55 + 40 + 48) = 166 (above the 160 floor).
+    expect(layout.photo).toBe(166);
+  });
+
+  it('the controls are pinned (inset + 40 above the bottom, captions inside it); nothing scrolls at normal text', () => {
+    mockHeight = 640;
     mockInsets = { top: 24, bottom: 48, left: 0, right: 0 };
     const tree = renderHero();
+    loadPhoto(tree);
     expect(tree.root.findAll((node) => node.type === 'RCTScrollView')).toHaveLength(0);
-    expect(hosts(tree, 'rest-dock')).toHaveLength(0);
-    const bar = tree.root.findAll((node) => typeof node.type === 'string' && StyleSheet.flatten(node.props.style)?.bottom === 48 + 24)[0];
-    expect(within(bar, 'rest-timer-skip')).toHaveLength(1);
+    const row = tree.root.findAll((node) => typeof node.type === 'string' && StyleSheet.flatten(node.props.style)?.bottom === 48 + 40 - 28)[0];
+    expect(within(row, 'rest-timer-skip')).toHaveLength(1);
+    expect(photoHeight(tree)).toBe(166);
   });
 
-  it('844 tall: the photo at its own aspect (full width 360 → 256), the 92 digits', () => {
-    const tree = renderHero();
-    loadPhoto(tree);
-    expect(photoHeight(tree)).toBe(256);
-    expect(digits(tree).fontSize).toBe(92);
-  });
-
-  // DECLARED R2 (T-146 rev 38 B, PM-approved): the zone budget (24 above the group, 24 above the buttons). Was 222 / 184.
-  it('360x640 Android, 3-button nav (status 24, nav 48): digits 72 (11 %), the photo capped (38 %) and giving up the room', () => {
-    mockHeight = 640;
-    mockInsets = { top: 24, bottom: 48, left: 0, right: 0 };
-    const tree = renderHero();
-    loadPhoto(tree);
-    expect(digits(tree).fontSize).toBe(72);
-    expect(digits(tree).lineHeight).toBe(72);
-    // photoTop 76; room = 640 − 76 − 24 − (text 66 + 24 + digits 72) − (bottom 72 + bar 52 + 24) = 230 (< the 243 cap).
-    expect(photoHeight(tree)).toBe(230);
-    layout(host(tree, 'rest-text'), 104);
-    expect(photoHeight(tree)).toBe(192);
-  });
-
-  it('the photo never goes below its 160 floor; the digits keep their clamp', () => {
-    mockHeight = 640;
-    mockInsets = { top: 24, bottom: 48, left: 0, right: 0 };
-    const tree = renderHero();
-    loadPhoto(tree);
-    layout(host(tree, 'rest-text'), 200);
-    expect(photoHeight(tree)).toBe(160);
-    expect(digits(tree).fontSize).toBe(72);
-  });
-
-  // Owner change (30 Oct, from live web) + DECLARED R1 (rev 38 A, PM-approved): the headline 12 below the top bar and 12
-  // above the photo; on rest 3 the blend copy starts at the photo's top (was: headline at 52, the copy 56 above the photo).
-  it('rest 3: "Go to the next exercise" in its own row (12 · headline · 12); the photo below; no glow above it', () => {
-    const tree = renderHero({ mode: 'next', name: 'Seated Leg Curl', exercise: HERO.exercise, left: 0 });
-    loadPhoto(tree);
-    const headline = host(tree, 'rest-headline');
-    expect(StyleSheet.flatten(headline.props.style).top).toBe(52 + 12);
-    layout(headline, 64);
-    expect(StyleSheet.flatten(host(tree, 'rest-photo').props.style).top).toBe(52 + 12 + 64 + 12);
-    expect(StyleSheet.flatten(host(tree, 'rest-photo-blend').props.style).top).toBe(52 + 12 + 64 + 12);
-  });
-
-  // T-88 + web review (PM 30 Oct): at large text the middle scrolls as the last resort; the buttons stay pinned outside it.
-  it('large text that overflows the zone: the middle scrolls; the −5 · Skip · +5 bar is outside the scroll', () => {
-    mockHeight = 640;
-    mockInsets = { top: 24, bottom: 48, left: 0, right: 0 };
-    const tree = renderHero();
-    expect(hosts(tree, 'rest-middle-scroll')).toHaveLength(0);
-    layout(host(tree, 'rest-text'), 600);
-    const scroll = tree.root.findAll((node) => node.props.testID === 'rest-middle-scroll')[0];
-    expect(scroll).toBeDefined();
-    expect(scroll.findAll((node) => node.props.testID === 'rest-countdown').length).toBeGreaterThan(0);
-    expect(scroll.findAll((node) => node.props.testID === 'rest-timer-skip')).toHaveLength(0);
-    expect(hosts(tree, 'rest-timer-skip')).toHaveLength(1);
-  });
-
-  it('no photo (none, or not loaded yet): no card and no blend; the text starts 24 under the top bar', () => {
-    mockHeight = 640;
+  it('no photo: the name, then the bar + digits in a centred zone above the controls', () => {
     const tree = renderHero({ ...HERO, exercise: null });
     expect(hosts(tree, 'rest-photo')).toHaveLength(0);
-    expect(hosts(tree, 'rest-photo-blend')).toHaveLength(0);
-    expect(digits(tree).fontSize).toBe(72);
-    // DECLARED R3 (rev 38 B, PM-approved): the zone starts at the top bar (52) with a 24 top padding; the group is centred
-    // when the zone holds it + 48 (was: top 52 + 24, no centring).
-    const column = StyleSheet.flatten(host(tree, 'rest-column').props.style);
-    expect(column).toMatchObject({ top: 52, paddingTop: 24, justifyContent: 'center' });
-    layout(host(tree, 'rest-text'), 400);
-    expect(StyleSheet.flatten(host(tree, 'rest-column').props.style).justifyContent).toBe('flex-start');
+    expect(hosts(tree, 'rest-name')).toHaveLength(1);
+    expect(StyleSheet.flatten(host(tree, 'rest-timer-zone').props.style)).toMatchObject({ flex: 1, justifyContent: 'center' });
+    expect(digits(tree).fontSize).toBe(76);
   });
 });

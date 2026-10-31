@@ -9,7 +9,7 @@
 # DECLARED (T-146, owner delegated OK 30 Oct; PM-approved E4/D-items): the
 # phone has no per-exercise dashes ("Exercise n of m") and no strip chips any
 # more. Markers now: the set card (set-editor) instead of set-strip; the end of
-# exercise 1 = the rest after its last set ("Go to the next exercise", its
+# exercise 1 = the rest after its last set ("Get ready for the next exercise!", its
 # gold "Start now"); a browsed done set is undone through its done segment
 # (set-segment-<id>) → "Undo set k" (set-undo-<id>; rev 40 + PM, web parity).
 # Was: exercise-segments text "Exercise n of m", set-strip, a done chip
@@ -18,13 +18,15 @@
 # Signed-in start (the lead's safe runner). Fixture: an ACTIVE plan whose
 # session has 2+ exercises, whose first exercise has at most 10 sets (the
 # logging loop's cap) and a rest time on its last set (rest 3). IDs only (plus
-# the accessible names "Did it", "Undo set n", "Locked", "Skip rest" and "Go to the
+# the accessible names "Did it", "Undo set n", "Locked", "Skip Rest" and "Go to the
 # next exercise" on id-matched or text nodes). Uses the v2 subflows
 # (e2e/maestro/v2/subflows).
 appId: com.gymido.app
 tags:
   - member
 ---
+# DECLARED (T-153, PM-approved): the phone rest is a sheet: marker "rest-ring-box|rest-sheet", minimise via the
+# handle "rest-sheet-handle" (the tablet keeps rest-timer-minimize), copy "Get ready for the next exercise!" / "Skip Rest".
 - runFlow: ../subflows/signed-in-start.yaml
 - runFlow: ../subflows/start-workout.yaml
 - runFlow: ../subflows/dismiss-session-dialogs.yaml
@@ -96,7 +98,7 @@ tags:
 # --- B. Log every set of exercise 1, until the rest after its last set. ----
 - repeat:
     while:
-      notVisible: "Go to the next exercise"
+      notVisible: "Get ready for the next exercise!"
     times: 10
     commands:
       - runFlow: ../subflows/log-current-set.yaml
@@ -106,7 +108,7 @@ tags:
       # A mid-exercise rest: skip it (rest 3 has "Start now" instead and ends the loop).
       - runFlow:
           when:
-            visible: "Skip rest"
+            visible: "Skip Rest"
           commands:
             - tapOn:
                 id: "rest-timer-skip"
@@ -115,7 +117,7 @@ tags:
                   id: "rest-timer"
                 timeout: 5000
 - extendedWaitUntil:
-    visible: "Go to the next exercise"
+    visible: "Get ready for the next exercise!"
     timeout: 10000
 - tapOn:
     id: "rest-timer-skip"

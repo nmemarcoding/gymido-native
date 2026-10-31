@@ -127,6 +127,27 @@ const V2_COLORS = {
   upNextCard: 'rgba(21, 23, 29, 0.82)',
   groundClear: 'rgba(10, 11, 15, 0)',
   restBlendDim: 'rgba(10, 11, 15, 0.3)',
+  // T-153 rest sheet (ruling §1–§3).
+  restSheetTop: '#25272C',
+  restSheetMid: '#18191D',
+  restSheetBottom: '#141518',
+  restSheetEdge: 'rgba(255, 255, 255, 0.08)',
+  restSheetScrim: 'rgba(10, 11, 15, 0.6)',
+  restSheetScrimSolid: 'rgba(10, 11, 15, 0.72)',
+  restSheetGrip: 'rgba(255, 255, 255, 0.7)',
+  restSheetShadow: 'rgba(0, 0, 0, 0.5)',
+  restBannerCalm: '#2E3036',
+  restBannerCalmEdge: 'rgba(255, 255, 255, 0.10)',
+  restBannerDisc: 'rgba(255, 194, 26, 0.16)',
+  restBannerDiscNext: 'rgba(214, 140, 0, 0.22)',
+  restSpark: '#E39A12',
+  restPhotoEdge: 'rgba(255, 255, 255, 0.22)',
+  restPhotoDim: 'rgba(0, 0, 0, 0.4)',
+  restBarTrack: '#3A3B40',
+  restBarGlow: 'rgba(255, 194, 26, 0.55)',
+  restBarGlowWarn: 'rgba(255, 122, 112, 0.55)',
+  restSquare: '#1F2126',
+  restSquareEdge: 'rgba(255, 255, 255, 0.14)',
   // §8.5 alpha ladder (Phase 2+; the Phase 1 kit re-folds after QA's gate):
   // faint 0.08 · tint 0.14 · line 0.30 · strong 0.60 per accent. Danger
   // fills/borders use #FF5A4E; #FF7A70 is for text only.

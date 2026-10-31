@@ -807,8 +807,9 @@ describe('T-69 batch flow fixes', () => {
   });
 
   describe('item 7: the Rest is minimised before every session-exit tap', () => {
-    it('minimize-rest taps rest-timer-minimize only when it is visible', () => {
-      expect(body('subflows/minimize-rest.yaml')).toMatch(/^- runFlow:\n\s+when:\n\s+visible:\n\s+id: "rest-timer-minimize"\n\s+commands:\n\s+- tapOn:\n\s+id: "rest-timer-minimize"/);
+    // DECLARED (T-153, PM-approved): the phone sheet minimises via its handle; the tablet keeps rest-timer-minimize.
+    it('minimize-rest taps the minimise control (the tablet chevron or the phone sheet handle) only when it is visible', () => {
+      expect(body('subflows/minimize-rest.yaml')).toMatch(/^- runFlow:\n\s+when:\n\s+visible:\n\s+id: "rest-timer-minimize\|rest-sheet-handle"\n\s+commands:\n\s+- tapOn:\n\s+id: "rest-timer-minimize\|rest-sheet-handle"/);
     });
 
     it.each(FLOWS.map(rel))('%s: every session-exit tap follows minimize-rest', (name) => {

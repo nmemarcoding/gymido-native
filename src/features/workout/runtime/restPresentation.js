@@ -43,7 +43,7 @@ export function isRestWarn(secondsLeft, totalSeconds) {
   return secondsLeft > 0 && secondsLeft <= 5 && totalSeconds >= 10;
 }
 
-// T-146 §1.0 a11y: "Resting, 1 minute 48 seconds left" / "Resting, 4 seconds left".
+// T-153 §2 a11y: "Rest, 1 minute 48 seconds left" / "Rest, 4 seconds left".
 export function restTimerLabel(secondsLeft) {
   const total = Math.max(0, Math.round(secondsLeft || 0));
   const minutes = Math.floor(total / 60);
@@ -55,7 +55,7 @@ export function restTimerLabel(secondsLeft) {
   if (seconds > 0 || minutes === 0) {
     parts.push(`${seconds} ${seconds === 1 ? 'second' : 'seconds'}`);
   }
-  return `Resting, ${parts.join(' ')} left`;
+  return `Rest, ${parts.join(' ')} left`;
 }
 
 // "of m:ss" (U4) = the rest's total.

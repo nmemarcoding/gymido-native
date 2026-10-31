@@ -1,9 +1,10 @@
 import { StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
-import { colors, typography } from '../../../shared/theme/tokens';
+import { colors } from '../../../shared/theme/tokens';
 
 import { RestTimerWidget } from './RuntimeOverlays';
+import { dragMinimises } from './RestSheet';
 
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('react-native-svg', () => {
@@ -123,17 +124,14 @@ describe('last-10-seconds pulse and hit areas (design system v1 #8, #10, #12)', 
     expect(loop).not.toHaveBeenCalled();
   });
 
-  // DECLARED A3 (T-146 boards 1–3): −5 / +5 are 52 circles, Skip rest a 52 pill.
-  it('gives every control a ≥ 44 target (T-146: 52 circles, a 52 pill, the 44 chevron)', () => {
+  // DECLARED A3 (T-153 §2, PM-approved): −5 / +5 are 59×55 squares, Skip Rest a 55-tall pill; the handle zone is 48.
+  it('gives every control a ≥ 44 target (T-153: 59×55 squares, the 55 Skip pill, the 48 handle zone)', () => {
     const tree = renderTree({ minimized: false });
     const flat = (id) => StyleSheet.flatten(host(tree, id).props.style);
-    expect(flat('rest-timer-minus').minHeight).toBe(52);
-    expect(flat('rest-timer-plus').minHeight).toBe(52);
-    expect(flat('rest-timer-minus').width).toBe(52);
-    expect(flat('rest-timer-plus').width).toBe(52);
-    expect(flat('rest-timer-skip').minHeight).toBe(52);
-    expect(flat('rest-timer-minimize').width).toBe(44);
-    expect(flat('rest-timer-minimize').height).toBe(44);
+    expect(flat('rest-timer-minus')).toMatchObject({ width: 59, height: 55 });
+    expect(flat('rest-timer-plus')).toMatchObject({ width: 59, height: 55 });
+    expect(flat('rest-timer-skip').minHeight).toBe(55);
+    expect(flat('rest-sheet-handle').height).toBe(48);
   });
 });
 
@@ -146,101 +144,116 @@ const text = (node) => {
 };
 const texts = (tree) => tree.root.findAll((node) => node.type === 'Text').map(text);
 
-describe('Rest, phone (UX F2 Rest board)', () => {
-  // DECLARED A4 (T-146 §1.0 rev 19/29): no "Resting" title and no "of m:ss"; the timer says it.
-  it('is the full-screen dialog "Rest timer": the eyebrow, the name and the digits, labelled "Resting, … left"', () => {
+// T-153 (owner-approved; changes DECLARED, PM-approved): the phone rest is a bottom-sheet pop-up over the live screen.
+describe('Rest, phone: the T-153 sheet', () => {
+  // DECLARED A4 (was the full-screen T-146 dialog with an eyebrow, the name and "Resting, … left").
+  it('is the sheet "Rest timer" (dialog, modal) below a 44 sliver, the banner "{n} sets left", 76 digits "Rest, … left"', () => {
     const tree = renderTree({ minimized: false, hero: HERO_MID });
-    const root = host(tree, 'rest-timer');
-    expect(root.props.role).toBe('dialog');
-    expect(root.props.accessibilityLabel).toBe('Rest timer');
-    expect(root.props.accessibilityViewIsModal).toBe(true);
-    const style = StyleSheet.flatten(root.props.style);
-    expect(style).toEqual(expect.objectContaining({ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.ground }));
-    expect(texts(tree)).toEqual(expect.arrayContaining(['2 sets left', 'Barbell Bench Press', '1:00']));
-    expect(texts(tree)).not.toContain('Resting');
-    expect(texts(tree)).not.toContain('of 1:30');
-    expect(StyleSheet.flatten(host(tree, 'rest-eyebrow').props.style)).toEqual(expect.objectContaining({ textTransform: 'uppercase', fontSize: 14, color: colors.textMuted }));
+    const sheet = host(tree, 'rest-sheet');
+    expect(sheet.props).toMatchObject({ role: 'dialog', accessibilityLabel: 'Rest timer', accessibilityViewIsModal: true });
+    expect(StyleSheet.flatten(sheet.props.style)).toMatchObject({ top: 0 + 44, borderTopLeftRadius: 28, borderTopRightRadius: 28 });
+    expect(text(host(tree, 'rest-banner-text'))).toBe('2 sets left');
+    // §4: the no-photo state (with the name) shows until the photo loads; then the name goes (no name while a photo shows).
+    expect(all(tree, 'rest-name')).toHaveLength(1);
+    act(() => tree.root.findAll((n) => n.props.testID === 'remote-image' && n.props.onLoad)[0].props.onLoad({ width: 16, height: 9 }));
+    expect(all(tree, 'rest-name')).toHaveLength(0);
     const digits = host(tree, 'rest-countdown');
     expect(digits.props.accessibilityRole).toBe('timer');
-    expect(digits.props.accessibilityLabel).toBe('Resting, 1 minute left');
-    expect(StyleSheet.flatten(digits.props.style)).toEqual(expect.objectContaining({ fontSize: 92, lineHeight: 92, fontFamily: typography.displayTimer.fontFamily, color: colors.textPrimary }));
-    expect(StyleSheet.flatten(digits.props.style).fontVariant).toEqual(['tabular-nums']);
+    expect(digits.props.accessibilityLabel).toBe('Rest, 1 minute left');
+    expect(StyleSheet.flatten(digits.props.style)).toEqual(expect.objectContaining({ fontSize: 76, lineHeight: 76 }));
   });
 
-  // DELETED A5 + A6 (owner delegated OK 30 Oct): the phone Rest has no ring and no Next card (the tablet keeps both).
+  it('no photo: the exercise name shows (2 lines max), the only place it does', () => {
+    const tree = renderTree({ minimized: false, hero: { ...HERO_MID, exercise: null } });
+    const name = host(tree, 'rest-name');
+    expect(text(name)).toBe('Barbell Bench Press');
+    expect(name.props.numberOfLines).toBe(2);
+  });
 
-  // DECLARED A7 (T-146 rest 3, rev 36): after an exercise's last set, the next exercise + a gold Start now.
-  it('rest 3: "Go to the next exercise", the next exercise\'s name, no eyebrow, a gold "Start now" (Skip\'s action)', () => {
+  // DECLARED A7 (was "Go to the next exercise" + a gold "Start now").
+  it('rest 3: the gold banner "Get ready for the next exercise!"; the button stays "Skip Rest" (Skip\'s action)', () => {
     const onSkip = jest.fn();
+    mockReducedMotion = true;
     const tree = renderTree({ minimized: false, hero: HERO_NEXT, onSkip });
-    expect(texts(tree)).toEqual(expect.arrayContaining(['Go to the next exercise', 'Seated Leg Curl']));
-    expect(all(tree, 'rest-eyebrow')).toHaveLength(0);
-    const skip = host(tree, 'rest-timer-skip');
-    expect(skip.props.accessibilityLabel).toBe('Start now');
-    expect(StyleSheet.flatten(skip.props.style).backgroundColor).toBe(colors.gold);
-    act(() => tree.root.findAll((n) => n.props.testID === 'rest-timer-skip' && n.props.onPress)[0].props.onPress());
-    expect(onSkip).toHaveBeenCalledTimes(1);
+    expect(text(host(tree, 'rest-banner-text'))).toBe('Get ready for the next exercise!');
+    expect(StyleSheet.flatten(host(tree, 'rest-banner').props.style).backgroundColor).toBe(colors.gold);
+    expect(host(tree, 'rest-timer-skip').props.accessibilityLabel).toBe('Skip Rest');
+    mockReducedMotion = false;
   });
 
-  it('wires minimise, −5 / +5 and Skip rest (labels kept)', () => {
+  // DECLARED A8 (labels: "Minus/Plus 5 seconds", "Skip Rest"; minimise via the handle, no chevron).
+  it('wires −5 / +5 as today; Skip Rest and the handle slide the sheet away first, then skip / minimise', () => {
+    jest.useFakeTimers();
     const onMinimize = jest.fn();
     const onAdjust = jest.fn();
     const onSkip = jest.fn();
     const tree = renderTree({ minimized: false, onMinimize, onAdjust, onSkip });
     const press = (id) => act(() => tree.root.findAll((n) => n.props.testID === id && n.props.onPress)[0].props.onPress());
-    press('rest-timer-minimize');
     press('rest-timer-minus');
     press('rest-timer-plus');
-    press('rest-timer-skip');
-    expect(onMinimize).toHaveBeenCalledTimes(1);
     expect(onAdjust.mock.calls).toEqual([[-5], [5]]);
+    expect(host(tree, 'rest-timer-minus').props.accessibilityLabel).toBe('Minus 5 seconds');
+    expect(host(tree, 'rest-timer-plus').props.accessibilityLabel).toBe('Plus 5 seconds');
+    press('rest-timer-skip');
+    act(() => jest.advanceTimersByTime(400));
     expect(onSkip).toHaveBeenCalledTimes(1);
-    expect(host(tree, 'rest-timer-minimize').props.accessibilityLabel).toBe('Minimize rest timer');
-    expect(host(tree, 'rest-timer-minus').props.accessibilityLabel).toBe('Decrease rest timer by 5 seconds');
-    expect(host(tree, 'rest-timer-plus').props.accessibilityLabel).toBe('Increase rest timer by 5 seconds');
-    expect(host(tree, 'rest-timer-skip').props.accessibilityLabel).toBe('Skip rest');
+    press('rest-sheet-handle');
+    act(() => jest.advanceTimersByTime(400));
+    expect(onMinimize).toHaveBeenCalledTimes(1);
+    expect(all(tree, 'rest-timer-minimize')).toHaveLength(0);
+    jest.useRealTimers();
   });
 
-  // DECLARED A9 (T-146 rev 23): red in the last 5 s (rest ≥ 10 s): digits, fill and its edge.
-  it('last 5 s of a rest ≥ 10 s: digits + edge #FF7A70, fill red .12; 6 s and a short rest stay calm', () => {
+  // DELETED T1 (the T-146 chevron test, branch-own; PM 30 Oct) → the handle (owner: no chevron).
+  it('the handle zone is the accessible minimise control; the drag rule: past 80 or a flick (> 0.5) minimises', () => {
+    jest.useFakeTimers();
+    const onMinimize = jest.fn();
+    const onSkip = jest.fn();
+    const tree = renderTree({ minimized: false, onMinimize, onSkip });
+    expect(host(tree, 'rest-sheet-handle').props).toMatchObject({
+      accessibilityRole: 'button',
+      accessibilityLabel: 'Minimise rest timer',
+      accessibilityHint: 'Drag down or activate to minimise',
+    });
+    act(() => tree.root.findAll((n) => n.props.testID === 'rest-sheet-handle' && n.props.onPress)[0].props.onPress());
+    act(() => jest.advanceTimersByTime(400));
+    // Owner: minimising never ends or skips the rest.
+    expect(onMinimize).toHaveBeenCalledTimes(1);
+    expect(onSkip).not.toHaveBeenCalled();
+    expect(dragMinimises({ dy: 81, vy: 0 })).toBe(true);
+    expect(dragMinimises({ dy: 10, vy: 0.6 })).toBe(true);
+    expect(dragMinimises({ dy: 80, vy: 0.5 })).toBe(false);
+    jest.useRealTimers();
+  });
+
+  // DECLARED A9/A10 (the bar + its glow + the digits; was the drain fill/edge).
+  it('last 5 s of a rest ≥ 10 s: the bar and digits turn #FF7A70; 6 s and a short rest stay calm', () => {
     const style = (tree, id) => StyleSheet.flatten(host(tree, id).props.style);
     const calm = renderTree({ minimized: false, timer: { setId: 1, secondsLeft: 6, totalSeconds: 90 } });
     expect(style(calm, 'rest-countdown').color).toBe(colors.textPrimary);
-    expect(style(calm, 'rest-drain-edge').backgroundColor).toBe(colors.gold);
-    expect(style(calm, 'rest-drain-fill').backgroundColor).toBe('rgba(255, 194, 26, 0.08)');
+    expect(style(calm, 'rest-bar-fill').backgroundColor).toBe(colors.gold);
     const red = renderTree({ minimized: false, timer: { setId: 1, secondsLeft: 5, totalSeconds: 90 } });
     expect(style(red, 'rest-countdown').color).toBe(colors.dangerText);
-    expect(style(red, 'rest-drain-edge').backgroundColor).toBe(colors.dangerText);
-    expect(style(red, 'rest-drain-fill').backgroundColor).toBe('rgba(255, 122, 112, 0.12)');
+    expect(style(red, 'rest-bar-fill').backgroundColor).toBe(colors.dangerText);
     const short = renderTree({ minimized: false, timer: { setId: 1, secondsLeft: 5, totalSeconds: 8 } });
     expect(style(short, 'rest-countdown').color).toBe(colors.textPrimary);
   });
 
-  it('under reduced motion the colour still changes in the last 10 s', () => {
+  it('under reduced motion the colour still changes in the last 5 s', () => {
     mockReducedMotion = true;
     const tree = renderTree({ minimized: false, timer: { setId: 1, secondsLeft: 5, totalSeconds: 90 } });
     expect(StyleSheet.flatten(host(tree, 'rest-countdown').props.style).color).toBe(colors.dangerText);
     mockReducedMotion = false;
   });
 
-  // DECLARED A11 (T-146 §1.0): the drain fill, not a ring; it never passes its zone.
-  it('a total that grew with +5 s keeps the drain fill within its zone (scaleY ≤ 1), anchored at the bottom', () => {
+  // DECLARED A11 (the bar's fill, draining right → left; was the drain fill's scaleY).
+  it('a total that grew with +5 s keeps the bar fill within its track (scaleX ≤ 1), anchored at the left', () => {
     const tree = renderTree({ minimized: false, timer: { setId: 1, secondsLeft: 95, totalSeconds: 95 } });
-    const fill = StyleSheet.flatten(host(tree, 'rest-drain-fill').props.style);
-    const scaleY = fill.transform.find((step) => 'scaleY' in step).scaleY;
-    expect(typeof scaleY === 'number' ? scaleY : scaleY.__getValue()).toBeLessThanOrEqual(1);
-    expect(fill.transformOrigin).toBe('bottom');
-  });
-
-  // Web 2.3.0 bug (PM 30 Oct): the chevron was covered. Native draws it LAST, so no layer sits over it, and it minimises.
-  it('the minimise chevron is the Rest\'s last child (nothing over it) and minimises', () => {
-    const onMinimize = jest.fn();
-    const tree = renderTree({ minimized: false, hero: HERO_NEXT, onMinimize });
-    const root = host(tree, 'rest-timer');
-    const children = root.children.filter((child) => typeof child !== 'string');
-    expect(children[children.length - 1].props.testID).toBe('rest-minimise-row');
-    act(() => tree.root.findAll((n) => n.props.testID === 'rest-timer-minimize' && n.props.onPress)[0].props.onPress());
-    expect(onMinimize).toHaveBeenCalledTimes(1);
+    const fill = StyleSheet.flatten(host(tree, 'rest-bar-fill').props.style);
+    const scaleX = fill.transform.find((step) => 'scaleX' in step).scaleX;
+    expect(typeof scaleX === 'number' ? scaleX : scaleX.__getValue()).toBeLessThanOrEqual(1);
+    expect(fill.transformOrigin).toBe('left');
+    expect(host(tree, 'rest-bar').props.accessibilityElementsHidden).toBe(true);
   });
 
   it('renders nothing without a rest', () => {
@@ -264,16 +277,18 @@ describe('Rest, tablet (UX F2 Tablet: Rest)', () => {
     expect(StyleSheet.flatten(host(tree, 'rest-timer-skip').props.style).minHeight).toBe(62);
   });
 
-  // T-146 (FE Q2): the tablet keeps its layout and takes only the behaviour rules.
-  it('T-146: red digits in the last 5 s (rest ≥ 10 s), not at 6 s; rest 3 makes Skip the gold "Start now"', () => {
+  // DECLARED (T-153 §5, PM-approved; was T-146's gold "Start now" on rest 3): the tablet card's title is the state's
+  // banner copy and the button reads "Skip Rest" + ▶▶ in every state; red ≤ 5 s.
+  it('T-153: red digits in the last 5 s (rest ≥ 10 s), not at 6 s; the state copy; "Skip Rest" in every state', () => {
     mockWidth = 834;
-    const calm = renderTree({ minimized: false, next: NEXT, timer: { setId: 1, secondsLeft: 6, totalSeconds: 90 } });
+    const calm = renderTree({ minimized: false, next: NEXT, hero: HERO_MID, timer: { setId: 1, secondsLeft: 6, totalSeconds: 90 } });
     expect(StyleSheet.flatten(host(calm, 'rest-countdown').props.style).color).toBe(colors.textPrimary);
-    expect(host(calm, 'rest-timer-skip').props.accessibilityLabel).toBe('Skip rest');
+    expect(text(host(calm, 'rest-banner-text'))).toBe('2 sets left');
+    expect(host(calm, 'rest-timer-skip').props.accessibilityLabel).toBe('Skip Rest');
     const red = renderTree({ minimized: false, next: NEXT, hero: HERO_NEXT, timer: { setId: 1, secondsLeft: 5, totalSeconds: 90 } });
     expect(StyleSheet.flatten(host(red, 'rest-countdown').props.style).color).toBe(colors.dangerText);
-    expect(host(red, 'rest-timer-skip').props.accessibilityLabel).toBe('Start now');
-    expect(StyleSheet.flatten(host(red, 'rest-timer-skip').props.style).backgroundColor).toBe(colors.gold);
+    expect(text(host(red, 'rest-banner-text'))).toBe('Get ready for the next exercise!');
+    expect(host(red, 'rest-timer-skip').props.accessibilityLabel).toBe('Skip Rest');
   });
 });
 
@@ -375,34 +390,29 @@ describe('Rest minimised (UX F2 Rest minimised)', () => {
   });
 });
 
-describe('Rest large text (UX §9)', () => {
+// DECLARED A15 (T-153 §6, PM-approved; was the T-146 eyebrow/name caps and no scroll): large text scrolls the sheet's
+// body (the handle stays), Skip takes its own full-width row then −5 / +5; digits cap 1.3; "Skip Rest" + ▶▶ one row.
+describe('Rest large text (T-153 §6)', () => {
   for (const scale of [1, 2, 3.1]) {
-    it(`fontScale ${scale}: digits capped at 1.2, labels at 2.0, nothing truncated, minHeight not height`, () => {
+    it(`fontScale ${scale}: digits capped at 1.3, controls never clipped, the label and ▶▶ one unit`, () => {
       mockFontScale = scale;
-      // DECLARED A15 (T-146): the eyebrow and name carry the 2.0 cap ("of m:ss" is gone); the name wraps to 2 lines.
       const tree = renderTree({ minimized: false, hero: HERO_MID });
-      expect(host(tree, 'rest-countdown').props.maxFontSizeMultiplier).toBe(1.2);
-      expect(host(tree, 'rest-countdown').props.adjustsFontSizeToFit).toBe(true);
-      expect(host(tree, 'rest-eyebrow').props.maxFontSizeMultiplier).toBe(2);
-      expect(host(tree, 'rest-name').props.maxFontSizeMultiplier).toBe(2);
-      expect(host(tree, 'rest-name').props.numberOfLines).toBe(2);
-      for (const id of ['rest-timer-minus', 'rest-timer-plus', 'rest-timer-skip']) {
-        const style = StyleSheet.flatten(host(tree, id).props.style);
-        expect(style.height).toBeUndefined();
+      expect(host(tree, 'rest-countdown').props.maxFontSizeMultiplier).toBe(1.3);
+      const stacked = scale > 1.3;
+      expect(all(tree, 'rest-sheet-scroll')).toHaveLength(stacked ? 1 : 0);
+      if (stacked) {
+        // The handle stays outside the scroll.
+        const scroll = host(tree, 'rest-sheet-scroll');
+        expect(scroll.findAll((n) => n.props.testID === 'rest-sheet-handle')).toHaveLength(0);
+        expect(StyleSheet.flatten(host(tree, 'rest-timer-skip').props.style).alignSelf).toBe('stretch');
       }
-      // Button labels never carry a line cap.
-      const labels = tree.root.findAll((n) => n.type === 'Text' && ['Skip rest', '−5', '+5'].includes(text(n)));
-      expect(labels).toHaveLength(3);
-      labels.forEach((label) => expect(label.props.numberOfLines).toBeUndefined());
-      // T-146 (Q5): nothing scrolls; the photo and then the digits give up the room.
-      expect(tree.root.findAll((n) => n.type === 'RCTScrollView')).toHaveLength(0);
+      const skip = host(tree, 'rest-timer-skip');
+      expect(StyleSheet.flatten(skip.props.style).flexDirection).toBe('row');
+      expect(StyleSheet.flatten(skip.props.style).height).toBeUndefined();
     });
   }
 });
 
-// Review M6 + owner override O14 (RN-SPEC-time §7.2, gymido d04f7254): Android Back on the EXPANDED Rest minimises
-// it to the disc and consumes the press; the rest keeps running (no clear, skip, adjust or alert change). Minimised
-// (or no rest): not handled, so the leave-workout guard runs as before.
 describe('Android Back on the Rest (O14)', () => {
   const { BackHandler } = require('react-native');
   const { consumeRestBack } = require('./restBackGate');
@@ -484,9 +494,11 @@ describe('T-72: the countdown digits keep their ink inside the Text box', () => 
     expect(new Set(pads).size).toBe(1);
   });
 
-  it('keeps the size and tracking: 92 / −0.06 em full screen (100 on tablet), 24 / −0.72 on the disc', () => {
+  // DECLARED (A4, T-153 §2): the phone sheet's digits are 76 / −0.03 em (were 92 / −0.06).
+  it('keeps the size and tracking: 76 / −0.03 em on the phone sheet (100 on tablet), 24 / −0.72 on the disc', () => {
     const phone = StyleSheet.flatten(host(renderTree({ minimized: false }), 'rest-countdown').props.style);
-    expect(phone).toEqual(expect.objectContaining({ fontSize: 92, lineHeight: 92, letterSpacing: typography.displayTimer.letterSpacing, textAlign: 'center' }));
+    expect(phone).toEqual(expect.objectContaining({ fontSize: 76, lineHeight: 76, textAlign: 'center' }));
+    expect(phone.letterSpacing).toBeLessThan(0);
     const disc = StyleSheet.flatten(host(renderTree({ minimized: true, dockRoom: 202 }), 'rest-countdown').props.style);
     expect(disc).toEqual(expect.objectContaining({ fontSize: 24, letterSpacing: -0.72 }));
   });
