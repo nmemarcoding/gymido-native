@@ -195,9 +195,10 @@ export default function SetArcCard({
   onFieldFocus,
   cardRef,
 }) {
-  // T-155: the full 2.3.2 sizes by default; rev 42's compact ones from the fit's step (b), tighter after that.
-  const compact = Boolean(fit?.compact);
-  const steppersHeight = fit?.steppers ?? 116;
+  // T-155 v2 (owner): the compact card is the phone default (rev 42: steppers 108, ± 36, padding 6, the previous row
+  // 28); the fit's later steps go tighter (steppers 96, ± 32).
+  const compact = true;
+  const steppersHeight = fit?.steppers ?? 108;
   const tightSteppers = steppersHeight < 108;
   const compactArc = (fit?.arc ?? 154) < 154;
   const stepperSize = tightSteppers ? 32 : compact ? 36 : 40;

@@ -1,22 +1,21 @@
-// T-154 + T-155 (owner, RN-SPEC dated 30 Oct; web 2.4.1): the phone set screen and the browse view fit the visible
-// height without scrolling at normal text. The DEFAULT is the full 2.3.2 look; the ladder applies only when that
-// doesn't fit, each step only as far as needed, and the result is always the LARGEST that fits (it is recomputed from
-// the full sizes on every change of the room or the content, so it grows back after a transient overflow):
-//   (a) the photo 240 → 160  (b) the T-154 compact sizes (photo 160)  (c) the photo 160 → 112
-//   then T-154: the gaps 12 → 8, the steppers 108 → 96 (live only), the arc 154 → 132, the photo → a 56 thumb beside
-//   the text; (browse, last) the Volume·Reps line hides.
-// `text` = the measured name + exercise notes (WITHOUT the Rest/How to row, which differs per mode), so a mode's own
-// layout never feeds back into the choice.
+// T-154 + T-155 v2 (owner-approved look, PM 30 Oct; web 2.4.1): the phone set screen and the browse view fit the
+// visible height without scrolling at normal text. The DEFAULT: the photo up to 300 (contain), the 2.3.2 Rest/How to row
+// + name, the compact half-circle card (rev 42: steppers 108, ± 36, the previous row 28), the 64 Up next row and the
+// full-width Discard. Only when that doesn't fit, in order and only as far as needed: the photo 300 → 112, the gaps
+// 12 → 8, the steppers 108 → 96 (live only), the arc 154 → 132, the photo → a 56 thumb beside the text; (browse, last)
+// the Volume·Reps line hides. Always the LARGEST that fits: recomputed from the default on every change of the room or
+// the content, so it grows back after a transient overflow.
+// `text` = the measured name + exercise notes (WITHOUT the Rest/How to row).
 
-const FULL = Object.freeze({
+const DEFAULT = Object.freeze({
   compact: false,
   photoTop: 6,
-  photoMax: 240,
+  photoMax: 300,
   row: 36,
   gap: 12,
   arc: 154,
-  previousRow: 32,
-  steppers: 116,
+  previousRow: 28,
+  steppers: 108,
   upNextGap: 12,
   upNext: 64,
   // 12 + 12 below Up next (2.3.2).
@@ -24,25 +23,8 @@ const FULL = Object.freeze({
   discard: 48,
 });
 
-const COMPACT = Object.freeze({
-  compact: true,
-  photoTop: 8,
-  photoMax: 160,
-  row: 32,
-  gap: 12,
-  arc: 154,
-  previousRow: 28,
-  steppers: 108,
-  upNextGap: 8,
-  upNext: 48,
-  discardGap: 4,
-  discard: 32,
-});
-
 export const FIT = Object.freeze({
-  full: FULL,
-  compactSizes: COMPACT,
-  photoStep: 160,
+  default: DEFAULT,
   photoFloor: 112,
   gapTight: 8,
   steppersTight: 96,
@@ -51,7 +33,6 @@ export const FIT = Object.freeze({
   banner: 56,
   bannerGap: 8,
   statsLine: 20,
-  // Kept for readers of the T-154 names.
   arc: 154,
 });
 
@@ -71,25 +52,13 @@ export function fitHeight(fit, { text, hasPhoto, previousRow, upNext, browse }) 
 
 export function phoneFit({ available, text, hasPhoto = true, previousRow = true, upNext = true, browse = false }) {
   const inputs = { text, hasPhoto, previousRow, upNext, browse };
-  let fit = { ...FULL, photo: FULL.photoMax, thumb: false, statsLine: true };
+  const fit = { ...DEFAULT, photo: hasPhoto ? DEFAULT.photoMax : 0, thumb: false, statsLine: true };
   const over = () => fitHeight(fit, inputs) - available;
   const done = () => ({ ...fit, fits: over() <= 0 });
   if (over() <= 0) {
     return done();
   }
-  // (a) The photo gives up what is missing, down to 160.
-  if (hasPhoto) {
-    fit.photo = Math.max(FIT.photoStep, fit.photo - over());
-    if (over() <= 0) {
-      return done();
-    }
-  }
-  // (b) The T-154 compact sizes (the photo at 160).
-  fit = { ...fit, ...COMPACT, photo: hasPhoto ? FIT.photoStep : 0 };
-  if (over() <= 0) {
-    return done();
-  }
-  // (c) The photo 160 → 112.
+  // The photo gives first, down to its floor.
   if (hasPhoto) {
     fit.photo = Math.max(FIT.photoFloor, fit.photo - over());
     if (over() <= 0) {

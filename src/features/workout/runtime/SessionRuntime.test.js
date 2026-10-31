@@ -650,7 +650,7 @@ describe('v2 F1 live and browsing states (ND3)', () => {
     act(() => page.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height: 1200 } } }));
     expect(stageIsThumb()).toBe(false);
     // Back to the full look: the full row, the full photo cap.
-    expect(StyleSheet.flatten(host(tree, 'exercise-stage').props.style).height).toBeLessThanOrEqual(240);
+    expect(StyleSheet.flatten(host(tree, 'exercise-stage').props.style).height).toBeLessThanOrEqual(300);
     expect(byId(tree, 'discard-workout').props.hitSlop).toBeUndefined();
   });
 
@@ -667,16 +667,14 @@ describe('v2 F1 live and browsing states (ND3)', () => {
     expect(stageIsThumb()).toBe(true);
   });
 
-  // DECLARED (T-155): the full-width 48 row by default; the small link is the fit's compact step.
-  it('T-154/T-155: Discard is the full row by default and a small link (row 32, a 44 hit) in the compact step', () => {
+  // DECLARED (T-155 v2, owner): Discard stays the full-width 48 row (rev 42's small link is no longer a step); same confirm.
+  it('T-155: Discard is the full-width 48 row at any fit, the same confirm', () => {
     const { tree } = render();
     const page = tree.root.findAll((node) => node.type === ScrollView && node.props.onScroll)[0];
     expect(StyleSheet.flatten(host(tree, 'discard-workout').props.style).minHeight).toBe(48);
-    act(() => page.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height: 700 } } }));
-    const discard = byId(tree, 'discard-workout');
-    expect(discard.props.hitSlop).toBe(6);
-    expect(StyleSheet.flatten(host(tree, 'discard-workout').props.style)).toMatchObject({ minHeight: 32 });
-    act(() => discard.props.onPress());
+    act(() => page.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height: 420 } } }));
+    expect(StyleSheet.flatten(host(tree, 'discard-workout').props.style).minHeight).toBe(48);
+    act(() => byId(tree, 'discard-workout').props.onPress());
     expect(byId(tree, 'discard-dialog')).toBeDefined();
   });
 
