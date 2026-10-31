@@ -223,9 +223,9 @@ export function SessionChrome({
 }
 
 // T-146 rev 25/26 (owner: the full plan name always shows): 14 on one line;
-// else one step smaller at a time down to 12, still one line; else 2 lines at
-// 12/16, breaking between words. Never "…". Steps are chosen by the measured
-// line count, kept for the session.
+// else one step smaller at a time down to 12, still one line; else it wraps
+// at 12/16 between words (2 lines; more on the narrowest phones, the header
+// grows) and is never cut ("…"). Steps follow the measured line count.
 export const PHONE_PLAN_SIZES = Object.freeze([14, 13, 12]);
 function PhonePlanName({ planName }) {
   const [step, setStep] = useState(0);
@@ -235,7 +235,6 @@ function PhonePlanName({ planName }) {
     <Text
       {...PHONE_PLAN_TEXT}
       testID="session-plan-name"
-      numberOfLines={wrap ? 2 : undefined}
       onTextLayout={(event) => {
         if (!wrap && event?.nativeEvent?.lines?.length > 1) {
           setStep((current) => current + 1);

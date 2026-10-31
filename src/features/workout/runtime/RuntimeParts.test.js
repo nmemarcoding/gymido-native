@@ -144,7 +144,8 @@ describe('SessionChrome (ND3)', () => {
       expect(twelve.props.numberOfLines).toBeUndefined();
       act(() => twelve.props.onTextLayout({ nativeEvent: { lines: [{}, {}] } }));
       const wrapped = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Upper / Lower Split')[0];
-      expect(wrapped.props.numberOfLines).toBe(2);
+      // Device check (360 wide, 30 Oct): even 2 lines can't hold some names; it wraps on and is never cut.
+      expect(wrapped.props.numberOfLines).toBeUndefined();
       expect(StyleSheet.flatten(wrapped.props.style).fontSize).toBe(12);
     }
     // DECLARED path change (Batch 2 item 3): children = [rows, the gold rail].

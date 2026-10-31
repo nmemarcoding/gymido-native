@@ -70,6 +70,7 @@ appId: com.gymido.app
 - extendedWaitUntil: { visible: { id: "browsing-bar" }, timeout: 5000 }
 - waitForAnimationToEnd: { timeout: 3000 }
 - takeScreenshot: ${SHOT}-09-browse-all-done
+- scrollUntilVisible: { element: { id: "set-segment-.*" }, direction: DOWN, centerElement: true, timeout: 10000 }
 - tapOn: { id: "set-segment-.*", index: 0 }
 - extendedWaitUntil: { visible: { id: "set-undo-.*" }, timeout: 5000 }
 - takeScreenshot: ${SHOT}-10-browse-undo
