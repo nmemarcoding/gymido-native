@@ -224,6 +224,28 @@ describe('SessionChrome T-105: Complete in the header', () => {
     expect(texts(fits)).toContain('4/15 sets');
   });
 
+  // T-162 UX verdict (§2): the plan name never ellipsizes; 14 → 13 → 12 on one line, then 2 lines at 12/16, then 2 lines
+  // at 11/14, and 3 lines at 11/14 only when 11 still won't fit; balanced where the platform can.
+  it('phone: the plan name steps to 2 lines at 12/16, then 11/14, and only then 3 lines; never "…"', () => {
+    const tree = render(<SessionChrome {...props} planName="Beginner Full Body Foundation" />);
+    const name = () => host(tree, 'session-plan-name');
+    const layout = (lines) => act(() => name().props.onTextLayout({ nativeEvent: { lines: Array.from({ length: lines }, () => ({})) } }));
+    expect(flat(name())).toMatchObject({ fontSize: 14, lineHeight: 18 });
+    layout(2);
+    layout(2);
+    expect(flat(name())).toMatchObject({ fontSize: 12, lineHeight: 16 });
+    layout(2);
+    expect(flat(name())).toMatchObject({ fontSize: 12, lineHeight: 16 });
+    expect(name().props.textBreakStrategy).toBe('balanced');
+    layout(3);
+    expect(flat(name())).toMatchObject({ fontSize: 11, lineHeight: 14 });
+    layout(3);
+    expect(flat(name())).toMatchObject({ fontSize: 11, lineHeight: 14 });
+    layout(4);
+    expect(flat(name())).toMatchObject({ fontSize: 11, lineHeight: 14 });
+    expect(name().props.numberOfLines).toBeUndefined();
+  });
+
   it('tablet: the timer pill stays (the one timer) and the subline reads "4/15 sets done"', () => {
     const tree = render(<SessionChrome {...props} tablet />);
     expect(timers(tree)).toHaveLength(1);

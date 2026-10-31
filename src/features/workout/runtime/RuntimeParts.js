@@ -230,20 +230,29 @@ export function SessionChrome({
 // grows) and is never cut ("…"). Steps follow the measured line count.
 export const PHONE_PLAN_SIZES = Object.freeze([14, 13, 12]);
 export const PHONE_PLAN_SIZES_SCALED = Object.freeze([13, 12]);
+// Spec §2 + T-162 UX verdict: one line at the sizes given (14 → 13 → 12; scaled 13 → 12), then 2 lines at 12/16, then 2
+// lines at 11/14, and 3 lines at 11/14 only when 11 still won't fit on 2. Never "…" (no numberOfLines); the lines wrap
+// balanced where the platform can (Android).
+export function planNameSteps(sizes) {
+  return [...sizes.map((size) => ({ size, lineHeight: size + 4, lines: 1 })), { size: 12, lineHeight: 16, lines: 2 }, { size: 11, lineHeight: 14, lines: 2 }, { size: 11, lineHeight: 14, lines: 3 }];
+}
+
 function PhonePlanName({ planName, sizes = PHONE_PLAN_SIZES }) {
+  const steps = planNameSteps(sizes);
   const [step, setStep] = useState(0);
-  const wrap = step >= sizes.length;
-  const fontSize = sizes[Math.min(step, sizes.length - 1)];
+  const current = steps[Math.min(step, steps.length - 1)];
+  const last = step >= steps.length - 1;
   return (
     <Text
       {...PHONE_PLAN_TEXT}
       testID="session-plan-name"
+      textBreakStrategy={current.lines > 1 ? 'balanced' : PHONE_PLAN_TEXT.textBreakStrategy}
       onTextLayout={(event) => {
-        if (!wrap && event?.nativeEvent?.lines?.length > 1) {
-          setStep((current) => current + 1);
+        if (!last && event?.nativeEvent?.lines?.length > current.lines) {
+          setStep((at) => at + 1);
         }
       }}
-      style={[styles.planName, { fontSize, lineHeight: fontSize + 4 }]}
+      style={[styles.planName, { fontSize: current.size, lineHeight: current.lineHeight }]}
     >
       {keepUnitsTogether(planName)}
     </Text>

@@ -1,0 +1,11 @@
+# T-162 (PM 31 Oct): when the fit fails at the floor (360×640, 3-button nav) the page scrolls, so Discard stays
+# reachable: browse exercise 2 from All, scroll to Discard, shoot it. IDs only; Back to live after.
+appId: com.gymido.app
+---
+- tapOn: { id: "session-all" }
+- extendedWaitUntil: { visible: { id: "exercise-sheet" }, timeout: 10000 }
+- tapOn: { id: "exercise-sheet-card-1" }
+- waitForAnimationToEnd: { timeout: 3000 }
+- scrollUntilVisible: { element: { id: "discard-workout" }, direction: DOWN, timeout: 10000 }
+- takeScreenshot: ${SHOT}-20-discard-reached
+- assertVisible: { id: "discard-workout" }

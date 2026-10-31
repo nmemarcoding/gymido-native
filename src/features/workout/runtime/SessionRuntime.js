@@ -691,8 +691,9 @@ export default function SessionRuntime({
   }
   // §5.1: over = used − free; used = the header bar + the content column, free = the column − the page's 8 − the bottom
   // safe area (the header is in both, so its P5-SC scaling never moves the room). One step per measurement until it fits
-  // or no step is left (the layout then stays; no scroll). The measurements are the onLayout events (the laid-out sizes):
-  // a synchronous measure() in a layout effect read ~72 taller than the final layout on iOS (T-162 diag, 31 Oct).
+  // or no step is left (the layout then stays and the page scrolls as the last resort). The measurements are the
+  // generation-stamped onLayout readings (fitStamp): a synchronous measure() read stale heights on iOS, and plain onLayout
+  // events arrived late / out of order (T-162 device runs, 31 Oct).
   useLayoutEffect(() => {
     if (!fitActive || !exercise || fieldFocused || rootHeight == null) {
       return;
@@ -788,6 +789,15 @@ export default function SessionRuntime({
   // PM 31 Oct: when the fit fails at the floor (settled, still over: a 360×640 phone with 3-button nav) the page scrolls
   // as the last resort, so Up next and Discard stay reachable.
   const fitFailed = Boolean(fit) && fitStore.key === fitKey && fitStore.settled && fitStore.over > 0;
+  // Review L8: when it fits again, scrolling switches off; the page goes back to the top so nothing stays hidden above.
+  const pageScrolls = !fit || fitFailed || (Platform.OS === 'android' && keyboardHeight > 0);
+  const pageScrolled = useRef(pageScrolls);
+  useEffect(() => {
+    if (pageScrolled.current && !pageScrolls) {
+      scrollRef.current?.scrollTo?.({ y: 0, animated: false });
+    }
+    pageScrolled.current = pageScrolls;
+  }, [pageScrolls]);
   // P5-SC: the scaled header has 6 above the pills (10 normally).
   const chromeTop = (header ? spacing[3] : insets.top + (fit?.scaled ? 6 : spacing['2_5'])) + (tablet ? spacing[3] : 0);
   // §17 / web parity: a button press takes focus off the weight input.
@@ -1127,7 +1137,7 @@ export default function SessionRuntime({
       <ScrollView
         {...scrollProps}
         // T-154: no scroll on a fitted phone page (only the a11y exception, or a fit that failed, scrolls).
-        scrollEnabled={!fit || fitFailed || androidKeyboard > 0}
+        scrollEnabled={pageScrolls}
         onScroll={onPageScroll}
         scrollEventThrottle={16}
         contentContainerStyle={{ paddingBottom: bottomRoom + discRoom + androidKeyboard }}

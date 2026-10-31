@@ -710,6 +710,21 @@ describe('v2 F1 live and browsing states (ND3)', () => {
       expect(page(tree).props.scrollEnabled).toBe(false);
     });
 
+    // Review L8: when the page fits again, scrolling switches off and the page goes back to the top.
+    it('a failed fit scrolls; when it fits again scrolling stops and the page returns to the top', () => {
+      const tree = setup(600);
+      for (let step = 0; step < 15; step += 1) {
+        used(tree, 2000);
+      }
+      expect(page(tree).props.scrollEnabled).toBe(true);
+      const scrollTo = jest.fn();
+      page(tree).instance.scrollTo = scrollTo;
+      room(tree, 2000);
+      used(tree, 900);
+      expect(page(tree).props.scrollEnabled).toBe(false);
+      expect(scrollTo).toHaveBeenCalledWith({ y: 0, animated: false });
+    });
+
     it('while a weight/reps field has focus the fit holds; leaving the fields re-fits from FULL', async () => {
       const tree = setup(1200);
       used(tree, 900);
