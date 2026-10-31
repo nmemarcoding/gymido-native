@@ -8,6 +8,9 @@ appId: com.gymido.app
       - tapOn: { id: "rest-timer" }
       - extendedWaitUntil: { visible: { id: "rest-sheet" }, timeout: 5000 }
 - scrollUntilVisible: { element: { id: "rest-timer-skip" }, direction: DOWN, timeout: 5000, visibilityPercentage: 50 }
+# T-171 carry (UNRUN, PM 31 Oct): lift a bottom-band target above the system bars before the tap (at large text Maestro
+# tapped the transparent 3-button nav bar). Content moves up ~20 %; a target already mid-screen stays on screen.
+- swipe: { start: "50%, 72%", end: "50%, 52%", duration: 400 }
 - tapOn: { id: "rest-timer-skip" }
 - extendedWaitUntil: { notVisible: { id: "rest-sheet" }, timeout: 5000 }
 - runFlow: ../subflows/dismiss-session-dialogs.yaml
