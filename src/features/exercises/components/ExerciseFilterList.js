@@ -3,12 +3,11 @@ import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-na
 import Svg, { Path } from 'react-native-svg';
 
 import FeedbackIcon from '../../../shared/components/FeedbackIcon';
-import { CAP_BODY, NAME_TEXT } from '../../../shared/components/largeText';
+import { CAP_BODY, CAP_DISPLAY, NAME_TEXT } from '../../../shared/components/largeText';
 import Skeleton from '../../../shared/components/Skeleton';
 import { colors, font, radii, spacing, textInputColors, textScale } from '../../../shared/theme/tokens';
 import { rowA11yLabel } from '../exerciseFilters';
 
-const NUMBER = { maxFontSizeMultiplier: textScale.display };
 const SKELETON_ROWS = 6;
 
 // Dated change (27 Oct 2026, owner T-62; UX T62 §4): the filter list, ONE
@@ -204,7 +203,7 @@ function FilterRow({ testID, label, count, checked, onPress, panel, ref }) {
       <Text {...NAME_TEXT} style={[styles.rowName, panel && styles.rowNamePanel, checked && styles.rowNameOn, zero && !checked && styles.rowMuted]}>
         {label}
       </Text>
-      <Text {...NUMBER} testID={`${testID}-count`} style={[styles.rowCount, checked && styles.rowCountOn, zero && !checked && styles.rowMuted]}>
+      <Text {...CAP_DISPLAY} testID={`${testID}-count`} style={[styles.rowCount, checked && styles.rowCountOn, zero && !checked && styles.rowMuted]}>
         {count ?? '—'}
       </Text>
     </Pressable>

@@ -11,6 +11,7 @@ import { closePanel, useShellUiStore } from '../shell/shellUiStore';
 import NotificationItem from './NotificationItem';
 import { useNotificationStore } from './notificationStore';
 import { ERROR_MESSAGE, ERROR_TITLE, pageBodyState } from './notificationsPageFormat';
+import { CAP_BODY } from '../../shared/components/largeText';
 
 // App-shell spec §7.4: phone → fixed 72 below the top inset (⚠S13), full
 // width minus 12; tablet → anchored under the bell.
@@ -38,8 +39,8 @@ export default function NotificationPanel() {
     <View testID="notification-panel" accessibilityRole="none" accessibilityLabel="Notifications" style={[styles.panel, position]}>
       <View style={styles.head}>
         <View style={styles.headText}>
-          <Text style={styles.eyebrow}>Notifications</Text>
-          <Text numberOfLines={1} textBreakStrategy="simple" style={styles.headTitle}>Recent activity</Text>
+          <Text {...CAP_BODY} style={styles.eyebrow}>Notifications</Text>
+          <Text {...CAP_BODY} numberOfLines={1} textBreakStrategy="simple" style={styles.headTitle}>Recent activity</Text>
         </View>
         {unreadCount > 0 ? (
           <Pressable
@@ -47,7 +48,7 @@ export default function NotificationPanel() {
             onPress={markAllNotificationsAsRead}
             style={({ pressed }) => [styles.markAll, pressed && styles.markAllPressed]}
           >
-            <Text style={styles.markAllText}>Mark all as read</Text>
+            <Text {...CAP_BODY} style={styles.markAllText}>Mark all as read</Text>
           </Pressable>
         ) : null}
       </View>
@@ -101,7 +102,7 @@ export default function NotificationPanel() {
                   onPress={loadMore}
                   style={({ pressed }) => [styles.more, pressed && styles.morePressed, isLoading && styles.moreDisabled]}
                 >
-                  <Text style={styles.moreText}>{isLoading ? 'Loading...' : 'Load More'}</Text>
+                  <Text {...CAP_BODY} style={styles.moreText}>{isLoading ? 'Loading...' : 'Load More'}</Text>
                 </Pressable>
               </View>
             ) : null}
@@ -117,7 +118,7 @@ export default function NotificationPanel() {
             openShellPath('/notifications');
           }}
         >
-          {({ pressed }) => <Text style={[styles.viewAll, pressed && styles.viewAllPressed]}>View All Notifications →</Text>}
+          {({ pressed }) => <Text {...CAP_BODY} style={[styles.viewAll, pressed && styles.viewAllPressed]}>View All Notifications →</Text>}
         </Pressable>
       </View>
     </View>
@@ -128,7 +129,7 @@ function FilterButton({ testID, label, a11y, active, onPress }) {
   return (
     <Pressable testID={testID} accessibilityRole="tab" accessibilityLabel={a11y} accessibilityState={{ selected: active }} onPress={onPress}>
       {({ pressed }) => (
-        <Text style={[styles.filter, active ? styles.filterActive : pressed && styles.filterPressed]}>{label}</Text>
+        <Text {...CAP_BODY} style={[styles.filter, active ? styles.filterActive : pressed && styles.filterPressed]}>{label}</Text>
       )}
     </Pressable>
   );

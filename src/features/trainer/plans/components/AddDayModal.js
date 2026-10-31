@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import AppModal, { ModalActions } from '../../../../shared/components/AppModal';
 import FormField from '../../../../shared/components/FormField';
-import { CAP_BODY } from '../../../../shared/components/largeText';
+import { CAP_BODY, CAP_DISPLAY } from '../../../../shared/components/largeText';
 import PillButton from '../../../../shared/components/PillButton';
 import { useSheetFocus } from '../../../../shared/hooks/useSheetFocus';
 import { colors, font, radii, spacing, titleTracking } from '../../../../shared/theme/tokens';
@@ -145,7 +145,7 @@ export function DayNumberCard({ canAddDay, number, tablet }) {
     return (
       <View testID="day-number-card" style={styles.cardTablet}>
         <View style={styles.tile} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <Text maxFontSizeMultiplier={1.3} style={styles.tileNumeral}>
+          <Text {...CAP_DISPLAY} style={styles.tileNumeral}>
             {number}
           </Text>
         </View>
@@ -156,7 +156,7 @@ export function DayNumberCard({ canAddDay, number, tablet }) {
   return (
     <View testID="day-number-card" style={styles.card}>
       <View pointerEvents="none" style={styles.ring} />
-      <Text maxFontSizeMultiplier={1.3} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.numeral}>
+      <Text {...CAP_DISPLAY} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.numeral}>
         {number}
       </Text>
       <View style={styles.sentenceBox}>{sentence}</View>

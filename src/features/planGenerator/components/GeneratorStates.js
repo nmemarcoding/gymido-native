@@ -3,6 +3,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import GradientFill from '../../../shared/components/GradientFill';
 import PillButton from '../../../shared/components/PillButton';
+import { TITLE_TEXT } from '../../../shared/components/largeText';
 import { colors, font, gradients, radii, spacing, textScale, typography } from '../../../shared/theme/tokens';
 import { COPY } from '../generatorCopy';
 
@@ -15,15 +16,6 @@ export const GENERATOR_STATE_MAX_WIDTH = 640;
 const TOP_GLOW = Object.freeze({ cx: 0.5, cy: 0, rx: 0.8, ry: 0.7 });
 const GLOW_STOPS = Object.freeze([0, 0.7]);
 
-// UX §9 large text: the card title (title-lg) scales at most 1.6×, wraps by
-// word (max 3 lines) and shrinks a single over-long word; the message 2×.
-export const TITLE_TEXT = Object.freeze({
-  textBreakStrategy: 'simple',
-  maxFontSizeMultiplier: textScale.title,
-  numberOfLines: 3,
-  adjustsFontSizeToFit: true,
-  minimumFontScale: 0.7,
-});
 
 // G1 (RN-SPEC-PLAN-GENERATOR §G1.1 / §G2 503): the page-level card. The
 // action stays the code's SECONDARY "Back to plans" (spec §D2; compact 44,

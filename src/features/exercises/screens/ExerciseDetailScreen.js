@@ -37,6 +37,7 @@ import {
   resolveExerciseLoad,
   substituteSummary,
 } from '../exerciseProfile';
+import { CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT, TITLE_TEXT } from '../../../shared/components/largeText';
 
 const MAX_ALTERNATIVES = 10;
 
@@ -78,19 +79,6 @@ export const TABLET_PAGE_WASH = Object.freeze({
 
 // Large text (UX §9): role caps; titles wrap by word (max 3 lines) and a single
 // long word shrinks the title instead of breaking inside it.
-const DISPLAY_TEXT = Object.freeze({
-  textBreakStrategy: 'simple',
-  maxFontSizeMultiplier: textScale.display,
-  numberOfLines: 3,
-  adjustsFontSizeToFit: true,
-  minimumFontScale: 0.7,
-});
-const TITLE_TEXT = Object.freeze({
-  ...DISPLAY_TEXT,
-  maxFontSizeMultiplier: textScale.title,
-});
-const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
-const PILL_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.pill });
 
 // The shared kit helper (ExerciseImage), re-exported for this screen's callers.
 export { muscleTextColor };
@@ -205,7 +193,7 @@ function ExerciseDetail() {
         <>
           {tablet ? null : <PhotoGlass />}
           {pressed ? <PressOverlay testID="exercise-detail-back-pressed" /> : null}
-          <Text {...BODY_TEXT} style={styles.backText}>
+          <Text {...CAP_BODY} style={styles.backText}>
             ← Back
           </Text>
         </>
@@ -227,7 +215,7 @@ function ExerciseDetail() {
         </View>
       ) : (
         <View>
-          <Text {...BODY_TEXT} style={[styles.smallLabel, styles.mt8]}>
+          <Text {...CAP_BODY} style={[styles.smallLabel, styles.mt8]}>
             Primary
           </Text>
           <Text {...TITLE_TEXT} testID="exercise-detail-primary" style={[styles.primaryValue, { color: hue }]}>
@@ -246,7 +234,7 @@ function ExerciseDetail() {
         <View style={styles.chipWrap}>
           {equipment.map((line, index) => (
             <View key={`${index}-${line}`} style={styles.softChipTablet}>
-              <Text {...PILL_TEXT} style={styles.softChipTabletText}>
+              <Text {...CAP_PILL} style={styles.softChipTabletText}>
                 {line}
               </Text>
             </View>
@@ -262,7 +250,7 @@ function ExerciseDetail() {
               >
                 <GymIcon name="workout" size={20} color={index === 0 ? colors.gold : colors.textStrong2} />
               </View>
-              <Text {...BODY_TEXT} style={[styles.equipmentLine, index === 0 ? styles.equipmentLineFirst : null]}>
+              <Text {...CAP_BODY} style={[styles.equipmentLine, index === 0 ? styles.equipmentLineFirst : null]}>
                 {line}
               </Text>
             </View>
@@ -316,14 +304,14 @@ function ExerciseDetail() {
         {tablet ? null : <View style={styles.backOnPhoto}>{back}</View>}
         <View style={tablet ? styles.captionTablet : styles.captionPhone}>
           <Text
-            {...BODY_TEXT}
+            {...CAP_BODY}
             testID="exercise-detail-eyebrow"
             style={[tablet ? styles.eyebrowTablet : styles.eyebrow, { color: eyebrowColor }]}
           >
             {primaryMuscle || 'Exercise'}
           </Text>
           <Text
-            {...DISPLAY_TEXT}
+            {...DISPLAY_TITLE_TEXT}
             testID="exercise-detail-title"
             accessibilityRole="header"
             style={tablet ? styles.titleTablet : styles.title}
@@ -335,7 +323,7 @@ function ExerciseDetail() {
               {chips.map((chip) => (
                 <View key={chip} testID="exercise-detail-fact-chip" style={[styles.factChip, tablet && styles.factChipTablet]}>
                   <PhotoGlass />
-                  <Text {...PILL_TEXT} style={[styles.factChipText, tablet && styles.factChipTextTablet]}>
+                  <Text {...CAP_PILL} style={[styles.factChipText, tablet && styles.factChipTextTablet]}>
                     {chip}
                   </Text>
                 </View>
@@ -347,7 +335,7 @@ function ExerciseDetail() {
 
       <View style={[styles.body, tablet && styles.bodyTablet]}>
         {isComingSoon(profile) ? (
-          <Text {...BODY_TEXT} style={styles.comingSoon}>
+          <Text {...CAP_BODY} style={styles.comingSoon}>
             More details for this exercise are coming soon.
           </Text>
         ) : null}
@@ -363,7 +351,7 @@ function ExerciseDetail() {
           <Section title="How to do it" testID="exercise-detail-how-to" tablet={tablet} gradient={tablet}>
             <View style={tablet ? styles.howToBodyTablet : styles.howToBody}>
               {exercise.description ? (
-                <Text {...BODY_TEXT} style={[styles.howTo, tablet && styles.howToTablet]}>
+                <Text {...CAP_BODY} style={[styles.howTo, tablet && styles.howToTablet]}>
                   {exercise.description}
                 </Text>
               ) : null}
@@ -371,17 +359,17 @@ function ExerciseDetail() {
                 <View testID="exercise-detail-steps" style={styles.steps}>
                   {steps.map((step, index) => (
                     <View key={`${index}-${step}`} style={styles.step}>
-                      <Text {...BODY_TEXT} style={[styles.howTo, tablet && styles.howToTablet, styles.stepNumber]}>
+                      <Text {...CAP_BODY} style={[styles.howTo, tablet && styles.howToTablet, styles.stepNumber]}>
                         {`${index + 1}.`}
                       </Text>
-                      <Text {...BODY_TEXT} style={[styles.howTo, tablet && styles.howToTablet, styles.stepText]}>
+                      <Text {...CAP_BODY} style={[styles.howTo, tablet && styles.howToTablet, styles.stepText]}>
                         {step}
                       </Text>
                     </View>
                   ))}
                 </View>
               ) : exercise.instructions ? (
-                <Text {...BODY_TEXT} testID="exercise-detail-instructions" style={[styles.howTo, tablet && styles.howToTablet]}>
+                <Text {...CAP_BODY} testID="exercise-detail-instructions" style={[styles.howTo, tablet && styles.howToTablet]}>
                   {exercise.instructions}
                 </Text>
               ) : null}
@@ -411,10 +399,10 @@ function ExerciseDetail() {
                           style={[ALTERNATIVE_ROW_IMAGE, styles.altRowImage]}
                         />
                         <View style={styles.textColumn}>
-                          <Text {...BODY_TEXT} numberOfLines={2} style={styles.altRowName}>
+                          <Text {...CAP_BODY} numberOfLines={2} style={styles.altRowName}>
                             {substitute.name}
                           </Text>
-                          <Text {...BODY_TEXT} numberOfLines={2} style={styles.altRowSummary}>
+                          <Text {...CAP_BODY} numberOfLines={2} style={styles.altRowSummary}>
                             {substituteSummary(substitute)}
                           </Text>
                         </View>
@@ -452,10 +440,10 @@ function ExerciseDetail() {
                       />
                     </View>
                     <View style={styles.altCaption}>
-                      <Text {...BODY_TEXT} numberOfLines={2} style={styles.altName}>
+                      <Text {...CAP_BODY} numberOfLines={2} style={styles.altName}>
                         {substitute.name}
                       </Text>
-                      <Text {...BODY_TEXT} numberOfLines={2} style={styles.altSummary}>
+                      <Text {...CAP_BODY} numberOfLines={2} style={styles.altSummary}>
                         {substituteSummary(substitute)}
                       </Text>
                     </View>
@@ -482,7 +470,7 @@ function Section({ title, testID, tablet, gradient = false, style, children }) {
         />
       ) : null}
       <Text
-        {...(tablet ? TITLE_TEXT : BODY_TEXT)}
+        {...(tablet ? TITLE_TEXT : CAP_BODY)}
         accessibilityRole="header"
         style={tablet ? styles.cardTitleTablet : styles.cardTitle}
       >
@@ -512,10 +500,10 @@ function PressOverlay({ testID }) {
 function Pair({ label, value }) {
   return (
     <View>
-      <Text {...BODY_TEXT} style={styles.pairLabel}>
+      <Text {...CAP_BODY} style={styles.pairLabel}>
         {label}
       </Text>
-      <Text {...BODY_TEXT} style={styles.pairValue}>
+      <Text {...CAP_BODY} style={styles.pairValue}>
         {value}
       </Text>
     </View>
@@ -525,13 +513,13 @@ function Pair({ label, value }) {
 function MuscleChips({ label, muscles }) {
   return (
     <View>
-      <Text {...BODY_TEXT} style={[styles.smallLabel, styles.chipsLabel]}>
+      <Text {...CAP_BODY} style={[styles.smallLabel, styles.chipsLabel]}>
         {label}
       </Text>
       <View style={styles.chipWrap}>
         {muscles.map((item) => (
           <View key={item.id ?? item.name} style={styles.softChip}>
-            <Text {...PILL_TEXT} style={styles.softChipText}>
+            <Text {...CAP_PILL} style={styles.softChipText}>
               {item.name}
             </Text>
           </View>

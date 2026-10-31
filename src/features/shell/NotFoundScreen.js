@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Text as SvgText } from 'react-native-svg';
 
 import PillButton from '../../shared/components/PillButton';
+import { DISPLAY_TITLE_TEXT } from '../../shared/components/largeText';
 import Screen from '../../shared/components/Screen';
 import { breakpoints, colors, font, spacing, textScale, typography } from '../../shared/theme/tokens';
 
@@ -44,13 +45,6 @@ function OutlineNumeral({ centred }) {
 
 // UX §9 large text: the page title caps at textScale.display, wraps by word
 // (max 3 lines) and shrinks a single long word; the body caps at textScale.body.
-const TITLE_TEXT = {
-  maxFontSizeMultiplier: textScale.display,
-  numberOfLines: 3,
-  adjustsFontSizeToFit: true,
-  minimumFontScale: 0.7,
-  textBreakStrategy: 'simple',
-};
 
 // App-shell spec §9.4. "Go home" goes Home (`onGoHome`). Phone per the board
 // (left-aligned, the gold CTA at the bottom); tablet (ruling ND5): the SAME
@@ -66,7 +60,7 @@ export default function NotFoundScreen({ onGoHome }) {
       <ScrollView contentContainerStyle={[styles.scroll, tablet && styles.scrollTablet]}>
         <View testID="not-found-column" style={[styles.column, tablet ? styles.columnTablet : { paddingTop: top }]}>
           <OutlineNumeral centred={tablet} />
-          <Text testID="not-found-title" accessibilityRole="header" {...TITLE_TEXT} style={[styles.title, tablet && styles.textCentred]}>
+          <Text testID="not-found-title" accessibilityRole="header" {...DISPLAY_TITLE_TEXT} style={[styles.title, tablet && styles.textCentred]}>
             Page not found
           </Text>
           <Text testID="not-found-body" maxFontSizeMultiplier={textScale.body} style={[styles.body, tablet && styles.textCentred]}>

@@ -8,7 +8,8 @@ import { ToastTone, addToast } from '../../../shared/components/toastStore';
 import { colors, gradients, spacing, textScale, titleTracking, typography } from '../../../shared/theme/tokens';
 import { login, signup, takeAccountDeletedNotice } from '../authService';
 import { AuthStatus, useAuthStore } from '../authStore';
-import { DISPLAY_TITLE_TEXT, GTile, WelcomeRings, boardTop, isTabletWidth } from '../components/AuthArt';
+import { GTile, WelcomeRings, boardTop, isTabletWidth } from '../components/AuthArt';
+import { DISPLAY_TITLE_TEXT } from '../../../shared/components/largeText';
 
 // RN-SPEC-profile P1b.6 (T-43, native only): the notice after Delete account.
 const DELETED_NOTICE_MS = 6000;

@@ -7,7 +7,7 @@ import { InlineToast } from '../../shared/components/ToastHost';
 import { ToastTone } from '../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
 import { useSheetFocus } from '../../shared/hooks/useSheetFocus';
-import { breakpoints, colors, textScale, typography } from '../../shared/theme/tokens';
+import { breakpoints, colors, typography } from '../../shared/theme/tokens';
 import { useAuthStore } from '../auth/authStore';
 import { getCurrentPlan, listPlanDays } from '../plans/api/libraryApi';
 import { catchUpConfirmCopy, catchUpRowCopy } from '../plans/missedCatchUp';
@@ -34,14 +34,13 @@ import {
   weightCard,
 } from './homeFormat';
 import { RecentWorkouts, TodayHero, TodayStats, WeekCard, WeightCard, WeightValues } from './TodayPlanView';
-import { LARGE_TEXT as LT, TodayEmpty, TodayError, TodayHeader, TodayLoading, useReflow } from './TodayStates';
+import { TodayEmpty, TodayError, TodayHeader, TodayLoading, useReflow } from './TodayStates';
 import { getCurrentWorkout, listCompletedWorkouts } from '../workout/api/workoutApi';
 import { verifySessionState } from '../workout/runtime/workoutSessionStore';
 import WeightLogModal from './WeightLogModal';
+import { CAP_BODY, CAP_TITLE } from '../../shared/components/largeText';
 
 const SAVED_TOAST_MS = 3500;
-// Stat values (18–20 px): the title cap, never shrunk.
-const VALUE_TEXT = { maxFontSizeMultiplier: textScale.title };
 // T-53 (onboarding ruling D): the toast's entrance before the T-103 prompt.
 const TOAST_ENTRANCE_MS = 400;
 
@@ -368,10 +367,10 @@ function Home({ askAfterToast = false }) {
 function StatRow({ label, value, first, valueStyle }) {
   return (
     <View testID={`home-stat-row-${label}`} style={[styles.statRow, !first && styles.statRowDivider]}>
-      <Text {...LT.body} style={[styles.statLabel, styles.statRowLabel]}>
+      <Text {...CAP_BODY} style={[styles.statLabel, styles.statRowLabel]}>
         {label}
       </Text>
-      <Text {...VALUE_TEXT} style={[valueStyle, styles.statRowValue]}>
+      <Text {...CAP_TITLE} style={[valueStyle, styles.statRowValue]}>
         {value}
       </Text>
     </View>

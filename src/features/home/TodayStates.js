@@ -14,27 +14,13 @@ import { colors, font, gradients, radii, spacing, textScale, titleTracking, typo
 import { useGeneratorAvailable } from '../planGenerator/useGeneratorAvailable';
 import GymIcon from '../shell/GymIcon';
 import ProgressRing from '../workout/components/ProgressRing';
+import { CAP_BADGE, CAP_BODY, CAP_DISPLAY, DISPLAY_TITLE_TEXT, TITLE_TEXT } from '../../shared/components/largeText';
 
 // v2 Phase 2 B3 (RN-SPEC-v2-phase2 §B3, UX B §Today): the Today header and
 // the Today empty / error / loading states. Behaviour is v1's (RN-SPEC-home)
 // except the approved #42 "Build me a plan" (gated like the generator entry).
 
 export const LOADING_LABEL = 'Loading dashboard';
-
-// UX §9 large text. Caps per role; titles wrap by word (max 3 lines) and a
-// single long word shrinks the title (titles only); body copy and labels
-// scale to 2.0 and never truncate.
-const TITLE_FIT = { numberOfLines: 3, adjustsFontSizeToFit: true, minimumFontScale: 0.7, textBreakStrategy: 'simple' };
-export const LARGE_TEXT = Object.freeze({
-  display: { ...TITLE_FIT, maxFontSizeMultiplier: textScale.display },
-  title: { ...TITLE_FIT, maxFontSizeMultiplier: textScale.title },
-  // Big stat numbers (34–72): display-sized, capped, never shrunk.
-  number: { maxFontSizeMultiplier: textScale.display },
-  body: { maxFontSizeMultiplier: textScale.body },
-  // Text inside fixed geometry (the avatar circle).
-  badge: { maxFontSizeMultiplier: textScale.badge },
-});
-const LT = LARGE_TEXT;
 
 // Reflow past textScale.reflowAbove (§9 rule 4); live, never cached.
 export function useReflow() {
@@ -56,15 +42,15 @@ export function TodayHeader({ initials, dateLabel, greeting, tablet }) {
         importantForAccessibility="no-hide-descendants"
       >
         <GradientFill angle={gradients.goldAvatar.angle} colors={gradients.goldAvatar.colors} />
-        <Text {...LT.badge} style={[styles.avatarText, tablet && styles.avatarTextTablet]}>
+        <Text {...CAP_BADGE} style={[styles.avatarText, tablet && styles.avatarTextTablet]}>
           {initials}
         </Text>
       </View>
       <View style={styles.headerText}>
-        <Text testID="home-date" {...LT.body} style={tablet ? styles.dateLineTablet : styles.dateLine}>
+        <Text testID="home-date" {...CAP_BODY} style={tablet ? styles.dateLineTablet : styles.dateLine}>
           {dateLabel}
         </Text>
-        <Text testID="home-greeting" accessibilityRole="header" {...LT.display} style={tablet ? styles.greetingTablet : styles.greeting}>
+        <Text testID="home-greeting" accessibilityRole="header" {...DISPLAY_TITLE_TEXT} style={tablet ? styles.greetingTablet : styles.greeting}>
           {greeting}
         </Text>
       </View>
@@ -99,7 +85,7 @@ export function TodayLoading({ tablet }) {
           <GlassSurface radius={60} shadow={false} style={styles.disc}>
             <Spinner size={72} thickness={6} track={colors.hairlineStrong} />
           </GlassSurface>
-          <Text {...LT.body} style={styles.statusTabletText}>
+          <Text {...CAP_BODY} style={styles.statusTabletText}>
             {LOADING_LABEL}
           </Text>
         </View>
@@ -147,10 +133,10 @@ export function TodayError({ message, tablet }) {
       <View style={[styles.errorTile, tablet && styles.errorTileTablet]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <FeedbackIcon name="error" size={tablet ? 48 : 30} color={colors.dangerText} />
       </View>
-      <Text accessibilityRole="header" {...(tablet ? LT.display : LT.title)} style={tablet ? styles.errorTitleTablet : styles.errorTitle}>
+      <Text accessibilityRole="header" {...(tablet ? DISPLAY_TITLE_TEXT : TITLE_TEXT)} style={tablet ? styles.errorTitleTablet : styles.errorTitle}>
         Dashboard unavailable
       </Text>
-      <Text {...LT.body} style={tablet ? styles.errorMessageTablet : styles.errorMessage}>
+      <Text {...CAP_BODY} style={tablet ? styles.errorMessageTablet : styles.errorMessage}>
         {message || 'Please try again.'}
       </Text>
     </View>
@@ -197,10 +183,10 @@ export function TodayEmpty({ tablet, stats, weight, weightValues, recentEmpty, r
       >
         <GymIcon name="library" size={tablet ? 40 : 34} color={colors.gold} />
       </View>
-      <Text accessibilityRole="header" {...(tablet ? LT.display : LT.title)} style={tablet ? styles.heroTitleTablet : styles.heroTitle}>
+      <Text accessibilityRole="header" {...(tablet ? DISPLAY_TITLE_TEXT : TITLE_TEXT)} style={tablet ? styles.heroTitleTablet : styles.heroTitle}>
         No active plan yet
       </Text>
-      <Text {...LT.body} style={tablet ? styles.heroBodyTablet : styles.heroBody}>
+      <Text {...CAP_BODY} style={tablet ? styles.heroBodyTablet : styles.heroBody}>
         Pick a workout plan to unlock your weekly schedule and guided workouts.
       </Text>
       {tablet ? (
@@ -228,28 +214,28 @@ export function TodayEmpty({ tablet, stats, weight, weightValues, recentEmpty, r
         <View testID="home-stat-this-week-row" style={[styles.tileRow, reflow && styles.tileRowStacked]}>
           <ProgressRing value={stats.thisWeek} total={stats.planned} size={96} thickness={10} label={stats.ringLabel} />
           <View style={styles.tileText}>
-            <Text {...LT.body} style={styles.tileLabelTablet}>
+            <Text {...CAP_BODY} style={styles.tileLabelTablet}>
               This week
             </Text>
-            <Text {...LT.number} style={[styles.numberTablet, zero(stats.thisWeek)]}>
+            <Text {...CAP_DISPLAY} style={[styles.numberTablet, zero(stats.thisWeek)]}>
               {stats.thisWeekText}
               <Text style={styles.denominatorTablet}>{stats.plannedText}</Text>
             </Text>
-            <Text {...LT.body} style={styles.tileCaptionTablet}>
+            <Text {...CAP_BODY} style={styles.tileCaptionTablet}>
               Planned
             </Text>
           </View>
         </View>
       ) : (
         <>
-          <Text {...LT.body} style={styles.tileLabel}>
+          <Text {...CAP_BODY} style={styles.tileLabel}>
             This week
           </Text>
-          <Text {...LT.number} style={[styles.number, zero(stats.thisWeek)]}>
+          <Text {...CAP_DISPLAY} style={[styles.number, zero(stats.thisWeek)]}>
             {stats.thisWeekText}
             <Text style={styles.denominator}>{stats.plannedText}</Text>
           </Text>
-          <Text {...LT.body} style={styles.tileCaption}>
+          <Text {...CAP_BODY} style={styles.tileCaption}>
             Planned
           </Text>
         </>
@@ -263,13 +249,13 @@ export function TodayEmpty({ tablet, stats, weight, weightValues, recentEmpty, r
       accessibilityLabel={`Done total ${stats.doneTotalText} workouts`}
       style={[styles.tile, tablet && styles.tileTablet, stacked]}
     >
-      <Text {...LT.body} style={tablet ? styles.tileLabelTablet : styles.tileLabel}>
+      <Text {...CAP_BODY} style={tablet ? styles.tileLabelTablet : styles.tileLabel}>
         Done total
       </Text>
-      <Text {...LT.number} style={[tablet ? styles.numberLarge : styles.number, zero(stats.doneTotal)]}>
+      <Text {...CAP_DISPLAY} style={[tablet ? styles.numberLarge : styles.number, zero(stats.doneTotal)]}>
         {stats.doneTotalText}
       </Text>
-      <Text {...LT.body} style={tablet ? styles.tileCaptionTablet : styles.tileCaption}>
+      <Text {...CAP_BODY} style={tablet ? styles.tileCaptionTablet : styles.tileCaption}>
         workouts
       </Text>
     </View>
@@ -278,7 +264,7 @@ export function TodayEmpty({ tablet, stats, weight, weightValues, recentEmpty, r
   const weightCard = (
     <View testID="home-weight" style={[styles.tile, tablet ? styles.tileTablet : styles.weightPhone, stacked]}>
       <View testID="home-weight-header" style={[styles.weightHeader, reflow && styles.trailingBelow]}>
-        <Text {...(tablet ? LT.title : LT.body)} style={tablet ? styles.cardTitleTablet : styles.cardTitle}>
+        <Text {...(tablet ? TITLE_TEXT : CAP_BODY)} style={tablet ? styles.cardTitleTablet : styles.cardTitle}>
           Weight
         </Text>
         <TextLink testID="home-see-progress" label="See progress" onPress={onSeeProgress} />
@@ -286,7 +272,7 @@ export function TodayEmpty({ tablet, stats, weight, weightValues, recentEmpty, r
       {weight.hasData ? (
         weightValues
       ) : (
-        <Text {...LT.body} style={tablet ? styles.weightBodyTablet : styles.weightBody}>
+        <Text {...CAP_BODY} style={tablet ? styles.weightBodyTablet : styles.weightBody}>
           Log today's weight to start tracking your trend.
         </Text>
       )}
@@ -296,7 +282,7 @@ export function TodayEmpty({ tablet, stats, weight, weightValues, recentEmpty, r
             <>
               {/* STATE RULE (§8.6): pressed = the gold tint + a white 4 % overlay. */}
               {pressed ? <View testID="home-add-weight-pressed" pointerEvents="none" style={[StyleSheet.absoluteFill, styles.pressOverlay]} /> : null}
-              <Text {...LT.body} style={styles.addWeightTabletText}>
+              <Text {...CAP_BODY} style={styles.addWeightTabletText}>
                 Add weight log
               </Text>
             </>
@@ -309,7 +295,7 @@ export function TodayEmpty({ tablet, stats, weight, weightValues, recentEmpty, r
   );
   const recentCard = recentEmpty ? (
     <View testID="home-recent-empty" style={tablet ? [styles.tile, styles.tileTablet, stacked] : [styles.recentEmptyPhone, stacked]}>
-      <Text accessibilityRole="header" {...(tablet ? LT.title : LT.body)} style={tablet ? styles.cardTitleTablet : styles.cardTitle}>
+      <Text accessibilityRole="header" {...(tablet ? TITLE_TEXT : CAP_BODY)} style={tablet ? styles.cardTitleTablet : styles.cardTitle}>
         Recent workouts
       </Text>
       {tablet ? (
@@ -317,10 +303,10 @@ export function TodayEmpty({ tablet, stats, weight, weightValues, recentEmpty, r
           <GymIcon name="workout" size={26} color={colors.teal} />
         </View>
       ) : null}
-      <Text {...(tablet ? LT.title : LT.body)} style={tablet ? styles.recentTitleTablet : styles.recentTitle}>
+      <Text {...(tablet ? TITLE_TEXT : CAP_BODY)} style={tablet ? styles.recentTitleTablet : styles.recentTitle}>
         No completed workouts yet
       </Text>
-      <Text {...LT.body} style={tablet ? styles.recentBodyTablet : styles.recentBody}>
+      <Text {...CAP_BODY} style={tablet ? styles.recentBodyTablet : styles.recentBody}>
         Once you finish a workout, it will show up here.
       </Text>
     </View>
@@ -328,7 +314,7 @@ export function TodayEmpty({ tablet, stats, weight, weightValues, recentEmpty, r
     recentList
   );
   const lastWorkout = stats.lastWorkout ? (
-    <Text {...LT.body} style={styles.lastWorkout}>
+    <Text {...CAP_BODY} style={styles.lastWorkout}>
       {stats.lastWorkout}
     </Text>
   ) : null;

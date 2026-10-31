@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import AppModal, { ModalActions } from '../../../../shared/components/AppModal';
 import FormField, { FieldFrame } from '../../../../shared/components/FormField';
-import { CAP_BODY } from '../../../../shared/components/largeText';
+import { CAP_BODY, CAP_DISPLAY } from '../../../../shared/components/largeText';
 import PillButton from '../../../../shared/components/PillButton';
 import SegmentedSwitch from '../../../../shared/components/SegmentedSwitch';
 import { useSheetFocus } from '../../../../shared/hooks/useSheetFocus';
@@ -182,7 +182,7 @@ export function SetNumberRow({ number, tablet }) {
   return (
     <View testID="set-number-box" style={tablet ? styles.boxTablet : styles.box}>
       <View style={tablet ? styles.tileTablet : styles.tile} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <Text maxFontSizeMultiplier={1.3} style={tablet ? styles.tileTextTablet : styles.tileText}>
+        <Text {...CAP_DISPLAY} style={tablet ? styles.tileTextTablet : styles.tileText}>
           {number}
         </Text>
       </View>

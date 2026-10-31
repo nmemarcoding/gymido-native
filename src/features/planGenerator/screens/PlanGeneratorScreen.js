@@ -6,7 +6,7 @@ import { getServerMessage, getStatus } from '../../../shared/api/apiError';
 import ErrorAlert from '../../../shared/components/ErrorAlert';
 import { InlineError } from '../../../shared/components/FeedbackBox';
 import IconButton from '../../../shared/components/IconButton';
-import { NAME_TEXT } from '../../../shared/components/largeText';
+import { CAP_BODY, CAP_DISPLAY, DISPLAY_TITLE_TEXT, NAME_TEXT } from '../../../shared/components/largeText';
 import Loader from '../../../shared/components/Loader';
 import PillButton, { BUTTON_HEIGHTS } from '../../../shared/components/PillButton';
 import PinnedDock, { dockButtonsHeight, dockStacks } from '../../../shared/components/PinnedDock';
@@ -35,7 +35,7 @@ import {
   stepEyebrow,
   stepFraction,
 } from '../generatorCopy';
-import { BODY_TEXT, DISPLAY_TEXT, FOCUS_DELAY_MS, PAGE_TITLE_TEXT, PressOverlay, isReflow, isTabletWidth } from '../generatorLayout';
+import { FOCUS_DELAY_MS, PressOverlay, isReflow, isTabletWidth } from '../generatorLayout';
 import {
   answersFromProfile,
   buildProfileBody,
@@ -316,20 +316,20 @@ function PlanGenerator() {
           ) : null}
           <View testID="generator-title-block" style={[styles.titleBlock, tablet && styles.titleBlockTablet]}>
             <View style={styles.flex}>
-              <Text {...BODY_TEXT} testID="generator-step-eyebrow" style={[styles.eyebrow, tablet && styles.eyebrowTablet]}>
+              <Text {...CAP_BODY} testID="generator-step-eyebrow" style={[styles.eyebrow, tablet && styles.eyebrowTablet]}>
                 {stepEyebrow(step)}
               </Text>
               <Text
                 ref={headingRef}
                 testID="generator-step-title"
-                {...PAGE_TITLE_TEXT}
+                {...DISPLAY_TITLE_TEXT}
                 accessibilityRole="header"
                 style={[styles.title, tablet && styles.titleTablet, step === STEP_COUNT && !tablet && styles.titleStep6]}
               >
                 {QUESTIONS[step - 1]}
               </Text>
               {step === STEP_COUNT ? (
-                <Text {...BODY_TEXT} style={[styles.optional, tablet && styles.optionalTablet]}>
+                <Text {...CAP_BODY} style={[styles.optional, tablet && styles.optionalTablet]}>
                   {COPY.optional}
                 </Text>
               ) : null}
@@ -338,7 +338,7 @@ function PlanGenerator() {
             {!tablet && !reflow ? (
               <Text
                 testID="generator-ghost-numeral"
-                {...DISPLAY_TEXT}
+                {...CAP_DISPLAY}
                 accessibilityElementsHidden
                 importantForAccessibility="no-hide-descendants"
                 style={styles.ghost}
@@ -361,7 +361,7 @@ function PlanGenerator() {
             onResults={(items) => setKnownExercises((current) => rememberExercises(current, items))}
           />
           {step === 1 && !tablet ? (
-            <Text testID="generator-step1-hint" {...BODY_TEXT} style={styles.hint}>
+            <Text testID="generator-step1-hint" {...CAP_BODY} style={styles.hint}>
               {COPY.step1Hint}
             </Text>
           ) : null}
@@ -392,7 +392,7 @@ function TopRow({ step, onPress }) {
       <IconButton testID="generator-top-back" accessibilityLabel={first ? COPY.cancel : COPY.back} onPress={onPress}>
         {({ color }) => (first ? <CloseIcon size={18} color={color} /> : <ChevronLeftIcon size={20} color={color} />)}
       </IconButton>
-      <Text {...BODY_TEXT} style={styles.topTitle}>
+      <Text {...CAP_BODY} style={styles.topTitle}>
         {COPY.entryTitle}
       </Text>
       <View style={styles.topSpacer} />
@@ -551,17 +551,17 @@ function EquipmentStep({ answers, options, setAnswers, editing, setEditing }) {
             onPress={() => setEditing(!editing)}
             style={styles.textButton}
           >
-            <Text {...BODY_TEXT} style={styles.textButtonLabel}>
+            <Text {...CAP_BODY} style={styles.textButtonLabel}>
               {editing ? COPY.doneEditing : COPY.editEquipment}
             </Text>
           </Pressable>
           {editing ? (
             <View testID="generator-equipment-list" style={[styles.listCard, styles.mt8]}>
               <View style={styles.listRow}>
-                <Text {...BODY_TEXT} style={[styles.listRowText, styles.flex]}>
+                <Text {...CAP_BODY} style={[styles.listRowText, styles.flex]}>
                   {COPY.bodyweight}
                 </Text>
-                <Text {...BODY_TEXT} style={styles.alwaysIncluded}>
+                <Text {...CAP_BODY} style={styles.alwaysIncluded}>
                   {COPY.alwaysIncluded}
                 </Text>
               </View>

@@ -56,6 +56,7 @@ import {
   validateStep,
   weightsEmpty,
 } from './createProfileForm';
+import { CAP_BADGE, CAP_BODY, SHORT_DISPLAY_TITLE_TEXT } from '../../shared/components/largeText';
 
 const EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
 
@@ -91,7 +92,6 @@ export const PROFILE_PLACEHOLDERS = Object.freeze({
 // Q1 the step title: the generator's step title size (46 phone / 60 tablet,
 //    titlePhone / titleTablet below), at most 2 lines, wrapping between words
 //    (a single long word shrinks, never breaks).
-const TITLE_MAX_LINES = 2;
 // Q2 the tablet brand row stays (the phone has the top icon-button row).
 const TABLET_BRAND_ROW = true;
 // Q3 Date of birth above the Sex pills at every width.
@@ -102,15 +102,7 @@ const WEIGHT_UNIT_HELPERS = false;
 // default size; nothing to set here).
 
 // §9: titles cap at 1.3 and wrap by word; body copy and inputs scale to 2.0.
-const TITLE = {
-  numberOfLines: TITLE_MAX_LINES,
-  adjustsFontSizeToFit: true,
-  minimumFontScale: 0.7,
-  textBreakStrategy: 'simple',
-  maxFontSizeMultiplier: textScale.display,
-};
 const BODY = { maxFontSizeMultiplier: textScale.body };
-const BADGE = { maxFontSizeMultiplier: textScale.badge };
 // P10 moot: every field label is text-strong-2 (13/500 per the board).
 const LABEL = { color: colors.textStrong2 };
 
@@ -580,7 +572,7 @@ export default function CreateProfileScreen() {
     return (
       <>
         <View testID="profile-weight-unit-row" style={[styles.unitRow, reflow && styles.unitRowStacked]}>
-          <Text ref={bindTarget('weight_unit')} testID="profile-weight-unit-label" {...BODY} style={styles.rowLabel}>
+          <Text ref={bindTarget('weight_unit')} testID="profile-weight-unit-label" {...CAP_BODY} style={styles.rowLabel}>
             Weight unit
           </Text>
           {lock(
@@ -769,11 +761,11 @@ export default function CreateProfileScreen() {
           {tablet && TABLET_BRAND_ROW ? (
             <View style={styles.brandRow}>
               <View style={styles.brandTile} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-                <Text {...BADGE} style={styles.brandLetter}>
+                <Text {...CAP_BADGE} style={styles.brandLetter}>
                   G
                 </Text>
               </View>
-              <Text {...BODY} style={styles.brandName}>
+              <Text {...CAP_BODY} style={styles.brandName}>
                 Gymido
               </Text>
             </View>
@@ -795,15 +787,15 @@ export default function CreateProfileScreen() {
                   <CheckIcon size={16} color={colors.teal} />
                 </View>
               ) : null}
-              <Text {...BODY} testID="profile-step-eyebrow" style={styles.eyebrow}>
+              <Text {...CAP_BODY} testID="profile-step-eyebrow" style={styles.eyebrow}>
                 {eyebrow}
               </Text>
             </View>
-            <Text ref={titleRef} testID="profile-step-title" accessibilityRole="header" {...TITLE} style={tablet ? styles.titleTablet : styles.titlePhone}>
+            <Text ref={titleRef} testID="profile-step-title" accessibilityRole="header" {...SHORT_DISPLAY_TITLE_TEXT} style={tablet ? styles.titleTablet : styles.titlePhone}>
               {title}
             </Text>
             {helper ? (
-              <Text {...BODY} testID="profile-step-helper" style={styles.helper}>
+              <Text {...CAP_BODY} testID="profile-step-helper" style={styles.helper}>
                 {helper}
               </Text>
             ) : null}

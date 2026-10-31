@@ -12,7 +12,7 @@ import StateSlot from '../../shared/components/StateSlot';
 import StatusPill from '../../shared/components/StatusPill';
 import { InlineToast } from '../../shared/components/ToastHost';
 import { ToastTone, addToast } from '../../shared/components/toastStore';
-import { CAP_BODY, CAP_PILL, TITLE_TEXT } from '../../shared/components/largeText';
+import { CAP_BODY, CAP_DISPLAY, CAP_PILL, TITLE_TEXT } from '../../shared/components/largeText';
 import { useFocusRemountKey } from '../../shared/hooks/useFocusRemountKey';
 import { useReducedMotion } from '../../shared/hooks/useReducedMotion';
 import { SHEET_FOCUS_DELAY_MS, focusNode } from '../../shared/hooks/useSheetFocus';
@@ -59,7 +59,6 @@ import {
 } from './progressFormat';
 
 const SAVED_TOAST_MS = 3500;
-const NUMBER = { maxFontSizeMultiplier: textScale.display };
 const TABS = [
   { key: 'body', label: 'Body' },
   { key: 'activity', label: 'Activity' },
@@ -522,7 +521,7 @@ function BodyTab({ weightProgress, weightLogs, rangeLogs, rangeLoading = false, 
       accessibilityValue={{ min: 0, max: 100, now: Math.round(completion) }}
     >
       {tablet ? (
-        <Text {...NUMBER} numberOfLines={1} textBreakStrategy="simple" testID="progress-goal-value" style={styles.goalValueTablet}>{`${formatNumber(completion, 0)}%`}</Text>
+        <Text {...CAP_DISPLAY} numberOfLines={1} textBreakStrategy="simple" testID="progress-goal-value" style={styles.goalValueTablet}>{`${formatNumber(completion, 0)}%`}</Text>
       ) : null}
     </ProgressRing>
   );
@@ -590,7 +589,7 @@ function BodyTab({ weightProgress, weightLogs, rangeLogs, rangeLoading = false, 
               <Text {...CAP_BODY} style={styles.tileLabel}>
                 Current
               </Text>
-              <Text {...NUMBER} style={styles.currentTablet}>
+              <Text {...CAP_DISPLAY} style={styles.currentTablet}>
                 {big.value}
                 {big.unit ? <Text style={styles.currentUnitTablet}>{` ${big.unit}`}</Text> : null}
               </Text>
@@ -600,7 +599,7 @@ function BodyTab({ weightProgress, weightLogs, rangeLogs, rangeLoading = false, 
                 <Text {...CAP_BODY} style={styles.tileLabel}>
                   Goal
                 </Text>
-                <Text {...NUMBER} style={styles.smallValue}>
+                <Text {...CAP_DISPLAY} style={styles.smallValue}>
                   {goalStat.value}
                 </Text>
               </View>
@@ -608,7 +607,7 @@ function BodyTab({ weightProgress, weightLogs, rangeLogs, rangeLoading = false, 
                 <Text {...CAP_BODY} style={styles.tileLabel}>
                   To goal
                 </Text>
-                <Text {...NUMBER} style={[styles.smallValue, styles.goldValue]}>
+                <Text {...CAP_DISPLAY} style={[styles.smallValue, styles.goldValue]}>
                   {toGoalStat.value}
                 </Text>
               </View>
@@ -646,7 +645,7 @@ function BodyTab({ weightProgress, weightLogs, rangeLogs, rangeLoading = false, 
             <Text {...CAP_BODY} style={styles.tileLabel}>
               Current
             </Text>
-            <Text testID="progress-current" {...NUMBER} style={styles.currentPhone}>
+            <Text testID="progress-current" {...CAP_DISPLAY} style={styles.currentPhone}>
               {big.value}
               {big.unit ? <Text style={styles.currentUnit}>{` ${big.unit}`}</Text> : null}
             </Text>
@@ -703,20 +702,20 @@ function BodyTab({ weightProgress, weightLogs, rangeLogs, rangeLoading = false, 
           </Text>
           <View style={[styles.ringRow, reflow && styles.stackedRow]}>
             {goalRing(64, 8)}
-            <Text {...NUMBER} numberOfLines={1} textBreakStrategy="simple" testID="progress-goal-value" style={styles.tileValue}>{`${formatNumber(completion, 0)}%`}</Text>
+            <Text {...CAP_DISPLAY} numberOfLines={1} textBreakStrategy="simple" testID="progress-goal-value" style={styles.tileValue}>{`${formatNumber(completion, 0)}%`}</Text>
           </View>
         </View>
         <View style={[styles.tile, !reflow && styles.flex1]}>
           <Text {...CAP_BODY} style={styles.tileLabel}>
             Goal
           </Text>
-          <Text {...NUMBER} style={styles.goalSmall}>
+          <Text {...CAP_DISPLAY} style={styles.goalSmall}>
             {goalStat.value}
           </Text>
           <Text {...CAP_BODY} style={[styles.tileLabel, styles.mt6]}>
             To goal
           </Text>
-          <Text {...NUMBER} style={[styles.goalSmall, styles.tealValue]}>
+          <Text {...CAP_DISPLAY} style={[styles.goalSmall, styles.tealValue]}>
             {toGoalStat.value}
           </Text>
         </View>
@@ -811,7 +810,7 @@ function ActivityTab({ overview, history, frequency, missed, week, recentWorkout
         <>
           <View testID="progress-per-week-summary" accessible accessibilityLabel={perWeekLabel}>
             {perWeekHead}
-            <Text {...NUMBER} style={styles.tileValue}>
+            <Text {...CAP_DISPLAY} style={styles.tileValue}>
               {bars.average}
             </Text>
           </View>
@@ -834,7 +833,7 @@ function ActivityTab({ overview, history, frequency, missed, week, recentWorkout
         <Text {...CAP_BODY} style={styles.tileLabel}>
           Consistency
         </Text>
-        <Text {...NUMBER} style={styles.tileValue}>{`${formatNumber(percent, 0)}%`}</Text>
+        <Text {...CAP_DISPLAY} style={styles.tileValue}>{`${formatNumber(percent, 0)}%`}</Text>
         <Text {...CAP_BODY} style={styles.caption}>
           of planned days
         </Text>
@@ -864,7 +863,7 @@ function ActivityTab({ overview, history, frequency, missed, week, recentWorkout
             <Text {...CAP_BODY} style={styles.tileLabel}>
               {item.label}
             </Text>
-            <Text {...NUMBER} numberOfLines={1} textBreakStrategy="simple" style={tablet ? styles.statValueTablet : styles.tileValue}>
+            <Text {...CAP_DISPLAY} numberOfLines={1} textBreakStrategy="simple" style={tablet ? styles.statValueTablet : styles.tileValue}>
               {item.value}
             </Text>
           </View>

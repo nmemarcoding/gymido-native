@@ -12,8 +12,8 @@ import TextLink from '../../shared/components/TextLink';
 import { colors, font, gradients, radii, shadows, spacing, titleTracking, typography } from '../../shared/theme/tokens';
 import ProgressRing from '../workout/components/ProgressRing';
 import { exerciseCountText, workoutInitials } from './homeFormat';
-import { LARGE_TEXT as LT } from './TodayStates';
 import { keepUnitsTogether } from '../../shared/format/counts';
+import { CAP_BADGE, CAP_BODY, CAP_DISPLAY, DISPLAY_TITLE_TEXT, TITLE_TEXT } from '../../shared/components/largeText';
 
 // v2 Phase 3 §2 Today (UX E-today: phone "Today", "Tablet: Today"): the
 // loaded Today with an active plan. Look only, except the approved U1 "Your
@@ -60,7 +60,7 @@ export function DiscButton({ testID, label, onPress, tablet, stacked, accessibil
       {({ pressed }) => (
         <>
           {pressed ? <View testID={`${testID}-pressed`} pointerEvents="none" style={[StyleSheet.absoluteFill, styles.inkOverlay]} /> : null}
-          <Text {...LT.body} style={[styles.primaryText, tablet && styles.primaryTextTablet]}>
+          <Text {...CAP_BODY} style={[styles.primaryText, tablet && styles.primaryTextTablet]}>
             {label}
           </Text>
           <View style={[styles.disc, tablet && styles.discTablet]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
@@ -86,7 +86,7 @@ export function GlassButton({ testID, label, onPress, height = 58, textStyle, st
       {({ pressed }) => (
         <>
           {pressed ? <View testID={`${testID}-pressed`} pointerEvents="none" style={[StyleSheet.absoluteFill, styles.whiteOverlay]} /> : null}
-          <Text {...LT.body} style={[styles.glassText, textStyle]}>
+          <Text {...CAP_BODY} style={[styles.glassText, textStyle]}>
             {label}
           </Text>
         </>
@@ -131,7 +131,7 @@ export function TodayHero({ plan, card, tablet, reflow, imageUrl, dayTitle, dayO
       <View style={[styles.pillRow, reflow && styles.trailingBelow]}>
         <StatusPill testID="home-today-pill" tone={PILL_TONE[card.tone] ?? 'neutral'} label={card.pill} />
         {tablet && dayOfWeek && card.state === 'training' ? (
-          <Text testID="home-day-of-week" {...LT.body} style={styles.dayOfWeek}>
+          <Text testID="home-day-of-week" {...CAP_BODY} style={styles.dayOfWeek}>
             {dayOfWeek}
           </Text>
         ) : null}
@@ -139,7 +139,7 @@ export function TodayHero({ plan, card, tablet, reflow, imageUrl, dayTitle, dayO
       <Text
         testID="home-today-headline"
         accessibilityRole="header"
-        {...LT.display}
+        {...DISPLAY_TITLE_TEXT}
         style={tablet ? styles.headlineTablet : styles.headline}
       >
         {card.headline}
@@ -154,19 +154,19 @@ export function TodayHero({ plan, card, tablet, reflow, imageUrl, dayTitle, dayO
         >
           <Text
             testID="home-today-sub-plan"
-            {...LT.body}
+            {...CAP_BODY}
             numberOfLines={reflow ? undefined : 1}
             ellipsizeMode="tail"
             style={[tablet ? styles.subTablet : styles.sub, styles.subInRow, styles.subName]}
           >
             {keepUnitsTogether(plan.name)}
           </Text>
-          <Text testID="home-today-sub-count" {...LT.body} numberOfLines={1} textBreakStrategy="simple" style={[tablet ? styles.subTablet : styles.sub, styles.subInRow, styles.subCount]}>
+          <Text testID="home-today-sub-count" {...CAP_BODY} numberOfLines={1} textBreakStrategy="simple" style={[tablet ? styles.subTablet : styles.sub, styles.subInRow, styles.subCount]}>
             {countText}
           </Text>
         </View>
       ) : (
-        <Text testID="home-today-sub" {...LT.body} numberOfLines={2} ellipsizeMode="tail" style={tablet ? styles.subTablet : styles.sub}>
+        <Text testID="home-today-sub" {...CAP_BODY} numberOfLines={2} ellipsizeMode="tail" style={tablet ? styles.subTablet : styles.sub}>
           {card.sub ?? keepUnitsTogether(plan.name)}
         </Text>
       )}
@@ -203,19 +203,19 @@ export function TodayStats({ ring, tablet, reflow }) {
         accessibilityLabel={ring.countHidden ? 'This week' : `This week ${ring.thisWeekText} ${ring.plannedText} Planned`}
         style={[styles.tile, tablet && styles.tileTablet, reflow && styles.flat]}
       >
-        <Text {...LT.body} style={tablet ? styles.tileLabelTablet : styles.tileLabel}>
+        <Text {...CAP_BODY} style={tablet ? styles.tileLabelTablet : styles.tileLabel}>
           This week
         </Text>
         {/* L3: Y = 0 hides the ring, count and caption; the tile keeps its height. */}
         <View testID="home-stat-this-week-row" style={[styles.ringRow, tablet && styles.ringRowTablet, reflow && styles.ringRowStacked, ring.countHidden && styles.hiddenKeepSpace]}>
           <ProgressRing flat value={ring.thisWeek} total={ring.planned} size={size} thickness={(stroke * 100) / size} label={ring.ringLabel} />
-          <Text {...LT.number} style={tablet ? styles.numberTablet : styles.number}>
+          <Text {...CAP_DISPLAY} style={tablet ? styles.numberTablet : styles.number}>
             {ring.thisWeekText}
             <Text style={tablet ? styles.denominatorTablet : styles.denominator}>{ring.plannedText}</Text>
           </Text>
         </View>
         {tablet ? null : (
-          <Text testID="home-stat-caption" {...LT.body} style={[styles.ringCaption, ring.countHidden && styles.hiddenKeepSpace]}>
+          <Text testID="home-stat-caption" {...CAP_BODY} style={[styles.ringCaption, ring.countHidden && styles.hiddenKeepSpace]}>
             {ring.caption}
           </Text>
         )}
@@ -226,15 +226,15 @@ export function TodayStats({ ring, tablet, reflow }) {
         accessibilityLabel={`Done total ${ring.doneTotalText}${ring.lastWorkout ? `, ${ring.lastWorkout}` : ''}`}
         style={[styles.tile, styles.doneTile, tablet && styles.tileTablet, reflow && styles.flat]}
       >
-        <Text {...LT.body} style={tablet ? styles.tileLabelTablet : styles.tileLabel}>
+        <Text {...CAP_BODY} style={tablet ? styles.tileLabelTablet : styles.tileLabel}>
           Done total
         </Text>
         <View>
-          <Text {...LT.number} style={tablet ? styles.doneNumberTablet : styles.doneNumber}>
+          <Text {...CAP_DISPLAY} style={tablet ? styles.doneNumberTablet : styles.doneNumber}>
             {ring.doneTotalText}
           </Text>
           {ring.lastWorkout ? (
-            <Text testID="home-last-workout" {...LT.body} style={tablet ? styles.lastWorkoutTablet : styles.lastWorkout}>
+            <Text testID="home-last-workout" {...CAP_BODY} style={tablet ? styles.lastWorkoutTablet : styles.lastWorkout}>
               {ring.lastWorkout}
             </Text>
           ) : null}
@@ -261,7 +261,7 @@ function WeekCell({ cell, tablet }) {
   return (
     <View style={[styles.weekColumn, tablet && styles.weekColumnTablet]}>
       <Text
-        {...LT.body}
+        {...CAP_BODY}
         style={[tablet ? styles.weekLetterTablet : styles.weekLetter, notStarted && styles.weekLetterNotStarted, cell.isToday && styles.weekLetterToday]}
       >
         {tablet ? cell.short : cell.letter}
@@ -294,7 +294,7 @@ function WeekCell({ cell, tablet }) {
             importantForAccessibility="no-hide-descendants"
             style={styles.countBadge}
           >
-            <Text {...LT.badge} style={styles.countText}>{`\u00d7${cell.count}`}</Text>
+            <Text {...CAP_BADGE} style={styles.countText}>{`\u00d7${cell.count}`}</Text>
           </View>
         ) : null}
       </View>
@@ -307,17 +307,17 @@ export function WeekCard({ strip, tablet, reflow, onSeeProgress }) {
   return (
     <View testID="home-week" style={[styles.card, styles.weekCard, tablet && styles.weekCardTablet]}>
       <View style={[styles.cardHeader, reflow && styles.trailingBelow]}>
-        <Text accessibilityRole="header" {...LT.title} style={tablet ? styles.cardTitleTablet : styles.cardTitle}>
+        <Text accessibilityRole="header" {...TITLE_TEXT} style={tablet ? styles.cardTitleTablet : styles.cardTitle}>
           Your week
         </Text>
         {tablet ? (
           <Pressable testID="home-week-see-progress" accessibilityRole="link" onPress={onSeeProgress} style={styles.mutedLink}>
-            <Text {...LT.body} style={styles.mutedLinkText}>
+            <Text {...CAP_BODY} style={styles.mutedLinkText}>
               See progress
             </Text>
           </Pressable>
         ) : strip.trainingDays ? (
-          <Text testID="home-week-days" {...LT.body} style={styles.weekDays}>
+          <Text testID="home-week-days" {...CAP_BODY} style={styles.weekDays}>
             {strip.trainingDays}
           </Text>
         ) : null}
@@ -328,7 +328,7 @@ export function WeekCard({ strip, tablet, reflow, onSeeProgress }) {
         ))}
       </View>
       {strip.caption ? (
-        <Text testID="home-week-caption" {...LT.body} style={styles.weekCaption}>
+        <Text testID="home-week-caption" {...CAP_BODY} style={styles.weekCaption}>
           {strip.caption}
         </Text>
       ) : null}
@@ -342,7 +342,7 @@ export function WeightCard({ hasData, weightValues, tablet, reflow, onSeeProgres
   return (
     <View testID="home-weight" style={[styles.card, styles.weightCard, tablet && styles.weightCardTablet]}>
       <View testID="home-weight-header" style={[styles.cardHeader, reflow && styles.trailingBelow]}>
-        <Text {...LT.title} style={tablet ? styles.cardTitleTablet : styles.cardTitle}>
+        <Text {...TITLE_TEXT} style={tablet ? styles.cardTitleTablet : styles.cardTitle}>
           Weight
         </Text>
         <TextLink testID="home-see-progress" label="See progress" onPress={onSeeProgress} />
@@ -350,7 +350,7 @@ export function WeightCard({ hasData, weightValues, tablet, reflow, onSeeProgres
       {hasData ? (
         weightValues
       ) : (
-        <Text {...LT.body} style={styles.noWeightText}>
+        <Text {...CAP_BODY} style={styles.noWeightText}>
           Log today's weight to start tracking your trend.
         </Text>
       )}
@@ -386,20 +386,20 @@ export function WeightValues({ weight, reflow, StatRow }) {
   return (
     <View testID="home-weight-values" style={styles.weightValues}>
       <View style={styles.weightCurrent}>
-        <Text {...LT.number} numberOfLines={1} textBreakStrategy="simple" style={styles.weightBig}>
+        <Text {...CAP_DISPLAY} numberOfLines={1} textBreakStrategy="simple" style={styles.weightBig}>
           {current.value}
           {current.unit ? <Text style={styles.weightUnit}>{` ${current.unit}`}</Text> : null}
         </Text>
-        <Text {...LT.body} style={styles.weightLabel}>
+        <Text {...CAP_BODY} style={styles.weightLabel}>
           Current
         </Text>
       </View>
       {items.slice(1).map(([label, value]) => (
         <View key={label} style={styles.weightItem}>
-          <Text {...LT.number} numberOfLines={1} textBreakStrategy="simple" style={[styles.weightSmall, label === 'To goal' && styles.weightTeal]}>
+          <Text {...CAP_DISPLAY} numberOfLines={1} textBreakStrategy="simple" style={[styles.weightSmall, label === 'To goal' && styles.weightTeal]}>
             {value}
           </Text>
-          <Text {...LT.body} style={styles.weightLabel}>
+          <Text {...CAP_BODY} style={styles.weightLabel}>
             {label}
           </Text>
         </View>
@@ -414,7 +414,7 @@ export function RecentWorkouts({ recent, metaOf, tablet, reflow }) {
   if (recent.length === 0) {
     return (
       <View>
-        <Text accessibilityRole="header" {...LT.title} style={[styles.cardTitle, styles.recentHeading]}>
+        <Text accessibilityRole="header" {...TITLE_TEXT} style={[styles.cardTitle, styles.recentHeading]}>
           Recent workouts
         </Text>
         <EmptyState title="No completed workouts yet" message="Once you finish a workout, it will show up here." />
@@ -423,7 +423,7 @@ export function RecentWorkouts({ recent, metaOf, tablet, reflow }) {
   }
   return (
     <View testID="home-recent" style={[styles.card, styles.recentCard, tablet && styles.recentCardTablet]}>
-      <Text accessibilityRole="header" {...LT.title} style={[tablet ? styles.cardTitleTablet : styles.cardTitle, styles.recentTitlePad, tablet && styles.recentTitlePadTablet]}>
+      <Text accessibilityRole="header" {...TITLE_TEXT} style={[tablet ? styles.cardTitleTablet : styles.cardTitle, styles.recentTitlePad, tablet && styles.recentTitlePadTablet]}>
         Recent workouts
       </Text>
       {recent.map((workout, index) => {
@@ -436,16 +436,16 @@ export function RecentWorkouts({ recent, metaOf, tablet, reflow }) {
           >
             <View style={styles.recentMain}>
               <View testID="home-recent-tile" style={[styles.recentTile, tablet && styles.recentTileTablet]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-                <Text {...LT.badge} style={styles.recentInitials}>
+                <Text {...CAP_BADGE} style={styles.recentInitials}>
                   {workoutInitials(title)}
                 </Text>
               </View>
               {/* §9: names may ellipsize in a dense list, 2 lines max. */}
               <View style={styles.recentText}>
-                <Text testID="home-recent-title" {...LT.body} numberOfLines={2} style={tablet ? styles.recentNameTablet : styles.recentName}>
+                <Text testID="home-recent-title" {...CAP_BODY} numberOfLines={2} style={tablet ? styles.recentNameTablet : styles.recentName}>
                   {title}
                 </Text>
-                <Text {...LT.body} numberOfLines={2} style={tablet ? styles.recentMetaTablet : styles.recentMeta}>
+                <Text {...CAP_BODY} numberOfLines={2} style={tablet ? styles.recentMetaTablet : styles.recentMeta}>
                   {metaOf(workout)}
                 </Text>
               </View>

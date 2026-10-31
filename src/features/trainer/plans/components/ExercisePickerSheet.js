@@ -21,7 +21,7 @@ import { thumbImageProps } from '../../../../shared/images/remoteImageSources';
 import FeedbackIcon from '../../../../shared/components/FeedbackIcon';
 import GradientFill from '../../../../shared/components/GradientFill';
 import IconButton from '../../../../shared/components/IconButton';
-import { NAME_TEXT } from '../../../../shared/components/largeText';
+import { CAP_BADGE, CAP_BODY, CAP_PILL, NAME_TEXT, DISPLAY_TITLE_TEXT } from '../../../../shared/components/largeText';
 import Select from '../../../../shared/components/Select';
 import { useKeyboardOverlap } from '../../../../shared/hooks/useKeyboardHeight';
 import { useReducedMotion } from '../../../../shared/hooks/useReducedMotion';
@@ -62,16 +62,6 @@ export const TABLET_DIALOG_FILL = Object.freeze({ angle: 165, colors: Object.fre
 
 // Large text (UX §9): role caps; the title wraps by word (max 3 lines) and a
 // single long word shrinks it instead of breaking inside it.
-const TITLE_TEXT = Object.freeze({
-  textBreakStrategy: 'simple',
-  maxFontSizeMultiplier: textScale.display,
-  numberOfLines: 3,
-  adjustsFontSizeToFit: true,
-  minimumFontScale: 0.7,
-});
-const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
-const PILL_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.pill });
-const BADGE_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.badge });
 
 
 // T5 (spec §A7.2–§A7.3). `onAddSelected(exercises)` runs the add loop; the
@@ -208,7 +198,7 @@ export default function ExercisePickerSheet({
   let listHeader = null;
   if (loading) {
     listHeader = (
-      <Text {...BODY_TEXT} style={styles.loading}>
+      <Text {...CAP_BODY} style={styles.loading}>
         Loading exercises...
       </Text>
     );
@@ -225,7 +215,7 @@ export default function ExercisePickerSheet({
   } else if (visible.length === 0) {
     listHeader = (
       <View style={[styles.noMatchBox, tablet && styles.alertTablet]}>
-        <Text {...BODY_TEXT} style={styles.noMatch}>
+        <Text {...CAP_BODY} style={styles.noMatch}>
           No exercises match the current filters.
         </Text>
       </View>
@@ -236,7 +226,7 @@ export default function ExercisePickerSheet({
     <View style={[styles.header, tablet && styles.headerTablet]}>
       <View style={styles.headerText}>
         <Text
-          {...TITLE_TEXT}
+          {...DISPLAY_TITLE_TEXT}
           ref={titleRef}
           testID="exercise-picker-title"
           accessibilityRole="header"
@@ -244,7 +234,7 @@ export default function ExercisePickerSheet({
         >
           Add exercise
         </Text>
-        <Text {...BODY_TEXT} style={[styles.subtitle, tablet && styles.subtitleTablet]}>
+        <Text {...CAP_BODY} style={[styles.subtitle, tablet && styles.subtitleTablet]}>
           Search and select exercises to add to this day.
         </Text>
       </View>
@@ -259,7 +249,7 @@ export default function ExercisePickerSheet({
   const filters = (
     <View testID="exercise-picker-filters" style={[styles.filters, tablet && !stacked && styles.filtersTablet]}>
       <View style={tablet && !stacked ? styles.searchCellTablet : styles.fullCell}>
-        <Text {...BODY_TEXT} style={filterLabel}>
+        <Text {...CAP_BODY} style={filterLabel}>
           Search
         </Text>
         {/* Search field variant (UX ruling): pill, well fill, search icon.
@@ -280,7 +270,7 @@ export default function ExercisePickerSheet({
           </View>
           <TextInput
             {...textInputColors}
-            {...BODY_TEXT}
+            {...CAP_BODY}
             testID="exercise-picker-search"
             accessibilityLabel="Search"
             placeholder="Search exercises"
@@ -327,18 +317,18 @@ export default function ExercisePickerSheet({
 
   // The count is a polite live region so a new selection is announced.
   const meta = tablet ? (
-    <Text {...BODY_TEXT} testID="exercise-picker-meta" accessibilityLiveRegion="polite" style={styles.metaTablet}>
+    <Text {...CAP_BODY} testID="exercise-picker-meta" accessibilityLiveRegion="polite" style={styles.metaTablet}>
       {selectedCount > 0 ? `${countText} · ` : countText}
-      {selectedCount > 0 ? <Text {...BODY_TEXT} style={styles.metaTabletSelected}>{`${selectedCount} selected`}</Text> : null}
+      {selectedCount > 0 ? <Text {...CAP_BODY} style={styles.metaTabletSelected}>{`${selectedCount} selected`}</Text> : null}
     </Text>
   ) : (
     <View testID="exercise-picker-meta" accessibilityLiveRegion="polite" style={[styles.meta, stacked && styles.metaStacked]}>
-      <Text {...BODY_TEXT} textBreakStrategy="simple" style={styles.metaCount}>
+      <Text {...CAP_BODY} textBreakStrategy="simple" style={styles.metaCount}>
         {countText}
       </Text>
       {selectedCount > 0 ? (
         <View testID="exercise-picker-selected-pill" style={styles.selectedPill}>
-          <Text {...PILL_TEXT} textBreakStrategy="simple" style={styles.selectedPillText}>{`${selectedCount} selected`}</Text>
+          <Text {...CAP_PILL} textBreakStrategy="simple" style={styles.selectedPillText}>{`${selectedCount} selected`}</Text>
         </View>
       ) : null}
     </View>
@@ -360,7 +350,7 @@ export default function ExercisePickerSheet({
       {({ pressed }) => (
         <>
           {pressed ? <PressOverlay radius={radii.full} testID="exercise-picker-cancel-pressed" /> : null}
-          <Text {...BODY_TEXT} style={[styles.cancelLabel, tablet && styles.footerLabelTablet]}>
+          <Text {...CAP_BODY} style={[styles.cancelLabel, tablet && styles.footerLabelTablet]}>
             Cancel
           </Text>
         </>
@@ -388,12 +378,12 @@ export default function ExercisePickerSheet({
       {({ pressed }) => (
         <>
           {pressed ? <PressOverlay ink radius={radii.full} testID="exercise-picker-add-pressed" /> : null}
-          <Text {...BODY_TEXT} style={[styles.addLabel, tablet && styles.footerLabelTablet, tablet && styles.addLabelTablet]}>
+          <Text {...CAP_BODY} style={[styles.addLabel, tablet && styles.footerLabelTablet, tablet && styles.addLabelTablet]}>
             Add Selected
           </Text>
           {selectedCount > 0 ? (
             <View testID="exercise-picker-add-count" style={[styles.bubble, tablet && styles.bubbleTablet]}>
-              <Text {...BADGE_TEXT} textBreakStrategy="simple" style={[styles.bubbleText, tablet && styles.bubbleTextTablet]}>
+              <Text {...CAP_BADGE} textBreakStrategy="simple" style={[styles.bubbleText, tablet && styles.bubbleTextTablet]}>
                 {selectedCount}
               </Text>
             </View>
@@ -500,7 +490,7 @@ function PickerRow({ exercise, isAdded, isSelected, onToggle, stacked }) {
   const trailing = (
     <View testID={`exercise-picker-trailing-${exercise.id}`} style={stacked ? styles.rowTrailingBelow : styles.rowTrailing}>
       {isAdded ? (
-        <Text {...BODY_TEXT} style={styles.added}>
+        <Text {...CAP_BODY} style={styles.added}>
           Added
         </Text>
       ) : null}
@@ -536,12 +526,12 @@ function PickerRow({ exercise, isAdded, isSelected, onToggle, stacked }) {
             </Text>
             <View style={styles.chips}>
               <View style={styles.chip}>
-                <Text {...PILL_TEXT} textBreakStrategy="simple" style={styles.chipText}>
+                <Text {...CAP_PILL} textBreakStrategy="simple" style={styles.chipText}>
                   {exercise.primary_muscle_group?.name || 'Any'}
                 </Text>
               </View>
               <View style={styles.chip}>
-                <Text {...PILL_TEXT} textBreakStrategy="simple" style={styles.chipText}>
+                <Text {...CAP_PILL} textBreakStrategy="simple" style={styles.chipText}>
                   {equipmentNameOf(exercise)}
                 </Text>
               </View>
@@ -583,7 +573,7 @@ function PickerCard({ exercise, isAdded, isSelected, onToggle }) {
           </View>
           {isAdded ? (
             <View testID={`exercise-picker-added-${exercise.id}`} style={styles.addedPill}>
-              <Text {...PILL_TEXT} style={styles.addedPillText}>
+              <Text {...CAP_PILL} style={styles.addedPillText}>
                 Added
               </Text>
             </View>
@@ -605,7 +595,7 @@ function PickerCard({ exercise, isAdded, isSelected, onToggle }) {
               >
                 {hue ? <View style={[StyleSheet.absoluteFill, styles.cardChipTint, { backgroundColor: hue }]} /> : null}
                 <Text
-                  {...PILL_TEXT}
+                  {...CAP_PILL}
                   style={[
                     styles.cardChipText,
                     hue && styles.cardChipTextHue,
@@ -617,7 +607,7 @@ function PickerCard({ exercise, isAdded, isSelected, onToggle }) {
                 </Text>
               </View>
               <View style={[styles.cardChip, styles.cardChipNeutral]}>
-                <Text {...PILL_TEXT} style={[styles.cardChipText, styles.cardChipTextPlain, isAdded && styles.cardChipTextAdded]}>
+                <Text {...CAP_PILL} style={[styles.cardChipText, styles.cardChipTextPlain, isAdded && styles.cardChipTextAdded]}>
                   {equipmentNameOf(exercise)}
                 </Text>
               </View>

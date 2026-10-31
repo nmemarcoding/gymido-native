@@ -8,7 +8,8 @@ import Screen from '../../../shared/components/Screen';
 import { colors, font, gradients, radii, spacing, titleTracking, typography } from '../../../shared/theme/tokens';
 import { retryLastAttempt } from '../authService';
 import { useAuthStore } from '../authStore';
-import { BODY_TEXT, DISPLAY_TITLE_TEXT, IconTile, PadlockRing, TabletAuthCard, boardTop, isTabletWidth } from '../components/AuthArt';
+import { IconTile, PadlockRing, TabletAuthCard, boardTop, isTabletWidth } from '../components/AuthArt';
+import { CAP_BODY, DISPLAY_TITLE_TEXT } from '../../../shared/components/largeText';
 
 // The title takes focus once the screen has settled (after the alert's own
 // announcement); Try again follows in reading order.
@@ -98,9 +99,9 @@ export default function SignInFailedScreen() {
         <ScrollView contentContainerStyle={styles.scrollTablet}>
           <TabletAuthCard testID="sign-in-failed-card" width={600}>
             <PadlockRing />
-            <Text {...BODY_TEXT} style={[styles.eyebrow, styles.eyebrowTablet]}>Sign-in</Text>
+            <Text {...CAP_BODY} style={[styles.eyebrow, styles.eyebrowTablet]}>Sign-in</Text>
             {title}
-            <Text {...BODY_TEXT} style={styles.bodyTablet}>Auth0 rejected the login request.</Text>
+            <Text {...CAP_BODY} style={styles.bodyTablet}>Auth0 rejected the login request.</Text>
             {alert}
             {tryAgain}
           </TabletAuthCard>
@@ -114,9 +115,9 @@ export default function SignInFailedScreen() {
       <ScrollView contentContainerStyle={styles.scrollPhone}>
         <View testID="sign-in-failed-header" style={[styles.header, { marginTop: boardTop(180, 844, height, insets.top) }]}>
           <IconTile testID="sign-in-failed-icon" icon="circle-alert" color={colors.dangerText} backgroundColor={colors.dangerTint} />
-          <Text {...BODY_TEXT} style={[styles.eyebrow, styles.eyebrowPhone]}>Sign-in</Text>
+          <Text {...CAP_BODY} style={[styles.eyebrow, styles.eyebrowPhone]}>Sign-in</Text>
           {title}
-          <Text {...BODY_TEXT} style={styles.body}>Auth0 rejected the login request.</Text>
+          <Text {...CAP_BODY} style={styles.body}>Auth0 rejected the login request.</Text>
         </View>
         {alert}
         <View style={styles.spacer} />

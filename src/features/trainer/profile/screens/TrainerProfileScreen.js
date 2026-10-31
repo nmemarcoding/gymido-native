@@ -5,11 +5,11 @@ import ErrorAlert from '../../../../shared/components/ErrorAlert';
 import FeedbackIcon from '../../../../shared/components/FeedbackIcon';
 import FormField from '../../../../shared/components/FormField';
 import GradientFill from '../../../../shared/components/GradientFill';
-import { CAP_BODY, DISPLAY_TITLE_TEXT, useLargeTextReflow } from '../../../../shared/components/largeText';
+import { CAP_BADGE, CAP_BODY, DISPLAY_TITLE_TEXT, useLargeTextReflow } from '../../../../shared/components/largeText';
 import PillButton from '../../../../shared/components/PillButton';
 import { ToastTone, addToast } from '../../../../shared/components/toastStore';
 import { useFocusRemountKey } from '../../../../shared/hooks/useFocusRemountKey';
-import { breakpoints, colors, font, gradients, radii, spacing, textScale, typography } from '../../../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, radii, spacing, typography } from '../../../../shared/theme/tokens';
 import { useAuthStore } from '../../../auth/authStore';
 import { logout } from '../../../auth/authService';
 import { useProfileStore } from '../../../profile/profileStore';
@@ -49,8 +49,6 @@ export const HERO_GLOW_SIZE = 220;
 export const CARD_GLOW_SIZE = 260;
 export const AVATAR_PHONE = 72;
 export const AVATAR_TABLET = 96;
-// Initials sit in fixed-size chrome: capped like a badge.
-const BADGE_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.badge });
 
 // RN-SPEC-trainer-profile TP1 (`/trainer/profile`, the TProfile tab root).
 // ⚠TP-1: no load; every focus remounts the form blank, as the web route does.
@@ -85,7 +83,7 @@ function OwnAvatar({ size, radius }) {
     >
       <View style={[styles.avatarClip, { borderRadius: radius }]}>
         <GradientFill angle={gradients.goldAvatar.angle} colors={gradients.goldAvatar.colors} />
-        <Text {...BADGE_TEXT} style={[styles.initials, size >= AVATAR_TABLET && styles.initialsTablet]}>
+        <Text {...CAP_BADGE} style={[styles.initials, size >= AVATAR_TABLET && styles.initialsTablet]}>
           {ownInitials(profile, email)}
         </Text>
       </View>

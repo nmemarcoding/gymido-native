@@ -6,11 +6,12 @@ import GradientFill from '../../../shared/components/GradientFill';
 import PillButton from '../../../shared/components/PillButton';
 import { colors, font, gradients, muscle, radii, spacing, titleTracking } from '../../../shared/theme/tokens';
 import { COPY, STEP_COUNT, changeLabel, daysAWeekUnit } from '../generatorCopy';
-import { BODY_TEXT, CHANGE_HIT_SLOP, CHANGE_PILL_HEIGHT, DISPLAY_TEXT, PAGE_TITLE_TEXT, PressOverlay } from '../generatorLayout';
+import { CHANGE_HIT_SLOP, CHANGE_PILL_HEIGHT, PressOverlay } from '../generatorLayout';
 import { imageUrlOf, reviewDetails, reviewSummaries } from '../generatorLogic';
 // Review M4: the v2 image chain (w400 first).
 import { THUMB_WIDTH, imageSourceProps } from '../../../shared/images/remoteImageSources';
 import { ArrowRightIcon } from './GeneratorIcons';
+import { CAP_BODY, CAP_DISPLAY, DISPLAY_TITLE_TEXT } from '../../../shared/components/largeText';
 
 // G1.3 "Check your answers" (GeneratorReview board, phone; tablet = the same
 // content in the 640 column). Cards in question order: the gold hero (goal,
@@ -28,7 +29,7 @@ export default function GeneratorReview({ answers, options, stepErrors, saveErro
   const summary = (step) => rows[step - 1];
   const error = (step) =>
     stepErrors[step] ? (
-      <Text testID={`generator-review-error-${step}`} {...BODY_TEXT} style={styles.reviewError}>
+      <Text testID={`generator-review-error-${step}`} {...CAP_BODY} style={styles.reviewError}>
         {stepErrors[step]}
       </Text>
     ) : null;
@@ -42,10 +43,10 @@ export default function GeneratorReview({ answers, options, stepErrors, saveErro
   return (
     <View style={styles.column}>
       <View style={styles.header}>
-        <Text {...BODY_TEXT} style={styles.eyebrow}>
+        <Text {...CAP_BODY} style={styles.eyebrow}>
           {COPY.reviewEyebrow}
         </Text>
-        <Text ref={titleRef} testID="generator-review-title" {...PAGE_TITLE_TEXT} accessibilityRole="header" style={styles.title}>
+        <Text ref={titleRef} testID="generator-review-title" {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.title}>
           {COPY.reviewTitle}
         </Text>
       </View>
@@ -57,10 +58,10 @@ export default function GeneratorReview({ answers, options, stepErrors, saveErro
         <View testID="generator-review-hero-ring" pointerEvents="none" style={styles.heroRing} />
         <View testID="generator-review-top-1" style={[styles.topRow, reflow && styles.topRowStacked]}>
           <View accessible accessibilityLabel={answerLabel(1)} style={reflow ? null : styles.flex}>
-            <Text {...BODY_TEXT} style={styles.heroQuestion}>
+            <Text {...CAP_BODY} style={styles.heroQuestion}>
               {summary(1).question}
             </Text>
-            <Text {...DISPLAY_TEXT} style={styles.heroAnswer}>
+            <Text {...CAP_DISPLAY} style={styles.heroAnswer}>
               {details.goal}
             </Text>
           </View>
@@ -73,10 +74,10 @@ export default function GeneratorReview({ answers, options, stepErrors, saveErro
       <Card step={2}>
         <View testID="generator-review-top-2" style={[styles.topRow, reflow && styles.topRowStacked]}>
           <View accessible accessibilityLabel={answerLabel(2)} style={reflow ? null : styles.flex}>
-            <Text {...BODY_TEXT} style={styles.question}>
+            <Text {...CAP_BODY} style={styles.question}>
               {summary(2).question}
             </Text>
-            <Text {...BODY_TEXT} style={styles.answerWide}>
+            <Text {...CAP_BODY} style={styles.answerWide}>
               {details.band}
             </Text>
           </View>
@@ -93,12 +94,12 @@ export default function GeneratorReview({ answers, options, stepErrors, saveErro
         ].map(([step, value, unit]) => (
           <Card key={step} step={step} style={reflow ? null : styles.half}>
             <View accessible accessibilityLabel={answerLabel(step)} style={styles.smallBlock}>
-              <Text {...BODY_TEXT} style={styles.question}>
+              <Text {...CAP_BODY} style={styles.question}>
                 {summary(step).question}
               </Text>
-              <Text {...DISPLAY_TEXT} style={styles.number}>
+              <Text {...CAP_DISPLAY} style={styles.number}>
                 {value}
-                <Text {...BODY_TEXT} style={styles.unit}>
+                <Text {...CAP_BODY} style={styles.unit}>
                   {unit}
                 </Text>
               </Text>
@@ -113,16 +114,16 @@ export default function GeneratorReview({ answers, options, stepErrors, saveErro
       <Card step={5}>
         <View testID="generator-review-top-5" style={[styles.topRow, reflow && styles.topRowStacked]}>
           <View accessible accessibilityLabel={answerLabel(5)} style={reflow ? null : styles.flex}>
-            <Text {...BODY_TEXT} style={styles.question}>
+            <Text {...CAP_BODY} style={styles.question}>
               {summary(5).question}
             </Text>
-            <Text {...BODY_TEXT} style={styles.answerPreset}>
+            <Text {...CAP_BODY} style={styles.answerPreset}>
               {details.preset}
             </Text>
             <View style={styles.chips}>
               {details.equipment.map((name) => (
                 <View key={name} style={styles.chip}>
-                  <Text {...BODY_TEXT} style={styles.chipText}>
+                  <Text {...CAP_BODY} style={styles.chipText}>
                     {name}
                   </Text>
                 </View>
@@ -139,7 +140,7 @@ export default function GeneratorReview({ answers, options, stepErrors, saveErro
         <View style={styles.row6}>
           <View style={styles.row6Text}>
             <View accessible accessibilityLabel={answerLabel(6)}>
-              <Text {...BODY_TEXT} style={styles.question}>
+              <Text {...CAP_BODY} style={styles.question}>
                 {summary(6).question}
               </Text>
               <Line testID="generator-review-focus" part={details.focus} labelStyle={styles.labelFocus} />
@@ -154,7 +155,7 @@ export default function GeneratorReview({ answers, options, stepErrors, saveErro
               <ExerciseImage {...imageSourceProps(avoidedPhoto, { width: THUMB_WIDTH })} name={avoided.name} size={128} style={styles.row6Image} />
               <GradientFill angle={270} colors={gradients.surfaceFade.colors} stops={ROW6_FADE_STOPS} />
               <View style={styles.photoChip}>
-                <Text {...BODY_TEXT} numberOfLines={1} style={styles.photoChipText}>
+                <Text {...CAP_BODY} numberOfLines={1} style={styles.photoChipText}>
                   {avoided.name}
                 </Text>
               </View>
@@ -164,7 +165,7 @@ export default function GeneratorReview({ answers, options, stepErrors, saveErro
       </Card>
 
       <View role="note" style={styles.disclaimer}>
-        <Text {...BODY_TEXT} style={styles.disclaimerText}>
+        <Text {...CAP_BODY} style={styles.disclaimerText}>
           {COPY.disclaimer}
         </Text>
       </View>
@@ -215,7 +216,7 @@ function Card({ step, children, style, flush = false }) {
 // colour as drawn), the names in text-primary 15/22/600.
 function Line({ part, labelStyle, testID }) {
   return (
-    <Text testID={testID} {...BODY_TEXT} style={styles.line}>
+    <Text testID={testID} {...CAP_BODY} style={styles.line}>
       {part.label ? <Text style={labelStyle}>{`${part.label} `}</Text> : null}
       {part.text}
     </Text>
@@ -237,7 +238,7 @@ function ChangePill({ step, question, onGold, onPress }) {
       {({ pressed }) => (
         <>
           <PressOverlay pressed={pressed} />
-          <Text {...BODY_TEXT} style={[styles.changeLabel, onGold && styles.changeLabelOnGold]}>
+          <Text {...CAP_BODY} style={[styles.changeLabel, onGold && styles.changeLabelOnGold]}>
             {COPY.change}
           </Text>
         </>

@@ -13,6 +13,7 @@ import { useSheetFocus } from '../../../shared/hooks/useSheetFocus';
 import { blur, breakpoints, colors, font, gradients, radii, shadows, spacing, textScale, titleTracking, typography } from '../../../shared/theme/tokens';
 import { exerciseName, segmentLabel, setsWord } from './sessionMath';
 import { keepUnitsTogether } from '../../../shared/format/counts';
+import { CAP_BADGE, CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT, TITLE_TEXT } from '../../../shared/components/largeText';
 
 const SHEET_EASE = Easing.bezier(0.22, 1, 0.36, 1);
 // The sheet's drawn sizes (UX C §All exercises sheet / §Tablet); radii 22,
@@ -37,17 +38,6 @@ export const CURRENT_ROW_WASH = Object.freeze({ angle: 160, colors: Object.freez
 
 // Large text (UX §9) for the All exercises sheet: role caps; titles wrap by
 // word (max 3 lines) and a single long word shrinks the title.
-const SHEET_TITLE = Object.freeze({
-  textBreakStrategy: 'simple',
-  maxFontSizeMultiplier: textScale.title,
-  numberOfLines: 3,
-  adjustsFontSizeToFit: true,
-  minimumFontScale: 0.7,
-});
-const SHEET_DISPLAY = Object.freeze({ ...SHEET_TITLE, maxFontSizeMultiplier: textScale.display });
-const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
-const PILL_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.pill });
-const BADGE_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.badge });
 
 // §19.8: swipe up anywhere on the bar (dy < −45 and |dy| > |dx|) opens the sheet.
 export function isOpenSheetSwipe(gesture) {
@@ -100,7 +90,7 @@ export function WorkoutExerciseNav({ exercises, viewingIndex, onView, onOpenShee
     },
   });
   const label = (
-    <Text {...BODY_TEXT} textBreakStrategy="simple" style={[styles.navLabel, styles.navLabelTablet]}>
+    <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.navLabel, styles.navLabelTablet]}>
       {`Exercise ${viewingIndex + 1} of ${exercises.length}`}
     </Text>
   );
@@ -111,7 +101,7 @@ export function WorkoutExerciseNav({ exercises, viewingIndex, onView, onOpenShee
       onPress={onOpenSheet}
       style={({ pressed }) => [styles.navAllTablet, pressed && styles.navAllPressed]}
     >
-      <Text {...BODY_TEXT} textBreakStrategy="simple" style={[styles.navAll, styles.navAllTextTablet]}>
+      <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.navAll, styles.navAllTextTablet]}>
         {`All (${exercises.length})`}
       </Text>
     </Pressable>
@@ -170,7 +160,7 @@ export function WorkoutExerciseNav({ exercises, viewingIndex, onView, onOpenShee
 export function SessionExerciseList({ title, exercises, currentIndex, viewingIndex, onSelect }) {
   return (
     <View testID="session-exercise-list" accessibilityRole="list" accessibilityLabel="Session exercises" style={styles.list}>
-      <Text {...SHEET_TITLE} numberOfLines={2} accessibilityRole="header" style={styles.listTitle}>
+      <Text {...TITLE_TEXT} numberOfLines={2} accessibilityRole="header" style={styles.listTitle}>
         {title}
       </Text>
       {exercises.map((exercise, idx) => {
@@ -196,7 +186,7 @@ export function SessionExerciseList({ title, exercises, currentIndex, viewingInd
                   {complete ? (
                     <CheckGlyph size={14} />
                   ) : (
-                    <Text {...BADGE_TEXT} style={[styles.listStatusText, current && styles.listStatusTextCurrent]}>
+                    <Text {...CAP_BADGE} style={[styles.listStatusText, current && styles.listStatusTextCurrent]}>
                       {idx + 1}
                     </Text>
                   )}
@@ -208,10 +198,10 @@ export function SessionExerciseList({ title, exercises, currentIndex, viewingInd
                   muscleCode={exercise.exercise?.primary_muscle_group?.code}
                   size={40}
                 />
-                <Text {...BODY_TEXT} numberOfLines={2} style={[styles.listName, complete && styles.listNameDone, current && styles.listNameCurrent]}>
+                <Text {...CAP_BODY} numberOfLines={2} style={[styles.listName, complete && styles.listNameDone, current && styles.listNameCurrent]}>
                   {name}
                 </Text>
-                <Text {...PILL_TEXT} style={[styles.listRight, current && styles.listRightCurrent]}>
+                <Text {...CAP_PILL} style={[styles.listRight, current && styles.listRightCurrent]}>
                   {current ? 'Now' : `${done}/${sets.length}`}
                 </Text>
               </>
@@ -384,7 +374,7 @@ export function ExerciseSheet({
               <View style={[styles.sheetHeader, tablet && styles.sheetHeaderTablet]}>
                 <View style={styles.sheetHeaderText}>
                   <Text
-                    {...(tablet ? SHEET_DISPLAY : SHEET_TITLE)}
+                    {...(tablet ? DISPLAY_TITLE_TEXT : TITLE_TEXT)}
                     ref={titleRef}
                     testID="exercise-sheet-title"
                     accessibilityRole="header"
@@ -394,7 +384,7 @@ export function ExerciseSheet({
                   </Text>
                   {/* ND-5 applies to the phone only (the tablet board draws none). */}
                   {tablet ? null : (
-                    <Text {...BODY_TEXT} testID="exercise-sheet-subtitle" style={styles.sheetSubtitle}>
+                    <Text {...CAP_BODY} testID="exercise-sheet-subtitle" style={styles.sheetSubtitle}>
                       {sheetSubtitle(planName, exercises)}
                     </Text>
                   )}
@@ -410,7 +400,7 @@ export function ExerciseSheet({
                   {({ pressed }) => (
                     <>
                       {pressed ? <PressOverlay testID="exercise-sheet-close-pressed" /> : null}
-                      <Text {...BODY_TEXT} style={[styles.closeText, tablet && styles.closeTextTablet]}>
+                      <Text {...CAP_BODY} style={[styles.closeText, tablet && styles.closeTextTablet]}>
                         Close
                       </Text>
                       <Svg
@@ -466,7 +456,7 @@ export function ExerciseSheet({
               : null}
             <View testID="exercise-sheet-list" style={[styles.cards, tablet && styles.grid]}>
               {visible.length === 0 ? (
-                <Text {...BODY_TEXT} style={styles.emptyText}>
+                <Text {...CAP_BODY} style={styles.emptyText}>
                   No exercises in this group.
                 </Text>
               ) : null}
@@ -550,7 +540,7 @@ function NumberTile({ idx, hue, style, numberStyle, testID }) {
       importantForAccessibility="no-hide-descendants"
     >
       {hue ? <View style={[StyleSheet.absoluteFill, styles.numberTileTint, { backgroundColor: hue }]} /> : null}
-      <Text {...BADGE_TEXT} textBreakStrategy="simple" style={[styles.numberTileText, hue ? { color: hue } : null, numberStyle]}>
+      <Text {...CAP_BADGE} textBreakStrategy="simple" style={[styles.numberTileText, hue ? { color: hue } : null, numberStyle]}>
         {idx + 1}
       </Text>
     </View>
@@ -604,7 +594,7 @@ function SheetRow({ exercise, idx, current, stacked = false, onSelect }) {
             ) : null}
             {gold ? (
               <View testID={`exercise-sheet-badge-${idx}`} style={[styles.badge, styles.badgeNumber]}>
-                <Text {...BADGE_TEXT} style={styles.badgeNumberText}>
+                <Text {...CAP_BADGE} style={styles.badgeNumberText}>
                   {idx + 1}
                 </Text>
               </View>
@@ -612,7 +602,7 @@ function SheetRow({ exercise, idx, current, stacked = false, onSelect }) {
           </View>
           <View testID={`exercise-sheet-text-${idx}`} style={styles.rowText}>
             <Text
-              {...BODY_TEXT}
+              {...CAP_BODY}
               textBreakStrategy="simple"
               numberOfLines={2}
               ellipsizeMode="tail"
@@ -621,7 +611,7 @@ function SheetRow({ exercise, idx, current, stacked = false, onSelect }) {
               {row.name}
             </Text>
             <Text
-              {...BODY_TEXT}
+              {...CAP_BODY}
               testID={`exercise-sheet-sub-${idx}`}
               style={[styles.rowSub, row.kind === 'complete' ? styles.rowSubDone : gold ? styles.rowSubCurrent : null]}
             >
@@ -651,7 +641,7 @@ function SheetAction({ idx, row, gold, onSelect, below = false }) {
       {({ pressed }) => (
         <>
           {pressed ? <PressOverlay ink={gold} testID={`exercise-sheet-action-${idx}-pressed`} /> : null}
-          <Text {...BODY_TEXT} textBreakStrategy="simple" style={[styles.actionText, gold && styles.actionTextGold]}>
+          <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.actionText, gold && styles.actionTextGold]}>
             {row.action}
           </Text>
         </>
@@ -714,7 +704,7 @@ function SheetPhotoCard({ exercise, idx, current, stacked = false, onSelect }) {
           testID={`exercise-sheet-badge-${idx}`}
           style={[styles.cardBadge, gold ? styles.cardBadgeCurrent : styles.cardBadgeOther]}
         >
-          <Text {...BADGE_TEXT} style={[styles.cardBadgeText, gold && styles.cardBadgeTextCurrent]}>
+          <Text {...CAP_BADGE} style={[styles.cardBadgeText, gold && styles.cardBadgeTextCurrent]}>
             {idx + 1}
           </Text>
         </View>
@@ -722,7 +712,7 @@ function SheetPhotoCard({ exercise, idx, current, stacked = false, onSelect }) {
       {gold ? null : (
         <View testID={`exercise-sheet-count-${idx}`} accessibilityLabel={countLabel} style={styles.countPill}>
           <PhotoGlass />
-          <Text {...PILL_TEXT} style={[styles.countPillText, row.kind === 'complete' && styles.countPillTextDone]}>
+          <Text {...CAP_PILL} style={[styles.countPillText, row.kind === 'complete' && styles.countPillTextDone]}>
             {`${row.done}/${row.total}`}
           </Text>
         </View>
@@ -733,19 +723,19 @@ function SheetPhotoCard({ exercise, idx, current, stacked = false, onSelect }) {
       >
         <View style={stacked ? null : styles.rowText}>
           <Text
-            {...(gold ? SHEET_TITLE : BODY_TEXT)}
+            {...(gold ? TITLE_TEXT : CAP_BODY)}
             numberOfLines={gold ? 3 : 2}
             style={gold ? styles.cardNameCurrent : styles.cardNameOther}
           >
             {row.name}
           </Text>
-          <Text {...BODY_TEXT} style={styles.cardSub}>
+          <Text {...CAP_BODY} style={styles.cardSub}>
             {sub}
           </Text>
         </View>
         {gold ? (
           <Text
-            {...SHEET_TITLE}
+            {...TITLE_TEXT}
             testID={`exercise-sheet-count-${idx}`}
             accessibilityLabel={countLabel}
             style={styles.cardCountCurrent}
@@ -764,7 +754,7 @@ function SheetPhotoCard({ exercise, idx, current, stacked = false, onSelect }) {
             <>
               {gold ? null : <PhotoGlass />}
               {pressed ? <PressOverlay ink={gold} testID={`exercise-sheet-action-${idx}-pressed`} /> : null}
-              <Text {...BODY_TEXT} textBreakStrategy="simple" style={[styles.cardActionText, gold && styles.actionTextGold]}>
+              <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.cardActionText, gold && styles.actionTextGold]}>
                 {row.action}
               </Text>
             </>

@@ -12,6 +12,7 @@ import ProgressRing from '../../workout/components/ProgressRing';
 import { createSchedule, replaceSchedule } from '../api/libraryApi';
 import { WEEKDAYS, selectedWeekdaysLabel, toggleWeekday } from '../libraryFormat';
 import { formatCount, keepUnitsTogether, NBSP, pluralWord } from '../../../shared/format/counts';
+import { CAP_BADGE, CAP_BODY, DISPLAY_TITLE_TEXT } from '../../../shared/components/largeText';
 
 // Phone rows (UX B §Schedule setup): Mon–Thu, then Fri–Sun (+ an empty cell).
 const PHONE_ROWS = [WEEKDAYS.slice(0, 4), WEEKDAYS.slice(4)];
@@ -20,9 +21,6 @@ const PHONE_ROWS = [WEEKDAYS.slice(0, 4), WEEKDAYS.slice(4)];
 // word (max 3 lines) and shrink a single long word; body and chip labels
 // scale to 2.0; the counts in fixed geometry (the 36 badge, the 120 ring,
 // the ✓) cap at 1.2.
-const TITLE = { numberOfLines: 3, adjustsFontSizeToFit: true, minimumFontScale: 0.7, textBreakStrategy: 'simple', maxFontSizeMultiplier: textScale.display };
-const BODY = { maxFontSizeMultiplier: textScale.body };
-const BADGE = { maxFontSizeMultiplier: textScale.badge };
 
 export function daysSelectedLabel(count, required) {
   return `${count} of ${formatCount(required, 'day', 'days')} selected`;
@@ -110,16 +108,16 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
         <View testID="schedule-setup-header" style={[styles.headerTablet, reflow && styles.headerStacked]}>
           <View style={[styles.headerText, reflow && styles.headerTextStacked]}>
             <Eyebrow>Set up your week</Eyebrow>
-            <Text ref={headingRef} accessibilityRole="header" {...TITLE} style={[styles.titleTablet, styles.mt8]}>
+            <Text ref={headingRef} accessibilityRole="header" {...DISPLAY_TITLE_TEXT} style={[styles.titleTablet, styles.mt8]}>
               {`Pick ${required}${NBSP}`}
               <Text style={styles.gold}>{pluralWord(required, 'training day', 'training days')}</Text>
             </Text>
-            <Text {...BODY} style={[styles.bodyTablet, styles.mt12]}>
+            <Text {...CAP_BODY} style={[styles.bodyTablet, styles.mt12]}>
               {body}
             </Text>
           </View>
           <ProgressRing value={selected.length} total={required} size={120} thickness={10} label={daysSelectedLabel(selected.length, required)}>
-            <Text testID="schedule-setup-ring-count" {...BADGE} style={styles.ringCount}>
+            <Text testID="schedule-setup-ring-count" {...CAP_BADGE} style={styles.ringCount}>
               {selected.length}
             </Text>
           </ProgressRing>
@@ -127,7 +125,7 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
         <View testID="schedule-setup-days" role="group" accessibilityLabel="Training days" style={[styles.gridTablet, reflow && styles.gridWrap]}>
           {WEEKDAYS.map(chip)}
         </View>
-        <Text testID="schedule-setup-selected" accessibilityLiveRegion="polite" {...BODY} style={styles.selectedTablet}>
+        <Text testID="schedule-setup-selected" accessibilityLiveRegion="polite" {...CAP_BODY} style={styles.selectedTablet}>
           {summary}
         </Text>
         {error}
@@ -140,10 +138,10 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
   return (
     <CardSurface hero testID="schedule-setup" style={styles.cardPhone}>
       <Eyebrow>Set up your week</Eyebrow>
-      <Text ref={headingRef} accessibilityRole="header" {...TITLE} style={[styles.titlePhone, styles.mt6]}>
+      <Text ref={headingRef} accessibilityRole="header" {...DISPLAY_TITLE_TEXT} style={[styles.titlePhone, styles.mt6]}>
         {pick}
       </Text>
-      <Text {...BODY} style={[styles.bodyPhone, styles.mt12]}>
+      <Text {...CAP_BODY} style={[styles.bodyPhone, styles.mt12]}>
         {body}
       </Text>
       {reflow ? (
@@ -162,11 +160,11 @@ export default function ScheduleSetupCard({ planName, planDays, enrollmentId, on
       )}
       <View style={styles.selectedRow}>
         <View testID="schedule-setup-count" style={styles.badge} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <Text {...BADGE} style={styles.badgeText}>
+          <Text {...CAP_BADGE} style={styles.badgeText}>
             {selected.length}
           </Text>
         </View>
-        <Text testID="schedule-setup-selected" accessibilityLiveRegion="polite" {...BODY} style={styles.selectedPhone}>
+        <Text testID="schedule-setup-selected" accessibilityLiveRegion="polite" {...CAP_BODY} style={styles.selectedPhone}>
           {summary}
         </Text>
       </View>
@@ -207,13 +205,13 @@ function DayChip({ weekday, on, tablet, reflow, onPress }) {
             />
           ) : null}
           <Text
-            {...BODY}
+            {...CAP_BODY}
             style={[tablet ? styles.chipTextTablet : styles.chipTextPhone, on ? styles.chipTextOn : [styles.chipTextOff, tablet && styles.chipTextOffTablet]]}
           >
             {weekday.label}
           </Text>
           {on ? (
-            <Text {...BADGE} style={[styles.check, tablet && styles.checkTablet]} accessibilityElementsHidden importantForAccessibility="no">
+            <Text {...CAP_BADGE} style={[styles.check, tablet && styles.checkTablet]} accessibilityElementsHidden importantForAccessibility="no">
               ✓
             </Text>
           ) : null}

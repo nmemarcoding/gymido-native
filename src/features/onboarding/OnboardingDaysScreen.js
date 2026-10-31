@@ -6,7 +6,7 @@ import { routes } from '../../navigation/routes';
 import Loader from '../../shared/components/Loader';
 import { AmbientGlow } from '../../shared/components/Screen';
 import { ToastTone, addToast } from '../../shared/components/toastStore';
-import { breakpoints, colors, font, radii, spacing, textScale } from '../../shared/theme/tokens';
+import { breakpoints, colors, font, radii, spacing } from '../../shared/theme/tokens';
 import { CheckIcon } from '../planGenerator/components/GeneratorIcons';
 import { createdMessage } from '../planGenerator/generatorCopy';
 import { FOCUS_DELAY_MS } from '../planGenerator/generatorLayout';
@@ -14,6 +14,7 @@ import { listPlanDays } from '../plans/api/libraryApi';
 import ScheduleSetupCard from '../plans/components/ScheduleSetupCard';
 import { ShellTab } from '../shell/shellNavigation';
 import StatusBarBackdrop from '../shell/StatusBarBackdrop';
+import { CAP_BODY } from '../../shared/components/largeText';
 
 // T-53 D (onboarding ruling, 29 Oct 2026): "Pick your days", board #43 as a
 // full page (a root screen: no tab bar), right after the onboarding
@@ -22,7 +23,6 @@ import StatusBarBackdrop from '../shell/StatusBarBackdrop';
 // Save → Today with "Training days saved."; Later (and Android back) → Today.
 const NAME_MAX = 32;
 const SAVED_TOAST = 'Training days saved.';
-const BODY = { maxFontSizeMultiplier: textScale.body };
 
 // The success pill's plan name, cut at 32 characters + "…".
 export function shortPlanName(name) {
@@ -131,7 +131,7 @@ export default function OnboardingDaysScreen({ navigation, route }) {
               <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
                 <CheckIcon size={14} color={colors.teal} />
               </View>
-              <Text {...BODY} numberOfLines={1} style={styles.createdText}>
+              <Text {...CAP_BODY} numberOfLines={1} style={styles.createdText}>
                 {`${shortPlanName(planName)} created.`}
               </Text>
             </View>

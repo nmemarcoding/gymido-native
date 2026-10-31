@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import GradientFill from '../../shared/components/GradientFill';
+import { CAP_NONE } from '../../shared/components/largeText';
 import { colors, font, gradients, radii } from '../../shared/theme/tokens';
 
 // The signed-in user's OWN avatar (UX §8.2 exception, RN-SPEC-v2-phase5 §1):
@@ -22,7 +23,7 @@ export default function ProfileAvatar({ initials, size = 84, testID }) {
   const circle = (
     <View style={[styles.circle, { width: size, height: size }]}>
       <GradientFill angle={gradients.goldAvatar.angle} colors={gradients.goldAvatar.colors} />
-      <Text maxFontSizeMultiplier={1} numberOfLines={1} textBreakStrategy="simple" style={[styles.initials, look.initials]}>
+      <Text {...CAP_NONE} numberOfLines={1} textBreakStrategy="simple" style={[styles.initials, look.initials]}>
         {initials}
       </Text>
     </View>

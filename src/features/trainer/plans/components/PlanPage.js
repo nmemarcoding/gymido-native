@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, typography } from '../../../../shared/theme/tokens';
 import ShellPage from '../../../shell/ShellPage';
 import { HeroTitleMark } from '../../../shell/heroTitle';
+import { CAP_BODY } from '../../../../shared/components/largeText';
 
 // Page column shared by T1, T2 and T3 inside the shell: centred, max-width,
 // gap 20. `nestable` hosts a draggable list (T3's sortable exercises).
@@ -20,20 +21,20 @@ export function PlanPage({ maxWidth = 896, gap, nestable = false, children, test
 export function TextLink({ label, onPress, testID, style }) {
   return (
     <Pressable testID={testID} accessibilityRole="link" onPress={onPress} hitSlop={8} style={style}>
-      {({ pressed }) => <Text style={[styles.link, pressed && styles.linkPressed]}>{label}</Text>}
+      {({ pressed }) => <Text {...CAP_BODY} style={[styles.link, pressed && styles.linkPressed]}>{label}</Text>}
     </Pressable>
   );
 }
 
 export function PageEyebrow({ children }) {
-  return <Text style={styles.eyebrow}>{children}</Text>;
+  return <Text {...CAP_BODY} style={styles.eyebrow}>{children}</Text>;
 }
 
 export function PageTitle({ children, style }) {
   return (
     <>
       <HeroTitleMark />
-      <Text textBreakStrategy="simple" accessibilityRole="header" style={[styles.title, style]}>
+      <Text {...CAP_BODY} textBreakStrategy="simple" accessibilityRole="header" style={[styles.title, style]}>
         {children}
       </Text>
     </>
@@ -41,7 +42,7 @@ export function PageTitle({ children, style }) {
 }
 
 export function PageSubtitle({ children }) {
-  return <Text style={styles.subtitle}>{children}</Text>;
+  return <Text {...CAP_BODY} style={styles.subtitle}>{children}</Text>;
 }
 
 const styles = StyleSheet.create({

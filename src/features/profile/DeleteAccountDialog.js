@@ -110,7 +110,7 @@ export default function DeleteAccountDialog({ isOpen, onClose, onDeleted, profil
     onDeleted();
   }
 
-  const undone = <Text style={styles.undone}>This can't be undone.</Text>;
+  const undone = <Text {...CAP_BODY} style={styles.undone}>This can't be undone.</Text>;
   // UX K Delete account: phone 14/20 copy and a well-backed bullet list;
   // tablet 16/24 intro, a plain 15/24 list and 15/22 lines.
   const secondary = [styles.secondary, tablet && styles.secondaryTablet];

@@ -478,7 +478,7 @@ function ExercisesCatalog() {
             ) : null}
             {!tablet && showsMobileModeSwitch({ user, path }) ? (
               <View style={styles.mobileSwitch}>
-                <Text style={styles.mobileSwitchLabel}>Workspace</Text>
+                <Text {...CAP_BODY} style={styles.mobileSwitchLabel}>Workspace</Text>
                 <ModeSwitch mode={mode} />
               </View>
             ) : null}
@@ -627,7 +627,7 @@ function ExercisesCatalog() {
                       the H1 inside the height-0 box (device, a90f405), so a
                       screen-reader-only H1 stands in, outside it and taking no room. */}
                   {headerCollapsed ? (
-                    <Text testID="exercises-title-a11y" accessibilityRole="header" style={styles.srOnlyTitle}>
+                    <Text {...CAP_BODY} testID="exercises-title-a11y" accessibilityRole="header" style={styles.srOnlyTitle}>
                       Exercises
                     </Text>
                   ) : null}

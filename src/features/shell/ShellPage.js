@@ -18,6 +18,7 @@ import { getScreenPath } from './shellNavigation';
 import { resolveMode, showsMobileModeSwitch, showsPhoneTabBar } from './shellRules';
 import TabletFrame from './TabletFrame';
 import { INNER_PAGE_CONTENT_PADDING, TAB_BAR_CONTENT_PADDING } from './tabBarMetrics';
+import { CAP_BODY } from '../../shared/components/largeText';
 
 // App-shell spec §4: every shell screen scrolls its header and content
 // together. Phone: a centred column (max 430) above the tab bar. Tablet
@@ -86,7 +87,7 @@ export default function ShellPage({ children, nestable = false, glow = false, te
       </View>
       {!tablet && showsMobileModeSwitch({ user, path }) ? (
         <View style={styles.mobileSwitch}>
-          <Text style={styles.mobileSwitchLabel}>Workspace</Text>
+          <Text {...CAP_BODY} style={styles.mobileSwitchLabel}>Workspace</Text>
           <ModeSwitch mode={mode} />
         </View>
       ) : null}

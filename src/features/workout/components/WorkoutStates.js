@@ -2,9 +2,10 @@ import { useEffect, useRef } from 'react';
 import { AccessibilityInfo, StyleSheet, Text, View, findNodeHandle } from 'react-native';
 
 import FeedbackIcon from '../../../shared/components/FeedbackIcon';
-import { colors, font, radii, textScale, titleTracking } from '../../../shared/theme/tokens';
+import { colors, font, radii, titleTracking } from '../../../shared/theme/tokens';
 import HubButton from './hub/HubButton';
 import { CalendarIcon } from './hub/HubIcons';
+import { CAP_BODY, TITLE_TEXT } from '../../../shared/components/largeText';
 
 // Whole-page Workout states. T-76 (boards "Workout hub states" 6 and 8, UX
 // check U2/U3, 28 Oct 2026): the hub's card language (r24/r28, 56 tile,
@@ -16,17 +17,6 @@ export const STATE_MAX_WIDTH = 640;
 // As the app's other focus moves: give the screen time to lay out first.
 export const FOCUS_DELAY_MS = 300;
 
-// UX §9 large text. The card title scales at most 1.6× and wraps by word
-// (max 3 lines), shrinking a single over-long word (to 0.7×); the body
-// scales to 2×.
-export const TITLE_TEXT = Object.freeze({
-  textBreakStrategy: 'simple',
-  maxFontSizeMultiplier: textScale.title,
-  numberOfLines: 3,
-  adjustsFontSizeToFit: true,
-  minimumFontScale: 0.7,
-});
-export const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
 
 // State 8 "Workout unavailable" / "Please try again." / "Try again" (U3: the
 // ErrorAlert tokens, r24 and the danger line). `role=alert`; the TITLE gets
@@ -54,7 +44,7 @@ export function WorkoutErrorState({ message = 'Please try again.', onRetry, retr
         Workout unavailable
       </Text>
       {message ? (
-        <Text {...BODY_TEXT} style={styles.body}>
+        <Text {...CAP_BODY} style={styles.body}>
           {message}
         </Text>
       ) : null}
@@ -77,7 +67,7 @@ export function WorkoutEmptyState({ onBrowse, onBuild, generatorAvailable = fals
       <Text {...TITLE_TEXT} accessibilityRole="header" style={styles.title}>
         No active workout plan
       </Text>
-      <Text {...BODY_TEXT} style={[styles.body, styles.emptyBody]}>
+      <Text {...CAP_BODY} style={[styles.body, styles.emptyBody]}>
         Pick a plan first, then come back here to start a workout.
       </Text>
       <View style={[styles.actions, styles.stack]}>

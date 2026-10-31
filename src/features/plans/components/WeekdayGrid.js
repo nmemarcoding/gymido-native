@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { TOKEN_TEXT } from '../../../shared/components/largeText';
+import { CAP_BODY, TOKEN_TEXT } from '../../../shared/components/largeText';
 import { colors, font, radii, spacing, textScale, typography } from '../../../shared/theme/tokens';
 import { WEEKDAYS, selectedWeekdaysLabel } from '../libraryFormat';
 
@@ -48,7 +48,7 @@ export default function WeekdayGrid({ selected, onToggle, testIDPrefix, fullName
               {/* Selected is more than the gold fill: the ring and an 11/700 ✓
                   (v2 retires v1's 9px exception). */}
               {isSelected ? (
-                <Text style={[styles.check, detail && styles.checkDetail]} accessibilityElementsHidden importantForAccessibility="no">
+                <Text {...CAP_BODY} style={[styles.check, detail && styles.checkDetail]} accessibilityElementsHidden importantForAccessibility="no">
                   ✓
                 </Text>
               ) : null}
@@ -56,7 +56,7 @@ export default function WeekdayGrid({ selected, onToggle, testIDPrefix, fullName
           );
         })}
       </View>
-      <Text style={[styles.selectedLabel, detail && styles.selectedLabelDetail]}>{selectedWeekdaysLabel(selected, fullNames)}</Text>
+      <Text {...CAP_BODY} style={[styles.selectedLabel, detail && styles.selectedLabelDetail]}>{selectedWeekdaysLabel(selected, fullNames)}</Text>
     </>
   );
 }

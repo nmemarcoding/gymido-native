@@ -7,6 +7,7 @@ import { TOOLTIP_BOX } from '../../../../shared/components/tooltipStyle';
 import { colors, font } from '../../../../shared/theme/tokens';
 import { formatWeight } from '../clientFormat';
 import { buildWeightSeries, monotoneXPath, thinLabels, tickLabel } from '../weightChartData';
+import { CAP_BODY } from '../../../../shared/components/largeText';
 
 const TEAL = colors.chartLine;
 const GRID = colors.chartGrid;
@@ -160,8 +161,8 @@ export default function WeightHistoryChart({ logs, profile, unit, showGoal = fal
               onLayout={(event) => setTooltipWidth(event.nativeEvent.layout.width)}
               style={[styles.tooltip, { left: tooltipLeft, top }]}
             >
-              <Text style={styles.tooltipLabel}>{active.label}</Text>
-              <Text style={styles.tooltipValue}>{formatWeight(active.value, series.unit)}</Text>
+              <Text {...CAP_BODY} style={styles.tooltipLabel}>{active.label}</Text>
+              <Text {...CAP_BODY} style={styles.tooltipValue}>{formatWeight(active.value, series.unit)}</Text>
             </View>
           ) : null}
         </View>

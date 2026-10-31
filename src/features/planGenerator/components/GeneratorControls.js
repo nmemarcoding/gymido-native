@@ -5,8 +5,9 @@ import FeedbackIcon from '../../../shared/components/FeedbackIcon';
 import GradientFill from '../../../shared/components/GradientFill';
 import { muscleColor } from '../../../shared/components/ExerciseImage';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
-import { colors, font, gradients, layout, radii, spacing, textScale, typography } from '../../../shared/theme/tokens';
+import { colors, font, gradients, layout, radii, spacing, typography } from '../../../shared/theme/tokens';
 import { CheckIcon } from './GeneratorIcons';
+import { CAP_BODY } from '../../../shared/components/largeText';
 
 // Controls of RN-SPEC-PLAN-GENERATOR §G1.2 and the G2 callouts. v2 Phase 4 J
 // look (UX phase4/J-generator.md + its rulings Look 1–5): selected = the gold
@@ -16,7 +17,6 @@ import { CheckIcon } from './GeneratorIcons';
 
 // UX §9 large text: every label here is body/label text (scales to 2×, never
 // truncated: labels wrap and the controls grow from their min heights).
-const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
 
 // The §8.6 press overlay: a full-bleed View over the rest colour.
 function PressOverlay({ pressed, ink = false }) {
@@ -93,11 +93,11 @@ export function Choice({ label, hint, selected, disabled = false, onPress, testI
           <PressOverlay pressed={pressed && !disabled} />
           {withIcon ? <IconTile selected={selected} tone={iconTone} renderIcon={renderIcon} /> : null}
           <View style={styles.flex}>
-            <Text {...BODY_TEXT} style={[withIcon ? styles.choiceLabel : styles.choiceLabelPlain, disabled && styles.textMuted]}>
+            <Text {...CAP_BODY} style={[withIcon ? styles.choiceLabel : styles.choiceLabelPlain, disabled && styles.textMuted]}>
               {label}
             </Text>
             {hint ? (
-              <Text {...BODY_TEXT} style={styles.choiceHint}>
+              <Text {...CAP_BODY} style={styles.choiceHint}>
                 {hint}
               </Text>
             ) : null}
@@ -206,7 +206,7 @@ export function OptionPill({
             <View testID={selected ? 'pill-check' : 'pill-check-slot'} style={[styles.pillCheck, !selected && styles.pillCheckOff]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
               <CheckIcon size={12} color={look.check} />
             </View>
-            <Text {...BODY_TEXT} style={[styles.pillText, { fontSize: metrics.fontSize, lineHeight: metrics.lineHeight }, look.text]}>
+            <Text {...CAP_BODY} style={[styles.pillText, { fontSize: metrics.fontSize, lineHeight: metrics.lineHeight }, look.text]}>
               {label}
             </Text>
           </View>
@@ -285,7 +285,7 @@ export function MuscleLabel({ name, code, style, testID = 'muscle-label' }) {
   return (
     <View testID={testID} style={styles.muscleRow}>
       <View testID="muscle-dot" style={[styles.muscleDot, { backgroundColor: muscleColor(code) ?? colors.textMuted }]} />
-      <Text {...BODY_TEXT} style={[styles.muscleText, style]}>
+      <Text {...CAP_BODY} style={[styles.muscleText, style]}>
         {name}
       </Text>
     </View>
@@ -312,7 +312,7 @@ export function Callout({ tone = 'info', children, testID, style, role }) {
           <FeedbackIcon name={look.icon} size={16} color={look.iconColor} />
         </View>
       ) : null}
-      <Text {...BODY_TEXT} style={[styles.calloutText, look.text]}>
+      <Text {...CAP_BODY} style={[styles.calloutText, look.text]}>
         {children}
       </Text>
     </View>
@@ -343,7 +343,7 @@ export function WhyLine({ text, style, tablet = false }) {
           <SparkleIcon />
         </View>
       )}
-      <Text {...BODY_TEXT} style={[styles.whyText, tablet && styles.whyTextTablet]}>
+      <Text {...CAP_BODY} style={[styles.whyText, tablet && styles.whyTextTablet]}>
         <Text style={[styles.whyLabel, tablet && styles.whyLabelTablet]}>Why this: </Text>
         {text}
       </Text>

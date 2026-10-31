@@ -3,13 +3,14 @@ import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import BackPill from '../../shared/components/BackPill';
-import { breakpoints, colors, font, spacing, textScale, typography } from '../../shared/theme/tokens';
+import { breakpoints, colors, font, spacing, typography } from '../../shared/theme/tokens';
 import { mountBell } from '../notifications/bellPolling';
 import NotificationBell from '../notifications/NotificationBell';
 import ModeSwitch from './ModeSwitch';
 import { getHeaderBackLink, getHeaderTitle, getHeroFallbackTitle, isCompactHeader } from './shellRules';
 import { useShellUiStore } from './shellUiStore';
 import { useInnerBack } from './useInnerBack';
+import { CAP_BODY, DISPLAY_TITLE_TEXT } from '../../shared/components/largeText';
 
 // App-shell spec §6.1; v2 look RN-SPEC-v2-foundation §7.4 (title-xl on
 // phones, display-md on tablets; back pill (ruling 6); bell top-right). The bell lives in a different spot in the full and
@@ -27,13 +28,6 @@ import { useInnerBack } from './useInnerBack';
 // `headerLeading` (optional, T-140 ruling §2.1): a page's own control on the
 // left of the bell's row when the header draws no title or back link (the
 // Workout page's Back pill: one row, Back left · bell right).
-const TITLE_TEXT = Object.freeze({
-  textBreakStrategy: 'simple',
-  maxFontSizeMultiplier: textScale.display,
-  numberOfLines: 3,
-  adjustsFontSizeToFit: true,
-  minimumFontScale: 0.7,
-});
 
 export default function AppHeader({ path, query = '', mode, headerActions = null, headerLeading = null, heroTitleShown = false }) {
   const { width } = useWindowDimensions();
@@ -77,7 +71,7 @@ export default function AppHeader({ path, query = '', mode, headerActions = null
     return (
       <View style={[box, styles.compact, exercisesTitle && styles.compactTitled]}>
         {exercisesTitle ? (
-          <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.title, tablet && styles.titleTablet]}>
+          <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={[styles.title, tablet && styles.titleTablet]}>
             Exercises
           </Text>
         ) : null}
@@ -94,7 +88,7 @@ export default function AppHeader({ path, query = '', mode, headerActions = null
           <View style={styles.titleColumn}>
             {backLink ? <BackLink label={backLink.label} onPress={goBack} plain={tablet && path === '/notifications'} /> : null}
             {title ? (
-              <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.title, tablet && styles.titleTablet]}>
+              <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={[styles.title, tablet && styles.titleTablet]}>
                 {title}
               </Text>
             ) : null}
@@ -131,10 +125,10 @@ function BackLink({ label, onPress, plain = false }) {
         >
           {({ pressed }) => (
             <View style={styles.backRow}>
-              <Text accessibilityElementsHidden importantForAccessibility="no" style={[styles.backText, pressed && styles.backArrowPressed]}>
+              <Text {...CAP_BODY} accessibilityElementsHidden importantForAccessibility="no" style={[styles.backText, pressed && styles.backArrowPressed]}>
                 ←
               </Text>
-              <Text style={[styles.backText, pressed && styles.backPressed]}>{text}</Text>
+              <Text {...CAP_BODY} style={[styles.backText, pressed && styles.backPressed]}>{text}</Text>
             </View>
           )}
         </Pressable>

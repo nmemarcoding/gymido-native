@@ -3,11 +3,11 @@ import { AccessibilityInfo, Platform, Pressable, StyleSheet, Text, TextInput, Vi
 
 import ExerciseImage from '../../../shared/components/ExerciseImage';
 import GradientFill from '../../../shared/components/GradientFill';
-import { NAME_TEXT } from '../../../shared/components/largeText';
+import { CAP_BODY, NAME_TEXT } from '../../../shared/components/largeText';
 import { colors, font, gradients, radii, spacing, textInputColors, textScale } from '../../../shared/theme/tokens';
 import { searchExercises } from '../api/generatorApi';
 import { COPY, pickUpTo, reasonLabel, removeLabel } from '../generatorCopy';
-import { BODY_TEXT, PressOverlay } from '../generatorLayout';
+import { PressOverlay } from '../generatorLayout';
 import {
   addExclusion,
   focusHint,
@@ -51,11 +51,11 @@ function Section({ tablet, label, hint, hintTone = 'muted', testID, children }) 
   return (
     <View testID={testID} style={tablet ? styles.sectionCard : null}>
       {tablet ? <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} /> : null}
-      <Text {...BODY_TEXT} style={tablet ? styles.sectionLabelTablet : styles.sectionLabel}>
+      <Text {...CAP_BODY} style={tablet ? styles.sectionLabelTablet : styles.sectionLabel}>
         {label}
       </Text>
       {hint ? (
-        <Text {...BODY_TEXT} style={[tablet ? styles.sectionHintTablet : styles.sectionHint, hintTone === 'secondary' && styles.textSecondary]}>
+        <Text {...CAP_BODY} style={[tablet ? styles.sectionHintTablet : styles.sectionHint, hintTone === 'secondary' && styles.textSecondary]}>
           {hint}
         </Text>
       ) : null}
@@ -176,7 +176,7 @@ function AvoidedRow({ item, reasons, tablet, reflow, known, setAnswers }) {
   const nameText = (
     // §9: a user-facing name in a dense list may clip at 2 lines; the full
     // name stays in the accessibility label.
-    <Text {...BODY_TEXT} numberOfLines={2} accessibilityLabel={name} style={[tablet ? styles.avoidNameTablet : styles.avoidName, styles.shrink]}>
+    <Text {...CAP_BODY} numberOfLines={2} accessibilityLabel={name} style={[tablet ? styles.avoidNameTablet : styles.avoidName, styles.shrink]}>
       {name}
     </Text>
   );
@@ -249,7 +249,7 @@ function BlockHint({ text, testID }) {
   return (
     <View accessibilityLiveRegion="polite">
       {text ? (
-        <Text testID={testID} {...BODY_TEXT} style={[styles.blockHint, styles.mt8]}>
+        <Text testID={testID} {...CAP_BODY} style={[styles.blockHint, styles.mt8]}>
           {text}
         </Text>
       ) : null}
@@ -332,7 +332,7 @@ function AvoidSearch({ exclusions, onChoose, onResults, tablet }) {
       </View>
       <View testID="generator-avoid-live" accessibilityLiveRegion="polite">
         {searching ? (
-          <Text testID="generator-avoid-searching" {...BODY_TEXT} style={[styles.searching, styles.mt8]}>
+          <Text testID="generator-avoid-searching" {...CAP_BODY} style={[styles.searching, styles.mt8]}>
             {COPY.searching}
           </Text>
         ) : null}

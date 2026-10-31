@@ -5,6 +5,8 @@ const { defineConfig } = require('eslint/config');
 const expoConfig = require('eslint-config-expo/flat');
 const globals = require('globals');
 
+const textCap = require('./eslint-rules/text-cap');
+
 module.exports = defineConfig([
   expoConfig,
   {
@@ -24,6 +26,13 @@ module.exports = defineConfig([
       // NEW missing dependency (the refetch-storm family) fails the gate.
       'react-hooks/exhaustive-deps': 'error',
     },
+  },
+  {
+    // T-170: every top-level Text / TextInput carries a large-text role.
+    files: ['src/**/*.js'],
+    ignores: ['**/*.test.js', '**/__mocks__/**'],
+    plugins: { gymido: { rules: { 'text-cap': textCap } } },
+    rules: { 'gymido/text-cap': 'error' },
   },
   {
     files: ['**/*.test.js', '**/__mocks__/**', 'jest.setup.js'],

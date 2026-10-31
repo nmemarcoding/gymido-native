@@ -33,6 +33,7 @@ import TrainerCreatePlanLayout from '../components/TrainerCreatePlanLayout';
 import { slugify } from '../planFormat';
 import { buildCreatePlanPayload, validateCreatePlan } from '../planValidation';
 import { HeroTitleMark } from '../../../shell/heroTitle';
+import { CAP_BODY, DISPLAY_TITLE_TEXT } from '../../../../shared/components/largeText';
 
 const DAYS_OPTIONS = [1, 2, 3, 4, 5, 6, 7].map((n) => ({ value: String(n), label: String(n) }));
 
@@ -331,14 +332,6 @@ export const TABLET_CARD_FILL = Object.freeze({ angle: 160, colors: Object.freez
 
 // Large text (UX §9): the page title is capped at 1.3×, wraps by word (max 3
 // lines) and shrinks a single long word; body text is capped at 2×.
-const TITLE_TEXT = Object.freeze({
-  textBreakStrategy: 'simple',
-  maxFontSizeMultiplier: textScale.display,
-  numberOfLines: 3,
-  adjustsFontSizeToFit: true,
-  minimumFontScale: 0.7,
-});
-const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
 
 // `stacked` (font scale > 1.3, UX §9 reflow): the paired fields become one
 // column and the button pair stacks with the primary on top, full width.
@@ -385,10 +378,10 @@ function CreatePlanV2({ tablet, stacked = false, docked = false, narrow = false,
             {/* T-65 (PHONE-NAV spec §3): the kit glass back pill "‹ My plans" (was the gold text link). */}
             <BackPill testID="create-plan-all-plans" label={backPillLabel(variant.backLabel)} onPress={onBack} />
             <HeroTitleMark />
-            <Text {...TITLE_TEXT} accessibilityRole="header" style={tablet ? v2.titleTablet : v2.title}>
+            <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={tablet ? v2.titleTablet : v2.title}>
               Create a plan
             </Text>
-            <Text {...BODY_TEXT} style={[v2.subtitle, tablet && v2.subtitleTablet]}>
+            <Text {...CAP_BODY} style={[v2.subtitle, tablet && v2.subtitleTablet]}>
               {variant.subtitle}
             </Text>
           </View>

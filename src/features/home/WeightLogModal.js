@@ -10,6 +10,7 @@ import Select from '../../shared/components/Select';
 import { breakpoints, colors } from '../../shared/theme/tokens';
 import { logWeight } from './api/homeApi';
 import { validateWeightLog, weightLogBody } from './homeFormat';
+import { CAP_BODY } from '../../shared/components/largeText';
 
 const UNITS = [
   { value: 'kg', label: 'kg' },
@@ -109,7 +110,7 @@ export default function WeightLogModal({ isOpen, onClose, onSuccess, defaultUnit
             />
           </View>
         </View>
-        <Text style={styles.note}>We’ll record this for today automatically.</Text>
+        <Text {...CAP_BODY} style={styles.note}>We’ll record this for today automatically.</Text>
       </View>
     </AppModal>
   );

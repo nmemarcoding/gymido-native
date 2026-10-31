@@ -7,8 +7,22 @@ import { textScale } from '../theme/tokens';
 // - TITLE_TEXT / DISPLAY_TITLE_TEXT are the title rule: wrap by word, at most
 //   3 lines, and a single word wider than the line shrinks the title (down
 //   to 0.7×) instead of breaking inside it.
+//
+// T-170: this file is the ONE role table. Every top-level <Text> / <TextInput>
+// spreads a role from here (lint rule gymido/text-cap); screens don't keep
+// their own copies. Plain caps (no wrap rule):
 export const CAP_BODY = Object.freeze({ maxFontSizeMultiplier: textScale.body });
 export const CAP_PILL = Object.freeze({ maxFontSizeMultiplier: textScale.pill });
+export const CAP_TITLE = Object.freeze({ maxFontSizeMultiplier: textScale.title });
+// Display-sized text that never shrinks (big stat numbers, tile numerals).
+export const CAP_DISPLAY = Object.freeze({ maxFontSizeMultiplier: textScale.display });
+// Text inside fixed geometry (avatar circles, count badges, glyphs in chips).
+export const CAP_BADGE = Object.freeze({ maxFontSizeMultiplier: textScale.badge });
+export const CAP_TIMER = Object.freeze({ maxFontSizeMultiplier: textScale.timer });
+// A field's unit suffix (kg, cm …).
+export const CAP_SUFFIX = Object.freeze({ maxFontSizeMultiplier: textScale.suffix });
+// Never scales (initials and glyphs sized to their circle).
+export const CAP_NONE = Object.freeze({ maxFontSizeMultiplier: 1 });
 
 const TITLE_RULE = {
   textBreakStrategy: 'simple',
@@ -18,6 +32,11 @@ const TITLE_RULE = {
 };
 export const TITLE_TEXT = Object.freeze({ ...TITLE_RULE, maxFontSizeMultiplier: textScale.title });
 export const DISPLAY_TITLE_TEXT = Object.freeze({ ...TITLE_RULE, maxFontSizeMultiplier: textScale.display });
+// A display title held to 2 lines (the create-profile page title).
+export const SHORT_DISPLAY_TITLE_TEXT = Object.freeze({ ...TITLE_RULE, numberOfLines: 2, maxFontSizeMultiplier: textScale.display });
+// A title-capped name that wraps by word only, with no line limit or shrink
+// (the phone workout plan name, the invite name).
+export const WORD_TITLE_TEXT = Object.freeze({ textBreakStrategy: 'simple', maxFontSizeMultiplier: textScale.title });
 
 // §1.1 long text (UX final audit X7, ruling 27 Oct) for list rows and cards:
 // a name wraps by word to at most 2 lines, then an ellipsis; it never shrinks

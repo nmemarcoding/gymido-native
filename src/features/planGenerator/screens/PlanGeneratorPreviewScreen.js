@@ -9,7 +9,7 @@ import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import ErrorAlert from '../../../shared/components/ErrorAlert';
 import ExerciseImage from '../../../shared/components/ExerciseImage';
 import IconButton from '../../../shared/components/IconButton';
-import { NAME_TEXT } from '../../../shared/components/largeText';
+import { CAP_BODY, DISPLAY_TITLE_TEXT, NAME_TEXT, TITLE_TEXT } from '../../../shared/components/largeText';
 import Loader from '../../../shared/components/Loader';
 import PillButton, { BUTTON_HEIGHTS } from '../../../shared/components/PillButton';
 import PinnedDock, { dockButtonsHeight } from '../../../shared/components/PinnedDock';
@@ -34,7 +34,7 @@ import {
   dayTitle,
   exerciseRowLabel,
 } from '../generatorCopy';
-import { BODY_TEXT, CARD_TITLE_TEXT, FOCUS_DELAY_MS, PAGE_TITLE_TEXT, PressOverlay, isReflow, isTabletWidth } from '../generatorLayout';
+import { FOCUS_DELAY_MS, PressOverlay, isReflow, isTabletWidth } from '../generatorLayout';
 import {
   answersFromProfile,
   buildAcceptBody,
@@ -334,10 +334,10 @@ function Feasible({ preview, notice, changingSplit, onSplitChange, onOpenExercis
         </View>
       ) : null}
       <View style={tablet ? null : styles.headerPhone}>
-        <Text {...BODY_TEXT} testID="generator-preview-eyebrow" style={[styles.eyebrow, tablet && styles.eyebrowTablet]}>
+        <Text {...CAP_BODY} testID="generator-preview-eyebrow" style={[styles.eyebrow, tablet && styles.eyebrowTablet]}>
           {COPY.yourPlan}
         </Text>
-        <Text {...PAGE_TITLE_TEXT} accessibilityRole="header" testID="generator-plan-name" style={[styles.planName, tablet && styles.planNameTablet]}>
+        <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" testID="generator-plan-name" style={[styles.planName, tablet && styles.planNameTablet]}>
           {keepUnitsTogether(preview.plan_name)}
         </Text>
         {!tablet && preview.split?.name ? (
@@ -350,7 +350,7 @@ function Feasible({ preview, notice, changingSplit, onSplitChange, onOpenExercis
         <View testID="generator-split-card" style={[styles.splitCard, reflow && styles.splitCardStacked]}>
           <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
           <View style={reflow ? null : styles.flex}>
-            <Text {...BODY_TEXT} style={styles.splitCardLabel}>
+            <Text {...CAP_BODY} style={styles.splitCardLabel}>
               {COPY.split}
             </Text>
             <Text {...NAME_TEXT} style={styles.splitCardName}>
@@ -403,7 +403,7 @@ function WeeklySets({ rows }) {
   const most = Math.max(1, ...rows.map((row) => parseInt(row.sets, 10) || 0));
   return (
     <View testID="generator-weekly" style={styles.weeklyCard}>
-      <Text {...CARD_TITLE_TEXT} accessibilityRole="header" style={styles.weeklyTitle}>
+      <Text {...TITLE_TEXT} accessibilityRole="header" style={styles.weeklyTitle}>
         {COPY.weeklySets}
       </Text>
       <View style={styles.weeklyRows}>
@@ -413,7 +413,7 @@ function WeeklySets({ rows }) {
               <Text {...NAME_TEXT} style={styles.weeklyName}>
                 {row.name}
               </Text>
-              <Text {...BODY_TEXT} style={styles.weeklySets}>
+              <Text {...CAP_BODY} style={styles.weeklySets}>
                 {row.sets}
               </Text>
             </View>
@@ -438,17 +438,17 @@ function DayCard({ day, tablet, reflow, onOpenExercise }) {
       {/* Mounted with the card (Android render rule). */}
       <GradientFill angle={gradients.card.angle} colors={gradients.card.colors} />
       <View testID="generator-day-header" style={[styles.dayHeader, tablet && styles.dayHeaderTablet, reflow && styles.dayHeaderStacked]}>
-        <Text {...CARD_TITLE_TEXT} accessibilityRole="header" style={[styles.dayTitle, tablet && styles.dayTitleTablet, styles.flexShrink]}>
+        <Text {...TITLE_TEXT} accessibilityRole="header" style={[styles.dayTitle, tablet && styles.dayTitleTablet, styles.flexShrink]}>
           {dayTitle(day)}
         </Text>
         {day.estimated_minutes ? (
           tablet ? (
-            <Text {...BODY_TEXT} testID="generator-day-minutes" style={styles.dayMinutesTablet}>
+            <Text {...CAP_BODY} testID="generator-day-minutes" style={styles.dayMinutesTablet}>
               {dayMinutes(day.estimated_minutes)}
             </Text>
           ) : (
             <View testID="generator-day-minutes-chip" style={styles.minutesChip}>
-              <Text {...BODY_TEXT} testID="generator-day-minutes" style={styles.dayMinutes}>
+              <Text {...CAP_BODY} testID="generator-day-minutes" style={styles.dayMinutes}>
                 {dayMinutes(day.estimated_minutes)}
               </Text>
             </View>
@@ -466,7 +466,7 @@ function DayCard({ day, tablet, reflow, onOpenExercise }) {
           )
         )}
         {skipped.map((item, index) => (
-          <Text key={`s-${index}`} {...BODY_TEXT} style={[styles.skipped, tablet && styles.skippedTablet, styles.divider]}>
+          <Text key={`s-${index}`} {...CAP_BODY} style={[styles.skipped, tablet && styles.skippedTablet, styles.divider]}>
             {item.text}
           </Text>
         ))}
@@ -509,7 +509,7 @@ function RowExtras({ item, tablet = false, style }) {
   return (
     <>
       {item.effort ? (
-        <Text {...BODY_TEXT} style={[styles.effort, style]}>
+        <Text {...CAP_BODY} style={[styles.effort, style]}>
           {item.effort}
         </Text>
       ) : null}
@@ -539,7 +539,7 @@ function FeaturedRow({ item, onOpenExercise }) {
             <Text {...NAME_TEXT} style={styles.featuredName}>
               {data.exercise.name}
             </Text>
-            <Text {...BODY_TEXT} style={styles.featuredPrescription}>
+            <Text {...CAP_BODY} style={styles.featuredPrescription}>
               {data.prescription}
             </Text>
           </View>
@@ -571,7 +571,7 @@ function CompactRow({ item, onOpenExercise }) {
             {data.exercise.name}
           </Text>
           <MuscleLabel name={data.muscleName} code={data.muscleCode} />
-          <Text {...BODY_TEXT} style={styles.rowPrescription}>
+          <Text {...CAP_BODY} style={styles.rowPrescription}>
             {data.prescription}
           </Text>
         </View>
@@ -602,7 +602,7 @@ function TabletRow({ item, onOpenExercise }) {
             {data.exercise.name}
           </Text>
           <MuscleLabel name={data.muscleName} code={data.muscleCode} style={styles.tabletMuscle} />
-          <Text {...BODY_TEXT} style={styles.tabletPrescription}>
+          <Text {...CAP_BODY} style={styles.tabletPrescription}>
             {data.prescription}
           </Text>
         </View>
@@ -641,11 +641,11 @@ function NotFeasible({ reason, onChange, onOpenStep }) {
 
   return (
     <View testID="generator-not-feasible" style={styles.notFeasibleCard}>
-      <Text ref={titleRef} testID="generator-not-feasible-title" {...CARD_TITLE_TEXT} style={styles.refusalTitle}>
+      <Text ref={titleRef} testID="generator-not-feasible-title" {...TITLE_TEXT} style={styles.refusalTitle}>
         {COPY.notFeasibleTitle}
       </Text>
       {reason?.message ? (
-        <Text {...BODY_TEXT} style={[styles.refusalReason, styles.mt8]}>
+        <Text {...CAP_BODY} style={[styles.refusalReason, styles.mt8]}>
           {reason.message}
         </Text>
       ) : null}

@@ -3,7 +3,8 @@ import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
 
 import { CardSurface } from '../../../shared/components/Card';
 import GradientFill from '../../../shared/components/GradientFill';
-import { breakpoints, colors, font, gradients, shadows, textScale } from '../../../shared/theme/tokens';
+import { breakpoints, colors, font, gradients, shadows } from '../../../shared/theme/tokens';
+import { CAP_BODY, DISPLAY_TITLE_TEXT } from '../../../shared/components/largeText';
 
 // Shared look for the Phase 2 A auth screens (UX A boards). Everything here is
 // decorative: hidden from screen readers, no animation (reduced motion needs
@@ -20,14 +21,9 @@ export function isTabletWidth(width) {
 // textScale.display, wrap by word up to 3 lines and shrink a single long word
 // (never a mid-word break); every other text (eyebrows, body) caps at
 // textScale.body.
-export const DISPLAY_TITLE_TEXT = Object.freeze({
-  maxFontSizeMultiplier: textScale.display,
-  numberOfLines: 3,
-  adjustsFontSizeToFit: true,
-  minimumFontScale: 0.7,
-  textBreakStrategy: 'simple',
-});
-export const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
+// T-170: the roles live in largeText.js; re-exported for this kit's callers.
+export { DISPLAY_TITLE_TEXT };
+export const BODY_TEXT = CAP_BODY;
 
 // The boards are full-device frames (844 / 1194 tall) and place blocks from
 // the frame top. Native content starts under the top inset, so a board offset

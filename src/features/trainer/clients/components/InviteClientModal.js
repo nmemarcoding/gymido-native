@@ -186,7 +186,7 @@ export default function InviteClientModal({ isOpen, onClose, onInvited }) {
         />
         {/* Always mounted, so Android's live region reads the text change. */}
         <View testID="invite-searching-status" accessibilityLiveRegion="polite" style={styles.hiddenStatus}>
-          <Text style={styles.hiddenText}>{searching ? SEARCHING_STATUS : ''}</Text>
+          <Text {...CAP_BODY} style={styles.hiddenText}>{searching ? SEARCHING_STATUS : ''}</Text>
         </View>
         {renderResults()}
       </View>

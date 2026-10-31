@@ -29,6 +29,7 @@ import {
 import EndCoachingDialog from '../trainers/components/EndCoachingDialog';
 import PersonAvatar, { AVATAR_FILL_ALPHA, avatarColor, personInitials } from '../trainers/personAvatar';
 import { acceptErrorMessage, deriveHub, statusPill, trainerDisplayName, trainerInitials } from './myTrainerFormat';
+import { CAP_BODY, CAP_NONE, CAP_PILL, DISPLAY_TITLE_TEXT, TITLE_TEXT, WORD_TITLE_TEXT } from '../../shared/components/largeText';
 
 // v2 Phase 2 C5 (UX C §My trainer / §Tablet): LOOK only. Behaviour is
 // RN-SPEC-my-trainer MT1.4–MT1.5 (Contact, End coaching + confirm, View
@@ -37,19 +38,8 @@ import { acceptErrorMessage, deriveHub, statusPill, trainerDisplayName, trainerI
 
 // Large text (UX §9): role caps; titles wrap by word (max 3 lines) and a
 // single long word shrinks the title instead of breaking inside it.
-const TITLE_TEXT = Object.freeze({
-  textBreakStrategy: 'simple',
-  maxFontSizeMultiplier: textScale.title,
-  numberOfLines: 3,
-  adjustsFontSizeToFit: true,
-  minimumFontScale: 0.7,
-});
-const DISPLAY_TEXT = Object.freeze({ ...TITLE_TEXT, maxFontSizeMultiplier: textScale.display });
-const BODY_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.body });
-const PILL_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.pill });
 // MT1.6: the gold card's trainer name wraps by word with no line cap, no
 // ellipsis and no shrink (title-capped).
-const INVITE_NAME_TEXT = Object.freeze({ textBreakStrategy: 'simple', maxFontSizeMultiplier: textScale.title });
 
 // UX §8.3 decorative teal orb on the teal-accent cards (gradients.tealOrb):
 // phone 200 at right/top −60 ("Find a trainer"); tablet "Your trainer" 340 at
@@ -200,7 +190,7 @@ function TrainerHub() {
 
   const outgoingCard = (compact) => (
     <View key="outgoing" testID="trainer-hub-outgoing" style={[styles.card, compact && halfStyle, tablet && styles.cardTablet]}>
-      <Text {...BODY_TEXT} accessibilityRole="header" style={[styles.smallHeading, tablet && styles.smallHeadingTablet]}>
+      <Text {...CAP_BODY} accessibilityRole="header" style={[styles.smallHeading, tablet && styles.smallHeadingTablet]}>
         Your requests
       </Text>
       <View style={styles.requestRows}>
@@ -213,7 +203,7 @@ function TrainerHub() {
               style={compact || stacked ? styles.requestStack : styles.requestRow}
             >
               <Text
-                {...(compact ? TITLE_TEXT : BODY_TEXT)}
+                {...(compact ? TITLE_TEXT : CAP_BODY)}
                 numberOfLines={compact ? 3 : 2}
                 style={[compact ? styles.requestNameCompact : styles.requestName, styles.flexShrink]}
               >
@@ -232,10 +222,10 @@ function TrainerHub() {
       <View style={styles.iconTile} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <GymIcon name="trainer" size={20} color={colors.textMuted} />
       </View>
-      <Text {...BODY_TEXT} style={styles.emptyTitle}>
+      <Text {...CAP_BODY} style={styles.emptyTitle}>
         You don’t have a trainer
       </Text>
-      <Text {...BODY_TEXT} style={styles.emptyMessage}>
+      <Text {...CAP_BODY} style={styles.emptyMessage}>
         Find a trainer to get plans built for you and your progress followed.
       </Text>
     </View>
@@ -249,13 +239,13 @@ function TrainerHub() {
         <GradientFill angle={150} colors={gradients.gold.colors} stops={gradients.gold.stops} />
         <View testID="trainer-hub-invitations-chip" style={styles.headingPill}>
           <Text
-            {...PILL_TEXT}
+            {...CAP_PILL}
             accessibilityRole="header"
             style={styles.headingPillText}
           >{`Invitations (${hub.invitations.length})`}</Text>
         </View>
         {hub.hasActiveTrainer ? (
-          <Text {...BODY_TEXT} style={styles.hint}>
+          <Text {...CAP_BODY} style={styles.hint}>
             You already have a trainer. End your current coaching before accepting one of these.
           </Text>
         ) : null}
@@ -271,10 +261,10 @@ function TrainerHub() {
                 />
                 <View style={styles.textColumn}>
                   {/* MT1.6 (27 Oct 2026, wins over X7 here): the name wraps, no truncation. */}
-                  <Text {...INVITE_NAME_TEXT} style={styles.invitationName}>
+                  <Text {...WORD_TITLE_TEXT} style={styles.invitationName}>
                     {name}
                   </Text>
-                  <Text {...BODY_TEXT} style={styles.invitationSub}>
+                  <Text {...CAP_BODY} style={styles.invitationSub}>
                     wants to coach you
                   </Text>
                 </View>
@@ -328,16 +318,16 @@ function TrainerHub() {
               <GymIcon name="trainer" size={22} color={colors.teal} />
             </View>
             <View style={styles.textColumn}>
-              <Text {...BODY_TEXT} style={styles.eyebrow}>
+              <Text {...CAP_BODY} style={styles.eyebrow}>
                 Trainer mode
               </Text>
               <Text {...TITLE_TEXT} style={[styles.switchTitle, styles.mt6]}>
                 You are already a trainer
               </Text>
-              <Text {...BODY_TEXT} style={styles.cardBody}>
+              <Text {...CAP_BODY} style={styles.cardBody}>
                 Switch to Trainer Mode to manage your clients, their plans and your trainer profile.
               </Text>
-              <Text {...BODY_TEXT} style={styles.switchAction}>
+              <Text {...CAP_BODY} style={styles.switchAction}>
                 Switch to Trainer Mode
               </Text>
             </View>
@@ -406,7 +396,7 @@ function TrainerHub() {
         <Text {...TITLE_TEXT} accessibilityRole="header" style={styles.findTitle}>
           Find a trainer
         </Text>
-        <Text {...BODY_TEXT} style={[styles.cardBody, styles.mt8]}>
+        <Text {...CAP_BODY} style={[styles.cardBody, styles.mt8]}>
           Browse and search the trainers on Gymido, then send a request to the one you want. They build your plans and follow your
           progress.
         </Text>
@@ -428,10 +418,10 @@ function TrainerHub() {
         style={[styles.card, styles.becomeCard, tablet && styles.becomeCardTablet, stacked && styles.becomeCardStacked]}
       >
         <View style={stacked ? null : styles.textColumn}>
-          <Text {...BODY_TEXT} style={[styles.becomeTitle, tablet && styles.becomeTitleTablet]}>
+          <Text {...CAP_BODY} style={[styles.becomeTitle, tablet && styles.becomeTitleTablet]}>
             Want to coach others?
           </Text>
-          <Text {...BODY_TEXT} style={[styles.becomeBody, tablet && styles.becomeBodyTablet]}>
+          <Text {...CAP_BODY} style={[styles.becomeBody, tablet && styles.becomeBodyTablet]}>
             Apply to become a trainer and get your own clients, plans and coaching dashboard.
           </Text>
         </View>
@@ -494,7 +484,7 @@ function InviteTile({ testID, userId, initials }) {
   return (
     <View testID={testID} style={styles.inviteTile} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <View testID={`${testID}-fill`} style={[StyleSheet.absoluteFill, { backgroundColor: color, opacity: AVATAR_FILL_ALPHA }]} />
-      <Text allowFontScaling={false} maxFontSizeMultiplier={1} style={[styles.inviteTileText, { color }]}>
+      <Text allowFontScaling={false} {...CAP_NONE} style={[styles.inviteTileText, { color }]}>
         {initials}
       </Text>
     </View>
@@ -566,11 +556,11 @@ function ActiveTrainerCard({ tablet, stacked = false, name, initials, userId, tr
       <View style={[styles.activeTop, tablet && styles.activeTopTablet]}>
         <Avatar name={name} initials={initials} userId={userId} size={tablet ? 104 : 64} ring />
         <View style={styles.textColumn}>
-          <Text {...BODY_TEXT} style={styles.yourTrainer}>
+          <Text {...CAP_BODY} style={styles.yourTrainer}>
             Your trainer
           </Text>
           <Text
-            {...(tablet ? DISPLAY_TEXT : TITLE_TEXT)}
+            {...(tablet ? DISPLAY_TITLE_TEXT : TITLE_TEXT)}
             accessibilityRole="header"
             style={tablet ? styles.trainerNameTablet : styles.trainerName}
           >
@@ -584,7 +574,7 @@ function ActiveTrainerCard({ tablet, stacked = false, name, initials, userId, tr
         </View>
       </View>
       {trainer?.bio ? (
-        <Text {...BODY_TEXT} style={[styles.bio, tablet && styles.bioTablet]}>
+        <Text {...CAP_BODY} style={[styles.bio, tablet && styles.bioTablet]}>
           {trainer.bio}
         </Text>
       ) : null}

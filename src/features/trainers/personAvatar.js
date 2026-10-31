@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, font, muscle, radii, textScale } from '../../shared/theme/tokens';
+import { colors, font, muscle, radii } from '../../shared/theme/tokens';
+import { CAP_BADGE } from '../../shared/components/largeText';
 
 // RN-SPEC-v2-phase5 §1 "Avatar colour rule" (UX final, 27 Oct; all
 // platforms, every OTHER person's avatar, trainers and clients):
@@ -41,8 +42,6 @@ export function personInitials(nameOrEmail) {
   return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
 }
 
-// Initials sit in fixed-size chrome: capped like a badge.
-const BADGE_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.badge });
 
 // `radius` defaults to a circle; the phone Trainers card draws a rounded
 // square (radii.lgPlus). `ring` draws the boards' gap + 1 px colour ring
@@ -61,7 +60,7 @@ export default function PersonAvatar({ userId, name, initials, size, radius, ini
       style={[styles.disc, { width: size, height: size, borderRadius: corner }, ring ? null : style]}
     >
       <View testID={`${testID}-fill`} style={[StyleSheet.absoluteFill, { backgroundColor: color, opacity: AVATAR_FILL_ALPHA }]} />
-      <Text {...BADGE_TEXT} style={[styles.initials, { color, fontSize, lineHeight: Math.round(fontSize * 1.2) }]}>
+      <Text {...CAP_BADGE} style={[styles.initials, { color, fontSize, lineHeight: Math.round(fontSize * 1.2) }]}>
         {initials ?? personInitials(name)}
       </Text>
     </View>

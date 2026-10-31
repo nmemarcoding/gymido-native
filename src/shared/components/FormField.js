@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { colors, font, layout, radii, spacing, textInputColors, textScale, typography } from '../theme/tokens';
-import { CAP_BODY } from './largeText';
+import { colors, font, layout, radii, spacing, textInputColors, typography } from '../theme/tokens';
+import { CAP_BODY, CAP_SUFFIX } from './largeText';
 
 // RN-SPEC-v2-foundation §4.5: one member/trainer size (52, radius 20).
 export const FIELD_HEIGHT = 52;
@@ -10,7 +10,6 @@ const OPTIONAL = ' (optional)';
 // UX §8.7 U13: the unit suffix caps at 1.6× and the input keeps clear of
 // it: right padding = the suffix's inset + its measured width + the gap.
 // Before the first measurement the 1× gutter (48) is used.
-const UNIT_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.suffix });
 export const UNIT_GUTTER_FALLBACK = 48;
 export function unitGutter(unitWidth) {
   return unitWidth > 0 ? spacing[4] + unitWidth + layout.suffixGap : UNIT_GUTTER_FALLBACK;
@@ -145,7 +144,7 @@ export default function FormField({
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
           >
-            <Text {...UNIT_TEXT} style={styles.unitText}>{unit}</Text>
+            <Text {...CAP_SUFFIX} style={styles.unitText}>{unit}</Text>
           </View>
         ) : null}
         {trailing ? <View style={styles.trailing}>{trailing}</View> : null}

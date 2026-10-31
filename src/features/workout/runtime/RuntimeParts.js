@@ -7,7 +7,7 @@ import GradientFill from '../../../shared/components/GradientFill';
 import PillButton, { useSwipeGuard } from '../../../shared/components/PillButton';
 import Spinner from '../../../shared/components/Spinner';
 import Select from '../../../shared/components/Select';
-import { CAP_BODY, CAP_PILL, DISPLAY_TITLE_TEXT, TITLE_TEXT, useLargeTextReflow } from '../../../shared/components/largeText';
+import { CAP_BODY, CAP_DISPLAY, CAP_PILL, CAP_TIMER, DISPLAY_TITLE_TEXT, TITLE_TEXT, WORD_TITLE_TEXT, useLargeTextReflow } from '../../../shared/components/largeText';
 import { colors, font, gradients, layout, radii, shadows, spacing, textInputColors, textScale, titleTracking, typography } from '../../../shared/theme/tokens';
 import ProgressRing from '../components/ProgressRing';
 import { CheckIcon, PlayIcon } from './SessionIcons';
@@ -61,8 +61,6 @@ export const UP_NEXT_THUMB_RADIUS = 6;
 export const PHONE_BROWSE_STAGE_HEIGHT = 318;
 export const TABLET_BROWSE_STAGE_HEIGHT = 520;
 export const DID_IT_HEIGHT = 64;
-const DISPLAY_CAP = { maxFontSizeMultiplier: textScale.display };
-const TIMER_CAP = { maxFontSizeMultiplier: textScale.timer };
 // T-105: the header's Complete (UX ruling §1).
 const COMPLETE_HEIGHT = 36;
 // F1 §0.6: drawn controls below 44 keep their size and get a 44 hit area.
@@ -159,7 +157,7 @@ export function SessionChrome({
       style={[styles.timerPill, { minHeight: 40 }]}
     >
       <View style={styles.timerDot} />
-      <Text {...TIMER_CAP} style={[styles.timerText, styles.timerTextTablet]}>
+      <Text {...CAP_TIMER} style={[styles.timerText, styles.timerTextTablet]}>
         {formatClock(elapsed)}
       </Text>
     </GlassSurface>
@@ -251,7 +249,7 @@ function PhonePlanName({ planName, scaled = false }) {
   const setStep = () => setState({ name: planName, step: step + 1 });
   return (
     <Text
-      {...PHONE_PLAN_TEXT}
+      {...WORD_TITLE_TEXT}
       testID="session-plan-name"
       textBreakStrategy={current.lines > 1 ? 'balanced' : PHONE_PLAN_TEXT.textBreakStrategy}
       onTextLayout={(event) => {
@@ -380,7 +378,7 @@ function StageRing({ exercise, tablet, live = false }) {
       style={[styles.ringGlass, live && styles.ringGlassLive, { width: size, height: size }]}
     >
       <ProgressRing value={done} total={total} size={size - 2} thickness={live ? LIVE_RING_THICKNESS : 11} label={`${done} of ${total} ${setsWord(total)} done`}>
-        <Text {...TIMER_CAP} numberOfLines={1} textBreakStrategy="simple" style={[styles.ringText, tablet && !live && styles.ringTextTablet, live && styles.ringTextLive]}>{`${done}/${total}`}</Text>
+        <Text {...CAP_TIMER} numberOfLines={1} textBreakStrategy="simple" style={[styles.ringText, tablet && !live && styles.ringTextTablet, live && styles.ringTextLive]}>{`${done}/${total}`}</Text>
       </ProgressRing>
     </GlassSurface>
   );
@@ -671,7 +669,7 @@ export function SessionStats({ time, volume, volumeUnit, reps, tablet = false })
         {items.map((item) => (
           <View key={item.key} testID={`session-stat-${item.key}`} style={styles.statTileTablet}>
             <Text {...CAP_BODY} style={styles.statsLabelTablet}>{item.label}</Text>
-            <Text {...DISPLAY_CAP} style={styles.statsValueTablet}>
+            <Text {...CAP_DISPLAY} style={styles.statsValueTablet}>
               {item.value}
               {item.unit ? <Text style={styles.statsUnitTablet}>{` ${item.unit}`}</Text> : null}
             </Text>
@@ -809,7 +807,7 @@ export function SetEditor({
               value={
                 <TextInput
                   {...textInputColors}
-                  {...DISPLAY_CAP}
+                  {...CAP_DISPLAY}
                   testID={`set-weight-${set.id}`}
                   accessibilityLabel={`Weight for set ${setNumber}`}
                   accessibilityHint={validationError || undefined}
@@ -845,7 +843,7 @@ export function SetEditor({
               value={
                 <TextInput
                   {...textInputColors}
-                  {...DISPLAY_CAP}
+                  {...CAP_DISPLAY}
                   testID={`set-reps-${set.id}`}
                   accessibilityLabel={`Reps for set ${setNumber}`}
                   keyboardType="number-pad"

@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import AppModal, { ModalActions } from '../../../../shared/components/AppModal';
 import FormField, { FieldFrame } from '../../../../shared/components/FormField';
-import { CAP_BODY } from '../../../../shared/components/largeText';
+import { CAP_BODY, CAP_PILL } from '../../../../shared/components/largeText';
 import PillButton from '../../../../shared/components/PillButton';
 import Select from '../../../../shared/components/Select';
 import { useSheetFocus } from '../../../../shared/hooks/useSheetFocus';
@@ -225,7 +225,7 @@ function DayChip({ value, selected, disabled, tablet, onPress }) {
       {({ pressed }) => (
         <>
           {pressed && !disabled ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.overlay]} /> : null}
-          <Text maxFontSizeMultiplier={1.6} style={[styles.chipText, tablet && styles.chipTextTablet, selected ? styles.chipTextOn : styles.chipTextOff]}>
+          <Text {...CAP_PILL} style={[styles.chipText, tablet && styles.chipTextTablet, selected ? styles.chipTextOn : styles.chipTextOff]}>
             {value}
           </Text>
         </>
