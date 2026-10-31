@@ -1,0 +1,11 @@
+# T-146: discards the workout session 01-shots.yaml started (it ends on a running rest, which Maestro can't poll).
+# Launches the Release build (no signed-in-start: that refuses an open session by design), resumes the session and
+# discards it with the shared subflow. Only after 01-shots on the same account.
+appId: com.gymido.app
+---
+- launchApp
+- extendedWaitUntil: { visible: "Resume workout|Go to workout", timeout: 60000 }
+- tapOn: "Resume workout|Go to workout"
+- extendedWaitUntil: { visible: { id: "session-chrome" }, timeout: 30000 }
+- runFlow: ../subflows/dismiss-session-dialogs.yaml
+- runFlow: ../subflows/discard-workout.yaml
