@@ -309,7 +309,7 @@ export default function SessionRuntime({
     setHighlightedSetKey('');
     const draft = saved ?? drafts[set.id];
     if (!set.is_completed) {
-      const error = validateDraftWeight(draft?.actualWeightValue);
+      const error = validateDraftWeight(draft?.actualWeightValue, draft?.actualWeightUnit || 'lb');
       if (error) {
         setValidation((current) => ({ ...current, [set.id]: error }));
         return;
@@ -385,7 +385,7 @@ export default function SessionRuntime({
       return;
     }
     const draft = drafts[set.id];
-    const error = validateDraftWeight(draft?.actualWeightValue);
+    const error = validateDraftWeight(draft?.actualWeightValue, draft?.actualWeightUnit || 'lb');
     if (error) {
       setValidation((current) => ({ ...current, [set.id]: error }));
       return;

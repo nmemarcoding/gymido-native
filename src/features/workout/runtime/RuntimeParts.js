@@ -803,6 +803,9 @@ export function SetEditor({
                   accessibilityLabel={`Weight for set ${setNumber}`}
                   accessibilityHint={validationError || undefined}
                   keyboardType="decimal-pad"
+                  // T-149: focus selects the value, so typing replaces it; at most 7 characters.
+                  selectTextOnFocus
+                  maxLength={7}
                   value={weightValue}
                   placeholder={set.target_weight_value != null ? String(set.target_weight_value) : '0'}
                   placeholderTextColor={colors.textFaint}
@@ -835,6 +838,7 @@ export function SetEditor({
                   testID={`set-reps-${set.id}`}
                   accessibilityLabel={`Reps for set ${setNumber}`}
                   keyboardType="number-pad"
+                  selectTextOnFocus
                   maxLength={2}
                   value={reps ?? ''}
                   placeholder="—"

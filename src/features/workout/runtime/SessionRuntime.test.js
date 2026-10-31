@@ -599,6 +599,30 @@ describe('v2 F1 live and browsing states (ND3)', () => {
 
   // T-154 (rev 42, owner: one screen, no scroll): a fitted phone page doesn't scroll at normal text; with an increased
   // OS text size (the a11y exception) it scrolls as one page.
+  // T-149 (owner, P1): the appended weight ("135" → "135140") is refused, nothing is sent; the error clears on change.
+  it('T-149: Did it with an over-max weight shows "Weight must be 2,000 lb or less." and sends nothing', async () => {
+    updateSessionSet.mockClear();
+    const { tree } = render();
+    act(() => byId(tree, 'set-weight-12').props.onChangeText('135140'));
+    await act(async () => byId(tree, 'set-action-12').props.onPress());
+    expect(updateSessionSet).not.toHaveBeenCalled();
+    expect(host(tree, 'weight-error-12').props.children).toBe('Weight must be 2,000 lb or less.');
+    act(() => byId(tree, 'set-weight-12').props.onChangeText('135'));
+    expect(host(tree, 'weight-error-12')).toBeUndefined();
+  });
+
+  it('T-149: Save set k refuses an over-max edit the same way; the weight and reps fields select on focus', async () => {
+    updateSessionSet.mockClear();
+    const { tree } = render();
+    expect(byId(tree, 'set-weight-12').props).toMatchObject({ selectTextOnFocus: true, maxLength: 7 });
+    expect(byId(tree, 'set-reps-12').props.selectTextOnFocus).toBe(true);
+    act(() => byId(tree, 'set-previous-11').props.onPress());
+    act(() => byId(tree, 'set-weight-11').props.onChangeText('2500'));
+    await act(async () => byId(tree, 'set-action-11').props.onPress());
+    expect(updateSessionSet).not.toHaveBeenCalled();
+    expect(host(tree, 'weight-error-11').props.children).toBe('Weight must be 2,000 lb or less.');
+  });
+
   it('T-154: no scroll at normal text (the page fits); it scrolls with large text', () => {
     const pageScroll = (tree) => tree.root.findAll((node) => node.type === ScrollView && node.props.onScroll)[0];
     let { tree } = render();

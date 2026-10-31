@@ -323,6 +323,9 @@ export default function SetArcCard({
                   accessibilityLabel={`Weight for set ${number}`}
                   accessibilityHint={validationError || undefined}
                   keyboardType="decimal-pad"
+                  // T-149: focus selects the value, so typing replaces it; at most 7 characters.
+                  selectTextOnFocus
+                  maxLength={7}
                   value={weightValue}
                   placeholder={target.target_weight_value != null ? String(target.target_weight_value) : '0'}
                   placeholderTextColor={colors.textFaint}
@@ -354,6 +357,7 @@ export default function SetArcCard({
                   testID={`set-reps-${target.id}`}
                   accessibilityLabel={`Reps for set ${number}`}
                   keyboardType="number-pad"
+                  selectTextOnFocus
                   maxLength={2}
                   value={reps ?? ''}
                   placeholder="—"

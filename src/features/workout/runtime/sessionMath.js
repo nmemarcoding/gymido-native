@@ -123,13 +123,24 @@ export function nextSetKeyAfter(ordered, justDoneId) {
 // set's target 0 seeded "0", which "Did it" refused); it counts as missing
 // at each step of §20.2's chain.
 // Numbers or API decimal strings ("50.00"); the value is kept as sent.
-const weightOrNull = (value) => {
+// T-149 (RN-SPEC dated 30 Oct): a pre-fill candidate over the unit's max is skipped (the next source, else blank;
+// never clamped). `unit` null = no max (a done set shows what was saved).
+const weightOrNull = (value, unit = null) => {
   if (value === null || value === undefined || value === '') {
     return null;
   }
   const number = parseWeight(value);
-  return Number.isFinite(number) && number > 0 ? value : null;
+  if (!Number.isFinite(number) || number <= 0) {
+    return null;
+  }
+  return unit && number > weightMax(unit) ? null : value;
 };
+
+// T-149: the weight max in the field's unit (2000 lb / 1000 kg).
+export const WEIGHT_MAX = Object.freeze({ lb: 2000, kg: 1000 });
+export function weightMax(unit) {
+  return WEIGHT_MAX[unit === 'kg' ? 'kg' : 'lb'];
+}
 
 export function seedDrafts(session, statsMap, previous) {
   const exercises = session?.exercises ?? [];
@@ -140,11 +151,12 @@ export function seedDrafts(session, statsMap, previous) {
   for (const exercise of exercises) {
     const stats = statsMap?.[exercise.exercise?.id];
     for (const set of exercise.sets ?? []) {
+      const unit = set.actual_weight_unit || set.target_weight_unit || stats?.unit || 'lb';
       next[set.id] = next[set.id] || {
         actualWeightValue: set.is_completed
           ? weightOrNull(set.actual_weight_value) ?? ''
-          : weightOrNull(set.actual_weight_value) ?? weightOrNull(set.target_weight_value) ?? weightOrNull(stats?.value) ?? '',
-        actualWeightUnit: set.actual_weight_unit || set.target_weight_unit || stats?.unit || 'lb',
+          : weightOrNull(set.actual_weight_value, unit) ?? weightOrNull(set.target_weight_value, unit) ?? weightOrNull(stats?.value, unit) ?? '',
+        actualWeightUnit: unit,
       };
     }
   }
@@ -194,15 +206,18 @@ export function createPendingSets() {
   };
 }
 
-// §21.1, on "Did it" only. The weight is optional (T-16, 25 Oct 2026): a
-// blank or spaces-only draft completes the set with no weight.
-export function validateDraftWeight(value) {
+// §21.1, on "Did it" (and "Save set k") only. The weight is optional (T-16, 25 Oct 2026): a
+// blank or spaces-only draft completes the set with no weight. T-149: at most 2,000 lb / 1,000 kg.
+export function validateDraftWeight(value, unit = 'lb') {
   if (String(value ?? '').trim() === '') {
     return null;
   }
   const number = parseWeight(value);
   if (!Number.isFinite(number) || number <= 0) {
     return 'Weight must be greater than 0.';
+  }
+  if (number > weightMax(unit)) {
+    return `Weight must be ${new Intl.NumberFormat('en-US').format(weightMax(unit))} ${unit === 'kg' ? 'kg' : 'lb'} or less.`;
   }
   return null;
 }
@@ -486,14 +501,19 @@ function formatPlain(value) {
 // ND1 weight stepper. `direction` +1 / −1. An empty (or unreadable) field
 // starts from the set's Last time weight, else 0. "−" at or below one step
 // clears the field (weight is optional; it never shows 0).
+// T-149: "+" stops at the max; "−" from an over-max value goes straight to the max.
 export function stepWeight(value, unit, direction, startWeight = null) {
   const step = WEIGHT_STEP[unit === 'kg' ? 'kg' : 'lb'];
+  const max = weightMax(unit);
   const parsed = parseWeight(value);
   const base = Number.isFinite(parsed) && parsed > 0 ? parsed : startWeight > 0 ? startWeight : 0;
   if (direction < 0) {
+    if (base > max) {
+      return numberText(max);
+    }
     return base <= step ? '' : numberText(base - step);
   }
-  return numberText(base + step);
+  return numberText(Math.min(max, base + step));
 }
 
 // ND2 reps: integers 1–99 typed or stepped; anything else is stripped (no

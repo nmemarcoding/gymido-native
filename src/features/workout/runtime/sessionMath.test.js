@@ -527,3 +527,43 @@ describe('T-146 helpers', () => {
     expect(stageRestLine({ sets: [] })).toBe('');
   });
 });
+
+describe('T-149 weight max (RN-SPEC dated 30 Oct)', () => {
+  const { WEIGHT_MAX, seedDrafts, stepWeight, validateDraftWeight } = require('./sessionMath');
+
+  it('validateDraftWeight: over 2,000 lb / 1,000 kg refuses with the unit\'s message; at the max is fine', () => {
+    expect(WEIGHT_MAX).toEqual({ lb: 2000, kg: 1000 });
+    expect(validateDraftWeight('2000', 'lb')).toBeNull();
+    expect(validateDraftWeight('2000.5', 'lb')).toBe('Weight must be 2,000 lb or less.');
+    expect(validateDraftWeight('1001', 'kg')).toBe('Weight must be 1,000 kg or less.');
+    expect(validateDraftWeight('135140', 'lb')).toBe('Weight must be 2,000 lb or less.');
+    expect(validateDraftWeight('0', 'lb')).toBe('Weight must be greater than 0.');
+  });
+
+  it('stepWeight: "+" stops at the max; "−" from over the max goes straight to the max', () => {
+    expect(stepWeight('1999', 'lb', 1)).toBe('2000');
+    expect(stepWeight('2000', 'lb', 1)).toBe('2000');
+    expect(stepWeight('135140', 'lb', -1)).toBe('2000');
+    expect(stepWeight('999', 'kg', 1)).toBe('1000');
+  });
+
+  it('seedDrafts: an over-max pre-fill candidate is skipped (the next source, else blank; never clamped)', () => {
+    const session = {
+      exercises: [
+        {
+          exercise: { id: 7 },
+          sets: [
+            { id: 1, is_completed: false, actual_weight_value: '5000', target_weight_value: '135', target_weight_unit: 'lb' },
+            { id: 2, is_completed: false, target_weight_value: '9999', target_weight_unit: 'lb' },
+            { id: 3, is_completed: true, actual_weight_value: '3000', actual_weight_unit: 'lb' },
+          ],
+        },
+      ],
+    };
+    const drafts = seedDrafts(session, { 7: { value: '4000', unit: 'lb' } }, {});
+    expect(drafts[1].actualWeightValue).toBe('135');
+    expect(drafts[2].actualWeightValue).toBe('');
+    // A done set shows what was saved.
+    expect(drafts[3].actualWeightValue).toBe('3000');
+  });
+});
