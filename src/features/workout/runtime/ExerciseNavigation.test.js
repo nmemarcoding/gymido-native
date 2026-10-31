@@ -81,24 +81,7 @@ const mount = (element) => {
 const pressable = (tree, id) => tree.root.findAll((node) => node.props.testID === id && node.props.accessibilityRole === 'button')[0];
 
 describe('WorkoutExerciseNav (v2 F1 browsing)', () => {
-  it('phone: "Exercise i of n", All (n), labelled segment buttons with 44 hit areas; the viewed one ringed', () => {
-    const onView = jest.fn();
-    const onOpenSheet = jest.fn();
-    const tree = mount(<WorkoutExerciseNav exercises={EXERCISES} viewingIndex={2} onView={onView} onOpenSheet={onOpenSheet} />);
-    const segment = pressable(tree, 'exercise-nav-segment-1');
-    expect(segment.props.accessibilityLabel).toBe('Exercise 2: 1 of 2 sets done');
-    expect(segment.props.hitSlop).toEqual({ top: 11, bottom: 11 });
-    expect(pressable(tree, 'exercise-nav-segment-2').props.accessibilityState).toEqual({ selected: true });
-    act(() => segment.props.onPress());
-    expect(onView).toHaveBeenCalledWith(1);
-    act(() => pressable(tree, 'exercise-nav-all').props.onPress());
-    expect(onOpenSheet).toHaveBeenCalled();
-    const viewedBar = pressable(tree, 'exercise-nav-segment-2').props.children;
-    expect(StyleSheet.flatten(viewedBar.props.style)).toMatchObject({ height: 10, outlineColor: colors.goldStrong });
-    const partial = pressable(tree, 'exercise-nav-segment-1').props.children.props.children;
-    expect(StyleSheet.flatten(partial.props.style).width).toBe('50%');
-    act(() => tree.unmount());
-  });
+  // DELETED (owner OK 30 Oct, PM scope check): the phone navigator test (phones have no bottom navigator now).
 
   it('tablet: one pill; done gold, partial gold 0.60, viewed white, empty 0.12', () => {
     const exercises = [...EXERCISES, { id: 4, sets: [{ id: 41, is_completed: false }] }];

@@ -88,7 +88,8 @@ function useStablePanResponder(config) {
 // empty white 0.12. Segments are buttons (view that exercise) with a 44 hit
 // area; a swipe up on the bar opens the All sheet ("All (n)" is the
 // non-gesture path).
-export function WorkoutExerciseNav({ exercises, viewingIndex, onView, onOpenSheet, onHeight, tablet = false }) {
+// Owner 30 Oct (web 2.4.1): tablet only; phones have no bottom navigator (the header's All (N) switches).
+export function WorkoutExerciseNav({ exercises, viewingIndex, onView, onOpenSheet, onHeight }) {
   const insets = useSafeAreaInsets();
   const swipe = useStablePanResponder({
     onMoveShouldSetPanResponder: (_, gesture) => gesture.dy < -10 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
@@ -99,7 +100,7 @@ export function WorkoutExerciseNav({ exercises, viewingIndex, onView, onOpenShee
     },
   });
   const label = (
-    <Text {...BODY_TEXT} textBreakStrategy="simple" style={[styles.navLabel, tablet && styles.navLabelTablet]}>
+    <Text {...BODY_TEXT} textBreakStrategy="simple" style={[styles.navLabel, styles.navLabelTablet]}>
       {`Exercise ${viewingIndex + 1} of ${exercises.length}`}
     </Text>
   );
@@ -108,16 +109,15 @@ export function WorkoutExerciseNav({ exercises, viewingIndex, onView, onOpenShee
       testID="exercise-nav-all"
       accessibilityRole="button"
       onPress={onOpenSheet}
-      hitSlop={tablet ? 0 : 6}
-      style={({ pressed }) => [tablet ? styles.navAllTablet : styles.navAllPhone, pressed && styles.navAllPressed]}
+      style={({ pressed }) => [styles.navAllTablet, pressed && styles.navAllPressed]}
     >
-      <Text {...BODY_TEXT} textBreakStrategy="simple" style={[styles.navAll, tablet && styles.navAllTextTablet]}>
+      <Text {...BODY_TEXT} textBreakStrategy="simple" style={[styles.navAll, styles.navAllTextTablet]}>
         {`All (${exercises.length})`}
       </Text>
     </Pressable>
   );
   const segments = (
-    <View style={[styles.segments, tablet && styles.segmentsTablet]}>
+    <View style={[styles.segments, styles.segmentsTablet]}>
       {exercises.map((exercise, index) => {
         const sets = exercise.sets ?? [];
         const done = sets.filter((set) => set.is_completed).length;
@@ -131,21 +131,15 @@ export function WorkoutExerciseNav({ exercises, viewingIndex, onView, onOpenShee
             accessibilityLabel={segmentLabel(exercise, index)}
             accessibilityState={{ selected: viewed }}
             onPress={() => onView(index)}
-            hitSlop={{ top: tablet ? 19 : 11, bottom: tablet ? 19 : 11 }}
-            style={[styles.segmentButton, tablet && styles.segmentButtonTablet]}
+            hitSlop={{ top: 19, bottom: 19 }}
+            style={[styles.segmentButton, styles.segmentButtonTablet]}
           >
-            {tablet ? (
-              <View
-                style={[
-                  styles.barTablet,
-                  { backgroundColor: viewed ? colors.textPrimary : ratio >= 1 ? colors.gold : ratio > 0 ? colors.goldStrong : colors.hairlineButton },
-                ]}
-              />
-            ) : (
-              <View style={[styles.bar, viewed && styles.barViewed]}>
-                <View style={[styles.barFill, { width: `${Math.round(ratio * 100)}%` }]} />
-              </View>
-            )}
+            <View
+              style={[
+                styles.barTablet,
+                { backgroundColor: viewed ? colors.textPrimary : ratio >= 1 ? colors.gold : ratio > 0 ? colors.goldStrong : colors.hairlineButton },
+              ]}
+            />
           </Pressable>
         );
       })}
@@ -156,24 +150,14 @@ export function WorkoutExerciseNav({ exercises, viewingIndex, onView, onOpenShee
       testID="exercise-nav"
       {...swipe.panHandlers}
       onLayout={(event) => onHeight?.(event.nativeEvent.layout.height)}
-      style={[styles.navHost, tablet ? styles.navHostTablet : styles.navHostPhone, { bottom: (tablet ? 28 : 20) + insets.bottom }]}
+      style={[styles.navHost, styles.navHostTablet, { bottom: 28 + insets.bottom }]}
     >
-      <GlassSurface radius={tablet ? radii.full : radii.xl} style={tablet ? styles.navTablet : styles.navPhone} accessibilityRole="none">
-        {tablet ? (
-          <View style={styles.navTabletRow}>
-            {label}
-            {segments}
-            {all}
-          </View>
-        ) : (
-          <>
-            <View style={styles.navRow}>
-              {label}
-              {all}
-            </View>
-            {segments}
-          </>
-        )}
+      <GlassSurface radius={radii.full} style={styles.navTablet} accessibilityRole="none">
+        <View style={styles.navTabletRow}>
+          {label}
+          {segments}
+          {all}
+        </View>
       </GlassSurface>
     </View>
   );
@@ -795,19 +779,9 @@ const styles = StyleSheet.create({
   navHost: {
     position: 'absolute',
   },
-  navHostPhone: {
-    left: 12,
-    right: 12,
-  },
   navHostTablet: {
     left: spacing[8],
     right: spacing[8],
-  },
-  navPhone: {
-    paddingTop: spacing[2],
-    paddingHorizontal: spacing['3_5'],
-    paddingBottom: spacing['2_5'],
-    borderColor: colors.hairlineButton,
   },
   navTablet: {
     paddingVertical: spacing['3_5'],
@@ -819,13 +793,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing[4],
   },
-  navRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing[2],
-  },
   navLabel: {
     ...font(600),
     flexShrink: 1,
@@ -836,10 +803,6 @@ const styles = StyleSheet.create({
   navLabelTablet: {
     fontSize: 16,
     lineHeight: 22,
-  },
-  navAllPhone: {
-    minHeight: 32,
-    justifyContent: 'center',
   },
   navAllTablet: {
     minHeight: 44,
@@ -877,22 +840,6 @@ const styles = StyleSheet.create({
   },
   segmentButtonTablet: {
     height: 6,
-  },
-  bar: {
-    height: 6,
-    overflow: 'hidden',
-    borderRadius: radii.full,
-    backgroundColor: colors.hairlineStrong,
-  },
-  barViewed: {
-    height: 10,
-    outlineWidth: 2,
-    outlineColor: colors.goldStrong,
-    outlineStyle: 'solid',
-  },
-  barFill: {
-    height: '100%',
-    backgroundColor: colors.gold,
   },
   barTablet: {
     height: 6,

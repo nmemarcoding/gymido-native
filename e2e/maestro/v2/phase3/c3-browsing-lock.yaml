@@ -18,7 +18,7 @@
 # Signed-in start (the lead's safe runner). Fixture: an ACTIVE plan whose
 # session has 2+ exercises, whose first exercise has at most 10 sets (the
 # logging loop's cap) and a rest time on its last set (rest 3). IDs only (plus
-# the accessible names "Did it", "Undo set n", "Locked", "Skip Rest" and "Go to the
+# the accessible names "Did it", "Undo set n", "Locked", "{n} sets left" and "Go to the
 # next exercise" on id-matched or text nodes). Uses the v2 subflows
 # (e2e/maestro/v2/subflows).
 appId: com.gymido.app
@@ -108,7 +108,7 @@ tags:
       # A mid-exercise rest: skip it (rest 3 has "Start now" instead and ends the loop).
       - runFlow:
           when:
-            visible: "Skip Rest"
+            visible: { id: "rest-banner-text", text: ".* left" }
           commands:
             - tapOn:
                 id: "rest-timer-skip"

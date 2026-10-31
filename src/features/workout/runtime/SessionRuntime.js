@@ -265,9 +265,11 @@ export default function SessionRuntime({
   }, [isFocused]);
 
   // §22.3: fires only when the key changes to a non-empty value, and only if
-  // its card is mounted; centred and clamped to the content.
+  // its card is mounted; centred and clamped to the content. T-154: a fitted
+  // phone page has nothing to scroll to (it stays at the top).
+  const pageFitsRef = useRef(false);
   useEffect(() => {
-    if (!highlightedSetKey) {
+    if (!highlightedSetKey || pageFitsRef.current) {
       return;
     }
     const row = rowRefs.current[highlightedSetKey];
@@ -630,6 +632,7 @@ export default function SessionRuntime({
     fitActive && exercise
       ? phoneFit({ available: fitAvailable, text: stageTextHeight, hasPhoto: Boolean(exercise.exercise?.thumbnail?.url), previousRow: fitPreviousRow, upNext: fitUpNext, browse: browsing })
       : null;
+  pageFitsRef.current = Boolean(fit?.fits);
   const chromeTop = (header ? spacing[3] : insets.top + spacing['2_5']) + (tablet ? spacing[3] : 0);
   // §17 / web parity: a button press takes focus off the weight input.
   const dismiss = (handler) => (...args) => {
@@ -1021,7 +1024,6 @@ export default function SessionRuntime({
             onView={dismiss(setViewingIndex)}
             onOpenSheet={openSheet}
             onHeight={setNavHeight}
-            tablet={tablet}
           />
         ) : null}
       </View>

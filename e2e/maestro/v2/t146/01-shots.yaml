@@ -45,8 +45,9 @@ appId: com.gymido.app
       - runFlow: ../subflows/log-current-set.yaml
       - extendedWaitUntil: { visible: { id: "rest-timer-skip" }, timeout: 10000 }
       - runFlow:
+          # A mid-exercise rest's banner reads "{n} sets left" (Skip Rest is on every rest since T-153).
           when:
-            visible: "Skip Rest"
+            visible: { id: "rest-banner-text", text: ".* left" }
           commands:
             - tapOn: { id: "rest-timer-skip" }
             - extendedWaitUntil: { notVisible: { id: "rest-timer" }, timeout: 5000 }
