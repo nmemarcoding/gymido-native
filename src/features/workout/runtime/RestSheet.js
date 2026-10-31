@@ -200,7 +200,7 @@ export default function RestSheet({ timer, hero, onMinimize, onAdjust, onSkip, w
     return () => open.stop();
   }, [fade, slide, reducedMotion]);
 
-  // Slide down (or fade), then hand over: minimise to the disc, or Skip.
+  // Slide down (or fade), then minimise to the disc.
   const leave = (then) => {
     const out = reducedMotion
       ? Animated.timing(fade, { toValue: 0, duration: FADE_MS, useNativeDriver: true })
@@ -252,7 +252,8 @@ export default function RestSheet({ timer, hero, onMinimize, onAdjust, onSkip, w
   );
   const minus = <Square testID="rest-timer-minus" label="Minus 5 seconds" caption="−5s" onPress={() => onAdjust(-5)} />;
   const plus = <Square testID="rest-timer-plus" label="Plus 5 seconds" caption="+5s" plus onPress={() => onAdjust(5)} />;
-  const skip = <SkipButton stacked={stacked} onPress={() => leave(onSkip)} />;
+  // Web parity (PM 30 Oct): Skip closes at once, as today; only minimising slides the sheet down.
+  const skip = <SkipButton stacked={stacked} onPress={onSkip} />;
 
   const body = (
     <>

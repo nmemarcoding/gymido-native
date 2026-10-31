@@ -182,7 +182,7 @@ describe('Rest, phone: the T-153 sheet', () => {
   });
 
   // DECLARED A8 (labels: "Minus/Plus 5 seconds", "Skip Rest"; minimise via the handle, no chevron).
-  it('wires −5 / +5 as today; Skip Rest and the handle slide the sheet away first, then skip / minimise', () => {
+  it('wires −5 / +5 as today; Skip Rest closes at once; the handle slides the sheet down, then minimises', () => {
     jest.useFakeTimers();
     const onMinimize = jest.fn();
     const onAdjust = jest.fn();
@@ -194,8 +194,8 @@ describe('Rest, phone: the T-153 sheet', () => {
     expect(onAdjust.mock.calls).toEqual([[-5], [5]]);
     expect(host(tree, 'rest-timer-minus').props.accessibilityLabel).toBe('Minus 5 seconds');
     expect(host(tree, 'rest-timer-plus').props.accessibilityLabel).toBe('Plus 5 seconds');
+    // Web parity: Skip closes at once (no slide).
     press('rest-timer-skip');
-    act(() => jest.advanceTimersByTime(400));
     expect(onSkip).toHaveBeenCalledTimes(1);
     press('rest-sheet-handle');
     act(() => jest.advanceTimersByTime(400));
