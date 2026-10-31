@@ -10,7 +10,8 @@ import { isReminder } from './reminderPlan';
 import { addReminderTapListener, lastReminderTap, reminderApi, reminderPlatform } from './reminderPlatform';
 import { onReminderSignal, registerReminderActions } from './reminderSignals';
 import { createReminderSync } from './reminderSync';
-import { isWorkoutRemindersOn, loadWorkoutReminders, setReminderPermission, useWorkoutReminders } from './workoutReminderSetting';
+import { getPreference, setPreference } from '../../shared/storage/preferences';
+import { isWorkoutRemindersOn, loadWorkoutReminders, setReminderLastSync, setReminderPermission, useWorkoutReminders } from './workoutReminderSetting';
 
 const SIGNED_OUT = new Set([AuthStatus.signedOut, AuthStatus.accountUnavailable]);
 // Review M1: who is signed in isn't known yet; a sync then changes nothing.
@@ -18,6 +19,50 @@ const AUTH_PENDING = new Set([AuthStatus.restoring, AuthStatus.authenticating, A
 
 let controller = null;
 let cleanups = [];
+
+// T-172 fix a: a sync whose plan read failed (with no cached plan to fall
+// back on) tries again after these delays, on top of every foreground.
+export const REMINDER_RETRY_DELAYS_MS = Object.freeze([5000, 20000, 60000]);
+// T-172 fix b: the last good GET /my-plans/current, for the signed-in user
+// only (another account on this device never schedules from it); cleared on
+// sign-out. Plan data, no secrets.
+export const REMINDER_PLAN_CACHE_KEY = 'gymido.reminderPlanCache';
+// T-172 fix d: the last sync's outcome ({ at, count, source, reason, status }),
+// so "why no reminder" can be read on the device.
+export const REMINDER_LAST_SYNC_KEY = 'gymido.reminderLastSync';
+
+const userKey = (state = useAuthStore.getState()) => String(state.user?.id ?? state.claims?.sub ?? '');
+
+export const reminderPlanCache = {
+  // undefined = nothing cached for this user; null = the last read said "no plan".
+  async load() {
+    const owner = userKey();
+    const stored = owner ? await getPreference(REMINDER_PLAN_CACHE_KEY) : null;
+    if (!stored) {
+      return undefined;
+    }
+    const parsed = JSON.parse(stored);
+    return parsed?.owner === owner ? parsed.current : undefined;
+  },
+  async save(current) {
+    const owner = userKey();
+    if (owner) {
+      await setPreference(REMINDER_PLAN_CACHE_KEY, JSON.stringify({ owner, current: current ?? null }));
+    }
+  },
+  clear() {
+    return setPreference(REMINDER_PLAN_CACHE_KEY, '');
+  },
+};
+
+function reportSync(entry) {
+  const lastSync = { at: new Date().toISOString(), ...entry };
+  setReminderLastSync(lastSync);
+  setPreference(REMINDER_LAST_SYNC_KEY, JSON.stringify(lastSync)).catch?.(() => {});
+  if (__DEV__ && !entry.count) {
+    console.info('[reminders] scheduled 0:', entry.reason, entry.status ?? '');
+  }
+}
 
 // T-136 (owner, 29 Oct 2026): a trainer gets them too, from their own plan
 // (the personal side), exactly as a member.
@@ -43,6 +88,8 @@ export function startWorkoutReminders({
   appState = AppState,
   openToday = openPersonalToday,
   navigation = shellNavigation,
+  cache = reminderPlanCache,
+  retryDelays = REMINDER_RETRY_DELAYS_MS,
 } = {}) {
   if (controller) {
     return controller;
@@ -62,8 +109,34 @@ export function startWorkoutReminders({
   // session), kept for the process; the sync counts them even when its
   // workouts read fails right after the finish.
   const finishedHere = [];
-  const sync = createReminderSync({ platform, api, allowed, localCompleted: () => finishedHere });
-  const resync = () => sync.sync().catch(() => {});
+  const sync = createReminderSync({ platform, api, allowed, localCompleted: () => finishedHere, cache, onReport: reportSync });
+  // T-172 fix a: a failed sync retries with backoff (5 s, 20 s, 60 s); any
+  // sync that succeeds, or a sign-out, resets it.
+  let retryTimer = null;
+  let retryAttempt = 0;
+  const stopRetry = () => {
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+      retryTimer = null;
+    }
+  };
+  const resync = () =>
+    sync.sync().then(
+      (result) => {
+        retryAttempt = 0;
+        stopRetry();
+        return result;
+      },
+      () => {
+        if (!retryTimer && retryAttempt < retryDelays.length) {
+          retryTimer = setTimeout(() => {
+            retryTimer = null;
+            resync();
+          }, retryDelays[retryAttempt]);
+          retryAttempt += 1;
+        }
+      }
+    );
 
   // UX ruling §5: Today's root, after sign-in when signed out.
   let tapPending = false;
@@ -96,7 +169,12 @@ export function startWorkoutReminders({
       return;
     }
     if (SIGNED_OUT.has(state.status)) {
+      stopRetry();
+      retryAttempt = 0;
       sync.clearAll().catch(() => {});
+      Promise.resolve()
+        .then(() => cache?.clear?.())
+        .catch(() => {});
     } else if (state.status === AuthStatus.signedIn) {
       loaded.then(resync);
       openPendingTap();
@@ -119,13 +197,18 @@ export function startWorkoutReminders({
     if (signal === 'workoutFinished' || signal === 'planChanged') {
       resync();
     }
+    // T-172 fix c: the workout-start permission moment (WorkoutScreen) grants
+    // outside this controller; read it again and schedule right away.
+    if (signal === 'permissionChanged') {
+      refreshPermission().then(resync, resync);
+    }
   });
 
-  cleanups.push(unsubscribeAuth, unsubscribeSetting, () => appStateSubscription?.remove(), unsubscribeSignals);
+  cleanups.push(unsubscribeAuth, unsubscribeSetting, () => appStateSubscription?.remove(), unsubscribeSignals, stopRetry);
 
-  const refreshPermission = async () => {
+  async function refreshPermission() {
     setReminderPermission(await platform.getPermission().catch(() => 'denied'));
-  };
+  }
   controller = {
     sync: resync,
     refreshPermission,

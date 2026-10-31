@@ -132,6 +132,31 @@ export function planReminders({ current, completedToday = [], now = new Date(), 
   return requests;
 }
 
+// T-172 (fix d): why planReminders returned nothing, in the order it checks,
+// so a sync that schedules 0 says why (no plan / not active / no weekdays /
+// not started / nothing left in the window). null = it did schedule.
+export function reminderSkipReason({ current, completedToday = [], now = new Date(), days = REMINDER_DAYS, max = REMINDER_MAX }) {
+  if (planReminders({ current, completedToday, now, days, max }).length > 0) {
+    return null;
+  }
+  const enrollment = current?.enrollment;
+  if (!enrollment) {
+    return 'no-plan';
+  }
+  if (enrollment.status && enrollment.status !== 'active') {
+    return `not-active:${enrollment.status}`;
+  }
+  if (titlesByWeekday(current.schedule).size === 0) {
+    return Array.isArray(current.schedule) && current.schedule.length > 0 ? 'no-weekdays' : 'no-schedule';
+  }
+  const startedOn = startDateKey(enrollment.started_on);
+  const lastDay = localDateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() + days - 1));
+  if (startedOn && startedOn > lastDay) {
+    return 'not-started';
+  }
+  return 'no-slot-left';
+}
+
 // UX ruling §3: the Settings value on (device 12/24-hour format).
 export function reminderTimesLabel(hour12 = usesTwelveHourClock()) {
   const times = hour12 ? ['8 AM', '1 PM', '6 PM'] : ['8:00', '13:00', '18:00'];
