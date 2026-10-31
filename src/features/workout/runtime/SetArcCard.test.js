@@ -176,6 +176,18 @@ describe('SetArcCard', () => {
     expect(style.alignSelf).toBe('stretch');
   });
 
+  // T-155 shots (iOS): the unit pill made the Weight label taller than the Reps one, so the two values sat apart.
+  it('the Weight and Reps labels share one 28 slot; the unit pill adds no vertical padding', () => {
+    const exercise = exerciseWith(4, 1);
+    const tree = render({ exercise, set: exercise.sets[1] });
+    for (const id of ['set-cell-weight', 'set-cell-reps']) {
+      const cell = tree.root.findAll((node) => node.props.testID === id && typeof node.type === 'string')[0];
+      expect(StyleSheet.flatten(cell.children[0].props.style)).toMatchObject({ minHeight: 28, justifyContent: 'center' });
+    }
+    const unit = tree.root.findAll((node) => node.props.testID === `set-unit-${exercise.sets[1].id}` && node.props.boxStyle)[0];
+    expect(StyleSheet.flatten(unit.props.boxStyle)).toMatchObject({ minHeight: 28, paddingVertical: 0 });
+  });
+
   // T-146 rev 40: the phone browse card is read-only.
   it('browsing: no now outline, "Locked" in the Did it slot, the reps/Last time line, no steppers; done segments still edit', () => {
     const onSelectDone = jest.fn();

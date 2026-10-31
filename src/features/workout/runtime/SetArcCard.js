@@ -162,7 +162,8 @@ function Stepper({ testID, label, glyph, onPress, size = 40 }) {
 function Cell({ testID, label, value, steppers, error, stacked, height, compact }) {
   return (
     <View testID={testID} style={[styles.cell, { minHeight: height, padding: compact ? 6 : spacing[2] }, stacked ? styles.cellStacked : styles.cellHalf, error && styles.cellError]}>
-      {label}
+      {/* The same label slot in both cells, so the Weight (with the unit pill) and Reps values line up. */}
+      <View style={styles.cellLabelSlot}>{label}</View>
       {value}
       <View style={styles.steppers}>{steppers}</View>
     </View>
@@ -559,8 +560,14 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
   },
+  cellLabelSlot: {
+    minHeight: 28,
+    justifyContent: 'center',
+  },
+  // Select's box adds 8 above and below; here the 28 pill alone sets the height.
   unitBox: {
     minHeight: 28,
+    paddingVertical: 0,
     paddingHorizontal: spacing[2],
   },
   unitText: {
