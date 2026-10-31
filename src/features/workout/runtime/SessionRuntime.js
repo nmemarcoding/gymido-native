@@ -717,9 +717,15 @@ export default function SessionRuntime({
     // message above the card) starts again from FULL.
     if (fitStore.settled) {
       const restarts = fitStore.restarts ?? 0;
-      if (Math.round(used) !== fitStore.used && restarts < FIT_RESTARTS_PER_KEY) {
-        // Each run gets its own re-check (web parity, review L5).
-        setFitStore({ key: fitKey, state: FULL, settled: false, gen: fitStore.gen + 1, rechecked: false, restarts: restarts + 1 });
+      if (Math.round(used) !== fitStore.used) {
+        if (restarts < FIT_RESTARTS_PER_KEY) {
+          // Each run gets its own re-check (web parity, review L5).
+          setFitStore({ key: fitKey, state: FULL, settled: false, gen: fitStore.gen + 1, rechecked: false, restarts: restarts + 1 });
+        } else if (!fitStore.exhausted) {
+          // Review L10: past the cap the height is no longer known to fit: the page scrolls (as for a failed fit), so the
+          // controls stay reachable.
+          setFitStore({ ...fitStore, exhausted: true });
+        }
       }
       return;
     }
@@ -788,10 +794,10 @@ export default function SessionRuntime({
   pageFitsRef.current = Boolean(fit) && fitStore.key === fitKey && fitStore.settled && !(fitStore.over > 0);
   // PM 31 Oct: when the fit fails at the floor (settled, still over: a 360×640 phone with 3-button nav) the page scrolls
   // as the last resort, so Up next and Discard stay reachable.
-  const fitFailed = Boolean(fit) && fitStore.key === fitKey && fitStore.settled && fitStore.over > 0;
+  const fitFailed = Boolean(fit) && fitStore.key === fitKey && fitStore.settled && (fitStore.over > 0 || Boolean(fitStore.exhausted));
   // Review L8 + L9: the scroll mode changes only on a SETTLED result: on when it fails, off when it fits. While it re-fits
   // in place it keeps the mode it had, so a still-failing page never jumps; switching off goes back to the top (L8).
-  const fitFits = Boolean(fit) && fitStore.key === fitKey && fitStore.settled && !(fitStore.over > 0);
+  const fitFits = Boolean(fit) && fitStore.key === fitKey && fitStore.settled && !(fitStore.over > 0) && !fitStore.exhausted;
   const fitScrollMode = useRef(false);
   if (!fit) {
     fitScrollMode.current = false;

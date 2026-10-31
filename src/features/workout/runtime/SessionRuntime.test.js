@@ -735,10 +735,13 @@ describe('v2 F1 live and browsing states (ND3)', () => {
         used(tree, flip % 2 ? 900 : 880);
       }
       const settledGen = gen();
+      expect(page(tree).props.scrollEnabled).toBe(false);
       used(tree, 870);
       used(tree, 860);
       expect(gen()).toBe(settledGen);
       expect(content(tree).props.testID).toMatch(/-settled$/);
+      // Review L10: past the cap the page scrolls, so the controls stay reachable.
+      expect(page(tree).props.scrollEnabled).toBe(true);
     });
 
     // Review L9: an in-place re-fit of a still-failing page keeps scrolling on and never jumps to the top.
