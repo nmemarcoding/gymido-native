@@ -771,9 +771,15 @@ export default function SessionRuntime({
   const fitMarker = fit
     ? `fit-L${fit.level}-P${fitState.photo ?? 'n'}-O${fitStoreNow?.over ?? 'x'}-U${fitStoreNow?.used ?? 'x'}-R${fitStoreNow?.root ?? 'x'}-G${fitStore.gen}${fitStoreNow?.settled ? '-settled' : ''}`
     : null;
+  // Review L7: a reading for an older generation that arrives late is dropped, never replacing the current one.
+  const fitGenRef = useRef(fitStore.gen);
+  fitGenRef.current = fitStore.gen;
   const onStamp = (where) => (event) => {
     const { y, width } = event.nativeEvent.layout;
     const reading = { y, stamp: Math.round(width) };
+    if (reading.stamp !== fitStampWidth(fitGenRef.current)) {
+      return;
+    }
     setStamps((prev) => (prev[where]?.y === reading.y && prev[where]?.stamp === reading.stamp ? prev : { ...prev, [where]: reading }));
   };
   const fitStamp = (where) =>

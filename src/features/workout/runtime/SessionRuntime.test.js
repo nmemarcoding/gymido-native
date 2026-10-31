@@ -809,6 +809,22 @@ describe('v2 F1 live and browsing states (ND3)', () => {
       expect(content(tree).props.testID).toMatch(/-settled$/);
     });
 
+    // Review L7: a late event from an older generation never replaces the current reading (else the fit would wait for a
+    // current-generation event that a stable layout never sends again).
+    it('a late older-generation reading after the current one is dropped; the ladder carries on', () => {
+      const tree = setup(1000);
+      const stampWidth = () => StyleSheet.flatten(host(tree, 'fit-stamp-page').props.style).width;
+      used(tree, 1100);
+      const old = stampWidth();
+      used(tree, 1100);
+      expect(fitLevel(tree)).toBe(1);
+      // This generation's page reading, then a late page reading of the older one, then this generation's header.
+      fireStamp(tree, 'page', 1100);
+      fireStamp(tree, 'page', 1100, old);
+      fireStamp(tree, 'header', 64);
+      expect(fitLevel(tree)).toBe(2);
+    });
+
     // Review L5 (web parity): an M1 restart gets its own re-check from FULL.
     it('after an M1 restart that ends below FULL, the fit re-checks from FULL again', () => {
       jest.useFakeTimers();
