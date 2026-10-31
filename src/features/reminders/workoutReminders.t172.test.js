@@ -34,6 +34,8 @@ jest.mock('./reminderSync', () => ({ createReminderSync: jest.fn(() => mockSync)
 
 const MEMBER = { id: 7, roles: ['member'] };
 const OTHER = { id: 9, roles: ['member'] };
+const CLAIMS_A = { sub: 'auth0|a' };
+const CLAIMS_B = { sub: 'auth0|b' };
 const flush = async () => {
   for (let i = 0; i < 5; i += 1) {
     await Promise.resolve();
@@ -54,7 +56,7 @@ beforeEach(() => {
   mockPrefs.clear();
   resetWorkoutRemindersForTests();
   useWorkoutReminders.setState({ enabled: true, permission: null });
-  useAuthStore.setState({ status: AuthStatus.signedIn, user: MEMBER });
+  useAuthStore.setState({ status: AuthStatus.signedIn, user: MEMBER, claims: CLAIMS_A });
 });
 
 afterEach(() => {
@@ -128,14 +130,33 @@ describe('T-172 fix b: the plan cache belongs to the signed-in user', () => {
     expect(createReminderSync.mock.calls[0][0].cache).toBe(reminderPlanCache);
     const plan = { enrollment: { id: 1, status: 'active' }, schedule: [] };
     await reminderPlanCache.save(plan);
-    expect(JSON.parse(mockPrefs.get(REMINDER_PLAN_CACHE_KEY))).toEqual({ owner: '7', current: plan });
+    expect(JSON.parse(mockPrefs.get(REMINDER_PLAN_CACHE_KEY))).toEqual({ owner: 'auth0|a', current: plan });
     await expect(reminderPlanCache.load()).resolves.toEqual(plan);
-    useAuthStore.setState({ status: AuthStatus.signedIn, user: OTHER });
+    useAuthStore.setState({ status: AuthStatus.signedIn, user: OTHER, claims: CLAIMS_B });
     await expect(reminderPlanCache.load()).resolves.toBeUndefined();
-    useAuthStore.setState({ status: AuthStatus.signedOut, user: null });
+    useAuthStore.setState({ status: AuthStatus.signedOut, user: null, claims: null });
     await flush();
     expect(mockPrefs.get(REMINDER_PLAN_CACHE_KEY)).toBe('');
-    useAuthStore.setState({ status: AuthStatus.signedIn, user: MEMBER });
+    useAuthStore.setState({ status: AuthStatus.signedIn, user: MEMBER, claims: CLAIMS_A });
+    await expect(reminderPlanCache.load()).resolves.toBeUndefined();
+  });
+
+  // Review M1: online the user is the /auth/me user (with an id); an offline cold start has only { email, roles }.
+  // Both carry the token's sub, so a plan saved online loads offline.
+  test('online save → offline cold-start load (keyed on claims.sub); another sub gets nothing', async () => {
+    const plan = { enrollment: { id: 1, status: 'active' }, schedule: [] };
+    useAuthStore.setState({ status: AuthStatus.signedIn, user: { id: 7, roles: ['member'] }, claims: CLAIMS_A });
+    await reminderPlanCache.save(plan);
+    useAuthStore.setState({ status: AuthStatus.signedIn, user: { email: 'a@example.com', roles: ['member'] }, claims: CLAIMS_A });
+    await expect(reminderPlanCache.load()).resolves.toEqual(plan);
+    useAuthStore.setState({ status: AuthStatus.signedIn, user: { email: 'b@example.com', roles: ['member'] }, claims: CLAIMS_B });
+    await expect(reminderPlanCache.load()).resolves.toBeUndefined();
+  });
+
+  test('no sub (claims not known yet): nothing is saved or loaded', async () => {
+    useAuthStore.setState({ status: AuthStatus.signedIn, user: MEMBER, claims: null });
+    await reminderPlanCache.save({ enrollment: { id: 1 } });
+    expect(mockPrefs.has(REMINDER_PLAN_CACHE_KEY)).toBe(false);
     await expect(reminderPlanCache.load()).resolves.toBeUndefined();
   });
 

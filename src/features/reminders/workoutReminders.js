@@ -31,12 +31,17 @@ export const REMINDER_PLAN_CACHE_KEY = 'gymido.reminderPlanCache';
 // so "why no reminder" can be read on the device.
 export const REMINDER_LAST_SYNC_KEY = 'gymido.reminderLastSync';
 
-const userKey = (state = useAuthStore.getState()) => String(state.user?.id ?? state.claims?.sub ?? '');
+// Review M1: the token's `sub` is set on both paths (online /auth/me and the
+// offline cold start, authService.js:61/:74); user.id exists only online.
+const userKey = (state = useAuthStore.getState()) => String(state.claims?.sub ?? '');
 
 export const reminderPlanCache = {
+  // Review L1: the sync reads the owner once, at its start, and passes it to
+  // load / save, so a sign-in switch during the request never files A's plan
+  // under B.
+  owner: () => userKey(),
   // undefined = nothing cached for this user; null = the last read said "no plan".
-  async load() {
-    const owner = userKey();
+  async load(owner = userKey()) {
     const stored = owner ? await getPreference(REMINDER_PLAN_CACHE_KEY) : null;
     if (!stored) {
       return undefined;
@@ -44,8 +49,7 @@ export const reminderPlanCache = {
     const parsed = JSON.parse(stored);
     return parsed?.owner === owner ? parsed.current : undefined;
   },
-  async save(current) {
-    const owner = userKey();
+  async save(current, owner = userKey()) {
     if (owner) {
       await setPreference(REMINDER_PLAN_CACHE_KEY, JSON.stringify({ owner, current: current ?? null }));
     }

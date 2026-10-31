@@ -57,23 +57,25 @@ export function createReminderSync({ platform, api, allowed, localCompleted = ()
   };
 
   // Best effort: a cache failure never fails a sync.
-  const saveCache = (current) => (cache ? Promise.resolve().then(() => cache.save(current)).catch(() => {}) : Promise.resolve());
+  const saveCache = (current, owner) => (cache ? Promise.resolve().then(() => cache.save(current, owner)).catch(() => {}) : Promise.resolve());
 
   async function readPlan(todayKey) {
     let current;
     let source = 'api';
+    // Review L1: whose plan this is, read before the request (not after it).
+    const owner = cache?.owner?.();
     try {
       current = await api.getCurrentPlan();
-      await saveCache(current);
+      await saveCache(current, owner);
     } catch (error) {
       // 404 = no active plan (a normal state).
       if (getStatus(error) === 404) {
-        await saveCache(null);
+        await saveCache(null, owner);
         return { current: null, completedToday: [], source };
       }
       // T-172 fix b: anything else (offline, 5xx, auth) → the last good plan
       // when there is one; without one, keep what is already scheduled.
-      const cached = cache ? await Promise.resolve().then(() => cache.load()).catch(() => undefined) : undefined;
+      const cached = cache ? await Promise.resolve().then(() => cache.load(owner)).catch(() => undefined) : undefined;
       if (cached === undefined) {
         report({ count: null, source: 'api', reason: 'plan-read-failed', status: getStatus(error) ?? null });
         throw error;

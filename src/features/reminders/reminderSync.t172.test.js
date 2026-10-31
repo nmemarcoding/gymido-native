@@ -102,6 +102,35 @@ describe('T-172 fix b: the last good plan when the read fails', () => {
   });
 });
 
+describe('T-172 review L1: the owner is read at the start of the request', () => {
+  test('a sign-in switch while the plan read is in flight never files the plan under the new owner', async () => {
+    let who = 'auth0|a';
+    const saved = [];
+    const cache = { owner: jest.fn(() => who), load: jest.fn(async () => undefined), save: jest.fn(async (current, owner) => saved.push([owner, current])) };
+    let release;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    const platform = { getScheduled: async () => [], getPresented: async () => [], cancelScheduled: async () => {}, dismiss: async () => {}, schedule: async () => 'id', ensureChannel: async () => {} };
+    const api = { getCurrentPlan: async () => gate, listCompletedWorkouts: async () => [] };
+    const running = createReminderSync({ platform, api, allowed: async () => true, now: () => SAT_0600, cache }).sync();
+    await Promise.resolve();
+    await Promise.resolve();
+    who = 'auth0|b';
+    release(SAT_PLAN);
+    await running;
+    expect(cache.owner).toHaveBeenCalledTimes(1);
+    expect(saved).toEqual([['auth0|a', SAT_PLAN]]);
+  });
+
+  test('a failed read loads the cache for the owner read at the start', async () => {
+    const cache = { owner: () => 'auth0|a', load: jest.fn(async () => SAT_PLAN), save: jest.fn(async () => {}) };
+    const { sync } = setup({ cache, planError: offline });
+    await sync.sync();
+    expect(cache.load).toHaveBeenCalledWith('auth0|a');
+  });
+});
+
 describe('T-172 fix d: why a sync scheduled nothing', () => {
   const plan = (enrollment, schedule = SAT_PLAN.schedule) => ({ enrollment: { ...SAT_PLAN.enrollment, ...enrollment }, schedule });
 
