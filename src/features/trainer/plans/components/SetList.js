@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { CAP_BODY } from '../../../../shared/components/largeText';
+import { CAP_BADGE, CAP_BODY } from '../../../../shared/components/largeText';
 import { colors, font, radii, spacing } from '../../../../shared/theme/tokens';
 import { exerciseName, formatSetSummary } from '../planFormat';
 import { TextAction, useBuilderLayout } from './builderParts';
@@ -38,7 +38,7 @@ export default function SetList({ exercise, sets, capabilities, onEditSet, onDel
                 accessibilityElementsHidden={tablet}
                 importantForAccessibility={tablet ? 'no-hide-descendants' : 'yes'}
               >
-                <Text {...CAP_BODY} style={styles.badgeText}>
+                <Text {...CAP_BADGE} style={styles.badgeText}>
                   {set.set_number}
                 </Text>
               </View>

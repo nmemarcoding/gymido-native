@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import AppModal from '../../../../shared/components/AppModal';
-import { CAP_BODY, LINE_TEXT } from '../../../../shared/components/largeText';
+import { CAP_BADGE, CAP_BODY, LINE_TEXT } from '../../../../shared/components/largeText';
 import PillButton from '../../../../shared/components/PillButton';
 import Skeleton from '../../../../shared/components/Skeleton';
 import { colors, font } from '../../../../shared/theme/tokens';
@@ -35,7 +35,7 @@ function Rows({ list, rows }) {
       {rows.rows.map((row) => (
         <View key={row.key} accessible accessibilityLabel={`${row.name}${done ? ', done' : ''}, ${row.meta}`} style={styles.row}>
           <View {...hidden} style={[styles.mark, done ? styles.markDone : styles.markOpen]}>
-            {done ? <Text {...CAP_BODY} style={styles.markText}>✓</Text> : null}
+            {done ? <Text {...CAP_BADGE} style={styles.markText}>✓</Text> : null}
           </View>
           <Text {...LINE_TEXT} style={styles.rowName}>
             {row.name}

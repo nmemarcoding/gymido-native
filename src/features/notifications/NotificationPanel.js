@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   markAll: {
-    height: 44,
+    minHeight: 44,
     paddingHorizontal: 16,
     borderRadius: radii.full,
     borderWidth: 1,
