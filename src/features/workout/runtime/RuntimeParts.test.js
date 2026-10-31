@@ -246,6 +246,25 @@ describe('SessionChrome T-105: Complete in the header', () => {
     expect(name().props.numberOfLines).toBeUndefined();
   });
 
+  // T-162 device run: a remount on the full ↔ scaled switch reset the step, the header height kept changing and the page
+  // fit re-ran without end. The step outlives the switch; scaled, the one-line steps start at 13.
+  it('phone: the plan name keeps its step across the full ↔ scaled header switch', () => {
+    const tree = render(<SessionChrome {...props} planName="Beginner Full Body Foundation" />);
+    const name = () => host(tree, 'session-plan-name');
+    const layout = (lines) => act(() => name().props.onTextLayout({ nativeEvent: { lines: Array.from({ length: lines }, () => ({})) } }));
+    layout(2);
+    layout(2);
+    layout(2);
+    expect(flat(name())).toMatchObject({ fontSize: 12, lineHeight: 16 });
+    act(() => tree.update(<SessionChrome {...props} planName="Beginner Full Body Foundation" scaled />));
+    expect(flat(name())).toMatchObject({ fontSize: 12, lineHeight: 16 });
+    act(() => tree.update(<SessionChrome {...props} planName="Beginner Full Body Foundation" />));
+    expect(flat(name())).toMatchObject({ fontSize: 12, lineHeight: 16 });
+    // A fresh name scaled starts at 13; a new plan name starts over.
+    act(() => tree.update(<SessionChrome {...props} planName="Push Day" scaled />));
+    expect(flat(name())).toMatchObject({ fontSize: 13, lineHeight: 17 });
+  });
+
   it('tablet: the timer pill stays (the one timer) and the subline reads "4/15 sets done"', () => {
     const tree = render(<SessionChrome {...props} tablet />);
     expect(timers(tree)).toHaveLength(1);

@@ -725,6 +725,22 @@ describe('v2 F1 live and browsing states (ND3)', () => {
       expect(scrollTo).toHaveBeenCalledWith({ y: 0, animated: false });
     });
 
+    // T-162 device run (a header that kept changing height re-ran the fit ~1,200 times): at most 5 restarts per key.
+    it('a layout that keeps changing height after settling restarts the fit at most 5 times', () => {
+      const tree = setup(1000);
+      used(tree, 900);
+      const gen = () => Number(/-G(\d+)/.exec(content(tree).props.testID)[1]);
+      for (let flip = 0; flip < 5; flip += 1) {
+        used(tree, flip % 2 ? 900 : 880);
+        used(tree, flip % 2 ? 900 : 880);
+      }
+      const settledGen = gen();
+      used(tree, 870);
+      used(tree, 860);
+      expect(gen()).toBe(settledGen);
+      expect(content(tree).props.testID).toMatch(/-settled$/);
+    });
+
     // Review L9: an in-place re-fit of a still-failing page keeps scrolling on and never jumps to the top.
     it('a failing page that re-fits in place keeps scrolling and stays where it is', () => {
       const tree = setup(600);

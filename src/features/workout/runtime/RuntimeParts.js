@@ -172,7 +172,7 @@ export function SessionChrome({
           {keepUnitsTogether(planName)}
         </Text>
       ) : (
-        <PhonePlanName key={scaled ? 'scaled' : 'full'} planName={planName} sizes={scaled ? PHONE_PLAN_SIZES_SCALED : PHONE_PLAN_SIZES} />
+        <PhonePlanName planName={planName} scaled={scaled} />
       )}
       {tablet ? (
         <Text {...CAP_PILL} style={[styles.planSub, styles.planSubTablet]}>{`${completedSets}/${totalSets} ${setsWord(totalSets)} done`}</Text>
@@ -228,20 +228,27 @@ export function SessionChrome({
 // else one step smaller at a time down to 12, still one line; else it wraps
 // at 12/16 between words (2 lines; more on the narrowest phones, the header
 // grows) and is never cut ("…"). Steps follow the measured line count.
-export const PHONE_PLAN_SIZES = Object.freeze([14, 13, 12]);
-export const PHONE_PLAN_SIZES_SCALED = Object.freeze([13, 12]);
 // Spec §2 + T-162 UX verdict: one line at the sizes given (14 → 13 → 12; scaled 13 → 12), then 2 lines at 12/16, then 2
 // lines at 11/14, and 3 lines at 11/14 only when 11 still won't fit on 2. Never "…" (no numberOfLines); the lines wrap
 // balanced where the platform can (Android).
-export function planNameSteps(sizes) {
-  return [...sizes.map((size) => ({ size, lineHeight: size + 4, lines: 1 })), { size: 12, lineHeight: 16, lines: 2 }, { size: 11, lineHeight: 14, lines: 2 }, { size: 11, lineHeight: 14, lines: 3 }];
-}
+export const PLAN_NAME_STEPS = Object.freeze([
+  { size: 14, lineHeight: 18, lines: 1 },
+  { size: 13, lineHeight: 17, lines: 1 },
+  { size: 12, lineHeight: 16, lines: 1 },
+  { size: 12, lineHeight: 16, lines: 2 },
+  { size: 11, lineHeight: 14, lines: 2 },
+  { size: 11, lineHeight: 14, lines: 3 },
+]);
 
-function PhonePlanName({ planName, sizes = PHONE_PLAN_SIZES }) {
-  const steps = planNameSteps(sizes);
-  const [step, setStep] = useState(0);
-  const current = steps[Math.min(step, steps.length - 1)];
-  const last = step >= steps.length - 1;
+// The step only moves forward for a plan name, and it outlives the header's full ↔ scaled switch (T-162 device run: a
+// remount on that switch reset it, the header height kept changing, and the page fit re-ran without end). Scaled, the
+// one-line steps start at 13.
+function PhonePlanName({ planName, scaled = false }) {
+  const [state, setState] = useState({ name: planName, step: 0 });
+  const step = Math.max(state.name === planName ? state.step : 0, scaled ? 1 : 0);
+  const current = PLAN_NAME_STEPS[Math.min(step, PLAN_NAME_STEPS.length - 1)];
+  const last = step >= PLAN_NAME_STEPS.length - 1;
+  const setStep = () => setState({ name: planName, step: step + 1 });
   return (
     <Text
       {...PHONE_PLAN_TEXT}
@@ -249,7 +256,7 @@ function PhonePlanName({ planName, sizes = PHONE_PLAN_SIZES }) {
       textBreakStrategy={current.lines > 1 ? 'balanced' : PHONE_PLAN_TEXT.textBreakStrategy}
       onTextLayout={(event) => {
         if (!last && event?.nativeEvent?.lines?.length > current.lines) {
-          setStep((at) => at + 1);
+          setStep();
         }
       }}
       style={[styles.planName, { fontSize: current.size, lineHeight: current.lineHeight }]}

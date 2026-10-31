@@ -106,8 +106,9 @@ function fitStampWidth(gen) {
 }
 // The once-only re-check from FULL after a fit that ended below FULL (spec §5.3 web guard), a frame later.
 const FIT_RECHECK_MS = 16;
-// M1 restarts after settling: at most this many a second (a flapping layout must never loop).
-const FIT_RESTARTS_PER_SECOND = 3;
+// M1 restarts after settling: at most this many per key (a flapping layout must never loop; T-162 device run: a header
+// that kept changing height re-ran the fit ~1,200 times at 3 a second).
+const FIT_RESTARTS_PER_KEY = 5;
 // Q7: the minimised rest disc sits 24 above the bottom (+ the safe area);
 // nothing keeps it off Did it (web RT:94-100).
 export const PHONE_DISC_BOTTOM = spacing[6];
@@ -702,7 +703,7 @@ export default function SessionRuntime({
     if (fitStore.key !== fitKey) {
       // The ladder is driven from layout: adopting the new key here is its first step, before paint.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setFitStore({ key: fitKey, state: FULL, settled: false, gen: fitStore.gen + 1, rechecked: false, restarts: [] });
+      setFitStore({ key: fitKey, state: FULL, settled: false, gen: fitStore.gen + 1, rechecked: false, restarts: 0 });
       return;
     }
     // Only readings laid out for this generation count.
@@ -715,11 +716,10 @@ export default function SessionRuntime({
     // §5.3 (web: ResizeObserver): after it settles, any other change of the content's height (the weight error line, a
     // message above the card) starts again from FULL.
     if (fitStore.settled) {
-      const now = Date.now();
-      const restarts = (fitStore.restarts ?? []).filter((at) => now - at < 1000);
-      if (Math.round(used) !== fitStore.used && restarts.length < FIT_RESTARTS_PER_SECOND) {
+      const restarts = fitStore.restarts ?? 0;
+      if (Math.round(used) !== fitStore.used && restarts < FIT_RESTARTS_PER_KEY) {
         // Each run gets its own re-check (web parity, review L5).
-        setFitStore({ key: fitKey, state: FULL, settled: false, gen: fitStore.gen + 1, rechecked: false, restarts: [...restarts, now] });
+        setFitStore({ key: fitKey, state: FULL, settled: false, gen: fitStore.gen + 1, rechecked: false, restarts: restarts + 1 });
       }
       return;
     }
