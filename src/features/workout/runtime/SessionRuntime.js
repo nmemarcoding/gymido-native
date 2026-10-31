@@ -688,6 +688,8 @@ export default function SessionRuntime({
     // A new key starts from FULL (drawn this render); the last layout event is from before it: adopt the key and wait for
     // FULL's own layout.
     if (fitStore.key !== fitKey) {
+      // The ladder is driven from layout: adopting the new key here is its first step, before paint.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFitStore({ key: fitKey, state: FULL, settled: false, seq: usedLayout.seq });
       return;
     }
