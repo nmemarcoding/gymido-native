@@ -1,5 +1,5 @@
 # T-162 shots, step 5 (phone): from set 2 of exercise 1 (4 sets): log it → minimise the rest (the disc + Up next clear of
-# it, P3) → expand → Skip; log 3 and 4 → the "next exercise" rest → −5 down to the red last 5 s → it ends; then set 1 of
+# it, P3) → expand → Skip; log 3 and 4 → the "next exercise" rest → −5 ×15 down to the red last seconds → it ends; then set 1 of
 # exercise 2. IDs only; run t146/02-discard.yaml after it.
 appId: com.gymido.app
 ---
@@ -24,7 +24,7 @@ appId: com.gymido.app
 - waitForAnimationToEnd: { timeout: 3000 }
 - takeScreenshot: ${SHOT}-06-rest-next
 - repeat:
-    times: 17
+    times: 15
     commands:
       - tapOn: { id: "rest-timer-minus" }
 - takeScreenshot: ${SHOT}-07-rest-red
