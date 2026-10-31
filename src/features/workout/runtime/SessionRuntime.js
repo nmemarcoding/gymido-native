@@ -96,8 +96,14 @@ export const PHONE_HEADER_BOTTOM_GAP = 0;
 export const PHONE_PAGE_BOTTOM = spacing[2];
 // The longest the page stays hidden while the fit steps (PM 31 Oct: ~150 ms).
 export const FIT_REVEAL_MS = 250;
-// A step that changed nothing gives no layout event: after this long the same measurement is taken again.
-const FIT_IDLE_MS = 80;
+// T-162 device runs: onLayout events can arrive late or out of order against the fit's steps. Each measurement is
+// therefore stamped: a zero-height view at the end of the page (and of the header) is FIT_STAMPS wide per generation,
+// and its one layout event carries the height above it (y) and the generation it was laid out for (width). A changed
+// width also guarantees an event for every step.
+const FIT_STAMPS = 37;
+function fitStampWidth(gen) {
+  return 1 + (gen % FIT_STAMPS);
+}
 // The once-only re-check from FULL after a fit that ended below FULL (spec §5.3 web guard), a frame later.
 const FIT_RECHECK_MS = 16;
 // M1 restarts after settling: at most this many a second (a flapping layout must never loop).
@@ -221,7 +227,6 @@ export default function SessionRuntime({
   // column's measured heights (the used room: the P5-SC header scales too), the weight/reps focus (the fit holds while a field has focus and re-fits when focus leaves the fields:
   // `blurs` counts the leaves), the stage's measures (LiveStage onMeasure) and the ladder's state for the current key.
   const [rootHeight, setRootHeight] = useState(null);
-  const headerRef = useRef(null);
   const [fieldFocused, setFieldFocusedState] = useState(false);
   const [blurs, setBlurs] = useState(0);
   // §5.3: focus moving straight into the other field keeps the hold, so a blur lands a tick later unless a focus follows.
@@ -243,8 +248,9 @@ export default function SessionRuntime({
   const onStageMeasure = useCallback((measured) => {
     setStageMeasure((prev) => (Object.keys(measured).every((key) => prev[key] === measured[key]) ? prev : { ...prev, ...measured }));
   }, []);
-  const [usedLayout, setUsedLayout] = useState({ height: null, header: 0, seq: 0 });
-  const [fitStore, setFitStore] = useState({ key: null, state: FULL, settled: false, seq: -1 });
+  // The stamped readings (y above the stamp, the generation it was drawn for) and the ladder's state for the current key.
+  const [stamps, setStamps] = useState({ page: null, header: null });
+  const [fitStore, setFitStore] = useState({ key: null, state: FULL, settled: false, gen: 0 });
   const [contentY, setContentY] = useState(null);
   const [pastPhoto, setPastPhoto] = useState(false);
   const bandOpacity = useRef(new Animated.Value(0)).current;
@@ -691,19 +697,20 @@ export default function SessionRuntime({
     if (!fitActive || !exercise || fieldFocused || rootHeight == null) {
       return;
     }
-    // A new key starts from FULL (drawn this render); the last layout event is from before it: adopt the key and wait for
-    // FULL's own layout.
+    // A new key starts from FULL, in a new generation.
     if (fitStore.key !== fitKey) {
       // The ladder is driven from layout: adopting the new key here is its first step, before paint.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setFitStore({ key: fitKey, state: FULL, settled: false, seq: usedLayout.seq, rechecked: false, restarts: [] });
+      setFitStore({ key: fitKey, state: FULL, settled: false, gen: fitStore.gen + 1, rechecked: false, restarts: [] });
       return;
     }
-    // Step only on a layout event that came after the last step.
-    if (usedLayout.height == null || usedLayout.seq <= fitStore.seq) {
+    // Only readings laid out for this generation count.
+    const stamp = fitStampWidth(fitStore.gen);
+    if (stamps.page?.stamp !== stamp || stamps.header?.stamp !== stamp) {
       return;
     }
-    const used = usedLayout.height + usedLayout.header;
+    // The header bar = the stamp's y + its 1 bottom border.
+    const used = stamps.page.y + stamps.header.y + 1;
     // §5.3 (web: ResizeObserver): after it settles, any other change of the content's height (the weight error line, a
     // message above the card) starts again from FULL.
     if (fitStore.settled) {
@@ -711,7 +718,7 @@ export default function SessionRuntime({
       const restarts = (fitStore.restarts ?? []).filter((at) => now - at < 1000);
       if (Math.round(used) !== fitStore.used && restarts.length < FIT_RESTARTS_PER_SECOND) {
         // Each run gets its own re-check (web parity, review L5).
-        setFitStore({ key: fitKey, state: FULL, settled: false, seq: usedLayout.seq, rechecked: false, restarts: [...restarts, now] });
+        setFitStore({ key: fitKey, state: FULL, settled: false, gen: fitStore.gen + 1, rechecked: false, restarts: [...restarts, now] });
       }
       return;
     }
@@ -726,20 +733,9 @@ export default function SessionRuntime({
       upNext: fitUpNextRow,
     });
     const probe = { over, used: Math.round(used), root: Math.round(rootHeight), rechecked: fitStore.rechecked, restarts: fitStore.restarts };
-    setFitStore(next ? { key: fitKey, state: next, settled: false, seq: usedLayout.seq, ...probe } : { key: fitKey, state: fitStore.state, settled: true, seq: usedLayout.seq, ...probe });
-  }, [fitActive, exercise, fieldFocused, rootHeight, fitStore, fitKey, usedLayout, insets.bottom, fitHasPhoto, browsing, stageMeasure.photoNatural, stageMeasure.nameLines, fitColumnWidth, fitUpNextRow]);
-  // A layout event can be in flight from before a step (seen on device: a fit settled on the previous layout and ended
-  // ~70 too small). So: a step that brings no layout event is measured again after FIT_IDLE_MS, and a fit that ends
-  // below FULL re-checks once from FULL (web's guard, §5.3).
-  const fitStepping = Boolean(fit) && !fieldFocused && fitStore.key === fitKey && !fitStore.settled;
-  useEffect(() => {
-    if (!fitStepping) {
-      return undefined;
-    }
-    const seq = fitStore.seq;
-    const timer = setTimeout(() => setUsedLayout((prev) => (prev.seq === seq ? { ...prev, seq: prev.seq + 1 } : prev)), FIT_IDLE_MS);
-    return () => clearTimeout(timer);
-  }, [fitStepping, fitStore.seq, fitStore.state]);
+    setFitStore(next ? { key: fitKey, state: next, settled: false, gen: fitStore.gen + 1, ...probe } : { key: fitKey, state: fitStore.state, settled: true, gen: fitStore.gen, ...probe });
+  }, [fitActive, exercise, fieldFocused, rootHeight, fitStore, fitKey, stamps, insets.bottom, fitHasPhoto, browsing, stageMeasure.photoNatural, stageMeasure.nameLines, fitColumnWidth, fitUpNextRow]);
+  // A fit that ends below FULL re-checks once from FULL (web's guard, §5.3).
   const fitBelowFull = fitStore.state.level !== FULL.level || fitStore.state.photo !== FULL.photo;
   const fitRecheckDue = Boolean(fit) && !fieldFocused && fitStore.key === fitKey && fitStore.settled && fitBelowFull && !fitStore.rechecked;
   useEffect(() => {
@@ -747,7 +743,7 @@ export default function SessionRuntime({
       return undefined;
     }
     const timer = setTimeout(() => {
-      setFitStore((prev) => (prev.key === fitKey && prev.settled ? { ...prev, state: FULL, settled: false, rechecked: true } : prev));
+      setFitStore((prev) => (prev.key === fitKey && prev.settled ? { ...prev, state: FULL, settled: false, gen: prev.gen + 1, rechecked: true } : prev));
     }, FIT_RECHECK_MS);
     return () => clearTimeout(timer);
   }, [fitRecheckDue, fitKey]);
@@ -773,16 +769,15 @@ export default function SessionRuntime({
   // last measured over, the used and the column heights, settled.
   const fitStoreNow = fitStore.key === fitKey ? fitStore : null;
   const fitMarker = fit
-    ? `fit-L${fit.level}-P${fitState.photo ?? 'n'}-O${fitStoreNow?.over ?? 'x'}-U${fitStoreNow?.used ?? 'x'}-R${fitStoreNow?.root ?? 'x'}${fitStoreNow?.settled ? '-settled' : ''}`
+    ? `fit-L${fit.level}-P${fitState.photo ?? 'n'}-O${fitStoreNow?.over ?? 'x'}-U${fitStoreNow?.used ?? 'x'}-R${fitStoreNow?.root ?? 'x'}-G${fitStore.gen}${fitStoreNow?.settled ? '-settled' : ''}`
     : null;
-  const onPageContentLayout = (event) => {
-    const { height: measured } = event.nativeEvent.layout;
-    setUsedLayout((prev) => ({ ...prev, height: measured, seq: prev.seq + 1 }));
+  const onStamp = (where) => (event) => {
+    const { y, width } = event.nativeEvent.layout;
+    const reading = { y, stamp: Math.round(width) };
+    setStamps((prev) => (prev[where]?.y === reading.y && prev[where]?.stamp === reading.stamp ? prev : { ...prev, [where]: reading }));
   };
-  const onHeaderLayout = (event) => {
-    const { height: measured } = event.nativeEvent.layout;
-    setUsedLayout((prev) => ({ ...prev, header: measured, seq: prev.seq + 1 }));
-  };
+  const fitStamp = (where) =>
+    fit ? <View testID={`fit-stamp-${where}`} collapsable={false} onLayout={onStamp(where)} style={[styles.fitStamp, { width: fitStampWidth(fitStore.gen) }]} /> : null;
   pageFitsRef.current = Boolean(fit) && fitStore.key === fitKey && fitStore.settled && !(fitStore.over > 0);
   // P5-SC: the scaled header has 6 above the pills (10 normally).
   const chromeTop = (header ? spacing[3] : insets.top + (fit?.scaled ? 6 : spacing['2_5'])) + (tablet ? spacing[3] : 0);
@@ -1075,8 +1070,9 @@ export default function SessionRuntime({
   // chrome and its gold rail) sits ABOVE the page scroll, so the photo starts
   // under it and never runs under the clock or the pills.
   const phoneHeader = tablet ? null : (
-    <View ref={headerRef} collapsable={false} testID="session-header-bar" onLayout={onHeaderLayout} style={styles.headerBar}>
+    <View testID="session-header-bar" style={styles.headerBar}>
       {chrome}
+      {fitStamp('header')}
     </View>
   );
   const phoneHeaderSticky = Boolean(phoneHeader) && (!stacked || PHONE_HEADER_STICKY_AT_LARGE_TEXT);
@@ -1127,7 +1123,7 @@ export default function SessionRuntime({
         scrollEventThrottle={16}
         contentContainerStyle={{ paddingBottom: bottomRoom + discRoom + androidKeyboard }}
       >
-        <View ref={contentRef} collapsable={false} testID={fitMarker ? `session-page ${fitMarker}` : 'session-page'} onLayout={fit ? onPageContentLayout : undefined} style={fitHidden ? styles.fitHidden : null}>
+        <View ref={contentRef} collapsable={false} testID={fitMarker ? `session-page ${fitMarker}` : 'session-page'} style={fitHidden ? styles.fitHidden : null}>
           {phoneHeader && !phoneHeaderSticky ? phoneHeader : null}
           {/* T-132 (web WP:869-882, 1075): phone browsing puts the bar above the photo. */}
           {browsing && !tablet ? <View style={styles.phoneBrowsingBar}>{browsingBar}</View> : null}
@@ -1156,6 +1152,7 @@ export default function SessionRuntime({
             ) : null}
             {endActions}
           </View>
+          {fitStamp('page')}
         </View>
       </ScrollView>
     );
@@ -1277,6 +1274,10 @@ const styles = StyleSheet.create({
   },
   fitHidden: {
     opacity: 0,
+  },
+  fitStamp: {
+    height: 0,
+    alignSelf: 'flex-start',
   },
   chromeOverlay: {
     position: 'absolute',

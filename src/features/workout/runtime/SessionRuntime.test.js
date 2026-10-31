@@ -644,11 +644,24 @@ describe('v2 F1 live and browsing states (ND3)', () => {
   // safe area, only as far as needed; any change of the room starts again from FULL; no thumb, no scroll at normal text.
   describe('T-162 phone fit', () => {
     const page = (tree) => tree.root.findAll((node) => node.type === ScrollView && node.props.onScroll)[0];
-    const content = (tree) => page(tree).findAll((node) => typeof node.type === 'string' && node.props.onLayout && node.props.collapsable === false)[0];
+    const content = (tree) => page(tree).findAll((node) => typeof node.type === 'string' && /^session-page/.test(node.props.testID ?? ''))[0];
     const layoutOf = (node, height) => act(() => node.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height } } }));
     const room = (tree, height) => layoutOf(host(tree, 'session-column'), height);
-    const header = (tree, height) => layoutOf(host(tree, 'session-header-bar'), height);
-    const used = (tree, height) => layoutOf(content(tree), height);
+    // T-162: the readings come from the generation stamps (y above the stamp, the width = the generation it was drawn for);
+    // a device lays both out again on every step, so `used` fires both with the current width (`stamp` overrides it).
+    let headerHeight = 65;
+    const fireStamp = (tree, where, y, stamp) => {
+      const node = host(tree, `fit-stamp-${where}`);
+      const width = stamp ?? StyleSheet.flatten(node.props.style).width;
+      act(() => node.props.onLayout({ nativeEvent: { layout: { x: 0, y, width, height: 0 } } }));
+    };
+    const header = (tree, height) => {
+      headerHeight = height;
+    };
+    const used = (tree, height, stamp) => {
+      fireStamp(tree, 'header', headerHeight - 1, stamp);
+      fireStamp(tree, 'page', height, stamp);
+    };
     const photo = (tree) => StyleSheet.flatten(host(tree, 'exercise-stage').props.style).height;
     const discardHeight = (tree) => StyleSheet.flatten(host(tree, 'discard-workout').props.style).minHeight;
     // The fit's level, read from the page's e2e marker ("session-page fit-L{level}-…").
@@ -775,21 +788,25 @@ describe('v2 F1 live and browsing states (ND3)', () => {
       }
     });
 
-    // Device run 31 Oct (375 browse stuck 132 over): a step that changes nothing brings no layout event; it is measured
-    // again after 80 ms.
-    it('a step with no layout change is measured again after 80 ms, so the ladder never stalls', () => {
-      jest.useFakeTimers();
-      try {
-        const tree = setup(1000);
-        used(tree, 1100);
-        expect(fitLevel(tree)).toBe(0);
-        act(() => jest.advanceTimersByTime(80));
-        expect(fitLevel(tree)).toBe(1);
-        act(() => jest.advanceTimersByTime(80));
-        expect(fitLevel(tree)).toBe(2);
-      } finally {
-        jest.useRealTimers();
-      }
+    // Device runs 31 Oct: layout events came late / out of order (a settle on a stale height; a step that changed nothing
+    // brought no event). DECLARED (replaces the 80 ms re-measure test): every step draws a new stamp width, so it always
+    // gets its own layout event, and a reading stamped for an older generation is ignored.
+    it('every step changes the stamp (an event is guaranteed); a reading stamped for an older generation is ignored', () => {
+      const tree = setup(1000);
+      const stampWidth = () => StyleSheet.flatten(host(tree, 'fit-stamp-page').props.style).width;
+      used(tree, 1100);
+      expect(fitLevel(tree)).toBe(0);
+      const old = stampWidth();
+      used(tree, 1100);
+      expect(fitLevel(tree)).toBe(1);
+      expect(stampWidth()).not.toBe(old);
+      // A late event from the older generation (still tall): no step.
+      used(tree, 1100, old);
+      expect(fitLevel(tree)).toBe(1);
+      // The current generation fits: it settles there.
+      used(tree, 900);
+      expect(fitLevel(tree)).toBe(1);
+      expect(content(tree).props.testID).toMatch(/-settled$/);
     });
 
     // Review L5 (web parity): an M1 restart gets its own re-check from FULL.
