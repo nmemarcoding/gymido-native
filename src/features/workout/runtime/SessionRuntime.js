@@ -36,6 +36,7 @@ import {
 import { DISC_SIZE, DiscardDialog, ExactAlarmDialog, FinishEarlyDialog, RestTimerWidget, SpeakIntroDialog } from './RuntimeOverlays';
 import { finishEarlyMessage, pickMessageIndex, readLastMessageIndex, saveLastMessageIndex } from './finishEarly';
 import { restHero, restNextPreview } from './restPresentation';
+import { FIT, phoneFit } from './phoneFit';
 import SetArcCard from './SetArcCard';
 import restAlertPlatform from './restAlertPlatform';
 import {
@@ -93,6 +94,9 @@ export const PHONE_HEADER_STICKY_AT_LARGE_TEXT = true;
 export const PHONE_HEADER_BOTTOM_GAP = 0;
 // Q6: the live page's bottom: mb-10 (40) + the layout's 24, + the safe area.
 export const PHONE_PAGE_BOTTOM = 40 + spacing[6];
+// T-154: first-frame estimates for phoneFit (the header bar without the safe area; a 1-line text block).
+const FIT_HEADER_ESTIMATE = 70;
+const FIT_TEXT_ESTIMATE = 74;
 // Q7: the minimised rest disc sits 24 above the bottom (+ the safe area);
 // nothing keeps it off Did it (web RT:94-100).
 export const PHONE_DISC_BOTTOM = spacing[6];
@@ -146,7 +150,7 @@ export default function SessionRuntime({
   loadHowTo,
 }) {
   const insets = useSafeAreaInsets();
-  const { width, fontScale } = useWindowDimensions();
+  const { width, height, fontScale } = useWindowDimensions();
   const isFocused = useIsFocused();
   const stacked = useLargeTextReflow();
   const profile = useProfileStore((state) => state.profile);
@@ -208,6 +212,9 @@ export default function SessionRuntime({
   // bottom block's (How to + caption) top inside it, so the band can follow
   // the content rather than the whole stage.
   const [stageY, setStageY] = useState(null);
+  // T-154 (rev 42): the measured phone header bar and the stage's text block, for phoneFit.
+  const [headerBarHeight, setHeaderBarHeight] = useState(null);
+  const [stageTextHeight, setStageTextHeight] = useState(FIT_TEXT_ESTIMATE);
   const [contentY, setContentY] = useState(null);
   const [pastPhoto, setPastPhoto] = useState(false);
   const bandOpacity = useRef(new Animated.Value(0)).current;
@@ -613,6 +620,16 @@ export default function SessionRuntime({
   // Batch 2 item 3: the per-exercise segments only live, with 2+ exercises
   // (the gold session rail is in SessionChrome, always).
   const showSegments = !browsing && exercises.length > 1;
+  // T-154 (rev 42, owner: one screen, no scroll): at normal text the phone page fits the free height; phoneFit gives
+  // the sizes in the ruling's shrink order. With an increased OS text size (the a11y exception) the page scrolls.
+  const fitActive = !tablet && !stacked;
+  const fitUpNext = !browsing && isActiveView && (laterIncomplete !== -1 || isLastIncomplete);
+  const fitPreviousRow = browsing || (exercise?.sets ?? []).some((item) => item.is_completed) || Boolean(editorSet && previousSetFor(exercise, editorSet));
+  const fitAvailable = height - (headerBarHeight ?? insets.top + FIT_HEADER_ESTIMATE) - insets.bottom - (browsing ? navHeight + spacing[2] : 0);
+  const fit =
+    fitActive && exercise
+      ? phoneFit({ available: fitAvailable, text: stageTextHeight, hasPhoto: Boolean(exercise.exercise?.thumbnail?.url), previousRow: fitPreviousRow, upNext: fitUpNext, browse: browsing })
+      : null;
   const chromeTop = (header ? spacing[3] : insets.top + spacing['2_5']) + (tablet ? spacing[3] : 0);
   // §17 / web parity: a button press takes focus off the weight input.
   const dismiss = (handler) => (...args) => {
@@ -723,6 +740,7 @@ export default function SessionRuntime({
       lockReason={LOCK_REST}
       onPress={dismiss(() => toggleSet(exercise, editorSet))}
       arc={!tablet}
+      compact={Boolean(fit) && fit.arc < FIT.arc}
     />
   ) : null;
   // T-146 phone: the done set being edited (FE Q1), only while it is still done.
@@ -735,6 +753,7 @@ export default function SessionRuntime({
       isLocked={false}
       onPress={dismiss(() => saveEditedSet(exercise, editingSet))}
       arc
+      compact={Boolean(fit) && fit.arc < FIT.arc}
     />
   ) : null;
   // The set the phone card's steppers edit.
@@ -775,6 +794,7 @@ export default function SessionRuntime({
       action={editingSet ? saveSet : didIt}
       browsing={browsing}
       browseLine={browseLine}
+      fit={fit}
     />
   ) : exercise ? (
     <SetEditor
@@ -804,7 +824,7 @@ export default function SessionRuntime({
   ) : null;
 
   const lastNote = isActiveView && isLastIncomplete ? <LastExerciseNote /> : null;
-  const discard = <DiscardWorkoutAction abandoning={isAbandoning} onPress={dismiss(() => setShowDiscard(true))} />;
+  const discard = <DiscardWorkoutAction abandoning={isAbandoning} link={!tablet} onPress={dismiss(() => setShowDiscard(true))} />;
   // T-132 (web WP:1076-1115, phone): card → Up next / "Last exercise" →
   // Discard, 12 apart, with 12 more above Discard.
   const endActions = tablet ? (
@@ -842,6 +862,12 @@ export default function SessionRuntime({
         setStageBottom(y + height);
       }}
       onContentLayout={(event) => setContentY(event.nativeEvent.layout.y)}
+      fit={fit}
+      onTextHeight={setStageTextHeight}
+      onThumbPress={howToButton ? dismiss(() => {
+        howTo.fetchEntry(exercise.exercise.id);
+        setShowHowTo(true);
+      }) : undefined}
     />
   ) : null;
 
@@ -891,7 +917,7 @@ export default function SessionRuntime({
   // chrome and its gold rail) sits ABOVE the page scroll, so the photo starts
   // under it and never runs under the clock or the pills.
   const phoneHeader = tablet ? null : (
-    <View testID="session-header-bar" style={styles.headerBar}>
+    <View testID="session-header-bar" onLayout={(event) => setHeaderBarHeight(event.nativeEvent.layout.height)} style={styles.headerBar}>
       {chrome}
     </View>
   );
@@ -935,19 +961,26 @@ export default function SessionRuntime({
     );
   } else {
     body = (
-      <ScrollView {...scrollProps} onScroll={onPageScroll} scrollEventThrottle={16} contentContainerStyle={{ paddingBottom: bottomRoom + discRoom + androidKeyboard }}>
+      <ScrollView
+        {...scrollProps}
+        // T-154: no scroll on a fitted phone page (only the a11y exception, or a fit that failed, scrolls).
+        scrollEnabled={!fit || !fit.fits || androidKeyboard > 0}
+        onScroll={onPageScroll}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ paddingBottom: bottomRoom + discRoom + androidKeyboard }}
+      >
         <View ref={contentRef} collapsable={false}>
           {phoneHeader && !phoneHeaderSticky ? phoneHeader : null}
           {/* T-132 (web WP:869-882, 1075): phone browsing puts the bar above the photo. */}
           {browsing && !tablet ? <View style={styles.phoneBrowsingBar}>{browsingBar}</View> : null}
           {stage}
-          <View style={[styles.main, tablet && styles.mainTablet, tablet && browsing && styles.mainBrowsing, !tablet && styles.mainPhone]}>
+          <View style={[styles.main, tablet && styles.mainTablet, tablet && browsing && styles.mainBrowsing, !tablet && styles.mainPhone, fit && { paddingTop: fit.gap }]}>
             {browsing && tablet ? browsingBar : null}
             {browsing && tablet ? stats : null}
             {messages}
             {setCard}
             {/* T-146 rev 40: phone browsing: Volume + Reps as one muted line under the card (Time is the header clock). */}
-            {browsing && !tablet ? (
+            {browsing && !tablet && (!fit || fit.statsLine) ? (
               <Text {...CAP_BODY} testID="session-stats-line" style={styles.statsLine}>
                 {`${volume} ${volumeUnit} volume · ${formatNumber(progress.actualReps, 0)} reps`}
               </Text>
@@ -1100,20 +1133,21 @@ const styles = StyleSheet.create({
   },
   // T-132 (web 2.1.15 phone): the page column (mt 16, 12 apart), Discard's
   // extra 12, and the browsing bar / stats placed around the photo.
+  // T-154 rev 42: card → 8 → Up next → 4 → Discard.
   mainPhone: {
-    gap: spacing[3],
+    gap: spacing[2],
   },
   discardPhone: {
-    paddingTop: spacing[3],
+    marginTop: -spacing[1],
   },
   phoneBrowsingBar: {
     marginHorizontal: spacing[4],
-    marginTop: spacing[3],
+    marginTop: spacing[2],
   },
   statsLine: {
     ...font(500),
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 15,
+    lineHeight: 20,
     textAlign: 'center',
     color: colors.textMuted,
   },

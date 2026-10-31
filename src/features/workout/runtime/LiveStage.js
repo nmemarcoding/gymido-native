@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ExerciseImage from '../../../shared/components/ExerciseImage';
@@ -31,7 +31,10 @@ export function livePhotoMax({ windowHeight, insetsTop, insetsBottom, textHeight
   return Math.max(LIVE_PHOTO_FLOOR, Math.min(LIVE_PHOTO_MAX, Math.floor(room)));
 }
 
-export default function LiveStage({ exercise, howTo = null, notes = null, onLayout, onContentLayout }) {
+// T-154 (rev 42): `fit` (phoneFit) sets the photo's max height, the gap under it and the thumb mode (step 6: the photo
+// goes; a 56 thumb, which opens How to, sits left of the text). `onTextHeight` reports the measured text block (the row,
+// the name and the exercise notes) so the fit can budget it.
+export default function LiveStage({ exercise, howTo = null, notes = null, onLayout, onContentLayout, fit = null, onTextHeight, onThumbPress }) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const image = useMemo(() => exerciseImageProps(exercise.exercise), [exercise.exercise]);
@@ -40,18 +43,55 @@ export default function LiveStage({ exercise, howTo = null, notes = null, onLayo
   const name = exerciseName(exercise);
   const line = stageRestLine(exercise);
   const ratio = aspect.url === image.url ? aspect.value : ASPECT_ESTIMATE;
-  const max = livePhotoMax({ windowHeight: height, insetsTop: insets.top, insetsBottom: insets.bottom, textHeight });
+  const max = fit ? fit.photo : livePhotoMax({ windowHeight: height, insetsTop: insets.top, insetsBottom: insets.bottom, textHeight });
   const photoHeight = Math.min(max, Math.round(width / ratio));
+  const thumb = Boolean(fit?.thumb) && Boolean(image.url);
+  const gap = fit ? fit.gap : spacing[3];
   const onLoad = (source) => {
     if (source?.width > 0 && source?.height > 0) {
       setAspect({ url: image.url, value: source.width / source.height });
     }
   };
+  const text = (
+    <View
+      testID="exercise-stage-content"
+      onLayout={(event) => {
+        const measured = event.nativeEvent.layout.height;
+        setTextHeight(measured);
+        onTextHeight?.(measured);
+        onContentLayout?.(event);
+      }}
+      style={[styles.text, thumb && styles.textBesideThumb]}
+    >
+      <View style={styles.row}>
+        <Text {...CAP_BODY} testID="stage-rest-line" style={styles.restLine}>
+          {line}
+        </Text>
+        {howTo}
+      </View>
+      <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.name}>
+        {name}
+      </Text>
+      {notes}
+    </View>
+  );
+  if (thumb) {
+    return (
+      <View testID="exercise-stage-frame" style={[styles.frame, styles.thumbRow]}>
+        <View testID="exercise-stage" onLayout={onLayout} style={styles.thumbSlot}>
+          <Pressable testID="exercise-stage-thumb" accessibilityRole="button" accessibilityLabel="How to" onPress={onThumbPress} style={styles.thumb}>
+            <RemoteImage {...image} resizeMode="cover" style={StyleSheet.absoluteFill} />
+          </Pressable>
+        </View>
+        {text}
+      </View>
+    );
+  }
   return (
     <View testID="exercise-stage-frame" style={styles.frame}>
       {image.url ? (
         <>
-          <PhotoBlend testID="stage-photo-blend" image={image} top={spacing['1_5']} height={photoHeight} width={width} upward={false} />
+          <PhotoBlend testID="stage-photo-blend" image={image} top={spacing[2]} height={photoHeight} width={width} upward={false} />
           <View testID="exercise-stage" onLayout={onLayout} style={[styles.photo, { height: photoHeight }]}>
             {/* Decorative: the name is printed right under it. */}
             <RemoteImage {...image} resizeMode="contain" style={StyleSheet.absoluteFill} onLoad={onLoad} />
@@ -70,25 +110,7 @@ export default function LiveStage({ exercise, howTo = null, notes = null, onLayo
           />
         </View>
       )}
-      <View
-        testID="exercise-stage-content"
-        onLayout={(event) => {
-          setTextHeight(event.nativeEvent.layout.height);
-          onContentLayout?.(event);
-        }}
-        style={styles.text}
-      >
-        <View style={styles.row}>
-          <Text {...CAP_BODY} testID="stage-rest-line" style={styles.restLine}>
-            {line}
-          </Text>
-          {howTo}
-        </View>
-        <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.name}>
-          {name}
-        </Text>
-      </View>
-      {notes}
+      <View style={{ marginTop: gap }}>{text}</View>
     </View>
   );
 }
@@ -97,7 +119,27 @@ export const NO_PHOTO_TILE = 80;
 
 const styles = StyleSheet.create({
   frame: {
-    paddingTop: spacing['1_5'],
+    paddingTop: spacing[2],
+  },
+  thumbRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingLeft: spacing[4],
+    gap: spacing[3],
+  },
+  thumbSlot: {
+    flexShrink: 0,
+  },
+  thumb: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+  },
+  textBesideThumb: {
+    flex: 1,
+    paddingLeft: 0,
   },
   photo: {
     alignSelf: 'stretch',
@@ -110,12 +152,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   text: {
-    marginTop: spacing[3],
     paddingHorizontal: layout.gutter,
     gap: spacing[1],
   },
+  // Rev 42: the Rest/How to row is 32 (15 px).
   row: {
-    minHeight: 36,
+    minHeight: 32,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -124,8 +166,8 @@ const styles = StyleSheet.create({
   restLine: {
     ...font(500),
     flexShrink: 1,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 15,
+    lineHeight: 20,
     color: colors.textMuted,
   },
   name: {

@@ -429,6 +429,10 @@ export function ExerciseStage({
   segments = null,
   onLayout,
   onContentLayout,
+  // T-154 (rev 42): the phone fit, the measured text block, and the thumb's How to.
+  fit = null,
+  onTextHeight,
+  onThumbPress,
 }) {
   const notes = exerciseNotes(exercise);
   const name = exerciseName(exercise);
@@ -450,6 +454,9 @@ export function ExerciseStage({
         howTo={howTo}
         onLayout={onLayout}
         onContentLayout={onContentLayout}
+        fit={fit}
+        onTextHeight={onTextHeight}
+        onThumbPress={onThumbPress}
         notes={
           notes ? (
             <View testID="exercise-notes" style={styles.notesCard}>
@@ -523,7 +530,7 @@ function CaptionScrim({ height }) {
 export function HowToButton({ onPress, tablet, onPage = false }) {
   if (onPage) {
     return (
-      <Pressable testID="how-to-open" accessibilityRole="button" accessibilityLabel="How to" onPress={onPress} hitSlop={hitFor(36)} style={styles.noShrink}>
+      <Pressable testID="how-to-open" accessibilityRole="button" accessibilityLabel="How to" onPress={onPress} hitSlop={hitFor(32)} style={styles.noShrink}>
         {({ pressed }) => (
           <View style={[styles.howToPage, pressed && styles.howToPagePressed]}>
             <PlayIcon size={14} color={colors.textPrimary} />
@@ -921,7 +928,8 @@ function SetChip({ set, isNow, tablet, pending, onPress }) {
 // gold that the content behind could show through.
 // T-146 `arc`: the phone's 184×52 action inside the half-circle; `title`
 // replaces "Did it" ("Save set k" while a done set is edited).
-export function DidItButton({ set, isPending, isLocked, lockReason, onPress, arc = false, title = 'Did it' }) {
+// `compact` (T-154 rev 42 step 5): 168×48 on the compact arc.
+export function DidItButton({ set, isPending, isLocked, lockReason, onPress, arc = false, compact = false, title = 'Did it' }) {
   const disabled = isPending || isLocked;
   const label = isPending ? 'Saving…' : title;
   const ink = disabled ? colors.textFaint : colors.onGold;
@@ -938,7 +946,7 @@ export function DidItButton({ set, isPending, isLocked, lockReason, onPress, arc
       onPressIn={swipe.onPressIn}
       onPressMove={swipe.onPressMove}
       onPress={swipe.guard(onPress)}
-      style={[styles.didIt, arc && styles.didItArc, disabled && styles.didItDisabled]}
+      style={[styles.didIt, arc && styles.didItArc, compact && styles.didItCompact, disabled && styles.didItDisabled]}
     >
       {({ pressed }) => (
         <>
@@ -964,7 +972,7 @@ export function UpNextLink({ exercise, onPress }) {
         url={exercise.exercise?.thumbnail?.url ?? null}
         name={name}
         muscleCode={exercise.exercise?.primary_muscle_group?.code}
-        size={48}
+        size={36}
         style={styles.upNextThumb}
       />
       <Text {...CAP_BODY} numberOfLines={1} style={styles.upNextText}>
@@ -986,7 +994,8 @@ export function LastExerciseNote() {
 
 // ND4: "Discard workout" = ghost with the danger text; pressed = danger
 // faint (§8.6a 5, a transparent danger text button). In flight: "Exiting…".
-export function DiscardWorkoutAction({ abandoning, onPress }) {
+// T-154 rev 42 `link` (phone): a small text link, row 32 with a 44 hit; same action + confirm.
+export function DiscardWorkoutAction({ abandoning, onPress, link = false }) {
   return (
     <Pressable
       testID="discard-workout"
@@ -994,7 +1003,8 @@ export function DiscardWorkoutAction({ abandoning, onPress }) {
       accessibilityState={{ disabled: abandoning, busy: abandoning }}
       disabled={abandoning}
       onPress={onPress}
-      style={({ pressed }) => [styles.discard, pressed && !abandoning && styles.discardPressed, abandoning && styles.dim]}
+      hitSlop={link ? 6 : undefined}
+      style={({ pressed }) => [styles.discard, link && styles.discardLink, pressed && !abandoning && styles.discardPressed, abandoning && styles.dim]}
     >
       <Text {...CAP_BODY} textBreakStrategy="simple" style={styles.discardText}>
         {abandoning ? 'Exiting…' : 'Discard workout'}
@@ -1268,8 +1278,9 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: colors.textStrong2,
   },
+  // T-154 rev 42: 32 tall, 15/600 (44 hit via slop).
   howToPage: {
-    minHeight: 36,
+    minHeight: 32,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[2],
@@ -1284,7 +1295,7 @@ const styles = StyleSheet.create({
   },
   howToPageLabel: {
     ...font(600),
-    fontSize: 16,
+    fontSize: 15,
     lineHeight: 20,
     color: colors.textPrimary,
   },
@@ -1493,9 +1504,10 @@ const styles = StyleSheet.create({
     borderColor: colors.goldLine,
     backgroundColor: colors.goldFaint,
   },
+  // T-154 rev 42 D: 15/600, wrapping beside Resume (the banner stays 56).
   browsingTextPhone: {
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 15,
+    lineHeight: 18,
   },
   browsingBarStacked: {
     flexDirection: 'column',
@@ -1871,6 +1883,10 @@ const styles = StyleSheet.create({
     // The arc's softer drawn shadow (board 4), from the gold-strong tone (one glow token, T-86).
     boxShadow: `0px 10px 26px -10px ${colors.goldStrong}`,
   },
+  didItCompact: {
+    width: 168,
+    minHeight: 48,
+  },
   didItTextArc: {
     ...font(600),
     fontSize: 16,
@@ -1894,27 +1910,28 @@ const styles = StyleSheet.create({
   },
   // T-132 (web UN:39-49): a centred inline button in the page, min-h 44,
   // 12 sides, gap 8. Was 22 tall, 10 below Did it in the dock.
+  // T-154 rev 42: the slim row (h48, r16, thumb 36, one 15 line).
   upNext: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'stretch',
-    gap: spacing[3],
-    minHeight: 64,
-    paddingLeft: spacing[2],
-    paddingRight: spacing[4],
-    borderRadius: 20,
+    gap: spacing[2],
+    minHeight: 48,
+    paddingLeft: 6,
+    paddingRight: spacing[3],
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.hairline,
     backgroundColor: colors.upNextCard,
   },
   upNextThumb: {
-    borderRadius: 12,
+    borderRadius: 10,
   },
   upNextText: {
-    ...font(600),
+    ...font(700),
     flexShrink: 1,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 15,
+    lineHeight: 20,
     color: colors.textPrimary,
   },
   upNextLabel: {
@@ -1944,6 +1961,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: radii.full,
     paddingHorizontal: spacing[6],
+  },
+  discardLink: {
+    minHeight: 32,
+    alignSelf: 'center',
+    paddingHorizontal: spacing[3],
   },
   discardPressed: {
     backgroundColor: colors.dangerFaint,

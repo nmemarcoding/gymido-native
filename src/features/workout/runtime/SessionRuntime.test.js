@@ -597,6 +597,28 @@ describe('v2 F1 live and browsing states (ND3)', () => {
     expect(scrollTo).toHaveBeenCalledWith({ y: 0, animated: false });
   });
 
+  // T-154 (rev 42, owner: one screen, no scroll): a fitted phone page doesn't scroll at normal text; with an increased
+  // OS text size (the a11y exception) it scrolls as one page.
+  it('T-154: no scroll at normal text (the page fits); it scrolls with large text', () => {
+    const pageScroll = (tree) => tree.root.findAll((node) => node.type === ScrollView && node.props.onScroll)[0];
+    let { tree } = render();
+    expect(pageScroll(tree).props.scrollEnabled).toBe(false);
+    act(() => mounted.unmount());
+    mockFontScale = 2;
+    ({ tree } = render());
+    expect(pageScroll(tree).props.scrollEnabled).toBe(true);
+    mockFontScale = 1;
+  });
+
+  it('T-154: Discard workout is a small link (row 32, a 44 hit), the same confirm', () => {
+    const { tree } = render();
+    const discard = byId(tree, 'discard-workout');
+    expect(discard.props.hitSlop).toBe(6);
+    expect(StyleSheet.flatten(host(tree, 'discard-workout').props.style)).toMatchObject({ minHeight: 32 });
+    act(() => discard.props.onPress());
+    expect(byId(tree, 'discard-dialog')).toBeDefined();
+  });
+
   it('Up next views the next incomplete exercise', () => {
     const { tree } = render();
     act(() => byId(tree, 'up-next').props.onPress());

@@ -283,8 +283,10 @@ describe('ExerciseStage', () => {
     expect(name.props.accessibilityRole).toBe('header');
     expect(name.props.maxFontSizeMultiplier).toBe(1.3);
     // The on-page How to: a 36 secondary pill with a 44 hit.
-    expect(host(tree, 'how-to-open').findAll((node) => typeof node.type === 'string' && flat(node).minHeight === 36)).toHaveLength(1);
-    expect(byId(tree, 'how-to-open').props.hitSlop).toBe(4);
+    // DECLARED U2 (T-154 rev 42, PM-approved): the on-page How to is 32 tall (was 36).
+    expect(host(tree, 'how-to-open').findAll((node) => typeof node.type === 'string' && flat(node).minHeight === 32)).toHaveLength(1);
+    // 32 tall + 6 each side = a 44 hit.
+    expect(byId(tree, 'how-to-open').props.hitSlop).toBe(6);
   });
 
   // DECLARED B1 (T-146 rev 40, PM-approved): the phone browse stage is the rev 39 stage; "Exercise i of n" is the bottom
@@ -551,13 +553,14 @@ describe('DidItButton', () => {
 
 describe('the rest of the parts', () => {
   // DECLARED E9 (T-146 board 4, PM-approved; FE Q3: still a button): the h64 card, 48 thumb, "Up next · {name}".
-  it('Up next: the 64 card "Up next · {name}" with its 48 thumb, still a button', () => {
+  // DECLARED U1 (T-154 rev 42, PM-approved; was the 64 card with a 48 thumb): the slim 48 row, thumb 36, still a button.
+  it('Up next: the slim 48 row "Up next · {name}" with its 36 thumb, still a button', () => {
     const onPress = jest.fn();
     const tree = render(<UpNextLink exercise={EXERCISE} onPress={onPress} />);
     const link = byId(tree, 'up-next');
     expect(link.props).toMatchObject({ accessibilityLabel: 'Up next: Barbell Bench Press', accessibilityRole: 'button' });
-    expect(StyleSheet.flatten(host(tree, 'up-next').props.style).minHeight).toBe(64);
-    expect(byId(tree, 'up-next-thumb').props.size).toBe(48);
+    expect(StyleSheet.flatten(host(tree, 'up-next').props.style)).toMatchObject({ minHeight: 48, borderRadius: 16 });
+    expect(byId(tree, 'up-next-thumb').props.size).toBe(36);
     expect(texts(tree)).toContain('Up next · ');
     const line = tree.root.findAll((node) => node.type === 'Text' && [].concat(node.props.children).includes('Barbell Bench Press'))[0];
     expect(line.props.numberOfLines).toBe(1);

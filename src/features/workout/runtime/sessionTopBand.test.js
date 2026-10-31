@@ -2,7 +2,6 @@ import { Animated, Keyboard, ScrollView, StyleSheet } from 'react-native';
 import { act, create } from 'react-test-renderer';
 
 import SessionRuntime from './SessionRuntime';
-import { livePhotoMax } from './LiveStage';
 import { endSessionState } from './workoutSessionStore';
 import { colors, motion, spacing } from '../../../shared/theme/tokens';
 
@@ -229,10 +228,10 @@ describe('T-132 phones: a solid header bar above the scroll, no band', () => {
     expect(flat(chrome).paddingTop).toBe(mockInsets.top + spacing['2_5']);
     expect(pageScroll(tree).findAll((node) => node.props.testID === 'session-chrome')).toHaveLength(0);
     expect(flat(host(tree, 'exercise-stage')).paddingTop ?? 0).toBe(0);
-    // DECLARED S4 (T-146 rev 39, PM-approved; was 300): the contain photo at its aspect (16:9 until loaded), at most
-    // livePhotoMax (240, shrinking to a 160 floor so Did it stays on screen).
-    const max = livePhotoMax({ windowHeight: window.height, insetsTop: mockInsets.top, insetsBottom: mockInsets.bottom, textHeight: 80 });
-    expect(flat(host(tree, 'exercise-stage')).height).toBe(Math.min(max, Math.round(window.width / (16 / 9))));
+    // DECLARED T1 (T-154 rev 42, PM-approved; was rev 39's ≤ 240): the fitted photo is at most 160 (floor 112), or
+    // the 56 thumb on short phones (phoneFit).
+    const stageHeight = flat(host(tree, 'exercise-stage')).height ?? 56;
+    expect(stageHeight).toBeLessThanOrEqual(160);
     expect(band(tree)).toBeUndefined();
     scrollTo(tree, 0);
     scrollTo(tree, 400);

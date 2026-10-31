@@ -23,7 +23,7 @@ const ARC_NOW_INNER = 9;
 const ARC_MAX_RADIUS = 140;
 // Rev 39 (compact card): the arc's centre sits radius + 14 below its top and
 // the box ends at the arc's baseline (154 at radius 140).
-const ARC_TOP_ROOM = 14;
+// (The box ends at the baseline: the centre sits radius + stroke below its top.)
 const HIT = 44;
 
 // The segments of an upper half-circle (180° → 360°, y down), one per set,
@@ -87,10 +87,11 @@ function EditIcon({ size = 16, color }) {
   );
 }
 
-function SetArc({ sets, nowId, selectedId, width, onSelect, label }) {
-  const radius = Math.min(ARC_MAX_RADIUS, Math.floor((width - ARC_STROKE) / 2));
+// T-154 rev 42 step 5: the compact arc (radius 120, stroke 12; box 132).
+function SetArc({ sets, nowId, selectedId, width, onSelect, label, maxRadius = ARC_MAX_RADIUS, stroke = ARC_STROKE }) {
+  const radius = Math.min(maxRadius, Math.floor((width - stroke) / 2));
   const cx = width / 2;
-  const cy = radius + ARC_TOP_ROOM;
+  const cy = radius + stroke;
   const segments = arcSegments(sets.length, radius, cx, cy);
   return (
     <View style={[styles.arcBox, { height: cy }]}>
@@ -108,7 +109,7 @@ function SetArc({ sets, nowId, selectedId, width, onSelect, label }) {
             // The now / selected set: an outline, NO glow (T-86: the one gold glow is for gold primaries).
             if (now) {
               return [
-                <Path key={`${set.id}-ring`} testID={`set-segment-now-${set.id}`} d={segment.d} fill="none" stroke={colors.gold} strokeWidth={ARC_STROKE} />,
+                <Path key={`${set.id}-ring`} testID={`set-segment-now-${set.id}`} d={segment.d} fill="none" stroke={colors.gold} strokeWidth={stroke} />,
                 <Path key={`${set.id}-inner`} d={segment.d} fill="none" stroke={colors.surface} strokeWidth={ARC_NOW_INNER} />,
               ];
             }
@@ -119,7 +120,7 @@ function SetArc({ sets, nowId, selectedId, width, onSelect, label }) {
                 d={segment.d}
                 fill="none"
                 stroke={set.is_completed ? colors.gold : colors.setSegmentTrack}
-                strokeWidth={ARC_STROKE}
+                strokeWidth={stroke}
               />
             );
           })}
@@ -147,9 +148,10 @@ function SetArc({ sets, nowId, selectedId, width, onSelect, label }) {
   );
 }
 
-function Stepper({ testID, label, glyph, onPress }) {
+// Rev 42: ± circles 36 (32 at step 4), always a 44 hit.
+function Stepper({ testID, label, glyph, onPress, size = 36 }) {
   return (
-    <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={label} onPress={onPress} hitSlop={2} style={({ pressed }) => [styles.stepper, pressed && styles.stepperPressed]}>
+    <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={label} onPress={onPress} hitSlop={(44 - size) / 2} style={({ pressed }) => [styles.stepper, { width: size, height: size, borderRadius: size / 2 }, pressed && styles.stepperPressed]}>
       <Text allowFontScaling={false} style={styles.stepperGlyph}>
         {glyph}
       </Text>
@@ -157,9 +159,9 @@ function Stepper({ testID, label, glyph, onPress }) {
   );
 }
 
-function Cell({ testID, label, value, steppers, error, stacked }) {
+function Cell({ testID, label, value, steppers, error, stacked, height }) {
   return (
-    <View testID={testID} style={[styles.cell, stacked ? styles.cellStacked : styles.cellHalf, error && styles.cellError]}>
+    <View testID={testID} style={[styles.cell, { minHeight: height }, stacked ? styles.cellStacked : styles.cellHalf, error && styles.cellError]}>
       {label}
       {value}
       <View style={styles.steppers}>{steppers}</View>
@@ -187,8 +189,15 @@ export default function SetArcCard({
   action = null,
   browsing = false,
   browseLine = '',
+  // T-154 (rev 42): phoneFit's steppers (108 / 96) and arc (154 / 132).
+  fit = null,
   cardRef,
 }) {
+  const steppersHeight = fit?.steppers ?? 108;
+  const tightSteppers = steppersHeight < 108;
+  const compactArc = (fit?.arc ?? 154) < 154;
+  const stepperSize = tightSteppers ? 32 : 36;
+  const valueSize = tightSteppers ? 34 : 38;
   const stacked = useLargeTextReflow();
   const { width } = useWindowDimensions();
   const [arcWidth, setArcWidth] = useState(width - 4 * layout.gutter);
@@ -212,13 +221,17 @@ export default function SetArcCard({
           selectedId={editing?.id}
           width={arcWidth}
           onSelect={onSelectDone}
+          maxRadius={compactArc ? 120 : ARC_MAX_RADIUS}
+          stroke={compactArc ? 12 : ARC_STROKE}
           // Rev 40: browsing reads "{name}: {done} of {N} sets done, locked".
           label={browsing ? `${exercise.exercise_name_snapshot ?? ''}: ${done.length} of ${sets.length} sets done, locked` : arcLabel(left)}
         />
         <View pointerEvents="box-none" style={styles.arcCentre}>
-          <Text {...CAP_BODY} testID="set-arc-count" style={[styles.count, (left === 0 || (left === 1 && !browsing)) && styles.countLast]}>
+          <Text {...CAP_BODY} testID="set-arc-count" style={[styles.count, compactArc && styles.countCompact, (left === 0 || (left === 1 && !browsing)) && styles.countLast]}>
             {arcCount({ left, total: sets.length, browsing })}
-            {arcUnit({ left, total: sets.length, browsing }) ? <Text style={styles.countUnit}>{arcUnit({ left, total: sets.length, browsing })}</Text> : null}
+            {arcUnit({ left, total: sets.length, browsing }) ? (
+              <Text style={compactArc ? null : styles.countUnit}>{arcUnit({ left, total: sets.length, browsing })}</Text>
+            ) : null}
           </Text>
           {/* Browsing (rev 40 + web parity): "Locked" stays even while a done set is open (Undo / Cancel only). */}
           {browsing ? (
@@ -283,6 +296,7 @@ export default function SetArcCard({
             <Cell
               testID="set-cell-weight"
               stacked={stacked}
+              height={steppersHeight}
               error={Boolean(validationError)}
               label={
                 <View style={styles.cellLabelRow}>
@@ -313,19 +327,20 @@ export default function SetArcCard({
                   placeholder={target.target_weight_value != null ? String(target.target_weight_value) : '0'}
                   placeholderTextColor={colors.textFaint}
                   onChangeText={onWeightChange}
-                  style={[styles.value, validationError && styles.valueError]}
+                  style={[styles.value, { fontSize: valueSize, lineHeight: valueSize }, validationError && styles.valueError]}
                 />
               }
               steppers={
                 <>
-                  <Stepper testID={`set-weight-minus-${target.id}`} label="Decrease weight" glyph="−" onPress={() => onStep('weight', -1)} />
-                  <Stepper testID={`set-weight-plus-${target.id}`} label="Increase weight" glyph="+" onPress={() => onStep('weight', 1)} />
+                  <Stepper testID={`set-weight-minus-${target.id}`} label="Decrease weight" glyph="−" size={stepperSize} onPress={() => onStep('weight', -1)} />
+                  <Stepper testID={`set-weight-plus-${target.id}`} label="Increase weight" glyph="+" size={stepperSize} onPress={() => onStep('weight', 1)} />
                 </>
               }
             />
             <Cell
               testID="set-cell-reps"
               stacked={stacked}
+              height={steppersHeight}
               label={
                 // Rev 37 F3: "Reps · 8–12" as drawn; the accessible name keeps "target 8–12".
                 <Text {...CAP_BODY} testID="set-reps-label" accessibilityLabel={repsFieldLabel(target)} style={styles.cellLabel}>
@@ -344,13 +359,13 @@ export default function SetArcCard({
                   placeholder="—"
                   placeholderTextColor={colors.textFaint}
                   onChangeText={onRepsChange}
-                  style={styles.value}
+                  style={[styles.value, { fontSize: valueSize, lineHeight: valueSize }]}
                 />
               }
               steppers={
                 <>
-                  <Stepper testID={`set-reps-minus-${target.id}`} label="Decrease reps" glyph="−" onPress={() => onStep('reps', -1)} />
-                  <Stepper testID={`set-reps-plus-${target.id}`} label="Increase reps" glyph="+" onPress={() => onStep('reps', 1)} />
+                  <Stepper testID={`set-reps-minus-${target.id}`} label="Decrease reps" glyph="−" size={stepperSize} onPress={() => onStep('reps', -1)} />
+                  <Stepper testID={`set-reps-plus-${target.id}`} label="Increase reps" glyph="+" size={stepperSize} onPress={() => onStep('reps', 1)} />
                 </>
               }
             />
@@ -406,6 +421,13 @@ const styles = StyleSheet.create({
   countLast: {
     color: colors.gold,
   },
+  // Rev 42 step 5: "{left} sets left" 20/800 on the compact arc.
+  countCompact: {
+    ...font(800),
+    fontSize: 20,
+    lineHeight: 24,
+    letterSpacing: 0,
+  },
   countUnit: {
     ...font(600),
     fontSize: 16,
@@ -424,15 +446,16 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: colors.textMuted,
   },
+  // Rev 42: the previous row is 28.
   previousRow: {
-    minHeight: 32,
+    minHeight: 28,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing[3],
   },
   pill: {
-    minHeight: 32,
+    minHeight: 28,
     flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -484,8 +507,7 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
   },
   cell: {
-    minHeight: 116,
-    padding: spacing[2],
+    padding: 6,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'transparent',
@@ -511,8 +533,8 @@ const styles = StyleSheet.create({
   },
   cellLabel: {
     ...font(500),
-    fontSize: 16,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 18,
     color: colors.textSecondary,
     textAlign: 'center',
   },
