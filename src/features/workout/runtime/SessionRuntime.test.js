@@ -792,6 +792,28 @@ describe('v2 F1 live and browsing states (ND3)', () => {
       }
     });
 
+    // Review L5 (web parity): an M1 restart gets its own re-check from FULL.
+    it('after an M1 restart that ends below FULL, the fit re-checks from FULL again', () => {
+      jest.useFakeTimers();
+      try {
+        const tree = setup(1000);
+        used(tree, 1000);
+        used(tree, 900);
+        act(() => jest.advanceTimersByTime(16));
+        used(tree, 900);
+        expect(fitLevel(tree)).toBe(-1);
+        // A row appears (M1): over again → steps → settles below FULL → the re-check runs again.
+        used(tree, 1000);
+        used(tree, 1000);
+        used(tree, 900);
+        expect(fitLevel(tree)).toBe(0);
+        act(() => jest.advanceTimersByTime(16));
+        expect(fitLevel(tree)).toBe(-1);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
     // Review M1 (web: ResizeObserver): after it settles, a content height change outside the key (the weight error line,
     // a message above the card) starts again from FULL: it shrinks for a new row and grows back when it goes.
     it('after it settles, a taller page (an error line) steps again; a shorter one grows back from FULL', () => {

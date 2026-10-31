@@ -710,7 +710,8 @@ export default function SessionRuntime({
       const now = Date.now();
       const restarts = (fitStore.restarts ?? []).filter((at) => now - at < 1000);
       if (Math.round(used) !== fitStore.used && restarts.length < FIT_RESTARTS_PER_SECOND) {
-        setFitStore({ key: fitKey, state: FULL, settled: false, seq: usedLayout.seq, rechecked: fitStore.rechecked, restarts: [...restarts, now] });
+        // Each run gets its own re-check (web parity, review L5).
+        setFitStore({ key: fitKey, state: FULL, settled: false, seq: usedLayout.seq, rechecked: false, restarts: [...restarts, now] });
       }
       return;
     }
