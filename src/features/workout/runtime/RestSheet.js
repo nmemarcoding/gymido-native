@@ -17,9 +17,9 @@ import { setsWord } from './sessionMath';
 // page): the live screen stays rendered behind a blurred, dimmed backdrop. From the sheet's top: the handle zone (48,
 // the drag-down + accessible minimise control; owner: no chevron) → the banner ("{n} sets left", or gold "Get ready for
 // the next exercise!") → the exercise photo (contain, untouched) → the draining bar → the countdown → −5 · Skip Rest ▶▶
-// · +5. T-161 spec §6.3 (live 2.4.1): with a photo, a 16–21 gap under the digits, then the controls, and any leftover
-// height goes BELOW them; no photo: the bar + digits take the leftover and the controls sit 40 above the bottom inset
-// (pinning them in every state is P2, pending). Minimise (drag, activate, Android Back) only slides the sheet into today's
+// · +5. T-162 (spec §12 P2, approved): the controls are pinned 40 above the bottom inset in EVERY state; the photo card,
+// bar and digits stay anchored to the top and all leftover height goes between the digits and the controls (min 16).
+// Minimise (drag, activate, Android Back) only slides the sheet into today's
 // disc: the rest keeps counting. Skip and 0 end it as today. No photo: the name shows instead (the only place it does).
 // Below a window height of 844 the three gaps go short together; the photo shrinks to fit (floor 160). Large text: the
 // body scrolls (the handle stays), Skip takes its own row and the squares go below it.
@@ -41,9 +41,8 @@ const BODY_TOP = 14;
 const GAPS = Object.freeze({ banner: 14, photo: 28, bar: 13 });
 const GAPS_SHORT = Object.freeze({ banner: 8, photo: 16, bar: 8 });
 const SHORT_WINDOW = 844;
-// The flexible gap between the digits and the controls (photo state).
+// P2: the least room between the digits and the pinned controls.
 const CONTROLS_GAP_MIN = 16;
-const CONTROLS_GAP_MAX = 21;
 const DRAG_MINIMISE = 80;
 const DRAG_VELOCITY = 0.5;
 const OPEN_MS = 260;
@@ -56,20 +55,19 @@ export function dragMinimises({ dy, vy }) {
   return dy > DRAG_MINIMISE || vy > DRAG_VELOCITY;
 }
 
-// The sheet's layout (§6.3): the gaps by the window height; the photo (295, contain) shrinks to fit (floor 160) with the
-// smallest controls gap; then the controls gap takes up to 21 and the rest goes below the controls.
+// The sheet's layout (§6.3 + P2): the gaps by the window height; the photo (295, contain) shrinks to keep the 16 above
+// the pinned controls (floor 160).
 export function restSheetLayout({ sheetHeight, windowHeight, insetsBottom, photoAspect, width, hasPhoto }) {
   const gaps = windowHeight < SHORT_WINDOW ? GAPS_SHORT : GAPS;
   if (!hasPhoto) {
-    return { gaps, photo: 0, controlsGap: CONTROLS_GAP_MIN };
+    return { gaps, photo: 0 };
   }
   // The ±5 captions live inside the 40 under the buttons.
   const fixed = HANDLE + BODY_TOP + BANNER + gaps.banner + gaps.photo + BAR + gaps.bar + DIGITS + CONTROLS_GAP_MIN + CONTROL + CONTROLS_BOTTOM + insetsBottom;
   const natural = Math.min(PHOTO_MAX, Math.round((width - 2 * spacing[3]) / (photoAspect || 1)));
   const room = sheetHeight - fixed;
   const photo = Math.max(Math.min(natural, PHOTO_FLOOR), Math.min(natural, Math.floor(room)));
-  const controlsGap = Math.min(CONTROLS_GAP_MAX, CONTROLS_GAP_MIN + Math.max(0, Math.floor(room) - photo));
-  return { gaps, photo, controlsGap };
+  return { gaps, photo };
 }
 
 function DumbbellIcon({ color }) {
@@ -281,8 +279,8 @@ export default function RestSheet({ timer, hero, onMinimize, onAdjust, onSkip, w
           {hero.name}
         </Text>
       ) : null}
-      {/* §4 no photo: the bar + digits are centred between the name and the controls. */}
-      <View testID="rest-timer-zone" style={loaded || stacked ? null : [styles.timerZone, { paddingBottom: CONTROL + CONTROLS_BOTTOM + insets.bottom }]}>
+      {/* P2: the bar + digits stay under the photo (or the name); the leftover goes above the pinned controls. */}
+      <View testID="rest-timer-zone">
         <View testID="rest-timer-group" style={[styles.timerGroup, { marginTop: loaded ? layout.gaps.photo : spacing[6] }]}>
           <DrainBar timer={timer} warn={warn} reducedMotion={reducedMotion} />
           <View style={{ marginTop: layout.gaps.bar }}>{digits}</View>
@@ -332,23 +330,11 @@ export default function RestSheet({ timer, hero, onMinimize, onAdjust, onSkip, w
         ) : (
           <View style={styles.body}>
             {body}
-            {loaded ? (
-              // §6.3 photo state: the controls follow the digits; the leftover height goes below them.
-              <>
-                <View style={[styles.controlsRow, { marginTop: layout.controlsGap }]}>
-                  {minus}
-                  {skip}
-                  {plus}
-                </View>
-                <View style={[styles.below, { minHeight: insets.bottom + CONTROLS_BOTTOM - CAPTIONS }]} />
-              </>
-            ) : (
-              <View style={[styles.controls, styles.controlsRow, { bottom: insets.bottom + CONTROLS_BOTTOM - CAPTIONS }]}>
-                {minus}
-                {skip}
-                {plus}
-              </View>
-            )}
+            <View style={[styles.controls, styles.controlsRow, { bottom: insets.bottom + CONTROLS_BOTTOM - CAPTIONS }]}>
+              {minus}
+              {skip}
+              {plus}
+            </View>
           </View>
         )}
       </Animated.View>
@@ -482,10 +468,6 @@ const styles = StyleSheet.create({
   timerGroup: {
     alignItems: 'center',
   },
-  timerZone: {
-    flex: 1,
-    justifyContent: 'center',
-  },
   bar: {
     alignSelf: 'stretch',
     marginHorizontal: 19,
@@ -514,7 +496,7 @@ const styles = StyleSheet.create({
     letterSpacing: titleTracking(DIGITS, -0.03),
     color: colors.textPrimary,
   },
-  // No photo: pinned 40 above the bottom inset (the row's 20 side margins apply).
+  // P2: pinned 40 above the bottom inset (the row's 20 side margins apply).
   controls: {
     position: 'absolute',
     left: 0,
@@ -525,9 +507,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 21,
-  },
-  below: {
-    flex: 1,
   },
   stackedControls: {
     marginTop: spacing[6],

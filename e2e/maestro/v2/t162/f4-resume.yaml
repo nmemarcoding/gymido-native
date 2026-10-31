@@ -1,0 +1,8 @@
+# T-162 shots (spec §9 viewports): back to the live exercise.
+appId: com.gymido.app
+---
+- runFlow:
+    when:
+      visible: { id: "browsing-resume" }
+    commands:
+      - tapOn: { id: "browsing-resume" }

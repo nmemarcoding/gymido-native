@@ -1,68 +1,96 @@
-// T-161 LIVE-WORKOUT-SPEC §5 (= web 2.4.1): the phone set screen and the browse view fit the visible height at normal
-// text, one screen, no scroll. The result is always the LARGEST layout that fits: every change of the room or the content
+// T-162 = LIVE-WORKOUT-SPEC §12 P5 + P5-SC, option (a) (owner-approved 31 Oct): the phone set screen and the browse view
+// fit the visible height at normal text, one screen, no scroll, and the PHOTO GIVES LAST. The photo is always contain at
+// its natural height (min(W ÷ aspect, 300)) until everything else has given. Every change of the room or the content
 // starts again from FULL and steps down, re-measuring after each step (§5.1: over = used − free, never a guessed budget).
-// State = { roomy, photoMax, level }. The ladder (§5.2):
-//   R1 photo, roomy: photoMax = max(160, photoMax − over)
-//   R2 leave roomy: every ROOMY size → COMPACT (§3), photoMax 160
-//   C1 photo, compact: photoMax = max(112, photoMax − over)
-//   L2 long names (over 2 lines at 34 → 28) · L3 gaps 12 → 8 · L4 steppers (live) · L5 small arc · L6 thumb (with a photo)
-//   L7 browse only: the totals line hides
-// Levels are cumulative; level 1 doesn't exist. If the last step still overflows the layout stays (reported, no scroll).
+// The ladder (cumulative; each step only if it still overflows):
+//   S1 gaps (text top, card top, card → Up next 12 → 8) · S2 compact card (small arc + small steppers) · S3 Up next 48 ·
+//   S4 Discard → the 32 link · S5 row 1 compact (32) · S6 a 2+ line name 34 → 28 · S9 (browse) the totals line hides ·
+//   S7a the photo down to 200 · SC the proportional SCALE (P5-SC) · S7b the photo down to the floor (160 on a 390+ column,
+//   else 112). No thumb at normal text. Still over at the floor: the layout stays (reported, no scroll).
 
 export const FIT = Object.freeze({
   photoMax: 300,
-  roomyPhotoFloor: 160,
-  photoFloor: 112,
-  arc: 154,
-  arcSmall: 132,
-  steppers: 108,
-  steppersTight: 96,
-  thumb: 56,
+  photoScale: 200,
+  floorWide: 160,
+  floorNarrow: 112,
+  // The "390 class" (PM 31 Oct): the content column is at least 390 wide.
+  wideColumn: 390,
 });
 
-export const FULL = Object.freeze({ roomy: true, photoMax: FIT.photoMax, level: 0 });
+const LIVE_STEPS = Object.freeze(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7a', 'SC', 'S7b']);
+const BROWSE_STEPS = Object.freeze(['S1', 'S2', 'S4', 'S5', 'S6', 'S9', 'S7a', 'SC', 'S7b']);
 
-// The sizes a fit state draws (§3.1–§3.6, §4).
-export function fitSizes(state) {
-  const { roomy, photoMax, level } = state;
+export function fitSteps(browse) {
+  return browse ? BROWSE_STEPS : LIVE_STEPS;
+}
+
+// `level` = the index of the last step taken (−1 = FULL); `photo` = the photo's cap (null = its natural height).
+export const FULL = Object.freeze({ level: -1, photo: null });
+
+export function photoFloor(columnWidth) {
+  return columnWidth >= FIT.wideColumn ? FIT.floorWide : FIT.floorNarrow;
+}
+
+// The sizes a fit state draws (§3 roomy, the S-steps, P5-SC scaled).
+export function fitSizes(state, { browse = false } = {}) {
+  const steps = fitSteps(browse);
+  const has = (step) => steps.indexOf(step) !== -1 && steps.indexOf(step) <= state.level;
+  const scaled = has('SC');
+  const gap = scaled ? 6 : has('S1') ? 8 : 12;
+  const discardLink = has('S4');
   return {
-    roomy,
-    level,
-    compact: !roomy,
-    photo: photoMax,
-    photoTop: roomy ? 6 : 8,
-    // The text block's and the card container's top margins (L3).
-    gap: level >= 3 ? 8 : 12,
-    containerGap: level >= 3 ? 8 : 12,
-    nameSmall: level >= 2,
-    steppers: level >= 4 ? FIT.steppersTight : FIT.steppers,
-    arc: level >= 5 ? FIT.arcSmall : FIT.arc,
-    thumb: level >= 6,
-    statsLine: level < 7,
-    // Card → Up next, and Up next → Discard on top of it: roomy 12 + (12 + 12); compact 8 + (8 − 4).
-    upNextGap: roomy ? 12 : 8,
-    discardTop: roomy ? 12 : -4,
+    level: state.level,
+    photo: state.photo ?? FIT.photoMax,
+    photoTop: scaled ? 4 : 6,
+    // The text block's top, the card's top and card → Up next.
+    gap,
+    containerGap: gap,
+    upNextGap: gap,
+    // Up next → Discard: 12 + 12 above the 48 row; the link sits 4 below Up next.
+    discardTop: discardLink ? 4 - gap : 24 - gap,
+    compactCard: has('S2'),
+    upNextSlim: has('S3'),
+    discardLink,
+    rowCompact: has('S5'),
+    nameSmall: has('S6'),
+    statsLine: !has('S9'),
+    scaled,
+    thumb: false,
   };
 }
 
 // The next state when the layout is `over` too tall, or null when it fits (or nothing is left to step).
-// `photoDrawn` = the photo's height at its aspect (null before it is known: the box is photoMax); `nameLines` = the name's
-// lines at 34 on the full width.
-export function nextFitStep(state, { over, hasPhoto, browse, photoDrawn = null, nameLines = 1 }) {
+// `photoDrawn` = the photo's natural height (null before its aspect is known: the box is the cap); `nameLines` = the
+// name's lines at 34 on the full width; `columnWidth` picks the floor; `upNext` = the Up next row shows (S3 needs it).
+export function nextFitStep(state, { over, hasPhoto, browse = false, photoDrawn = null, nameLines = 1, columnWidth = 390, upNext = true }) {
   if (!(over > 0)) {
     return null;
   }
-  const photo = Math.min(state.photoMax, photoDrawn ?? state.photoMax);
-  if (state.roomy) {
-    if (hasPhoto && photo > FIT.roomyPhotoFloor) {
-      return { ...state, photoMax: Math.max(FIT.roomyPhotoFloor, photo - over) };
+  const steps = fitSteps(browse);
+  const photo = Math.min(state.photo ?? FIT.photoMax, photoDrawn ?? FIT.photoMax);
+  const floorFor = (step) => (step === 'S7a' ? FIT.photoScale : photoFloor(columnWidth));
+  const shrink = (step) => (hasPhoto && photo > floorFor(step) ? Math.max(floorFor(step), photo - over) : null);
+  // A photo step keeps giving until its floor.
+  const current = steps[state.level];
+  if (current === 'S7a' || current === 'S7b') {
+    const next = shrink(current);
+    if (next != null) {
+      return { level: state.level, photo: next };
     }
-    return { roomy: false, photoMax: FIT.roomyPhotoFloor, level: 0 };
   }
-  if (state.level === 0 && hasPhoto && photo > FIT.photoFloor) {
-    return { ...state, photoMax: Math.max(FIT.photoFloor, photo - over) };
+  for (let index = state.level + 1; index < steps.length; index += 1) {
+    const step = steps[index];
+    if (step === 'S7a' || step === 'S7b') {
+      const next = shrink(step);
+      if (next != null) {
+        return { level: index, photo: next };
+      }
+      continue;
+    }
+    if ((step === 'S6' && nameLines < 2) || (step === 'S3' && !upNext)) {
+      continue;
+    }
+    return { level: index, photo: state.photo };
   }
-  const applies = { 2: nameLines > 2, 3: true, 4: !browse, 5: true, 6: hasPhoto, 7: browse };
-  const level = [2, 3, 4, 5, 6, 7].find((candidate) => candidate > state.level && applies[candidate]);
-  return level ? { ...state, level } : null;
+  return null;
 }

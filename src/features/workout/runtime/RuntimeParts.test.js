@@ -264,27 +264,33 @@ describe('ExerciseStage', () => {
     expect(onMeasure).toHaveBeenCalledWith({ photoNatural: Math.round(390 / (16 / 9)) });
   });
 
-  // T-161 spec §3.2 L2: a name over 2 lines at 34 steps to 28/31.92 at level ≥ 2, one way only for the same name.
-  it('L2: a long name steps to 28 at level 2 and stays 28 for that name when the fit starts again from FULL', () => {
-    const fit = (level) => ({ photo: 160, photoTop: 8, gap: 12, thumb: false, compact: true, nameSmall: level >= 2 });
-    const tree = render(<ExerciseStage exercise={EXERCISE} index={0} count={5} isActive fit={fit(0)} onMeasure={jest.fn()} />);
+  // T-162 S6 + P5-SC. DECLARED (T-162; was T-161 L2 "over 2 lines, one way only"): a name on 2+ lines at 34 draws 28/31.92
+  // at S6; scaled it is 28/32, and 24/28 when it runs past one line at 28.
+  it('S6: a 2+ line name draws 28; scaled 28/32, past one line 24/28', () => {
+    const fit = (extra) => ({ photo: 300, photoTop: 6, gap: 8, rowCompact: true, nameSmall: false, scaled: false, ...extra });
+    const tree = render(<ExerciseStage exercise={EXERCISE} index={0} count={5} isActive fit={fit()} onMeasure={jest.fn()} />);
     const measurer = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityElementsHidden && node.props.pointerEvents === 'none')[0];
-    act(() => measurer.findAll((node) => node.props.onTextLayout)[0].props.onTextLayout({ nativeEvent: { lines: [{}, {}, {}] } }));
+    const [at34, at28] = measurer.findAll((node) => node.props.onTextLayout && typeof node.type !== 'string');
+    act(() => at34.props.onTextLayout({ nativeEvent: { lines: [{}, {}] } }));
+    act(() => at28.props.onTextLayout({ nativeEvent: { lines: [{}] } }));
     const visibleName = () => flat(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header')[0]);
     expect(visibleName()).toMatchObject({ fontSize: 34, lineHeight: 38.08 });
-    act(() => tree.update(<ExerciseStage exercise={EXERCISE} index={0} count={5} isActive fit={fit(2)} onMeasure={jest.fn()} />));
+    act(() => tree.update(<ExerciseStage exercise={EXERCISE} index={0} count={5} isActive fit={fit({ nameSmall: true })} onMeasure={jest.fn()} />));
     expect(visibleName()).toMatchObject({ fontSize: 28, lineHeight: 31.92 });
-    act(() => tree.update(<ExerciseStage exercise={EXERCISE} index={0} count={5} isActive fit={fit(0)} onMeasure={jest.fn()} />));
-    expect(visibleName().fontSize).toBe(28);
+    act(() => tree.update(<ExerciseStage exercise={EXERCISE} index={0} count={5} isActive fit={fit({ nameSmall: true, scaled: true })} onMeasure={jest.fn()} />));
+    expect(visibleName()).toMatchObject({ fontSize: 28, lineHeight: 32 });
+    const measurerNow = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityElementsHidden && node.props.pointerEvents === 'none')[0];
+    act(() => measurerNow.findAll((node) => node.props.onTextLayout && typeof node.type !== 'string')[1].props.onTextLayout({ nativeEvent: { lines: [{}, {}] } }));
+    expect(visibleName()).toMatchObject({ fontSize: 24, lineHeight: 28 });
   });
 
-  // T-161 spec §3.1 thumb mode: the 56 thumb left of the text, 12 down from its top; no notes on phones.
-  it('thumb: the 56 thumb 12 down beside the text; it opens How to', () => {
-    const onThumbPress = jest.fn();
-    const tree = render(<ExerciseStage exercise={{ ...EXERCISE, notes: 'Slow down' }} index={0} count={5} isActive fit={{ photo: 112, photoTop: 8, gap: 8, thumb: true, compact: true }} onThumbPress={onThumbPress} />);
-    const thumb = host(tree, 'exercise-stage-thumb');
-    expect(flat(thumb)).toMatchObject({ width: 56, height: 56, borderRadius: 12 });
-    expect(flat(host(tree, 'exercise-stage'))).toMatchObject({ paddingTop: 12 });
+  // DECLARED (T-162, owner: no thumbnail at normal text; was T-161 L6 "the 56 thumb 12 down"): the stage always draws the
+  // photo (contain), at any fit; no notes on phones.
+  it('no thumb at any fit: the contain photo at the fit cap, scaled photo top 4', () => {
+    const tree = render(<ExerciseStage exercise={{ ...EXERCISE, notes: 'Slow down' }} index={0} count={5} isActive fit={{ photo: 112, photoTop: 4, gap: 6, scaled: true, thumb: true }} />);
+    expect(host(tree, 'exercise-stage-thumb')).toBeUndefined();
+    expect(flat(host(tree, 'exercise-stage')).height).toBeLessThanOrEqual(112);
+    expect(flat(host(tree, 'exercise-stage-frame'))).toMatchObject({ paddingTop: 4 });
     expect(host(tree, 'exercise-notes')).toBeUndefined();
   });
 

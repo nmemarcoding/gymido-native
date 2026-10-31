@@ -1,0 +1,7 @@
+# T-162 shots (spec §9 viewports), step 1 (phone): start the workout, set 1. Starts signed in (the safe runner). IDs only.
+appId: com.gymido.app
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/start-workout.yaml
+- waitForAnimationToEnd: { timeout: 3000 }
+- takeScreenshot: ${SHOT}-01-set1

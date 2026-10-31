@@ -54,6 +54,8 @@ export default function Select({
   testID,
   // A spoken name for a select with no visible label (e.g. the set-row unit).
   accessibilityLabel,
+  // A small drawn box (the set-row unit) keeps a 44 hit area.
+  hitSlop,
 }) {
   const [open, setOpen] = useState(false);
   const insets = useSafeAreaInsets();
@@ -93,6 +95,7 @@ export default function Select({
         accessibilityValue={{ text: selected?.label ?? '' }}
         accessibilityState={{ disabled }}
         disabled={disabled}
+        hitSlop={hitSlop}
         onPress={() => {
           // Like a browser <select> taking focus: opening it closes the keyboard.
           Keyboard.dismiss();

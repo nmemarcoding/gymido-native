@@ -1,0 +1,8 @@
+# T-162 shots (spec §9 viewports), step 3: browse exercise ${CARD} (0-based) from All; stays on it (resume with f4).
+appId: com.gymido.app
+---
+- tapOn: { id: "session-all" }
+- extendedWaitUntil: { visible: { id: "exercise-sheet" }, timeout: 10000 }
+- tapOn: { id: "exercise-sheet-card-${CARD}" }
+- waitForAnimationToEnd: { timeout: 3000 }
+- takeScreenshot: ${SHOT}-1${CARD}-browse

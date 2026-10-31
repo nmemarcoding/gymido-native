@@ -639,58 +639,65 @@ describe('v2 F1 live and browsing states (ND3)', () => {
     mockFontScale = 1;
   });
 
-  // T-161 spec §5 (the measured ladder). DECLARED (T-161, PM: build to the spec; replaces the T-154/T-155 model tests):
-  // the fit steps one rung per measurement of the content column against the scroll's visible height − 8 − the safe area,
-  // only as far as needed; any change of the room starts again from FULL; no scroll at normal text.
-  describe('T-161 phone fit', () => {
+  // T-162 = spec §12 P5 + P5-SC (a). DECLARED (T-162, owner-approved: the photo gives LAST; replaces the T-161 ladder
+  // tests): the fit steps one rung per measurement of the header bar + the content column against the column − 8 − the
+  // safe area, only as far as needed; any change of the room starts again from FULL; no thumb, no scroll at normal text.
+  describe('T-162 phone fit', () => {
     const page = (tree) => tree.root.findAll((node) => node.type === ScrollView && node.props.onScroll)[0];
     const content = (tree) => page(tree).findAll((node) => typeof node.type === 'string' && node.props.onLayout && node.props.collapsable === false)[0];
-    const viewport = (tree, height) => act(() => page(tree).props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height } } }));
-    const used = (tree, height) => act(() => content(tree).props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height } } }));
+    const layoutOf = (node, height) => act(() => node.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height } } }));
+    const room = (tree, height) => layoutOf(host(tree, 'session-column'), height);
+    const header = (tree, height) => layoutOf(host(tree, 'session-header-bar'), height);
+    const used = (tree, height) => layoutOf(content(tree), height);
     const photo = (tree) => StyleSheet.flatten(host(tree, 'exercise-stage').props.style).height;
-    const isThumb = (tree) => tree.root.findAll((node) => node.props.testID === 'exercise-stage-thumb').length > 0;
-    // A page that never fits: one layout event per rung until the ladder ends.
-    const overflowFully = (tree, height) => {
-      for (let rung = 0; rung < 12; rung += 1) {
-        used(tree, height);
-      }
+    const discardHeight = (tree) => StyleSheet.flatten(host(tree, 'discard-workout').props.style).minHeight;
+    const setup = (rootHeight) => {
+      const { tree } = render();
+      room(tree, rootHeight);
+      header(tree, 65);
+      return tree;
     };
 
-    it('R1: the photo gives exactly what is over (free = 1000 − 8); then it settles', () => {
-      const { tree } = render();
-      viewport(tree, 1000);
+    it('everything else gives first (S1–S5: the Discard link, the slim rows), then the photo gives exactly what is left', () => {
+      const tree = setup(1000);
+      // Free = 1000 − 8; used = 65 + the content. Over: one rung per measurement.
       expect(photo(tree)).toBe(300);
-      used(tree, 1032);
-      expect(photo(tree)).toBe(300 - 40);
-      used(tree, 992);
-      used(tree, 950);
+      for (let step = 0; step < 5; step += 1) {
+        used(tree, 1000);
+      }
+      expect(discardHeight(tree)).toBe(32);
+      expect(photo(tree)).toBe(300);
+      // S6 skipped (a 1-line name): S7a gives the 40 still over.
+      used(tree, 967);
+      expect(photo(tree)).toBe(260);
+      used(tree, 927);
       expect(photo(tree)).toBe(260);
       expect(page(tree).props.scrollEnabled).toBe(false);
     });
 
-    it('a page that never fits ends at L6 (the thumb), compact sizes, no scroll; more room starts again from FULL', () => {
-      const { tree } = render();
-      viewport(tree, 420);
-      overflowFully(tree, 2000);
-      expect(isThumb(tree)).toBe(true);
-      // R2 → compact: the Discard link (32, a 44 hit) and the compact How to.
-      expect(StyleSheet.flatten(host(tree, 'discard-workout').props.style).minHeight).toBe(32);
-      expect(byId(tree, 'discard-workout').props.hitSlop).toBe(6);
+    it('a page that never fits ends scaled at the floor (160 on the 430 column), never a thumb, no scroll; more room → FULL', () => {
+      const tree = setup(600);
+      for (let step = 0; step < 15; step += 1) {
+        used(tree, 2000);
+      }
+      expect(tree.root.findAll((node) => node.props.testID === 'exercise-stage-thumb')).toHaveLength(0);
+      expect(photo(tree)).toBe(160);
+      // P5-SC: the header pills go 36.
+      expect(StyleSheet.flatten(host(tree, 'session-chrome').props.style).gap).toBe(4);
       expect(page(tree).props.scrollEnabled).toBe(false);
-      viewport(tree, 1200);
-      expect(isThumb(tree)).toBe(false);
+      room(tree, 2000);
       expect(photo(tree)).toBe(300);
-      expect(StyleSheet.flatten(host(tree, 'discard-workout').props.style).minHeight).toBe(48);
+      expect(discardHeight(tree)).toBe(48);
     });
 
     it('while a weight/reps field has focus the fit holds; leaving the fields re-fits from FULL', async () => {
-      const { tree } = render();
-      viewport(tree, 1200);
+      const tree = setup(1200);
       used(tree, 900);
       await act(async () => byId(tree, 'set-weight-12').props.onFocus());
-      viewport(tree, 420);
-      overflowFully(tree, 2000);
-      expect(isThumb(tree)).toBe(false);
+      room(tree, 500);
+      for (let step = 0; step < 15; step += 1) {
+        used(tree, 2000);
+      }
       expect(photo(tree)).toBe(300);
       // Focus moving straight into the other field keeps the hold.
       await act(async () => {
@@ -698,14 +705,31 @@ describe('v2 F1 live and browsing states (ND3)', () => {
         byId(tree, 'set-reps-12').props.onFocus();
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
-      overflowFully(tree, 2000);
-      expect(isThumb(tree)).toBe(false);
+      for (let step = 0; step < 15; step += 1) {
+        used(tree, 2000);
+      }
+      expect(photo(tree)).toBe(300);
       await act(async () => {
         byId(tree, 'set-reps-12').props.onBlur();
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
-      overflowFully(tree, 2000);
-      expect(isThumb(tree)).toBe(true);
+      for (let step = 0; step < 15; step += 1) {
+        used(tree, 2000);
+      }
+      expect(photo(tree)).toBe(160);
+    });
+
+    // P3: Up next keeps 108 on the right while the minimised disc sits in its default place.
+    it('P3: Up next clears the minimised disc (right padding 108) until the disc is moved', async () => {
+      const RESTING = { ...SESSION, exercises: [{ ...SESSION.exercises[0], sets: [set(11, true), { ...set(12), rest_seconds_planned: 60 }] }, SESSION.exercises[1]] };
+      const { tree } = render({ session: RESTING });
+      const upNextPad = () => StyleSheet.flatten(host(tree, 'up-next').props.style).paddingRight;
+      expect(upNextPad()).toBe(16);
+      await act(async () => byId(tree, 'set-action-12').props.onPress());
+      act(() => tree.root.findByType(RestTimerWidget).props.onMinimize());
+      expect(upNextPad()).toBe(108);
+      act(() => tree.root.findByType(RestTimerWidget).props.onPosition({ x: 20, y: 300 }));
+      expect(upNextPad()).toBe(16);
     });
   });
 

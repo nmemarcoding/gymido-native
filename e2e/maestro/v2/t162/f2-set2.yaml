@@ -1,0 +1,12 @@
+# T-162 shots (spec §9 viewports), step 2: log set 1 → the rest sheet → Skip → set 2 (the pill row).
+appId: com.gymido.app
+---
+- runFlow: ../subflows/log-current-set.yaml
+- extendedWaitUntil: { visible: { id: "rest-timer-skip" }, timeout: 10000 }
+- waitForAnimationToEnd: { timeout: 3000 }
+- takeScreenshot: ${SHOT}-02-rest
+- tapOn: { id: "rest-timer-skip" }
+- extendedWaitUntil: { notVisible: { id: "rest-timer" }, timeout: 5000 }
+- runFlow: ../subflows/dismiss-session-dialogs.yaml
+- waitForAnimationToEnd: { timeout: 3000 }
+- takeScreenshot: ${SHOT}-03-set2

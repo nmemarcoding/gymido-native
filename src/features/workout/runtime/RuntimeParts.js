@@ -77,7 +77,7 @@ function PressOverlay({ ink = false }) {
 
 // A glass pill over the photo (UX §8.4 color-on-photo + blur 12).
 // `narrow` (T-146, phones under 375): 12 side padding.
-function GlassButton({ testID, label, onPress, height, tablet, buttonRef, accessibilityLabel, icon, narrow = false }) {
+function GlassButton({ testID, label, onPress, height, tablet, buttonRef, accessibilityLabel, icon, narrow = false, scaled = false }) {
   const side = narrow ? 12 : 16;
   return (
     <Pressable
@@ -98,7 +98,7 @@ function GlassButton({ testID, label, onPress, height, tablet, buttonRef, access
         >
           {pressed ? <PressOverlay /> : null}
           {icon}
-          <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.glassLabel, tablet && styles.glassLabelTablet, icon && styles.glassLabelSmall]}>
+          <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.glassLabel, tablet && styles.glassLabelTablet, (icon || scaled) && styles.glassLabelSmall]}>
             {label}
           </Text>
         </GlassSurface>
@@ -134,14 +134,16 @@ export function SessionChrome({
   completePrimary = false,
   onLayout,
   style,
+  // T-162 P5-SC: the scaled header (pills 36 + a 44 hit, 13/600; plan name 13 → 12 → 2 lines; 6 above the rail).
+  scaled = false,
 }) {
   const stacked = useLargeTextReflow();
   const { width } = useWindowDimensions();
   // RN-SPEC dated 30 Oct (T-146): below 375 wide the sides and pills are 12.
   const narrow = !tablet && width < 375;
-  const buttonHeight = tablet ? 48 : 40;
-  const exit = <GlassButton testID="session-exit" label="Exit" onPress={onExit} height={buttonHeight} tablet={tablet} narrow={narrow} />;
-  const all = <GlassButton testID="session-all" buttonRef={allRef} label={`All (${exerciseCount})`} onPress={onAll} height={buttonHeight} tablet={tablet} narrow={narrow} />;
+  const buttonHeight = tablet ? 48 : scaled ? 36 : 40;
+  const exit = <GlassButton testID="session-exit" label="Exit" onPress={onExit} height={buttonHeight} tablet={tablet} narrow={narrow} scaled={scaled} />;
+  const all = <GlassButton testID="session-all" buttonRef={allRef} label={`All (${exerciseCount})`} onPress={onAll} height={buttonHeight} tablet={tablet} narrow={narrow} scaled={scaled} />;
   const complete = (
     <CompleteButton label={wide ? 'Complete workout' : 'Complete'} primary={completePrimary} completing={completing} disabled={completeDisabled} onPress={onComplete} />
   );
@@ -170,7 +172,7 @@ export function SessionChrome({
           {keepUnitsTogether(planName)}
         </Text>
       ) : (
-        <PhonePlanName planName={planName} />
+        <PhonePlanName key={scaled ? 'scaled' : 'full'} planName={planName} sizes={scaled ? PHONE_PLAN_SIZES_SCALED : PHONE_PLAN_SIZES} />
       )}
       {tablet ? (
         <Text {...CAP_PILL} style={[styles.planSub, styles.planSubTablet]}>{`${completedSets}/${totalSets} ${setsWord(totalSets)} done`}</Text>
@@ -192,7 +194,7 @@ export function SessionChrome({
       </View>
     );
   return (
-    <View testID="session-chrome" onLayout={onLayout} style={[styles.chrome, tablet && styles.chromeTablet, narrow && styles.chromeNarrow, style]}>
+    <View testID="session-chrome" onLayout={onLayout} style={[styles.chrome, tablet && styles.chromeTablet, narrow && styles.chromeNarrow, scaled && styles.chromeScaled, style]}>
       {stacked ? (
         <>
           <View style={styles.chromeRow}>
@@ -227,10 +229,11 @@ export function SessionChrome({
 // at 12/16 between words (2 lines; more on the narrowest phones, the header
 // grows) and is never cut ("…"). Steps follow the measured line count.
 export const PHONE_PLAN_SIZES = Object.freeze([14, 13, 12]);
-function PhonePlanName({ planName }) {
+export const PHONE_PLAN_SIZES_SCALED = Object.freeze([13, 12]);
+function PhonePlanName({ planName, sizes = PHONE_PLAN_SIZES }) {
   const [step, setStep] = useState(0);
-  const wrap = step >= PHONE_PLAN_SIZES.length;
-  const fontSize = PHONE_PLAN_SIZES[Math.min(step, PHONE_PLAN_SIZES.length - 1)];
+  const wrap = step >= sizes.length;
+  const fontSize = sizes[Math.min(step, sizes.length - 1)];
   return (
     <Text
       {...PHONE_PLAN_TEXT}
@@ -432,7 +435,6 @@ export function ExerciseStage({
   // T-154 (rev 42): the phone fit, the measured blocks (T-155 round 3), and the thumb's How to.
   fit = null,
   onMeasure,
-  onThumbPress,
 }) {
   const notes = exerciseNotes(exercise);
   const name = exerciseName(exercise);
@@ -456,7 +458,6 @@ export function ExerciseStage({
         onContentLayout={onContentLayout}
         fit={fit}
         onMeasure={onMeasure}
-        onThumbPress={onThumbPress}
       />
     );
   }
@@ -519,14 +520,16 @@ function CaptionScrim({ height }) {
 // T-146 rev 39 `onPage`: on the phone's live screen the pill sits OFF the
 // photo, in the row under it: 36 tall, 16/600, the secondary look, 44 hit.
 // T-155: 36 tall, 16/600 by default; `compact` = rev 42's 32 / 15.
-export function HowToButton({ onPress, tablet, onPage = false, compact = false }) {
+// T-162 P5-SC: `scaled` = 28 tall, 14/600 (44 hit).
+export function HowToButton({ onPress, tablet, onPage = false, compact = false, scaled = false }) {
   if (onPage) {
+    const height = scaled ? 28 : compact ? 32 : 36;
     return (
-      <Pressable testID="how-to-open" accessibilityRole="button" accessibilityLabel="How to" onPress={onPress} hitSlop={hitFor(compact ? 32 : 36)} style={styles.noShrink}>
+      <Pressable testID="how-to-open" accessibilityRole="button" accessibilityLabel="How to" onPress={onPress} hitSlop={hitFor(height)} style={styles.noShrink}>
         {({ pressed }) => (
-          <View style={[styles.howToPage, compact && styles.howToPageCompact, pressed && styles.howToPagePressed]}>
+          <View style={[styles.howToPage, compact && styles.howToPageCompact, scaled && styles.howToPageScaled, pressed && styles.howToPagePressed]}>
             <PlayIcon size={14} color={colors.textPrimary} />
-            <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.howToPageLabel, compact && styles.howToPageLabelCompact]}>
+            <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.howToPageLabel, compact && styles.howToPageLabelCompact, scaled && styles.howToPageLabelScaled]}>
               How to
             </Text>
           </View>
@@ -925,7 +928,8 @@ function SetChip({ set, isNow, tablet, pending, onPress }) {
 // T-146 `arc`: the phone's 184×52 action inside the half-circle; `title`
 // replaces "Did it" ("Save set k" while a done set is edited).
 // `compact` (T-154 rev 42 step 5): 168×48 on the compact arc.
-export function DidItButton({ set, isPending, isLocked, lockReason, onPress, arc = false, compact = false, title = 'Did it' }) {
+// T-162 P5-SC: `scaled` = 152×44, 15/600.
+export function DidItButton({ set, isPending, isLocked, lockReason, onPress, arc = false, compact = false, scaled = false, title = 'Did it' }) {
   const disabled = isPending || isLocked;
   const label = isPending ? 'Saving…' : title;
   const ink = disabled ? colors.textFaint : colors.onGold;
@@ -942,13 +946,13 @@ export function DidItButton({ set, isPending, isLocked, lockReason, onPress, arc
       onPressIn={swipe.onPressIn}
       onPressMove={swipe.onPressMove}
       onPress={swipe.guard(onPress)}
-      style={[styles.didIt, arc && styles.didItArc, compact && styles.didItCompact, disabled && styles.didItDisabled]}
+      style={[styles.didIt, arc && styles.didItArc, compact && styles.didItCompact, scaled && styles.didItScaled, disabled && styles.didItDisabled]}
     >
       {({ pressed }) => (
         <>
           {pressed && !disabled ? <PressOverlay ink /> : null}
           <CheckIcon size={20} color={ink} />
-          <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.didItText, arc && styles.didItTextArc, { color: ink }]}>
+          <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.didItText, arc && styles.didItTextArc, scaled && styles.didItTextScaled, { color: ink }]}>
             {label}
           </Text>
         </>
@@ -960,7 +964,9 @@ export function DidItButton({ set, isPending, isLocked, lockReason, onPress, arc
 // T-146 board 4 (FE Q3: still a button): the phone's "Up next" card, h64,
 // r20, a 48 thumb (r12) and "Up next · {name}" on one line.
 // T-155: the 2.3.2 row by default (h64, r20, thumb 48, 16 px); `compact` = rev 42's slim row (h48, r16, thumb 36, 15 px).
-export function UpNextLink({ exercise, onPress, compact = false }) {
+// T-162: `compact` = S3's slim 48 row; `scaled` (P5-SC) = 44, thumb 32, 14; `clearDisc` (P3) = right padding 108 while
+// the minimised disc sits in its default place, so the text ends 8 before it.
+export function UpNextLink({ exercise, onPress, compact = false, scaled = false, clearDisc = false }) {
   const name = exerciseName(exercise);
   return (
     <Pressable
@@ -968,17 +974,17 @@ export function UpNextLink({ exercise, onPress, compact = false }) {
       accessibilityRole="button"
       accessibilityLabel={`Up next: ${name}`}
       onPress={onPress}
-      style={({ pressed }) => [styles.upNext, compact && styles.upNextCompact, pressed && styles.upNextPressed]}
+      style={({ pressed }) => [styles.upNext, compact && styles.upNextCompact, scaled && styles.upNextScaled, clearDisc && styles.upNextClearDisc, pressed && styles.upNextPressed]}
     >
       <ExerciseImage
         testID="up-next-thumb"
         url={exercise.exercise?.thumbnail?.url ?? null}
         name={name}
         muscleCode={exercise.exercise?.primary_muscle_group?.code}
-        size={compact ? 36 : 48}
-        style={compact ? styles.upNextThumbCompact : styles.upNextThumb}
+        size={scaled ? 32 : compact ? 36 : 48}
+        style={compact || scaled ? styles.upNextThumbCompact : styles.upNextThumb}
       />
-      <Text {...CAP_BODY} numberOfLines={1} style={[styles.upNextText, compact && styles.upNextTextCompact]}>
+      <Text {...CAP_BODY} numberOfLines={1} style={[styles.upNextText, compact && styles.upNextTextCompact, scaled && styles.upNextTextScaled]}>
         <Text style={styles.upNextLabel}>{'Up next · '}</Text>
         {name}
       </Text>
@@ -998,7 +1004,8 @@ export function LastExerciseNote() {
 // ND4: "Discard workout" = ghost with the danger text; pressed = danger
 // faint (§8.6a 5, a transparent danger text button). In flight: "Exiting…".
 // T-154 rev 42 `link` (phone): a small text link, row 32 with a 44 hit; same action + confirm.
-export function DiscardWorkoutAction({ abandoning, onPress, link = false }) {
+// T-162: `link` = S4's 32 text link (44 hit); `scaled` (P5-SC) = 14/600.
+export function DiscardWorkoutAction({ abandoning, onPress, link = false, scaled = false }) {
   return (
     <Pressable
       testID="discard-workout"
@@ -1009,7 +1016,7 @@ export function DiscardWorkoutAction({ abandoning, onPress, link = false }) {
       hitSlop={link ? 6 : undefined}
       style={({ pressed }) => [styles.discard, link && styles.discardLink, pressed && !abandoning && styles.discardPressed, abandoning && styles.dim]}
     >
-      <Text {...CAP_BODY} textBreakStrategy="simple" style={styles.discardText}>
+      <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.discardText, scaled && styles.discardTextScaled]}>
         {abandoning ? 'Exiting…' : 'Discard workout'}
       </Text>
     </Pressable>
@@ -1039,6 +1046,10 @@ const styles = StyleSheet.create({
   },
   chromeNarrow: {
     paddingHorizontal: spacing[3],
+  },
+  // P5-SC: the row → the rail 6 (4 + the rail's 2).
+  chromeScaled: {
+    gap: spacing[1],
   },
   chromeRow: {
     flexDirection: 'row',
@@ -1283,6 +1294,14 @@ const styles = StyleSheet.create({
   },
   howToPageLabelCompact: {
     fontSize: 15,
+  },
+  howToPageScaled: {
+    minHeight: 28,
+    paddingHorizontal: spacing[3],
+  },
+  howToPageLabelScaled: {
+    fontSize: 14,
+    lineHeight: 18,
   },
   howToPagePressed: {
     backgroundColor: colors.fillPressed,
@@ -1883,6 +1902,13 @@ const styles = StyleSheet.create({
     width: 168,
     minHeight: 48,
   },
+  didItScaled: {
+    width: 152,
+    minHeight: 44,
+  },
+  didItTextScaled: {
+    fontSize: 15,
+  },
   didItTextArc: {
     ...font(600),
     fontSize: 16,
@@ -1928,6 +1954,17 @@ const styles = StyleSheet.create({
     paddingLeft: 6,
     paddingRight: spacing[3],
     borderRadius: 16,
+  },
+  upNextScaled: {
+    minHeight: 44,
+  },
+  // P3: the disc's left edge is 116 from the screen edge; the row's is 16 → 116 − 16 + 8.
+  upNextClearDisc: {
+    paddingRight: 108,
+  },
+  upNextTextScaled: {
+    fontSize: 14,
+    lineHeight: 18,
   },
   upNextThumb: {
     borderRadius: 12,
@@ -1979,6 +2016,10 @@ const styles = StyleSheet.create({
     minHeight: 32,
     alignSelf: 'center',
     paddingHorizontal: spacing[4],
+  },
+  discardTextScaled: {
+    fontSize: 14,
+    lineHeight: 18,
   },
   discardPressed: {
     backgroundColor: colors.dangerFaint,

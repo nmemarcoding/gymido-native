@@ -36,7 +36,7 @@ import {
 import { DISC_SIZE, DiscardDialog, ExactAlarmDialog, FinishEarlyDialog, RestTimerWidget, SpeakIntroDialog } from './RuntimeOverlays';
 import { finishEarlyMessage, pickMessageIndex, readLastMessageIndex, saveLastMessageIndex } from './finishEarly';
 import { restHero, restNextPreview } from './restPresentation';
-import { FIT, FULL, fitSizes, nextFitStep } from './phoneFit';
+import { FULL, fitSizes, nextFitStep } from './phoneFit';
 import SetArcCard from './SetArcCard';
 import restAlertPlatform from './restAlertPlatform';
 import {
@@ -218,10 +218,11 @@ export default function SessionRuntime({
   // bottom block's (How to + caption) top inside it, so the band can follow
   // the content rather than the whole stage.
   const [stageY, setStageY] = useState(null);
-  // T-161 spec §5 (the phone fit): the scroll's visible height (the free room), the content column's measured height (the
-  // used room), the weight/reps focus (the fit holds while a field has focus and re-fits when focus leaves the fields:
+  // T-162 spec §5 / P5 (the phone fit): the column's height (the screen; the free room), the header bar's and the content
+  // column's measured heights (the used room: the P5-SC header scales too), the weight/reps focus (the fit holds while a field has focus and re-fits when focus leaves the fields:
   // `blurs` counts the leaves), the stage's measures (LiveStage onMeasure) and the ladder's state for the current key.
-  const [viewportHeight, setViewportHeight] = useState(null);
+  const [rootHeight, setRootHeight] = useState(null);
+  const headerRef = useRef(null);
   const [fieldFocused, setFieldFocusedState] = useState(false);
   const [blurs, setBlurs] = useState(0);
   // §5.3: focus moving straight into the other field keeps the hold, so a blur lands a tick later unless a focus follows.
@@ -243,7 +244,7 @@ export default function SessionRuntime({
   const onStageMeasure = useCallback((measured) => {
     setStageMeasure((prev) => (Object.keys(measured).every((key) => prev[key] === measured[key]) ? prev : { ...prev, ...measured }));
   }, []);
-  const [usedLayout, setUsedLayout] = useState({ height: null, seq: 0 });
+  const [usedLayout, setUsedLayout] = useState({ height: null, header: 0, seq: 0 });
   const [fitStore, setFitStore] = useState({ key: null, state: FULL, settled: false, seq: -1 });
   const [contentY, setContentY] = useState(null);
   const [pastPhoto, setPastPhoto] = useState(false);
@@ -656,13 +657,15 @@ export default function SessionRuntime({
   // the sizes in the ruling's shrink order. With an increased OS text size (the a11y exception) the page scrolls.
   const fitActive = !tablet && !stacked;
   const fitUpNext = !browsing && isActiveView && (laterIncomplete !== -1 || isLastIncomplete);
+  // S3 slims the Up next row: only when that row shows (not the last exercise's note).
+  const fitUpNextRow = !browsing && isActiveView && laterIncomplete !== -1;
   const fitPreviousRow = browsing || (exercise?.sets ?? []).some((item) => item.is_completed) || Boolean(editorSet && previousSetFor(exercise, editorSet));
   const fitHasPhoto = Boolean(exercise?.exercise?.thumbnail?.url);
   const doneSets = (exercise?.sets ?? []).filter((item) => item.is_completed).length;
   // §5.3: anything that changes the room or the content starts again from FULL: the room, the exercise, its done/total,
   // the rows that appear or collapse, the name's lines, the photo getting its aspect, leaving a field.
   const fitKey = JSON.stringify([
-    viewportHeight == null ? null : Math.round(viewportHeight),
+    rootHeight == null ? null : Math.round(rootHeight),
     exercise?.id,
     doneSets,
     exercise?.sets?.length ?? 0,
@@ -675,19 +678,22 @@ export default function SessionRuntime({
     blurs,
   ]);
   const fitState = fitStore.key === fitKey ? fitStore.state : FULL;
-  const freshFit = fitActive && exercise ? fitSizes(fitState) : null;
+  const freshFit = fitActive && exercise ? fitSizes(fitState, { browse: browsing }) : null;
+  const fitColumnWidth = Math.min(width - insets.left - insets.right, COLUMN_MAX_WIDTH);
   const fit = fieldFocused && heldFit.current ? heldFit.current : freshFit;
   if (!fieldFocused) {
     heldFit.current = freshFit;
   }
-  // §5.1: over = used − free; free = the scroll's visible height − the page's 8 + the bottom safe area. One step per
-  // measurement, before paint (a layout effect re-renders synchronously), until it fits or no step is left (§5.2: the
-  // layout then stays; no scroll at normal text).
+  // §5.1: over = used − free; used = the header bar + the content column, free = the column − the page's 8 − the bottom
+  // safe area (the header is in both, so its P5-SC scaling never moves the room). One step per measurement, before paint
+  // (a layout effect re-renders synchronously), until it fits or no step is left (the layout then stays; no scroll).
   useLayoutEffect(() => {
-    if (!fitActive || !exercise || fieldFocused || viewportHeight == null) {
+    if (!fitActive || !exercise || fieldFocused || rootHeight == null) {
       return;
     }
-    const measured = measureNow(contentRef.current);
+    const content = measureNow(contentRef.current);
+    const headerNow = measureNow(headerRef.current);
+    const measured = content == null || headerNow == null ? null : content + headerNow;
     // A new key starts from FULL (drawn this render). Without a synchronous read, the last layout event is from before
     // it: adopt the key and wait for FULL's own layout.
     if (fitStore.key !== fitKey && measured == null) {
@@ -702,17 +708,30 @@ export default function SessionRuntime({
     if (measured == null && (usedLayout.height == null || usedLayout.seq <= current.seq)) {
       return;
     }
-    const used = measured ?? usedLayout.height;
-    const over = Math.ceil(used - (viewportHeight - PHONE_PAGE_BOTTOM - insets.bottom));
-    const next = nextFitStep(current.state, { over, hasPhoto: fitHasPhoto, browse: browsing, photoDrawn: stageMeasure.photoNatural ?? null, nameLines: stageMeasure.nameLines ?? 1 });
+    const used = measured ?? usedLayout.height + usedLayout.header;
+    const over = Math.ceil(used - (rootHeight - PHONE_PAGE_BOTTOM - insets.bottom));
+    const next = nextFitStep(current.state, {
+      over,
+      hasPhoto: fitHasPhoto,
+      browse: browsing,
+      photoDrawn: stageMeasure.photoNatural ?? null,
+      nameLines: stageMeasure.nameLines ?? 1,
+      columnWidth: fitColumnWidth,
+      upNext: fitUpNextRow,
+    });
     setFitStore(next ? { key: fitKey, state: next, settled: false, seq: usedLayout.seq } : { key: fitKey, state: current.state, settled: true, seq: usedLayout.seq, over });
-  }, [fitActive, exercise, fieldFocused, viewportHeight, fitStore, fitKey, usedLayout, insets.bottom, fitHasPhoto, browsing, stageMeasure.photoNatural, stageMeasure.nameLines]);
+  }, [fitActive, exercise, fieldFocused, rootHeight, fitStore, fitKey, usedLayout, insets.bottom, fitHasPhoto, browsing, stageMeasure.photoNatural, stageMeasure.nameLines, fitColumnWidth, fitUpNextRow]);
   const onPageContentLayout = (event) => {
     const { height: measured } = event.nativeEvent.layout;
-    setUsedLayout((prev) => ({ height: measured, seq: prev.seq + 1 }));
+    setUsedLayout((prev) => ({ ...prev, height: measured, seq: prev.seq + 1 }));
+  };
+  const onHeaderLayout = (event) => {
+    const { height: measured } = event.nativeEvent.layout;
+    setUsedLayout((prev) => ({ ...prev, header: measured, seq: prev.seq + 1 }));
   };
   pageFitsRef.current = Boolean(fit) && fitStore.key === fitKey && fitStore.settled && !(fitStore.over > 0);
-  const chromeTop = (header ? spacing[3] : insets.top + spacing['2_5']) + (tablet ? spacing[3] : 0);
+  // P5-SC: the scaled header has 6 above the pills (10 normally).
+  const chromeTop = (header ? spacing[3] : insets.top + (fit?.scaled ? 6 : spacing['2_5'])) + (tablet ? spacing[3] : 0);
   // §17 / web parity: a button press takes focus off the weight input.
   const dismiss = (handler) => (...args) => {
     Keyboard.dismiss();
@@ -738,6 +757,7 @@ export default function SessionRuntime({
       completePrimary={!liveSetLeft}
       allRef={allRef}
       tablet={tablet}
+      scaled={Boolean(fit?.scaled)}
       onLayout={chromeOverlay ? (event) => setChromeHeight(event.nativeEvent.layout.height) : undefined}
       style={
         chromeOverlay
@@ -788,7 +808,8 @@ export default function SessionRuntime({
       <HowToButton
         tablet={tablet}
         onPage={!tablet && !browsing}
-        compact={Boolean(fit?.compact)}
+        compact={Boolean(fit?.rowCompact)}
+        scaled={Boolean(fit?.scaled)}
         onPress={dismiss(() => {
           howTo.fetchEntry(exercise.exercise.id);
           setShowHowTo(true);
@@ -823,7 +844,8 @@ export default function SessionRuntime({
       lockReason={LOCK_REST}
       onPress={dismiss(() => toggleSet(exercise, editorSet))}
       arc={!tablet}
-      compact={Boolean(fit) && fit.arc < FIT.arc}
+      compact={Boolean(fit?.compactCard)}
+      scaled={Boolean(fit?.scaled)}
     />
   ) : null;
   // T-146 phone: the done set being edited (FE Q1), only while it is still done.
@@ -836,7 +858,8 @@ export default function SessionRuntime({
       isLocked={false}
       onPress={dismiss(() => saveEditedSet(exercise, editingSet))}
       arc
-      compact={Boolean(fit) && fit.arc < FIT.arc}
+      compact={Boolean(fit?.compactCard)}
+      scaled={Boolean(fit?.scaled)}
     />
   ) : null;
   // The set the phone card's steppers edit.
@@ -909,7 +932,7 @@ export default function SessionRuntime({
 
   const lastNote = isActiveView && isLastIncomplete ? <LastExerciseNote /> : null;
   // T-155: the full-width row by default; the small link only in the fit's compact sizes.
-  const discard = <DiscardWorkoutAction abandoning={isAbandoning} link={Boolean(fit?.compact)} onPress={dismiss(() => setShowDiscard(true))} />;
+  const discard = <DiscardWorkoutAction abandoning={isAbandoning} link={Boolean(fit?.discardLink)} scaled={Boolean(fit?.scaled)} onPress={dismiss(() => setShowDiscard(true))} />;
   // T-132 (web WP:1076-1115, phone): card → Up next / "Last exercise" →
   // Discard, 12 apart, with 12 more above Discard.
   const endActions = tablet ? (
@@ -949,10 +972,6 @@ export default function SessionRuntime({
       onContentLayout={(event) => setContentY(event.nativeEvent.layout.y)}
       fit={fit}
       onMeasure={fitActive ? onStageMeasure : undefined}
-      onThumbPress={howToButton ? dismiss(() => {
-        howTo.fetchEntry(exercise.exercise.id);
-        setShowHowTo(true);
-      }) : undefined}
     />
   ) : null;
 
@@ -960,9 +979,6 @@ export default function SessionRuntime({
     ref: scrollRef,
     onLayout: (event) => {
       visibleHeight.current = event.nativeEvent.layout.height;
-      if (!tablet) {
-        setViewportHeight(event.nativeEvent.layout.height);
-      }
     },
     onContentSizeChange: (_w, h) => {
       contentHeight.current = h;
@@ -1005,7 +1021,7 @@ export default function SessionRuntime({
   // chrome and its gold rail) sits ABOVE the page scroll, so the photo starts
   // under it and never runs under the clock or the pills.
   const phoneHeader = tablet ? null : (
-    <View testID="session-header-bar" style={styles.headerBar}>
+    <View ref={headerRef} collapsable={false} testID="session-header-bar" onLayout={onHeaderLayout} style={styles.headerBar}>
       {chrome}
     </View>
   );
@@ -1074,7 +1090,16 @@ export default function SessionRuntime({
               </Text>
             ) : null}
             {/* T-132 (web 2.1.15 phone): Up next follows the card. */}
-            {upNext ? <UpNextLink exercise={upNext} compact={Boolean(fit?.compact)} onPress={dismiss(() => setViewingIndex(laterIncomplete))} /> : null}
+            {upNext ? (
+              <UpNextLink
+                exercise={upNext}
+                compact={Boolean(fit?.upNextSlim)}
+                scaled={Boolean(fit?.scaled)}
+                // P3: clear of the minimised disc while it sits in its default place.
+                clearDisc={Boolean(rest.timer) && rest.minimized && !rest.position}
+                onPress={dismiss(() => setViewingIndex(laterIncomplete))}
+              />
+            ) : null}
             {endActions}
           </View>
         </View>
@@ -1093,7 +1118,12 @@ export default function SessionRuntime({
           {header}
         </View>
       ) : null}
-      <View testID="session-column" {...behindRest} style={[styles.column, !tablet && styles.columnPhone]}>
+      <View
+        testID="session-column"
+        {...behindRest}
+        onLayout={tablet ? undefined : (event) => setRootHeight(event.nativeEvent.layout.height)}
+        style={[styles.column, !tablet && styles.columnPhone]}
+      >
         {tablet && !browsing && !chromeOverlay ? chrome : null}
         {phoneHeaderSticky ? phoneHeader : null}
         {body}
