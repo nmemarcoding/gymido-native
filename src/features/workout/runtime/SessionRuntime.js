@@ -789,8 +789,18 @@ export default function SessionRuntime({
   // PM 31 Oct: when the fit fails at the floor (settled, still over: a 360×640 phone with 3-button nav) the page scrolls
   // as the last resort, so Up next and Discard stay reachable.
   const fitFailed = Boolean(fit) && fitStore.key === fitKey && fitStore.settled && fitStore.over > 0;
-  // Review L8: when it fits again, scrolling switches off; the page goes back to the top so nothing stays hidden above.
-  const pageScrolls = !fit || fitFailed || (Platform.OS === 'android' && keyboardHeight > 0);
+  // Review L8 + L9: the scroll mode changes only on a SETTLED result: on when it fails, off when it fits. While it re-fits
+  // in place it keeps the mode it had, so a still-failing page never jumps; switching off goes back to the top (L8).
+  const fitFits = Boolean(fit) && fitStore.key === fitKey && fitStore.settled && !(fitStore.over > 0);
+  const fitScrollMode = useRef(false);
+  if (!fit) {
+    fitScrollMode.current = false;
+  } else if (fitFailed) {
+    fitScrollMode.current = true;
+  } else if (fitFits) {
+    fitScrollMode.current = false;
+  }
+  const pageScrolls = !fit || fitScrollMode.current || (Platform.OS === 'android' && keyboardHeight > 0);
   const pageScrolled = useRef(pageScrolls);
   useEffect(() => {
     if (pageScrolled.current && !pageScrolls) {

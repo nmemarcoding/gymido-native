@@ -725,6 +725,25 @@ describe('v2 F1 live and browsing states (ND3)', () => {
       expect(scrollTo).toHaveBeenCalledWith({ y: 0, animated: false });
     });
 
+    // Review L9: an in-place re-fit of a still-failing page keeps scrolling on and never jumps to the top.
+    it('a failing page that re-fits in place keeps scrolling and stays where it is', () => {
+      const tree = setup(600);
+      for (let step = 0; step < 15; step += 1) {
+        used(tree, 2000);
+      }
+      expect(page(tree).props.scrollEnabled).toBe(true);
+      const scrollTo = jest.fn();
+      page(tree).instance.scrollTo = scrollTo;
+      // A row appears (M1): it starts again from FULL and steps down; it still fails.
+      used(tree, 2100);
+      expect(page(tree).props.scrollEnabled).toBe(true);
+      for (let step = 0; step < 15; step += 1) {
+        used(tree, 2100);
+        expect(page(tree).props.scrollEnabled).toBe(true);
+      }
+      expect(scrollTo).not.toHaveBeenCalled();
+    });
+
     it('while a weight/reps field has focus the fit holds; leaving the fields re-fits from FULL', async () => {
       const tree = setup(1200);
       used(tree, 900);
