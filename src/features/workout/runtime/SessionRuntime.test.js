@@ -690,7 +690,9 @@ describe('v2 F1 live and browsing states (ND3)', () => {
       expect(page(tree).props.scrollEnabled).toBe(false);
     });
 
-    it('a page that never fits ends scaled at the floor (160 on the 430 column), never a thumb, no scroll; more room → FULL', () => {
+    // DECLARED (PM 31 Oct): a fit that fails at the floor scrolls as the last resort (was: no scroll), so the controls stay
+    // reachable; a page that fits never scrolls.
+    it('a page that never fits ends scaled at the floor (160 on the 430 column), never a thumb, and scrolls; more room → FULL, no scroll', () => {
       const tree = setup(600);
       for (let step = 0; step < 15; step += 1) {
         used(tree, 2000);
@@ -699,10 +701,13 @@ describe('v2 F1 live and browsing states (ND3)', () => {
       expect(photo(tree)).toBe(160);
       // P5-SC: the header pills go 36.
       expect(StyleSheet.flatten(host(tree, 'session-chrome').props.style).gap).toBe(4);
-      expect(page(tree).props.scrollEnabled).toBe(false);
+      // Failed at the floor: the page scrolls, so Up next and Discard stay reachable.
+      expect(page(tree).props.scrollEnabled).toBe(true);
       room(tree, 2000);
+      used(tree, 900);
       expect(photo(tree)).toBe(300);
       expect(discardHeight(tree)).toBe(48);
+      expect(page(tree).props.scrollEnabled).toBe(false);
     });
 
     it('while a weight/reps field has focus the fit holds; leaving the fields re-fits from FULL', async () => {

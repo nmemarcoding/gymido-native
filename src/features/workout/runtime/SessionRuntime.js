@@ -785,6 +785,9 @@ export default function SessionRuntime({
   const fitStamp = (where) =>
     fit ? <View testID={`fit-stamp-${where}`} collapsable={false} onLayout={onStamp(where)} style={[styles.fitStamp, { width: fitStampWidth(fitStore.gen) }]} /> : null;
   pageFitsRef.current = Boolean(fit) && fitStore.key === fitKey && fitStore.settled && !(fitStore.over > 0);
+  // PM 31 Oct: when the fit fails at the floor (settled, still over: a 360×640 phone with 3-button nav) the page scrolls
+  // as the last resort, so Up next and Discard stay reachable.
+  const fitFailed = Boolean(fit) && fitStore.key === fitKey && fitStore.settled && fitStore.over > 0;
   // P5-SC: the scaled header has 6 above the pills (10 normally).
   const chromeTop = (header ? spacing[3] : insets.top + (fit?.scaled ? 6 : spacing['2_5'])) + (tablet ? spacing[3] : 0);
   // §17 / web parity: a button press takes focus off the weight input.
@@ -1124,7 +1127,7 @@ export default function SessionRuntime({
       <ScrollView
         {...scrollProps}
         // T-154: no scroll on a fitted phone page (only the a11y exception, or a fit that failed, scrolls).
-        scrollEnabled={!fit || androidKeyboard > 0}
+        scrollEnabled={!fit || fitFailed || androidKeyboard > 0}
         onScroll={onPageScroll}
         scrollEventThrottle={16}
         contentContainerStyle={{ paddingBottom: bottomRoom + discRoom + androidKeyboard }}
