@@ -1,17 +1,19 @@
-// T-154 + T-155 v2 (owner-approved look, PM 30 Oct; web 2.4.1): the phone set screen and the browse view fit the
-// visible height without scrolling at normal text. The DEFAULT: the photo up to 300 (contain), the 2.3.2 Rest/How to row
-// + name, the compact half-circle card (rev 42: steppers 108, ± 36, the previous row 28), the 64 Up next row and the
-// full-width Discard. Only when that doesn't fit, in order and only as far as needed: the photo 300 → 112, the gaps
-// 12 → 8, the steppers 108 → 96 (live only), the arc 154 → 132, the photo → a 56 thumb beside the text; (browse, last)
-// the Volume·Reps line hides. Always the LARGEST that fits: recomputed from the default on every change of the room or
-// the content, so it grows back after a transient overflow.
-// `text` = the measured name + exercise notes (WITHOUT the Rest/How to row).
+// T-154 + T-155 (owner-approved look, PM 30 Oct; web 2.4.1): the phone set screen and the browse view fit the visible
+// height without scrolling at normal text. The DEFAULT: the photo up to 300 (contain), the 2.3.2 Rest/How to row + name,
+// the notes card, the compact half-circle card (steppers 108, ± 36, the previous row 28), the 64 Up next row and the
+// full-width Discard.
+// T-155 round 3 (PM 30 Oct; owner: the photo at least as big as web's): always the LARGEST layout that fits, found by a
+// search, not a one-way ladder. The notes give first (clamped to 1 line + More), then the photo (300 → 112), then the
+// gaps 12 → 8, the steppers 108 → 96 (live only), the arc 154 → 132, in that order of preference; past that the photo
+// becomes a 56 thumb beside the row + name (the notes, clamped, full width under it) and the same steps are searched again
+// from the full size; (browse, last) the Volume·Reps line hides. The model uses the MEASURED blocks (the name at both widths, the notes card full and clamped, the
+// row, the photo's natural height) and a `correction`: the measured content minus the model for the layout on screen, so
+// whatever the model doesn't know is fitted against the real height.
 
 const DEFAULT = Object.freeze({
   compact: false,
   photoTop: 6,
   photoMax: 300,
-  row: 36,
   gap: 12,
   arc: 154,
   previousRow: 28,
@@ -34,53 +36,102 @@ export const FIT = Object.freeze({
   bannerGap: 8,
   statsLine: 20,
   arc: 154,
+  row: 36,
 });
 
-// The card: padding 12 + the arc box + (8 + the previous row) + (8 + the steppers) + padding 12.
+// A Weight / Reps cell as drawn (SetArcCard, compact): padding 6 + border 1 on each side, the 28 label slot, 4, the value
+// (38; 34 tight), 4, the ± buttons (36; 32 tight). Its minimum is the fit's steppers height.
+export function cellHeight(steppers) {
+  const tight = steppers < DEFAULT.steppers;
+  return Math.max(steppers, 14 + 28 + 4 + (tight ? 34 : 38) + 4 + (tight ? 32 : 36));
+}
+
+// The card: padding 12 + the arc box + (8 + the previous row) + (8 + the cells) + padding 12.
 function cardHeight(fit, { previousRow, browse }) {
-  return 12 + fit.arc + (previousRow ? 8 + fit.previousRow : 0) + (browse ? 0 : 8 + fit.steppers) + 12;
+  return 12 + fit.arc + (previousRow ? 8 + fit.previousRow : 0) + (browse ? 0 : 8 + cellHeight(fit.steppers)) + 12;
 }
 
-export function fitHeight(fit, { text, hasPhoto, previousRow, upNext, browse }) {
-  const textBlock = fit.thumb ? Math.max(FIT.thumb, fit.row + 4 + text) : fit.row + 4 + text;
-  const photo = hasPhoto && !fit.thumb ? fit.photoTop + fit.photo + fit.gap : fit.photoTop;
-  const top = browse ? FIT.bannerGap + FIT.banner : 0;
-  const stats = browse && fit.statsLine ? 8 + FIT.statsLine : 0;
-  const tail = (upNext ? fit.upNextGap + fit.upNext : 0) + fit.discardGap + fit.discard;
-  return top + photo + textBlock + fit.gap + cardHeight(fit, { previousRow, browse }) + stats + tail;
+function inputsWithDefaults({ name = 38, nameThumb, notes = 0, notesClamped, row = FIT.row, hasPhoto = true, photoNatural = Infinity, previousRow = true, upNext = true, browse = false, correction = 0 }) {
+  return {
+    name,
+    nameThumb: nameThumb ?? name,
+    notes,
+    notesClamped: Math.min(notes, notesClamped ?? notes),
+    row,
+    hasPhoto,
+    photoNatural,
+    previousRow,
+    upNext,
+    browse,
+    correction,
+  };
 }
 
-export function phoneFit({ available, text, hasPhoto = true, previousRow = true, upNext = true, browse = false }) {
-  const inputs = { text, hasPhoto, previousRow, upNext, browse };
-  const fit = { ...DEFAULT, photo: hasPhoto ? DEFAULT.photoMax : 0, thumb: false, statsLine: true };
-  const over = () => fitHeight(fit, inputs) - available;
-  const done = () => ({ ...fit, fits: over() <= 0 });
-  if (over() <= 0) {
-    return done();
+// The model's height of a layout (without the correction). `notes` = the measured notes card with its space above.
+export function fitHeight(fit, rawInputs) {
+  const inputs = inputsWithDefaults(rawInputs);
+  const notes = fit.notesClamp ? inputs.notesClamped : inputs.notes;
+  const textBlock = fit.thumb ? Math.max(FIT.thumb, inputs.row + 4 + inputs.nameThumb) + notes : inputs.row + 4 + inputs.name + notes;
+  const photo = inputs.hasPhoto && !fit.thumb ? fit.photoTop + Math.min(fit.photo, inputs.photoNatural) + fit.gap : fit.photoTop;
+  const top = inputs.browse ? FIT.bannerGap + FIT.banner : 0;
+  const stats = inputs.browse && fit.statsLine ? 8 + FIT.statsLine : 0;
+  const tail = (inputs.upNext ? fit.upNextGap + fit.upNext : 0) + fit.discardGap + fit.discard;
+  return top + photo + textBlock + fit.gap + cardHeight(fit, inputs) + stats + tail;
+}
+
+// The gap / steppers / arc steps, cumulative in the ruling's order (none; the gaps; + the steppers; + the arc). Browse has
+// no steppers step.
+function stepCombos(browse) {
+  const none = { gap: DEFAULT.gap, steppers: DEFAULT.steppers, arc: DEFAULT.arc };
+  const gaps = { ...none, gap: FIT.gapTight };
+  const steppers = { ...gaps, steppers: FIT.steppersTight };
+  return browse ? [none, gaps, { ...gaps, arc: FIT.arcTight }] : [none, gaps, steppers, { ...steppers, arc: FIT.arcTight }];
+}
+
+export function phoneFit({ available, ...raw }) {
+  const inputs = inputsWithDefaults(raw);
+  const room = available - inputs.correction;
+  const base = { ...DEFAULT, photo: 0, thumb: false, notesClamp: false, statsLine: true };
+  const result = (fit) => {
+    const height = fitHeight(fit, inputs);
+    return { ...fit, height, fits: height <= room };
+  };
+  const combos = stepCombos(inputs.browse);
+  const clampable = inputs.notesClamped < inputs.notes;
+  // 0. Everything at full size, the notes too.
+  if (clampable) {
+    const full = { ...base, photo: inputs.hasPhoto ? DEFAULT.photoMax : 0 };
+    if (fitHeight(full, inputs) <= room) {
+      return result(full);
+    }
+    base.notesClamp = true;
   }
-  // The photo gives first, down to its floor.
-  if (hasPhoto) {
-    fit.photo = Math.max(FIT.photoFloor, fit.photo - over());
-    if (over() <= 0) {
-      return done();
+  // 1. The full photo layout: the photo takes what the rest leaves, between its floor and 300 (and never more than it
+  // draws at its own aspect).
+  for (const combo of combos) {
+    const fit = { ...base, ...combo, photo: inputs.hasPhoto ? DEFAULT.photoMax : 0 };
+    if (!inputs.hasPhoto) {
+      if (fitHeight(fit, inputs) <= room) {
+        return result(fit);
+      }
+      continue;
+    }
+    const withoutPhoto = fitHeight({ ...fit, photo: 0 }, inputs);
+    const photo = Math.min(DEFAULT.photoMax, room - withoutPhoto);
+    if (photo >= Math.min(FIT.photoFloor, inputs.photoNatural)) {
+      return result({ ...fit, photo: Math.floor(photo) });
     }
   }
-  const steps = [() => (fit.gap = FIT.gapTight), () => !browse && (fit.steppers = FIT.steppersTight), () => (fit.arc = FIT.arcTight)];
-  for (const step of steps) {
-    step();
-    if (over() <= 0) {
-      return done();
+  if (!inputs.hasPhoto) {
+    return result({ ...base, ...combos[combos.length - 1], ...(inputs.browse ? { statsLine: false } : null) });
+  }
+  // 2. The thumb, the (clamped) notes full width under it; the steps searched again from the full size.
+  for (const combo of combos) {
+    const fit = { ...base, ...combo, thumb: true };
+    if (fitHeight(fit, inputs) <= room) {
+      return result(fit);
     }
   }
-  if (hasPhoto) {
-    fit.thumb = true;
-    fit.photo = 0;
-    if (over() <= 0) {
-      return done();
-    }
-  }
-  if (browse) {
-    fit.statsLine = false;
-  }
-  return done();
+  // 3. (browse) the Volume·Reps line, last.
+  return result({ ...base, ...combos[combos.length - 1], thumb: true, statsLine: !inputs.browse });
 }

@@ -1,5 +1,5 @@
 import { useIsFocused } from '@react-navigation/native';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Keyboard, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -36,7 +36,7 @@ import {
 import { DISC_SIZE, DiscardDialog, ExactAlarmDialog, FinishEarlyDialog, RestTimerWidget, SpeakIntroDialog } from './RuntimeOverlays';
 import { finishEarlyMessage, pickMessageIndex, readLastMessageIndex, saveLastMessageIndex } from './finishEarly';
 import { restHero, restNextPreview } from './restPresentation';
-import { FIT, phoneFit } from './phoneFit';
+import { FIT, fitHeight, phoneFit } from './phoneFit';
 import SetArcCard from './SetArcCard';
 import restAlertPlatform from './restAlertPlatform';
 import {
@@ -94,9 +94,8 @@ export const PHONE_HEADER_STICKY_AT_LARGE_TEXT = true;
 export const PHONE_HEADER_BOTTOM_GAP = 0;
 // Q6: the live page's bottom: mb-10 (40) + the layout's 24, + the safe area.
 export const PHONE_PAGE_BOTTOM = 40 + spacing[6];
-// T-154: first-frame estimates for phoneFit (the header bar without the safe area; a 1-line text block).
+// T-154: the first-frame estimate for phoneFit (the header bar without the safe area).
 const FIT_HEADER_ESTIMATE = 70;
-const FIT_TEXT_ESTIMATE = 74;
 // Q7: the minimised rest disc sits 24 above the bottom (+ the safe area);
 // nothing keeps it off Did it (web RT:94-100).
 export const PHONE_DISC_BOTTOM = spacing[6];
@@ -219,7 +218,16 @@ export default function SessionRuntime({
   const [viewportHeight, setViewportHeight] = useState(null);
   const [fieldFocused, setFieldFocused] = useState(false);
   const heldFit = useRef(null);
-  const [stageTextHeight, setStageTextHeight] = useState(FIT_TEXT_ESTIMATE);
+  // T-155 round 3 (PM: measure, don't budget): the stage's measured blocks (LiveStage onMeasure) and the correction, the
+  // measured page content minus the model for the layout on screen. Within one set of inputs the correction only grows,
+  // so the fit settles (never flips between two layouts); new inputs start it again from their first measurement.
+  const [stageMeasure, setStageMeasure] = useState({});
+  const onStageMeasure = useCallback((measured) => {
+    setStageMeasure((prev) => (Object.keys(measured).every((key) => prev[key] === measured[key]) ? prev : { ...prev, ...measured }));
+  }, []);
+  const [fitCorrection, setFitCorrection] = useState({ key: null, value: 0 });
+  const [contentOver, setContentOver] = useState(false);
+  const renderedFit = useRef(null);
   const [contentY, setContentY] = useState(null);
   const [pastPhoto, setPastPhoto] = useState(false);
   const bandOpacity = useRef(new Animated.Value(0)).current;
@@ -633,14 +641,29 @@ export default function SessionRuntime({
   const fitUpNext = !browsing && isActiveView && (laterIncomplete !== -1 || isLastIncomplete);
   const fitPreviousRow = browsing || (exercise?.sets ?? []).some((item) => item.is_completed) || Boolean(editorSet && previousSetFor(exercise, editorSet));
   const fitAvailable = (viewportHeight ?? height - (headerBarHeight ?? insets.top + FIT_HEADER_ESTIMATE)) - insets.bottom;
-  const freshFit =
-    fitActive && exercise
-      ? phoneFit({ available: fitAvailable, text: stageTextHeight, hasPhoto: Boolean(exercise.exercise?.thumbnail?.url), previousRow: fitPreviousRow, upNext: fitUpNext, browse: browsing })
-      : null;
+  const { notesExpanded, ...measuredBlocks } = stageMeasure;
+  const fitInputs = { ...measuredBlocks, hasPhoto: Boolean(exercise?.exercise?.thumbnail?.url), previousRow: fitPreviousRow, upNext: fitUpNext, browse: browsing };
+  const fitKey = JSON.stringify([exercise?.id, Math.round(fitAvailable), fitInputs, Boolean(notesExpanded)]);
+  const freshFit = fitActive && exercise ? phoneFit({ available: fitAvailable, ...fitInputs, correction: fitCorrection.value }) : null;
   const fit = fieldFocused && heldFit.current ? heldFit.current : freshFit;
   if (!fieldFocused) {
     heldFit.current = freshFit;
   }
+  renderedFit.current = fit ? { key: fitKey, fit, inputs: fitInputs, available: fitAvailable } : null;
+  const onPageContentLayout = (event) => {
+    const rendered = renderedFit.current;
+    if (!rendered) {
+      return;
+    }
+    const { height: measured } = event.nativeEvent.layout;
+    const error = Math.round(measured - fitHeight(rendered.fit, rendered.inputs));
+    setFitCorrection((prev) => {
+      const value = prev.key === rendered.key ? Math.max(prev.value, error) : error;
+      return prev.key === rendered.key && prev.value === value ? prev : { key: rendered.key, value };
+    });
+    // A safety net: whatever the model says, content taller than the room scrolls.
+    setContentOver(measured > rendered.available + 1);
+  };
   pageFitsRef.current = Boolean(fit?.fits);
   const chromeTop = (header ? spacing[3] : insets.top + spacing['2_5']) + (tablet ? spacing[3] : 0);
   // §17 / web parity: a button press takes focus off the weight input.
@@ -878,7 +901,7 @@ export default function SessionRuntime({
       }}
       onContentLayout={(event) => setContentY(event.nativeEvent.layout.y)}
       fit={fit}
-      onTextHeight={setStageTextHeight}
+      onMeasure={fitActive ? onStageMeasure : undefined}
       onThumbPress={howToButton ? dismiss(() => {
         howTo.fetchEntry(exercise.exercise.id);
         setShowHowTo(true);
@@ -982,12 +1005,12 @@ export default function SessionRuntime({
       <ScrollView
         {...scrollProps}
         // T-154: no scroll on a fitted phone page (only the a11y exception, or a fit that failed, scrolls).
-        scrollEnabled={!fit || !fit.fits || androidKeyboard > 0}
+        scrollEnabled={!fit || !fit.fits || contentOver || androidKeyboard > 0}
         onScroll={onPageScroll}
         scrollEventThrottle={16}
         contentContainerStyle={{ paddingBottom: bottomRoom + discRoom + androidKeyboard }}
       >
-        <View ref={contentRef} collapsable={false}>
+        <View ref={contentRef} collapsable={false} onLayout={fit ? onPageContentLayout : undefined}>
           {phoneHeader && !phoneHeaderSticky ? phoneHeader : null}
           {/* T-132 (web WP:869-882, 1075): phone browsing puts the bar above the photo. */}
           {browsing && !tablet ? <View style={styles.phoneBrowsingBar}>{browsingBar}</View> : null}

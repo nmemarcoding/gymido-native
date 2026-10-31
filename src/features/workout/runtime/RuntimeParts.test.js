@@ -248,19 +248,52 @@ describe('ExerciseStage', () => {
   // T-132 B2 (PM OK 29 Oct; web 2.1.15 ES:79-80): the phone live photo has NO solid block behind the caption, only the
   // 170 bottom fade to the ground; the T-110 scrim stays on the tablet stages (checked here on the tablet split).
   // Was: the phone live stage drew the scrim (32 band + the 0.86 solid block that grows with the caption).
-  // PM 30 Oct (web 2.4.0 over-shrink): beside the thumb the text block is narrower and taller; that height must never
-  // feed the fit (it would keep the thumb). Only the full-width block reports.
-  it('LiveStage reports its text height in the full layout only, never beside the thumb', () => {
-    const onTextHeight = jest.fn();
-    const layout = (tree) => act(() => host(tree, 'exercise-stage-content').props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 300, height: 120 } } }));
-    let tree = render(<ExerciseStage exercise={EXERCISE} index={0} count={5} isActive fit={{ photo: 160, gap: 12, thumb: false }} onTextHeight={onTextHeight} />);
-    layout(tree);
-    // T-155: the name + notes only (the 36 row and its 4 gap off), so the mode's own row never feeds back.
-    expect(onTextHeight).toHaveBeenCalledWith(120 - 36 - 4);
-    onTextHeight.mockClear();
-    tree = render(<ExerciseStage exercise={EXERCISE} index={0} count={5} isActive fit={{ photo: 0, gap: 8, thumb: true }} onTextHeight={onTextHeight} />);
-    layout(tree);
-    expect(onTextHeight).not.toHaveBeenCalled();
+  // T-155 round 3 (PM: measure, don't budget). Was (DECLARED): LiveStage reported its visible text height, only in the
+  // full layout. Now hidden measurers report each block at both widths, so neither mode feeds the other.
+  it('LiveStage measures the name at both widths, the notes full and clamped, and the row; hidden from screen readers', () => {
+    const onMeasure = jest.fn();
+    const tree = render(<ExerciseStage exercise={{ ...EXERCISE, notes: 'Slow down' }} index={0} count={5} isActive fit={{ photo: 160, gap: 12, thumb: false }} onMeasure={onMeasure} />);
+    const layout = (node, height) => act(() => node.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 300, height } } }));
+    const measurers = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityElementsHidden && node.props.importantForAccessibility === 'no-hide-descendants' && node.props.pointerEvents === 'none')[0];
+    expect(flat(measurers)).toMatchObject({ position: 'absolute', opacity: 0 });
+    const [name, nameThumb] = measurers.findAll((node) => typeof node.type === 'string' && node.props.onLayout && node.props.children === 'Barbell Bench Press');
+    layout(name, 38);
+    layout(nameThumb, 76);
+    const notesBlocks = measurers.findAll((node) => typeof node.type === 'string' && node.props.onLayout && node.props.children?.props?.testID?.startsWith('measure-notes'));
+    layout(notesBlocks[0], 96);
+    layout(notesBlocks[1], 66);
+    expect(onMeasure).toHaveBeenCalledWith({ name: 38 });
+    expect(onMeasure).toHaveBeenCalledWith({ nameThumb: 76 });
+    expect(onMeasure).toHaveBeenCalledWith({ notes: 96 });
+    expect(onMeasure).toHaveBeenCalledWith({ notesClamped: 66 });
+    expect(onMeasure).toHaveBeenCalledWith(expect.objectContaining({ photoNatural: expect.any(Number) }));
+    // No notes: 0, so a previous exercise's notes never linger in the fit.
+    const bare = jest.fn();
+    render(<ExerciseStage exercise={EXERCISE} index={0} count={5} isActive fit={{ photo: 160, gap: 12, thumb: false }} onMeasure={bare} />);
+    expect(bare).toHaveBeenCalledWith({ notes: 0, notesClamped: 0 });
+  });
+
+  // T-155 round 3 (PM 2): in thumb mode the notes are full width under the thumb row, not beside the thumb.
+  it('thumb: the notes card sits full width under the thumb row, outside the text beside it', () => {
+    const tree = render(<ExerciseStage exercise={{ ...EXERCISE, notes: 'Slow down' }} index={0} count={5} isActive fit={{ photo: 0, gap: 8, thumb: true }} onMeasure={jest.fn()} />);
+    expect(host(tree, 'exercise-stage-thumb')).toBeDefined();
+    expect(host(tree, 'exercise-stage-content').findAll((node) => node.props.testID === 'exercise-notes')).toHaveLength(0);
+    expect(host(tree, 'exercise-notes')).toBeDefined();
+  });
+
+  // T-155 round 3 (owner via PM: notes give before the photo): clamped to 1 line + More; More opens them in place.
+  it('notes clamp: 1 line with More; More opens the full notes (Less closes) and reports it', () => {
+    const onMeasure = jest.fn();
+    const tree = render(<ExerciseStage exercise={{ ...EXERCISE, notes: 'Slow down and pause at the bottom of every rep' }} index={0} count={5} isActive fit={{ photo: 160, gap: 12, thumb: false, notesClamp: true }} onMeasure={onMeasure} />);
+    const notesText = () => host(tree, 'exercise-notes').findAll((node) => typeof node.type === 'string' && node.props.children === 'Slow down and pause at the bottom of every rep')[0];
+    expect(notesText().props.numberOfLines).toBe(1);
+    const more = host(tree, 'exercise-notes-more');
+    expect(more.props.accessibilityRole).toBe('button');
+    expect(texts(tree)).toContain('More');
+    act(() => tree.root.findAll((node) => node.props.testID === 'exercise-notes-more' && node.props.onPress)[0].props.onPress());
+    expect(notesText().props.numberOfLines).toBeUndefined();
+    expect(texts(tree)).toContain('Less');
+    expect(onMeasure).toHaveBeenCalledWith({ notesExpanded: true });
   });
 
   // DECLARED S2 (T-146 rev 39, PM-approved): nothing on the phone photo, so no fade either (was the 170 bottom fade).

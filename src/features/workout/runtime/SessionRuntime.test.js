@@ -654,6 +654,29 @@ describe('v2 F1 live and browsing states (ND3)', () => {
     expect(byId(tree, 'discard-workout').props.hitSlop).toBeUndefined();
   });
 
+  // T-155 round 3 (PM: measure, don't budget): the page content's measured height corrects the model; within one set of
+  // inputs the correction only grows (the fit settles), and content taller than the room scrolls whatever the model says.
+  it('T-155: the measured content height corrects the fit; it settles; taller content scrolls', () => {
+    const { tree } = render();
+    const page = () => tree.root.findAll((node) => node.type === ScrollView && node.props.onScroll)[0];
+    const content = () => page().findAll((node) => typeof node.type === 'string' && node.props.onLayout && node.props.collapsable === false)[0];
+    const photo = () => StyleSheet.flatten(host(tree, 'exercise-stage').props.style).height;
+    const layoutContent = (height) => act(() => content().props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height } } }));
+    act(() => page().props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height: 1000 } } }));
+    const before = photo();
+    // The page draws 40 taller than the model: the photo gives those 40.
+    // The free height = the scroll's visible height (no bottom inset here).
+    const room = 1000;
+    layoutContent(room + 40);
+    expect(photo()).toBe(before - 40);
+    expect(page().props.scrollEnabled).toBe(true);
+    // Fitted now; a smaller error in the same inputs never grows the photo back (no flip-flop).
+    layoutContent(room);
+    layoutContent(room - 10);
+    expect(photo()).toBe(before - 40);
+    expect(page().props.scrollEnabled).toBe(false);
+  });
+
   // T-155: while a weight/reps field has focus the fit holds (the keyboard must not reshuffle the page); it re-fits on blur.
   it('T-155: the fit holds while a field has focus and re-fits when focus leaves', () => {
     const { tree } = render();

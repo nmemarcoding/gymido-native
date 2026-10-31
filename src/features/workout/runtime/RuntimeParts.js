@@ -429,9 +429,9 @@ export function ExerciseStage({
   segments = null,
   onLayout,
   onContentLayout,
-  // T-154 (rev 42): the phone fit, the measured text block, and the thumb's How to.
+  // T-154 (rev 42): the phone fit, the measured blocks (T-155 round 3), and the thumb's How to.
   fit = null,
-  onTextHeight,
+  onMeasure,
   onThumbPress,
 }) {
   const notes = exerciseNotes(exercise);
@@ -455,17 +455,9 @@ export function ExerciseStage({
         onLayout={onLayout}
         onContentLayout={onContentLayout}
         fit={fit}
-        onTextHeight={onTextHeight}
+        onMeasure={onMeasure}
         onThumbPress={onThumbPress}
-        notes={
-          notes ? (
-            <View testID="exercise-notes" style={styles.notesCard}>
-              <Text {...CAP_BODY} style={styles.notesText}>
-                {notes}
-              </Text>
-            </View>
-          ) : null
-        }
+        notes={notes}
       />
     );
   }
@@ -1234,22 +1226,6 @@ const styles = StyleSheet.create({
   },
   scrimSolid: {
     backgroundColor: colors.groundTranslucent,
-  },
-  // T-132 (web ES:145-152): the notes card under the photo.
-  notesCard: {
-    marginHorizontal: spacing[4],
-    marginTop: spacing[3],
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.hairline,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[3],
-  },
-  notesText: {
-    ...typography.bodySm,
-    lineHeight: 24,
-    color: colors.textSecondary,
   },
   howToRow: {
     alignItems: 'flex-end',
