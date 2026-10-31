@@ -47,6 +47,9 @@ export default function LiveStage({ exercise, howTo = null, notes = null, onLayo
   const photoHeight = Math.min(max, Math.round(width / ratio));
   const thumb = Boolean(fit?.thumb) && Boolean(image.url);
   const gap = fit ? fit.gap : spacing[3];
+  // T-155: the full 2.3.2 row (36, 16 px) by default; the compact one (32, 15 px) from the fit's step (b).
+  const compact = Boolean(fit?.compact);
+  const [rowHeight, setRowHeight] = useState(36);
   const onLoad = (source) => {
     if (source?.width > 0 && source?.height > 0) {
       setAspect({ url: image.url, value: source.width / source.height });
@@ -56,7 +59,8 @@ export default function LiveStage({ exercise, howTo = null, notes = null, onLayo
     <View
       testID="exercise-stage-content"
       onLayout={(event) => {
-        const measured = event.nativeEvent.layout.height;
+        // The fit budgets the row per mode itself: report the name + notes only (the row and its 4 gap off).
+        const measured = event.nativeEvent.layout.height - rowHeight - 4;
         setTextHeight(measured);
         // PM 30 Oct (web 2.4.0 over-shrink): only the full-width text block feeds the fit. Beside the thumb the
         // name wraps more; feeding that back would keep the thumb even when the full layout fits again.
@@ -67,8 +71,8 @@ export default function LiveStage({ exercise, howTo = null, notes = null, onLayo
       }}
       style={[styles.text, thumb && styles.textBesideThumb]}
     >
-      <View style={styles.row}>
-        <Text {...CAP_BODY} testID="stage-rest-line" style={styles.restLine}>
+      <View style={[styles.row, compact && styles.rowCompact]} onLayout={(event) => setRowHeight(event.nativeEvent.layout.height)}>
+        <Text {...CAP_BODY} testID="stage-rest-line" style={[styles.restLine, compact && styles.restLineCompact]}>
           {line}
         </Text>
         {howTo}
@@ -92,10 +96,10 @@ export default function LiveStage({ exercise, howTo = null, notes = null, onLayo
     );
   }
   return (
-    <View testID="exercise-stage-frame" style={styles.frame}>
+    <View testID="exercise-stage-frame" style={[styles.frame, { paddingTop: fit ? fit.photoTop : spacing['1_5'] }]}>
       {image.url ? (
         <>
-          <PhotoBlend testID="stage-photo-blend" image={image} top={spacing[2]} height={photoHeight} width={width} upward={false} />
+          <PhotoBlend testID="stage-photo-blend" image={image} top={fit ? fit.photoTop : spacing['1_5']} height={photoHeight} width={width} upward={false} />
           <View testID="exercise-stage" onLayout={onLayout} style={[styles.photo, { height: photoHeight }]}>
             {/* Decorative: the name is printed right under it. */}
             <RemoteImage {...image} resizeMode="contain" style={StyleSheet.absoluteFill} onLoad={onLoad} />
@@ -159,19 +163,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.gutter,
     gap: spacing[1],
   },
-  // Rev 42: the Rest/How to row is 32 (15 px).
+  // T-155: the 2.3.2 row (36, 16 px); rev 42's compact one is 32 (15 px).
   row: {
-    minHeight: 32,
+    minHeight: 36,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing[3],
   },
+  rowCompact: {
+    minHeight: 32,
+  },
+  restLineCompact: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
   restLine: {
     ...font(500),
     flexShrink: 1,
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 24,
     color: colors.textMuted,
   },
   name: {

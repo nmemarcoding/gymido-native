@@ -214,6 +214,11 @@ export default function SessionRuntime({
   const [stageY, setStageY] = useState(null);
   // T-154 (rev 42): the measured phone header bar and the stage's text block, for phoneFit.
   const [headerBarHeight, setHeaderBarHeight] = useState(null);
+  // T-155: the scroll's visible height (measure the content's room, not the window) and the weight/reps focus (the fit
+  // holds while a field has focus, and re-fits when focus leaves the fields).
+  const [viewportHeight, setViewportHeight] = useState(null);
+  const [fieldFocused, setFieldFocused] = useState(false);
+  const heldFit = useRef(null);
   const [stageTextHeight, setStageTextHeight] = useState(FIT_TEXT_ESTIMATE);
   const [contentY, setContentY] = useState(null);
   const [pastPhoto, setPastPhoto] = useState(false);
@@ -627,11 +632,15 @@ export default function SessionRuntime({
   const fitActive = !tablet && !stacked;
   const fitUpNext = !browsing && isActiveView && (laterIncomplete !== -1 || isLastIncomplete);
   const fitPreviousRow = browsing || (exercise?.sets ?? []).some((item) => item.is_completed) || Boolean(editorSet && previousSetFor(exercise, editorSet));
-  const fitAvailable = height - (headerBarHeight ?? insets.top + FIT_HEADER_ESTIMATE) - insets.bottom;
-  const fit =
+  const fitAvailable = (viewportHeight ?? height - (headerBarHeight ?? insets.top + FIT_HEADER_ESTIMATE)) - insets.bottom;
+  const freshFit =
     fitActive && exercise
       ? phoneFit({ available: fitAvailable, text: stageTextHeight, hasPhoto: Boolean(exercise.exercise?.thumbnail?.url), previousRow: fitPreviousRow, upNext: fitUpNext, browse: browsing })
       : null;
+  const fit = fieldFocused && heldFit.current ? heldFit.current : freshFit;
+  if (!fieldFocused) {
+    heldFit.current = freshFit;
+  }
   pageFitsRef.current = Boolean(fit?.fits);
   const chromeTop = (header ? spacing[3] : insets.top + spacing['2_5']) + (tablet ? spacing[3] : 0);
   // §17 / web parity: a button press takes focus off the weight input.
@@ -709,6 +718,7 @@ export default function SessionRuntime({
       <HowToButton
         tablet={tablet}
         onPage={!tablet && !browsing}
+        compact={Boolean(fit?.compact)}
         onPress={dismiss(() => {
           howTo.fetchEntry(exercise.exercise.id);
           setShowHowTo(true);
@@ -798,6 +808,7 @@ export default function SessionRuntime({
       browsing={browsing}
       browseLine={browseLine}
       fit={fit}
+      onFieldFocus={setFieldFocused}
     />
   ) : exercise ? (
     <SetEditor
@@ -827,7 +838,8 @@ export default function SessionRuntime({
   ) : null;
 
   const lastNote = isActiveView && isLastIncomplete ? <LastExerciseNote /> : null;
-  const discard = <DiscardWorkoutAction abandoning={isAbandoning} link={!tablet} onPress={dismiss(() => setShowDiscard(true))} />;
+  // T-155: the full-width row by default; the small link only in the fit's compact sizes.
+  const discard = <DiscardWorkoutAction abandoning={isAbandoning} link={Boolean(fit?.compact)} onPress={dismiss(() => setShowDiscard(true))} />;
   // T-132 (web WP:1076-1115, phone): card → Up next / "Last exercise" →
   // Discard, 12 apart, with 12 more above Discard.
   const endActions = tablet ? (
@@ -839,7 +851,7 @@ export default function SessionRuntime({
   ) : (
     <>
       {lastNote}
-      <View style={styles.discardPhone}>{discard}</View>
+      <View style={fit ? { marginTop: fit.discardGap - fit.upNextGap } : styles.discardPhone}>{discard}</View>
     </>
   );
 
@@ -878,6 +890,9 @@ export default function SessionRuntime({
     ref: scrollRef,
     onLayout: (event) => {
       visibleHeight.current = event.nativeEvent.layout.height;
+      if (!tablet) {
+        setViewportHeight(event.nativeEvent.layout.height);
+      }
     },
     onContentSizeChange: (_w, h) => {
       contentHeight.current = h;
@@ -977,7 +992,7 @@ export default function SessionRuntime({
           {/* T-132 (web WP:869-882, 1075): phone browsing puts the bar above the photo. */}
           {browsing && !tablet ? <View style={styles.phoneBrowsingBar}>{browsingBar}</View> : null}
           {stage}
-          <View style={[styles.main, tablet && styles.mainTablet, tablet && browsing && styles.mainBrowsing, !tablet && styles.mainPhone, fit && { paddingTop: fit.gap }]}>
+          <View style={[styles.main, tablet && styles.mainTablet, tablet && browsing && styles.mainBrowsing, !tablet && styles.mainPhone, fit && { paddingTop: fit.gap, gap: fit.upNextGap }]}>
             {browsing && tablet ? browsingBar : null}
             {browsing && tablet ? stats : null}
             {messages}
@@ -989,7 +1004,7 @@ export default function SessionRuntime({
               </Text>
             ) : null}
             {/* T-132 (web 2.1.15 phone): Up next follows the card. */}
-            {upNext ? <UpNextLink exercise={upNext} onPress={dismiss(() => setViewingIndex(laterIncomplete))} /> : null}
+            {upNext ? <UpNextLink exercise={upNext} compact={Boolean(fit?.compact)} onPress={dismiss(() => setViewingIndex(laterIncomplete))} /> : null}
             {endActions}
           </View>
         </View>
@@ -1136,12 +1151,12 @@ const styles = StyleSheet.create({
   },
   // T-132 (web 2.1.15 phone): the page column (mt 16, 12 apart), Discard's
   // extra 12, and the browsing bar / stats placed around the photo.
-  // T-154 rev 42: card → 8 → Up next → 4 → Discard.
+  // T-155: card → 12 → Up next → 12 → Discard (rev 42 compact: 8 / 4; the fit sets them).
   mainPhone: {
-    gap: spacing[2],
+    gap: spacing[3],
   },
   discardPhone: {
-    marginTop: -spacing[1],
+    paddingTop: spacing[3],
   },
   phoneBrowsingBar: {
     marginHorizontal: spacing[4],

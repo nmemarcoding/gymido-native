@@ -149,7 +149,7 @@ function SetArc({ sets, nowId, selectedId, width, onSelect, label, maxRadius = A
 }
 
 // Rev 42: ± circles 36 (32 at step 4), always a 44 hit.
-function Stepper({ testID, label, glyph, onPress, size = 36 }) {
+function Stepper({ testID, label, glyph, onPress, size = 40 }) {
   return (
     <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={label} onPress={onPress} hitSlop={(44 - size) / 2} style={({ pressed }) => [styles.stepper, { width: size, height: size, borderRadius: size / 2 }, pressed && styles.stepperPressed]}>
       <Text allowFontScaling={false} style={styles.stepperGlyph}>
@@ -159,9 +159,9 @@ function Stepper({ testID, label, glyph, onPress, size = 36 }) {
   );
 }
 
-function Cell({ testID, label, value, steppers, error, stacked, height }) {
+function Cell({ testID, label, value, steppers, error, stacked, height, compact }) {
   return (
-    <View testID={testID} style={[styles.cell, { minHeight: height }, stacked ? styles.cellStacked : styles.cellHalf, error && styles.cellError]}>
+    <View testID={testID} style={[styles.cell, { minHeight: height, padding: compact ? 6 : spacing[2] }, stacked ? styles.cellStacked : styles.cellHalf, error && styles.cellError]}>
       {label}
       {value}
       <View style={styles.steppers}>{steppers}</View>
@@ -191,13 +191,17 @@ export default function SetArcCard({
   browseLine = '',
   // T-154 (rev 42): phoneFit's steppers (108 / 96) and arc (154 / 132).
   fit = null,
+  // T-155: weight/reps focus, so the page fit holds while typing.
+  onFieldFocus,
   cardRef,
 }) {
-  const steppersHeight = fit?.steppers ?? 108;
+  // T-155: the full 2.3.2 sizes by default; rev 42's compact ones from the fit's step (b), tighter after that.
+  const compact = Boolean(fit?.compact);
+  const steppersHeight = fit?.steppers ?? 116;
   const tightSteppers = steppersHeight < 108;
   const compactArc = (fit?.arc ?? 154) < 154;
-  const stepperSize = tightSteppers ? 32 : 36;
-  const valueSize = tightSteppers ? 34 : 38;
+  const stepperSize = tightSteppers ? 32 : compact ? 36 : 40;
+  const valueSize = tightSteppers ? 34 : compact ? 38 : 44;
   const stacked = useLargeTextReflow();
   const { width } = useWindowDimensions();
   const [arcWidth, setArcWidth] = useState(width - 4 * layout.gutter);
@@ -247,14 +251,14 @@ export default function SetArcCard({
       {/* Rev 39: the row collapses when there is nothing to show. */}
       {browsing && !editing ? (
         browseLine ? (
-          <View testID="set-previous-row" style={styles.previousRow}>
+          <View testID="set-previous-row" style={[styles.previousRow, compact && styles.previousRowCompact]}>
             <Text {...CAP_BODY} testID="set-browse-line" style={styles.lastTime}>
               {browseLine}
             </Text>
           </View>
         ) : null
       ) : editing || previous || lastTime ? (
-        <View testID="set-previous-row" style={styles.previousRow}>
+        <View testID="set-previous-row" style={[styles.previousRow, compact && styles.previousRowCompact]}>
           {editing ? (
             <>
               <Pressable testID={`set-undo-${editing.id}`} accessibilityRole="button" accessibilityLabel={`Undo set ${editing.set_number}`} disabled={pending} onPress={() => onUndo(editing)} hitSlop={6} style={styles.rowButton}>
@@ -296,11 +300,12 @@ export default function SetArcCard({
             <Cell
               testID="set-cell-weight"
               stacked={stacked}
+              compact={compact}
               height={steppersHeight}
               error={Boolean(validationError)}
               label={
                 <View style={styles.cellLabelRow}>
-                  <Text {...CAP_BODY} style={styles.cellLabel}>Weight ·</Text>
+                  <Text {...CAP_BODY} style={[styles.cellLabel, compact && styles.cellLabelCompact]}>Weight ·</Text>
                   <Select
                     testID={`set-unit-${target.id}`}
                     accessibilityLabel={`Weight unit for set ${number}`}
@@ -325,6 +330,8 @@ export default function SetArcCard({
                   keyboardType="decimal-pad"
                   // T-149: focus selects the value, so typing replaces it; at most 7 characters.
                   selectTextOnFocus
+                  onFocus={() => onFieldFocus?.(true)}
+                  onBlur={() => onFieldFocus?.(false)}
                   maxLength={7}
                   value={weightValue}
                   placeholder={target.target_weight_value != null ? String(target.target_weight_value) : '0'}
@@ -343,10 +350,11 @@ export default function SetArcCard({
             <Cell
               testID="set-cell-reps"
               stacked={stacked}
+              compact={compact}
               height={steppersHeight}
               label={
                 // Rev 37 F3: "Reps · 8–12" as drawn; the accessible name keeps "target 8–12".
-                <Text {...CAP_BODY} testID="set-reps-label" accessibilityLabel={repsFieldLabel(target)} style={styles.cellLabel}>
+                <Text {...CAP_BODY} testID="set-reps-label" accessibilityLabel={repsFieldLabel(target)} style={[styles.cellLabel, compact && styles.cellLabelCompact]}>
                   {targetRange(target) ? `Reps · ${targetRange(target)}` : 'Reps'}
                 </Text>
               }
@@ -358,6 +366,8 @@ export default function SetArcCard({
                   accessibilityLabel={`Reps for set ${number}`}
                   keyboardType="number-pad"
                   selectTextOnFocus
+                  onFocus={() => onFieldFocus?.(true)}
+                  onBlur={() => onFieldFocus?.(false)}
                   maxLength={2}
                   value={reps ?? ''}
                   placeholder="—"
@@ -450,13 +460,16 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: colors.textMuted,
   },
-  // Rev 42: the previous row is 28.
+  // T-155: 32 (rev 42's compact one is 28).
   previousRow: {
-    minHeight: 28,
+    minHeight: 32,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing[3],
+  },
+  previousRowCompact: {
+    minHeight: 28,
   },
   pill: {
     minHeight: 28,
@@ -511,7 +524,6 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
   },
   cell: {
-    padding: 6,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'transparent',
@@ -530,6 +542,10 @@ const styles = StyleSheet.create({
   cellError: {
     borderColor: colors.dangerText,
   },
+  cellLabelCompact: {
+    fontSize: 15,
+    lineHeight: 18,
+  },
   cellLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -537,8 +553,8 @@ const styles = StyleSheet.create({
   },
   cellLabel: {
     ...font(500),
-    fontSize: 15,
-    lineHeight: 18,
+    fontSize: 16,
+    lineHeight: 20,
     color: colors.textSecondary,
     textAlign: 'center',
   },

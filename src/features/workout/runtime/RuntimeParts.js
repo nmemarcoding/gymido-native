@@ -527,14 +527,15 @@ function CaptionScrim({ height }) {
 
 // T-146 rev 39 `onPage`: on the phone's live screen the pill sits OFF the
 // photo, in the row under it: 36 tall, 16/600, the secondary look, 44 hit.
-export function HowToButton({ onPress, tablet, onPage = false }) {
+// T-155: 36 tall, 16/600 by default; `compact` = rev 42's 32 / 15.
+export function HowToButton({ onPress, tablet, onPage = false, compact = false }) {
   if (onPage) {
     return (
-      <Pressable testID="how-to-open" accessibilityRole="button" accessibilityLabel="How to" onPress={onPress} hitSlop={hitFor(32)} style={styles.noShrink}>
+      <Pressable testID="how-to-open" accessibilityRole="button" accessibilityLabel="How to" onPress={onPress} hitSlop={hitFor(compact ? 32 : 36)} style={styles.noShrink}>
         {({ pressed }) => (
-          <View style={[styles.howToPage, pressed && styles.howToPagePressed]}>
+          <View style={[styles.howToPage, compact && styles.howToPageCompact, pressed && styles.howToPagePressed]}>
             <PlayIcon size={14} color={colors.textPrimary} />
-            <Text {...CAP_BODY} textBreakStrategy="simple" style={styles.howToPageLabel}>
+            <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.howToPageLabel, compact && styles.howToPageLabelCompact]}>
               How to
             </Text>
           </View>
@@ -967,19 +968,26 @@ export function DidItButton({ set, isPending, isLocked, lockReason, onPress, arc
 
 // T-146 board 4 (FE Q3: still a button): the phone's "Up next" card, h64,
 // r20, a 48 thumb (r12) and "Up next · {name}" on one line.
-export function UpNextLink({ exercise, onPress }) {
+// T-155: the 2.3.2 row by default (h64, r20, thumb 48, 16 px); `compact` = rev 42's slim row (h48, r16, thumb 36, 15 px).
+export function UpNextLink({ exercise, onPress, compact = false }) {
   const name = exerciseName(exercise);
   return (
-    <Pressable testID="up-next" accessibilityRole="button" accessibilityLabel={`Up next: ${name}`} onPress={onPress} style={({ pressed }) => [styles.upNext, pressed && styles.upNextPressed]}>
+    <Pressable
+      testID="up-next"
+      accessibilityRole="button"
+      accessibilityLabel={`Up next: ${name}`}
+      onPress={onPress}
+      style={({ pressed }) => [styles.upNext, compact && styles.upNextCompact, pressed && styles.upNextPressed]}
+    >
       <ExerciseImage
         testID="up-next-thumb"
         url={exercise.exercise?.thumbnail?.url ?? null}
         name={name}
         muscleCode={exercise.exercise?.primary_muscle_group?.code}
-        size={36}
-        style={styles.upNextThumb}
+        size={compact ? 36 : 48}
+        style={compact ? styles.upNextThumbCompact : styles.upNextThumb}
       />
-      <Text {...CAP_BODY} numberOfLines={1} style={styles.upNextText}>
+      <Text {...CAP_BODY} numberOfLines={1} style={[styles.upNextText, compact && styles.upNextTextCompact]}>
         <Text style={styles.upNextLabel}>{'Up next · '}</Text>
         {name}
       </Text>
@@ -1282,9 +1290,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: colors.textStrong2,
   },
-  // T-154 rev 42: 32 tall, 15/600 (44 hit via slop).
   howToPage: {
-    minHeight: 32,
+    minHeight: 36,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[2],
@@ -1294,12 +1301,19 @@ const styles = StyleSheet.create({
     borderColor: colors.hairlineButton,
     backgroundColor: colors.fillButton,
   },
+  // T-154 rev 42 (compact): 32 tall, 15/600 (44 hit via slop).
+  howToPageCompact: {
+    minHeight: 32,
+  },
+  howToPageLabelCompact: {
+    fontSize: 15,
+  },
   howToPagePressed: {
     backgroundColor: colors.fillPressed,
   },
   howToPageLabel: {
     ...font(600),
-    fontSize: 15,
+    fontSize: 16,
     lineHeight: 20,
     color: colors.textPrimary,
   },
@@ -1914,28 +1928,43 @@ const styles = StyleSheet.create({
   },
   // T-132 (web UN:39-49): a centred inline button in the page, min-h 44,
   // 12 sides, gap 8. Was 22 tall, 10 below Did it in the dock.
-  // T-154 rev 42: the slim row (h48, r16, thumb 36, one 15 line).
   upNext: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'stretch',
+    gap: spacing[3],
+    minHeight: 64,
+    paddingLeft: spacing[2],
+    paddingRight: spacing[4],
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: colors.upNextCard,
+  },
+  // T-154 rev 42: the slim row (h48, r16, thumb 36, one 15 line).
+  upNextCompact: {
     gap: spacing[2],
     minHeight: 48,
     paddingLeft: 6,
     paddingRight: spacing[3],
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.hairline,
-    backgroundColor: colors.upNextCard,
   },
   upNextThumb: {
+    borderRadius: 12,
+  },
+  upNextThumbCompact: {
     borderRadius: 10,
   },
-  upNextText: {
+  upNextTextCompact: {
     ...font(700),
-    flexShrink: 1,
     fontSize: 15,
     lineHeight: 20,
+  },
+  upNextText: {
+    ...font(600),
+    flexShrink: 1,
+    fontSize: 16,
+    lineHeight: 24,
     color: colors.textPrimary,
   },
   upNextLabel: {

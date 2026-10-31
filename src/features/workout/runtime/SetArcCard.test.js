@@ -164,14 +164,14 @@ describe('SetArcCard', () => {
   });
 
   // DECLARED S5 (T-146 rev 39, PM-approved): the steppers are 116 (was 128).
-  // DECLARED C1 (T-154 rev 42, PM-approved): 108 (was 116).
-  it('large text: the Weight / Reps cells stack; a 108 minimum, never a fixed height', () => {
+  // DECLARED (T-155: the 2.3.2 116 by default; 108 is the fit's compact step).
+  it('large text: the Weight / Reps cells stack; a 116 minimum, never a fixed height', () => {
     mockFontScale = 2;
     const exercise = exerciseWith(4, 1);
     const tree = render({ exercise, set: exercise.sets[1] });
     const cell = tree.root.findAll((node) => node.props.testID === 'set-cell-weight' && typeof node.type === 'string')[0];
     const style = StyleSheet.flatten(cell.props.style);
-    expect(style.minHeight).toBe(108);
+    expect(style.minHeight).toBe(116);
     expect(style.height).toBeUndefined();
     expect(style.alignSelf).toBe('stretch');
   });

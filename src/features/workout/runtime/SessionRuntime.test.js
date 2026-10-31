@@ -642,17 +642,37 @@ describe('v2 F1 live and browsing states (ND3)', () => {
   // PM 30 Oct (web 2.4.0 over-shrink): the fit is recomputed from scratch on every layout; it grows back.
   it('T-154: a transient small free height goes to the thumb; back to the full height restores the full photo', () => {
     const { tree } = render();
-    const headerBar = host(tree, 'session-header-bar');
+    // T-155: the fit measures the scroll's visible height.
+    const page = tree.root.findAll((node) => node.type === ScrollView && node.props.onScroll)[0];
     const stageIsThumb = () => tree.root.findAll((node) => node.props.testID === 'exercise-stage-thumb').length > 0;
-    act(() => headerBar.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height: 1334 - 420 } } }));
+    act(() => page.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height: 420 } } }));
     expect(stageIsThumb()).toBe(true);
-    act(() => headerBar.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height: 117 } } }));
+    act(() => page.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height: 1200 } } }));
     expect(stageIsThumb()).toBe(false);
-    expect(StyleSheet.flatten(host(tree, 'exercise-stage').props.style).height).toBeLessThanOrEqual(160);
+    // Back to the full look: the full row, the full photo cap.
+    expect(StyleSheet.flatten(host(tree, 'exercise-stage').props.style).height).toBeLessThanOrEqual(240);
+    expect(byId(tree, 'discard-workout').props.hitSlop).toBeUndefined();
   });
 
-  it('T-154: Discard workout is a small link (row 32, a 44 hit), the same confirm', () => {
+  // T-155: while a weight/reps field has focus the fit holds (the keyboard must not reshuffle the page); it re-fits on blur.
+  it('T-155: the fit holds while a field has focus and re-fits when focus leaves', () => {
     const { tree } = render();
+    const page = tree.root.findAll((node) => node.type === ScrollView && node.props.onScroll)[0];
+    const stageIsThumb = () => tree.root.findAll((node) => node.props.testID === 'exercise-stage-thumb').length > 0;
+    act(() => page.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height: 1200 } } }));
+    act(() => byId(tree, 'set-weight-12').props.onFocus());
+    act(() => page.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height: 420 } } }));
+    expect(stageIsThumb()).toBe(false);
+    act(() => byId(tree, 'set-weight-12').props.onBlur());
+    expect(stageIsThumb()).toBe(true);
+  });
+
+  // DECLARED (T-155): the full-width 48 row by default; the small link is the fit's compact step.
+  it('T-154/T-155: Discard is the full row by default and a small link (row 32, a 44 hit) in the compact step', () => {
+    const { tree } = render();
+    const page = tree.root.findAll((node) => node.type === ScrollView && node.props.onScroll)[0];
+    expect(StyleSheet.flatten(host(tree, 'discard-workout').props.style).minHeight).toBe(48);
+    act(() => page.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height: 700 } } }));
     const discard = byId(tree, 'discard-workout');
     expect(discard.props.hitSlop).toBe(6);
     expect(StyleSheet.flatten(host(tree, 'discard-workout').props.style)).toMatchObject({ minHeight: 32 });
