@@ -1,0 +1,5 @@
+# T-170 §9.1 matrix (Android): after a text-size change the runner force-stops the app; this brings it back through
+# the suite's own entry (launchApp, never the dev-client link: v2 flows also run on Release builds). IDs only.
+appId: com.gymido.app
+---
+- runFlow: ../subflows/signed-in-start.yaml

@@ -61,6 +61,8 @@ for spec in "$@"; do
   mode="$(node -e "console.log($WIDTH < 304 * $scale ? 'large' : 'fit')")"
   echo "== $label (scale $scale → $mode)"
   set_scale "$setting"; sleep 3
+  # Android: a font_scale change sent the app to the background (run 2, 2.0). Relaunch it cleanly at the new size.
+  if [ "$PLATFORM" = android ]; then adb -s "$DEVICE" shell am force-stop com.gymido.app; flow m0-relaunch.yaml > /dev/null; fi
   flow m0-home.yaml > /dev/null
   if ! flow m1-set1.yaml; then echo "{\"label\":\"$label-start\",\"ok\":false,\"failures\":[\"m1 failed\"]}" >> "$OUT/results.jsonl"; FAILED=1; continue; fi
   if [ "$mode" = fit ]; then cell "$label" set1 fit '/set-action-.*/,up-next,discard-workout+6'; reach_if_over "$label" set1 m5-reach.yaml

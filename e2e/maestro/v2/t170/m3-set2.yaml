@@ -7,7 +7,7 @@ appId: com.gymido.app
     commands:
       - tapOn: { id: "rest-timer" }
       - extendedWaitUntil: { visible: { id: "rest-sheet" }, timeout: 5000 }
-- scrollUntilVisible: { element: { id: "rest-timer-skip" }, direction: DOWN, timeout: 5000 }
+- scrollUntilVisible: { element: { id: "rest-timer-skip" }, direction: DOWN, timeout: 5000, visibilityPercentage: 50 }
 - tapOn: { id: "rest-timer-skip" }
 - extendedWaitUntil: { notVisible: { id: "rest-sheet" }, timeout: 5000 }
 - runFlow: ../subflows/dismiss-session-dialogs.yaml
