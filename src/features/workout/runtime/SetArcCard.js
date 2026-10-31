@@ -560,19 +560,23 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
   },
+  // Spec §3.3: the label row is 24 (the unit select sets it), in both cells.
   cellLabelSlot: {
-    minHeight: 28,
+    minHeight: 24,
     justifyContent: 'center',
   },
-  // Select's box adds 8 above and below; here the 28 pill alone sets the height.
+  // Spec §3.3 unit select: min-h 24, r8, padding 0 6, 14/600, fill-strong (Select's box adds 8 above and below: off).
   unitBox: {
-    minHeight: 28,
+    minHeight: 24,
+    borderRadius: 8,
     paddingVertical: 0,
-    paddingHorizontal: spacing[2],
+    paddingHorizontal: 6,
+    backgroundColor: colors.fillButton,
   },
   unitText: {
     ...font(600),
-    fontSize: 16,
+    fontSize: 14,
+    lineHeight: 18,
     color: colors.textSecondary,
   },
   value: {

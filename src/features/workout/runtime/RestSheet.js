@@ -17,10 +17,12 @@ import { setsWord } from './sessionMath';
 // page): the live screen stays rendered behind a blurred, dimmed backdrop. From the sheet's top: the handle zone (48,
 // the drag-down + accessible minimise control; owner: no chevron) → the banner ("{n} sets left", or gold "Get ready for
 // the next exercise!") → the exercise photo (contain, untouched) → the draining bar → the countdown → −5 · Skip Rest ▶▶
-// · +5, pinned 40 above the bottom inset. Minimise (drag, activate, Android Back) only slides the sheet into today's
+// · +5. T-161 spec §6.3 (live 2.4.1): with a photo, a 16–21 gap under the digits, then the controls, and any leftover
+// height goes BELOW them; no photo: the bar + digits take the leftover and the controls sit 40 above the bottom inset
+// (pinning them in every state is P2, pending). Minimise (drag, activate, Android Back) only slides the sheet into today's
 // disc: the rest keeps counting. Skip and 0 end it as today. No photo: the name shows instead (the only place it does).
-// Short screens: the photo shrinks first (floor 160), then the gaps. Large text: the body scrolls (the handle stays),
-// Skip takes its own row and the squares go below it.
+// Below a window height of 844 the three gaps go short together; the photo shrinks to fit (floor 160). Large text: the
+// body scrolls (the handle stays), Skip takes its own row and the squares go below it.
 
 const SHEET_GAP = 44;
 const HANDLE = 48;
@@ -30,11 +32,18 @@ const PHOTO_FLOOR = 160;
 const BAR = 23;
 const DIGITS = 76;
 const CONTROL = 55;
-// The ±5 captions (8 + a 20 line) under the squares.
-const CAPTIONS = 28;
+// The ±5 captions (8 + an 18 line) under the squares.
+const CAPTIONS = 26;
 const CONTROLS_BOTTOM = 40;
-const GAPS = Object.freeze({ banner: 14, photo: 28, bar: 13, controls: 21 });
-const GAPS_SHORT = Object.freeze({ banner: 8, photo: 16, bar: 8, controls: 16 });
+// §6.3: 14 under the handle zone, always.
+const BODY_TOP = 14;
+// Banner → photo, photo → bar, bar → digits; v1.3: short below a window height of 844 (status bar included).
+const GAPS = Object.freeze({ banner: 14, photo: 28, bar: 13 });
+const GAPS_SHORT = Object.freeze({ banner: 8, photo: 16, bar: 8 });
+const SHORT_WINDOW = 844;
+// The flexible gap between the digits and the controls (photo state).
+const CONTROLS_GAP_MIN = 16;
+const CONTROLS_GAP_MAX = 21;
 const DRAG_MINIMISE = 80;
 const DRAG_VELOCITY = 0.5;
 const OPEN_MS = 260;
@@ -47,24 +56,25 @@ export function dragMinimises({ dy, vy }) {
   return dy > DRAG_MINIMISE || vy > DRAG_VELOCITY;
 }
 
-// The sheet's height budget (§6): the photo first gives up what is missing (floor 160), then the gaps go short.
-export function restSheetLayout({ sheetHeight, insetsBottom, photoAspect, width, hasPhoto }) {
-  // The ±5 captions live inside the 40 under the buttons.
-  const fixed = (gaps) => HANDLE + gaps.banner + BANNER + gaps.photo + BAR + gaps.bar + DIGITS + gaps.controls + CONTROL + CONTROLS_BOTTOM + insetsBottom;
-  const natural = hasPhoto ? Math.min(PHOTO_MAX, Math.round((width - 2 * spacing[3]) / (photoAspect || 1))) : 0;
-  let gaps = GAPS;
-  let room = sheetHeight - fixed(gaps) - (hasPhoto ? gaps.banner : 0);
-  if (hasPhoto && room < Math.min(natural, PHOTO_FLOOR)) {
-    gaps = GAPS_SHORT;
-    room = sheetHeight - fixed(gaps) - gaps.banner;
+// The sheet's layout (§6.3): the gaps by the window height; the photo (295, contain) shrinks to fit (floor 160) with the
+// smallest controls gap; then the controls gap takes up to 21 and the rest goes below the controls.
+export function restSheetLayout({ sheetHeight, windowHeight, insetsBottom, photoAspect, width, hasPhoto }) {
+  const gaps = windowHeight < SHORT_WINDOW ? GAPS_SHORT : GAPS;
+  if (!hasPhoto) {
+    return { gaps, photo: 0, controlsGap: CONTROLS_GAP_MIN };
   }
-  const photo = hasPhoto ? Math.max(Math.min(natural, PHOTO_FLOOR), Math.min(natural, Math.floor(room))) : 0;
-  return { gaps, photo };
+  // The ±5 captions live inside the 40 under the buttons.
+  const fixed = HANDLE + BODY_TOP + BANNER + gaps.banner + gaps.photo + BAR + gaps.bar + DIGITS + CONTROLS_GAP_MIN + CONTROL + CONTROLS_BOTTOM + insetsBottom;
+  const natural = Math.min(PHOTO_MAX, Math.round((width - 2 * spacing[3]) / (photoAspect || 1)));
+  const room = sheetHeight - fixed;
+  const photo = Math.max(Math.min(natural, PHOTO_FLOOR), Math.min(natural, Math.floor(room)));
+  const controlsGap = Math.min(CONTROLS_GAP_MAX, CONTROLS_GAP_MIN + Math.max(0, Math.floor(room) - photo));
+  return { gaps, photo, controlsGap };
 }
 
 function DumbbellIcon({ color }) {
   return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
       <Path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11" />
     </Svg>
   );
@@ -186,7 +196,7 @@ export default function RestSheet({ timer, hero, onMinimize, onAdjust, onSkip, w
   const loaded = image.url && photo?.url === image.url ? photo : null;
   const sheetTop = insets.top + SHEET_GAP;
   const sheetHeight = window.height - sheetTop;
-  const layout = restSheetLayout({ sheetHeight, insetsBottom: insets.bottom, photoAspect: loaded?.aspect, width: window.width, hasPhoto: Boolean(loaded) });
+  const layout = restSheetLayout({ sheetHeight, windowHeight: window.height, insetsBottom: insets.bottom, photoAspect: loaded?.aspect, width: window.width, hasPhoto: Boolean(loaded) });
   const [slide] = useState(() => new Animated.Value(reducedMotion ? 0 : sheetHeight));
   const [fade] = useState(() => new Animated.Value(reducedMotion ? 0 : 1));
   const [photoFade] = useState(() => new Animated.Value(0));
@@ -257,7 +267,7 @@ export default function RestSheet({ timer, hero, onMinimize, onAdjust, onSkip, w
 
   const body = (
     <>
-      <View style={{ marginTop: layout.gaps.banner }}>
+      <View style={{ marginTop: BODY_TOP }}>
         <Banner next={next} left={hero?.left ?? 0} />
       </View>
       {image.url ? (
@@ -322,11 +332,23 @@ export default function RestSheet({ timer, hero, onMinimize, onAdjust, onSkip, w
         ) : (
           <View style={styles.body}>
             {body}
-            <View style={[styles.controls, { bottom: insets.bottom + CONTROLS_BOTTOM - CAPTIONS }]}>
-              {minus}
-              {skip}
-              {plus}
-            </View>
+            {loaded ? (
+              // §6.3 photo state: the controls follow the digits; the leftover height goes below them.
+              <>
+                <View style={[styles.controlsRow, { marginTop: layout.controlsGap }]}>
+                  {minus}
+                  {skip}
+                  {plus}
+                </View>
+                <View style={[styles.below, { minHeight: insets.bottom + CONTROLS_BOTTOM - CAPTIONS }]} />
+              </>
+            ) : (
+              <View style={[styles.controls, styles.controlsRow, { bottom: insets.bottom + CONTROLS_BOTTOM - CAPTIONS }]}>
+                {minus}
+                {skip}
+                {plus}
+              </View>
+            )}
           </View>
         )}
       </Animated.View>
@@ -492,13 +514,20 @@ const styles = StyleSheet.create({
     letterSpacing: titleTracking(DIGITS, -0.03),
     color: colors.textPrimary,
   },
+  // No photo: pinned 40 above the bottom inset (the row's 20 side margins apply).
   controls: {
     position: 'absolute',
-    left: 20,
-    right: 20,
+    left: 0,
+    right: 0,
+  },
+  controlsRow: {
+    marginHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 21,
+  },
+  below: {
+    flex: 1,
   },
   stackedControls: {
     marginTop: spacing[6],
@@ -526,7 +555,7 @@ const styles = StyleSheet.create({
   caption: {
     ...font(600),
     fontSize: 15,
-    lineHeight: 20,
+    lineHeight: 18,
     color: colors.textSecondary,
   },
   skip: {

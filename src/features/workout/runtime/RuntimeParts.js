@@ -457,7 +457,6 @@ export function ExerciseStage({
         fit={fit}
         onMeasure={onMeasure}
         onThumbPress={onThumbPress}
-        notes={notes}
       />
     );
   }
@@ -1277,9 +1276,10 @@ const styles = StyleSheet.create({
     borderColor: colors.hairlineButton,
     backgroundColor: colors.fillButton,
   },
-  // T-154 rev 42 (compact): 32 tall, 15/600 (44 hit via slop).
+  // T-154 rev 42 (compact; spec §3.2): 32 tall, padding 0 12, 15/600 (44 hit via slop).
   howToPageCompact: {
     minHeight: 32,
+    paddingHorizontal: spacing[3],
   },
   howToPageLabelCompact: {
     fontSize: 15,
@@ -1491,17 +1491,19 @@ const styles = StyleSheet.create({
     paddingVertical: spacing['4_5'],
     paddingHorizontal: spacing['5_5'],
   },
-  // T-146 rev 40 (phone): min 56, r28, gold .08 + 1px gold .30; Resume is the gold 44 pill.
+  // T-146 rev 40 (phone; spec §4): min 56, r28, gold .08 + 1px gold .30, padding 6 6 6 16; Resume is the gold 44 pill.
   browsingBarPhone: {
     minHeight: 56,
+    paddingVertical: 6,
+    paddingRight: 6,
     borderRadius: 28,
     borderColor: colors.goldLine,
     backgroundColor: colors.goldFaint,
   },
-  // T-154 rev 42 D: 15/600, wrapping beside Resume (the banner stays 56).
+  // Spec §4: 16/24 600 gold, wrapping to 2 lines beside Resume.
   browsingTextPhone: {
-    fontSize: 15,
-    lineHeight: 18,
+    fontSize: 16,
+    lineHeight: 24,
   },
   browsingBarStacked: {
     flexDirection: 'column',
@@ -1910,6 +1912,7 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     gap: spacing[3],
     minHeight: 64,
+    paddingVertical: spacing[2],
     paddingLeft: spacing[2],
     paddingRight: spacing[4],
     borderRadius: 20,
@@ -1919,7 +1922,8 @@ const styles = StyleSheet.create({
   },
   // T-154 rev 42: the slim row (h48, r16, thumb 36, one 15 line).
   upNextCompact: {
-    gap: spacing[2],
+    gap: 10,
+    paddingVertical: 0,
     minHeight: 48,
     paddingLeft: 6,
     paddingRight: spacing[3],
@@ -1974,7 +1978,7 @@ const styles = StyleSheet.create({
   discardLink: {
     minHeight: 32,
     alignSelf: 'center',
-    paddingHorizontal: spacing[3],
+    paddingHorizontal: spacing[4],
   },
   discardPressed: {
     backgroundColor: colors.dangerFaint,

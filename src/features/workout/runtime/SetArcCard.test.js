@@ -177,15 +177,16 @@ describe('SetArcCard', () => {
   });
 
   // T-155 shots (iOS): the unit pill made the Weight label taller than the Reps one, so the two values sat apart.
-  it('the Weight and Reps labels share one 28 slot; the unit pill adds no vertical padding', () => {
+  // DECLARED (T-161 spec §3.3): the slot and the unit select are 24 (were 28).
+  it('the Weight and Reps labels share one 24 slot; the unit select is 24 with no vertical padding', () => {
     const exercise = exerciseWith(4, 1);
     const tree = render({ exercise, set: exercise.sets[1] });
     for (const id of ['set-cell-weight', 'set-cell-reps']) {
       const cell = tree.root.findAll((node) => node.props.testID === id && typeof node.type === 'string')[0];
-      expect(StyleSheet.flatten(cell.children[0].props.style)).toMatchObject({ minHeight: 28, justifyContent: 'center' });
+      expect(StyleSheet.flatten(cell.children[0].props.style)).toMatchObject({ minHeight: 24, justifyContent: 'center' });
     }
     const unit = tree.root.findAll((node) => node.props.testID === `set-unit-${exercise.sets[1].id}` && node.props.boxStyle)[0];
-    expect(StyleSheet.flatten(unit.props.boxStyle)).toMatchObject({ minHeight: 28, paddingVertical: 0 });
+    expect(StyleSheet.flatten(unit.props.boxStyle)).toMatchObject({ minHeight: 24, borderRadius: 8, paddingVertical: 0, paddingHorizontal: 6 });
   });
 
   // T-146 rev 40: the phone browse card is read-only.

@@ -639,66 +639,74 @@ describe('v2 F1 live and browsing states (ND3)', () => {
     mockFontScale = 1;
   });
 
-  // PM 30 Oct (web 2.4.0 over-shrink): the fit is recomputed from scratch on every layout; it grows back.
-  it('T-154: a transient small free height goes to the thumb; back to the full height restores the full photo', () => {
-    const { tree } = render();
-    // T-155: the fit measures the scroll's visible height.
-    const page = tree.root.findAll((node) => node.type === ScrollView && node.props.onScroll)[0];
-    const stageIsThumb = () => tree.root.findAll((node) => node.props.testID === 'exercise-stage-thumb').length > 0;
-    act(() => page.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height: 420 } } }));
-    expect(stageIsThumb()).toBe(true);
-    act(() => page.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height: 1200 } } }));
-    expect(stageIsThumb()).toBe(false);
-    // Back to the full look: the full row, the full photo cap.
-    expect(StyleSheet.flatten(host(tree, 'exercise-stage').props.style).height).toBeLessThanOrEqual(300);
-    expect(byId(tree, 'discard-workout').props.hitSlop).toBeUndefined();
-  });
+  // T-161 spec §5 (the measured ladder). DECLARED (T-161, PM: build to the spec; replaces the T-154/T-155 model tests):
+  // the fit steps one rung per measurement of the content column against the scroll's visible height − 8 − the safe area,
+  // only as far as needed; any change of the room starts again from FULL; no scroll at normal text.
+  describe('T-161 phone fit', () => {
+    const page = (tree) => tree.root.findAll((node) => node.type === ScrollView && node.props.onScroll)[0];
+    const content = (tree) => page(tree).findAll((node) => typeof node.type === 'string' && node.props.onLayout && node.props.collapsable === false)[0];
+    const viewport = (tree, height) => act(() => page(tree).props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height } } }));
+    const used = (tree, height) => act(() => content(tree).props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height } } }));
+    const photo = (tree) => StyleSheet.flatten(host(tree, 'exercise-stage').props.style).height;
+    const isThumb = (tree) => tree.root.findAll((node) => node.props.testID === 'exercise-stage-thumb').length > 0;
+    // A page that never fits: one layout event per rung until the ladder ends.
+    const overflowFully = (tree, height) => {
+      for (let rung = 0; rung < 12; rung += 1) {
+        used(tree, height);
+      }
+    };
 
-  // T-155 round 3 (PM: measure, don't budget): the page content's measured height corrects the model; within one set of
-  // inputs the correction only grows (the fit settles), and content taller than the room scrolls whatever the model says.
-  it('T-155: the measured content height corrects the fit; it settles; taller content scrolls', () => {
-    const { tree } = render();
-    const page = () => tree.root.findAll((node) => node.type === ScrollView && node.props.onScroll)[0];
-    const content = () => page().findAll((node) => typeof node.type === 'string' && node.props.onLayout && node.props.collapsable === false)[0];
-    const photo = () => StyleSheet.flatten(host(tree, 'exercise-stage').props.style).height;
-    const layoutContent = (height) => act(() => content().props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height } } }));
-    act(() => page().props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height: 1000 } } }));
-    const before = photo();
-    // The page draws 40 taller than the model: the photo gives those 40.
-    // The free height = the scroll's visible height (no bottom inset here).
-    const room = 1000;
-    layoutContent(room + 40);
-    expect(photo()).toBe(before - 40);
-    expect(page().props.scrollEnabled).toBe(true);
-    // Fitted now; a smaller error in the same inputs never grows the photo back (no flip-flop).
-    layoutContent(room);
-    layoutContent(room - 10);
-    expect(photo()).toBe(before - 40);
-    expect(page().props.scrollEnabled).toBe(false);
-  });
+    it('R1: the photo gives exactly what is over (free = 1000 − 8); then it settles', () => {
+      const { tree } = render();
+      viewport(tree, 1000);
+      expect(photo(tree)).toBe(300);
+      used(tree, 1032);
+      expect(photo(tree)).toBe(300 - 40);
+      used(tree, 992);
+      used(tree, 950);
+      expect(photo(tree)).toBe(260);
+      expect(page(tree).props.scrollEnabled).toBe(false);
+    });
 
-  // T-155: while a weight/reps field has focus the fit holds (the keyboard must not reshuffle the page); it re-fits on blur.
-  it('T-155: the fit holds while a field has focus and re-fits when focus leaves', () => {
-    const { tree } = render();
-    const page = tree.root.findAll((node) => node.type === ScrollView && node.props.onScroll)[0];
-    const stageIsThumb = () => tree.root.findAll((node) => node.props.testID === 'exercise-stage-thumb').length > 0;
-    act(() => page.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height: 1200 } } }));
-    act(() => byId(tree, 'set-weight-12').props.onFocus());
-    act(() => page.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height: 420 } } }));
-    expect(stageIsThumb()).toBe(false);
-    act(() => byId(tree, 'set-weight-12').props.onBlur());
-    expect(stageIsThumb()).toBe(true);
-  });
+    it('a page that never fits ends at L6 (the thumb), compact sizes, no scroll; more room starts again from FULL', () => {
+      const { tree } = render();
+      viewport(tree, 420);
+      overflowFully(tree, 2000);
+      expect(isThumb(tree)).toBe(true);
+      // R2 → compact: the Discard link (32, a 44 hit) and the compact How to.
+      expect(StyleSheet.flatten(host(tree, 'discard-workout').props.style).minHeight).toBe(32);
+      expect(byId(tree, 'discard-workout').props.hitSlop).toBe(6);
+      expect(page(tree).props.scrollEnabled).toBe(false);
+      viewport(tree, 1200);
+      expect(isThumb(tree)).toBe(false);
+      expect(photo(tree)).toBe(300);
+      expect(StyleSheet.flatten(host(tree, 'discard-workout').props.style).minHeight).toBe(48);
+    });
 
-  // DECLARED (T-155 v2, owner): Discard stays the full-width 48 row (rev 42's small link is no longer a step); same confirm.
-  it('T-155: Discard is the full-width 48 row at any fit, the same confirm', () => {
-    const { tree } = render();
-    const page = tree.root.findAll((node) => node.type === ScrollView && node.props.onScroll)[0];
-    expect(StyleSheet.flatten(host(tree, 'discard-workout').props.style).minHeight).toBe(48);
-    act(() => page.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height: 420 } } }));
-    expect(StyleSheet.flatten(host(tree, 'discard-workout').props.style).minHeight).toBe(48);
-    act(() => byId(tree, 'discard-workout').props.onPress());
-    expect(byId(tree, 'discard-dialog')).toBeDefined();
+    it('while a weight/reps field has focus the fit holds; leaving the fields re-fits from FULL', async () => {
+      const { tree } = render();
+      viewport(tree, 1200);
+      used(tree, 900);
+      await act(async () => byId(tree, 'set-weight-12').props.onFocus());
+      viewport(tree, 420);
+      overflowFully(tree, 2000);
+      expect(isThumb(tree)).toBe(false);
+      expect(photo(tree)).toBe(300);
+      // Focus moving straight into the other field keeps the hold.
+      await act(async () => {
+        byId(tree, 'set-weight-12').props.onBlur();
+        byId(tree, 'set-reps-12').props.onFocus();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      overflowFully(tree, 2000);
+      expect(isThumb(tree)).toBe(false);
+      await act(async () => {
+        byId(tree, 'set-reps-12').props.onBlur();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      overflowFully(tree, 2000);
+      expect(isThumb(tree)).toBe(true);
+    });
   });
 
   it('Up next views the next incomplete exercise', () => {
@@ -1180,10 +1188,11 @@ describe('opaque dock + scroll room (P3-2)', () => {
   // T-132 C3 + C4 (PM OK 29 Oct; web WP:1011 mb-10 + AppLayout 24, FE Q6): no phone dock, so the room is the page's
   // bottom 40 + 24 + the safe area. Was: the measured dock height (32 fade + Did it 64 + Up next 44 + 28 + inset), and
   // before measuring at least 32 + 64 + 28 + inset.
-  it.each([0, 34])('phone (inset %s): the scroll room is the page bottom 40 + 24 + the safe area (no dock)', (inset) => {
+  // DECLARED (T-161 spec §3: the page ends 8 + the safe area above the visible bottom; was 40 + 24).
+  it.each([0, 34])('phone (inset %s): the scroll room is the page bottom 8 + the safe area (no dock)', (inset) => {
     mockInsetBottom = inset;
     const { tree } = render();
-    expect(scrollPad(tree)).toBe(40 + spacing[6] + inset);
+    expect(scrollPad(tree)).toBe(spacing[2] + inset);
   });
 
   it('during a rest the dock stays opaque and Did it shows the disabled glass look, not a dim gold', async () => {
@@ -1246,7 +1255,8 @@ describe('opaque dock + scroll room (P3-2)', () => {
       mockInsetBottom = 20;
       // T-132 C6: the phone room is 40 + 24 + the inset (no dock); the disc docks 24 + the inset above the bottom
       // (web RT:94-100, nothing keeps it off Did it). Was: the measured phone dock for both. Tablet unchanged.
-      const room = kind === 'tablet' ? dockHeight + spacing[4] : 40 + spacing[6] + 20;
+      // DECLARED (T-161 spec §3): the phone page bottom is 8 (was 40 + 24).
+      const room = kind === 'tablet' ? dockHeight + spacing[4] : spacing[2] + 20;
       const discRoom = kind === 'tablet' ? room : spacing[6] + 20;
       const { tree } = render({ session: RESTING });
       if (kind === 'tablet') {

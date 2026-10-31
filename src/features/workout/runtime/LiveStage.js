@@ -6,265 +6,153 @@ import ExerciseImage from '../../../shared/components/ExerciseImage';
 import RemoteImage from '../../../shared/components/RemoteImage';
 import { CAP_BODY, DISPLAY_TITLE_TEXT } from '../../../shared/components/largeText';
 import { exerciseImageProps } from '../../../shared/images/remoteImageSources';
-import { colors, font, layout, radii, spacing, titleTracking, typography } from '../../../shared/theme/tokens';
+import { colors, font, layout, spacing, titleTracking } from '../../../shared/theme/tokens';
+import { FIT, fitSizes, FULL } from './phoneFit';
 import PhotoBlend from './PhotoBlend';
 import { exerciseName, stageRestLine } from './sessionMath';
 
-// T-146 rev 39 (owner, live 2.3.0): the phone's LIVE stage. The full photo
-// (contain, full width, height by its aspect, max 240) with nothing on it,
-// over the blurred letterbox copy (no upward extension); under it, OFF the
-// photo: "Rest {s}s · {muscle}" + the How to pill on one row, then the name
-// (34/700, wraps). On a short screen the photo's max shrinks first (floor
-// 160) so Did it stays on screen. No photo: the 80 initials tile.
-export const LIVE_PHOTO_MAX = 240;
-export const LIVE_PHOTO_FLOOR = 160;
-// 16:9 until the image reports its size.
-const ASPECT_ESTIMATE = 16 / 9;
-// Rev 39 D: header 60 + bar 10 + 6 above the photo; 12 + the text block + 12 +
-// the compact card (≈342) below it.
-const ABOVE_PHOTO = 76;
-const CARD_ESTIMATE = 342;
-const TEXT_ESTIMATE = 80;
+// T-161 LIVE-WORKOUT-SPEC §3.1–§3.2 (= web 2.4.1): the phone's stage. The photo (contain, the column width W = min(the
+// screen, 430), height = min(W ÷ aspect, photoMax)) with nothing on it, over the blurred letterbox copy; under it, OFF the
+// photo: "Rest {s}s · {muscle}" + the How to pill on one row (roomy 36 · compact 32), then the name (34/700; 28 at fit
+// level ≥ 2 when it runs over 2 lines). No notes on phones (§3.2, live; P1 pending). No photo: the initials tile (roomy 80 ·
+// compact 64). Thumb mode (level 6): a 56 thumb, which opens How to, left of the text, 12 down from its top.
+// Without a fit (large text, §5.4) the stage draws FULL.
+export const COLUMN_MAX = 430;
+export const NO_PHOTO_TILE = 80;
+export const NO_PHOTO_TILE_COMPACT = 64;
+const NAME_LINE = 38.08;
+const NAME_SMALL_LINE = 31.92;
 
-export function livePhotoMax({ windowHeight, insetsTop, insetsBottom, textHeight }) {
-  const room = windowHeight - insetsTop - ABOVE_PHOTO - spacing[3] - textHeight - spacing[3] - CARD_ESTIMATE - insetsBottom;
-  return Math.max(LIVE_PHOTO_FLOOR, Math.min(LIVE_PHOTO_MAX, Math.floor(room)));
-}
+// §3.1 / §5.1: the photo box has its height BEFORE the image loads: the cached aspect for that URL, else photoMax.
+const aspectCache = new Map();
 
-// The thumb mode's left inset and the gap to the text (styles.thumbRow).
-const THUMB_INSET = spacing[4];
-const THUMB_GAP = spacing[3];
-
-// T-132 (web ES:145-152): the notes card under the name (4 + 12 above it). T-155 round 3 (PM): full width under the thumb
-// too; `clamp` (the fit's first step, before the photo gives) shows 1 line with More at its end, which opens the rest in
-// place (Less, under the text, closes it).
-function NotesBlock({ notes, clamp = false, expanded = false, onToggle, onLayout, testID = 'exercise-notes' }) {
-  const clamped = clamp && !expanded;
-  return (
-    <View onLayout={onLayout} style={styles.notesBlock}>
-      <View testID={testID} style={[styles.notesCard, clamped && styles.notesCardClamped]}>
-        <Text {...CAP_BODY} numberOfLines={clamped ? 1 : undefined} style={[styles.notesText, clamped && styles.notesTextClamped]}>
-          {notes}
-        </Text>
-        {clamp ? (
-          <Pressable testID={`${testID}-more`} accessibilityRole="button" accessibilityLabel={expanded ? 'Show less of the notes' : 'Show all the notes'} hitSlop={12} onPress={onToggle} style={styles.notesMore}>
-            <Text {...CAP_BODY} style={styles.notesMoreText}>
-              {expanded ? 'Less' : 'More'}
-            </Text>
-          </Pressable>
-        ) : null}
-      </View>
-    </View>
-  );
-}
-
-// T-154 (rev 42): `fit` (phoneFit) sets the photo's max height, the gap under it and the thumb mode (the photo goes; a 56
-// thumb, which opens How to, sits left of the row + name). T-155 round 3 (PM: measure, don't budget): `onMeasure` reports
-// the blocks the fit needs, measured off screen at both widths so neither mode depends on the other: `name` (full width),
-// `nameThumb` (beside the thumb), `notes` / `notesClamped` (the card with its space above), `row`, `photoNatural` (the
-// photo's height at its aspect) and `notesExpanded`.
-export default function LiveStage({ exercise, howTo = null, notes = '', onLayout, onContentLayout, fit = null, onMeasure, onThumbPress }) {
-  const { width, height } = useWindowDimensions();
+// `onMeasure` reports what the fit needs: `photoNatural` (the photo at its aspect, null until known) and `nameLines` (the
+// name's lines at 34 on the full width, measured off screen).
+export default function LiveStage({ exercise, howTo = null, onLayout, onContentLayout, fit = null, onMeasure, onThumbPress }) {
+  const { width: windowWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const width = Math.min(windowWidth - insets.left - insets.right, COLUMN_MAX);
+  const sizes = fit ?? fitSizes(FULL);
   const image = useMemo(() => exerciseImageProps(exercise.exercise), [exercise.exercise]);
-  const [aspect, setAspect] = useState({ url: null, value: ASPECT_ESTIMATE });
-  const [textHeight, setTextHeight] = useState(TEXT_ESTIMATE);
-  const [notesExpanded, setNotesExpanded] = useState({ notes: null, value: false });
-  const expanded = notesExpanded.notes === notes && notesExpanded.value;
+  const [loaded, setLoaded] = useState(null);
+  const aspect = (loaded?.url === image.url ? loaded.value : null) ?? aspectCache.get(image.url) ?? null;
   const name = exerciseName(exercise);
   const line = stageRestLine(exercise);
-  const ratio = aspect.url === image.url ? aspect.value : ASPECT_ESTIMATE;
-  const max = fit ? fit.photo : livePhotoMax({ windowHeight: height, insetsTop: insets.top, insetsBottom: insets.bottom, textHeight });
-  const photoHeight = Math.min(max, Math.round(width / ratio));
-  const thumb = Boolean(fit?.thumb) && Boolean(image.url);
-  const gap = fit ? fit.gap : spacing[3];
-  // T-155: the full 2.3.2 row (36, 16 px) by default; the compact one (32, 15 px) from the fit's step (b).
-  const compact = Boolean(fit?.compact);
-  const [rowHeight, setRowHeight] = useState(36);
-  const natural = Math.round(width / ratio);
+  const natural = image.url && aspect ? Math.round(width / aspect) : null;
+  const photoHeight = natural == null ? sizes.photo : Math.min(sizes.photo, natural);
+  const thumb = Boolean(sizes.thumb) && Boolean(image.url);
+  const compact = sizes.compact;
+  // L2, one way only: once a name steps to 28 it never goes back to 34 for the same name.
+  const [nameLines, setNameLines] = useState({ name: null, lines: 1 });
+  const [smallFor, setSmallFor] = useState(null);
+  const longName = nameLines.name === name && nameLines.lines > 2;
+  if (sizes.nameSmall && longName && smallFor !== name) {
+    setSmallFor(name);
+  }
+  const nameSmall = smallFor === name;
   useEffect(() => {
     onMeasure?.({ photoNatural: natural });
   }, [natural, onMeasure]);
   useEffect(() => {
-    if (!notes) {
-      onMeasure?.({ notes: 0, notesClamped: 0 });
+    if (nameLines.name === name) {
+      onMeasure?.({ nameLines: nameLines.lines });
     }
-  }, [notes, onMeasure]);
-  useEffect(() => {
-    onMeasure?.({ notesExpanded: expanded });
-  }, [expanded, onMeasure]);
-  const measure = (key) => (event) => onMeasure?.({ [key]: event.nativeEvent.layout.height });
-  const notesBlock = notes ? (
-    <NotesBlock notes={notes} clamp={Boolean(fit?.notesClamp)} expanded={expanded} onToggle={() => setNotesExpanded({ notes, value: !expanded })} />
-  ) : null;
-  // Off screen, never read out: the name at the full and the beside-the-thumb widths, the notes full and clamped.
-  const measurers = onMeasure ? (
-    <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.measurers, { width }]}>
-      <View style={styles.measureName}>
-        <Text {...DISPLAY_TITLE_TEXT} onLayout={measure('name')} style={styles.name}>
-          {name}
-        </Text>
-      </View>
-      <View style={{ width: width - THUMB_INSET - FIT_THUMB - THUMB_GAP - layout.gutter }}>
-        <Text {...DISPLAY_TITLE_TEXT} onLayout={measure('nameThumb')} style={styles.name}>
-          {name}
-        </Text>
-      </View>
-      {notes ? (
-        <View style={styles.notesFullWidth}>
-          <NotesBlock notes={notes} testID="measure-notes" onLayout={measure('notes')} />
-          <NotesBlock notes={notes} testID="measure-notes-clamped" clamp onLayout={measure('notesClamped')} />
-        </View>
-      ) : null}
-    </View>
-  ) : null;
+  }, [name, nameLines, onMeasure]);
   const onLoad = (source) => {
     if (source?.width > 0 && source?.height > 0) {
-      setAspect({ url: image.url, value: source.width / source.height });
+      aspectCache.set(image.url, source.width / source.height);
+      setLoaded({ url: image.url, value: source.width / source.height });
     }
   };
+  // Off screen, never read out: the name at 34 on the full width, for L2.
+  const nameMeasurer = onMeasure ? (
+    <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.measurer, { width }]}>
+      <Text {...DISPLAY_TITLE_TEXT} onTextLayout={(event) => setNameLines({ name, lines: event.nativeEvent.lines.length })} style={styles.name}>
+        {name}
+      </Text>
+    </View>
+  ) : null;
   const text = (
-    <View
-      testID="exercise-stage-content"
-      onLayout={(event) => {
-        setTextHeight(event.nativeEvent.layout.height - rowHeight - 4);
-        onContentLayout?.(event);
-      }}
-      style={[styles.text, thumb && styles.textBesideThumb]}
-    >
-      <View
-        style={[styles.row, compact && styles.rowCompact]}
-        onLayout={(event) => {
-          setRowHeight(event.nativeEvent.layout.height);
-          onMeasure?.({ row: event.nativeEvent.layout.height });
-        }}
-      >
+    <View testID="exercise-stage-content" onLayout={onContentLayout} style={[styles.text, thumb && styles.textBesideThumb]}>
+      <View style={[styles.row, compact && styles.rowCompact]}>
         <Text {...CAP_BODY} testID="stage-rest-line" style={[styles.restLine, compact && styles.restLineCompact]}>
           {line}
         </Text>
         {howTo}
       </View>
-      <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={styles.name}>
+      <Text {...DISPLAY_TITLE_TEXT} accessibilityRole="header" style={[styles.name, nameSmall && styles.nameSmall]}>
         {name}
       </Text>
     </View>
   );
   if (thumb) {
-    // T-155 round 3 (PM): the notes go full width under the thumb row, not beside the thumb.
     return (
-      <View testID="exercise-stage-frame" style={styles.frame}>
-        {measurers}
-        <View style={styles.thumbRow}>
-          <View testID="exercise-stage" onLayout={onLayout} style={styles.thumbSlot}>
-            <Pressable testID="exercise-stage-thumb" accessibilityRole="button" accessibilityLabel="How to" onPress={onThumbPress} style={styles.thumb}>
-              <RemoteImage {...image} resizeMode="cover" style={StyleSheet.absoluteFill} />
-            </Pressable>
-          </View>
-          {text}
+      <View testID="exercise-stage-frame" style={[styles.thumbRow, { marginTop: sizes.gap }]}>
+        {nameMeasurer}
+        <View testID="exercise-stage" onLayout={onLayout} style={styles.thumbSlot}>
+          <Pressable testID="exercise-stage-thumb" accessibilityRole="button" accessibilityLabel="How to" onPress={onThumbPress} style={styles.thumb}>
+            <RemoteImage {...image} resizeMode="cover" style={StyleSheet.absoluteFill} />
+          </Pressable>
         </View>
-        <View style={styles.notesFullWidth}>{notesBlock}</View>
+        {text}
       </View>
     );
   }
+  const tile = compact ? NO_PHOTO_TILE_COMPACT : NO_PHOTO_TILE;
   return (
-    <View testID="exercise-stage-frame" style={[styles.frame, { paddingTop: fit ? fit.photoTop : spacing['1_5'] }]}>
-      {measurers}
+    <View testID="exercise-stage-frame" style={{ paddingTop: sizes.photoTop }}>
+      {nameMeasurer}
       {image.url ? (
-        <>
-          <PhotoBlend testID="stage-photo-blend" image={image} top={fit ? fit.photoTop : spacing['1_5']} height={photoHeight} width={width} upward={false} />
+        <View style={styles.figure}>
+          <PhotoBlend testID="stage-photo-blend" image={image} top={0} height={photoHeight} width={width} upward={false} />
           <View testID="exercise-stage" onLayout={onLayout} style={[styles.photo, { height: photoHeight }]}>
             {/* Decorative: the name is printed right under it. */}
             <RemoteImage {...image} resizeMode="contain" style={StyleSheet.absoluteFill} onLoad={onLoad} />
           </View>
-        </>
+        </View>
       ) : (
-        <View testID="exercise-stage" onLayout={onLayout} style={styles.tile}>
+        <View testID="exercise-stage" onLayout={onLayout} style={[styles.tile, compact && styles.tileCompact]}>
           <ExerciseImage
             testID="stage-image"
             url={null}
             name={name}
             muscleCode={exercise.exercise?.primary_muscle_group?.code}
-            size={NO_PHOTO_TILE}
-            initialsFontSize={40}
-            style={styles.tileImage}
+            size={tile}
+            initialsFontSize={compact ? 28 : 36}
+            style={compact ? styles.tileImageCompact : styles.tileImage}
           />
         </View>
       )}
-      <View style={{ marginTop: gap }}>
-        {text}
-        <View style={styles.notesFullWidth}>{notesBlock}</View>
-      </View>
+      <View style={{ marginTop: sizes.gap }}>{text}</View>
     </View>
   );
 }
 
-export const NO_PHOTO_TILE = 80;
-const FIT_THUMB = 56;
-
 const styles = StyleSheet.create({
-  frame: {
-    paddingTop: spacing[2],
+  figure: {
+    overflow: 'hidden',
   },
-  thumbRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingLeft: THUMB_INSET,
-    gap: THUMB_GAP,
-  },
-  notesFullWidth: {
-    paddingHorizontal: layout.gutter,
-  },
-  measurers: {
+  measurer: {
     position: 'absolute',
     left: 0,
     top: 0,
     opacity: 0,
-  },
-  measureName: {
     paddingHorizontal: layout.gutter,
   },
-  // The text block's 4 gap + the card's 12.
-  notesBlock: {
-    paddingTop: spacing[1],
-  },
-  notesCard: {
-    marginHorizontal: spacing[4],
-    marginTop: spacing[3],
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.hairline,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[3],
-  },
-  notesText: {
-    ...typography.bodySm,
-    lineHeight: 24,
-    color: colors.textSecondary,
-  },
-  notesCardClamped: {
+  // §3.1: 16 from the left edge, gap 12; the thumb 12 down from the text block's top.
+  thumbRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    paddingLeft: spacing[4],
     gap: spacing[3],
-  },
-  notesTextClamped: {
-    flex: 1,
-  },
-  notesMore: {
-    alignSelf: 'flex-start',
-  },
-  notesMoreText: {
-    ...font(600),
-    fontSize: 15,
-    lineHeight: 20,
-    color: colors.gold,
   },
   thumbSlot: {
     flexShrink: 0,
+    paddingTop: spacing[3],
   },
   thumb: {
-    width: 56,
-    height: 56,
+    width: FIT.thumb,
+    height: FIT.thumb,
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: colors.surface,
@@ -276,18 +164,27 @@ const styles = StyleSheet.create({
   photo: {
     alignSelf: 'stretch',
   },
+  // §3.1 no photo: roomy 80 r20, 16 above and 8 below · compact 64 r16, 12 above and 4 below.
   tile: {
     alignItems: 'center',
     paddingTop: spacing[4],
+    paddingBottom: spacing[2],
+  },
+  tileCompact: {
+    paddingTop: spacing[3],
+    paddingBottom: spacing[1],
   },
   tileImage: {
     borderRadius: 20,
+  },
+  tileImageCompact: {
+    borderRadius: 16,
   },
   text: {
     paddingHorizontal: layout.gutter,
     gap: spacing[1],
   },
-  // T-155: the 2.3.2 row (36, 16 px); rev 42's compact one is 32 (15 px).
+  // §3.2 row 1: roomy 36 · compact 32; space-between, gap 12.
   row: {
     minHeight: 36,
     flexDirection: 'row',
@@ -298,22 +195,28 @@ const styles = StyleSheet.create({
   rowCompact: {
     minHeight: 32,
   },
-  restLineCompact: {
-    fontSize: 15,
-    lineHeight: 20,
-  },
   restLine: {
     ...font(500),
     flexShrink: 1,
     fontSize: 16,
     lineHeight: 24,
+    fontVariant: ['tabular-nums'],
     color: colors.textMuted,
+  },
+  restLineCompact: {
+    fontSize: 15,
+    lineHeight: 22.5,
   },
   name: {
     ...font(700),
     fontSize: 34,
-    lineHeight: 38,
+    lineHeight: NAME_LINE,
     letterSpacing: titleTracking(34, -0.04),
     color: colors.textPrimary,
+  },
+  nameSmall: {
+    fontSize: 28,
+    lineHeight: NAME_SMALL_LINE,
+    letterSpacing: titleTracking(28, -0.04),
   },
 });

@@ -228,10 +228,10 @@ describe('T-132 phones: a solid header bar above the scroll, no band', () => {
     expect(flat(chrome).paddingTop).toBe(mockInsets.top + spacing['2_5']);
     expect(pageScroll(tree).findAll((node) => node.props.testID === 'session-chrome')).toHaveLength(0);
     expect(flat(host(tree, 'exercise-stage')).paddingTop ?? 0).toBe(0);
-    // DECLARED T1 (T-154 rev 42, PM-approved; was rev 39's ≤ 240): the fitted photo is at most 160 (floor 112), or
-    // the 56 thumb on short phones (phoneFit).
+    // DECLARED T1 (T-161 spec §5: before any measurement the stage is FULL, photoMax 300; the fit steps down from the
+    // measured layout, tested in SessionRuntime). Was (T-154): at most 160 from the budget model.
     const stageHeight = flat(host(tree, 'exercise-stage')).height ?? 56;
-    expect(stageHeight).toBeLessThanOrEqual(160);
+    expect(stageHeight).toBeLessThanOrEqual(300);
     expect(band(tree)).toBeUndefined();
     scrollTo(tree, 0);
     scrollTo(tree, 400);

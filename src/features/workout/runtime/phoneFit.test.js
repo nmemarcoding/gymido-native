@@ -1,88 +1,81 @@
-import { FIT, cellHeight, fitHeight, phoneFit } from './phoneFit';
+import { FIT, FULL, fitSizes, nextFitStep } from './phoneFit';
 
-// T-154 + T-155 (owner-approved look, PM 30 Oct). Round 3 (PM 30 Oct): the largest layout that fits, by a search; the
-// measured blocks + a measured correction instead of budgets; the notes give first (1 line + More), then the photo.
-// DECLARED (T-155 round 3, PM decisions 1–3 + owner "photo at least as big as web's"): the default is 902 (was 886: the
-// compact cell is drawn 124, not 108); the steps are searched again after the thumb; the notes clamp before the photo.
-describe('phoneFit (T-155 round 3)', () => {
-  const ONE_LINE = 38;
-  const TWO_LINES = 76;
-  const NOTES = { notes: 96, notesClamped: 66 };
-  const full = { ...FIT.default, photo: 300, thumb: false, notesClamp: false, statsLine: true };
+// T-161 LIVE-WORKOUT-SPEC §5.2 (= web 2.4.1). DECLARED (T-161, PM: build to the spec): the round-3 model search, its
+// correction and the notes clamp are replaced by the spec's measured ladder (R1, R2, C1, L2–L7); every assertion below is new.
+describe('phoneFit ladder (spec §5.2)', () => {
+  const live = { hasPhoto: true, browse: false };
+  // Steps until it fits, `overAt(state)` standing in for the measurement after each step.
+  const run = (overAt, context = live) => {
+    const steps = [];
+    let state = FULL;
+    for (let guard = 0; guard < 20; guard += 1) {
+      const next = nextFitStep(state, { ...context, over: overAt(state) });
+      if (!next) {
+        return { state, steps };
+      }
+      steps.push(next);
+      state = next;
+    }
+    throw new Error('the ladder did not settle');
+  };
 
-  it('the cell is counted as drawn (124; 116 at the tight step), never under the steppers minimum', () => {
-    expect(cellHeight(108)).toBe(124);
-    expect(cellHeight(96)).toBe(116);
+  it('fits: no step', () => {
+    expect(nextFitStep(FULL, { ...live, over: 0 })).toBeNull();
+    expect(nextFitStep(FULL, { ...live, over: -40 })).toBeNull();
   });
 
-  it('the default needs 902 with a 1-line name and no notes; with that room nothing shrinks', () => {
-    expect(fitHeight(full, { name: ONE_LINE })).toBe(902);
-    expect(phoneFit({ available: 902, name: ONE_LINE })).toMatchObject({ photo: 300, gap: 12, steppers: 108, arc: 154, thumb: false, notesClamp: false, fits: true });
+  it('R1: the roomy photo gives only what is over, down to 160', () => {
+    expect(nextFitStep(FULL, { ...live, over: 58 })).toEqual({ roomy: true, photoMax: 242, level: 0 });
+    expect(nextFitStep(FULL, { ...live, over: 200 })).toEqual({ roomy: true, photoMax: 160, level: 0 });
   });
 
-  it('the photo gives first, only as far as needed; then the gaps, the steppers, the arc, cumulatively', () => {
-    expect(phoneFit({ available: 800, name: ONE_LINE })).toMatchObject({ photo: 198, gap: 12, steppers: 108, thumb: false });
-    expect(phoneFit({ available: 708, name: ONE_LINE })).toMatchObject({ photo: 114, gap: 8, steppers: 108, arc: 154, thumb: false });
-    // Never a later step without the earlier ones (arc tight with the gaps still 12).
-    expect(phoneFit({ available: 693, name: ONE_LINE })).toMatchObject({ photo: 129, gap: 8, steppers: 96, arc: 132, thumb: false });
+  it('R1 starts from the photo as drawn (aspect-limited), not from the 300 cap', () => {
+    // A 16:9 photo at 430 draws 242: 20 over → 222.
+    expect(nextFitStep(FULL, { ...live, over: 20, photoDrawn: 242 })).toEqual({ roomy: true, photoMax: 222, level: 0 });
   });
 
-  it('the photo is never budgeted above what it draws at its aspect; a short photo still counts as fitting', () => {
-    const fit = phoneFit({ available: 800, name: ONE_LINE, photoNatural: 160 });
-    expect(fit).toMatchObject({ thumb: false, gap: 12, fits: true });
-    expect(fit.photo).toBeGreaterThanOrEqual(160);
-    expect(fit.height).toBe(902 - 300 + 160);
-    expect(phoneFit({ available: 700, name: ONE_LINE, photoNatural: 100 })).toMatchObject({ thumb: false, fits: true });
+  it('R2: at 160 still over → every size compact, photoMax 160; then C1 down to 112', () => {
+    const r2 = nextFitStep({ roomy: true, photoMax: 160, level: 0 }, { ...live, over: 30 });
+    expect(r2).toEqual({ roomy: false, photoMax: 160, level: 0 });
+    expect(nextFitStep(r2, { ...live, over: 30 })).toEqual({ roomy: false, photoMax: 130, level: 0 });
+    expect(nextFitStep(r2, { ...live, over: 90 })).toEqual({ roomy: false, photoMax: 112, level: 0 });
   });
 
-  it('notes give before the photo: clamped to 1 line + More while the photo stays as large as it can', () => {
-    expect(phoneFit({ available: 998, name: ONE_LINE, ...NOTES })).toMatchObject({ photo: 300, notesClamp: false, fits: true });
-    expect(phoneFit({ available: 902, name: ONE_LINE, ...NOTES })).toMatchObject({ photo: 234, notesClamp: true, thumb: false });
-    // Notes that are already one line have nothing to clamp.
-    expect(phoneFit({ available: 902, name: ONE_LINE, notes: 66, notesClamped: 66 })).toMatchObject({ photo: 234, notesClamp: false });
+  it('then the levels in order, cumulative; L2 only for a name over 2 lines; L4 live only; L6 only with a photo', () => {
+    const c1 = { roomy: false, photoMax: 112, level: 0 };
+    expect(nextFitStep(c1, { ...live, over: 5 })).toEqual({ ...c1, level: 3 });
+    expect(nextFitStep(c1, { ...live, over: 5, nameLines: 3 })).toEqual({ ...c1, level: 2 });
+    expect(nextFitStep({ ...c1, level: 3 }, { ...live, over: 5 })).toEqual({ ...c1, level: 4 });
+    expect(nextFitStep({ ...c1, level: 3 }, { hasPhoto: true, browse: true, over: 5 })).toEqual({ ...c1, level: 5 });
+    expect(nextFitStep({ ...c1, level: 5 }, { ...live, over: 5 })).toEqual({ ...c1, level: 6 });
+    expect(nextFitStep({ ...c1, level: 5 }, { hasPhoto: false, browse: false, over: 5 })).toBeNull();
   });
 
-  // PM 30 Oct (iPhone 17 shot: the thumb with ~80 pt unused): after the thumb the steps are searched again from the full
-  // size, so the thumb layout takes the room it has.
-  it('the thumb grows back: the full gaps, steppers and arc when they fit beside the thumb', () => {
-    expect(phoneFit({ available: 708, name: ONE_LINE, nameThumb: TWO_LINES, ...NOTES })).toMatchObject({ thumb: true, notesClamp: true, gap: 12, steppers: 108, arc: 154, fits: true });
-    expect(phoneFit({ available: 640, name: ONE_LINE, nameThumb: TWO_LINES })).toMatchObject({ thumb: true, gap: 12, steppers: 108, arc: 154, fits: true });
-    expect(phoneFit({ available: 600, name: ONE_LINE, nameThumb: TWO_LINES })).toMatchObject({ thumb: true, gap: 8, steppers: 96, arc: 132, fits: true });
+  it('live ends at L6, browse at L7; still over → the layout stays (null)', () => {
+    const l6 = { roomy: false, photoMax: 112, level: 6 };
+    expect(nextFitStep(l6, { ...live, over: 5 })).toBeNull();
+    expect(nextFitStep(l6, { hasPhoto: true, browse: true, over: 5 })).toEqual({ ...l6, level: 7 });
+    expect(nextFitStep({ ...l6, level: 7 }, { hasPhoto: true, browse: true, over: 5 })).toBeNull();
   });
 
-  it('the iPhone 17 notes case: no thumb while the photo fits at its floor', () => {
-    // 902 + 66 (the clamped notes) − 188 (the photo at 112) − 8 − 8 − 22 = 742.
-    expect(phoneFit({ available: 742, name: ONE_LINE, nameThumb: TWO_LINES, ...NOTES })).toMatchObject({ thumb: false, photo: 112, notesClamp: true, fits: true });
-    expect(phoneFit({ available: 741, name: ONE_LINE, nameThumb: TWO_LINES, ...NOTES }).thumb).toBe(true);
+  it('no photo: R1 and C1 are skipped (R2 straight away, then the levels)', () => {
+    expect(nextFitStep(FULL, { hasPhoto: false, browse: false, over: 10 })).toEqual({ roomy: false, photoMax: 160, level: 0 });
+    expect(nextFitStep({ roomy: false, photoMax: 160, level: 0 }, { hasPhoto: false, browse: false, over: 10 })).toEqual({ roomy: false, photoMax: 160, level: 3 });
   });
 
-  it('the thumb mode budgets the name at its narrower width (the measured beside-the-thumb height)', () => {
-    const thumb = { ...full, photo: 0, thumb: true };
-    expect(fitHeight(thumb, { name: ONE_LINE, nameThumb: 3 * ONE_LINE }) - fitHeight(thumb, { name: ONE_LINE, nameThumb: ONE_LINE })).toBe(2 * ONE_LINE);
-    expect(fitHeight(thumb, { name: 3 * ONE_LINE, nameThumb: ONE_LINE })).toBe(fitHeight(thumb, { name: ONE_LINE, nameThumb: ONE_LINE }));
+  it('a full run against a measured page: only as far as needed (the photo absorbs the last over exactly)', () => {
+    // The page is 60 over at FULL; R2 saves 50 (the compact sizes) — modelled: over = 60 − (300 − photoMax) − (roomy ? 0 : 50).
+    const overAt = (state) => 60 - (300 - state.photoMax) - (state.roomy ? 0 : 50);
+    expect(run(overAt).state).toEqual({ roomy: true, photoMax: 240, level: 0 });
+    const tight = (state) => 300 - (300 - state.photoMax) - (state.roomy ? 0 : 50) - [0, 0, 0, 8, 16, 38, 150][state.level];
+    expect(run(tight).state).toEqual({ roomy: false, photoMax: 112, level: 6 });
   });
 
-  it('the correction (measured content − model) is fitted against the real room', () => {
-    expect(phoneFit({ available: 902, name: ONE_LINE, correction: 0 }).photo).toBe(300);
-    expect(phoneFit({ available: 902, name: ONE_LINE, correction: 20 }).photo).toBe(280);
-    // The reported height stays the model's, so the next correction is measured against the same thing.
-    expect(phoneFit({ available: 902, name: ONE_LINE, correction: 20 }).height).toBe(882);
-  });
-
-  it('it grows back: always searched from the full size, so more room means the larger layout again', () => {
-    expect(phoneFit({ available: 600, name: ONE_LINE }).thumb).toBe(true);
-    expect(phoneFit({ available: 902, name: ONE_LINE })).toMatchObject({ photo: 300, thumb: false, gap: 12 });
-  });
-
-  it('browse: never the tight-stepper step; the Volume·Reps line hides only as the very last step', () => {
-    const roomy = phoneFit({ available: 600, name: ONE_LINE, ...NOTES, browse: true, upNext: false });
-    expect(roomy).toMatchObject({ statsLine: true, steppers: 108 });
-    const tight = phoneFit({ available: 400, name: ONE_LINE, ...NOTES, browse: true, upNext: false });
-    expect(tight).toMatchObject({ thumb: true, notesClamp: true, steppers: 108, statsLine: false, fits: false });
-  });
-
-  it('no photo: the steps only (no thumb)', () => {
-    expect(phoneFit({ available: 640, name: ONE_LINE, hasPhoto: false })).toMatchObject({ thumb: false, gap: 12, fits: true });
-    expect(phoneFit({ available: 300, name: ONE_LINE, hasPhoto: false })).toMatchObject({ thumb: false, arc: 132, fits: false });
+  it('fitSizes: FULL is the roomy 2.3.2 look; compact and the levels switch the §3 sizes', () => {
+    expect(fitSizes(FULL)).toMatchObject({ compact: false, photo: 300, photoTop: 6, gap: 12, containerGap: 12, steppers: FIT.steppers, arc: FIT.arc, thumb: false, statsLine: true, upNextGap: 12, discardTop: 12, nameSmall: false });
+    expect(fitSizes({ roomy: false, photoMax: 140, level: 0 })).toMatchObject({ compact: true, photo: 140, photoTop: 8, gap: 12, upNextGap: 8, discardTop: -4 });
+    expect(fitSizes({ roomy: false, photoMax: 112, level: 3 })).toMatchObject({ gap: 8, containerGap: 8, nameSmall: true, steppers: 108 });
+    expect(fitSizes({ roomy: false, photoMax: 112, level: 5 })).toMatchObject({ steppers: 96, arc: 132, thumb: false });
+    expect(fitSizes({ roomy: false, photoMax: 112, level: 7 })).toMatchObject({ thumb: true, statsLine: false });
   });
 });

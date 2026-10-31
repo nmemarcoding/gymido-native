@@ -56,31 +56,39 @@ describe('RestSheet fit (T-153 §6)', () => {
   const loadPhoto = (tree, width = 16, height = 9) => act(() => tree.root.findAll((node) => node.props.testID === 'remote-image' && node.props.onLoad)[0].props.onLoad({ width, height }));
   const photoHeight = (tree) => StyleSheet.flatten(host(tree, 'rest-photo').props.style).height;
 
-  it('restSheetLayout: 390×844 (sheet 753, inset 34): a 16:9 photo at full card width (366 → 206), the full gaps', () => {
-    expect(restSheetLayout({ sheetHeight: 753, insetsBottom: 34, photoAspect: 16 / 9, width: 390, hasPhoto: true })).toEqual({
-      gaps: { banner: 14, photo: 28, bar: 13, controls: 21 },
+  // DECLARED (T-161 spec §6.3, live 2.4.1; PM ruling 31 Oct): the short gaps switch on the window height (< 844), 14 is
+  // always above the banner, and with a photo the controls follow the digits (gap 16–21) with the leftover BELOW them
+  // (was: the photo-room trigger and the controls pinned 40 above the inset; pinning is P2, pending).
+  it('restSheetLayout: 390×844 (sheet 753, inset 34): the full gaps; a 16:9 photo at full card width (366 → 206); controls gap 21', () => {
+    expect(restSheetLayout({ sheetHeight: 753, windowHeight: 844, insetsBottom: 34, photoAspect: 16 / 9, width: 390, hasPhoto: true })).toEqual({
+      gaps: { banner: 14, photo: 28, bar: 13 },
       photo: 206,
+      controlsGap: 21,
     });
     // A portrait image stops at the 295 card.
-    expect(restSheetLayout({ sheetHeight: 753, insetsBottom: 34, photoAspect: 3 / 4, width: 390, hasPhoto: true }).photo).toBe(295);
+    expect(restSheetLayout({ sheetHeight: 753, windowHeight: 844, insetsBottom: 34, photoAspect: 3 / 4, width: 390, hasPhoto: true }).photo).toBe(295);
   });
 
-  it('restSheetLayout: 360×640 Android 3-button (top 24 → sheet 572, nav 48): the short gaps; the photo gives up the room (166, floor 160); it fits', () => {
-    const layout = restSheetLayout({ sheetHeight: 640 - 24 - 44, insetsBottom: 48, photoAspect: 3 / 4, width: 360, hasPhoto: true });
-    expect(layout.gaps).toEqual({ banner: 8, photo: 16, bar: 8, controls: 16 });
-    // 572 − (48 + 8 + 60 + 8 + 16 + 23 + 8 + 76 + 16 + 55 + 40 + 48) = 166 (above the 160 floor).
-    expect(layout.photo).toBe(166);
+  it('restSheetLayout: 360×640 Android 3-button (top 24 → sheet 572, nav 48): the short gaps by the window height; the photo shrinks to 160', () => {
+    const layout = restSheetLayout({ sheetHeight: 640 - 24 - 44, windowHeight: 640, insetsBottom: 48, photoAspect: 3 / 4, width: 360, hasPhoto: true });
+    expect(layout.gaps).toEqual({ banner: 8, photo: 16, bar: 8 });
+    // 572 − (48 + 14 + 60 + 8 + 16 + 23 + 8 + 76 + 16 + 55 + 40 + 48) = 160.
+    expect(layout).toMatchObject({ photo: 160, controlsGap: 16 });
+    // 843 is still short; the trigger is the window, not the photo room.
+    expect(restSheetLayout({ sheetHeight: 760, windowHeight: 843, insetsBottom: 34, photoAspect: 16 / 9, width: 390, hasPhoto: true }).gaps.banner).toBe(8);
   });
 
-  it('the controls are pinned (inset + 40 above the bottom, captions inside it); nothing scrolls at normal text', () => {
+  it('photo state: the controls follow the digits, the leftover goes below them; nothing scrolls at normal text', () => {
     mockHeight = 640;
     mockInsets = { top: 24, bottom: 48, left: 0, right: 0 };
     const tree = renderHero();
     loadPhoto(tree);
     expect(tree.root.findAll((node) => node.type === 'RCTScrollView')).toHaveLength(0);
-    const row = tree.root.findAll((node) => typeof node.type === 'string' && StyleSheet.flatten(node.props.style)?.bottom === 48 + 40 - 28)[0];
-    expect(within(row, 'rest-timer-skip')).toHaveLength(1);
-    expect(photoHeight(tree)).toBe(166);
+    const row = tree.root.findAll((node) => typeof node.type === 'string' && StyleSheet.flatten(node.props.style)?.marginTop === 16 && within(node, 'rest-timer-skip').length === 1)[0];
+    expect(StyleSheet.flatten(row.props.style).position).toBeUndefined();
+    const below = tree.root.findAll((node) => typeof node.type === 'string' && StyleSheet.flatten(node.props.style)?.flex === 1 && StyleSheet.flatten(node.props.style)?.minHeight === 48 + 40 - 26);
+    expect(below).toHaveLength(1);
+    expect(photoHeight(tree)).toBe(160);
   });
 
   it('no photo: the name, then the bar + digits in a centred zone above the controls', () => {
