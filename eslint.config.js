@@ -10,7 +10,7 @@ const textCap = require('./eslint-rules/text-cap');
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ['dist/*', 'ios/*', 'android/*', 'coverage/*', 'node_modules/*'],
+    ignores: ['dist/*', 'ios/*', 'android/*', 'coverage/*', 'node_modules/*', 'shared/gymido/**'],
   },
   {
     rules: {

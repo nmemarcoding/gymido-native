@@ -1,0 +1,351 @@
+{
+  "$generated": "Do not edit. Run `npm run tokens` (scripts/tokens-native.js) from shared/gymido/design/tokens/tokens.json.",
+  "$version": "1.0.0",
+  "color": {
+    "background": "#0A0B0F",
+    "surface": "#15171D",
+    "surfaceMuted": "#1A1D24",
+    "surfaceRaised": "#1E2129",
+    "surfaceDialog": "#17191F",
+    "surfaceSunk": "#111318",
+    "surface-well": "#0F1116",
+    "surface-card-2": "#17191F",
+    "border": "rgba(255, 255, 255, 0.07)",
+    "borderStrong": "rgba(255, 255, 255, 0.12)",
+    "glass": "rgba(30, 33, 41, 0.72)",
+    "glass-strong": "rgba(24, 26, 33, 0.92)",
+    "fill-subtle": "rgba(255, 255, 255, 0.04)",
+    "fill": "rgba(255, 255, 255, 0.07)",
+    "fill-strong": "rgba(255, 255, 255, 0.08)",
+    "navy": "#0A0B0F",
+    "surface-sunk": "#111318",
+    "scrim-strong": "rgba(10, 11, 15, 0.72)",
+    "on-photo": "rgba(10, 11, 15, 0.55)",
+    "on-photo-strong": "rgba(10, 11, 15, 0.92)",
+    "ink-tint": "rgba(10, 11, 15, 0.1)",
+    "hairline-bright": "rgba(255, 255, 255, 0.18)",
+    "track": "rgba(255, 255, 255, 0.08)",
+    "skeleton": "#262932",
+    "skeleton-shine": "#2B2F39",
+    "surface-high": "#2B2F39",
+    "danger-hover": "#E0393F",
+    "on-gold-muted": "rgba(10, 11, 15, 0.72)",
+    "ink-faint": "rgba(10, 11, 15, 0.08)",
+    "ink-line": "rgba(10, 11, 15, 0.3)",
+    "ink-strong": "rgba(10, 11, 15, 0.6)",
+    "ground-bar": "rgba(10, 11, 15, 0.88)",
+    "photo-fade": "rgba(10, 11, 15, 0.9)",
+    "surface-fade": "rgba(21, 23, 29, 0.9)",
+    "state-overlay": "rgba(255, 255, 255, 0.04)",
+    "state-overlay-ink": "rgba(10, 11, 15, 0.04)",
+    "teal-faint": "rgba(79, 216, 196, 0.08)",
+    "teal-tint": "rgba(79, 216, 196, 0.14)",
+    "teal-line": "rgba(79, 216, 196, 0.3)",
+    "teal-strong": "rgba(79, 216, 196, 0.6)",
+    "teal-text": "#7FE6D6",
+    "gold-faint": "rgba(255, 194, 26, 0.08)",
+    "gold-tint": "rgba(255, 194, 26, 0.14)",
+    "gold-line": "rgba(255, 194, 26, 0.3)",
+    "gold-strong": "rgba(255, 194, 26, 0.6)",
+    "danger-faint": "rgba(255, 90, 78, 0.08)",
+    "danger-tint": "rgba(255, 90, 78, 0.14)",
+    "danger-line": "rgba(255, 90, 78, 0.3)",
+    "danger-strong": "rgba(255, 90, 78, 0.6)",
+    "success-faint": "rgba(74, 222, 128, 0.08)",
+    "success-tint": "rgba(74, 222, 128, 0.14)",
+    "success-line": "rgba(74, 222, 128, 0.3)",
+    "success-strong": "rgba(74, 222, 128, 0.6)",
+    "warning-faint": "rgba(245, 165, 36, 0.08)",
+    "warning-tint": "rgba(245, 165, 36, 0.14)",
+    "warning-line": "rgba(245, 165, 36, 0.3)",
+    "warning-strong": "rgba(245, 165, 36, 0.6)",
+    "info-faint": "rgba(143, 168, 255, 0.08)",
+    "info-tint": "rgba(143, 168, 255, 0.14)",
+    "info-line": "rgba(143, 168, 255, 0.3)",
+    "info-strong": "rgba(143, 168, 255, 0.6)",
+    "danger-text-soft": "#FFB4AD",
+    "muscle-chest-text": "#A9BCFF",
+    "muscle-back-text": "#FFD45C",
+    "muscle-legs-text": "#B9C8E0",
+    "muscle-arms-text": "#DDB8FF",
+    "muscle-core-text": "#FFB07A",
+    "muscle-cardio-text": "#7FE6D6",
+    "text-primary": "#F5F6F8",
+    "text-strong": "#D4D7DD",
+    "text-secondary": "#B4B9C3",
+    "text-muted": "#9BA1AD",
+    "text-faint": "#8B919C",
+    "text-disabled": "#6E7480",
+    "brand-50": "rgba(255, 194, 26, 0.14)",
+    "brand-100": "rgba(255, 194, 26, 0.14)",
+    "brand-200": "rgba(255, 194, 26, 0.3)",
+    "brand-300": "#FFD45C",
+    "brand-400": "#FFC21A",
+    "brand-500": "#FFC21A",
+    "brand-600": "#FFC21A",
+    "brand-700": "#FFC21A",
+    "brand-800": "#F4A300",
+    "brand-900": "#F29E00",
+    "accent-50": "rgba(79, 216, 196, 0.14)",
+    "accent-100": "rgba(79, 216, 196, 0.2)",
+    "accent-200": "#8BE6D8",
+    "accent-300": "#6FE0CF",
+    "accent-400": "#4FD8C4",
+    "accent-500": "#4FD8C4",
+    "accent-600": "#4FD8C4",
+    "accent-700": "#4FD8C4",
+    "accent-800": "#3BB5A3",
+    "accent-900": "#2A8A7C",
+    "performance": "#9DB0CF",
+    "energy": "#FF9A57",
+    "chest": "#8FA8FF",
+    "back": "#FFC21A",
+    "legs": "#9DB0CF",
+    "cardio": "#4FD8C4",
+    "core": "#FF9A57",
+    "rest": "#9BA1AD",
+    "arms": "#C79BFF",
+    "success": "#4ADE80",
+    "warning": "#F5A524",
+    "danger": "#FF7A70",
+    "danger-dot": "#FF5A4E",
+    "info": "#8FA8FF",
+    "success-50": "rgba(74, 222, 128, 0.14)",
+    "success-700": "#4ADE80",
+    "danger-50": "rgba(255, 90, 78, 0.08)",
+    "danger-600": "#D93036",
+    "danger-700": "#FF7A70",
+    "danger-800": "#FF7A70",
+    "warning-50": "rgba(245, 165, 36, 0.08)",
+    "warning-700": "#F5A524",
+    "info-50": "rgba(143, 168, 255, 0.08)",
+    "info-700": "#8FA8FF",
+    "scrim": "rgba(10, 11, 15, 0.6)",
+    "scrim-light": "rgba(10, 11, 15, 0.4)",
+    "chart-grid": "rgba(255, 255, 255, 0.07)",
+    "glow-gold-ambient": "rgba(255, 194, 26, 0.18)",
+    "glow-gold-orb": "rgba(255, 194, 26, 0.26)",
+    "glow-teal-ambient": "rgba(79, 216, 196, 0.18)",
+    "glow-teal-orb": "rgba(79, 216, 196, 0.26)",
+    "glow-danger-ambient": "rgba(255, 90, 78, 0.18)",
+    "glow-danger-orb": "rgba(255, 90, 78, 0.26)",
+    "gold-nav-active": "rgba(255, 194, 26, 0.16)",
+    "gold-focus-ring": "rgba(255, 194, 26, 0.18)",
+    "gold-wash": "rgba(255, 194, 26, 0.1)",
+    "gold-pill-line": "rgba(255, 194, 26, 0.22)",
+    "arc-todo": "#2A2E37",
+    "card-gold-border": "#6B5A1E",
+    "rest-step": "#1F2126",
+    "rest-track": "#3A3B40",
+    "rest-banner": "#2E3036"
+  },
+  "text": {
+    "stat-label": 11,
+    "min": 11
+  },
+  "font": {
+    "sans": [
+      "Geist",
+      "Inter",
+      "-apple-system",
+      "BlinkMacSystemFont",
+      "system-ui",
+      "Segoe UI",
+      "Roboto",
+      "Arial",
+      "sans-serif"
+    ],
+    "display": [
+      "Geist",
+      "Inter",
+      "-apple-system",
+      "BlinkMacSystemFont",
+      "system-ui",
+      "Segoe UI",
+      "Roboto",
+      "Arial",
+      "sans-serif"
+    ]
+  },
+  "shadow": {
+    "glow": "0px 10px 24px -12px rgba(255, 194, 26, 0.4)",
+    "lift-3": "0px 16px 40px rgba(0, 0, 0, 0.5)",
+    "brand": "0px 10px 24px -12px rgba(255, 194, 26, 0.4)",
+    "float": "0px 16px 40px rgba(0, 0, 0, 0.5)",
+    "sheet": "0px 30px 80px rgba(0, 0, 0, 0.6)",
+    "sheet-up": "0px -10px 50px rgba(0, 0, 0, 0.6)",
+    "rest-bar": "0px 0px 18px rgba(255, 194, 26, 0.55)",
+    "rest-bar-danger": "0px 0px 18px rgba(255, 122, 112, 0.55)",
+    "rest-sheet": "0px -16px 48px rgba(0, 0, 0, 0.5)"
+  },
+  "radius": {
+    "xl": 16,
+    "2xl": 20,
+    "3xl": 28,
+    "3_5": 14,
+    "well": 16,
+    "card": 24,
+    "stage": 28,
+    "surface": 24
+  },
+  "duration": {
+    "fast": 150,
+    "base": 200,
+    "slow": 300,
+    "open": 260,
+    "bar": 1000
+  },
+  "ease": {
+    "spring": [
+      0.22,
+      1,
+      0.36,
+      1
+    ],
+    "out": [
+      0,
+      0,
+      0.58,
+      1
+    ],
+    "pop": [
+      0.34,
+      1.56,
+      0.64,
+      1
+    ]
+  },
+  "tabbar": {
+    "height": 86
+  },
+  "gradient": {
+    "brand": {
+      "angle": 145,
+      "colors": [
+        "#FFD45C",
+        "#FFC21A",
+        "#F29E00"
+      ],
+      "stops": [
+        0,
+        0.45,
+        1
+      ]
+    },
+    "brand-diag": {
+      "angle": 145,
+      "colors": [
+        "#FFD45C",
+        "#F4A300"
+      ]
+    },
+    "card": {
+      "angle": 160,
+      "colors": [
+        "#1E2129",
+        "#14161C"
+      ]
+    },
+    "danger-card": {
+      "angle": 160,
+      "colors": [
+        "#2A1A1C",
+        "#16121A"
+      ]
+    },
+    "cta-fade": {
+      "angle": 180,
+      "colors": [
+        "rgba(10, 11, 15, 0)",
+        "#0A0B0F"
+      ],
+      "stops": [
+        0,
+        0.35
+      ]
+    },
+    "gold-card": {
+      "angle": 160,
+      "colors": [
+        "#2A2512",
+        "#16150F"
+      ]
+    },
+    "photo-fade": {
+      "angle": 180,
+      "colors": [
+        "rgba(10, 11, 15, 0)",
+        "rgba(10, 11, 15, 0.9)"
+      ]
+    },
+    "surface-fade": {
+      "angle": 180,
+      "colors": [
+        "rgba(21, 23, 29, 0)",
+        "rgba(21, 23, 29, 0.9)"
+      ]
+    },
+    "rest-sheet": {
+      "angle": 180,
+      "colors": [
+        "#25272C",
+        "#18191D",
+        "#141518"
+      ],
+      "stops": [
+        0,
+        0.32,
+        1
+      ]
+    },
+    "disc": {
+      "shape": "circle at 50% 30%",
+      "colors": [
+        "#2B2F39",
+        "#15171D"
+      ],
+      "stops": [
+        0,
+        0.75
+      ]
+    }
+  },
+  "width": {
+    "13": 52,
+    "5_5": 22
+  },
+  "height": {
+    "13": 52,
+    "5_5": 22
+  },
+  "blur": {
+    "letterbox": 28
+  },
+  "layout": {
+    "large-text-below": 304,
+    "tabbar-bar": 66,
+    "touch-min": 44,
+    "column-max": 430,
+    "rail-width": 88,
+    "sidebar-width": 256
+  },
+  "textScale": {
+    "display": 1.3,
+    "title": 1.6,
+    "body": 2,
+    "tabLabel": 1.2,
+    "iconsOnlyAbove": 1.3,
+    "reflowAbove": 1.3,
+    "badge": 1.2,
+    "pill": 1.6,
+    "timer": 1.2,
+    "suffix": 1.6,
+    "liveWorkout": {
+      "fitDisplay": 1.3,
+      "other": 2,
+      "tabletDigits": 1.2,
+      "tabletTitle": 1.6,
+      "stage": 1.3
+    }
+  }
+}

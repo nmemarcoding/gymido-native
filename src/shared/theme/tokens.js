@@ -1,19 +1,47 @@
 // Design tokens, v2 (RN-SPEC-v2-foundation §1–3; UX tokens-and-components,
 // FINAL 26 Oct 2026). Dark only. Names are UX's shared vocabulary in
 // camelCase (`color-surface-raised` → colors.surfaceRaised).
+//
+// T-173: this file is the public token API (every export name and shape stays) and a facade over
+// tokens.generated.json, which `npm run tokens` builds from the shared source synced from gymido
+// (shared/gymido/design/tokens/tokens.json). An entry written `token('<source path>')` takes its value from the
+// source; that line is the explicit native-name → source-path map. Literal entries are native-only until UX's
+// `native.*` group lands in the source. Never edit tokens.generated.json; change tokens.json in gymido first.
 
 import { Platform } from 'react-native';
+
+import generated from './tokens.generated.json';
+
+function deepFreeze(value) {
+  if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.values(value).forEach(deepFreeze);
+    Object.freeze(value);
+  }
+  return value;
+}
+
+const GENERATED = deepFreeze(generated);
+
+// One source path ('color.gold-tint') → its native value. A path that is not in the generated file throws at
+// load, so a stale map line can never export `undefined`.
+function token(sourcePath) {
+  const value = sourcePath.split('.').reduce((node, key) => (node == null ? undefined : node[key]), GENERATED);
+  if (value === undefined) {
+    throw new Error(`tokens: ${sourcePath} is not in tokens.generated.json`);
+  }
+  return value;
+}
 
 // §1 Colour: the canonical v2 set.
 const V2_COLORS = {
   // §1.1 Ground and surfaces.
   ground: '#0A0B0F',
   groundDeep: '#0B0C10',
-  surface: '#15171D',
-  surfaceSunk: '#111318',
-  surfaceRaised: '#1E2129',
+  surface: token('color.surface'),
+  surfaceSunk: token('color.surfaceSunk'),
+  surfaceRaised: token('color.surfaceRaised'),
   surfaceInput: '#1A1D24',
-  glass: 'rgba(30, 33, 41, 0.72)',
+  glass: token('color.glass'),
   glassToast: 'rgba(30, 33, 41, 0.85)',
   // Low-end Android: the tab bar draws this instead of the blur (PM, 26 Oct).
   glassSolid: 'rgba(30, 33, 41, 0.96)',
@@ -28,15 +56,15 @@ const V2_COLORS = {
   // UX native final audit 27 Oct 2026, ruling 11: the toggle knob is white
   // in both states.
   switchKnob: '#FFFFFF',
-  scrim: 'rgba(10, 11, 15, 0.6)',
+  scrim: token('color.scrim'),
   // §1.2 Text.
-  textPrimary: '#F5F6F8',
+  textPrimary: token('color.text-primary'),
   textStrong2: '#D4D7DD',
-  textSecondary: '#B4B9C3',
-  textMuted: '#9BA1AD',
-  textFaint: '#8B919C',
+  textSecondary: token('color.text-secondary'),
+  textMuted: token('color.text-muted'),
+  textFaint: token('color.text-faint'),
   // Fails 4.5:1: disabled text and decoration only, never readable copy.
-  textDisabled: '#6E7480',
+  textDisabled: token('color.text-disabled'),
   onGold: '#0A0B0F',
   onLight: '#0A0B0F',
   onDanger: '#FFFFFF',
@@ -44,30 +72,30 @@ const V2_COLORS = {
   gold: '#FFC21A',
   goldLight: '#FFD45C',
   goldDeep: '#F4A300',
-  goldTint: 'rgba(255, 194, 26, 0.14)',
+  goldTint: token('color.gold-tint'),
   goldTintTab: 'rgba(255, 194, 26, 0.16)',
   goldTintWeak: 'rgba(255, 194, 26, 0.08)',
   goldBorder: 'rgba(255, 194, 26, 0.35)',
   goldFocus: 'rgba(255, 194, 26, 0.18)',
   // §1.4 Status. "Active" = teal; success green = completed / done.
-  success: '#4ADE80',
+  success: token('color.success'),
   successTint: 'rgba(74, 222, 128, 0.12)',
   successBorder: 'rgba(74, 222, 128, 0.28)',
   teal: '#4FD8C4',
-  tealTint: 'rgba(79, 216, 196, 0.14)',
-  warning: '#F5A524',
-  warningTint: 'rgba(245, 165, 36, 0.14)',
+  tealTint: token('color.teal-tint'),
+  warning: token('color.warning'),
+  warningTint: token('color.warning-tint'),
   warningFill: 'rgba(245, 165, 36, 0.08)',
   warningBorder: 'rgba(245, 165, 36, 0.28)',
   danger: '#D93036',
   dangerText: '#FF7A70',
   dangerTextTint: 'rgba(255, 122, 112, 0.12)',
   dangerFocus: 'rgba(255, 122, 112, 0.18)',
-  dangerDot: '#FF5A4E',
+  dangerDot: token('color.danger-dot'),
   dangerDotTint: 'rgba(255, 90, 78, 0.08)',
   dangerDotBorder: 'rgba(255, 90, 78, 0.30)',
   // Info and chest share the hue as two tokens (UX, 26 Oct).
-  info: '#8FA8FF',
+  info: token('color.info'),
   infoTint: 'rgba(143, 168, 255, 0.10)',
   infoBorder: 'rgba(143, 168, 255, 0.25)',
   // v2 kit: overlays
@@ -96,19 +124,19 @@ const V2_COLORS = {
   // UX tokens-and-components §8.3 + §8.4 (26 Oct 2026): the canvas values
   // that had no token. Build exactly these; other canvas values fold into
   // existing tokens per the §8.4 fold map.
-  surfaceWell: '#0F1116',
-  surfaceCard2: '#17191F',
+  surfaceWell: token('color.surface-well'),
+  surfaceCard2: token('color.surface-card-2'),
   // Near-solid glass sheets/panels (blur.glassStrong); glassSolid stays the
   // low-end Android fallback only.
-  glassStrong: 'rgba(24, 26, 33, 0.92)',
-  scrimStrong: 'rgba(10, 11, 15, 0.72)',
+  glassStrong: token('color.glass-strong'),
+  scrimStrong: token('color.scrim-strong'),
   // Glass chips/buttons over photos (blur.onPhoto) and solid photo badges.
-  onPhoto: 'rgba(10, 11, 15, 0.55)',
-  onPhotoStrong: 'rgba(10, 11, 15, 0.92)',
+  onPhoto: token('color.on-photo'),
+  onPhotoStrong: token('color.on-photo-strong'),
   // Dark fills/rings ON gold surfaces.
   inkTint: 'rgba(10, 11, 15, 0.10)',
   // Borders on photos and glass chips, grab handles.
-  hairlineBright: 'rgba(255, 255, 255, 0.18)',
+  hairlineBright: token('color.hairline-bright'),
   // T-140 Workout page (UX build ruling §3/§5): the stats / Last workout
   // card edge and row hairlines 0.06, the week card edge 0.08, a sheet row's
   // open mark ring 0.25 and a future day's ring 0.32.
@@ -151,40 +179,40 @@ const V2_COLORS = {
   // §8.5 alpha ladder (Phase 2+; the Phase 1 kit re-folds after QA's gate):
   // faint 0.08 · tint 0.14 · line 0.30 · strong 0.60 per accent. Danger
   // fills/borders use #FF5A4E; #FF7A70 is for text only.
-  goldFaint: 'rgba(255, 194, 26, 0.08)',
+  goldFaint: token('color.gold-faint'),
   goldLine: 'rgba(255, 194, 26, 0.30)',
   goldStrong: 'rgba(255, 194, 26, 0.60)',
-  tealFaint: 'rgba(79, 216, 196, 0.08)',
+  tealFaint: token('color.teal-faint'),
   tealLine: 'rgba(79, 216, 196, 0.30)',
   tealStrong: 'rgba(79, 216, 196, 0.60)',
-  tealText: '#7FE6D6',
-  dangerFaint: 'rgba(255, 90, 78, 0.08)',
-  dangerTint: 'rgba(255, 90, 78, 0.14)',
+  tealText: token('color.teal-text'),
+  dangerFaint: token('color.danger-faint'),
+  dangerTint: token('color.danger-tint'),
   dangerLine: 'rgba(255, 90, 78, 0.30)',
   dangerStrong: 'rgba(255, 90, 78, 0.60)',
   // Body copy on red cards.
-  dangerTextSoft: '#FFB4AD',
-  successFaint: 'rgba(74, 222, 128, 0.08)',
+  dangerTextSoft: token('color.danger-text-soft'),
+  successFaint: token('color.success-faint'),
   successLine: 'rgba(74, 222, 128, 0.30)',
   successStrong: 'rgba(74, 222, 128, 0.60)',
-  warningFaint: 'rgba(245, 165, 36, 0.08)',
+  warningFaint: token('color.warning-faint'),
   warningLine: 'rgba(245, 165, 36, 0.30)',
   warningStrong: 'rgba(245, 165, 36, 0.60)',
-  infoFaint: 'rgba(143, 168, 255, 0.08)',
+  infoFaint: token('color.info-faint'),
   infoLine: 'rgba(143, 168, 255, 0.30)',
   // White: ring/progress tracks.
-  track: 'rgba(255, 255, 255, 0.08)',
+  track: token('color.track'),
   // Skeleton blocks and their shimmer highlight.
-  skeleton: '#262932',
-  skeletonShine: '#2B2F39',
+  skeleton: token('color.skeleton'),
+  skeletonShine: token('color.skeleton-shine'),
   // UX §8.6 (FE's web sweep, applies to native).
   // Raised chips/pills on raised surfaces (same value as the skeleton shine).
-  surfaceHigh: '#2B2F39',
-  dangerHover: '#E0393F',
+  surfaceHigh: token('color.surface-high'),
+  dangerHover: token('color.danger-hover'),
   // Secondary TEXT on gold fills.
-  onGoldMuted: 'rgba(10, 11, 15, 0.72)',
+  onGoldMuted: token('color.on-gold-muted'),
   // Sticky bars on the ground (blur.groundBar).
-  groundBar: 'rgba(10, 11, 15, 0.88)',
+  groundBar: token('color.ground-bar'),
   // UX native final audit 27 Oct 2026, ruling 2: the status-bar backdrop's
   // low-end Android fallback (no blur there).
   groundFallback: 'rgba(10, 11, 15, 0.96)',
@@ -192,7 +220,7 @@ const V2_COLORS = {
   // the backdrop is this translucent ground over blur.statusBar.
   groundTranslucent: 'rgba(10, 11, 15, 0.86)',
   // The ink ladder (dark on gold): 0.08 / 0.10 tint (inkTint) / 0.30 / 0.60.
-  inkFaint: 'rgba(10, 11, 15, 0.08)',
+  inkFaint: token('color.ink-faint'),
   // MT1.6 (27 Oct 2026): the ink 0.12 chip / Decline fill on the gold card.
   inkChip: 'rgba(10, 11, 15, 0.12)',
   inkLine: 'rgba(10, 11, 15, 0.30)',
@@ -213,14 +241,14 @@ const V2_COLORS = {
 // in another role is fixed when it is restyled. Phase 4 deletes this block
 // (tokens.test.js lists what is left).
 const LEGACY_COLORS = {
-  background: V2_COLORS.ground,
-  border: V2_COLORS.hairline,
-  brand400: V2_COLORS.gold,
+  background: token('color.background'),
+  border: token('color.border'),
+  brand400: token('color.brand-400'),
   brand500: V2_COLORS.goldDeep,
-  brand600: V2_COLORS.gold,
-  brand300: V2_COLORS.goldLight,
-  brand50: V2_COLORS.goldTint,
-  brand700: V2_COLORS.gold,
+  brand600: token('color.brand-600'),
+  brand300: token('color.brand-300'),
+  brand50: token('color.brand-50'),
+  brand700: token('color.brand-700'),
   dangerBorder: V2_COLORS.dangerDotBorder,
   errorFill: V2_COLORS.dangerDotTint,
   errorText: V2_COLORS.dangerText,
@@ -229,10 +257,10 @@ const LEGACY_COLORS = {
   // the rest disc, check marks): color-on-gold. Its two background uses are
   // remapped at their call sites (UX Phase 1 review: a light label on gold
   // failed contrast).
-  navy: V2_COLORS.onGold,
+  navy: token('color.navy'),
   onNavy: V2_COLORS.onLight,
   gray200: V2_COLORS.hairlineStrong,
-  arms: '#C79BFF',
+  arms: token('color.arms'),
   pickerBubble: V2_COLORS.fillSkeleton,
   focusRing: V2_COLORS.goldFocus,
   focusRingError: V2_COLORS.dangerFocus,
@@ -243,10 +271,10 @@ const LEGACY_COLORS = {
   trainerLockBorder: V2_COLORS.goldBorder,
   rowPressed: V2_COLORS.fillChip,
   rowPressedStrong: V2_COLORS.fillSkeleton,
-  success700: V2_COLORS.success,
-  warning700: V2_COLORS.warning,
-  danger700: V2_COLORS.dangerText,
-  danger800: V2_COLORS.dangerText,
+  success700: token('color.success-700'),
+  warning700: token('color.warning-700'),
+  danger700: token('color.danger-700'),
+  danger800: token('color.danger-800'),
   scrimLight: V2_COLORS.scrim,
   warningTextStrong: V2_COLORS.warning,
   warningBorderSoft: V2_COLORS.warningBorder,
@@ -293,7 +321,7 @@ const LEGACY_COLORS = {
   pickerCheckInk: V2_COLORS.textPrimary,
   iconSubtle: V2_COLORS.textFaint,
   chartLine: V2_COLORS.teal,
-  chartGrid: V2_COLORS.hairline,
+  chartGrid: token('color.chart-grid'),
 };
 
 export const colors = Object.freeze({ ...LEGACY_COLORS, ...V2_COLORS });
@@ -315,7 +343,7 @@ const GLOW = Object.freeze({
 // the first render: never added on a state change, the Android crash rule).
 // gold is for avatars, initials tiles and the logo only (buttons are flat).
 export const gradients = Object.freeze({
-  card: Object.freeze({ angle: 160, colors: Object.freeze(['#1E2129', '#14161C']) }),
+  card: token('gradient.card'),
   // T-121 L11: a sideways chip row's right-edge fade into the page ground (#0A0B0F).
   edgeFade: Object.freeze({ angle: 90, colors: Object.freeze(['rgba(10, 11, 15, 0)', 'rgba(10, 11, 15, 1)']) }),
   gold: Object.freeze({ angle: 145, colors: Object.freeze(['#FFD45C', '#FFC21A', '#F29E00']), stops: Object.freeze([0, 0.45, 1]) }),
@@ -348,10 +376,10 @@ export const gradients = Object.freeze({
   imageFade: Object.freeze({ angle: 180, colors: Object.freeze(['rgba(10, 11, 15, 0)', 'rgba(10, 11, 15, 0.9)']) }),
   // UX §8.6: every photo/hero fade is this one (gradient-photo-fade); inside
   // cards the same fade on the card surface (gradient-surface-fade).
-  photoFade: Object.freeze({ angle: 180, colors: Object.freeze(['rgba(10, 11, 15, 0)', 'rgba(10, 11, 15, 0.9)']) }),
-  surfaceFade: Object.freeze({ angle: 180, colors: Object.freeze(['rgba(21, 23, 29, 0)', 'rgba(21, 23, 29, 0.9)']) }),
+  photoFade: token('gradient.photo-fade'),
+  surfaceFade: token('gradient.surface-fade'),
   // UX §8.6: the gold-tinted dark day card (PlanDayCard "Today").
-  goldCard: Object.freeze({ angle: 160, colors: Object.freeze(['#2A2512', '#16150F']) }),
+  goldCard: token('gradient.gold-card'),
   // v2 kit: auth screens (Phase 2 A; UX A boards' own radial geometry; the
   // §8.5 ladder colours: welcome/card corner/hero = gold orb, account = gold
   // ambient, sign-in failed = danger ambient, Today error = danger orb).
@@ -400,7 +428,7 @@ export const gradients = Object.freeze({
     stops: Object.freeze([0, 1]),
   }),
   // Today error: the danger-tinted card gradient (160deg) and its red glow.
-  dangerCard: Object.freeze({ angle: 160, colors: Object.freeze(['#2A1A1C', '#16121A']) }),
+  dangerCard: token('gradient.danger-card'),
   dangerGlow: Object.freeze({
     radial: Object.freeze({ cx: 0.5, cy: 0.5, rx: 0.5, ry: 0.5 }),
     colors: GLOW.dangerOrb,
@@ -439,22 +467,22 @@ export const textInputColors = Object.freeze({
 // §1.5 Muscle colours, always shown with a text label. Tiles: the colour at
 // 16 % as the fill and the colour as the text.
 export const muscle = Object.freeze({
-  chest: '#8FA8FF',
-  back: '#FFC21A',
-  legs: '#9DB0CF',
-  arms: '#C79BFF',
-  core: '#FF9A57',
-  cardio: '#4FD8C4',
+  chest: token('color.chest'),
+  back: token('color.back'),
+  legs: token('color.legs'),
+  arms: token('color.arms'),
+  core: token('color.core'),
+  cardio: token('color.cardio'),
 });
 
 // UX §8.4: text and icons on a 16 % muscle-tint pill (the lighter variant).
 export const muscleText = Object.freeze({
-  chest: '#A9BCFF',
-  back: '#FFD45C',
-  legs: '#B9C8E0',
-  arms: '#DDB8FF',
-  core: '#FFB07A',
-  cardio: '#7FE6D6',
+  chest: token('color.muscle-chest-text'),
+  back: token('color.muscle-back-text'),
+  legs: token('color.muscle-legs-text'),
+  arms: token('color.muscle-arms-text'),
+  core: token('color.muscle-core-text'),
+  cardio: token('color.muscle-cardio-text'),
 });
 
 // UX §8.4 glow-muscle: the orb behind the exercise-detail hero, the muscle
@@ -542,17 +570,17 @@ function step(fontSize, lineHeight, weight, trackingEm = 0) {
 // UX §9 large text: the most each text role scales (maxFontSizeMultiplier),
 // and the text scale above which layouts reflow (tab bar → icons only).
 export const textScale = Object.freeze({
-  display: 1.3,
-  title: 1.6,
-  body: 2.0,
-  tabLabel: 1.2,
-  badge: 1.2,
-  pill: 1.6,
-  timer: 1.2,
-  iconsOnlyAbove: 1.3,
-  reflowAbove: 1.3,
+  display: token('textScale.display'),
+  title: token('textScale.title'),
+  body: token('textScale.body'),
+  tabLabel: token('textScale.tabLabel'),
+  badge: token('textScale.badge'),
+  pill: token('textScale.pill'),
+  timer: token('textScale.timer'),
+  iconsOnlyAbove: token('textScale.iconsOnlyAbove'),
+  reflowAbove: token('textScale.reflowAbove'),
   // v2 kit: kit 2 (UX §8.7 U13): a field's unit suffix (kg, cm …).
-  suffix: 1.6,
+  suffix: token('textScale.suffix'),
 });
 
 export const typography = Object.freeze({
@@ -593,20 +621,20 @@ export const typography = Object.freeze({
 // never on a button inside a dialog or sheet (PillButton's NoGlow scope).
 const V2_SHADOWS = {
   goldGlow: '0px 10px 24px -12px rgba(255, 194, 26, 0.4)',
-  float: '0px 16px 40px rgba(0, 0, 0, 0.5)',
+  float: token('shadow.float'),
   // v2 kit: kit 2 (UX §5 / §8.6 / §8.6a 2 / §8.7 U11). shadow-gold-glow is
   // goldGlow above (T-86: the -lg step is the same token). sheet: centred
   // dialogs (tablet cards); sheetUp: every bottom sheet.
-  sheet: '0px 30px 80px rgba(0, 0, 0, 0.6)',
-  sheetUp: '0px -10px 50px rgba(0, 0, 0, 0.6)',
+  sheet: token('shadow.sheet'),
+  sheetUp: token('shadow.sheet-up'),
 };
 
 // v1 shadows as aliases: the gold glows map to goldGlow, overlay shadows to
 // float, and every other lift/press/emboss/ring is retired (`undefined`
 // draws no shadow). Deleted in Phase 4 with the colour aliases.
 const LEGACY_SHADOWS = {
-  glow: V2_SHADOWS.goldGlow,
-  brand: V2_SHADOWS.goldGlow,
+  glow: token('shadow.glow'),
+  brand: token('shadow.brand'),
   modal: V2_SHADOWS.float,
   dialog: V2_SHADOWS.float,
   soft: undefined,
@@ -663,8 +691,8 @@ export const spacing = Object.freeze({
 // hitSlop), the tablet icon rail and the content cap.
 export const layout = Object.freeze({
   gutter: 16,
-  touchMin: 44,
-  railWidth: 88,
+  touchMin: token('layout.touch-min'),
+  railWidth: token('layout.rail-width'),
   contentMax: 1120,
   // §7.1 the phone's floating tab bar: 66 tall, 20 above the bottom safe
   // area. The one source for the shell and the toast (86 clears it).
@@ -688,12 +716,12 @@ export const breakpoints = Object.freeze({
 // §3 Motion (v1 values kept): durations and the two cubic-bézier curves as
 // [x1, y1, x2, y2] for Easing.bezier.
 export const motion = Object.freeze({
-  durationFast: 150,
-  durationBase: 200,
-  durationSlow: 300,
-  easeSpring: Object.freeze([0.22, 1, 0.36, 1]),
+  durationFast: token('duration.fast'),
+  durationBase: token('duration.base'),
+  durationSlow: token('duration.slow'),
+  easeSpring: token('ease.spring'),
   // Dialogs pop in (carried over from v1's RuntimeOverlays POP).
-  easePop: Object.freeze([0.34, 1.56, 0.64, 1]),
+  easePop: token('ease.pop'),
   cardEntranceMs: 240,
   cardOffsetY: 8,
   spinnerLoopMs: 1000,
