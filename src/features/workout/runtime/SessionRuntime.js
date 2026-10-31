@@ -95,7 +95,13 @@ export const PHONE_HEADER_BOTTOM_GAP = 0;
 // T-161 spec §3: the phone page ends 8 + the bottom safe area above the visible bottom.
 export const PHONE_PAGE_BOTTOM = spacing[2];
 // The longest the page stays hidden while the fit steps (PM 31 Oct: ~150 ms).
-export const FIT_REVEAL_MS = 150;
+export const FIT_REVEAL_MS = 250;
+// A step that changed nothing gives no layout event: after this long the same measurement is taken again.
+const FIT_IDLE_MS = 80;
+// The once-only re-check from FULL after a fit that ended below FULL (spec §5.3 web guard), a frame later.
+const FIT_RECHECK_MS = 16;
+// M1 restarts after settling: at most this many a second (a flapping layout must never loop).
+const FIT_RESTARTS_PER_SECOND = 3;
 // Q7: the minimised rest disc sits 24 above the bottom (+ the safe area);
 // nothing keeps it off Did it (web RT:94-100).
 export const PHONE_DISC_BOTTOM = spacing[6];
@@ -690,7 +696,7 @@ export default function SessionRuntime({
     if (fitStore.key !== fitKey) {
       // The ladder is driven from layout: adopting the new key here is its first step, before paint.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setFitStore({ key: fitKey, state: FULL, settled: false, seq: usedLayout.seq });
+      setFitStore({ key: fitKey, state: FULL, settled: false, seq: usedLayout.seq, rechecked: false, restarts: [] });
       return;
     }
     // Step only on a layout event that came after the last step.
@@ -701,8 +707,10 @@ export default function SessionRuntime({
     // §5.3 (web: ResizeObserver): after it settles, any other change of the content's height (the weight error line, a
     // message above the card) starts again from FULL.
     if (fitStore.settled) {
-      if (Math.round(used) !== fitStore.used) {
-        setFitStore({ key: fitKey, state: FULL, settled: false, seq: usedLayout.seq });
+      const now = Date.now();
+      const restarts = (fitStore.restarts ?? []).filter((at) => now - at < 1000);
+      if (Math.round(used) !== fitStore.used && restarts.length < FIT_RESTARTS_PER_SECOND) {
+        setFitStore({ key: fitKey, state: FULL, settled: false, seq: usedLayout.seq, rechecked: fitStore.rechecked, restarts: [...restarts, now] });
       }
       return;
     }
@@ -716,13 +724,37 @@ export default function SessionRuntime({
       columnWidth: fitColumnWidth,
       upNext: fitUpNextRow,
     });
-    const probe = { over, used: Math.round(used), root: Math.round(rootHeight) };
+    const probe = { over, used: Math.round(used), root: Math.round(rootHeight), rechecked: fitStore.rechecked, restarts: fitStore.restarts };
     setFitStore(next ? { key: fitKey, state: next, settled: false, seq: usedLayout.seq, ...probe } : { key: fitKey, state: fitStore.state, settled: true, seq: usedLayout.seq, ...probe });
   }, [fitActive, exercise, fieldFocused, rootHeight, fitStore, fitKey, usedLayout, insets.bottom, fitHasPhoto, browsing, stageMeasure.photoNatural, stageMeasure.nameLines, fitColumnWidth, fitUpNextRow]);
+  // A layout event can be in flight from before a step (seen on device: a fit settled on the previous layout and ended
+  // ~70 too small). So: a step that brings no layout event is measured again after FIT_IDLE_MS, and a fit that ends
+  // below FULL re-checks once from FULL (web's guard, §5.3).
+  const fitStepping = Boolean(fit) && !fieldFocused && fitStore.key === fitKey && !fitStore.settled;
+  useEffect(() => {
+    if (!fitStepping) {
+      return undefined;
+    }
+    const seq = fitStore.seq;
+    const timer = setTimeout(() => setUsedLayout((prev) => (prev.seq === seq ? { ...prev, seq: prev.seq + 1 } : prev)), FIT_IDLE_MS);
+    return () => clearTimeout(timer);
+  }, [fitStepping, fitStore.seq, fitStore.state]);
+  const fitBelowFull = fitStore.state.level !== FULL.level || fitStore.state.photo !== FULL.photo;
+  const fitRecheckDue = Boolean(fit) && !fieldFocused && fitStore.key === fitKey && fitStore.settled && fitBelowFull && !fitStore.rechecked;
+  useEffect(() => {
+    if (!fitRecheckDue) {
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      setFitStore((prev) => (prev.key === fitKey && prev.settled ? { ...prev, state: FULL, settled: false, rechecked: true } : prev));
+    }, FIT_RECHECK_MS);
+    return () => clearTimeout(timer);
+  }, [fitRecheckDue, fitKey]);
   // The steps are never seen (PM 31 Oct): on the first mount and on a change of exercise or view the page is held
   // invisible until the fit settles, at most FIT_REVEAL_MS, then shown in one go. In-place changes (a set, Undo, the edit
   // row, the photo's aspect, a message) re-fit visibly, without a blank frame (review L1).
-  const fitSettled = fitStore.key === fitKey && fitStore.settled;
+  // Settled for good: at FULL, or after the re-check.
+  const fitSettled = fitStore.key === fitKey && fitStore.settled && (!fitBelowFull || fitStore.rechecked);
   const fitView = `${exercise?.id ?? ''}|${browsing}`;
   const [shownView, setShownView] = useState(null);
   if (fit && fitSettled && shownView !== fitView) {

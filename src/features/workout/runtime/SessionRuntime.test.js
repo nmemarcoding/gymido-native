@@ -651,6 +651,8 @@ describe('v2 F1 live and browsing states (ND3)', () => {
     const used = (tree, height) => layoutOf(content(tree), height);
     const photo = (tree) => StyleSheet.flatten(host(tree, 'exercise-stage').props.style).height;
     const discardHeight = (tree) => StyleSheet.flatten(host(tree, 'discard-workout').props.style).minHeight;
+    // The fit's level, read from the page's e2e marker ("session-page fit-L{level}-…").
+    const fitLevel = (tree) => Number(/fit-L(-?\d+)/.exec(content(tree).props.testID)[1]);
     const setup = (rootHeight) => {
       const { tree } = render();
       room(tree, rootHeight);
@@ -721,7 +723,9 @@ describe('v2 F1 live and browsing states (ND3)', () => {
 
     // PM 31 Oct: the steps are never seen: the page is hidden until the fit settles, at most 150 ms. DECLARED (review L1):
     // only on the first mount and on a change of exercise / view; in-place changes (here: the room) re-fit visibly.
-    it('the page stays hidden while the fit first steps and shows in one go when it settles; an exercise change hides it again (≤ 150 ms)', () => {
+    // DECLARED (device run 31 Oct: a settle on an in-flight layout ended ~70 too small): a fit that ends below FULL
+    // re-checks once from FULL (web §5.3); the page shows when that settles (cap 250 ms, was 150).
+    it('the page stays hidden while the fit first steps and through the re-check, then shows in one go; an exercise change hides it again (≤ 250 ms)', () => {
       jest.useFakeTimers();
       try {
         const tree = setup(1000);
@@ -730,15 +734,59 @@ describe('v2 F1 live and browsing states (ND3)', () => {
         used(tree, 1500);
         expect(pageOpacity()).toBe(0);
         used(tree, 900);
+        // Settled below FULL: still hidden; the re-check runs a frame later from FULL, and FULL fits.
+        expect(pageOpacity()).toBe(0);
+        act(() => jest.advanceTimersByTime(16));
+        used(tree, 910);
         expect(pageOpacity()).toBe(1);
+        expect(photo(tree)).toBe(300);
         // In place (a new room): no blank frame.
         room(tree, 1100);
         expect(pageOpacity()).toBe(1);
         // Another exercise: hidden until it settles; if it never does, it shows after 150 ms anyway.
         act(() => byId(tree, 'up-next').props.onPress());
         expect(pageOpacity()).toBe(0);
-        act(() => jest.advanceTimersByTime(150));
+        act(() => jest.advanceTimersByTime(250));
         expect(pageOpacity()).toBe(1);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    // Device run 31 Oct: an in-flight layout from before a step made the fit settle ~70 too small; the once-only
+    // re-check from FULL lands it on the real layout.
+    it('a settle on a stale layout is corrected by the re-check from FULL', () => {
+      jest.useFakeTimers();
+      try {
+        const tree = setup(1000);
+        // Over at FULL, then a stale (still tall) event after the first step, then the real one, well under.
+        used(tree, 1000);
+        used(tree, 1000);
+        used(tree, 800);
+        expect(discardHeight(tree)).toBe(48);
+        expect(fitLevel(tree)).toBe(1);
+        act(() => jest.advanceTimersByTime(16));
+        expect(fitLevel(tree)).toBe(-1);
+        used(tree, 900);
+        expect(fitLevel(tree)).toBe(-1);
+        expect(photo(tree)).toBe(300);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    // Device run 31 Oct (375 browse stuck 132 over): a step that changes nothing brings no layout event; it is measured
+    // again after 80 ms.
+    it('a step with no layout change is measured again after 80 ms, so the ladder never stalls', () => {
+      jest.useFakeTimers();
+      try {
+        const tree = setup(1000);
+        used(tree, 1100);
+        expect(fitLevel(tree)).toBe(0);
+        act(() => jest.advanceTimersByTime(80));
+        expect(fitLevel(tree)).toBe(1);
+        act(() => jest.advanceTimersByTime(80));
+        expect(fitLevel(tree)).toBe(2);
       } finally {
         jest.useRealTimers();
       }
