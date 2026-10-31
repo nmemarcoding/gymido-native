@@ -251,7 +251,8 @@ export function buildSetEditPatch(set, draft) {
     actual_weight_unit: weight === null ? null : draft?.actualWeightUnit || set.actual_weight_unit || set.target_weight_unit || 'lb',
     rest_seconds_actual: set.rest_seconds_actual ?? set.rest_seconds_planned ?? null,
     is_completed: true,
-    completed_at: set.completed_at ?? null,
+    // Web parity (review L3): a done set without a time (legacy rows) gets now.
+    completed_at: set.completed_at ?? new Date().toISOString(),
   };
 }
 

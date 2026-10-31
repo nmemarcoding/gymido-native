@@ -719,8 +719,9 @@ describe('v2 F1 live and browsing states (ND3)', () => {
       expect(photo(tree)).toBe(160);
     });
 
-    // PM 31 Oct: the steps are never seen: the page is hidden until the fit settles, at most 150 ms.
-    it('the page stays hidden while the fit steps and shows in one go when it settles (or after 150 ms)', () => {
+    // PM 31 Oct: the steps are never seen: the page is hidden until the fit settles, at most 150 ms. DECLARED (review L1):
+    // only on the first mount and on a change of exercise / view; in-place changes (here: the room) re-fit visibly.
+    it('the page stays hidden while the fit first steps and shows in one go when it settles; an exercise change hides it again (≤ 150 ms)', () => {
       jest.useFakeTimers();
       try {
         const tree = setup(1000);
@@ -730,14 +731,41 @@ describe('v2 F1 live and browsing states (ND3)', () => {
         expect(pageOpacity()).toBe(0);
         used(tree, 900);
         expect(pageOpacity()).toBe(1);
-        // A new room: hidden again; if it never settles, it shows after 150 ms anyway.
+        // In place (a new room): no blank frame.
         room(tree, 1100);
+        expect(pageOpacity()).toBe(1);
+        // Another exercise: hidden until it settles; if it never does, it shows after 150 ms anyway.
+        act(() => byId(tree, 'up-next').props.onPress());
         expect(pageOpacity()).toBe(0);
         act(() => jest.advanceTimersByTime(150));
         expect(pageOpacity()).toBe(1);
       } finally {
         jest.useRealTimers();
       }
+    });
+
+    // Review M1 (web: ResizeObserver): after it settles, a content height change outside the key (the weight error line,
+    // a message above the card) starts again from FULL: it shrinks for a new row and grows back when it goes.
+    it('after it settles, a taller page (an error line) steps again; a shorter one grows back from FULL', () => {
+      const tree = setup(1000);
+      used(tree, 900);
+      expect(photo(tree)).toBe(300);
+      expect(discardHeight(tree)).toBe(48);
+      // A row appears: 40 over → FULL again, then one rung per measurement.
+      used(tree, 967);
+      used(tree, 967);
+      expect(discardHeight(tree)).toBe(48);
+      for (let step = 0; step < 4; step += 1) {
+        used(tree, 967);
+      }
+      expect(discardHeight(tree)).toBe(32);
+      used(tree, 900);
+      // The row goes: a different height after settling → FULL, and it fits there.
+      used(tree, 850);
+      expect(discardHeight(tree)).toBe(48);
+      used(tree, 900);
+      expect(discardHeight(tree)).toBe(48);
+      expect(photo(tree)).toBe(300);
     });
 
     // P3: Up next keeps 108 on the right while the minimised disc sits in its default place.

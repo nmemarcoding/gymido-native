@@ -694,10 +694,18 @@ export default function SessionRuntime({
       return;
     }
     // Step only on a layout event that came after the last step.
-    if (fitStore.settled || usedLayout.height == null || usedLayout.seq <= fitStore.seq) {
+    if (usedLayout.height == null || usedLayout.seq <= fitStore.seq) {
       return;
     }
     const used = usedLayout.height + usedLayout.header;
+    // §5.3 (web: ResizeObserver): after it settles, any other change of the content's height (the weight error line, a
+    // message above the card) starts again from FULL.
+    if (fitStore.settled) {
+      if (Math.round(used) !== fitStore.used) {
+        setFitStore({ key: fitKey, state: FULL, settled: false, seq: usedLayout.seq });
+      }
+      return;
+    }
     const over = Math.ceil(used - (rootHeight - PHONE_PAGE_BOTTOM - insets.bottom));
     const next = nextFitStep(fitStore.state, {
       over,
@@ -711,18 +719,23 @@ export default function SessionRuntime({
     const probe = { over, used: Math.round(used), root: Math.round(rootHeight) };
     setFitStore(next ? { key: fitKey, state: next, settled: false, seq: usedLayout.seq, ...probe } : { key: fitKey, state: fitStore.state, settled: true, seq: usedLayout.seq, ...probe });
   }, [fitActive, exercise, fieldFocused, rootHeight, fitStore, fitKey, usedLayout, insets.bottom, fitHasPhoto, browsing, stageMeasure.photoNatural, stageMeasure.nameLines, fitColumnWidth, fitUpNextRow]);
-  // The steps are never seen (PM 31 Oct): after a change of the key the page is held invisible until the fit settles,
-  // at most FIT_REVEAL_MS, then shown in one go. Not while a field holds the fit.
+  // The steps are never seen (PM 31 Oct): on the first mount and on a change of exercise or view the page is held
+  // invisible until the fit settles, at most FIT_REVEAL_MS, then shown in one go. In-place changes (a set, Undo, the edit
+  // row, the photo's aspect, a message) re-fit visibly, without a blank frame (review L1).
   const fitSettled = fitStore.key === fitKey && fitStore.settled;
-  const [revealedKey, setRevealedKey] = useState(null);
-  const fitHidden = Boolean(fit) && !fieldFocused && !fitSettled && revealedKey !== fitKey;
+  const fitView = `${exercise?.id ?? ''}|${browsing}`;
+  const [shownView, setShownView] = useState(null);
+  if (fit && fitSettled && shownView !== fitView) {
+    setShownView(fitView);
+  }
+  const fitHidden = Boolean(fit) && !fieldFocused && !fitSettled && shownView !== fitView;
   useEffect(() => {
     if (!fitHidden) {
       return undefined;
     }
-    const timer = setTimeout(() => setRevealedKey(fitKey), FIT_REVEAL_MS);
+    const timer = setTimeout(() => setShownView(fitView), FIT_REVEAL_MS);
     return () => clearTimeout(timer);
-  }, [fitHidden, fitKey]);
+  }, [fitHidden, fitView]);
   // The fit's state for e2e (web: data-fit-step / data-scaled), in the page's testID: the level, the photo cap, the
   // last measured over, the used and the column heights, settled.
   const fitStoreNow = fitStore.key === fitKey ? fitStore : null;

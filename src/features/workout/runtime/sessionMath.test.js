@@ -506,6 +506,17 @@ describe('v2 F1 texts', () => {
 describe('T-146 helpers', () => {
   const { buildSetEditPatch, stageRestLine } = require('./sessionMath');
 
+  // Review L3 (web parity): a done set with no completed_at (legacy rows) gets the current time.
+  it('buildSetEditPatch: a done set without completed_at gets now', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-31T04:00:00Z'));
+    try {
+      const patch = buildSetEditPatch({ id: 1, is_completed: true, completed_at: null, actual_weight_value: 100, actual_weight_unit: 'lb', actual_reps: 8 }, {});
+      expect(patch.completed_at).toBe('2026-10-31T04:00:00.000Z');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('buildSetEditPatch: stays done, keeps completed_at, takes the edited weight and reps', () => {
     const set = { id: 1, is_completed: true, actual_reps: 9, completed_at: '2026-10-30T10:00:00.000Z', rest_seconds_planned: 90 };
     expect(buildSetEditPatch(set, { actualWeightValue: '135', actualWeightUnit: 'kg', actualReps: '10' })).toEqual({
