@@ -53,6 +53,7 @@ import {
 import { CompletionPopup } from '../runtime/RuntimeOverlays';
 import restAlertPlatform from '../runtime/restAlertPlatform';
 import { requestPermissionAtWorkoutStart } from '../runtime/restAlerts';
+import { signalReminders } from '../../reminders/reminderSignals';
 import { LeaveWorkoutDialog } from '../runtime/SessionDialogs';
 import SessionRuntime from '../runtime/SessionRuntime';
 import { applyOverlay, memberWeightUnit, reconcileOverlay } from '../runtime/sessionMath';
@@ -236,7 +237,10 @@ function WorkoutPage() {
     // T-50 (RN-SPEC-time §7.2 step 3, dated 2026-10-27): the one
     // notification-permission moment, sent before the start request and not
     // awaited; a failed start has still asked.
-    requestPermissionAtWorkoutStart(restAlertPlatform).catch(() => {});
+    // T-172 fix c: a grant here reschedules the reminders right away.
+    requestPermissionAtWorkoutStart(restAlertPlatform)
+      .then(() => signalReminders('permissionChanged'))
+      .catch(() => {});
     try {
       const created = await startWorkout({ user_plan_enrollment_id: enrollmentId, workout_plan_day_id: dayId });
       setPage((current) => ({ ...current, session: created.session ?? current.session }));

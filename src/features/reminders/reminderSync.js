@@ -1,6 +1,6 @@
 import { getStatus } from '../../shared/api/apiError';
 import { localDateKey } from '../plans/libraryFormat';
-import { isReminder, planReminders, todaysWorkoutDone } from './reminderPlan';
+import { isReminder, planReminders, reminderSkipReason, todaysWorkoutDone } from './reminderPlan';
 
 export const REMINDER_CHANNEL_ID = 'workout-reminders';
 
@@ -15,7 +15,12 @@ export const REMINDER_CHANNEL_ID = 'workout-reminders';
 // touched (review M1: an offline cold start must keep the reminders).
 // Every operation runs through one serial queue; a failure never blocks the
 // next one, and a sync asked for while another waits joins that one.
-export function createReminderSync({ platform, api, allowed, localCompleted = () => [], now = () => new Date() }) {
+// T-172: `cache` = { load(), save(current) } (optional): a plan read that
+// fails (offline, 5xx, auth) schedules from the last good plan instead of
+// keeping a possibly empty set (fix b); 404 = no plan, also remembered.
+// `onReport({ count, source, reason, status })` after every sync, so a sync
+// that schedules nothing says why (fix d).
+export function createReminderSync({ platform, api, allowed, localCompleted = () => [], now = () => new Date(), cache = null, onReport = () => {} }) {
   let queue = Promise.resolve();
   let waiting = null;
   const enqueue = (op) => {
@@ -43,17 +48,40 @@ export function createReminderSync({ platform, api, allowed, localCompleted = ()
     await Promise.all(shown.filter((item) => item !== newest).map((item) => platform.dismiss(item.request.identifier)));
   }
 
+  const report = (entry) => {
+    try {
+      onReport(entry);
+    } catch {
+      // A report never breaks a sync.
+    }
+  };
+
+  // Best effort: a cache failure never fails a sync.
+  const saveCache = (current, owner) => (cache ? Promise.resolve().then(() => cache.save(current, owner)).catch(() => {}) : Promise.resolve());
+
   async function readPlan(todayKey) {
     let current;
+    let source = 'api';
+    // Review L1: whose plan this is, read before the request (not after it).
+    const owner = cache?.owner?.();
     try {
       current = await api.getCurrentPlan();
+      await saveCache(current, owner);
     } catch (error) {
-      // 404 = no active plan (a normal state). Anything else (offline, 5xx):
-      // keep what is already scheduled.
+      // 404 = no active plan (a normal state).
       if (getStatus(error) === 404) {
-        return { current: null, completedToday: [] };
+        await saveCache(null, owner);
+        return { current: null, completedToday: [], source };
       }
-      throw error;
+      // T-172 fix b: anything else (offline, 5xx, auth) → the last good plan
+      // when there is one; without one, keep what is already scheduled.
+      const cached = cache ? await Promise.resolve().then(() => cache.load(owner)).catch(() => undefined) : undefined;
+      if (cached === undefined) {
+        report({ count: null, source: 'api', reason: 'plan-read-failed', status: getStatus(error) ?? null });
+        throw error;
+      }
+      current = cached;
+      source = 'cache';
     }
     let read = [];
     try {
@@ -67,7 +95,7 @@ export function createReminderSync({ platform, api, allowed, localCompleted = ()
         completedToday.push(workout);
       }
     }
-    return { current, completedToday };
+    return { current, completedToday, source };
   }
 
   async function runSync() {
@@ -78,12 +106,14 @@ export function createReminderSync({ platform, api, allowed, localCompleted = ()
     if (!permitted) {
       await cancelPending(() => true);
       await dismissShown(() => true);
+      report({ count: 0, source: null, reason: 'not-allowed', status: null });
       return [];
     }
     const at = now();
     const todayKey = localDateKey(at);
-    const { current, completedToday } = await readPlan(todayKey);
+    const { current, completedToday, source } = await readPlan(todayKey);
     const requests = planReminders({ current, completedToday, now: at });
+    report({ count: requests.length, source, reason: requests.length ? null : reminderSkipReason({ current, completedToday, now: at }), status: null });
     await cancelPending(() => true);
     if (requests.length > 0) {
       await platform.ensureChannel?.();

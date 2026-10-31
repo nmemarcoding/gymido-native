@@ -27,3 +27,10 @@ export function isWorkoutRemindersOn() {
 export function setReminderPermission(permission) {
   useWorkoutReminders.setState({ permission });
 }
+
+// T-172 fix d: the last sync's outcome ({ at, count, source, reason, status });
+// count 0 carries why (no-plan, not-active:…, no-schedule, no-weekdays,
+// not-started, no-slot-left, not-allowed; plan-read-failed when nothing ran).
+export function setReminderLastSync(lastSync) {
+  useWorkoutReminders.setState({ lastSync });
+}
