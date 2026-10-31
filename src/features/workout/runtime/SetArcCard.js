@@ -88,13 +88,14 @@ function EditIcon({ size = 16, color }) {
 }
 
 // T-154 rev 42 step 5: the compact arc (radius 120, stroke 12; box 132).
-function SetArc({ sets, nowId, selectedId, width, onSelect, label, maxRadius = ARC_MAX_RADIUS, stroke = ARC_STROKE }) {
+// `boxHeight`: P5-SC draws r100 / stroke 10 in a 112 box (spec + web 401b83e9), so the box can be taller than the arc.
+function SetArc({ sets, nowId, selectedId, width, onSelect, label, maxRadius = ARC_MAX_RADIUS, stroke = ARC_STROKE, boxHeight = null }) {
   const radius = Math.min(maxRadius, Math.floor((width - stroke) / 2));
   const cx = width / 2;
   const cy = radius + stroke;
   const segments = arcSegments(sets.length, radius, cx, cy);
   return (
-    <View style={[styles.arcBox, { height: cy }]}>
+    <View style={[styles.arcBox, { height: Math.max(cy, boxHeight ?? 0) }]}>
       <View
         testID="set-arc"
         accessible
@@ -230,6 +231,7 @@ export default function SetArcCard({
           onSelect={onSelectDone}
           maxRadius={scaled ? 100 : compactArc ? 120 : ARC_MAX_RADIUS}
           stroke={scaled ? 10 : compactArc ? 12 : ARC_STROKE}
+          boxHeight={scaled ? 112 : null}
           // Rev 40: browsing reads "{name}: {done} of {N} sets done, locked".
           label={browsing ? `${exercise.exercise_name_snapshot ?? ''}: ${done.length} of ${sets.length} sets done, locked` : arcLabel(left)}
         />

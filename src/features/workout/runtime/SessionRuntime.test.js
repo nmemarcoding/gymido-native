@@ -719,6 +719,27 @@ describe('v2 F1 live and browsing states (ND3)', () => {
       expect(photo(tree)).toBe(160);
     });
 
+    // PM 31 Oct: the steps are never seen: the page is hidden until the fit settles, at most 150 ms.
+    it('the page stays hidden while the fit steps and shows in one go when it settles (or after 150 ms)', () => {
+      jest.useFakeTimers();
+      try {
+        const tree = setup(1000);
+        const pageOpacity = () => StyleSheet.flatten(content(tree).props.style)?.opacity ?? 1;
+        expect(pageOpacity()).toBe(0);
+        used(tree, 1500);
+        expect(pageOpacity()).toBe(0);
+        used(tree, 900);
+        expect(pageOpacity()).toBe(1);
+        // A new room: hidden again; if it never settles, it shows after 150 ms anyway.
+        room(tree, 1100);
+        expect(pageOpacity()).toBe(0);
+        act(() => jest.advanceTimersByTime(150));
+        expect(pageOpacity()).toBe(1);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
     // P3: Up next keeps 108 on the right while the minimised disc sits in its default place.
     it('P3: Up next clears the minimised disc (right padding 108) until the disc is moved', async () => {
       const RESTING = { ...SESSION, exercises: [{ ...SESSION.exercises[0], sets: [set(11, true), { ...set(12), rest_seconds_planned: 60 }] }, SESSION.exercises[1]] };

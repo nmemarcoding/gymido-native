@@ -15,7 +15,7 @@ import { exerciseName, stageRestLine } from './sessionMath';
 // min(the screen, 430), height = min(W ÷ aspect, 300, the fit's cap)) with nothing on it, over the blurred letterbox copy;
 // under it, OFF the photo: "Rest {s}s · {muscle}" + the How to pill on one row (36; S5 32; scaled 28), then the name (34;
 // S6 28 when it runs to 2+ lines; scaled 28/32, 24/28 past one line). No notes on phones (P1 pending). No photo: the
-// initials tile (80; scaled 64). No thumb at normal text (owner). Without a fit (large text, §5.4) the stage draws FULL.
+// initials tile (80; from S5 64). No thumb at normal text (owner). Without a fit (large text, §5.4) the stage draws FULL.
 export const COLUMN_MAX = 430;
 export const NO_PHOTO_TILE = 80;
 export const NO_PHOTO_TILE_SCALED = 64;
@@ -84,7 +84,9 @@ export default function LiveStage({ exercise, howTo = null, onLayout, onContentL
       </Text>
     </View>
   );
-  const tile = sizes.scaled ? NO_PHOTO_TILE_SCALED : NO_PHOTO_TILE;
+  // Spec v2.0 §5.2: the 64 tile from S5 on (and scaled).
+  const smallTile = Boolean(sizes.rowCompact || sizes.scaled);
+  const tile = smallTile ? NO_PHOTO_TILE_SCALED : NO_PHOTO_TILE;
   return (
     <View testID="exercise-stage-frame" style={{ paddingTop: sizes.photoTop }}>
       {nameMeasurer}
@@ -97,15 +99,15 @@ export default function LiveStage({ exercise, howTo = null, onLayout, onContentL
           </View>
         </View>
       ) : (
-        <View testID="exercise-stage" onLayout={onLayout} style={[styles.tile, sizes.scaled && styles.tileScaled]}>
+        <View testID="exercise-stage" onLayout={onLayout} style={[styles.tile, smallTile && styles.tileScaled]}>
           <ExerciseImage
             testID="stage-image"
             url={null}
             name={name}
             muscleCode={exercise.exercise?.primary_muscle_group?.code}
             size={tile}
-            initialsFontSize={sizes.scaled ? 28 : 36}
-            style={sizes.scaled ? styles.tileImageScaled : styles.tileImage}
+            initialsFontSize={smallTile ? 28 : 36}
+            style={smallTile ? styles.tileImageScaled : styles.tileImage}
           />
         </View>
       )}
@@ -128,7 +130,7 @@ const styles = StyleSheet.create({
   photo: {
     alignSelf: 'stretch',
   },
-  // §3.1 no photo: 80 r20, 16 above and 8 below; scaled 64 r16, 12 above and 4 below.
+  // §3.1 no photo: 80 r20, 16 above and 8 below; from S5 64 r16, 12 above and 4 below.
   tile: {
     alignItems: 'center',
     paddingTop: spacing[4],

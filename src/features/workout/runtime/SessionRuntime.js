@@ -94,15 +94,8 @@ export const PHONE_HEADER_STICKY_AT_LARGE_TEXT = true;
 export const PHONE_HEADER_BOTTOM_GAP = 0;
 // T-161 spec §3: the phone page ends 8 + the bottom safe area above the visible bottom.
 export const PHONE_PAGE_BOTTOM = spacing[2];
-// A host view's height, read synchronously (the New Architecture calls measure's callback at once inside a layout
-// effect); null where it doesn't (tests), and the fit then steps on onLayout events instead.
-function measureNow(node) {
-  let height = null;
-  node?.measure?.((_x, _y, _width, measured) => {
-    height = measured;
-  });
-  return height;
-}
+// The longest the page stays hidden while the fit steps (PM 31 Oct: ~150 ms).
+export const FIT_REVEAL_MS = 150;
 // Q7: the minimised rest disc sits 24 above the bottom (+ the safe area);
 // nothing keeps it off Did it (web RT:94-100).
 export const PHONE_DISC_BOTTOM = spacing[6];
@@ -685,32 +678,26 @@ export default function SessionRuntime({
     heldFit.current = freshFit;
   }
   // §5.1: over = used − free; used = the header bar + the content column, free = the column − the page's 8 − the bottom
-  // safe area (the header is in both, so its P5-SC scaling never moves the room). One step per measurement, before paint
-  // (a layout effect re-renders synchronously), until it fits or no step is left (the layout then stays; no scroll).
+  // safe area (the header is in both, so its P5-SC scaling never moves the room). One step per measurement until it fits
+  // or no step is left (the layout then stays; no scroll). The measurements are the onLayout events (the laid-out sizes):
+  // a synchronous measure() in a layout effect read ~72 taller than the final layout on iOS (T-162 diag, 31 Oct).
   useLayoutEffect(() => {
     if (!fitActive || !exercise || fieldFocused || rootHeight == null) {
       return;
     }
-    const content = measureNow(contentRef.current);
-    const headerNow = measureNow(headerRef.current);
-    const measured = content == null || headerNow == null ? null : content + headerNow;
-    // A new key starts from FULL (drawn this render). Without a synchronous read, the last layout event is from before
-    // it: adopt the key and wait for FULL's own layout.
-    if (fitStore.key !== fitKey && measured == null) {
+    // A new key starts from FULL (drawn this render); the last layout event is from before it: adopt the key and wait for
+    // FULL's own layout.
+    if (fitStore.key !== fitKey) {
       setFitStore({ key: fitKey, state: FULL, settled: false, seq: usedLayout.seq });
       return;
     }
-    const current = fitStore.key === fitKey ? fitStore : { key: fitKey, state: FULL, settled: false, seq: -1 };
-    if (current.settled) {
+    // Step only on a layout event that came after the last step.
+    if (fitStore.settled || usedLayout.height == null || usedLayout.seq <= fitStore.seq) {
       return;
     }
-    // Without a synchronous read, step only on a layout event that came after the last step.
-    if (measured == null && (usedLayout.height == null || usedLayout.seq <= current.seq)) {
-      return;
-    }
-    const used = measured ?? usedLayout.height + usedLayout.header;
+    const used = usedLayout.height + usedLayout.header;
     const over = Math.ceil(used - (rootHeight - PHONE_PAGE_BOTTOM - insets.bottom));
-    const next = nextFitStep(current.state, {
+    const next = nextFitStep(fitStore.state, {
       over,
       hasPhoto: fitHasPhoto,
       browse: browsing,
@@ -719,8 +706,27 @@ export default function SessionRuntime({
       columnWidth: fitColumnWidth,
       upNext: fitUpNextRow,
     });
-    setFitStore(next ? { key: fitKey, state: next, settled: false, seq: usedLayout.seq } : { key: fitKey, state: current.state, settled: true, seq: usedLayout.seq, over });
+    const probe = { over, used: Math.round(used), root: Math.round(rootHeight) };
+    setFitStore(next ? { key: fitKey, state: next, settled: false, seq: usedLayout.seq, ...probe } : { key: fitKey, state: fitStore.state, settled: true, seq: usedLayout.seq, ...probe });
   }, [fitActive, exercise, fieldFocused, rootHeight, fitStore, fitKey, usedLayout, insets.bottom, fitHasPhoto, browsing, stageMeasure.photoNatural, stageMeasure.nameLines, fitColumnWidth, fitUpNextRow]);
+  // The steps are never seen (PM 31 Oct): after a change of the key the page is held invisible until the fit settles,
+  // at most FIT_REVEAL_MS, then shown in one go. Not while a field holds the fit.
+  const fitSettled = fitStore.key === fitKey && fitStore.settled;
+  const [revealedKey, setRevealedKey] = useState(null);
+  const fitHidden = Boolean(fit) && !fieldFocused && !fitSettled && revealedKey !== fitKey;
+  useEffect(() => {
+    if (!fitHidden) {
+      return undefined;
+    }
+    const timer = setTimeout(() => setRevealedKey(fitKey), FIT_REVEAL_MS);
+    return () => clearTimeout(timer);
+  }, [fitHidden, fitKey]);
+  // The fit's state for e2e (web: data-fit-step / data-scaled), in the page's testID: the level, the photo cap, the
+  // last measured over, the used and the column heights, settled.
+  const fitStoreNow = fitStore.key === fitKey ? fitStore : null;
+  const fitMarker = fit
+    ? `fit-L${fit.level}-P${fitState.photo ?? 'n'}-O${fitStoreNow?.over ?? 'x'}-U${fitStoreNow?.used ?? 'x'}-R${fitStoreNow?.root ?? 'x'}${fitStoreNow?.settled ? '-settled' : ''}`
+    : null;
   const onPageContentLayout = (event) => {
     const { height: measured } = event.nativeEvent.layout;
     setUsedLayout((prev) => ({ ...prev, height: measured, seq: prev.seq + 1 }));
@@ -1073,7 +1079,7 @@ export default function SessionRuntime({
         scrollEventThrottle={16}
         contentContainerStyle={{ paddingBottom: bottomRoom + discRoom + androidKeyboard }}
       >
-        <View ref={contentRef} collapsable={false} onLayout={fit ? onPageContentLayout : undefined}>
+        <View ref={contentRef} collapsable={false} testID={fitMarker ? `session-page ${fitMarker}` : 'session-page'} onLayout={fit ? onPageContentLayout : undefined} style={fitHidden ? styles.fitHidden : null}>
           {phoneHeader && !phoneHeaderSticky ? phoneHeader : null}
           {/* T-132 (web WP:869-882, 1075): phone browsing puts the bar above the photo. */}
           {browsing && !tablet ? <View style={styles.phoneBrowsingBar}>{browsingBar}</View> : null}
@@ -1220,6 +1226,9 @@ const styles = StyleSheet.create({
   },
   columnPhone: {
     maxWidth: COLUMN_MAX_WIDTH,
+  },
+  fitHidden: {
+    opacity: 0,
   },
   chromeOverlay: {
     position: 'absolute',
