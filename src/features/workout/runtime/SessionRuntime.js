@@ -625,7 +625,7 @@ export default function SessionRuntime({
   const fitActive = !tablet && !stacked;
   const fitUpNext = !browsing && isActiveView && (laterIncomplete !== -1 || isLastIncomplete);
   const fitPreviousRow = browsing || (exercise?.sets ?? []).some((item) => item.is_completed) || Boolean(editorSet && previousSetFor(exercise, editorSet));
-  const fitAvailable = height - (headerBarHeight ?? insets.top + FIT_HEADER_ESTIMATE) - insets.bottom - (browsing ? navHeight + spacing[2] : 0);
+  const fitAvailable = height - (headerBarHeight ?? insets.top + FIT_HEADER_ESTIMATE) - insets.bottom;
   const fit =
     fitActive && exercise
       ? phoneFit({ available: fitAvailable, text: stageTextHeight, hasPhoto: Boolean(exercise.exercise?.thumbnail?.url), previousRow: fitPreviousRow, upNext: fitUpNext, browse: browsing })
@@ -891,7 +891,7 @@ export default function SessionRuntime({
   // measured height already holds the safe area, and the room is that height
   // + a gap. T-132: phones have no dock (24 + the safe area).
   const dockHeight = measuredDock ?? DID_IT_HEIGHT + UP_NEXT_ESTIMATE + spacing[3] + TABLET_DOCK_BOTTOM + insets.bottom;
-  const bottomRoom = browsing
+  const bottomRoom = browsing && tablet
     ? navHeight + spacing[5] + insets.bottom
     : showDock
       ? dockHeight + spacing[4]
@@ -1013,7 +1013,8 @@ export default function SessionRuntime({
           <BackdropBand testID="session-top-band" height={bandHeight} opacity={reducedMotion ? (bandOn ? 1 : 0) : bandOpacity} />
         ) : null}
         {chromeOverlay ? chrome : null}
-        {browsing ? (
+        {/* Owner 30 Oct (web 2.4.1): no bottom exercise navigator on phones; the header's All (N) switches. */}
+        {browsing && tablet ? (
           <WorkoutExerciseNav
             exercises={exercises}
             viewingIndex={viewing}

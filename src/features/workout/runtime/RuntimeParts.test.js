@@ -248,6 +248,20 @@ describe('ExerciseStage', () => {
   // T-132 B2 (PM OK 29 Oct; web 2.1.15 ES:79-80): the phone live photo has NO solid block behind the caption, only the
   // 170 bottom fade to the ground; the T-110 scrim stays on the tablet stages (checked here on the tablet split).
   // Was: the phone live stage drew the scrim (32 band + the 0.86 solid block that grows with the caption).
+  // PM 30 Oct (web 2.4.0 over-shrink): beside the thumb the text block is narrower and taller; that height must never
+  // feed the fit (it would keep the thumb). Only the full-width block reports.
+  it('LiveStage reports its text height in the full layout only, never beside the thumb', () => {
+    const onTextHeight = jest.fn();
+    const layout = (tree) => act(() => host(tree, 'exercise-stage-content').props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 300, height: 120 } } }));
+    let tree = render(<ExerciseStage exercise={EXERCISE} index={0} count={5} isActive fit={{ photo: 160, gap: 12, thumb: false }} onTextHeight={onTextHeight} />);
+    layout(tree);
+    expect(onTextHeight).toHaveBeenCalledWith(120);
+    onTextHeight.mockClear();
+    tree = render(<ExerciseStage exercise={EXERCISE} index={0} count={5} isActive fit={{ photo: 0, gap: 8, thumb: true }} onTextHeight={onTextHeight} />);
+    layout(tree);
+    expect(onTextHeight).not.toHaveBeenCalled();
+  });
+
   // DECLARED S2 (T-146 rev 39, PM-approved): nothing on the phone photo, so no fade either (was the 170 bottom fade).
   it('phone live: no scrim and no fade on the photo; the tablet keeps the T-110 scrim', () => {
     const phone = render(<ExerciseStage exercise={EXERCISE} index={0} count={2} isActive variant="live" />);

@@ -58,7 +58,11 @@ export default function LiveStage({ exercise, howTo = null, notes = null, onLayo
       onLayout={(event) => {
         const measured = event.nativeEvent.layout.height;
         setTextHeight(measured);
-        onTextHeight?.(measured);
+        // PM 30 Oct (web 2.4.0 over-shrink): only the full-width text block feeds the fit. Beside the thumb the
+        // name wraps more; feeding that back would keep the thumb even when the full layout fits again.
+        if (!thumb) {
+          onTextHeight?.(measured);
+        }
         onContentLayout?.(event);
       }}
       style={[styles.text, thumb && styles.textBesideThumb]}

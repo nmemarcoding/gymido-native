@@ -441,6 +441,8 @@ describe('SessionRuntime', () => {
 
   it('creates the swipe and sheet-drag responders once, across re-renders (#33, #34)', () => {
     const spy = jest.spyOn(PanResponder, 'create');
+    // DECLARED (owner 30 Oct, web 2.4.1): the bottom exercise nav is tablet-only now, so this runs at tablet width.
+    mockWidth = 1024;
     const { tree } = render();
     // The exercise nav shows while browsing (v2 F1 ND3).
     act(() => tree.root.findByType(ExerciseSheet).props.onSelect(1));
@@ -448,6 +450,7 @@ describe('SessionRuntime', () => {
     act(() => byId(tree, 'exercise-nav-segment-1').props.onPress());
     act(() => tree.update(<SessionRuntime {...tree.root.findByType(SessionRuntime).props} />));
     expect(spy.mock.calls.length).toBe(created);
+    mockWidth = 750;
   });
 });
 
@@ -544,9 +547,11 @@ describe('v2 F1 live and browsing states (ND3)', () => {
     expect(host(tree, 'session-stats')).toBeUndefined();
     expect(host(tree, 'session-stats-line')).toBeDefined();
     expect(host(tree, 'set-locked')).toBeDefined();
-    expect(host(tree, 'exercise-nav')).toBeDefined();
+    // DECLARED (owner 30 Oct, web 2.4.1): no bottom exercise navigator on phones (the header's All (N) switches).
+    expect(host(tree, 'exercise-nav')).toBeUndefined();
     expect(byId(tree, 'up-next')).toBeUndefined();
-    expect(text(tree, 'Exercise 2 of 2')).not.toHaveLength(0);
+    // DECLARED (owner 30 Oct): "Exercise 2 of 2" was the phone navigator's; it goes with it.
+    expect(text(tree, 'Exercise 2 of 2')).toHaveLength(0);
     // DECLARED change (Batch 2 item 2): was "The browsed exercise's first set stays actionable (v1 #15)" with
     // accessibilityLabel 'Did it'; now the browsed exercise's pending rows are locked and "Did it" goes.
     // DECLARED E4 (T-146, owner delegated OK 30 Oct): the browsed exercise's to-do sets are arc segments, not
@@ -632,6 +637,18 @@ describe('v2 F1 live and browsing states (ND3)', () => {
     ({ tree } = render());
     expect(pageScroll(tree).props.scrollEnabled).toBe(true);
     mockFontScale = 1;
+  });
+
+  // PM 30 Oct (web 2.4.0 over-shrink): the fit is recomputed from scratch on every layout; it grows back.
+  it('T-154: a transient small free height goes to the thumb; back to the full height restores the full photo', () => {
+    const { tree } = render();
+    const headerBar = host(tree, 'session-header-bar');
+    const stageIsThumb = () => tree.root.findAll((node) => node.props.testID === 'exercise-stage-thumb').length > 0;
+    act(() => headerBar.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height: 1334 - 420 } } }));
+    expect(stageIsThumb()).toBe(true);
+    act(() => headerBar.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 750, height: 117 } } }));
+    expect(stageIsThumb()).toBe(false);
+    expect(StyleSheet.flatten(host(tree, 'exercise-stage').props.style).height).toBeLessThanOrEqual(160);
   });
 
   it('T-154: Discard workout is a small link (row 32, a 44 hit), the same confirm', () => {

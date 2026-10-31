@@ -160,9 +160,11 @@ onFlowComplete:
             id: "browsing-bar"
           direction: UP
           timeout: 10000
+      # DECLARED (T-146 rev 40 + owner 30 Oct, PM-approved): phone browse shows the one Volume·Reps line (was the
+      # stats strip) and no bottom exercise navigator (was exercise-nav).
       - assertVisible:
-          id: "session-stats"
-      - assertVisible:
+          id: "session-stats-line"
+      - assertNotVisible:
           id: "exercise-nav"
       - tapOn:
           id: "browsing-resume"
