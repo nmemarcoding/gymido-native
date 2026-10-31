@@ -102,8 +102,10 @@ describe('SessionChrome (ND3)', () => {
   // DECLARED (T-105, PM OK 29 Oct): was "digits capped 1.2" on the phone header. The phone clock now sits in the
   // subline with the count's cap (1.6, found on the largest-text shot: it drew smaller than "0/17 sets"); the
   // tablet pill keeps 1.2. The timer role and the spoken label are unchanged.
-  it('the timer is a timer whose spoken name moves at most every 30 s; digits capped 1.6 (phone subline) / 1.2 (tablet pill)', () => {
-    for (const [tablet, cap] of [[false, 1.6], [true, 1.2]]) {
+  // DECLARED A1 (T-170, PM OK 31 Oct; LIVE-WORKOUT-SPEC §0.1 + D-T170-1): the header clock is un-marked text, cap 2.0 on
+  // both. Was: 1.6 (phone subline) / 1.2 (tablet pill).
+  it('the timer is a timer whose spoken name moves at most every 30 s; digits capped 2.0 (phone subline + tablet pill)', () => {
+    for (const [tablet, cap] of [[false, 2], [true, 2]]) {
       const tree = render(<SessionChrome {...props} tablet={tablet} />);
       const timer = byId(tree, 'session-timer');
       expect(timer.props.accessibilityRole).toBe('timer');
@@ -128,12 +130,13 @@ describe('SessionChrome (ND3)', () => {
     // T-132 (PM OK 29 Oct; web 2.1.15 SC:119-121): the phone plan name is one line that cuts off (ellipsis) and never
     // shrinks; the tablet (scale 2 here) keeps the title rule. Was: every scale adjustsFontSizeToFit true,
     // minimumFontScale 0.7.
+    // DECLARED A2 (T-170, PM OK 31 Oct; §0.1 + D-T170-1): the plan name cap 1.6 → 2.0 (tablet + phone); other props unchanged.
     if (scale === 2) {
-      expect(name.props).toMatchObject({ textBreakStrategy: 'simple', adjustsFontSizeToFit: true, minimumFontScale: 0.7, maxFontSizeMultiplier: 1.6 });
+      expect(name.props).toMatchObject({ textBreakStrategy: 'simple', adjustsFontSizeToFit: true, minimumFontScale: 0.7, maxFontSizeMultiplier: 2 });
     } else {
       // DECLARED D3 (T-146 rev 25/26, PM-approved): never "…": 14 on one line, then one step smaller down to 12,
       // then 2 lines at 12/16 (measured). Was: numberOfLines 1 + ellipsizeMode 'tail'.
-      expect(name.props).toMatchObject({ textBreakStrategy: 'simple', maxFontSizeMultiplier: 1.6 });
+      expect(name.props).toMatchObject({ textBreakStrategy: 'simple', maxFontSizeMultiplier: 2 });
       expect(name.props.ellipsizeMode).toBeUndefined();
       expect(name.props.adjustsFontSizeToFit).toBeUndefined();
       expect(StyleSheet.flatten(name.props.style)).toMatchObject({ fontSize: 14, lineHeight: 18 });
@@ -706,5 +709,42 @@ describe('the rest of the parts', () => {
     expect(onRetry).toHaveBeenCalled();
     tree = render(<ReloadErrorBar retrying onRetry={onRetry} />);
     expect(byId(tree, 'reload-error-retry').props).toMatchObject({ title: 'Retrying…', disabled: true });
+  });
+});
+
+// T-170 (LIVE-WORKOUT-SPEC v2.3.1 §0.1; PM answers 31 Oct Q1/Q2): Fit display
+// (1.3) = initials tiles + the stage ring count; un-marked header text = 2.0;
+// the tablet StatTile value = 1.6.
+describe('T-170 live caps', () => {
+  const NO_PHOTO = { ...EXERCISE, exercise: { ...EXERCISE.exercise, thumbnail: null } };
+  const initials = (tree, id) => tree.root.findAll((node) => node.props.testID === id)[0].findAll((node) => node.type === 'Text')[0];
+
+  it('the phone subline count caps at 2.0 (was 1.6)', () => {
+    const tree = render(<SessionChrome planName="Upper / Lower Split" completedSets={4} totalSets={15} exerciseCount={5} elapsed={1122} onExit={jest.fn()} onAll={jest.fn()} />);
+    expect(host(tree, 'session-subline-count').props.maxFontSizeMultiplier).toBe(2);
+  });
+
+  it('the stage initials tile scales, capped 1.3 (was never scaling)', () => {
+    const tree = render(<ExerciseStage exercise={NO_PHOTO} index={0} count={5} isActive fit={{ photo: 300, photoTop: 6, gap: 12, thumb: false, compact: false }} onMeasure={jest.fn()} />);
+    const text = initials(tree, 'stage-image-initials');
+    expect(text.props.maxFontSizeMultiplier).toBe(1.3);
+    expect(text.props.allowFontScaling).toBe(true);
+  });
+
+  it('the Up next thumb initials cap at 1.3 (Q1)', () => {
+    const tree = render(<UpNextLink exercise={NO_PHOTO} onPress={jest.fn()} />);
+    expect(initials(tree, 'up-next-thumb-initials').props.maxFontSizeMultiplier).toBe(1.3);
+  });
+
+  it('the tablet browse stage ring count caps at 1.3 (Q2; was the timer cap 1.2)', () => {
+    const tree = render(<ExerciseStage exercise={EXERCISE} index={3} count={5} isActive={false} variant="browse" tablet />);
+    const ring = tree.root.findAll((node) => node.type === 'Text' && node.props.children === '1/3')[0];
+    expect(ring.props.maxFontSizeMultiplier).toBe(1.3);
+  });
+
+  it('the tablet StatTile value caps at 1.6 (§0.1 tablet row)', () => {
+    const tree = render(<SessionStats time="18m 42s" volume="1,350" volumeUnit="lb" reps="40" tablet />);
+    const value = tree.root.findAll((node) => node.type === 'Text' && [].concat(node.props.children)[0] === '1,350')[0];
+    expect(value.props.maxFontSizeMultiplier).toBe(1.6);
   });
 });

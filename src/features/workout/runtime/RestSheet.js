@@ -5,7 +5,7 @@ import Svg, { Path } from 'react-native-svg';
 import BlurLayer from '../../../shared/components/BlurLayer';
 import GradientFill from '../../../shared/components/GradientFill';
 import RemoteImage from '../../../shared/components/RemoteImage';
-import { CAP_BODY, useLargeTextReflow } from '../../../shared/components/largeText';
+import { CAP_BODY, CAP_FIT, FIT_CAP, useLiveLargeText } from '../../../shared/components/largeText';
 import { exerciseImageProps } from '../../../shared/images/remoteImageSources';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { colors, font, spacing, titleTracking } from '../../../shared/theme/tokens';
@@ -176,7 +176,7 @@ function SkipButton({ onPress, stacked }) {
       style={({ pressed }) => [styles.skip, stacked && styles.skipStacked, pressed && styles.pressed]}
     >
       {/* §2: the label and ▶▶ never wrap apart: one row, the label shrinks first. */}
-      <Text {...CAP_BODY} numberOfLines={stacked ? undefined : 1} style={styles.skipText}>
+      <Text {...CAP_FIT} numberOfLines={stacked ? undefined : 1} style={styles.skipText}>
         Skip Rest
       </Text>
       <SkipIcon />
@@ -186,7 +186,7 @@ function SkipButton({ onPress, stacked }) {
 
 export default function RestSheet({ timer, hero, onMinimize, onAdjust, onSkip, window, insets }) {
   const reducedMotion = useReducedMotion();
-  const stacked = useLargeTextReflow();
+  const stacked = useLiveLargeText(false);
   const next = hero?.mode === 'next';
   const warn = isRestWarn(timer.secondsLeft, timer.totalSeconds);
   const image = useMemo(() => exerciseImageProps(hero?.exercise), [hero?.exercise]);
@@ -253,7 +253,7 @@ export default function RestSheet({ timer, hero, onMinimize, onAdjust, onSkip, w
     <Countdown
       seconds={timer.secondsLeft}
       warn={warn}
-      maxScale={1.3}
+      maxScale={FIT_CAP}
       accessibilityLabel={restTimerLabel(timer.secondsLeft)}
       style={styles.digits}
     />
@@ -275,7 +275,7 @@ export default function RestSheet({ timer, hero, onMinimize, onAdjust, onSkip, w
       ) : null}
       {loaded ? null : hero?.name ? (
         // §4 no photo: the name, the only place it shows.
-        <Text {...CAP_BODY} testID="rest-name" numberOfLines={2} style={styles.name}>
+        <Text {...CAP_FIT} testID="rest-name" numberOfLines={2} style={styles.name}>
           {hero.name}
         </Text>
       ) : null}

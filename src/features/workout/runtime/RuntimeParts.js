@@ -7,7 +7,7 @@ import GradientFill from '../../../shared/components/GradientFill';
 import PillButton, { useSwipeGuard } from '../../../shared/components/PillButton';
 import Spinner from '../../../shared/components/Spinner';
 import Select from '../../../shared/components/Select';
-import { CAP_BODY, CAP_DISPLAY, CAP_PILL, CAP_TIMER, DISPLAY_TITLE_TEXT, TITLE_TEXT, WORD_TITLE_TEXT, useLargeTextReflow } from '../../../shared/components/largeText';
+import { CAP_BODY, CAP_FIT, CAP_TITLE, DISPLAY_TITLE_TEXT, FIT_CAP, TITLE_TEXT, useLiveLargeText } from '../../../shared/components/largeText';
 import { colors, font, gradients, layout, radii, shadows, spacing, textInputColors, textScale, titleTracking, typography } from '../../../shared/theme/tokens';
 import ProgressRing from '../components/ProgressRing';
 import { CheckIcon, PlayIcon } from './SessionIcons';
@@ -49,8 +49,6 @@ export const LIVE_CAPTION_BOTTOM = spacing[3];
 export const PHONE_PLAN_PILL = false;
 // Q1: the gold rail runs the full column width as the header's last row.
 export const PHONE_RAIL_FULL_WIDTH = true;
-// The phone plan name's text rule (T-146: PhonePlanName fits it, never an ellipsis).
-const PHONE_PLAN_TEXT = Object.freeze({ maxFontSizeMultiplier: textScale.title, textBreakStrategy: 'simple' });
 // Q8: the no-photo stage's in-flow initials tile (112, 56 initials).
 export const NO_PHOTO_TILE = 112;
 // Q7 (V16): the phone weight / reps value box, measured from the owner's web
@@ -135,7 +133,7 @@ export function SessionChrome({
   // T-162 P5-SC: the scaled header (pills 36 + a 44 hit, 13/600; plan name 13 → 12 → 2 lines; 6 above the rail).
   scaled = false,
 }) {
-  const stacked = useLargeTextReflow();
+  const stacked = useLiveLargeText(tablet);
   const { width } = useWindowDimensions();
   // RN-SPEC dated 30 Oct (T-146): below 375 wide the sides and pills are 12.
   const narrow = !tablet && width < 375;
@@ -157,7 +155,7 @@ export function SessionChrome({
       style={[styles.timerPill, { minHeight: 40 }]}
     >
       <View style={styles.timerDot} />
-      <Text {...CAP_TIMER} style={[styles.timerText, styles.timerTextTablet]}>
+      <Text {...CAP_BODY} style={[styles.timerText, styles.timerTextTablet]}>
         {formatClock(elapsed)}
       </Text>
     </GlassSurface>
@@ -166,14 +164,14 @@ export function SessionChrome({
     <>
       {/* T-132 (web SC:119-121): the phone plan name cuts off on one line, never shrinks; the tablet keeps the title rule. */}
       {tablet ? (
-        <Text {...TITLE_TEXT} numberOfLines={2} style={[styles.planName, styles.planNameTablet]}>
+        <Text {...TITLE_TEXT} {...CAP_BODY} numberOfLines={2} style={[styles.planName, styles.planNameTablet]}>
           {keepUnitsTogether(planName)}
         </Text>
       ) : (
         <PhonePlanName planName={planName} scaled={scaled} />
       )}
       {tablet ? (
-        <Text {...CAP_PILL} style={[styles.planSub, styles.planSubTablet]}>{`${completedSets}/${totalSets} ${setsWord(totalSets)} done`}</Text>
+        <Text {...CAP_BODY} style={[styles.planSub, styles.planSubTablet]}>{`${completedSets}/${totalSets} ${setsWord(totalSets)} done`}</Text>
       ) : (
         <PhoneSubline completedSets={completedSets} totalSets={totalSets} elapsed={elapsed} />
       )}
@@ -249,9 +247,9 @@ function PhonePlanName({ planName, scaled = false }) {
   const setStep = () => setState({ name: planName, step: step + 1 });
   return (
     <Text
-      {...WORD_TITLE_TEXT}
+      {...CAP_BODY}
       testID="session-plan-name"
-      textBreakStrategy={current.lines > 1 ? 'balanced' : PHONE_PLAN_TEXT.textBreakStrategy}
+      textBreakStrategy={current.lines > 1 ? 'balanced' : 'simple'}
       onTextLayout={(event) => {
         if (!last && event?.nativeEvent?.lines?.length > current.lines) {
           setStep();
@@ -276,7 +274,7 @@ function PhoneSubline({ completedSets, totalSets, elapsed }) {
     <View testID="session-subline" style={styles.subline}>
       <Text
         testID="session-subline-count"
-        {...CAP_PILL}
+        {...CAP_BODY}
         accessibilityLabel={`${completedSets}/${totalSets} ${setsWord(totalSets)} done`}
         onTextLayout={(event) => {
           if (!short && event?.nativeEvent?.lines?.length > 1) {
@@ -287,15 +285,15 @@ function PhoneSubline({ completedSets, totalSets, elapsed }) {
       >
         {count}
       </Text>
-      <Text {...CAP_PILL} accessibilityElementsHidden importantForAccessibility="no" style={[styles.planSub, styles.noShrink]}>
+      <Text {...CAP_BODY} accessibilityElementsHidden importantForAccessibility="no" style={[styles.planSub, styles.noShrink]}>
         {/* UX T-105 LOW: NBSPs, so iOS keeps the space before the clock. */}
         {`${NBSP}·${NBSP}`}
       </Text>
       <Text
         testID="session-timer"
-        // The count's cap (1.6), so the clock never draws smaller than it at
-        // large text (the tablet pill keeps the timer cap 1.2).
-        {...CAP_PILL}
+        // The count's cap (§0.1: un-marked = 2.0, D-T170-1), so the clock never
+        // draws smaller than it at large text.
+        {...CAP_BODY}
         accessible
         accessibilityRole="timer"
         accessibilityLabel={elapsedSpokenLabel(elapsed)}
@@ -359,7 +357,7 @@ function MuscleChip({ exercise, tablet }) {
   return (
     <View testID="stage-muscle-chip" style={[styles.muscleChip, tablet && styles.muscleChipTablet, !hue && styles.muscleChipNeutral]}>
       {hue ? <View style={[StyleSheet.absoluteFill, styles.overlayRound, { backgroundColor: hue, opacity: TILE_ALPHA }]} /> : null}
-      <Text {...CAP_PILL} style={[styles.muscleText, tablet && styles.muscleTextTablet, { color: muscleTextColor(code) ?? colors.textSecondary }]}>
+      <Text {...CAP_BODY} style={[styles.muscleText, tablet && styles.muscleTextTablet, { color: muscleTextColor(code) ?? colors.textSecondary }]}>
         {name}
       </Text>
     </View>
@@ -378,7 +376,7 @@ function StageRing({ exercise, tablet, live = false }) {
       style={[styles.ringGlass, live && styles.ringGlassLive, { width: size, height: size }]}
     >
       <ProgressRing value={done} total={total} size={size - 2} thickness={live ? LIVE_RING_THICKNESS : 11} label={`${done} of ${total} ${setsWord(total)} done`}>
-        <Text {...CAP_TIMER} numberOfLines={1} textBreakStrategy="simple" style={[styles.ringText, tablet && !live && styles.ringTextTablet, live && styles.ringTextLive]}>{`${done}/${total}`}</Text>
+        <Text {...CAP_FIT} numberOfLines={1} textBreakStrategy="simple" style={[styles.ringText, tablet && !live && styles.ringTextTablet, live && styles.ringTextLive]}>{`${done}/${total}`}</Text>
       </ProgressRing>
     </GlassSurface>
   );
@@ -393,6 +391,7 @@ function StagePhoto({ exercise, variant }) {
     <>
       <ExerciseImage
         testID="stage-image"
+        initialsMaxScale={FIT_CAP}
         url={url ?? null}
         name={exerciseName(exercise)}
         muscleCode={exercise.exercise?.primary_muscle_group?.code}
@@ -632,7 +631,7 @@ export function ReloadErrorBar({ retrying, onRetry }) {
 
 // §19.4 (copy identical), F1 browsing bar: role status, the one gold action.
 export function BrowsingBar({ onResume, tablet = false }) {
-  const stacked = useLargeTextReflow();
+  const stacked = useLiveLargeText(tablet);
   return (
     <View
       testID="browsing-bar"
@@ -657,7 +656,7 @@ export function BrowsingBar({ onResume, tablet = false }) {
 // F1 browsing stats: Time (formatDuration) / Volume (member unit) / Reps.
 // UX §9 rule 4: past 1.3× the 3 columns become label → value rows.
 export function SessionStats({ time, volume, volumeUnit, reps, tablet = false }) {
-  const stacked = useLargeTextReflow();
+  const stacked = useLiveLargeText(tablet);
   const items = [
     { key: 'time', label: 'Time', value: time },
     { key: 'volume', label: 'Volume', value: volume, unit: volume === '—' ? null : volumeUnit },
@@ -669,7 +668,7 @@ export function SessionStats({ time, volume, volumeUnit, reps, tablet = false })
         {items.map((item) => (
           <View key={item.key} testID={`session-stat-${item.key}`} style={styles.statTileTablet}>
             <Text {...CAP_BODY} style={styles.statsLabelTablet}>{item.label}</Text>
-            <Text {...CAP_DISPLAY} style={styles.statsValueTablet}>
+            <Text {...CAP_TITLE} style={styles.statsValueTablet}>
               {item.value}
               {item.unit ? <Text style={styles.statsUnitTablet}>{` ${item.unit}`}</Text> : null}
             </Text>
@@ -749,7 +748,7 @@ export function SetEditor({
   action = null,
   cardRef,
 }) {
-  const stacked = useLargeTextReflow();
+  const stacked = useLiveLargeText(tablet);
   const { fontScale } = useWindowDimensions();
   const [focus, setFocus] = useState('');
   const sets = exercise.sets ?? [];
@@ -807,7 +806,7 @@ export function SetEditor({
               value={
                 <TextInput
                   {...textInputColors}
-                  {...CAP_DISPLAY}
+                  {...CAP_FIT}
                   testID={`set-weight-${set.id}`}
                   accessibilityLabel={`Weight for set ${setNumber}`}
                   accessibilityHint={validationError || undefined}
@@ -843,7 +842,7 @@ export function SetEditor({
               value={
                 <TextInput
                   {...textInputColors}
-                  {...CAP_DISPLAY}
+                  {...CAP_FIT}
                   testID={`set-reps-${set.id}`}
                   accessibilityLabel={`Reps for set ${setNumber}`}
                   keyboardType="number-pad"
@@ -903,7 +902,7 @@ function SetChip({ set, isNow, tablet, pending, onPress }) {
         style={({ pressed }) => [chip, styles.chipDone, pressed && !pending && styles.chipPressed, pending && styles.dim]}
       >
         <CheckIcon size={14} color={colors.gold} />
-        <Text {...CAP_PILL} textBreakStrategy="simple" style={[styles.chipText, styles.chipTextDone]}>
+        <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.chipText, styles.chipTextDone]}>
           {pending ? 'Saving…' : `${text} · Undo`}
         </Text>
       </Pressable>
@@ -912,7 +911,7 @@ function SetChip({ set, isNow, tablet, pending, onPress }) {
   if (isNow) {
     return (
       <View testID={`set-chip-now-${set.id}`} style={[chip, styles.chipNow]}>
-        <Text {...CAP_PILL} textBreakStrategy="simple" style={styles.chipText}>
+        <Text {...CAP_BODY} textBreakStrategy="simple" style={styles.chipText}>
           {tablet ? `Set ${set.set_number}` : `Set ${set.set_number} · now`}
         </Text>
       </View>
@@ -928,7 +927,7 @@ function SetChip({ set, isNow, tablet, pending, onPress }) {
       disabled
       style={[chip, styles.chipLocked]}
     >
-      <Text {...CAP_PILL} textBreakStrategy="simple" style={[styles.chipText, styles.chipTextLocked]}>
+      <Text {...CAP_BODY} textBreakStrategy="simple" style={[styles.chipText, styles.chipTextLocked]}>
         {`Set ${set.set_number}`}
       </Text>
     </Pressable>
@@ -992,6 +991,7 @@ export function UpNextLink({ exercise, onPress, compact = false, scaled = false,
     >
       <ExerciseImage
         testID="up-next-thumb"
+        initialsMaxScale={FIT_CAP}
         url={exercise.exercise?.thumbnail?.url ?? null}
         name={name}
         muscleCode={exercise.exercise?.primary_muscle_group?.code}

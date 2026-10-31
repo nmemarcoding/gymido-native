@@ -129,6 +129,9 @@ export default function ExerciseImage({
   // Optional: a board-specific initials size (the T-60 catalog card's 28);
   // unset → the shared ≈ 0.36 × the tile.
   initialsFontSize,
+  // Optional (T-170, LIVE-WORKOUT-SPEC §0.1): the initials' large-text cap.
+  // Unset → the initials never scale (sized to their tile), as before.
+  initialsMaxScale,
   // Android only (T-111): the Image fade-in in ms (RN default 300).
   fadeDuration,
   children,
@@ -193,7 +196,8 @@ export default function ExerciseImage({
       <View {...hidden} style={[StyleSheet.absoluteFill, styles.tileContent]}>
         {tint}
         <Text
-          allowFontScaling={false}
+          allowFontScaling={Boolean(initialsMaxScale)}
+          maxFontSizeMultiplier={initialsMaxScale}
           numberOfLines={1}
           style={[styles.initials, { color: ink, fontSize: glyph, lineHeight: Math.round(glyph * 1.2) }]}
         >

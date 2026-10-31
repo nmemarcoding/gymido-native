@@ -214,3 +214,16 @@ describe('SetArcCard', () => {
     expect(all(tree, 'set-previous-row')).toHaveLength(0);
   });
 });
+
+// T-170 (LIVE-WORKOUT-SPEC v2.3.1 §0.1): the arc count is Fit display text (1.3,
+// was CAP_BODY 2.0, N6); the history / Undo / Cancel pills are un-marked (2.0).
+describe('T-170 set card caps', () => {
+  it('the arc count caps at 1.3; the history pill at 2.0', () => {
+    const exercise = exerciseWith(4, 1);
+    const tree = render({ exercise, set: exercise.sets[1] });
+    const count = tree.root.findAll((node) => node.props.testID === 'set-arc-count' && typeof node.type === 'string')[0];
+    expect(count.props.maxFontSizeMultiplier).toBe(1.3);
+    const pill = tree.root.findAll((node) => node.type === 'Text' && /^Set 1\b/.test([].concat(node.props.children).join('')))[0];
+    expect(pill.props.maxFontSizeMultiplier).toBe(2);
+  });
+});

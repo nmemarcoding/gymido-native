@@ -538,3 +538,34 @@ describe('T-72 round 2: the digit tops and bottoms stay inside the Text box, wit
     expect(digitsInkPadVertical(null)).toBe(0);
   });
 });
+
+// T-170 (LIVE-WORKOUT-SPEC v2.3.1 §0.1 + §5.4): the rest name and Skip are Fit
+// display text (1.3); the disc m:ss is un-marked (2.0, D-T170-1); the sheet's
+// large-text mode follows the web width rule (D-T170-2).
+describe('T-170 rest caps + trigger', () => {
+  const skipText = (tree) => tree.root.findAll((n) => n.type === 'Text' && [].concat(n.props.children).join('') === 'Skip Rest')[0];
+
+  it('no photo: the rest name is capped 1.3 (was 2.0, N6); Skip Rest 1.3; the sheet digits 1.3', () => {
+    const tree = renderTree({ minimized: false, hero: { ...HERO_MID, exercise: null } });
+    expect(host(tree, 'rest-name').props.maxFontSizeMultiplier).toBe(1.3);
+    expect(skipText(tree).props.maxFontSizeMultiplier).toBe(1.3);
+    expect(host(tree, 'rest-countdown').props.maxFontSizeMultiplier).toBe(1.3);
+  });
+
+  it('the minimised disc m:ss caps at 2.0 (un-marked)', () => {
+    const tree = renderTree({ minimized: true });
+    expect(host(tree, 'rest-countdown').props.maxFontSizeMultiplier).toBe(2);
+  });
+
+  it.each([
+    [360, 1.18, false],
+    [360, 1.19, true],
+    [390, 1.28, false],
+    [390, 1.3, true],
+  ])('%i wide at %s: large-text sheet %s (Skip wraps freely only in large text)', (width, scale, large) => {
+    mockWidth = width;
+    mockFontScale = scale;
+    const tree = renderTree({ minimized: false, hero: HERO_MID });
+    expect(skipText(tree).props.numberOfLines).toBe(large ? undefined : 1);
+  });
+});

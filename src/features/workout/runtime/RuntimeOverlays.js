@@ -210,7 +210,8 @@ export function RestTimerWidget({ timer, minimized, onMinimize, onExpand, onAdju
         {/* Remounted per size, so this clipping layer never changes radius. */}
         <DiscFill key={size} size={size} />
         <RestRing size={size} geometry={MINI_RING} secondsLeft={timer.secondsLeft} totalSeconds={timer.totalSeconds} testID="rest-mini-ring" />
-        <Countdown seconds={timer.secondsLeft} style={styles.discDigits} />
+        {/* §0.1: the disc m:ss is un-marked text, the 2.0 body cap (D-T170-1). */}
+        <Countdown seconds={timer.secondsLeft} maxScale={textScale.body} style={styles.discDigits} />
       </View>
     );
   }

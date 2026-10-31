@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ExerciseImage from '../../../shared/components/ExerciseImage';
 import RemoteImage from '../../../shared/components/RemoteImage';
-import { CAP_BODY, DISPLAY_TITLE_TEXT } from '../../../shared/components/largeText';
+import { CAP_BODY, DISPLAY_TITLE_TEXT, FIT_CAP } from '../../../shared/components/largeText';
 import { exerciseImageProps } from '../../../shared/images/remoteImageSources';
 import { colors, font, layout, spacing, titleTracking } from '../../../shared/theme/tokens';
 import { FIT, fitSizes, FULL } from './phoneFit';
@@ -107,6 +107,7 @@ export default function LiveStage({ exercise, howTo = null, onLayout, onContentL
             muscleCode={exercise.exercise?.primary_muscle_group?.code}
             size={tile}
             initialsFontSize={smallTile ? 28 : 36}
+            initialsMaxScale={FIT_CAP}
             style={smallTile ? styles.tileImageScaled : styles.tileImage}
           />
         </View>

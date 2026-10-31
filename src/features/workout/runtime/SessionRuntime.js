@@ -7,7 +7,7 @@ import { getServerMessage, getStatus } from '../../../shared/api/apiError';
 import { formatNumber, formatWeight } from '../../../shared/format/numbers';
 import { formatDuration } from '../../../shared/time/format';
 import { InlineToast } from '../../../shared/components/ToastHost';
-import { CAP_BODY, useLargeTextReflow } from '../../../shared/components/largeText';
+import { CAP_BODY, isLiveLargeText, useLargeTextReflow } from '../../../shared/components/largeText';
 import { useKeyboardOverlap } from '../../../shared/hooks/useKeyboardHeight';
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion';
 import { ToastTone } from '../../../shared/components/toastStore';
@@ -164,7 +164,7 @@ export default function SessionRuntime({
   const insets = useSafeAreaInsets();
   const { width, fontScale } = useWindowDimensions();
   const isFocused = useIsFocused();
-  const stacked = useLargeTextReflow();
+  const reflow = useLargeTextReflow();
   const profile = useProfileStore((state) => state.profile);
   const volumeUnit = memberWeightUnit(profile);
   const scrollRef = useRef(null);
@@ -651,6 +651,9 @@ export default function SessionRuntime({
   const editorSet = exercise && !browsing ? (exercise.sets ?? []).find((item) => setKey(exercise.id, item.id) === firstPendingKey) ?? null : null;
   const contentWidth = width - insets.left - insets.right;
   const tablet = contentWidth >= breakpoints.md;
+  // §5.4 (D-T170-2): the phone leaves the fit for large text by the web rule
+  // (width < 304 × fontScale); tablets keep the app reflow (§8).
+  const stacked = tablet ? reflow : isLiveLargeText(width, fontScale);
   const liveSetLeft = progress.completedSets < progress.totalSets;
   // T-132 (web 2.1.15 phone): phones draw the chrome in a solid header bar
   // ABOVE the scroll, never over the photo; the tablet keeps its floating

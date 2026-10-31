@@ -3,8 +3,8 @@ import { Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } fro
 import Svg, { Path } from 'react-native-svg';
 
 import Select from '../../../shared/components/Select';
-import { CAP_BODY, CAP_PILL, useLargeTextReflow } from '../../../shared/components/largeText';
-import { colors, font, layout, radii, spacing, textInputColors, textScale, titleTracking } from '../../../shared/theme/tokens';
+import { CAP_BODY, CAP_FIT, useLiveLargeText } from '../../../shared/components/largeText';
+import { colors, font, layout, radii, spacing, textInputColors, titleTracking } from '../../../shared/theme/tokens';
 import { CheckIcon, LockIcon } from './SessionIcons';
 import { doneSetLabel, repsFieldLabel, targetRange } from './sessionMath';
 
@@ -206,7 +206,7 @@ export default function SetArcCard({
   const steppersHeight = scaled ? 94 : 108;
   const stepperSize = compactArc ? 32 : compact ? 36 : 40;
   const valueSize = scaled ? 28 : compactArc ? 34 : compact ? 38 : 44;
-  const stacked = useLargeTextReflow();
+  const stacked = useLiveLargeText(false);
   const { width } = useWindowDimensions();
   const [arcWidth, setArcWidth] = useState(width - 4 * layout.gutter);
   const sets = exercise.sets ?? [];
@@ -236,7 +236,7 @@ export default function SetArcCard({
           label={browsing ? `${exercise.exercise_name_snapshot ?? ''}: ${done.length} of ${sets.length} sets done, locked` : arcLabel(left)}
         />
         <View pointerEvents="box-none" style={[styles.arcCentre, scaled && styles.arcCentreScaled]}>
-          <Text {...CAP_BODY} testID="set-arc-count" style={[styles.count, compactArc && styles.countCompact, scaled && styles.countScaled, (left === 0 || (left === 1 && !browsing)) && styles.countLast]}>
+          <Text {...CAP_FIT} testID="set-arc-count" style={[styles.count, compactArc && styles.countCompact, scaled && styles.countScaled, (left === 0 || (left === 1 && !browsing)) && styles.countLast]}>
             {arcCount({ left, total: sets.length, browsing })}
             {arcUnit({ left, total: sets.length, browsing }) ? (
               <Text style={[styles.countUnit, scaled && styles.countUnitScaled]}>{arcUnit({ left, total: sets.length, browsing })}</Text>
@@ -267,10 +267,10 @@ export default function SetArcCard({
           {editing ? (
             <>
               <Pressable testID={`set-undo-${editing.id}`} accessibilityRole="button" accessibilityLabel={`Undo set ${editing.set_number}`} disabled={pending} onPress={() => onUndo(editing)} hitSlop={6} style={styles.rowButton}>
-                <Text {...CAP_PILL} style={styles.undoText}>{`Undo set ${editing.set_number}`}</Text>
+                <Text {...CAP_BODY} style={styles.undoText}>{`Undo set ${editing.set_number}`}</Text>
               </Pressable>
               <Pressable testID={`set-cancel-${editing.id}`} accessibilityRole="button" accessibilityLabel="Cancel" disabled={pending} onPress={() => onCancel(editing)} hitSlop={6} style={styles.rowButton}>
-                <Text {...CAP_PILL} style={styles.cancelText}>Cancel</Text>
+                <Text {...CAP_BODY} style={styles.cancelText}>Cancel</Text>
               </Pressable>
             </>
           ) : previous ? (
@@ -286,7 +286,7 @@ export default function SetArcCard({
                 style={({ pressed }) => [styles.pill, pressed && styles.pillPressed]}
               >
                 <CheckIcon size={16} color={colors.gold} />
-                <Text {...CAP_PILL} numberOfLines={1} style={[styles.pillText, scaled && styles.pillTextScaled]}>
+                <Text {...CAP_BODY} numberOfLines={1} style={[styles.pillText, scaled && styles.pillTextScaled]}>
                   {pending ? 'Saving…' : `Set ${previous.set_number} · ${doneSetLabel(previous)}`}
                 </Text>
                 <EditIcon color={colors.textSecondary} />
@@ -332,7 +332,7 @@ export default function SetArcCard({
               value={
                 <TextInput
                   {...textInputColors}
-                  maxFontSizeMultiplier={textScale.display}
+                  {...CAP_FIT}
                   testID={`set-weight-${target.id}`}
                   accessibilityLabel={`Weight for set ${number}`}
                   accessibilityHint={validationError || undefined}
@@ -371,7 +371,7 @@ export default function SetArcCard({
               value={
                 <TextInput
                   {...textInputColors}
-                  maxFontSizeMultiplier={textScale.display}
+                  {...CAP_FIT}
                   testID={`set-reps-${target.id}`}
                   accessibilityLabel={`Reps for set ${number}`}
                   keyboardType="number-pad"

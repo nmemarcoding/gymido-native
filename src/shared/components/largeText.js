@@ -24,6 +24,13 @@ export const CAP_SUFFIX = Object.freeze({ maxFontSizeMultiplier: textScale.suffi
 // Never scales (initials and glyphs sized to their circle).
 export const CAP_NONE = Object.freeze({ maxFontSizeMultiplier: 1 });
 
+// LIVE-WORKOUT-SPEC §0.1 (v2.3.1, T-170): on the live workout every text marked
+// "cap 1.3" (initials tile, exercise name, arc count, stepper values, rest
+// digits, Skip, rest name) is the Fit display role; everything else there is
+// CAP_BODY (2.0, D-T170-1). FIT_CAP is the number, for props that take one.
+export const FIT_CAP = textScale.display;
+export const CAP_FIT = Object.freeze({ maxFontSizeMultiplier: FIT_CAP });
+
 const TITLE_RULE = {
   textBreakStrategy: 'simple',
   numberOfLines: 3,
@@ -74,4 +81,18 @@ export const TOKEN_TEXT = Object.freeze({
 export function useLargeTextReflow() {
   const { fontScale } = useWindowDimensions();
   return fontScale > textScale.reflowAbove;
+}
+
+// LIVE-WORKOUT-SPEC §5.4 (D-T170-2, PM 31 Oct): the phone live workout leaves
+// the fit for large text by the web rule `(width < 19rem)`: width < 304 ×
+// fontScale, so both platforms switch at the same scale on the same phone
+// (360 → 1.184, 390 → 1.283, 440 → 1.447). Tablets have no large-text mode
+// (§8) and keep the app reflow rule above.
+export const LIVE_LARGE_TEXT_WIDTH = 19 * 16;
+export function isLiveLargeText(width, fontScale) {
+  return width < LIVE_LARGE_TEXT_WIDTH * fontScale;
+}
+export function useLiveLargeText(tablet) {
+  const { width, fontScale } = useWindowDimensions();
+  return tablet ? fontScale > textScale.reflowAbove : isLiveLargeText(width, fontScale);
 }

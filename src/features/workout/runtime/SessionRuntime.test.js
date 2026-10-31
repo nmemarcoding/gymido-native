@@ -629,6 +629,9 @@ describe('v2 F1 live and browsing states (ND3)', () => {
   });
 
   it('T-154: no scroll at normal text (the page fits); it scrolls with large text', () => {
+    // DECLARED setup (T-170, PM OK 31 Oct; D-T170-2): a 390 phone. Jest's 750 window stays in the fit at 2.0 under the
+    // web rule (750 < 304 × 2 is false). Every expect unchanged.
+    mockWidth = 390;
     const pageScroll = (tree) => tree.root.findAll((node) => node.type === ScrollView && node.props.onScroll)[0];
     let { tree } = render();
     expect(pageScroll(tree).props.scrollEnabled).toBe(false);
@@ -637,6 +640,7 @@ describe('v2 F1 live and browsing states (ND3)', () => {
     ({ tree } = render());
     expect(pageScroll(tree).props.scrollEnabled).toBe(true);
     mockFontScale = 1;
+    mockWidth = 750;
   });
 
   // T-162 = spec §12 P5 + P5-SC (a). DECLARED (T-162, owner-approved: the photo gives LAST; replaces the T-161 ladder
@@ -1317,9 +1321,12 @@ describe('v2 F1 tablet (≥ 768)', () => {
 describe('v2 F1 large text (UX §9; QA AX5 chrome)', () => {
   afterEach(() => {
     mockFontScale = 1;
+    mockWidth = 750;
   });
 
   it.each([1, 2, 3.1])('at %sx the chrome stays usable: one row up to 1.3×, two rows (in flow) above it', (scale) => {
+    // DECLARED setup (T-170, PM OK 31 Oct; D-T170-2): a 390 phone (see the T-154 case). Every expect unchanged.
+    mockWidth = 390;
     mockFontScale = scale;
     const { tree } = render();
     const chrome = host(tree, 'session-chrome');
