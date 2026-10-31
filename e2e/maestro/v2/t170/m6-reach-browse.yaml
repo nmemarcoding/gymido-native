@@ -1,0 +1,6 @@
+# T-170 §9.1 large-text rows, browse: Discard reachable by scroll; ends back at the top.
+appId: com.gymido.app
+---
+- scrollUntilVisible: { element: { id: "discard-workout" }, direction: DOWN, timeout: 10000 }
+- assertVisible: { id: "discard-workout" }
+- scrollUntilVisible: { element: { id: "session-all" }, direction: UP, timeout: 10000 }

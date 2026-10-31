@@ -1,13 +1,15 @@
 # The dev-client deep link to Metro on port 8081, per platform.
+# disableOnboarding=1 (T-170): the dev menu's intro sheet never opens at launch (a pm clear resets its
+# "seen" flag on Android, which blocked every cold sign-in on a new emulator). Dev-client only; no app change.
 appId: com.gymido.app
 ---
 - runFlow:
     when:
       platform: Android
     commands:
-      - openLink: "exp+gymido-native://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A8081"
+      - openLink: "exp+gymido-native://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A8081&disableOnboarding=1"
 - runFlow:
     when:
       platform: iOS
     commands:
-      - openLink: "exp+gymido-native://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081"
+      - openLink: "exp+gymido-native://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081&disableOnboarding=1"

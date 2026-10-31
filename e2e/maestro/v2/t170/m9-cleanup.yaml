@@ -1,0 +1,7 @@
+# T-170 §9.1 matrix cleanup: discard the session m1 started (nothing is recorded), then back to Today (the Workout hub
+# is an inner page with no tab bar, and the next cell's m1 starts from the tabs).
+appId: com.gymido.app
+---
+- runFlow: ../subflows/discard-workout.yaml
+- tapOn: { id: "workout-back-today" }
+- extendedWaitUntil: { visible: { id: "bottom-nav|rail-Today" }, timeout: 15000 }

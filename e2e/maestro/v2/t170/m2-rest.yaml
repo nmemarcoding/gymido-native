@@ -1,0 +1,8 @@
+# T-170 §9.1 matrix, rest sheet: log the current set (in the session m1 started), the rest sheet opens. IDs only.
+# Large text: Did it can sit below the fold, so scroll to it first (a no-op when it's on screen).
+appId: com.gymido.app
+---
+- scrollUntilVisible: { element: { id: "set-action-.*" }, direction: DOWN, timeout: 10000, centerElement: true }
+- runFlow: ../subflows/log-current-set.yaml
+- extendedWaitUntil: { visible: { id: "rest-timer-skip|rest-sheet" }, timeout: 10000 }
+- waitForAnimationToEnd: { timeout: 3000 }

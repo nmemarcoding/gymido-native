@@ -1,0 +1,9 @@
+# T-170 §9.1 matrix, cell "Browse N2": All → exercise 2 (browse). IDs only.
+appId: com.gymido.app
+---
+- scrollUntilVisible: { element: { id: "session-all" }, direction: UP, timeout: 5000 }
+- tapOn: { id: "session-all" }
+- extendedWaitUntil: { visible: { id: "exercise-sheet" }, timeout: 10000 }
+- scrollUntilVisible: { element: { id: "exercise-sheet-card-1" }, direction: DOWN, timeout: 10000, centerElement: true }
+- tapOn: { id: "exercise-sheet-card-1" }
+- waitForAnimationToEnd: { timeout: 3000 }

@@ -46,4 +46,39 @@ describe('textMatrixCheck', () => {
     expect(r.failures).toEqual(['text(12 chars) past the window edge', 'text(12 chars) outside its parent box']);
     expect(JSON.stringify(r)).not.toMatch(/secret/);
   });
+
+  it('takes /regex/ ids', () => {
+    const r = check(screen(FIT, [node({ 'resource-id': 'set-action-12', clickable: 'true', bounds: '[24,700][696,812]' })]), { mode: 'fit', require: ['/set-action-.*/'], density: 2 });
+    expect(r.failures).toEqual([]);
+    expect(check(screen(FIT), { mode: 'fit', require: ['/set-action-.*/'] }).failures).toEqual(['/set-action-.*/ not on screen']);
+  });
+
+  it('id+N adds a hitSlop the dump does not show (the 32 Discard link + 6 = 44)', () => {
+    const tree = screen(FIT, [node({ 'resource-id': 'link', clickable: 'true', bounds: '[200,1000][520,1064]' })]);
+    expect(check(tree, { mode: 'fit', require: ['link'], density: 2 }).failures).toEqual(['link hit area 32.0 dp < 44']);
+    expect(check(tree, { mode: 'fit', require: ['link+6'], density: 2 }).failures).toEqual([]);
+  });
+
+  it('a fit that overflows at the floor (O > 0) reports its off-screen controls instead of failing', () => {
+    const r = check(screen('session-page fit-L8-P112-O40-U624-R640-G20-settled'), { mode: 'fit', require: ['up-next'], density: 2 });
+    expect(r).toMatchObject({ ok: true, over: 40, reported: ['up-next not on screen'], failures: [] });
+  });
+
+  it('--inside: the disc digits must sit inside the disc', () => {
+    const disc = (digits) => screen(FIT, [node({ 'resource-id': 'rest-timer', bounds: '[500,900][684,1084]' }, [node({ 'resource-id': 'rest-countdown', bounds: digits })])]);
+    expect(check(disc('[540,960][644,1024]'), { mode: 'any', inside: ['rest-countdown:rest-timer'] }).failures).toEqual([]);
+    expect(check(disc('[480,960][704,1024]'), { mode: 'any', inside: ['rest-countdown:rest-timer'] }).failures).toEqual([
+      'rest-countdown (224×64) not inside rest-timer (184×184)',
+    ]);
+  });
+
+  it('mode any skips the mode; the OS status bar is never checked', () => {
+    const tree = node({ bounds: '[0,0][390,844]' }, [node({ 'resource-id': 'wifi', text: 'Wi-Fi', bounds: '[300,10][420,40]' }), node({ 'resource-id': 'rest-sheet', bounds: '[0,100][390,844]' })]);
+    expect(check(tree, { mode: 'any' }).failures).toEqual([]);
+  });
+
+  it('skips OS status-bar items by id even below the top band (largest text sizes)', () => {
+    const tree = node({ bounds: '[0,0][390,844]' }, [node({ 'resource-id': 'wifi', text: 'Wi-Fi', bounds: '[300,70][420,110]' }), node({ 'resource-id': 'rest-sheet', bounds: '[0,120][390,844]' })]);
+    expect(check(tree, { mode: 'any' }).failures).toEqual([]);
+  });
 });

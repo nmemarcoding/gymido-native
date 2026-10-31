@@ -1,0 +1,9 @@
+# T-170 §9.1 matrix: from the Workout hub (inner page) back to Today, if needed. A no-op elsewhere.
+appId: com.gymido.app
+---
+- runFlow:
+    when:
+      visible: { id: "workout-back-today" }
+    commands:
+      - tapOn: { id: "workout-back-today" }
+      - extendedWaitUntil: { visible: { id: "bottom-nav|rail-Today" }, timeout: 15000 }

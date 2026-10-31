@@ -1,0 +1,6 @@
+# T-170 §9.1 "Disc": minimise the rest sheet to the 92 disc (its m:ss is checked inside the ring). IDs only.
+appId: com.gymido.app
+---
+- runFlow: ../subflows/minimize-rest.yaml
+- extendedWaitUntil: { visible: { id: "rest-mini-ring" }, timeout: 5000 }
+- waitForAnimationToEnd: { timeout: 2000 }

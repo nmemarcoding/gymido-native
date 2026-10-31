@@ -1,0 +1,8 @@
+# T-170 §9.1 matrix, cell "N1 s1": start the workout on set 1. Starts signed in (the safe runner). IDs only.
+# ALWAYS followed by m9-cleanup.yaml (discards this session).
+appId: com.gymido.app
+---
+- runFlow: ../subflows/signed-in-start.yaml
+- runFlow: ../subflows/start-workout.yaml
+- runFlow: ../subflows/dismiss-session-dialogs.yaml
+- waitForAnimationToEnd: { timeout: 3000 }

@@ -1,0 +1,10 @@
+# T-170 §9.1 large-text rows: "Did it, Up next and Discard reachable by scroll". Live screen only; ends back at the top.
+appId: com.gymido.app
+---
+- scrollUntilVisible: { element: { id: "set-action-.*" }, direction: DOWN, timeout: 10000 }
+- assertVisible: { id: "set-action-.*" }
+- scrollUntilVisible: { element: { id: "up-next" }, direction: DOWN, timeout: 10000 }
+- assertVisible: { id: "up-next" }
+- scrollUntilVisible: { element: { id: "discard-workout" }, direction: DOWN, timeout: 10000 }
+- assertVisible: { id: "discard-workout" }
+- scrollUntilVisible: { element: { id: "session-all" }, direction: UP, timeout: 10000 }
