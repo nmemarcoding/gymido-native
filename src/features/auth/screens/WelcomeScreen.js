@@ -39,11 +39,13 @@ export function welcomeBlock(board, fontScale = 1) {
 
 // The art keeps the board's place (150 of 844 from the top) and shrinks on
 // short windows (small phones, tablet landscape) and at large text sizes so
-// it never runs into the title.
-export function welcomeArt({ tablet, width, height, insets, fontScale = 1 }) {
+// it never runs into the title. T-170: `block` = the bottom column's MEASURED
+// height (title + buttons as drawn, e.g. a title that wraps); welcomeBlock()
+// is only the estimate until the first layout.
+export function welcomeArt({ tablet, width, height, insets, fontScale = 1, block = null }) {
   const board = tablet ? TABLET : PHONE;
   const top = boardTop(BOARD_ART_TOP, BOARD_FRAME, height, insets.top, 0);
-  const room = height - insets.top - insets.bottom - board.bottom - welcomeBlock(board, fontScale) - top - ART_GAP;
+  const room = height - insets.top - insets.bottom - board.bottom - (block ?? welcomeBlock(board, fontScale)) - top - ART_GAP;
   const size = Math.max(ART_MIN, Math.min(board.art, room, width - 2 * spacing[6]));
   return { top, size };
 }
@@ -90,12 +92,21 @@ export default function WelcomeScreen() {
   };
 
   const busy = launching || authenticating;
-  const art = welcomeArt({ tablet, width, height, insets, fontScale });
+  // T-170: the column is bottom-anchored and the art absolute, so its height never depends on the art (no loop).
+  const [block, setBlock] = useState(null);
+  const art = welcomeArt({ tablet, width, height, insets, fontScale, block });
 
   return (
     <Screen glow={gradients.welcomeGlow} style={[styles.content, tablet ? styles.contentTablet : styles.contentPhone]}>
       <WelcomeRings size={art.size} style={[styles.art, { top: art.top }]} />
-      <View testID="welcome-column" style={[styles.column, tablet && styles.columnTablet]}>
+      <View
+        testID="welcome-column"
+        onLayout={(event) => {
+          const next = Math.ceil(event.nativeEvent.layout.height);
+          setBlock((prev) => (prev === next ? prev : next));
+        }}
+        style={[styles.column, tablet && styles.columnTablet]}
+      >
         <View style={[styles.brand, tablet && styles.brandTablet]}>
           <GTile size={tablet ? TABLET.tile : PHONE.tile} />
           <Text testID="welcome-title" accessibilityRole="header" {...DISPLAY_TITLE_TEXT} style={tablet ? styles.titleTablet : styles.title}>

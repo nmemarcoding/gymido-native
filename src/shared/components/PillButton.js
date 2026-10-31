@@ -169,6 +169,9 @@ export default function PillButton({
   ref,
   // T-86: undefined → the primary glows unless inside a dialog / sheet.
   glow: glowProp,
+  // T-170: told when the label starts / stops wrapping (measured), so a
+  // caller can stack a pair instead of guessing label widths.
+  onWrapChange,
 }) {
   const inactive = disabled || loading;
   const look = VARIANTS[resolveVariant(variant)];
@@ -185,6 +188,7 @@ export default function PillButton({
     const next = (event?.nativeEvent?.lines?.length ?? 1) > 1;
     if (next !== wrapped) {
       setWrapped(next);
+      onWrapChange?.(next);
     }
   };
 

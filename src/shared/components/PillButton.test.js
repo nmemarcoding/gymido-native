@@ -384,3 +384,23 @@ describe('T-86: the one soft gold glow, only on a screen\'s gold primary', () =>
     });
   });
 });
+
+// T-170: callers learn when the label wraps (measured by onTextLayout).
+describe('T-170 onWrapChange', () => {
+  it('fires on a change of the wrapped state only', () => {
+    const onWrapChange = jest.fn();
+    let tree;
+    act(() => {
+      tree = create(<PillButton title="Build me a plan" onPress={() => {}} onWrapChange={onWrapChange} />);
+    });
+    const label = tree.root.findAll((node) => node.type === 'Text' && node.props.onTextLayout)[0];
+    act(() => label.props.onTextLayout({ nativeEvent: { lines: [{}] } }));
+    expect(onWrapChange).not.toHaveBeenCalled();
+    act(() => label.props.onTextLayout({ nativeEvent: { lines: [{}, {}] } }));
+    act(() => label.props.onTextLayout({ nativeEvent: { lines: [{}, {}] } }));
+    expect(onWrapChange.mock.calls).toEqual([[true]]);
+    act(() => label.props.onTextLayout({ nativeEvent: { lines: [{}] } }));
+    expect(onWrapChange.mock.calls).toEqual([[true], [false]]);
+    act(() => tree.unmount());
+  });
+});

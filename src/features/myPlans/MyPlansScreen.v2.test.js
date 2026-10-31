@@ -315,3 +315,25 @@ describe('T-65 back control (My plans)', () => {
     expect(mockNavigation.push).not.toHaveBeenCalledWith('PlansLibrary');
   });
 });
+
+// T-170 (step 2: measure, don't guess): the ≈ 400 × scale pair width is only the
+// first guess; a label that still wraps in the row stacks the pair, kept for that
+// row width + text size (no flip-flop), re-checked when either changes.
+describe('T-170 the header pair stacks on a MEASURED label wrap', () => {
+  const labelOf = (tree, id) => host(tree, id).findAll((node) => node.type === 'Text' && node.props.onTextLayout)[0];
+
+  it('a row the guess allows stacks once a label wraps, and stays stacked for that width', async () => {
+    mockWindow = { width: 390, height: 844, fontScale: 1 };
+    const tree = await render();
+    await act(async () => host(tree, 'my-plans-actions').props.onLayout({ nativeEvent: { layout: { width: 420, height: 60 } } }));
+    expect(flat(host(tree, 'my-plans-actions')).flexDirection).toBe('row');
+    await act(async () => labelOf(tree, 'my-plans-generate').props.onTextLayout({ nativeEvent: { lines: [{}, {}] } }));
+    expect(flat(host(tree, 'my-plans-actions')).flexDirection).toBe('column');
+    // Stacked, the label fits on one line again: the pair stays stacked at this width.
+    await act(async () => labelOf(tree, 'my-plans-generate').props.onTextLayout({ nativeEvent: { lines: [{}] } }));
+    expect(flat(host(tree, 'my-plans-actions')).flexDirection).toBe('column');
+    // A new row width is measured afresh.
+    await act(async () => host(tree, 'my-plans-actions').props.onLayout({ nativeEvent: { layout: { width: 440, height: 60 } } }));
+    expect(flat(host(tree, 'my-plans-actions')).flexDirection).toBe('row');
+  });
+});

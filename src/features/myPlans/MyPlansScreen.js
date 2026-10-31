@@ -63,7 +63,12 @@ function MyPlansList() {
   const [rowWidth, setRowWidth] = useState(null);
   const pairRow = rowWidth ?? width - layout.gutter * 2;
   const [generator, setGenerator] = useState(false);
-  const pairTooNarrow = Boolean(generator && myPlanRoutes.PlanGenerator) && pairRow < PAIR_ONE_LINE * fontScale;
+  // T-170: measured, not guessed. PAIR_ONE_LINE × the scale is only the first
+  // guess; if a label still wraps in the row, the pair stacks for this row
+  // width + text size (kept, so it never flips back and forth).
+  const pairKey = `${Math.round(pairRow)}|${fontScale}`;
+  const [wrappedKey, setWrappedKey] = useState(null);
+  const pairTooNarrow = Boolean(generator && myPlanRoutes.PlanGenerator) && (pairRow < PAIR_ONE_LINE * fontScale || wrappedKey === pairKey);
   const reflow = stackEmpty || pairTooNarrow;
   const [page, setPage] = useState(1);
   const [reloadCount, setReloadCount] = useState(0);
@@ -134,6 +139,7 @@ function MyPlansList() {
             fullWidth={reflow}
             style={!tablet && !reflow ? styles.actionGrow : null}
             onPress={openCreate}
+            onWrapChange={(wraps) => wraps && !reflow && setWrappedKey(pairKey)}
           />
           {/* Only while the generator screens are part of the build. */}
           {showGenerator ? (
@@ -145,6 +151,7 @@ function MyPlansList() {
               fullWidth={reflow}
               style={!tablet && !reflow ? styles.actionGrow : null}
               onPress={() => navigation.push(myPlanRoutes.PlanGenerator)}
+              onWrapChange={(wraps) => wraps && !reflow && setWrappedKey(pairKey)}
             />
           ) : null}
         </View>

@@ -527,3 +527,28 @@ describe('UX §9 large text', () => {
     }
   });
 });
+
+// T-170 (step 2: measure, don't guess): the art makes room for the bottom
+// column as MEASURED (e.g. a title that wraps); welcomeBlock() is only the
+// estimate until the first layout.
+describe('T-170 Welcome art uses the measured bottom block', () => {
+  const short = { tablet: false, width: 375, height: 667, insets: { top: 20, bottom: 0 } };
+
+  it('without a measurement it is the estimate; a taller measured block shrinks the art', () => {
+    expect(welcomeArt({ ...short, fontScale: 1 })).toEqual(welcomeArt({ ...short, fontScale: 1, block: welcomeBlock(PHONE, 1) }));
+    const estimate = welcomeArt({ ...short, fontScale: 2 });
+    const taller = welcomeArt({ ...short, fontScale: 2, block: welcomeBlock(PHONE, 2) + 60 });
+    expect(taller.size).toBeLessThan(estimate.size);
+    expect(taller.top + taller.size).toBeLessThanOrEqual(667 - 20 - PHONE.bottom - (welcomeBlock(PHONE, 2) + 60) - 24);
+  });
+
+  it('the column reports its height to the art (onLayout)', () => {
+    mockWindow = { width: 375, height: 667, fontScale: 2 };
+    const tree = render(<WelcomeScreen />);
+    const column = tree.root.findAll((node) => node.props.testID === 'welcome-column' && node.props.onLayout)[0];
+    const before = welcomeArt({ ...short, fontScale: 2 });
+    act(() => column.props.onLayout({ nativeEvent: { layout: { height: welcomeBlock(PHONE, 2) + 60 } } }));
+    const rings = tree.root.findAll((node) => node.props.size !== undefined && node.type?.name === 'WelcomeRings')[0];
+    expect(rings.props.size).toBeLessThan(before.size);
+  });
+});
